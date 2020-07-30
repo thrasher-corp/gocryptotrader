@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -56,18 +56,11 @@ func (l *LakeBTC) SetDefaults() {
 	l.API.CredentialsValidator.RequiresKey = true
 	l.API.CredentialsValidator.RequiresSecret = true
 
-	l.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true}
+	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	l.Features = exchange.Features{
@@ -95,6 +88,7 @@ func (l *LakeBTC) SetDefaults() {
 				TradeFetching:     true,
 				OrderbookFetching: true,
 				Subscribe:         true,
+				Unsubscribe:       true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.WithdrawFiatViaWebsiteOnly,
@@ -109,7 +103,7 @@ func (l *LakeBTC) SetDefaults() {
 
 	l.API.Endpoints.URLDefault = lakeBTCAPIURL
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
-	l.Websocket = wshandler.New()
+	l.Websocket = stream.New()
 	l.API.Endpoints.WebsocketURL = lakeBTCWSURL
 	l.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	l.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -128,31 +122,21 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = l.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       lakeBTCWSURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        l.WsConnect,
-			Subscriber:                       l.Subscribe,
-			Features:                         &l.Features.Supports.WebsocketCapabilities,
-		})
-	if err != nil {
-		return err
-	}
-
-	l.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		false,
-		false,
-		false,
-		false,
-		exch.Name)
-	return nil
+	return l.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       lakeBTCWSURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        l.WsConnect,
+		Subscriber:                       l.Subscribe,
+		UnSubscriber:                     l.Unsubscribe,
+		GenerateSubscriptions:            l.GenerateDefaultSubscriptions,
+		Features:                         &l.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+	})
 }
 
 // Start starts the LakeBTC go routine
@@ -203,7 +187,11 @@ func (l *LakeBTC) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return l.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return l.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -213,9 +201,18 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 		return nil, err
 	}
 
-	pairs := l.GetEnabledPairs(assetType)
+	pairs, err := l.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range pairs {
-		c, ok := ticks[l.FormatExchangeCurrency(pairs[i], assetType).String()]
+		fpair, err := l.FormatExchangeCurrency(pairs[i], assetType)
+		if err != nil {
+			return nil, err
+		}
+
+		c, ok := ticks[fpair.String()]
 		if !ok {
 			continue
 		}
@@ -228,10 +225,12 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 		tickerPrice.High = c.High
 		tickerPrice.Low = c.Low
 		tickerPrice.Last = c.Last
+		tickerPrice.ExchangeName = l.Name
+		tickerPrice.AssetType = assetType
 
-		err = ticker.ProcessTicker(l.Name, tickerPrice, assetType)
+		err = ticker.ProcessTicker(tickerPrice)
 		if err != nil {
-			log.Error(log.Ticker, err)
+			return nil, err
 		}
 	}
 	return ticker.GetTicker(l.Name, p, assetType)
@@ -447,11 +446,6 @@ func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (l *LakeBTC) GetWebsocket() (*wshandler.Websocket, error) {
-	return l.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (l *LakeBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !l.AllowAuthenticatedRequest() && // Todo check connection status
@@ -468,10 +462,19 @@ func (l *LakeBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
+	format, err := l.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range resp {
-		symbol := currency.NewPairDelimiter(resp[i].Symbol,
-			l.GetPairFormat(asset.Spot, false).Delimiter)
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(resp[i].Symbol,
+			format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(resp[i].At, 0)
 		side := order.Side(strings.ToUpper(resp[i].Type))
 
@@ -501,14 +504,21 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
+	format, err := l.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range resp {
 		if resp[i].State == "active" {
 			continue
 		}
-
-		symbol := currency.NewPairDelimiter(resp[i].Symbol,
-			l.GetPairFormat(asset.Spot, false).Delimiter)
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(resp[i].Symbol, format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(resp[i].At, 0)
 		side := order.Side(strings.ToUpper(resp[i].Type))
 
@@ -530,28 +540,6 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	return orders, nil
 }
 
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (l *LakeBTC) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (l *LakeBTC) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (l *LakeBTC) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
-}
-
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (l *LakeBTC) ValidateCredentials() error {
@@ -560,6 +548,11 @@ func (l *LakeBTC) ValidateCredentials() error {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (l *LakeBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (l *LakeBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (l *LakeBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{}, common.ErrFunctionNotSupported
 }

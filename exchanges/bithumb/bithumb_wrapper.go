@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -56,19 +55,11 @@ func (b *Bithumb) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Index:     "KRW",
-		},
+	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+	configFmt := &currency.PairFormat{Uppercase: true, Index: "KRW"}
+	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	b.Features = exchange.Features{
@@ -95,15 +86,31 @@ func (b *Bithumb) SetDefaults() {
 				FiatWithdrawalFee:   true,
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
+				KlineFetching:       true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				Intervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.TenMin.Word():     true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+				},
+			},
 		},
 	}
-
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
@@ -118,7 +125,6 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 		b.SetEnabled(false)
 		return nil
 	}
-
 	return b.SetupDefaults(exch)
 }
 
@@ -169,34 +175,46 @@ func (b *Bithumb) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+
+	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tickers, err := b.GetAllTickers()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
-	pairs := b.GetEnabledPairs(assetType)
+	pairs, err := b.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range pairs {
 		curr := pairs[i].Base.String()
 		t, ok := tickers[curr]
 		if !ok {
-			continue
+			return nil,
+				fmt.Errorf("enabled pair %s [%s] not found in returned ticker map %v",
+					pairs[i], pairs, tickers)
 		}
-		tp := ticker.Price{
-			High:   t.MaxPrice,
-			Low:    t.MinPrice,
-			Volume: t.UnitsTraded24Hr,
-			Open:   t.OpeningPrice,
-			Close:  t.ClosingPrice,
-			Pair:   pairs[i],
-		}
-		err = ticker.ProcessTicker(b.Name, &tp, assetType)
+
+		err = ticker.ProcessTicker(&ticker.Price{
+			High:         t.MaxPrice,
+			Low:          t.MinPrice,
+			Volume:       t.UnitsTraded24Hr,
+			Open:         t.OpeningPrice,
+			Close:        t.ClosingPrice,
+			Pair:         pairs[i],
+			ExchangeName: b.Name,
+			AssetType:    assetType,
+		})
 		if err != nil {
-			log.Error(log.Ticker, err)
+			return nil, err
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
@@ -381,7 +399,11 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	}
 
 	var allOrders []OrderData
-	currs := b.GetEnabledPairs(asset.Spot)
+	currs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
 	for i := range currs {
 		orders, err := b.GetOrders("",
 			orderCancellation.Side.String(),
@@ -467,11 +489,6 @@ func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Bithumb) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !b.AllowAuthenticatedRequest() && // Todo check connection status
@@ -485,6 +502,11 @@ func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	resp, err := b.GetOrders("", "", "1000", "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +527,7 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			Status:          order.Active,
 			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.GetPairFormat(asset.Spot, false).Delimiter),
+				format.Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
@@ -532,6 +554,11 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range resp.Data {
 		if resp.Data[i].Status == "placed" {
 			continue
@@ -547,7 +574,7 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			RemainingAmount: resp.Data[i].UnitsRemaining,
 			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.GetPairFormat(asset.Spot, false).Delimiter),
+				format.Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
@@ -565,28 +592,6 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	return orders, nil
 }
 
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Bithumb) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bithumb) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Bithumb) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bithumb) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
-}
-
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (b *Bithumb) ValidateCredentials() error {
@@ -594,7 +599,100 @@ func (b *Bithumb) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
+	return in.Short()
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	candle, err := b.GetCandleStick(formattedPair.String(),
+		b.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Interval: interval,
+	}
+
+	for x := range candle.Data {
+		var tempCandle kline.Candle
+
+		tempTime := candle.Data[x][0].(float64)
+		timestamp := time.Unix(0, int64(tempTime)*int64(time.Millisecond))
+		if timestamp.Before(start) {
+			continue
+		}
+		if timestamp.After(end) {
+			break
+		}
+		tempCandle.Time = timestamp
+
+		open, ok := candle.Data[x][1].(string)
+		if !ok {
+			return kline.Item{}, errors.New("open conversion failed")
+		}
+		tempCandle.Open, err = strconv.ParseFloat(open, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		high, ok := candle.Data[x][2].(string)
+		if !ok {
+			return kline.Item{}, errors.New("high conversion failed")
+		}
+		tempCandle.High, err = strconv.ParseFloat(high, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		low, ok := candle.Data[x][3].(string)
+		if !ok {
+			return kline.Item{}, errors.New("low conversion failed")
+		}
+		tempCandle.Low, err = strconv.ParseFloat(low, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		closeTemp, ok := candle.Data[x][4].(string)
+		if !ok {
+			return kline.Item{}, errors.New("close conversion failed")
+		}
+		tempCandle.Close, err = strconv.ParseFloat(closeTemp, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		vol, ok := candle.Data[x][5].(string)
+		if !ok {
+			return kline.Item{}, errors.New("vol conversion failed")
+		}
+		tempCandle.Volume, err = strconv.ParseFloat(vol, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		ret.Candles = append(ret.Candles, tempCandle)
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (b *Bithumb) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return b.GetHistoricCandles(pair, a, start, end, interval)
 }

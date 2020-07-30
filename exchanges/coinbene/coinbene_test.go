@@ -4,10 +4,12 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -38,13 +40,11 @@ func TestMain(m *testing.M) {
 	coinbeneConfig.API.AuthenticatedSupport = true
 	coinbeneConfig.API.Credentials.Secret = testAPISecret
 	coinbeneConfig.API.Credentials.Key = testAPIKey
-
+	c.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = c.Setup(coinbeneConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -284,12 +284,27 @@ func TestGetSwapOrderbook(t *testing.T) {
 	}
 }
 
+func TestGetKlines(t *testing.T) {
+	t.Parallel()
+	p, err := currency.NewPairFromString(spotTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.GetKlines(p.String(),
+		time.Now().Add(-time.Hour*1), time.Now(), "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetSwapKlines(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapKlines(swapTestPair,
-		"1573184608",
-		"1573184808",
-		"1")
+	p, err := currency.NewPairFromString(swapTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.GetSwapKlines(p.String(),
+		time.Now().Add(-time.Hour*1), time.Now(), "1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -471,8 +486,8 @@ func TestWsUnsubscribe(t *testing.T) {
 func TestWsLogin(t *testing.T) {
 	pressXToJSON := []byte(`{"event":"login","success":true}`)
 	err := c.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("error cannot be nil as this will initiate an auth subscription")
 	}
 
 	pressXToJSON = []byte(`{"event":"login","success":false}`)
@@ -679,5 +694,89 @@ func TestWsUserOrder(t *testing.T) {
 	err := c.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString(spotTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err = c.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	currencyPairSwap, err := currency.NewPairFromString(swapTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.GetHistoricCandles(currencyPairSwap, asset.PerpetualSwap, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString(spotTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err = c.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1",
+		},
+		{
+			"OneHour",
+			kline.OneHour,
+			"60",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"D",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"W",
+		},
+		{
+			"OneMonth",
+			kline.OneMonth,
+			"M",
+		},
+		{
+			"AllOther",
+			kline.TwoWeek,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := c.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

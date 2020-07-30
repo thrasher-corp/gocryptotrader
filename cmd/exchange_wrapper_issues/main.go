@@ -21,6 +21,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -41,6 +42,7 @@ func main() {
 	engine.Bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,
 		Verbose:                        verboseOverride,
+		EnableExchangeHTTPRateLimiter:  true,
 	}
 
 	log.Println("Loading config...")
@@ -294,10 +296,16 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		switch {
 		case currencyPairOverride != "":
-			p = currency.NewPairFromString(currencyPairOverride)
+			var err error
+			p, err = currency.NewPairFromString(currencyPairOverride)
+			if err != nil {
+				log.Printf("%v Encountered error: '%v'", base.GetName(), err)
+				continue
+			}
 		case len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled) == 0:
 			if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available) == 0 {
-				log.Printf("%v has no enabled or available currencies. Skipping", base.GetName())
+				log.Printf("%v has no enabled or available currencies. Skipping",
+					base.GetName())
 				continue
 			}
 			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available.GetRandomPair()
@@ -306,8 +314,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 
 		responseContainer := ExchangeAssetPairResponses{
-			AssetType:    assetTypes[i],
-			CurrencyPair: p,
+			AssetType: assetTypes[i],
+			Pair:      p,
 		}
 
 		log.Printf("Setup config for %v %v %v", base.GetName(), assetTypes[i], p)
@@ -725,6 +733,37 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Error:      msg,
 			Response:   r23,
 		})
+
+		if !authenticatedOnly {
+			var r24 kline.Item
+			startTime, endTime := time.Now().AddDate(0, -1, 0), time.Now()
+			r24, err = e.GetHistoricCandles(p, assetTypes[i], startTime, endTime, kline.OneDay)
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				Function:   "GetHistoricCandles",
+				Error:      msg,
+				Response:   r24,
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
+			})
+
+			var r25 kline.Item
+			r25, err = e.GetHistoricCandlesExtended(p, assetTypes[i], startTime, endTime, kline.OneDay)
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				Function:   "GetHistoricCandlesExtended",
+				Error:      msg,
+				Response:   r25,
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
+			})
+		}
 		response = append(response, responseContainer)
 	}
 	return response
@@ -825,7 +864,7 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 				log.Printf("%v Result: %v", exchangeResponses[i].ExchangeName, k)
 				log.Printf("Function:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Function)
 				log.Printf("AssetType:\t%v", exchangeResponses[i].AssetPairResponses[j].AssetType)
-				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].CurrencyPair)
+				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].Pair)
 				log.Printf("Wrapper Params:\t%s\n", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].SentParams)
 				if exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error != "" {
 					totalErrors++

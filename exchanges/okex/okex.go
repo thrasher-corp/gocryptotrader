@@ -204,12 +204,6 @@ func (o *OKEX) GetFuturesFilledOrder(request okgroup.GetFuturesFilledOrderReques
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
 }
 
-// GetFuturesMarketData Get the charts of the trading pairs. Charts are returned in grouped buckets based on requested granularity.
-func (o *OKEX) GetFuturesMarketData(request okgroup.GetFuturesMarketDateRequest) (resp okgroup.GetFuturesMarketDataResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okgroup.OKGroupInstruments, request.InstrumentID, okgroup.OKGroupGetSpotMarketData, okgroup.FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
-}
-
 // GetFuturesHoldAmount Get the number of futures with hold.
 func (o *OKEX) GetFuturesHoldAmount(instrumentID string) (resp okgroup.GetFuturesHoldAmountResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", okgroup.OKGroupAccounts, instrumentID, okGroupFutureHolds)
@@ -369,12 +363,6 @@ func (o *OKEX) GetSwapTokensInformationForCurrency(instrumentID string) (resp ok
 // GetSwapFilledOrdersData Get details of the recent filled orders
 func (o *OKEX) GetSwapFilledOrdersData(request *okgroup.GetSwapFilledOrdersDataRequest) (resp []okgroup.GetSwapFilledOrdersDataResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", okgroup.OKGroupInstruments, request.InstrumentID, okgroup.OKGroupTrades, okgroup.FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
-}
-
-// GetSwapMarketData Get the charts of the trading pairs.
-func (o *OKEX) GetSwapMarketData(request okgroup.GetSwapMarketDataRequest) (resp []okgroup.GetSwapMarketDataResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v%v", okgroup.OKGroupInstruments, request.InstrumentID, okgroup.OKGroupGetSpotMarketData, okgroup.FormatParameters(request))
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 

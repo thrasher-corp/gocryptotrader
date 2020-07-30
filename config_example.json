@@ -449,7 +449,7 @@
      "websocketCapabilities": {}
     },
     "enabled": {
-     "autoPairUpdates": false,
+     "autoPairUpdates": true,
      "websocketAPI": false
     }
    },
@@ -1365,7 +1365,7 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": true
+     "websocketAPI": false
     }
    },
    "bankAccounts": [

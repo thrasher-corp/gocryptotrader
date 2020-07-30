@@ -4,12 +4,15 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -201,6 +204,20 @@ func TestMarketSellOrder(t *testing.T) {
 	_, err := b.MarketSellOrder(testCurrency, 0)
 	if err == nil {
 		t.Error("Bithumb MarketSellOrder() Expected error")
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	cp := currency.NewPair(currency.QTUM, currency.KRW)
+	_, err := b.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cp = currency.NewPair(currency.DASH, currency.KRW)
+	_, err = b.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -433,8 +450,11 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	curr := currency.NewPairFromString("BTCUSD")
-	_, err := b.ModifyOrder(&order.Modify{
+	curr, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.ModifyOrder(&order.Modify{
 		ID:     "1337",
 		Price:  100,
 		Amount: 1000,
@@ -521,5 +541,36 @@ func TestGetDepositAddress(t *testing.T) {
 		if err == nil {
 			t.Error("GetDepositAddress() error cannot be nil")
 		}
+	}
+}
+
+func TestGetCandleStick(t *testing.T) {
+	_, err := b.GetCandleStick("BTC_KRW", "1m")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTC_KRW")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTC_KRW")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

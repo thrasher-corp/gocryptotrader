@@ -37,32 +37,48 @@ func TestSubscribeTicker(t *testing.T) {
 
 	// force error
 	service.mux = nil
-	err = ProcessTicker("subscribetest", &Price{Pair: p}, asset.Spot)
+	err = ProcessTicker(&Price{
+		Pair:         p,
+		ExchangeName: "subscribetest",
+		AssetType:    asset.Spot})
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 
 	sillyP := p
 	sillyP.Base = currency.GALA_NEO
-	err = ProcessTicker("subscribetest", &Price{Pair: sillyP}, asset.Spot)
+	err = ProcessTicker(&Price{
+		Pair:         sillyP,
+		ExchangeName: "subscribetest",
+		AssetType:    asset.Spot})
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 
 	sillyP.Quote = currency.AAA
-	err = ProcessTicker("subscribetest", &Price{Pair: sillyP}, asset.Spot)
+	err = ProcessTicker(&Price{
+		Pair:         sillyP,
+		ExchangeName: "subscribetest",
+		AssetType:    asset.Spot})
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 
-	err = ProcessTicker("subscribetest", &Price{Pair: sillyP}, "silly")
+	err = ProcessTicker(&Price{
+		Pair:         sillyP,
+		ExchangeName: "subscribetest",
+		AssetType:    "silly",
+	})
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 	// reinstate mux
 	service.mux = cpyMux
 
-	err = ProcessTicker("subscribetest", &Price{Pair: p}, asset.Spot)
+	err = ProcessTicker(&Price{
+		Pair:         p,
+		ExchangeName: "subscribetest",
+		AssetType:    asset.Spot})
 	if err != nil {
 		t.Error("error cannot be nil")
 	}
@@ -81,7 +97,10 @@ func TestSubscribeToExchangeTickers(t *testing.T) {
 
 	p := currency.NewPair(currency.BTC, currency.USD)
 
-	err = ProcessTicker("subscribeExchangeTest", &Price{Pair: p}, asset.Spot)
+	err = ProcessTicker(&Price{
+		Pair:         p,
+		ExchangeName: "subscribeExchangeTest",
+		AssetType:    asset.Spot})
 	if err != nil {
 		t.Error(err)
 	}
@@ -93,19 +112,24 @@ func TestSubscribeToExchangeTickers(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	newPair := currency.NewPairFromStrings("BTC", "USD")
+	newPair, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	priceStruct := Price{
-		Pair:     newPair,
-		Last:     1200,
-		High:     1298,
-		Low:      1148,
-		Bid:      1195,
-		Ask:      1220,
-		Volume:   5,
-		PriceATH: 1337,
+		Pair:         newPair,
+		Last:         1200,
+		High:         1298,
+		Low:          1148,
+		Bid:          1195,
+		Ask:          1220,
+		Volume:       5,
+		PriceATH:     1337,
+		ExchangeName: "bitfinex",
+		AssetType:    asset.Spot,
 	}
 
-	err := ProcessTicker("bitfinex", &priceStruct, asset.Spot)
+	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
@@ -129,7 +153,11 @@ func TestGetTicker(t *testing.T) {
 		t.Fatal("TestGetTicker returned ticker for invalid first currency")
 	}
 
-	btcltcPair := currency.NewPairFromStrings("BTC", "LTC")
+	btcltcPair, err := currency.NewPairFromStrings("BTC", "LTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = GetTicker("bitfinex", btcltcPair, asset.Spot)
 	if err == nil {
 		t.Fatal("TestGetTicker returned ticker for invalid second currency")
@@ -137,7 +165,8 @@ func TestGetTicker(t *testing.T) {
 
 	priceStruct.PriceATH = 9001
 	priceStruct.Pair.Base = currency.ETH
-	err = ProcessTicker("bitfinex", &priceStruct, "futures_3m")
+	priceStruct.AssetType = "futures_3m"
+	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
@@ -156,13 +185,14 @@ func TestGetTicker(t *testing.T) {
 		t.Error("Ticker GetTicker error cannot be nil")
 	}
 
-	err = ProcessTicker("bitfinex", &priceStruct, "meowCats")
+	priceStruct.AssetType = "meowCats"
+	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
 
 	// process update again
-	err = ProcessTicker("bitfinex", &priceStruct, "meowCats")
+	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
@@ -170,7 +200,11 @@ func TestGetTicker(t *testing.T) {
 
 func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	exchName := "bitstamp"
-	newPair := currency.NewPairFromStrings("BTC", "USD")
+	newPair, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	priceStruct := Price{
 		Last:     1200,
 		High:     1298,
@@ -181,26 +215,28 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		PriceATH: 1337,
 	}
 
-	err := ProcessTicker("", &priceStruct, asset.Spot)
+	err = ProcessTicker(&priceStruct)
 	if err == nil {
 		t.Fatal("empty exchange should throw an err")
 	}
 
+	priceStruct.ExchangeName = exchName
+
 	// test for empty pair
-	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
+	err = ProcessTicker(&priceStruct)
 	if err == nil {
 		t.Fatal("empty pair should throw an err")
 	}
 
 	// test for empty asset type
 	priceStruct.Pair = newPair
-	err = ProcessTicker(exchName, &priceStruct, "")
+	err = ProcessTicker(&priceStruct)
 	if err == nil {
 		t.Fatal("ProcessTicker error cannot be nil")
 	}
-
+	priceStruct.AssetType = asset.Spot
 	// now process a valid ticker
-	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
+	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
@@ -213,9 +249,13 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	}
 
 	// now test for processing a pair with a different quote currency
-	newPair = currency.NewPairFromStrings("BTC", "AUD")
+	newPair, err = currency.NewPairFromStrings("BTC", "AUD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	priceStruct.Pair = newPair
-	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
+	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
@@ -229,9 +269,13 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	}
 
 	// now test for processing a pair which has a different base currency
-	newPair = currency.NewPairFromStrings("LTC", "AUD")
+	newPair, err = currency.NewPairFromStrings("LTC", "AUD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	priceStruct.Pair = newPair
-	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
+	err = ProcessTicker(&priceStruct)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
@@ -266,16 +310,21 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10),
+			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10),
 				"USD"+strconv.FormatInt(rand.Int63(), 10))
+			if err != nil {
+				log.Fatal(err)
+			}
 
 			tp := Price{
-				Pair: newPairs,
-				Last: rand.Float64(),
+				Pair:         newPairs,
+				Last:         rand.Float64(),
+				ExchangeName: newName,
+				AssetType:    asset.Spot,
 			}
 
 			sm.Lock()
-			err = ProcessTicker(newName, &tp, asset.Spot)
+			err = ProcessTicker(&tp)
 			if err != nil {
 				t.Error(err)
 				catastrophicFailure = true
@@ -319,12 +368,12 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 }
 
 func TestSetItemID(t *testing.T) {
-	err := service.SetItemID(nil)
+	err := service.SetItemID(nil, "")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 
-	err = service.SetItemID(&Price{})
+	err = service.SetItemID(&Price{}, "")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -332,7 +381,7 @@ func TestSetItemID(t *testing.T) {
 	p := currency.NewPair(currency.CYC, currency.CYG)
 
 	service.mux = nil
-	err = service.SetItemID(&Price{Pair: p, ExchangeName: "SetItemID"})
+	err = service.SetItemID(&Price{Pair: p, ExchangeName: "SetItemID"}, "setitemid")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -341,7 +390,7 @@ func TestSetItemID(t *testing.T) {
 }
 
 func TestGetAssociation(t *testing.T) {
-	_, err := service.GetAssociations(nil)
+	_, err := service.GetAssociations(nil, "")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -350,7 +399,7 @@ func TestGetAssociation(t *testing.T) {
 
 	service.mux = nil
 
-	_, err = service.GetAssociations(&Price{Pair: p, ExchangeName: "GetAssociation"})
+	_, err = service.GetAssociations(&Price{Pair: p, ExchangeName: "GetAssociation"}, "getassociation")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}

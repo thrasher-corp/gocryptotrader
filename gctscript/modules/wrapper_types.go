@@ -42,7 +42,7 @@ type Exchange interface {
 	DepositAddress(exch string, currencyCode currency.Code) (string, error)
 	WithdrawalFiatFunds(exch, bankAccountID string, request *withdraw.Request) (out string, err error)
 	WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error)
-	OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error)
+	OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error)
 }
 
 // SetModuleWrapper link the wrapper and interface to use for modules

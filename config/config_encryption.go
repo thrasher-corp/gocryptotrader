@@ -5,7 +5,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -165,11 +164,6 @@ func DecryptConfigFile(configData, key []byte) ([]byte, error) {
 	}
 
 	return result, nil
-}
-
-// ConfirmConfigJSON confirms JSON in file
-func ConfirmConfigJSON(file []byte, result interface{}) error {
-	return json.Unmarshal(file, &result)
 }
 
 // ConfirmSalt checks whether the encrypted data contains a salt

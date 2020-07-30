@@ -89,8 +89,11 @@ func TestExchange_IsEnabled(t *testing.T) {
 
 func TestExchange_Ticker(t *testing.T) {
 	t.Parallel()
-	c := currency.NewPairDelimiter(pairs, delimiter)
-	_, err := exchangeTest.Ticker(exchName, c, assetType)
+	c, err := currency.NewPairDelimiter(pairs, delimiter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = exchangeTest.Ticker(exchName, c, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,8 +101,11 @@ func TestExchange_Ticker(t *testing.T) {
 
 func TestExchange_Orderbook(t *testing.T) {
 	t.Parallel()
-	c := currency.NewPairDelimiter(pairs, delimiter)
-	_, err := exchangeTest.Orderbook(exchName, c, assetType)
+	c, err := currency.NewPairDelimiter(pairs, delimiter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = exchangeTest.Orderbook(exchName, c, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,8 +147,13 @@ func TestExchange_SubmitOrder(t *testing.T) {
 	if !configureExchangeKeys() {
 		t.Skip("no exchange configured test skipped")
 	}
+
+	c, err := currency.NewPairDelimiter(pairs, delimiter)
+	if err != nil {
+		t.Fatal(err)
+	}
 	tempOrder := &order.Submit{
-		Pair:         currency.NewPairDelimiter(pairs, delimiter),
+		Pair:         c,
 		Type:         orderType,
 		Side:         orderSide,
 		TriggerPrice: 0,
@@ -152,7 +163,7 @@ func TestExchange_SubmitOrder(t *testing.T) {
 		ClientID:     orderClientID,
 		Exchange:     exchName,
 	}
-	_, err := exchangeTest.SubmitOrder(tempOrder)
+	_, err = exchangeTest.SubmitOrder(tempOrder)
 	if err != nil {
 		t.Fatal(err)
 	}

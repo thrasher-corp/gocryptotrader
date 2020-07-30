@@ -16,7 +16,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 const (
@@ -54,7 +53,6 @@ const (
 // Poloniex is the overarching type across the poloniex package
 type Poloniex struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // GetTicker returns current ticker information
@@ -177,28 +175,42 @@ func (p *Poloniex) GetTradeHistory(currencyPair, start, end string) ([]TradeHist
 }
 
 // GetChartData returns chart data for a specific currency pair
-func (p *Poloniex) GetChartData(currencyPair, start, end, period string) ([]ChartData, error) {
+func (p *Poloniex) GetChartData(currencyPair string, start, end time.Time, period string) ([]ChartData, error) {
 	vals := url.Values{}
 	vals.Set("currencyPair", currencyPair)
 
-	if start != "" {
-		vals.Set("start", start)
+	if !start.IsZero() {
+		vals.Set("start", strconv.FormatInt(start.Unix(), 10))
 	}
 
-	if end != "" {
-		vals.Set("end", end)
+	if !end.IsZero() {
+		vals.Set("end", strconv.FormatInt(end.Unix(), 10))
 	}
 
 	if period != "" {
 		vals.Set("period", period)
 	}
 
+	var temp json.RawMessage
 	var resp []ChartData
-	path := fmt.Sprintf("%s/public?command=returnChartData&%s", p.API.Endpoints.URL, vals.Encode())
-
-	err := p.SendHTTPRequest(path, &resp)
+	path := p.API.Endpoints.URL + "/public?command=returnChartData&" + vals.Encode()
+	err := p.SendHTTPRequest(path, &temp)
 	if err != nil {
 		return nil, err
+	}
+
+	tempUnmarshal := json.Unmarshal(temp, &resp)
+	if tempUnmarshal != nil {
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		errRet := json.Unmarshal(temp, &errResp)
+		if errRet != nil {
+			return nil, err
+		}
+		if errResp.Error != "" {
+			return nil, errors.New(errResp.Error)
+		}
 	}
 
 	return resp, nil

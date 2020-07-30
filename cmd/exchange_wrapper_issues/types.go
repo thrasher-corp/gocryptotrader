@@ -58,7 +58,7 @@ type ExchangeResponses struct {
 type ExchangeAssetPairResponses struct {
 	ErrorCount        int64              `json:"errorCount"`
 	AssetType         asset.Item         `json:"asset"`
-	CurrencyPair      currency.Pair      `json:"currency"`
+	Pair              currency.Pair      `json:"currency"`
 	EndpointResponses []EndpointResponse `json:"responses"`
 }
 

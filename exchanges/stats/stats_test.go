@@ -12,7 +12,10 @@ const (
 )
 
 func TestLenByPrice(t *testing.T) {
-	p := currency.NewPairFromStrings("BTC", "USD")
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	Items = []Item{
 		{
 			Exchange:  testExchange,
@@ -29,8 +32,10 @@ func TestLenByPrice(t *testing.T) {
 }
 
 func TestLessByPrice(t *testing.T) {
-	p := currency.NewPairFromStrings("BTC", "USD")
-
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	Items = []Item{
 		{
 			Exchange:  "alphapoint",
@@ -57,8 +62,10 @@ func TestLessByPrice(t *testing.T) {
 }
 
 func TestSwapByPrice(t *testing.T) {
-	p := currency.NewPairFromStrings("BTC", "USD")
-
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	Items = []Item{
 		{
 			Exchange:  "bitstamp",
@@ -107,27 +114,42 @@ func TestSwapByVolume(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	Items = Items[:0]
-	p := currency.NewPairFromStrings("BTC", "USD")
-	Add(testExchange, p, asset.Spot, 1200, 42)
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Add(testExchange, p, asset.Spot, 1200, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(Items) < 1 {
 		t.Error("stats Add did not add exchange info.")
 	}
 
-	Add("", p, "", 0, 0)
+	err = Add("", p, "", 0, 0)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
 
 	if len(Items) != 1 {
 		t.Error("stats Add did not add exchange info.")
 	}
 
 	p.Base = currency.XBT
-	Add(testExchange, p, asset.Spot, 1201, 43)
+	err = Add(testExchange, p, asset.Spot, 1201, 43)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if Items[1].Pair.String() != "XBTUSD" {
 		t.Fatal("stats Add did not add exchange info.")
 	}
 
-	p = currency.NewPairFromStrings("ETH", "USDT")
+	p, err = currency.NewPairFromStrings("ETH", "USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
 	Add(testExchange, p, asset.Spot, 300, 1000)
 
 	if Items[2].Pair.String() != "ETHUSD" {
@@ -136,7 +158,10 @@ func TestAdd(t *testing.T) {
 }
 
 func TestAppend(t *testing.T) {
-	p := currency.NewPairFromStrings("BTC", "USD")
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	Append("sillyexchange", p, asset.Spot, 1234, 45)
 	if len(Items) < 2 {
 		t.Error("stats Append did not add exchange values.")
@@ -149,7 +174,10 @@ func TestAppend(t *testing.T) {
 }
 
 func TestAlreadyExists(t *testing.T) {
-	p := currency.NewPairFromStrings("BTC", "USD")
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !AlreadyExists(testExchange, p, asset.Spot, 1200, 42) {
 		t.Error("stats AlreadyExists exchange does not exist.")
 	}
@@ -160,7 +188,10 @@ func TestAlreadyExists(t *testing.T) {
 }
 
 func TestSortExchangesByVolume(t *testing.T) {
-	p := currency.NewPairFromStrings("BTC", "USD")
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	topVolume := SortExchangesByVolume(p, asset.Spot, true)
 	if topVolume[0].Exchange != "sillyexchange" {
 		t.Error("stats SortExchangesByVolume incorrectly sorted values.")
@@ -173,7 +204,10 @@ func TestSortExchangesByVolume(t *testing.T) {
 }
 
 func TestSortExchangesByPrice(t *testing.T) {
-	p := currency.NewPairFromStrings("BTC", "USD")
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	topPrice := SortExchangesByPrice(p, asset.Spot, true)
 	if topPrice[0].Exchange != "sillyexchange" {
 		t.Error("stats SortExchangesByPrice incorrectly sorted values.")

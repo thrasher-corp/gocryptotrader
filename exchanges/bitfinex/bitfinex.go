@@ -19,7 +19,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -92,9 +91,7 @@ const (
 // Bitfinex is the overarching type across the bitfinex package
 type Bitfinex struct {
 	exchange.Base
-	WebsocketConn              *wshandler.WebsocketConnection
-	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
-	WebsocketSubdChannels      map[int]WebsocketChanInfo
+	WebsocketSubdChannels map[int]WebsocketChanInfo
 }
 
 // GetPlatformStatus returns the Bifinex platform status
@@ -379,7 +376,7 @@ func (b *Bitfinex) GetTrades(currencyPair string, limit, timestampStart, timesta
 		v.Encode()
 
 	var resp [][]interface{}
-	err := b.SendHTTPRequest(path, &resp, trade)
+	err := b.SendHTTPRequest(path, &resp, tradeRateLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +544,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 // timeFrame values: '1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h', '1D',
 // '7D', '14D', '1M'
 // section values: last or hist
-func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64, historic, ascending bool) ([]Candle, error) {
+func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end int64, limit uint32, historic bool) ([]Candle, error) {
 	var fundingPeriod string
 	if symbol[0] == 'f' {
 		fundingPeriod = ":p30"
@@ -573,7 +570,7 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64,
 		}
 
 		if limit > 0 {
-			v.Set("limit", strconv.FormatInt(limit, 10))
+			v.Set("limit", strconv.FormatInt(int64(limit), 10))
 		}
 
 		path += "/hist"
@@ -590,7 +587,7 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64,
 		var c []Candle
 		for i := range response {
 			c = append(c, Candle{
-				Timestamp: int64(response[i][0].(float64)),
+				Timestamp: time.Unix(int64(response[i][0].(float64)/1000), 0),
 				Open:      response[i][1].(float64),
 				Close:     response[i][2].(float64),
 				High:      response[i][3].(float64),
@@ -615,7 +612,7 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64,
 	}
 
 	return []Candle{{
-		Timestamp: int64(response[0].(float64)),
+		Timestamp: time.Unix(int64(response[0].(float64))/1000, 0),
 		Open:      response[1].(float64),
 		Close:     response[2].(float64),
 		High:      response[3].(float64),
@@ -917,7 +914,7 @@ func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawReque
 // Major Upgrade needed on this function to include all query params
 func (b *Bitfinex) NewOrder(currencyPair, orderType string, amount, price float64, buy, hidden bool) (Order, error) {
 	if !common.StringDataCompare(AcceptedOrderType, orderType) {
-		return Order{}, errors.New("order type not accepted")
+		return Order{}, fmt.Errorf("order type %s not accepted", orderType)
 	}
 
 	response := Order{}

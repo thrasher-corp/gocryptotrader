@@ -10,9 +10,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -63,7 +65,8 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetChartData(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetChartData("BTC_XMR", "1405699200", "1405699400", "300")
+	_, err := p.GetChartData("BTC_XMR",
+		time.Unix(1405699200, 0), time.Unix(1405699400, 0), "300")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetChartData() error", err)
 	}
@@ -256,7 +259,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
-			Delimiter: delimiterUnderscore,
+			Delimiter: currency.UnderscoreDelimiter,
 			Base:      currency.BTC,
 			Quote:     currency.LTC,
 		},
@@ -419,22 +422,13 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
 	if !p.Websocket.IsEnabled() && !p.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
-	}
-	p.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         p.Name,
-		URL:                  p.Websocket.GetWebsocketURL(),
-		Verbose:              p.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := p.WebsocketConn.Dial(&dialer, http.Header{})
+	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go p.wsReadData()
 	err = p.wsSendAuthorisedCommand("subscribe")
 	if err != nil {
@@ -510,7 +504,6 @@ func TestWsPriceAggregateOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 func TestWsHandleAccountData(t *testing.T) {
 	t.Parallel()
 	err := p.getCurrencyIDMap()
@@ -528,5 +521,47 @@ func TestWsHandleAccountData(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCLTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	currencyPair.Quote = currency.NewCode("LTCC")
+	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCLTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	currencyPair.Quote = currency.NewCode("LTCC")
+	_, err = p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	if err == nil {
+		t.Fatal(err)
 	}
 }

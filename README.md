@@ -74,6 +74,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
++ OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
 + Scripting support. See [gctscript](/gctscript/README.md).
 + WebGUI (discontinued).
 
@@ -140,14 +141,14 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 640 |
+| [thrasher-](https://github.com/thrasher-) | 641 |
 | [shazbert](https://github.com/shazbert) | 191 |
 | [gloriousCode](https://github.com/gloriousCode) | 169 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 48 |
-| [xtda](https://github.com/xtda) | 43 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 51 |
+| [xtda](https://github.com/xtda) | 45 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 8 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 9 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |

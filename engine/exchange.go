@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
@@ -237,7 +238,11 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 			dryrunParamInteraction("enableallpairs")
 			assets := exchCfg.CurrencyPairs.GetAssetTypes()
 			for x := range assets {
-				pairs := exchCfg.CurrencyPairs.GetPairs(assets[x], false)
+				var pairs currency.Pairs
+				pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
+				if err != nil {
+					return err
+				}
 				exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
 			}
 		}

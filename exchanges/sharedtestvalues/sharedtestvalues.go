@@ -1,6 +1,10 @@
 package sharedtestvalues
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+)
 
 // This package is only to be referenced in test files
 const (
@@ -28,4 +32,18 @@ func GetWebsocketInterfaceChannelOverride() chan interface{} {
 // with the capacity set to WebsocketChannelOverrideCapacity
 func GetWebsocketStructChannelOverride() chan struct{} {
 	return make(chan struct{}, WebsocketChannelOverrideCapacity)
+}
+
+// NewTestWebsocket returns a test websocket object
+func NewTestWebsocket() *stream.Websocket {
+	return &stream.Websocket{
+		Init:              true,
+		DataHandler:       make(chan interface{}, 75),
+		ToRoutine:         make(chan interface{}, 1000),
+		TrafficAlert:      make(chan struct{}),
+		ReadMessageErrors: make(chan error),
+		Subscribe:         make(chan []stream.ChannelSubscription, 10),
+		Unsubscribe:       make(chan []stream.ChannelSubscription, 10),
+		Match:             stream.NewMatch(),
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // TimeInterval Interval represents interval enum.
@@ -52,7 +53,7 @@ type BalancesResponse struct {
 type KlinesRequestParams struct {
 	Symbol   string // Required field; example LTCBTC,BTCUSDT
 	HourSize int    // How many hours of data
-	GroupSec TimeInterval
+	GroupSec string
 }
 
 // KLineResponse holds the kline response data
@@ -379,9 +380,10 @@ var WithdrawalFees = map[currency.Code]float64{
 
 // WebsocketRequest defines the initial request in JSON
 type WebsocketRequest struct {
-	ID     int64         `json:"id"`
-	Method string        `json:"method"`
-	Params []interface{} `json:"params"`
+	ID       int64                        `json:"id"`
+	Method   string                       `json:"method"`
+	Params   []interface{}                `json:"params"`
+	Channels []stream.ChannelSubscription `json:"-"` // used for tracking associated channel subs on batched requests
 }
 
 // WebsocketResponse defines a websocket response from gateio
@@ -437,6 +439,7 @@ type WebsocketBalanceCurrency struct {
 
 // WebSocketOrderQueryResult data returned from a websocket ordre query holds slice of WebSocketOrderQueryRecords
 type WebSocketOrderQueryResult struct {
+	Error                      WebsocketError               `json:"error"`
 	Limit                      int                          `json:"limit"`
 	Offset                     int                          `json:"offset"`
 	Total                      int                          `json:"total"`
@@ -462,7 +465,10 @@ type WebSocketOrderQueryRecords struct {
 
 // WebsocketAuthenticationResponse contains the result of a login request
 type WebsocketAuthenticationResponse struct {
-	Error  string `json:"error,omitempty"`
+	Error struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
 	Result struct {
 		Status string `json:"status"`
 	} `json:"result"`
@@ -478,7 +484,7 @@ type wsGetBalanceRequest struct {
 
 // WsGetBalanceResponse stores WS GetBalance response
 type WsGetBalanceResponse struct {
-	Error  interface{}                         `json:"error"`
+	Error  WebsocketError                      `json:"error"`
 	Result map[string]WsGetBalanceResponseData `json:"result"`
 	ID     int64                               `json:"id"`
 }

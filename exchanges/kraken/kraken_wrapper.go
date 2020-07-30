@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -57,21 +57,18 @@ func (k *Kraken) SetDefaults() {
 	k.API.CredentialsValidator.RequiresSecret = true
 	k.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
-	k.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Separator: ",",
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: "-",
-			Separator: ",",
-		},
+	requestFmt := &currency.PairFormat{
+		Uppercase: true,
+		Separator: ",",
+	}
+	configFmt := &currency.PairFormat{
+		Uppercase: true,
+		Delimiter: currency.DashDelimiter,
+		Separator: ",",
+	}
+	err := k.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	k.Features = exchange.Features{
@@ -119,9 +116,27 @@ func (k *Kraken) SetDefaults() {
 				exchange.WithdrawCryptoWith2FA |
 				exchange.AutoWithdrawFiatWithSetup |
 				exchange.WithdrawFiatWith2FA,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.OneDay.Word():     true,
+					kline.FifteenDay.Word(): true,
+					kline.OneWeek.Word():    true,
+				},
+			},
 		},
 	}
 
@@ -131,7 +146,7 @@ func (k *Kraken) SetDefaults() {
 
 	k.API.Endpoints.URLDefault = krakenAPIURL
 	k.API.Endpoints.URL = k.API.Endpoints.URLDefault
-	k.Websocket = wshandler.New()
+	k.Websocket = stream.New()
 	k.API.Endpoints.WebsocketURL = krakenWSURL
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -155,52 +170,44 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = k.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       krakenWSURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        k.WsConnect,
-			Subscriber:                       k.Subscribe,
-			UnSubscriber:                     k.Unsubscribe,
-			Features:                         &k.Features.Supports.WebsocketCapabilities,
-		})
+	err = k.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       krakenWSURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        k.WsConnect,
+		Subscriber:                       k.Subscribe,
+		UnSubscriber:                     k.Unsubscribe,
+		GenerateSubscriptions:            k.GenerateDefaultSubscriptions,
+		Features:                         &k.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:                    true,
+		SortBuffer:                       true,
+	})
 	if err != nil {
 		return err
 	}
 
-	k.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         k.Name,
-		URL:                  k.Websocket.GetWebsocketURL(),
-		ProxyURL:             k.Websocket.GetProxyAddress(),
-		Verbose:              k.Verbose,
+	err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                  krakenWSURL,
+	})
+	if err != nil {
+		return err
 	}
 
-	k.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         k.Name,
+	return k.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		RateLimit:            krakenWsRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  krakenAuthWSURL,
-		ProxyURL:             k.Websocket.GetProxyAddress(),
-		Verbose:              k.Verbose,
-		RateLimit:            krakenWsRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}
-
-	k.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		true,
-		true,
-		false,
-		false,
-		exch.Name)
-	return nil
+		Authenticated:        true,
+	})
 }
 
 // Start starts the Kraken go routine
@@ -219,22 +226,55 @@ func (k *Kraken) Run() {
 	}
 
 	forceUpdate := false
-	delim := k.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), delim) ||
-		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), delim) ||
-		common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), "ZUSD") {
-		enabledPairs := currency.NewPairsFromStrings(
-			[]string{currency.XBT.String() + delim + currency.USD.String()},
-		)
-		log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
-		forceUpdate = true
+	format, err := k.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			k.Name,
+			err)
+		return
+	}
+	enabled, err := k.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			k.Name,
+			err)
+		return
+	}
 
-		err := k.UpdatePairs(enabledPairs, asset.Spot, true, true)
+	avail, err := k.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			k.Name,
+			err)
+		return
+	}
+
+	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+		!common.StringDataContains(avail.Strings(), format.Delimiter) ||
+		common.StringDataContains(avail.Strings(), "ZUSD") {
+		var p currency.Pairs
+		p, err = currency.NewPairsFromStrings([]string{currency.XBT.String() +
+			format.Delimiter +
+			currency.USD.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update currencies. Err: %s\n",
 				k.Name,
 				err)
+		} else {
+			log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
+			forceUpdate = true
+
+			err = k.UpdatePairs(p, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					k.Name,
+					err)
+			}
 		}
 	}
 
@@ -242,7 +282,7 @@ func (k *Kraken) Run() {
 		return
 	}
 
-	err := k.UpdateTradablePairs(forceUpdate)
+	err = k.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -260,6 +300,11 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	}
 
 	pairs, err := k.GetAssetPairs([]string{}, "")
+	if err != nil {
+		return nil, err
+	}
+
+	format, err := k.GetPairFormat(asset, false)
 	if err != nil {
 		return nil, err
 	}
@@ -287,8 +332,7 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 				pairs[i].Quote)
 			continue
 		}
-		products = append(products,
-			base+k.GetPairFormat(asset, false).Delimiter+quote)
+		products = append(products, base+format.Delimiter+quote)
 	}
 	return products, nil
 }
@@ -301,48 +345,57 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return k.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return k.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-	pairs := k.GetEnabledPairs(assetType)
+	pairs, err := k.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 	tickers, err := k.GetTickers(pairsCollated)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	for i := range pairs {
 		for c, t := range tickers {
-			pairFmt := k.FormatExchangeCurrency(pairs[i], assetType).String()
-			if !strings.EqualFold(pairFmt, c) {
+			pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
+			if err != nil {
+				return nil, err
+			}
+			if !strings.EqualFold(pairFmt.String(), c) {
 				altCurrency := assetTranslator.LookupAltname(c)
 				if altCurrency == "" {
 					continue
 				}
-				if !strings.EqualFold(pairFmt, altCurrency) {
-					continue
+				if !strings.EqualFold(pairFmt.String(), altCurrency) {
+					continue // This looks dodge
 				}
 			}
 
-			tickerPrice = &ticker.Price{
-				Last:   t.Last,
-				High:   t.High,
-				Low:    t.Low,
-				Bid:    t.Bid,
-				Ask:    t.Ask,
-				Volume: t.Volume,
-				Open:   t.Open,
-				Pair:   pairs[i],
-			}
-			err = ticker.ProcessTicker(k.Name, tickerPrice, assetType)
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         t.Last,
+				High:         t.High,
+				Low:          t.Low,
+				Bid:          t.Bid,
+				Ask:          t.Ask,
+				Volume:       t.Volume,
+				Open:         t.Open,
+				Pair:         pairs[i],
+				ExchangeName: k.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}
@@ -369,19 +422,29 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderbookNew, err := k.GetDepth(k.FormatExchangeCurrency(p,
-		assetType).String())
+	fpair, err := k.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
+	orderbookNew, err := k.GetDepth(fpair.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var orderBook = new(orderbook.Base)
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: orderbookNew.Bids[x].Amount, Price: orderbookNew.Bids[x].Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x].Amount,
+			Price:  orderbookNew.Bids[x].Price,
+		})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x].Amount,
+			Price:  orderbookNew.Asks[x].Price,
+		})
 	}
 
 	orderBook.Pair = p
@@ -551,6 +614,16 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 		return orderDetail, err
 	}
 	if orderInfo, ok := openOrders.Open[orderID]; ok {
+		avail, err := k.GetAvailablePairs(asset.Spot)
+		if err != nil {
+			return orderDetail, err
+		}
+
+		fmt, err := k.GetPairFormat(asset.Spot, false)
+		if err != nil {
+			return orderDetail, err
+		}
+
 		var trades []order.TradeHistory
 		for i := range orderInfo.Trades {
 			trades = append(trades, order.TradeHistory{
@@ -570,11 +643,16 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 			return orderDetail, err
 		}
 
+		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
+			avail,
+			fmt)
+		if err != nil {
+			return orderDetail, err
+		}
 		orderDetail = order.Detail{
-			Exchange: k.Name,
-			ID:       orderID,
-			Pair: currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
-				k.GetAvailablePairs(asset.Spot), k.GetPairFormat(asset.Spot, true)),
+			Exchange:        k.Name,
+			ID:              orderID,
+			Pair:            p,
 			Side:            side,
 			Type:            oType,
 			Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
@@ -648,11 +726,6 @@ func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 	}, nil
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (k *Kraken) GetWebsocket() (*wshandler.Websocket, error) {
-	return k.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !k.AllowAuthenticatedRequest() && // Todo check connection status
@@ -669,8 +742,25 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
+	avail, err := k.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt, err := k.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range resp.Open {
+		p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
+			avail,
+			fmt)
+		if err != nil {
+			return nil, err
+		}
+
 		side := order.Side(strings.ToUpper(resp.Open[i].Description.Type))
 		orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
 		orders = append(orders, order.Detail{
@@ -683,8 +773,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			Price:           resp.Open[i].Description.Price,
 			Side:            side,
 			Type:            orderType,
-			Pair: currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
-				k.GetAvailablePairs(asset.Spot), k.GetPairFormat(asset.Spot, true)),
+			Pair:            p,
 		})
 	}
 
@@ -705,6 +794,16 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		req.End = strconv.FormatInt(getOrdersRequest.EndTicks.Unix(), 10)
 	}
 
+	avail, err := k.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt, err := k.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := k.GetClosedOrders(req)
 	if err != nil {
 		return nil, err
@@ -712,6 +811,13 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 
 	var orders []order.Detail
 	for i := range resp.Closed {
+		p, err := currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair,
+			avail,
+			fmt)
+		if err != nil {
+			return nil, err
+		}
+
 		side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
 		orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
 		orders = append(orders, order.Detail{
@@ -725,33 +831,13 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 			Price:           resp.Closed[i].Description.Price,
 			Side:            side,
 			Type:            orderType,
-			Pair: currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair,
-				k.GetAvailablePairs(asset.Spot), k.GetPairFormat(asset.Spot, true)),
+			Pair:            p,
 		})
 	}
 
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Pairs)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (k *Kraken) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	k.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (k *Kraken) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	k.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (k *Kraken) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return k.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
@@ -770,7 +856,99 @@ func (k *Kraken) ValidateCredentials() error {
 	return k.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
+	return strconv.FormatFloat(in.Duration().Minutes(), 'f', -1, 64)
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !k.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: k.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	formattedPair, err := k.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(formattedPair.Upper().String()), k.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+	for x := range candles {
+		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[x].Time * 1000)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		if timeValue.Before(start) || timeValue.After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   timeValue,
+			Open:   candles[x].Open,
+			High:   candles[x].Close,
+			Low:    candles[x].Low,
+			Close:  candles[x].Close,
+			Volume: candles[x].Volume,
+		})
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !k.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: k.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	formattedPair, err := k.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(formattedPair.Upper().String()), k.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+	for i := range candles {
+		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[i].Time * 1000)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		if timeValue.Before(start) || timeValue.After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   timeValue,
+			Open:   candles[i].Open,
+			High:   candles[i].Close,
+			Low:    candles[i].Low,
+			Close:  candles[i].Close,
+			Volume: candles[i].Volume,
+		})
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
 }

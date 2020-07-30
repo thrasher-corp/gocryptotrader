@@ -361,3 +361,18 @@ func InArray(val, array interface{}) (exists bool, index int) {
 	}
 	return
 }
+
+// Errors defines multiple errors
+type Errors []error
+
+// Error implements error interface
+func (e Errors) Error() string {
+	if len(e) == 0 {
+		return ""
+	}
+	var r string
+	for i := range e {
+		r += e[i].Error() + ", "
+	}
+	return r[:len(r)-2]
+}

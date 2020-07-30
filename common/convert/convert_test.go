@@ -176,3 +176,10 @@ func TestBoolPtr(t *testing.T) {
 		t.Fatal("false expected received true")
 	}
 }
+
+func TestUnixMillisToNano(t *testing.T) {
+	v := UnixMillisToNano(1588653603424)
+	if v != 1588653603424000000 {
+		t.Fatalf("unexpected result received %v", v)
+	}
+}

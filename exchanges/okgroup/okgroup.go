@@ -18,7 +18,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -28,9 +27,11 @@ const (
 	// OKGroupAPIPath const to help with api url formatting
 	OKGroupAPIPath = "api/"
 	// API subsections
-	okGroupAccountSubsection       = "account"
-	okGroupTokenSubsection         = "spot"
-	okGroupMarginTradingSubsection = "margin"
+	okGroupAccountSubsection        = "account"
+	okGroupTokenSubsection          = "spot"
+	okGroupMarginTradingSubsection  = "margin"
+	okGroupFuturesTradingSubSection = "futures"
+	oKGroupSwapTradingSubSection    = "swap"
 	// OKGroupAccounts common api endpoint
 	OKGroupAccounts = "accounts"
 	// OKGroupLedger common api endpoint
@@ -87,8 +88,7 @@ var errMissValue = errors.New("warning - resp value is missing from exchange")
 // OKGroup is the overaching type across the all of OKEx's exchange methods
 type OKGroup struct {
 	exchange.Base
-	ExchangeName  string
-	WebsocketConn *wshandler.WebsocketConnection
+	ExchangeName string
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks
@@ -365,10 +365,21 @@ func (o *OKGroup) GetSpotFilledOrdersInformation(request GetSpotFilledOrdersInfo
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
 }
 
-// GetSpotMarketData Get the charts of the trading pairs. Charts are returned in grouped buckets based on requested granularity.
-func (o *OKGroup) GetSpotMarketData(request GetSpotMarketDataRequest) (resp GetSpotMarketDataResponse, _ error) {
+// GetMarketData Get the charts of the trading pairs. Charts are returned in grouped buckets based on requested granularity.
+func (o *OKGroup) GetMarketData(request *GetMarketDataRequest) (resp GetMarketDataResponse, err error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotMarketData, FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
+	var requestType string
+	switch request.Asset {
+	case asset.Spot, asset.Margin:
+		requestType = okGroupTokenSubsection
+	case asset.Futures:
+		requestType = okGroupFuturesTradingSubSection
+	case asset.PerpetualSwap:
+		requestType = oKGroupSwapTradingSubSection
+	default:
+		return nil, errors.New("asset not supported")
+	}
+	return resp, o.SendHTTPRequest(http.MethodGet, requestType, requestURL, nil, &resp, false)
 }
 
 // GetMarginTradingAccounts List all assets under token margin trading account, including information such as balance, amount on hold and more.

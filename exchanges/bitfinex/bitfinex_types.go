@@ -1,6 +1,10 @@
 package bitfinex
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
 
 // AcceptedOrderType defines the accepted market types, exchange strings denote
 // non-contract order types.
@@ -110,6 +114,7 @@ type Trade struct {
 	Rate      float64
 	Period    int64
 	Type      string
+	Side      order.Side
 }
 
 // Lendbook holds most recent funding data for a relevant currency
@@ -408,9 +413,11 @@ type WebsocketChanInfo struct {
 
 // WebsocketBook holds booking information
 type WebsocketBook struct {
-	Price  float64
 	ID     int64
+	Price  float64
 	Amount float64
+	Rate   float64
+	Period int64
 }
 
 // WebsocketTrade holds trade information
@@ -427,7 +434,7 @@ type WebsocketTrade struct {
 
 // Candle holds OHLC data
 type Candle struct {
-	Timestamp int64
+	Timestamp time.Time
 	Open      float64
 	Close     float64
 	High      float64

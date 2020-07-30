@@ -5,9 +5,10 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Endpoint authentication types
@@ -148,6 +149,7 @@ type Features struct {
 // FeaturesEnabled stores the exchange enabled features
 type FeaturesEnabled struct {
 	AutoPairUpdates bool
+	Kline           kline.ExchangeCapabilitiesEnabled
 }
 
 // FeaturesSupported stores the exchanges supported features
@@ -157,6 +159,7 @@ type FeaturesSupported struct {
 	Websocket             bool
 	WebsocketCapabilities protocol.Features
 	WithdrawPermissions   uint32
+	Kline                 kline.ExchangeCapabilitiesSupported
 }
 
 // API stores the exchange API settings
@@ -209,7 +212,7 @@ type Base struct {
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
-	Websocket                     *wshandler.Websocket
+	Websocket                     *stream.Websocket
 	*request.Requester
 	Config *config.ExchangeConfig
 }

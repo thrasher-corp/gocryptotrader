@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -30,13 +30,10 @@ func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.ExchangeConfi
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = {{.Variable}}.BaseCurrencies
 
-	err := {{.Variable}}.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	{{.Variable}}.SetupDefaults(exchCfg)
 
 	if {{.Variable}}.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = {{.Variable}}.UpdateTradablePairs(true)
+		err := {{.Variable}}.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -51,20 +48,46 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	{{.Variable}}.Verbose = true
 	{{.Variable}}.API.CredentialsValidator.RequiresKey = true
 	{{.Variable}}.API.CredentialsValidator.RequiresSecret = true
-	{{.Variable}}.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: "-",
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: "-",
-		},
+
+	// If using only one pair format for request and configuration, across all 
+	// supported asset types either SPOT and FUTURES etc. You can use the 
+	// example below:
+
+	// Request format denotes what the pair as a string will be, when you send
+	// a request to an exchange.
+	requestFmt := &currency.PairFormat{/*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
+	// Config format denotes what the pair as a string will be, when saved to 
+	// the config.json file.
+	configFmt := &currency.PairFormat{/*Set pair request formatting details here*/}
+	err := {{.Variable}}.SetGlobalPairsManager(requestFmt, configFmt, /*multiple assets can be set here using the asset package ie asset.Spot*/)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	// If assets require multiple differences in formating for request and 
+	// configuration, another exchange method can be be used e.g. futures 
+	// contracts require a dash as a delimiter rather than an underscore. You 
+	// can use this example below:
+
+	fmt1 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	}
+
+	fmt2 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
+	}
+
+	err = {{.Variable}}.StoreAssetPairFormat(asset.Spot, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = {{.Variable}}.StoreAssetPairFormat(asset.Margin, fmt2)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	// Fill out the capabilities/features that the exchange supports
 	{{.Variable}}.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -91,7 +114,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 
 	{{.Variable}}.API.Endpoints.URLDefault = {{.Name}}APIURL
 	{{.Variable}}.API.Endpoints.URL = {{.Variable}}.API.Endpoints.URLDefault
-	{{.Variable}}.Websocket = wshandler.New()
+	{{.Variable}}.Websocket = stream.New()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -104,15 +127,12 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 		return nil
 	}
 
-	err := {{.Variable}}.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	{{.Variable}}.SetupDefaults(exch)
 
 	// If websocket is supported, please fill out the following
 	/*
 	err = {{.Variable}}.Websocket.Setup(
-		&wshandler.WebsocketSetup{
+		&stream.WebsocketSetup{
 			Enabled:                          exch.Features.Enabled.Websocket,
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -129,7 +149,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 		return err
 	}
 
-	{{.Variable}}.WebsocketConn = &wshandler.WebsocketConnection{
+	{{.Variable}}.WebsocketConn = &stream.WebsocketConnection{
 		ExchangeName:         {{.Variable}}.Name,
 		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
 		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
@@ -195,8 +215,13 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(forceUpdate bool) err
 	if err != nil {
 		return err
 	}
-	return {{.Variable}}.UpdatePairs(currency.NewPairsFromStrings(pairs), 
-		asset.Spot, false, forceUpdate)
+
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+
+	return {{.Variable}}.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 
@@ -356,11 +381,6 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(with
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
@@ -377,39 +397,19 @@ func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(feeBuilder *exchange.FeeBuil
 	return 0, common.ErrNotYetImplemented
 }
 
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	{{.Variable}}.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	{{.Variable}}.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func ({{.Variable}} *{{.CapitalName}}) AuthenticateWebsocket() error {
-	return common.ErrNotYetImplemented
-}
-
 // ValidateCredentials validates current credentials used for wrapper
-// functionality
 func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials() error {
 	_, err := {{.Variable}}.UpdateAccountInfo()
 	return {{.Variable}}.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{}, common.ErrNotYetImplemented
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
 

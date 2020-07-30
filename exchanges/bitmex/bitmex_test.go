@@ -17,7 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -46,13 +46,11 @@ func TestMain(m *testing.M) {
 	bitmexConfig.API.AuthenticatedWebsocketSupport = true
 	bitmexConfig.API.Credentials.Key = apiKey
 	bitmexConfig.API.Credentials.Secret = apiSecret
-
+	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bitmexConfig)
 	if err != nil {
 		log.Fatal("Bitmex setup error", err)
 	}
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -383,7 +381,11 @@ func TestGetTrade(t *testing.T) {
 }
 
 func TestGetPreviousTrades(t *testing.T) {
-	_, err := b.GetPreviousTrades(&TradeGetBucketedParams{})
+	_, err := b.GetPreviousTrades(&TradeGetBucketedParams{
+		Symbol:  "XBTBTC",
+		Start:   int32(time.Now().Add(-time.Hour * 24).Unix()),
+		Columns: "open,high,low,close,volume",
+	})
 	if err == nil {
 		t.Error("GetPreviousTrades() Expected error")
 	}
@@ -686,17 +688,10 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
-	}
-	b.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         b.Name,
-		URL:                  b.Websocket.GetWebsocketURL(),
-		Verbose:              b.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := b.WebsocketConn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -716,6 +711,13 @@ func TestWsAuth(t *testing.T) {
 		t.Error("Have not received a response")
 	}
 	timer.Stop()
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	err := b.UpdateTradablePairs(true)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestWsPositionUpdate(t *testing.T) {
@@ -808,7 +810,6 @@ func TestWSPositionUpdateHandling(t *testing.T) {
 }
 
 func TestWSOrderbookHandling(t *testing.T) {
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	pressXToJSON := []byte(`{
       "table":"orderBookL2_25",
       "keys":["symbol","id","side"],
@@ -879,7 +880,6 @@ func TestWSOrderbookHandling(t *testing.T) {
 }
 
 func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	pressXToJSON := []byte(`{"table":"position",
    "action":"update",
    "data":[{

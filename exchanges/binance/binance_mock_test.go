@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 	binanceConfig.API.Credentials.Key = apiKey
 	binanceConfig.API.Credentials.Secret = apiSecret
 	b.SetDefaults()
+	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(binanceConfig)
 	if err != nil {
 		log.Fatal("Binance setup error", err)
@@ -45,7 +46,6 @@ func TestMain(m *testing.M) {
 
 	b.HTTPClient = newClient
 	b.API.Endpoints.URL = serverDetails
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

@@ -32,8 +32,6 @@ message GenericSubsystemRequest {
     string subsystem = 1;
 }
 
-message GenericSubsystemResponse {}
-
 message GetSubsystemsRequest {}
 
 message GetSusbsytemsResponse {
@@ -54,8 +52,6 @@ message GetRPCEndpointsResponse {
 message GenericExchangeNameRequest {
     string exchange = 1;
 }
-
-message GenericExchangeNameResponse {}
 
 message GetExchangesRequest {
     bool enabled = 1;
@@ -249,15 +245,11 @@ message AddPortfolioAddressRequest {
     bool cold_storage = 6;
 }
 
-message AddPortfolioAddressResponse {}
-
 message RemovePortfolioAddressRequest {
     string address = 1;
     string coin_type = 2;
     string description = 3;
 }
-
-message RemovePortfolioAddressResponse {}
 
 message GetForexProvidersRequest {}
 
@@ -379,8 +371,6 @@ message CancelOrderRequest {
     string side = 7;
 }
 
-message CancelOrderResponse {}
-
 message CancelAllOrdersRequest {
     string exchange = 1;
 }
@@ -430,8 +420,6 @@ message AddEventResponse {
 message RemoveEventRequest {
     int64 id = 1;
 }
-
-message RemoveEventResponse {}
 
 message GetCryptocurrencyDepositAddressesRequest {
     string exchange = 1;
@@ -561,10 +549,11 @@ message GetExchangePairsResponse {
     map<string, PairsSupported> supported_assets = 1;
 }
 
-message ExchangePairRequest {
+message SetExchangePairRequest {
     string exchange = 1;
     string asset_type = 2;
-    CurrencyPair pair = 3;
+    repeated CurrencyPair pairs = 3;
+    bool enable = 4;
 }
 
 message GetOrderbookStreamRequest {
@@ -606,10 +595,16 @@ message GetHistoricCandlesRequest {
     int64 start = 4;
     int64 end = 5;
     int64 time_interval = 6;
+    bool ex_request = 7;
 }
 
 message GetHistoricCandlesResponse {
-    repeated Candle candle =1;
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    int64 start = 3;
+    int64 end = 4;
+    string interval = 6;
+    repeated Candle candle = 5;
 }
 
 message Candle {
@@ -679,9 +674,77 @@ message GCTScriptQueryResponse{
     string data = 3;
 }
 
-message GCTScriptGenericResponse {
+message GenericResponse {
     string status = 1;
     string data = 2;
+}
+
+message SetExchangeAssetRequest {
+    string exchange = 1;
+    string asset = 2;
+    bool enable = 3;
+}
+
+message SetExchangeAllPairsRequest {
+    string exchange = 1;
+    bool enable = 2;
+}
+
+message UpdateExchangeSupportedPairsRequest {
+    string exchange = 1;
+}
+
+message GetExchangeAssetsRequest {
+    string exchange = 1;
+}
+
+message GetExchangeAssetsResponse {
+    string assets = 1;
+}
+
+message WebsocketGetInfoRequest {
+    string exchange = 1;
+}
+
+message WebsocketGetInfoResponse {
+    string exchange = 1;
+    bool supported = 2;
+    bool enabled = 3; 
+    bool authenticated_supported = 4;
+    bool authenticated = 5;
+    string running_url = 6;
+    string proxy_address = 7;
+}
+
+message WebsocketSetEnabledRequest {
+    string exchange = 1;
+    bool enable = 2;
+}
+
+message WebsocketGetSubscriptionsRequest {
+    string exchange = 1;
+}
+
+message WebsocketSubscription {
+    string channel = 1;
+    string currency = 2;
+    string asset = 3;
+    string params = 4;
+}
+
+message WebsocketGetSubscriptionsResponse {
+    string exchange = 1;
+    repeated WebsocketSubscription subscriptions = 2;
+}
+
+message WebsocketSetProxyRequest {
+    string exchange = 1;
+    string proxy = 2;
+}
+
+message WebsocketSetURLRequest {
+    string exchange = 1;
+    string url = 2;
 }
 
 service GoCryptoTrader {
@@ -697,13 +760,13 @@ service GoCryptoTrader {
         };
     }
 
-    rpc EnableSubsystem (GenericSubsystemRequest) returns (GenericSubsystemResponse) {
+    rpc EnableSubsystem (GenericSubsystemRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/enablesubsystem"
         };
     }
 
-    rpc DisableSubsystem (GenericSubsystemRequest) returns (GenericSubsystemResponse) {
+    rpc DisableSubsystem (GenericSubsystemRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/disablesubsystem"
         };
@@ -727,7 +790,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc DisableExchange (GenericExchangeNameRequest) returns (GenericExchangeNameResponse) {
+    rpc DisableExchange (GenericExchangeNameRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/disableexchange"
             body: "*"
@@ -752,7 +815,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc EnableExchange (GenericExchangeNameRequest) returns (GenericExchangeNameResponse) {
+    rpc EnableExchange (GenericExchangeNameRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/enableexchange"
             body: "*"
@@ -816,14 +879,14 @@ service GoCryptoTrader {
     }
 
 
-    rpc AddPortfolioAddress (AddPortfolioAddressRequest) returns (AddPortfolioAddressResponse) {
+    rpc AddPortfolioAddress (AddPortfolioAddressRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/addportfolioaddress"
             body: "*"
         };
     }
 
-    rpc RemovePortfolioAddress (RemovePortfolioAddressRequest) returns (RemovePortfolioAddressResponse) {
+    rpc RemovePortfolioAddress (RemovePortfolioAddressRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/removeportfolioaddress"
             body: "*"
@@ -877,7 +940,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc CancelOrder (CancelOrderRequest) returns (CancelOrderResponse) {
+    rpc CancelOrder (CancelOrderRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/cancelorder"
             body: "*"
@@ -904,7 +967,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc RemoveEvent(RemoveEventRequest) returns (RemoveEventResponse) {
+    rpc RemoveEvent(RemoveEventRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/removeevent"
             body: "*"
@@ -981,16 +1044,9 @@ service GoCryptoTrader {
         };
     }
 
-    rpc EnableExchangePair(ExchangePairRequest) returns (GenericExchangeNameResponse) {
+    rpc SetExchangePair(SetExchangePairRequest) returns (GenericResponse) {
         option (google.api.http) = {
-            post: "/v1/enableexchangepair",
-            body: "*"
-        };
-    }
-
-    rpc DisableExchangePair(ExchangePairRequest) returns (GenericExchangeNameResponse) {
-        option (google.api.http) = {
-            post: "/v1/disableexchangepair",
+            post: "/v1/setexchangepair",
             body: "*"
         };
     }
@@ -1025,13 +1081,13 @@ service GoCryptoTrader {
         };
     }
 
-    rpc GCTScriptExecute(GCTScriptExecuteRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptExecute(GCTScriptExecuteRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/gctscript/execute",
         };
     }
 
-    rpc GCTScriptUpload(GCTScriptUploadRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptUpload(GCTScriptUploadRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/upload",
             body: "*"
@@ -1057,14 +1113,14 @@ service GoCryptoTrader {
         };
     }
 
-    rpc GCTScriptStop(GCTScriptStopRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptStop(GCTScriptStopRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/stop",
             body: "*"
         };
     }
 
-    rpc GCTScriptStopAll(GCTScriptStopAllRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptStopAll(GCTScriptStopAllRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/stop",
             body: "*"
@@ -1077,7 +1133,7 @@ service GoCryptoTrader {
             body: "*"
         };
     }
-    rpc GCTScriptAutoLoadToggle(GCTScriptAutoLoadRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptAutoLoadToggle(GCTScriptAutoLoadRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/autoload",
             body: "*"
@@ -1087,6 +1143,60 @@ service GoCryptoTrader {
     rpc GetHistoricCandles(GetHistoricCandlesRequest) returns (GetHistoricCandlesResponse) {
         option (google.api.http) = {
             get: "/v1/gethistoriccandles"
+        };
+    }
+
+    rpc SetExchangeAsset(SetExchangeAssetRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/setexchangeasset"
+        };
+    }
+
+    rpc SetAllExchangePairs(SetExchangeAllPairsRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/setallexchangepairs"
+        };
+    }
+
+    rpc UpdateExchangeSupportedPairs(UpdateExchangeSupportedPairsRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/updateexchangesupportedpairs"
+        };
+    }
+
+    rpc GetExchangeAssets(GetExchangeAssetsRequest) returns (GetExchangeAssetsResponse) {
+        option (google.api.http) = {
+            get: "/v1/getexchangeassets"
+        };
+    }
+
+    rpc WebsocketGetInfo(WebsocketGetInfoRequest) returns (WebsocketGetInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketgetinfo"
+        };
+    }
+
+    rpc WebsocketSetEnabled(WebsocketSetEnabledRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketsetenabled"
+        };
+    }
+
+    rpc WebsocketGetSubscriptions(WebsocketGetSubscriptionsRequest) returns (WebsocketGetSubscriptionsResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketgetsubscriptions"
+        };
+    }
+
+    rpc WebsocketSetProxy(WebsocketSetProxyRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketsetproxy"
+        };
+    }
+
+    rpc WebsocketSetURL(WebsocketSetURLRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketseturl"
         };
     }
 }

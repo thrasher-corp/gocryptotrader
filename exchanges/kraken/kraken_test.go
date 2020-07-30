@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -13,9 +14,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -45,12 +48,11 @@ func TestMain(m *testing.M) {
 	krakenConfig.API.Credentials.Key = apiKey
 	krakenConfig.API.Credentials.Secret = apiSecret
 	krakenConfig.API.Endpoints.WebsocketURL = k.API.Endpoints.WebsocketURL
+	k.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = k.Setup(krakenConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -176,7 +178,7 @@ func TestGetTickers(t *testing.T) {
 // TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetOHLC("BCHEUR")
+	_, err := k.GetOHLC("XXBTZUSD", "1440")
 	if err != nil {
 		t.Error("GetOHLC() error", err)
 	}
@@ -710,31 +712,14 @@ func setupWsTests(t *testing.T) {
 		return
 	}
 	if !k.Websocket.IsEnabled() && !k.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
-	}
-	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	comms = make(chan wshandler.WebsocketResponse, sharedtestvalues.WebsocketChannelOverrideCapacity)
-	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	k.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         k.Name,
-		URL:                  krakenWSURL,
-		Verbose:              k.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
-	k.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         k.Name,
-		URL:                  krakenAuthWSURL,
-		Verbose:              k.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := k.WebsocketConn.Dial(&dialer, http.Header{})
+	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = k.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
+	err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -744,10 +729,10 @@ func setupWsTests(t *testing.T) {
 		t.Error(err)
 	}
 	authToken = token
-
-	go k.wsFunnelConnectionData(k.WebsocketConn)
-	go k.wsFunnelConnectionData(k.AuthenticatedWebsocketConn)
-	go k.wsReadData()
+	comms := make(chan stream.Response)
+	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
+	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
+	go k.wsReadData(comms)
 	go k.wsPingHandler()
 	wsSetupRan = true
 }
@@ -755,9 +740,11 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe(wshandler.WebsocketChannelSubscription{
-		Channel:  defaultSubscribedChannels[0],
-		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+	err := k.Subscribe([]stream.ChannelSubscription{
+		{
+			Channel:  defaultSubscribedChannels[0],
+			Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+		},
 	})
 	if err != nil {
 		t.Error(err)
@@ -1435,5 +1422,68 @@ func TestParseTime(t *testing.T) {
 		r.Month().String() != "August" ||
 		r.Day() != 18 {
 		t.Error("unexpected result")
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("XBTUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = k.GetHistoricCandles(currencyPair, asset.Spot, time.Now().AddDate(0, 0, -1), time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = k.GetHistoricCandles(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("XBTUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1440",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := k.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

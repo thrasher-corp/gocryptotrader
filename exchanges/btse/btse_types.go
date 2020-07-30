@@ -28,8 +28,8 @@ type OverviewData struct {
 // HighLevelMarketData stores market overview data
 type HighLevelMarketData map[string]OverviewData
 
-// Market stores market data
-type Market struct {
+// SpotMarket stores market data
+type SpotMarket struct {
 	Symbol            string  `json:"symbol"`
 	ID                string  `json:"id"`
 	BaseCurrency      string  `json:"base_currency"`
@@ -40,6 +40,41 @@ type Market struct {
 	QuoteMinPrice     float64 `json:"quote_min_price"`
 	QuoteIncrement    float64 `json:"quote_increment"`
 	Status            string  `json:"status"`
+}
+
+// FuturesMarket stores market data
+type FuturesMarket struct {
+	Symbol              string   `json:"symbol"`
+	Last                float64  `json:"last"`
+	LowestAsk           float64  `json:"lowestAsk"`
+	HighestBid          float64  `json:"highestBid"`
+	OpenInterest        float64  `json:"openInterest"`
+	OpenInterestUSD     float64  `json:"openInterestUSD"`
+	PercentageChange    float64  `json:"percentageChange"`
+	Volume              float64  `json:"volume"`
+	High24Hr            float64  `json:"high24Hr"`
+	Low24Hr             float64  `json:"low24Hr"`
+	Base                string   `json:"base"`
+	Quote               string   `json:"quote"`
+	ContractStart       int64    `json:"contractStart"`
+	ContractEnd         int64    `json:"contractEnd"`
+	Active              bool     `json:"active"`
+	TimeBasedContract   bool     `json:"timeBasedContract"`
+	OpenTime            int64    `json:"openTime"`
+	CloseTime           int64    `json:"closeTime"`
+	StartMatching       int64    `json:"startMatching"`
+	InactiveTime        int64    `json:"inactiveTime"`
+	FundingRate         float64  `json:"fundingRate"`
+	ContractSize        float64  `json:"contractSize"`
+	MaxPosition         int64    `json:"maxPosition"`
+	MinValidPrice       float64  `json:"minValidPrice"`
+	MinPriceIncrement   float64  `json:"minPriceIncrement"`
+	MinOrderSize        int32    `json:"minOrderSize"`
+	MaxOrderSize        int32    `json:"maxOrderSize"`
+	MinRiskLimit        int32    `json:"minRiskLimit"`
+	MaxRiskLimit        int32    `json:"maxRiskLimit"`
+	MinSizeIncrement    float64  `json:"minSizeIncrement"`
+	AvailableSettlement []string `json:"availableSettlement"`
 }
 
 // Trade stores trade data

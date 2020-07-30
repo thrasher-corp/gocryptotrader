@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"net/url"
 	"os"
 	"os/user"
@@ -545,5 +546,20 @@ func TestInArray(t *testing.T) {
 	isIn, _ = InArray(1, slice)
 	if isIn {
 		t.Errorf("found a non existent value in the slice")
+	}
+}
+
+func TestErrors(t *testing.T) {
+	var test Errors
+	if test.Error() != "" {
+		t.Fatal("string should be nil")
+	}
+	test = append(test, errors.New("test1"))
+	if test.Error() != "test1" {
+		t.Fatal("does not match error")
+	}
+	test = append(test, errors.New("test2"))
+	if test.Error() != "test1, test2" {
+		t.Fatal("does not match error")
 	}
 }

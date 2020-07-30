@@ -354,3 +354,10 @@ type SwapFundingRate struct {
 	FeeRate       float64 `json:"feeRate,string"`
 	Leverage      int64   `json:"leverage"`
 }
+
+// CandleResponse stores returned kline data
+type CandleResponse struct {
+	Code    int64           `json:"code"`
+	Message string          `json:"message"`
+	Data    [][]interface{} `json:"data"`
+}

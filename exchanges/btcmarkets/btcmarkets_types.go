@@ -37,6 +37,7 @@ type Trade struct {
 	Amount    float64   `json:"amount,string"`
 	Price     float64   `json:"price,string"`
 	Timestamp time.Time `json:"timestamp"`
+	Side      string    `json:"side"`
 }
 
 // tempOrderbook stores orderbook data
@@ -336,21 +337,14 @@ type TradingFeeResponse struct {
 	FeeByMarkets  []TradingFeeData `json:"FeeByMarkets"`
 }
 
-// WsSubscribe message sent via ws to subscribe
+// WsSubscribe defines a subscription message used in the Subscribe function
 type WsSubscribe struct {
 	MarketIDs   []string `json:"marketIds,omitempty"`
-	Channels    []string `json:"channels"`
-	MessageType string   `json:"messageType"`
-}
-
-// WsAuthSubscribe message sent via login to subscribe
-type WsAuthSubscribe struct {
-	MarketIDs   []string `json:"marketIds,omitempty"`
-	Channels    []string `json:"channels"`
-	Key         string   `json:"key"`
-	Signature   string   `json:"signature"`
-	Timestamp   string   `json:"timestamp"`
-	MessageType string   `json:"messageType"`
+	Channels    []string `json:"channels,omitempty"`
+	Key         string   `json:"key,omitempty"`
+	Signature   string   `json:"signature,omitempty"`
+	Timestamp   string   `json:"timestamp,omitempty"`
+	MessageType string   `json:"messageType,omitempty"`
 }
 
 // WsMessageType message sent via ws to determine type
@@ -379,6 +373,7 @@ type WsTrade struct {
 	TradeID     int64     `json:"tradeId"`
 	Price       float64   `json:"price,string"`
 	Volume      float64   `json:"volume,string"`
+	Side        string    `json:"side"`
 	MessageType string    `json:"messageType"`
 }
 
@@ -433,3 +428,6 @@ type WsError struct {
 	Code        int64  `json:"code"`
 	Message     string `json:"message"`
 }
+
+// CandleResponse holds OHLCV data for exchange
+type CandleResponse [][6]string

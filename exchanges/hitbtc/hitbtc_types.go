@@ -300,23 +300,25 @@ type ResponseError struct {
 // WsRequest defines a request obj for the JSON-RPC and gets a websocket
 // response
 type WsRequest struct {
-	Method string      `json:"method"`
-	Params interface{} `json:"params,omitempty"`
-	ID     interface{} `json:"id"`
+	Method string `json:"method"`
+	Params Params `json:"params,omitempty"`
+	ID     int64  `json:"id"`
 }
 
 // WsNotification defines a notification obj for the JSON-RPC this does not get
 // a websocket response
 type WsNotification struct {
-	JSONRPCVersion string      `json:"jsonrpc,omitempty"`
-	Method         string      `json:"method"`
-	Params         interface{} `json:"params"`
+	JSONRPCVersion string `json:"jsonrpc,omitempty"`
+	Method         string `json:"method"`
+	Params         Params `json:"params"`
 }
 
-type params struct {
-	Symbol string `json:"symbol,omitempty"`
-	Period string `json:"period,omitempty"`
-	Limit  int64  `json:"limit,omitempty"`
+// Params is params
+type Params struct {
+	Symbol  string   `json:"symbol,omitempty"`
+	Period  string   `json:"period,omitempty"`
+	Limit   int64    `json:"limit,omitempty"`
+	Symbols []string `json:"symbols,omitempty"`
 }
 
 // WsTicker defines websocket ticker feed return params
@@ -369,6 +371,7 @@ type WsTrade struct {
 type WsLoginRequest struct {
 	Method string      `json:"method"`
 	Params WsLoginData `json:"params"`
+	ID     int64       `json:"id,omitempty"`
 }
 
 // WsLoginData sets credentials for WsLoginRequest

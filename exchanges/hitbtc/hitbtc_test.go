@@ -14,9 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -45,14 +46,11 @@ func TestMain(m *testing.M) {
 	hitbtcConfig.API.AuthenticatedWebsocketSupport = true
 	hitbtcConfig.API.Credentials.Key = apiKey
 	hitbtcConfig.API.Credentials.Secret = apiSecret
-
+	h.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = h.Setup(hitbtcConfig)
 	if err != nil {
 		log.Fatal("HitBTC setup error", err)
 	}
-
-	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -71,9 +69,45 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetChartCandles(t *testing.T) {
-	_, err := h.GetCandles("BTCUSD", "", "")
+	_, err := h.GetCandles("BTCUSD", "", "D1", time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Error("Test faild - HitBTC GetChartData() error", err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Now().Add(-time.Hour * 24)
+	end := time.Now()
+	_, err = h.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = h.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+	_, err = h.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = h.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }
 
@@ -111,8 +145,12 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
-	h.CurrencyPairs.StorePairs(asset.Spot, currency.NewPairsFromStrings([]string{"BTC-USD", "XRP-USD"}), true)
-	_, err := h.UpdateTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	pairs, err := currency.NewPairsFromStrings([]string{"BTC-USD", "XRP-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	_, err = h.UpdateTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -407,19 +445,11 @@ func setupWsAuth(t *testing.T) {
 		return
 	}
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(stream.WebsocketNotEnabled)
 	}
-	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	h.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         h.Name,
-		URL:                  hitbtcWebsocketAddress,
-		Verbose:              h.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
+
 	var dialer websocket.Dialer
-	err := h.WebsocketConn.Dial(&dialer, http.Header{})
+	err := h.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -916,5 +946,46 @@ func TestWsTrades(t *testing.T) {
 	err = h.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"M1",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"D1",
+		},
+		{
+			"SevenDay",
+			kline.SevenDay,
+			"D7",
+		},
+		{
+			"AllOther",
+			kline.OneMonth,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := h.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

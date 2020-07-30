@@ -18,13 +18,11 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Coinbene is the overarching type across this package
 type Coinbene struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 }
 
 const (
@@ -35,10 +33,11 @@ const (
 	coinbeneAPIVersion   = "v2"
 
 	// Public endpoints
-	coinbeneGetTicker    = "/market/ticker/one"
-	coinbeneGetTickers   = "/market/tickers"
-	coinbeneGetOrderBook = "/market/orderBook"
-	coinbeneGetKlines    = "/market/klines"
+	coinbeneGetTicker      = "/market/ticker/one"
+	coinbeneGetTickersSpot = "/market/ticker/list"
+	coinbeneGetTickers     = "/market/tickers"
+	coinbeneGetOrderBook   = "/market/orderBook"
+	coinbeneGetKlines      = "/market/klines"
 	// TODO: Implement function ---
 	coinbeneSpotKlines       = "/market/instruments/candles"
 	coinbeneSpotExchangeRate = "/market/rate/list"
@@ -65,12 +64,15 @@ const (
 	coinbeneListSwapPositions  = "/position/list"
 	coinbenePositionFeeRate    = "/position/feeRate"
 
-	limitOrder    = "1"
-	marketOrder   = "2"
-	buyDirection  = "1"
-	openLong      = "openLong"
-	openShort     = "openShort"
-	sellDirection = "2"
+	limitOrder      = "1"
+	marketOrder     = "2"
+	postOnlyOrder   = "8"
+	fillOrKillOrder = "9"
+	iosOrder        = "10"
+	buyDirection    = "1"
+	openLong        = "openLong"
+	openShort       = "openShort"
+	sellDirection   = "2"
 )
 
 // GetAllPairs gets all pairs on the exchange
@@ -162,7 +164,7 @@ func (c *Coinbene) GetTickers() ([]TickerData, error) {
 		TickerData []TickerData `json:"data"`
 	}{}
 
-	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneGetTicker
+	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneGetTickersSpot
 	return resp.TickerData, c.SendHTTPRequest(path, spotTickerList, &resp)
 }
 
@@ -266,9 +268,15 @@ func (c *Coinbene) PlaceSpotOrder(price, quantity float64, symbol, direction,
 		params.Set("orderType", limitOrder)
 	case order.Market.Lower():
 		params.Set("orderType", marketOrder)
+	case order.PostOnly.Lower():
+		params.Set("orderType", postOnlyOrder)
+	case order.FillOrKill.Lower():
+		params.Set("orderType", fillOrKillOrder)
+	case order.IOS.Lower():
+		params.Set("orderType", iosOrder)
 	default:
 		return resp,
-			errors.New("invalid order type, must be either 'limit' or 'market'")
+			errors.New("invalid order type, must be either 'limit', 'market', 'postOnly', 'fillOrKill', 'ios'")
 	}
 
 	params.Set("symbol", symbol)
@@ -613,74 +621,48 @@ func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error
 	return s, nil
 }
 
+// GetKlines data returns the kline data for a specific symbol
+func (c *Coinbene) GetKlines(pair string, start, end time.Time, period string) (resp CandleResponse, err error) {
+	v := url.Values{}
+	v.Add("symbol", pair)
+	if !start.IsZero() {
+		v.Add("start", strconv.FormatInt(start.Unix(), 10))
+	}
+	if !end.IsZero() {
+		v.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	v.Add("period", period)
+
+	path := common.EncodeURLValues(coinbeneAPIURL+coinbeneAPIVersion+coinbeneSpotKlines, v)
+	if err = c.SendHTTPRequest(path, contractKline, &resp); err != nil {
+		return
+	}
+
+	if resp.Code != 200 {
+		return resp, errors.New(resp.Message)
+	}
+
+	return
+}
+
 // GetSwapKlines data returns the kline data for a specific symbol
-func (c *Coinbene) GetSwapKlines(symbol, startTime, endTime, resolution string) (SwapKlines, error) {
-	var s SwapKlines
+func (c *Coinbene) GetSwapKlines(symbol string, start, end time.Time, resolution string) (resp CandleResponse, err error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
-	v.Set("startTime", startTime)
-	v.Set("endTime", endTime)
+	if !start.IsZero() {
+		v.Add("startTime", strconv.FormatInt(start.Unix(), 10))
+	}
+	if !end.IsZero() {
+		v.Add("endTime", strconv.FormatInt(end.Unix(), 10))
+	}
 	v.Set("resolution", resolution)
 
-	type resp struct {
-		Data [][]string `json:"data"`
-	}
-	var r resp
 	path := common.EncodeURLValues(coinbeneSwapAPIURL+coinbeneAPIVersion+coinbeneGetKlines, v)
-	if err := c.SendHTTPRequest(path, contractKline, &r); err != nil {
-		return nil, err
+	if err = c.SendHTTPRequest(path, contractKline, &resp); err != nil {
+		return
 	}
 
-	for x := range r.Data {
-		buyTurnover, err := strconv.ParseFloat(r.Data[x][8], 64)
-		if err != nil {
-			return nil, err
-		}
-		tm, err := strconv.ParseInt(r.Data[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		open, err := strconv.ParseFloat(r.Data[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		closePrice, err := strconv.ParseFloat(r.Data[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		high, err := strconv.ParseFloat(r.Data[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		low, err := strconv.ParseFloat(r.Data[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		volume, err := strconv.ParseFloat(r.Data[x][5], 64)
-		if err != nil {
-			return nil, err
-		}
-		turnover, err := strconv.ParseFloat(r.Data[x][6], 64)
-		if err != nil {
-			return nil, err
-		}
-		buyVolume, err := strconv.ParseFloat(r.Data[x][7], 64)
-		if err != nil {
-			return nil, err
-		}
-		s = append(s, SwapKlineItem{
-			Time:        time.Unix(tm, 0),
-			Open:        open,
-			Close:       closePrice,
-			High:        high,
-			Low:         low,
-			Volume:      volume,
-			Turnover:    turnover,
-			BuyVolume:   buyVolume,
-			BuyTurnover: buyTurnover,
-		})
-	}
-	return s, nil
+	return
 }
 
 // GetSwapTrades returns a list of trades for a swap symbol

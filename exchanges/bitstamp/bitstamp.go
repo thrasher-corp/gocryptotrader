@@ -18,7 +18,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -54,6 +53,7 @@ const (
 	bitstampAPIXrpDeposit         = "xrp_address"
 	bitstampAPIReturnType         = "string"
 	bitstampAPITradingPairsInfo   = "trading-pairs-info"
+	bitstampOHLC                  = "ohlc"
 
 	bitstampRateInterval = time.Minute * 10
 	bitstampRequestRate  = 8000
@@ -63,7 +63,6 @@ const (
 // Bitstamp is the overarching type across the bitstamp package
 type Bitstamp struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -577,6 +576,24 @@ func (b *Bitstamp) GetUnconfirmedBitcoinDeposits() ([]UnconfirmedBTCTransactions
 
 	return response,
 		b.SendAuthenticatedHTTPRequest(bitstampAPIUnconfirmedBitcoin, false, nil, &response)
+}
+
+// OHLC returns OHLCV data for step (interval)
+func (b *Bitstamp) OHLC(currency string, start, end time.Time, step, limit string) (resp OHLCResponse, err error) {
+	var v = url.Values{}
+	v.Add("limit", limit)
+	v.Add("step", step)
+
+	if start.After(end) && !end.IsZero() {
+		return resp, errors.New("start time cannot be after end time")
+	}
+	if !start.IsZero() {
+		v.Add("start", strconv.FormatInt(start.Unix(), 10))
+	}
+	if !end.IsZero() {
+		v.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(common.EncodeURLValues(b.API.Endpoints.URL+"/v"+bitstampAPIVersion+"/"+bitstampOHLC+"/"+currency, v), &resp)
 }
 
 // TransferAccountBalance transfers funds from either a main or sub account
