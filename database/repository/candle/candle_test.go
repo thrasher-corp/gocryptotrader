@@ -99,11 +99,14 @@ func TestInsert(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = Insert(&data)
+			r, err := Insert(&data)
 			if err != nil {
 				t.Fatal(err)
 			}
 
+			if r != 365 {
+				t.Fatalf("unexpected number inserted: %v", r)
+			}
 			err = testhelpers.CloseDatabase(dbConn)
 			if err != nil {
 				t.Error(err)
@@ -253,7 +256,8 @@ func seedDB(includeOHLCVData bool) error {
 		if err != nil {
 			return err
 		}
-		return Insert(&data)
+		_, err = Insert(&data)
+		return err
 	}
 	return nil
 }

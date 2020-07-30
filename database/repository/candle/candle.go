@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -85,38 +86,40 @@ func Series(exchangeName, base, quote, interval string, start, end time.Time) (o
 }
 
 // Insert series of candles
-func Insert(in *Item) error {
+func Insert(in *Item) (uint64, error) {
 	if database.DB.SQL == nil {
-		return database.ErrDatabaseSupportDisabled
+		return 0, database.ErrDatabaseSupportDisabled
 	}
 
 	ctx := context.Background()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
+	var totalInserted uint64
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		err = insertSQLite(ctx, tx, in)
+		totalInserted, err = insertSQLite(ctx, tx, in)
 	} else {
-		err = insertPostgresSQL(ctx, tx, in)
+		totalInserted, err = insertPostgresSQL(ctx, tx, in)
 	}
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			return errRB
+			return 0, errRB
 		}
-		return err
+		return 0, err
 	}
-	return nil
+	return totalInserted, nil
 }
 
-func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) error {
+func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
+	var totalInserted uint64
 	for x := range in.Candles {
 		var tempCandle = modelSQLite.Candle{
 			ExchangeID: null.NewString(in.ExchangeID, true),
@@ -132,22 +135,26 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) error {
 		}
 		tempUUID, err := uuid.NewV4()
 		if err != nil {
-			return err
+			return 0, err
 		}
 		tempCandle.ID = tempUUID.String()
 		err = tempCandle.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				return errRB
+				return 0, errRB
 			}
-			return err
+			return 0, err
+		}
+		if totalInserted < math.MaxUint64 {
+			totalInserted++
 		}
 	}
-	return nil
+	return totalInserted, nil
 }
 
-func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) error {
+func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
+	var totalInserted uint64
 	for x := range in.Candles {
 		var tempCandle = modelPSQL.Candle{
 			ExchangeID: in.ExchangeID,
@@ -166,15 +173,18 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) error {
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				return errRB
+				return 0, errRB
 			}
-			return err
+			return 0, err
+		}
+		if totalInserted < math.MaxUint64 {
+			totalInserted++
 		}
 	}
-	return nil
+	return totalInserted, nil
 }
 
-func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int, error) {
+func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (uint64, error) {
 	csvFile, err := os.Open(file)
 	if err != nil {
 		return 0, err
@@ -251,5 +261,6 @@ func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int
 	if err != nil {
 		return 0, err
 	}
-	return len(tempCandle.Candles), Insert(tempCandle)
+
+	return Insert(tempCandle)
 }

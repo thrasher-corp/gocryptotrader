@@ -1660,7 +1660,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 	}
 
 	if req.Sync {
-		err = kline.StoreInDatabase(&candles)
+		_, err = kline.StoreInDatabase(&candles)
 		if err != nil {
 			return nil, err
 		}

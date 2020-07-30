@@ -497,9 +497,13 @@ func TestStoreInDatabase(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = StoreInDatabase(&ohlcvData)
+			r, err := StoreInDatabase(&ohlcvData)
 			if err != nil {
 				t.Fatal(err)
+			}
+
+			if r != 365 {
+				t.Fatalf("unexpected number inserted: %v", r)
 			}
 
 			err = testhelpers.CloseDatabase(dbConn)
@@ -597,7 +601,8 @@ func seedDB(includeOHLCVData bool) error {
 		if err != nil {
 			return err
 		}
-		return candle.Insert(&data)
+		_, err = candle.Insert(&data)
+		return err
 	}
 	return nil
 }
@@ -660,5 +665,77 @@ func TestLoadCSV(t *testing.T) {
 
 	if v[364].Open != 7246 {
 		t.Fatalf("unexpected value received: %v", v[364].Open)
+	}
+}
+
+func TestStoreInDatabaseShouldOnlyInsertWithValidIntervals(t *testing.T) {
+	setupTest(t)
+
+	testCases := []struct {
+		name   string
+		config *database.Config
+		seedDB func(bool) error
+		runner func(t *testing.T)
+		closer func(dbConn *database.Instance) error
+	}{
+		{
+			name:   "postgresql",
+			config: testhelpers.PostgresTestDatabase,
+			seedDB: seedDB,
+		},
+		{
+			name: "SQLite",
+			config: &database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+			},
+			seedDB: seedDB,
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+				t.Skip("database not configured skipping test")
+			}
+
+			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if test.seedDB != nil {
+				err = test.seedDB(false)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
+			_, ohlcvData, err := genOHCLVData()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ohlcvData.Interval = OneMin
+			r, err := StoreInDatabase(&ohlcvData)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if r != 1 {
+				t.Fatalf("unexpected number of records inserted: %v", r)
+			}
+			err = testhelpers.CloseDatabase(dbConn)
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+
+	err := os.RemoveAll(testhelpers.TempDir)
+	if err != nil {
+		t.Fatalf("Failed to remove temp db file: %v", err)
 	}
 }

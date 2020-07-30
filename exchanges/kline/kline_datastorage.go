@@ -44,18 +44,22 @@ func LoadFromDatabase(exchange string, pair currency.Pair, interval Interval, st
 }
 
 // StoreInDatabase returns Item from database seeded data
-func StoreInDatabase(in *Item) error {
+func StoreInDatabase(in *Item) (uint64, error) {
 	if in.Exchange == "" {
-		return errors.New("name cannot be blank")
+		return 0, errors.New("name cannot be blank")
+	}
+
+	if (in.Pair == currency.Pair{}) {
+		return 0, errors.New("currency pair cannot be empty")
 	}
 
 	if len(in.Candles) < 1 {
-		return errors.New("candle data is empty")
+		return 0, errors.New("candle data is empty")
 	}
 
 	exchangeUUID, err := exchange.UUIDByName(in.Exchange)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	databaseCandles := candle.Item{
@@ -67,7 +71,7 @@ func StoreInDatabase(in *Item) error {
 	}
 
 	for x := range in.Candles {
-		if x > 1 && in.Candles[x].Time.Sub(in.Candles[x-1].Time) != in.Interval.Duration() {
+		if in.Candles[x].Time.Sub(in.Candles[0].Time) != in.Interval.Duration()*time.Duration(x) {
 			continue
 		}
 
