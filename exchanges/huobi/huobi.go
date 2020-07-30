@@ -89,7 +89,6 @@ func (h *HUOBI) GetSwapFundingRates(contract string) (FundingRatesData, error) {
 		Response
 		Data FundingRatesData `json:"data"`
 	}
-	fmt.Println(common.EncodeURLValues("https://api.hbdm.com/"+huobiSwapFunding, vals))
 	var result response
 	err := h.SendHTTPRequest(common.EncodeURLValues("https://api.hbdm.com/"+huobiSwapFunding, vals), &result)
 	if result.ErrorMessage != "" {

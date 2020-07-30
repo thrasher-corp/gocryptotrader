@@ -110,7 +110,6 @@ func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.
 		params.Set("endTime", strconv.FormatInt(endTime.UnixNano(), 10))
 	}
 	path := futuresAPIURL + fundingRate + params.Encode()
-	fmt.Println(path)
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
@@ -579,7 +578,6 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f 
 
 	path = common.EncodeURLValues(path, params)
 	path += "&signature=" + hmacSignedStr
-	fmt.Println(hmacSignedStr)
 	interim := json.RawMessage{}
 
 	errCap := struct {

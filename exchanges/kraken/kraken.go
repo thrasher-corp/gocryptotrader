@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -113,13 +112,13 @@ func (k *Kraken) SeedAssets() error {
 // GetFuturesMarkets gets a list of futures markets and their data
 func (k *Kraken) GetFuturesMarkets() (FuturesInstrumentData, error) {
 	var resp FuturesInstrumentData
-	return resp, common.SendHTTPGetRequest(krakenFuturesURL+krakenFuturesInstruments, true, true, &resp)
+	return resp, k.SendHTTPRequest(krakenFuturesURL+krakenFuturesInstruments, &resp)
 }
 
 // GetFuturesTickers gets a list of futures tickers and their data
 func (k *Kraken) GetFuturesTickers() (FuturesTickerData, error) {
 	var resp FuturesTickerData
-	return resp, common.SendHTTPGetRequest(krakenFuturesURL+krakenFuturesTickers, true, true, &resp)
+	return resp, k.SendHTTPRequest(krakenFuturesURL+krakenFuturesTickers, &resp)
 }
 
 // GetAssets returns a full asset list

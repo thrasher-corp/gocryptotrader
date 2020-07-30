@@ -58,10 +58,9 @@ func (b *BTSE) FetchFundingHistory(symbol string) (map[string][]FundingHistoryDa
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	fmt.Println(btseFuturesAPIURL + btseFuturesFunding + params.Encode())
 	return resp, common.SendHTTPGetRequest(btseFuturesAPIURL+btseFuturesFunding+params.Encode(),
 		true,
-		true,
+		false,
 		&resp)
 }
 

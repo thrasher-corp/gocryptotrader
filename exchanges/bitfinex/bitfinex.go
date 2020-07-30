@@ -200,7 +200,6 @@ func (b *Bitfinex) GetMarginPairs() ([][]string, error) {
 	path := "https://api-pub.bitfinex.com" +
 		bitfinexAPIVersion2 +
 		bitfinexMarginPairs
-	fmt.Println(path)
 	return resp, b.SendHTTPRequest(path, &resp, status)
 }
 
@@ -229,7 +228,6 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 		bitfinexAPIVersion2 +
 		bitfinexDerivativeData +
 		params.Encode()
-	fmt.Println(path)
 	err := b.SendHTTPRequest(path, &result, status)
 	if err != nil {
 		return response, err
@@ -1346,7 +1344,6 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest2(method, path string, params map
 
 	// This is done in a weird way because bitfinex doesn't accept unixnano
 	n := strconv.FormatInt(int64(b.Requester.GetNonce(false))*1e9, 10)
-	fmt.Println(len(n))
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	headers["Accept"] = "application/json"

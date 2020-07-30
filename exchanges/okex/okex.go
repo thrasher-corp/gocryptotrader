@@ -42,8 +42,8 @@ const (
 	// ETT endpoints
 	okGroupConstituents    = "constituents"
 	okGroupDefinePrice     = "define-price"
-	okGroupPerpSwapRates   = "/api/swap/v3/instruments/%s/historical_funding_rate?"
-	okGroupPerpTickers     = "/api/swap/v3/instruments/ticker"
+	okGroupPerpSwapRates   = "instruments/%s/historical_funding_rate?"
+	okGroupPerpTickers     = "instruments/ticker"
 	okGroupMarginMarkPrice = "/api/margin/v3/instruments/%s/mark_price"
 	okGroupMarginPairData  = "accounts/BTC-USDT/availability?"
 	okGroupSpotPairs       = "instruments"
@@ -78,15 +78,17 @@ func (o *OKEX) GetFundingRate(marketName, limit string) ([]okgroup.PerpSwapFundi
 	params := url.Values{}
 	params.Set("limit", limit)
 	var resp []okgroup.PerpSwapFundingRates
-	fmt.Println("https://www.okex.com" + fmt.Sprintf(okGroupPerpSwapRates, marketName) + params.Encode())
-	return resp, common.SendHTTPGetRequest("https://www.okex.com"+fmt.Sprintf(okGroupPerpSwapRates, marketName)+params.Encode(), true, false, &resp)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection,
+		fmt.Sprintf(okGroupPerpSwapRates, marketName)+params.Encode(),
+		nil, &resp, false)
 }
 
 // GetPerpSwapMarkets gets perpetual swap markets' data
 func (o *OKEX) GetPerpSwapMarkets() ([]okgroup.TickerData, error) {
 	var resp []okgroup.TickerData
-	fmt.Println("https://www.okex.com" + okGroupPerpTickers)
-	return resp, common.SendHTTPGetRequest("https://www.okex.com"+okGroupPerpTickers, true, false, &resp)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection,
+		okGroupPerpTickers,
+		nil, &resp, false)
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.

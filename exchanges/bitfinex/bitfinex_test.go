@@ -64,7 +64,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetV2MarginFunding(t *testing.T) {
-	fmt.Printf("meow")
 	_, err := b.GetV2MarginFunding("fUSD", "2", 2)
 	if err != nil {
 		t.Error(err)

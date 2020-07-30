@@ -225,7 +225,6 @@ func (f *FTX) GetFundingRates(startTime, endTime time.Time, future string) ([]Fu
 	if future != "" {
 		params.Set("future", future)
 	}
-	fmt.Println(ftxAPIURL + getFundingRates + params.Encode())
 	return resp.Data, f.SendHTTPRequest(ftxAPIURL+getFundingRates+params.Encode(), &resp)
 }
 

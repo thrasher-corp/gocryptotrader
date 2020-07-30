@@ -148,10 +148,8 @@ func TestLookupCurrency(t *testing.T) {
 
 // TestGetAssetPairs API endpoint test
 func TestGetAssetPairs(t *testing.T) {
-	k.Verbose = true
 	t.Parallel()
-	a, err := k.GetAssetPairs([]string{}, "")
-	t.Log(a)
+	_, err := k.GetAssetPairs([]string{}, "")
 	if err != nil {
 		t.Error("GetAssetPairs() error", err)
 	}
