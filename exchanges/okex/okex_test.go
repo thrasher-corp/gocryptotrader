@@ -32,7 +32,7 @@ const (
 	apiSecret               = ""
 	passphrase              = ""
 	OKGroupExchange         = "OKEX"
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var o OKEX

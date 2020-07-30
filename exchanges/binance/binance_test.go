@@ -17,9 +17,9 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = " "
+	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var b Binance

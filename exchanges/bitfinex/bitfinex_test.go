@@ -1,7 +1,6 @@
 package bitfinex
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -25,7 +24,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var b Bitfinex
@@ -63,6 +62,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetV2MarginFunding(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	_, err := b.GetV2MarginFunding("fUSD", "2", 2)
 	if err != nil {
 		t.Error(err)
@@ -70,6 +72,9 @@ func TestGetV2MarginFunding(t *testing.T) {
 }
 
 func TestGetMarginRates(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	_, err := b.GetMarginRates("fUSD")
 	if err != nil {
 		t.Error(err)
@@ -77,6 +82,9 @@ func TestGetMarginRates(t *testing.T) {
 }
 
 func TestGetAccountInfoV2(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	_, err := b.GetAccountInfoV2()
 	if err != nil {
 		t.Error(err)
@@ -84,7 +92,9 @@ func TestGetAccountInfoV2(t *testing.T) {
 }
 
 func TestGetV2FundingInfo(t *testing.T) {
-	fmt.Printf("HELLOOO")
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	_, err := b.GetV2FundingInfo("fUSD")
 	if err != nil {
 		t.Error(err)
@@ -92,6 +102,9 @@ func TestGetV2FundingInfo(t *testing.T) {
 }
 
 func TestGetV2Balances(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
 	_, err := b.GetV2Balances()
 	if err != nil {
 		t.Error(err)
@@ -110,6 +123,9 @@ func TestGetMarginPairs(t *testing.T) {
 	_, err := b.GetMarginPairs()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
 func TestAppendOptionalDelimiter(t *testing.T) {
 	t.Parallel()
 	curr1, err := currency.NewPairFromString("BTCUSD")
