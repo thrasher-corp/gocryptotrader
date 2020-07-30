@@ -31,7 +31,6 @@ var (
 		Commands: []*cli.Command{
 			seedExchangeCommand,
 			seedCandleCommand,
-			migrateCommands,
 		},
 	}
 )

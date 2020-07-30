@@ -32,7 +32,6 @@ var (
 		Commands: []*cli.Command{
 			seedExchangeCommand,
 			seedCandleCommand,
-			migrateCommands,
 		},
 	}
 	workingDir string

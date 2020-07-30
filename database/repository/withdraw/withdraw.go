@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
+	"github.com/volatiletech/null"
 )
 
 var (
@@ -74,7 +75,7 @@ func Event(res *withdraw.Response) {
 
 func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err error) {
 	var tempEvent = modelPSQL.WithdrawalHistory{
-		ExchangeNameID: res.Exchange.Name,
+		ExchangeNameID: null.NewString(res.Exchange.Name, true),
 		ExchangeID:     res.Exchange.ID,
 		Status:         res.Exchange.Status,
 		Currency:       res.RequestDetails.Currency.String(),
@@ -155,7 +156,7 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 
 	var tempEvent = modelSQLite.WithdrawalHistory{
 		ID:             newUUID.String(),
-		ExchangeNameID: res.Exchange.Name,
+		ExchangeNameID: null.NewString(res.Exchange.Name, true),
 		ExchangeID:     res.Exchange.ID,
 		Status:         res.Exchange.Status,
 		Currency:       res.RequestDetails.Currency.String(),
@@ -307,7 +308,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			tempResp.ID = newUUID
 			tempResp.Exchange = new(withdraw.ExchangeResponse)
 			tempResp.Exchange.ID = v[x].ExchangeID
-			tempResp.Exchange.Name = v[x].ExchangeNameID
+			tempResp.Exchange.Name = v[x].ExchangeNameID.String
 			tempResp.Exchange.Status = v[x].Status
 			tempResp.RequestDetails = new(withdraw.Request)
 			tempResp.RequestDetails = &withdraw.Request{
@@ -369,7 +370,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			tempResp.ID = newUUID
 			tempResp.Exchange = new(withdraw.ExchangeResponse)
 			tempResp.Exchange.ID = v[x].ExchangeID
-			tempResp.Exchange.Name = v[x].ExchangeNameID
+			tempResp.Exchange.Name = v[x].ExchangeNameID.String
 			tempResp.Exchange.Status = v[x].Status
 			tempResp.RequestDetails = new(withdraw.Request)
 			tempResp.RequestDetails = &withdraw.Request{
@@ -410,50 +411,4 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 		return nil, ErrNoResults
 	}
 	return resp, nil
-}
-
-func MigrateData() (successful, failed []string, err error) {
-	ctx := context.Background()
-	if repository.GetSQLDialect() == database.DBSQLite3 {
-		v, errS := modelSQLite.WithdrawalHistories().All(ctx, database.DB.SQL)
-		if errS != nil {
-			err = errS
-			return
-		}
-		for x := range v {
-			exchangeUUID, err := exchangeDB.UUIDByName(v[x].Exchange.String)
-			if err != nil {
-				failed = append(failed, v[x].ID)
-				continue
-			}
-			v[x].ExchangeNameID = exchangeUUID.String()
-			_, err = v[x].Update(ctx, database.DB.SQL, boil.Infer())
-			if err != nil {
-				log.Errorln(log.DatabaseMgr, err)
-				continue
-			}
-			successful = append(successful, v[x].ID)
-		}
-	} else {
-		v, errS := modelPSQL.WithdrawalHistories().All(ctx, database.DB.SQL)
-		if errS != nil {
-			err = errS
-			return
-		}
-		for x := range v {
-			exchangeUUID, err := exchangeDB.UUIDByName(v[x].Exchange.String)
-			if err != nil {
-				failed = append(failed, v[x].ID)
-				continue
-			}
-			v[x].ExchangeNameID = exchangeUUID.String()
-			_, err = v[x].Update(ctx, database.DB.SQL, boil.Infer())
-			if err != nil {
-				log.Errorln(log.DatabaseMgr, err)
-				continue
-			}
-			successful = append(successful, v[x].ID)
-		}
-	}
-	return successful, failed, err
 }

@@ -24,8 +24,7 @@ import (
 // WithdrawalHistory is an object representing the database table.
 type WithdrawalHistory struct {
 	ID             string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Exchange       null.String `boil:"exchange" json:"exchange,omitempty" toml:"exchange" yaml:"exchange,omitempty"`
-	ExchangeNameID string      `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
+	ExchangeNameID null.String `boil:"exchange_name_id" json:"exchange_name_id,omitempty" toml:"exchange_name_id" yaml:"exchange_name_id,omitempty"`
 	ExchangeID     string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
 	Status         string      `boil:"status" json:"status" toml:"status" yaml:"status"`
 	Currency       string      `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
@@ -41,7 +40,6 @@ type WithdrawalHistory struct {
 
 var WithdrawalHistoryColumns = struct {
 	ID             string
-	Exchange       string
 	ExchangeNameID string
 	ExchangeID     string
 	Status         string
@@ -53,7 +51,6 @@ var WithdrawalHistoryColumns = struct {
 	UpdatedAt      string
 }{
 	ID:             "id",
-	Exchange:       "exchange",
 	ExchangeNameID: "exchange_name_id",
 	ExchangeID:     "exchange_id",
 	Status:         "status",
@@ -69,8 +66,7 @@ var WithdrawalHistoryColumns = struct {
 
 var WithdrawalHistoryWhere = struct {
 	ID             whereHelperstring
-	Exchange       whereHelpernull_String
-	ExchangeNameID whereHelperstring
+	ExchangeNameID whereHelpernull_String
 	ExchangeID     whereHelperstring
 	Status         whereHelperstring
 	Currency       whereHelperstring
@@ -81,8 +77,7 @@ var WithdrawalHistoryWhere = struct {
 	UpdatedAt      whereHelperstring
 }{
 	ID:             whereHelperstring{field: "\"withdrawal_history\".\"id\""},
-	Exchange:       whereHelpernull_String{field: "\"withdrawal_history\".\"exchange\""},
-	ExchangeNameID: whereHelperstring{field: "\"withdrawal_history\".\"exchange_name_id\""},
+	ExchangeNameID: whereHelpernull_String{field: "\"withdrawal_history\".\"exchange_name_id\""},
 	ExchangeID:     whereHelperstring{field: "\"withdrawal_history\".\"exchange_id\""},
 	Status:         whereHelperstring{field: "\"withdrawal_history\".\"status\""},
 	Currency:       whereHelperstring{field: "\"withdrawal_history\".\"currency\""},
@@ -120,8 +115,8 @@ func (*withdrawalHistoryR) NewStruct() *withdrawalHistoryR {
 type withdrawalHistoryL struct{}
 
 var (
-	withdrawalHistoryAllColumns            = []string{"id", "exchange", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at"}
-	withdrawalHistoryColumnsWithoutDefault = []string{"id", "exchange", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type"}
+	withdrawalHistoryAllColumns            = []string{"id", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at"}
+	withdrawalHistoryColumnsWithoutDefault = []string{"id", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type"}
 	withdrawalHistoryColumnsWithDefault    = []string{"created_at", "updated_at"}
 	withdrawalHistoryPrimaryKeyColumns     = []string{"id"}
 )
@@ -474,7 +469,9 @@ func (withdrawalHistoryL) LoadExchangeName(ctx context.Context, e boil.ContextEx
 		if object.R == nil {
 			object.R = &withdrawalHistoryR{}
 		}
-		args = append(args, object.ExchangeNameID)
+		if !queries.IsNil(object.ExchangeNameID) {
+			args = append(args, object.ExchangeNameID)
+		}
 
 	} else {
 	Outer:
@@ -484,12 +481,14 @@ func (withdrawalHistoryL) LoadExchangeName(ctx context.Context, e boil.ContextEx
 			}
 
 			for _, a := range args {
-				if a == obj.ExchangeNameID {
+				if queries.Equal(a, obj.ExchangeNameID) {
 					continue Outer
 				}
 			}
 
-			args = append(args, obj.ExchangeNameID)
+			if !queries.IsNil(obj.ExchangeNameID) {
+				args = append(args, obj.ExchangeNameID)
+			}
 
 		}
 	}
@@ -544,7 +543,7 @@ func (withdrawalHistoryL) LoadExchangeName(ctx context.Context, e boil.ContextEx
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if local.ExchangeNameID == foreign.ID {
+			if queries.Equal(local.ExchangeNameID, foreign.ID) {
 				local.R.ExchangeName = foreign
 				if foreign.R == nil {
 					foreign.R = &exchangeR{}
@@ -775,7 +774,7 @@ func (o *WithdrawalHistory) SetExchangeName(ctx context.Context, exec boil.Conte
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	o.ExchangeNameID = related.ID
+	queries.Assign(&o.ExchangeNameID, related.ID)
 	if o.R == nil {
 		o.R = &withdrawalHistoryR{
 			ExchangeName: related,
@@ -792,6 +791,37 @@ func (o *WithdrawalHistory) SetExchangeName(ctx context.Context, exec boil.Conte
 		related.R.ExchangeNameWithdrawalHistories = append(related.R.ExchangeNameWithdrawalHistories, o)
 	}
 
+	return nil
+}
+
+// RemoveExchangeName relationship.
+// Sets o.R.ExchangeName to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *WithdrawalHistory) RemoveExchangeName(ctx context.Context, exec boil.ContextExecutor, related *Exchange) error {
+	var err error
+
+	queries.SetScanner(&o.ExchangeNameID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("exchange_name_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.R.ExchangeName = nil
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.ExchangeNameWithdrawalHistories {
+		if queries.Equal(o.ExchangeNameID, ri.ExchangeNameID) {
+			continue
+		}
+
+		ln := len(related.R.ExchangeNameWithdrawalHistories)
+		if ln > 1 && i < ln-1 {
+			related.R.ExchangeNameWithdrawalHistories[i] = related.R.ExchangeNameWithdrawalHistories[ln-1]
+		}
+		related.R.ExchangeNameWithdrawalHistories = related.R.ExchangeNameWithdrawalHistories[:ln-1]
+		break
+	}
 	return nil
 }
 
