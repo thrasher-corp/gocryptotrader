@@ -63,8 +63,7 @@ func TestStart(t *testing.T) {
 }
 
 func TestGetFullFundingHistory(t *testing.T) {
-	a, err := b.GetFullFundingHistory("", "", "", "", "", true, time.Time{}, time.Time{})
-	t.Log(a)
+	_, err := b.GetFullFundingHistory("", "", "", "", "", true, time.Time{}, time.Time{})
 
 	if err != nil {
 		t.Error(err)
@@ -151,9 +150,7 @@ func TestGetAccountExecutionTradeHistory(t *testing.T) {
 }
 
 func TestGetFundingHistory(t *testing.T) {
-	b.Verbose = true
-	a, err := b.GetFundingHistory()
-	t.Log(a)
+	_, err := b.GetFundingHistory()
 	if err == nil {
 		t.Error("GetFundingHistory() Expected error")
 	}
@@ -177,7 +174,6 @@ func TestGetActiveInstruments(t *testing.T) {
 }
 
 func TestGetActiveAndIndexInstruments(t *testing.T) {
-	b.Verbose = true
 	_, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
 		t.Error("GetActiveAndIndexInstruments() error", err)
