@@ -15,7 +15,6 @@ var seedCandleCommand = &cli.Command{
 		{
 			Name:      "file",
 			Usage:     "seed candle data from a file",
-			ArgsUsage: "<flags>",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "exchange",
