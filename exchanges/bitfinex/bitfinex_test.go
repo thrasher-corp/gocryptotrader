@@ -22,8 +22,8 @@ import (
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey                  = "U4UcLJEpdcepygBUwwvza6qzUvhzwMXcU5HIGqSlmbG"
-	apiSecret               = "jEJuzdkwq4dmAkTgpeloRJGuFoltyxrQp4wPIivi2y7"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
