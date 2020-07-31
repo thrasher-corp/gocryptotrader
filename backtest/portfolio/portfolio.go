@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtest/position"
 	"github.com/thrasher-corp/gocryptotrader/backtest/position/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtest/signal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 func (p Portfolio) Update(handler data.Handler) {
@@ -67,4 +68,24 @@ func (p Portfolio) OnFill(fillH fill.Handler, data data.Handler) (*fill.Event, e
 	}
 	p.transactions = append(p.transactions, fillH)
 	return fillH.(*fill.Event), nil
+}
+
+func (p *Portfolio) IsLong(pair currency.Pair) bool {
+	v, ok := p.holdings[pair.String()]
+	if ok && v.Amount > 0 {
+		return true
+	}
+	return false
+}
+
+func (p *Portfolio) IsShort(pair currency.Pair) bool {
+	return !p.IsLong(pair)
+}
+
+func (p *Portfolio) valid(pair currency.Pair) (position.Position, bool) {
+	v, ok := p.holdings[pair.String()]
+	if ok && (v.Amount != 0) {
+		return v, true
+	}
+	return v, false
 }
