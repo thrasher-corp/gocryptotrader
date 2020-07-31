@@ -60,15 +60,15 @@ func GetConnectionDetails() *database.Config {
 	}
 
 	return &database.Config{
-		Enabled: true,
-		Driver:  "postgres",
+		Enabled:           true,
+		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Port:     5432,
-			Username: "",
-			Password: "",
-			Database: "gct_test",
-			SSLMode:  "disable",
+			// Host:     "",
+			// Port:     5432,
+			// Username: "",
+			// Password: "",
+			// Database: "",
+			// SSLMode:  "",
 		},
 	}
 }
