@@ -135,9 +135,17 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	if len(resp) != 2 {
 		return response, fmt.Errorf("invalid data received")
 	}
+	avgRate, ok := resp[0].(float64)
+	if !ok {
+		return response, fmt.Errorf("failed rate")
+	}
+	avgAmount, ok := resp[1].(float64)
+	if !ok {
+		return response, fmt.Errorf("failed rate")
+	}
 	response.Symbol = symbol
-	response.RateAvg = resp[0].(float64)
-	response.AmountAvg = resp[1].(float64)
+	response.RateAvg = avgRate
+	response.AmountAvg = avgAmount
 	return response, nil
 }
 
@@ -156,8 +164,16 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 	if len(resp) != 2 {
 		return response, fmt.Errorf("invalid data received")
 	}
-	response.RateAvg = resp[0].(float64)
-	response.AmountAvg = resp[1].(float64)
+	avgRate, ok := resp[0].(float64)
+	if !ok {
+		return response, fmt.Errorf("failed rate")
+	}
+	avgAmount, ok := resp[1].(float64)
+	if !ok {
+		return response, fmt.Errorf("failed rate")
+	}
+	response.RateAvg = avgRate
+	response.AmountAvg = avgAmount
 	return response, nil
 }
 
@@ -181,16 +197,6 @@ func (b *Bitfinex) GetV2Balances() (interface{}, error) {
 		getAccountFees)
 }
 
-// GetMarginRates gets borrowing rates for margin trading
-func (b *Bitfinex) GetMarginRates(symbol string) (interface{}, error) {
-	var resp interface{}
-	return resp, b.SendAuthenticatedHTTPRequest2(http.MethodPost,
-		bitfinexFundingOffers,
-		nil,
-		&resp,
-		getAccountFees)
-}
-
 // GetMarginPairs gets pairs that allow margin trading
 func (b *Bitfinex) GetMarginPairs() ([][]string, error) {
 	var resp [][]string
@@ -209,11 +215,9 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 	params.Set("keys", keys)
 	if startTime != "" {
 		params.Set("start", startTime)
-
 	}
 	if endTime != "" {
 		params.Set("start", endTime)
-
 	}
 	if sort != 0 {
 		params.Set("sort", strconv.FormatInt(sort, 10))

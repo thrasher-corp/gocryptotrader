@@ -22,8 +22,8 @@ import (
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "U4UcLJEpdcepygBUwwvza6qzUvhzwMXcU5HIGqSlmbG"
+	apiSecret               = "jEJuzdkwq4dmAkTgpeloRJGuFoltyxrQp4wPIivi2y7"
 	canManipulateRealOrders = false
 )
 
@@ -66,16 +66,6 @@ func TestGetV2MarginFunding(t *testing.T) {
 		t.SkipNow()
 	}
 	_, err := b.GetV2MarginFunding("fUSD", "2", 2)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetMarginRates(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.SkipNow()
-	}
-	_, err := b.GetMarginRates("fUSD")
 	if err != nil {
 		t.Error(err)
 	}

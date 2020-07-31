@@ -43,13 +43,12 @@ const (
 	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
 
 	// Authenticated endpoints
-	newOrderTest       = "/api/v3/order/test"
-	newOrder           = "/api/v3/order"
-	cancelOrder        = "/api/v3/order"
-	queryOrder         = "/api/v3/order"
-	openOrders         = "/api/v3/openOrders"
-	allOrders          = "/api/v3/allOrders"
-	getInterestHistory = "/sapi/v1/margin/interestHistory"
+	newOrderTest = "/api/v3/order/test"
+	newOrder     = "/api/v3/order"
+	cancelOrder  = "/api/v3/order"
+	queryOrder   = "/api/v3/order"
+	openOrders   = "/api/v3/openOrders"
+	allOrders    = "/api/v3/allOrders"
 
 	// Withdraw API endpoints
 	withdrawEndpoint            = "/wapi/v3/withdraw.html"
@@ -61,7 +60,6 @@ const (
 	dustLog                     = "/wapi/v3/userAssetDribbletLog.html"
 	tradeFee                    = "/wapi/v3/tradeFee.html"
 	assetDetail                 = "/wapi/v3/assetDetail.html"
-	interestHistory             = "/sapi/v1/margin/interestHistory"
 	undocumentedInterestHistory = "https://www.binance.com/gateway-api/v1/public/isolated-margin/pair/vip-level"
 )
 
@@ -122,7 +120,7 @@ type Binance struct {
 // information
 func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 	var resp ExchangeInfo
-	path := apiURL + exchangeInfo
+	path := b.API.Endpoints.URL + exchangeInfo
 
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }

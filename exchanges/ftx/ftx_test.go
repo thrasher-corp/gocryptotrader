@@ -146,7 +146,6 @@ func TestGetFutureStats(t *testing.T) {
 }
 
 func TestGetFundingRates(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	_, err := f.GetFundingRates(time.Now().Add(-time.Hour), time.Now(), "BTC-PERP")
 	if err != nil {

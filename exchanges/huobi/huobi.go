@@ -20,6 +20,7 @@ import (
 
 const (
 	huobiAPIURL      = "https://api.huobi.pro"
+	huobiURL         = "https://api.hbdm.com/"
 	huobiAPIVersion  = "1"
 	huobiAPIVersion2 = "2"
 
@@ -87,7 +88,7 @@ func (h *HUOBI) GetSwapFundingRates(contract string) (FundingRatesData, error) {
 		Data FundingRatesData `json:"data"`
 	}
 	var result response
-	err := h.SendHTTPRequest(common.EncodeURLValues("https://api.hbdm.com/"+huobiSwapFunding, vals), &result)
+	err := h.SendHTTPRequest(common.EncodeURLValues(huobiURL+huobiSwapFunding, vals), &result)
 	if result.ErrorMessage != "" {
 		return FundingRatesData{}, errors.New(result.ErrorMessage)
 	}
@@ -103,7 +104,7 @@ func (h *HUOBI) GetSwapMarkets(contract string) ([]SwapMarketsData, error) {
 		Data []SwapMarketsData `json:"data"`
 	}
 	var result response
-	err := h.SendHTTPRequest(common.EncodeURLValues("https://api.hbdm.com/"+huobiSwapMarkets, vals), &result)
+	err := h.SendHTTPRequest(common.EncodeURLValues(huobiURL+huobiSwapMarkets, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}

@@ -40,13 +40,12 @@ const (
 	okGroupFundingTime           = "funding_time"
 	okGroupHistoricalFundingRate = "historical_funding_rate"
 	// ETT endpoints
-	okGroupConstituents    = "constituents"
-	okGroupDefinePrice     = "define-price"
-	okGroupPerpSwapRates   = "instruments/%s/historical_funding_rate?"
-	okGroupPerpTickers     = "instruments/ticker"
-	okGroupMarginMarkPrice = "/api/margin/v3/instruments/%s/mark_price"
-	okGroupMarginPairData  = "accounts/BTC-USDT/availability?"
-	okGroupSpotPairs       = "instruments"
+	okGroupConstituents   = "constituents"
+	okGroupDefinePrice    = "define-price"
+	okGroupPerpSwapRates  = "instruments/%s/historical_funding_rate?"
+	okGroupPerpTickers    = "instruments/ticker"
+	okGroupMarginPairData = "accounts/BTC-USDT/availability?"
+	okGroupSpotPairs      = "instruments"
 )
 
 // OKEX bases all account, spot and margin methods off okgroup implementation

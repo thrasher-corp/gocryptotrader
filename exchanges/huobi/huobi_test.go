@@ -78,9 +78,15 @@ func setupWsTests(t *testing.T) {
 }
 
 func TestGetMarginRates(t *testing.T) {
+	t.Parallel()
 	_, err := h.GetMarginRates("BTC/USDT")
 	if err != nil {
 		t.Error(err)
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not get order history: %s", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
