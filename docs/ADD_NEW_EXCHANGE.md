@@ -340,8 +340,7 @@ if err != nil {
 
 - Run documentation.go to generate readme file for the exchange:
 ```bash
-cd gocryptotrader\cmd\documentation
-go run documentation.go
+go run cmd/documentation/documentation.go -tooldir cmd/documentation
 ```
 
 This will generate a readme file for the exchange which can be found in the new exchange's folder
