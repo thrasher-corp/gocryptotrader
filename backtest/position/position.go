@@ -28,7 +28,7 @@ func (p *Position) update(f fill.Handler) {
 			p.RealisedPNL += f.Amount()*(p.AveragePrice-f.Price()) - f.Cost()
 		}
 
-		p.AveragePriceBought = ((p.AmountBought * p.AveragePriceBought) + (f.Amount()  * f.Price())) / (p.AmountBought + f.Amount())
+		p.AveragePriceBought = ((p.AmountBought * p.AveragePriceBought) + (f.Amount() * f.Price())) / (p.AmountBought + f.Amount())
 
 		p.Amount += f.Amount()
 		p.AmountBought += f.Amount()
@@ -43,7 +43,7 @@ func (p *Position) update(f fill.Handler) {
 			p.PriceBasis -= f.NetValue()
 		}
 
-		p.AveragePriceSold = ((p.AmountSold * p.AveragePriceSold) + (f.Amount()  * f.Price())) / (p.AmountSold + f.Amount())
+		p.AveragePriceSold = ((p.AmountSold * p.AveragePriceSold) + (f.Amount() * f.Price())) / (p.AmountSold + f.Amount())
 
 		p.Amount -= f.Amount()
 		p.AmountSold += f.Amount()
@@ -54,9 +54,7 @@ func (p *Position) update(f fill.Handler) {
 		// todo handle stuff
 	}
 
-	p.AveragePrice = (math.Abs(p.Amount) * p.AveragePrice) + (f.Amount() * f.Price()) / (math.Abs(p.Amount)+ f.Amount())
+	p.AveragePrice = (math.Abs(p.Amount) * p.AveragePrice) + (f.Amount()*f.Price())/(math.Abs(p.Amount)+f.Amount())
 	p.AveragePriceNet = (math.Abs(p.Amount)*p.AveragePriceNet + f.NetValue()) / (math.Abs(p.Amount) + f.Amount())
 
-
 }
-

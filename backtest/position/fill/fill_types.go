@@ -11,9 +11,9 @@ type Handler interface {
 	Amount() float64
 	SetAmount(float64)
 
-	Price()  float64
+	Price() float64
 
-	Fee()    float64
+	Fee() float64
 	Cost() float64
 	Value() float64
 	NetValue() float64

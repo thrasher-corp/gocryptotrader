@@ -38,11 +38,11 @@ func (p Portfolio) SetFunds(f float64) {
 
 func (p Portfolio) OnSignal(signal signal.Handler, data data.Handler) (*order.Order, error) {
 	newOrder := &order.Order{
-		Event:              event.Event{
+		Event: event.Event{
 			Timestamp: signal.Time(),
-			Pair: signal.Pair(),
+			Pair:      signal.Pair(),
 		},
-		Direction:          signal.Direction(),
+		Direction: signal.Direction(),
 	}
 	return newOrder, nil
 }
