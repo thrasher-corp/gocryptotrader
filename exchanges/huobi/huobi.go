@@ -24,8 +24,32 @@ const (
 	huobiAPIVersion  = "1"
 	huobiAPIVersion2 = "2"
 
-	huobiSwapMarkets           = "/swap-api/v1/swap_contract_info"
-	huobiSwapFunding           = "swap-api/v1/swap_funding_rate"
+	// Coin Margined Swap (perpetual futures) endpoints
+	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info"
+	huobiSwapFunding                     = "swap-api/v1/swap_funding_rate"
+	huobiSwapIndexPriceInfo              = "/swap-api/v1/swap_index"
+	huobiSwapPriceLimitation             = "/swap-api/v1/swap_price_limit"
+	huobiSwapOpenInterestInfo            = "/swap-api/v1/swap_open_interest"
+	huobiSwapMarketDepth                 = "/swap-ex/market/depth"
+	huobiKLineData                       = "/swap-ex/market/history/kline"
+	huobiMarketDataOverview              = "/swap-ex/market/detail/merged"
+	huobiLastTradeContract               = "/swap-ex/market/trade"
+	huobiRequestBatchOfTradingRecords    = "/swap-ex/market/history/trade"
+	huobiInsuranceBalanceAndClawbackRate = "/swap-api/v1/swap_risk_info"
+	huobiInsuranceBalanceHistory         = "/swap-api/v1/swap_insurance_fund"
+	huobiTieredAdjustmentFactor          = "/swap-api/v1/swap_adjustfactor"
+	huobiOpenInterestInfo                = "/swap-api/v1/swap_his_open_interest"
+	huobiSwapSystemStatus                = "/swap-api/v1/swap_api_state"
+	huobiSwapSentimentData               = "/swap-api/v1/swap_elite_account_ratio"
+	huobiSwapSentimentPosition           = "/swap-api/v1/swap_elite_position_ratio"
+	huobiSwapLiquidationOrders           = "/swap-api/v1/swap_liquidation_orders"
+	huobiSwapFundingRate                 = "swap-api/v1/swap_funding_rate"
+	huobiSwapHistoricalFundingRate       = "swap-api/v1/swap_historical_funding_rate"
+	huobiPremiumIndexKlineData           = "/index/market/history/swap_premium_index_kline"
+	huobiPredictedFundingRateData        = "/index/market/history/swap_estimated_rate_kline"
+	huobiBasisData                       = "/index/market/history/swap_basis"
+
+	// Spot endpoints
 	huobiMarketHistoryKline    = "market/history/kline"
 	huobiMarketDetail          = "market/detail"
 	huobiMarketDetailMerged    = "market/detail/merged"
@@ -68,15 +92,41 @@ type HUOBI struct {
 	AccountID string
 }
 
-// GetMarginRates gets margin rates
-func (h *HUOBI) GetMarginRates(symbol string) (MarginRatesData, error) {
-	vals := url.Values{}
-	if symbol != "" {
-		vals.Set("symbols", symbol)
+// QuerySwapIndexPriceInfo gets perpetual swap index's price info
+func (h *HUOBI) QuerySwapIndexPriceInfo(code string) (SwapIndexPriceData, error) {
+	var resp SwapIndexPriceData
+	var path string
+	if code != "" {
+		params := url.Values{}
+		params.Set("contract_code", code)
+		path = huobiSwapIndexPriceInfo + params.Encode()
 	}
-	var resp MarginRatesData
-	return resp, h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiMarginRates, vals, nil, &resp, false)
+	path = huobiSwapIndexPriceInfo
+	return resp, h.SendHTTPRequest(path, &resp)
+}
 
+// GetSwapPriceLimits gets price caps for perpetual futures
+func (h *HUOBI) GetSwapPriceLimits(code string) (SwapPriceLimitsData, error) {
+	var resp SwapPriceLimitsData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	return resp, h.SendHTTPRequest(huobiSwapPriceLimitation+params.Encode(), &resp)
+}
+
+// GetSwapMarkets gets data of swap markets
+func (h *HUOBI) GetSwapMarkets(contract string) ([]SwapMarketsData, error) {
+	vals := url.Values{}
+	vals.Set("contract_code", contract)
+	type response struct {
+		Response
+		Data []SwapMarketsData `json:"data"`
+	}
+	var result response
+	err := h.SendHTTPRequest(common.EncodeURLValues(huobiURL+huobiSwapMarkets, vals), &result)
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
+	}
+	return result.Data, err
 }
 
 // GetSwapFundingRates gets funding rates data
@@ -95,20 +145,16 @@ func (h *HUOBI) GetSwapFundingRates(contract string) (FundingRatesData, error) {
 	return result.Data, err
 }
 
-// GetSwapMarkets gets data of swap markets
-func (h *HUOBI) GetSwapMarkets(contract string) ([]SwapMarketsData, error) {
+// SPOT section below ***************************************************************************************
+
+// GetMarginRates gets margin rates
+func (h *HUOBI) GetMarginRates(symbol string) (MarginRatesData, error) {
 	vals := url.Values{}
-	vals.Set("contract_code", contract)
-	type response struct {
-		Response
-		Data []SwapMarketsData `json:"data"`
+	if symbol != "" {
+		vals.Set("symbols", symbol)
 	}
-	var result response
-	err := h.SendHTTPRequest(common.EncodeURLValues(huobiURL+huobiSwapMarkets, vals), &result)
-	if result.ErrorMessage != "" {
-		return nil, errors.New(result.ErrorMessage)
-	}
-	return result.Data, err
+	var resp MarginRatesData
+	return resp, h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiMarginRates, vals, nil, &resp, false)
 }
 
 // GetSpotKline returns kline data
