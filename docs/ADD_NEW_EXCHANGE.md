@@ -28,7 +28,7 @@ Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
-cd gocryptotrader/cmd/documentation/exchange_template
+cd gocryptotrader/cmd/exchange_template
 go run exchange_template.go -name FTX -ws -rest
 ```
 
