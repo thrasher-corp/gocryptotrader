@@ -12,13 +12,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // LoadFromDatabase returns Item from database seeded data
-func LoadFromDatabase(exchange string, pair currency.Pair, interval Interval, start, end time.Time) (Item, error) {
+func LoadFromDatabase(exchange string, pair currency.Pair, interval Interval, asset asset.Item, start, end time.Time) (Item, error) {
 	retCandle, err := candle.Series(exchange,
-		pair.Base.String(), pair.Quote.String(),
+		pair.Base.String(), asset.String(), pair.Quote.String(),
 		interval.Short(), start, end)
 	if err != nil {
 		return Item{}, err

@@ -65,7 +65,7 @@ and can be overridden with the ```-config``` flag
 File structure for import contains the following rows with no headers:
 
 ```
-timestamp, volumne, open, high, low, close
+timestamp, volume, open, high, low, close
 ```
 An example of this is:
 ```

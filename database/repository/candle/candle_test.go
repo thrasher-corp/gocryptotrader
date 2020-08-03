@@ -221,7 +221,7 @@ func TestSeries(t *testing.T) {
 
 			start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 			end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-			ret, err := Series(testExchanges[0].Name, "BTC", "USDT", "24h", start, end)
+			ret, err := Series(testExchanges[0].Name, "BTC", "USDT", "24h", "spot", start, end)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -229,7 +229,7 @@ func TestSeries(t *testing.T) {
 				t.Errorf("unexpected number of results received:  %v", len(ret.Candles))
 			}
 
-			ret, err = Series("", "", "", "", start, end)
+			ret, err = Series("", "", "", "", "", start, end)
 			if err != nil {
 				if !errors.Is(err, errInvalidInput) {
 					t.Fatal(err)

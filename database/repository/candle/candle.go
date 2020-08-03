@@ -24,7 +24,7 @@ import (
 )
 
 // Series returns candle data
-func Series(exchangeName, base, quote, interval string, start, end time.Time) (out Item, err error) {
+func Series(exchangeName, base, quote, interval, asset string, start, end time.Time) (out Item, err error) {
 	if exchangeName == "" || base == "" || quote == "" || interval == "" {
 		return out, errInvalidInput
 	}
@@ -38,10 +38,12 @@ func Series(exchangeName, base, quote, interval string, start, end time.Time) (o
 	baseQM := qm.Where("base = ?", base)
 	quoteQM := qm.Where("quote = ?", quote)
 	intervalQM := qm.Where("interval = ?", interval)
+
+	assetQM := qm.Where("asset = ?", asset)
 	dateQM := qm.Where("timestamp between ? and ?", start, end)
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		retCandle, errC := modelSQLite.Candles(uuidQM, baseQM, quoteQM, intervalQM, dateQM).All(context.Background(), database.DB.SQL)
+		retCandle, errC := modelSQLite.Candles(uuidQM, baseQM, quoteQM, intervalQM, dateQM, assetQM).All(context.Background(), database.DB.SQL)
 		if errC != nil {
 			return out, errC
 		}
@@ -81,7 +83,7 @@ func Series(exchangeName, base, quote, interval string, start, end time.Time) (o
 	out.Interval = interval
 	out.Base = base
 	out.Quote = quote
-
+	out.Asset = asset
 	return out, err
 }
 
@@ -111,7 +113,7 @@ func Insert(in *Item) (uint64, error) {
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			return 0, errRB
+			log.Errorln(log.DatabaseMgr, errRB)
 		}
 		return 0, err
 	}
@@ -126,6 +128,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 			Base:       in.Base,
 			Quote:      in.Quote,
 			Interval:   in.Interval,
+			Asset:      null.NewString(in.Asset, true),
 			Timestamp:  in.Candles[x].Timestamp.Format(time.RFC3339),
 			Open:       in.Candles[x].Open,
 			High:       in.Candles[x].High,
@@ -142,7 +145,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				return 0, errRB
+				log.Errorln(log.DatabaseMgr, errRB)
 			}
 			return 0, err
 		}
@@ -173,7 +176,7 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				return 0, errRB
+				log.Errorln(log.DatabaseMgr, errRB)
 			}
 			return 0, err
 		}
@@ -184,6 +187,7 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 	return totalInserted, nil
 }
 
+// InsertFromCSV load a CSV list of candle data and insert into database
 func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (uint64, error) {
 	csvFile, err := os.Open(file)
 	if err != nil {
