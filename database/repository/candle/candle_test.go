@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	verbose       = false
+	verbose       = true
 	testExchanges = []exchange.Details{
 		{
 			Name: "One",
@@ -82,7 +82,7 @@ func TestInsert(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -146,7 +146,7 @@ func TestInsertFromCSV(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -207,7 +207,7 @@ func TestSeries(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -271,6 +271,7 @@ func genOHCLVData() (out Item, err error) {
 	out.Base = currency.BTC.String()
 	out.Quote = currency.USDT.String()
 	out.Interval = "24h"
+	out.Asset = "spot"
 
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	for x := 0; x < 365; x++ {

@@ -24,7 +24,7 @@ var (
 	verbose       = false
 	testExchanges = []exchange.Details{
 		{
-			Name: "one",
+			Name: "One",
 		},
 	}
 )
@@ -481,7 +481,7 @@ func TestStoreInDatabase(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -552,7 +552,7 @@ func TestLoadFromDatabase(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -617,6 +617,7 @@ func genOHCLVData() (out candle.Item, outItem Item, err error) {
 	out.Base = currency.BTC.String()
 	out.Quote = currency.USDT.String()
 	out.Interval = "24h"
+	out.Asset = "spot"
 
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	for x := 0; x < 365; x++ {
@@ -701,7 +702,7 @@ func TestStoreInDatabaseShouldOnlyInsertWithValidIntervals(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -74,7 +74,7 @@ func GetConnectionDetails() *database.Config {
 }
 
 // ConnectToDatabase opens connection to database and returns pointer to instance of database.DB
-func ConnectToDatabase(conn *database.Config, runMigration bool) (dbConn *database.Instance, err error) {
+func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err error) {
 	database.DB.Config = conn
 	if conn.Driver == database.DBPostgreSQL {
 		dbConn, err = psqlConn.Connect()
@@ -89,11 +89,9 @@ func ConnectToDatabase(conn *database.Config, runMigration bool) (dbConn *databa
 		}
 	}
 
-	if runMigration {
-		err = migrateDB(database.DB.SQL)
-		if err != nil {
-			return nil, err
-		}
+	err = migrateDB(database.DB.SQL)
+	if err != nil {
+		return nil, err
 	}
 
 	return

@@ -26,9 +26,6 @@ var seedExchangeCommand = &cli.Command{
 					FilePath:  workingDir,
 				},
 			},
-
-
-
 			Action: seedExchangeFromFile,
 		},
 		{
