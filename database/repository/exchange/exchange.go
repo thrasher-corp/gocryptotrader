@@ -186,7 +186,10 @@ func UUIDByName(exchange string) (uuid.UUID, error) {
 	}
 	ret, err := One(exchange)
 	if err != nil {
-		return uuid.UUID{}, err
+		if err != sql.ErrNoRows {
+			return uuid.UUID{}, err
+		}
+		return uuid.UUID{}, ErrNoExchangeFound
 	}
 
 	exchangeCache.Add(exchange, ret.UUID)

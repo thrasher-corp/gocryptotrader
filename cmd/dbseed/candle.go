@@ -13,8 +13,8 @@ var seedCandleCommand = &cli.Command{
 	Usage: "seed candle data",
 	Subcommands: []*cli.Command{
 		{
-			Name:      "file",
-			Usage:     "seed candle data from a file",
+			Name:  "file",
+			Usage: "seed candle data from a file",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "exchange",

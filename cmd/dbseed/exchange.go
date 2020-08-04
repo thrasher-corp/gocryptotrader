@@ -26,6 +26,9 @@ var seedExchangeCommand = &cli.Command{
 					FilePath:  workingDir,
 				},
 			},
+
+
+
 			Action: seedExchangeFromFile,
 		},
 		{
@@ -116,7 +119,7 @@ func addSingleExchange(c *cli.Context) error {
 	}
 
 	err = exchangeDB.Insert(exchangeDB.Details{
-		Name: exchangeName,
+		Name: strings.Title(exchangeName),
 	})
 
 	if err != nil {
