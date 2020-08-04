@@ -4,8 +4,8 @@ package huobi
 type SwapIndexPriceData struct {
 	Data []struct {
 		ContractCode   string  `json:"contract_code"`
-		IndexPrice     float64 `json:"index_price,string"`
-		IndexTimestamp string  `json:"index_ts"`
+		IndexPrice     float64 `json:"index_price"`
+		IndexTimestamp int64   `json:"index_ts"`
 	} `json:"data"`
 }
 
@@ -13,8 +13,8 @@ type SwapIndexPriceData struct {
 type SwapPriceLimitsData struct {
 	Data []struct {
 		Symbol       string  `json:"symbol"`
-		HighLimit    float64 `json:"high_limit,string"`
-		LowLimit     float64 `json:"low_limit,string"`
+		HighLimit    float64 `json:"high_limit"`
+		LowLimit     float64 `json:"low_limit"`
 		ContractCode string  `json:"contract_code"`
 	} `json:"data"`
 }
@@ -23,36 +23,36 @@ type SwapPriceLimitsData struct {
 type SwapOpenInterestData struct {
 	Data []struct {
 		Symbol       string  `json:"symbol"`
-		Volume       float64 `json:"volume,string"`
-		Amount       float64 `json:"amount,string"`
+		Volume       float64 `json:"volume"`
+		Amount       float64 `json:"amount"`
 		ContractCode string  `json:"contract_code"`
 	} `json:"data"`
 }
 
-// MarketDepthData stores market depth data
-type MarketDepthData struct {
+// SwapMarketDepthData stores market depth data
+type SwapMarketDepthData struct {
 	Tick struct {
 		Asks      [][]float64 `json:"asks"`
 		Bids      [][]float64 `json:"bids"`
 		Channel   string      `json:"ch"`
-		ID        string      `json:"id"`
-		MRID      string      `json:"mrid"`
-		Timestamp string      `json:"ts"`
-		Version   string      `json:"version"`
+		ID        int64       `json:"id"`
+		MRID      int64       `json:"mrid"`
+		Timestamp int64       `json:"ts"`
+		Version   int64       `json:"version"`
 	} `json:"tick"`
 }
 
 // SwapKlineData stores kline data for perpetual swaps
 type SwapKlineData struct {
 	Data []struct {
-		Volume float64 `json:"vol,string"`
-		Close  float64 `json:"close,string"`
-		Count  float64 `json:"count,string"`
-		High   float64 `json:"high,string"`
-		ID     string  `json:"id"`
-		Low    float64 `json:"low,string"`
-		Open   float64 `json:"open,string"`
-		Amount float64 `json:"amount,string"`
+		Volume float64 `json:"vol"`
+		Close  float64 `json:"close"`
+		Count  float64 `json:"count"`
+		High   float64 `json:"high"`
+		ID     int64   `json:"id"`
+		Low    float64 `json:"low"`
+		Open   float64 `json:"open"`
+		Amount float64 `json:"amount"`
 	} `json:"data"`
 }
 
@@ -60,17 +60,17 @@ type SwapKlineData struct {
 type MarketOverviewData struct {
 	Channel string `json:"ch"`
 	Tick    struct {
-		Vol       float64     `json:"vol,string"`
-		Asks      [][]float64 `json:"ask,string"`
-		Bid       [][]float64 `json:"bid,string"`
-		Close     float64     `json:"close,string"`
-		Count     float64     `json:"count,string"`
-		High      float64     `json:"high,string"`
-		ID        string      `json:"id"`
-		Low       float64     `json:"low,string"`
-		Open      float64     `json:"open,string"`
-		Timestamp string      `json:"ts"`
-		Amount    float64     `json:"amount,string"`
+		Vol       float64   `json:"vol,string"`
+		Asks      []float64 `json:"ask"`
+		Bid       []float64 `json:"bid"`
+		Close     float64   `json:"close,string"`
+		Count     float64   `json:"count"`
+		High      float64   `json:"high,string"`
+		ID        int64     `json:"id"`
+		Low       float64   `json:"low,string"`
+		Open      float64   `json:"open,string"`
+		Timestamp int64     `json:"ts"`
+		Amount    float64   `json:"amount,string"`
 	} `json:"tick"`
 }
 
@@ -81,9 +81,9 @@ type LastTradeData struct {
 		Data []struct {
 			Amount    float64 `json:"amount,string"`
 			Direction string  `json:"direction"`
-			ID        string  `json:"id"`
+			ID        int64   `json:"id"`
 			Price     float64 `json:"price,string"`
-			Timestamp string  `json:"ts"`
+			Timestamp int64   `json:"ts"`
 		} `json:"data"`
 	} `json:"tick"`
 }
@@ -92,14 +92,14 @@ type LastTradeData struct {
 type BatchTradesData struct {
 	Channel string `json:"ch"`
 	Data    []struct {
-		ID        string `json:"id"`
-		Timestamp string `json:"ts"`
+		ID        int64 `json:"id"`
+		Timestamp int64 `json:"ts"`
 		Data      []struct {
-			Amount    float64 `json:"amount,string"`
+			Amount    float64 `json:"amount"`
 			Direction string  `json:"direction"`
-			ID        string  `json:"id"`
-			Price     float64 `json:"price,string"`
-			Timestamp string  `json:"ts"`
+			ID        int64   `json:"id"`
+			Price     float64 `json:"price"`
+			Timestamp int64   `json:"ts"`
 		} `json:"data"`
 	} `json:"data"`
 }
@@ -109,8 +109,8 @@ type InsuranceAndClawbackData struct {
 	Timestamp string `json:"timestamp"`
 	Data      []struct {
 		ContractCode      string  `json:"contract_code"`
-		InsuranceFund     float64 `json:"insurance_fund,string"`
-		EstimatedClawback float64 `json:"estimated_clawback,string"`
+		InsuranceFund     float64 `json:"insurance_fund"`
+		EstimatedClawback float64 `json:"estimated_clawback"`
 	} `json:"data"`
 }
 
@@ -120,12 +120,12 @@ type HistoricalInsuranceFundBalance struct {
 		Symbol       string `json:"symbol"`
 		ContractCode string `json:"contract_code"`
 		Tick         []struct {
-			InsuranceFund float64 `json:"insurance_fund,string"`
+			InsuranceFund float64 `json:"insurance_fund"`
 			Timestamp     string  `json:"ts"`
 		} `json:"tick"`
-		TotalPage   int64 `json:"total_page,string"`
-		TotalSize   int64 `json:"total_size,string"`
-		CurrentPage int64 `json:"current_page,string"`
+		TotalPage   int64 `json:"total_page"`
+		TotalSize   int64 `json:"total_size"`
+		CurrentPage int64 `json:"current_page"`
 	} `json:"data"`
 }
 
@@ -137,8 +137,8 @@ type TieredAdjustmentFactorData struct {
 		List         []struct {
 			LeverRate float64 `json:"lever_rate,string"`
 			Ladders   []struct {
-				Ladder       float64 `json:"ladder,string"`
-				MinSize      float64 `json:"min_size,string"`
+				Ladder       float64 `json:"ladder"`
+				MinSize      float64 `json:"min_size"`
 				MaxSize      float64 `json:"max_size"`
 				AdjustFactor float64 `json:"adjust_factor"`
 			} `json:"ladders"`
@@ -152,8 +152,8 @@ type OpenInterestData struct {
 		Symbol       string `json:"symbol"`
 		ContractCode string `json:"contract_code"`
 		Tick         []struct {
-			Volume     float64 `json:"volume,string"`
-			AmountType float64 `json:"amountType,string"`
+			Volume     float64 `json:"volume"`
+			AmountType float64 `json:"amountType"`
 			Timestamp  string  `json:"ts"`
 		} `json:"tick"`
 	} `json:"data"`
@@ -164,12 +164,12 @@ type SystemStatusData struct {
 	Data []struct {
 		Symbol            string  `json:"symbol"`
 		ContractCode      string  `json:"contract_code"`
-		Open              float64 `json:"open,string"`
-		Close             float64 `json:"close,string"`
-		Cancel            float64 `json:"cancel,string"`
-		TransferIn        float64 `json:"transfer_in,string"`
-		TransferOut       float64 `json:"transfer_out,string"`
-		MasterTransferSub float64 `json:"master_transfer_sub,string"`
+		Open              float64 `json:"open"`
+		Close             float64 `json:"close"`
+		Cancel            float64 `json:"cancel"`
+		TransferIn        float64 `json:"transfer_in"`
+		TransferOut       float64 `json:"transfer_out"`
+		MasterTransferSub float64 `json:"master_transfer_sub"`
 		SubTransferMaster float64 `json:"sub_transfer_master"`
 	} `json:"data"`
 }
@@ -180,9 +180,9 @@ type TraderSentimentIndexAccountData struct {
 		Symbol       string `json:"symbol"`
 		ContractCode string `json:"contract_code"`
 		List         []struct {
-			BuyRatio    float64 `json:"buy_ratio,string"`
-			SellRatio   float64 `json:"sell_ratio,string"`
-			LockedRatio float64 `json:"locked_ratio,string"`
+			BuyRatio    float64 `json:"buy_ratio"`
+			SellRatio   float64 `json:"sell_ratio"`
+			LockedRatio float64 `json:"locked_ratio"`
 			Timestamp   string  `json:"ts"`
 		} `json:"list"`
 	} `json:"data"`
@@ -194,8 +194,8 @@ type TraderSentimentIndexPositionData struct {
 		Symbol       string `json:"symbol"`
 		ContractCode string `json:"contract_code"`
 		List         []struct {
-			BuyRatio  float64 `json:"buy_ratio,string"`
-			SellRatio float64 `json:"sell_ratio,string"`
+			BuyRatio  float64 `json:"buy_ratio"`
+			SellRatio float64 `json:"sell_ratio"`
 			Timestamp string  `json:"ts"`
 		} `json:"list"`
 	} `json:"data"`
@@ -213,16 +213,16 @@ type LiquidationOrdersData struct {
 			Price        float64 `json:"price"`
 			CreatedAt    string  `json:"created_at"`
 		} `json:"orders"`
-		TotalPage   int64 `json:"totalPage,string"`
-		CurrentPage int64 `json:"current_page,string"`
+		TotalPage   int64 `json:"totalPage"`
+		CurrentPage int64 `json:"current_page"`
 		TotalSize   int64 `json:"total_size"`
 	} `json:"data"`
 }
 
 // FundingRatesData stores funding rates data
 type FundingRatesData struct {
-	EstimatedRate   float64 `json:"estimated_rate,string"`
-	FundingRate     float64 `json:"funding_rate,string"`
+	EstimatedRate   float64 `json:"estimated_rate"`
+	FundingRate     float64 `json:"funding_rate"`
 	ContractCode    string  `json:"contractCode"`
 	Symbol          string  `json:"symbol"`
 	FeeAsset        string  `json:"fee_asset"`
@@ -233,11 +233,56 @@ type FundingRatesData struct {
 // HistoricalFundingRateData stores historical funding rates for perpetuals
 type HistoricalFundingRateData struct {
 	Data []struct {
-		TotalPage   int64              `json:"total_page,string"`
-		CurrentPage int64              `json:"current_page,string"`
-		TotalSize   int64              `json:"total_size,string"`
+		TotalPage   int64              `json:"total_page"`
+		CurrentPage int64              `json:"current_page"`
+		TotalSize   int64              `json:"total_size"`
 		Data        []FundingRatesData `json:"data"`
 	}
+}
+
+// PremiumIndexKlineData stores kline data for premium
+type PremiumIndexKlineData struct {
+	Channel string `json:"ch"`
+	Data    []struct {
+		Volume float64 `json:"vol"`
+		Close  float64 `json:"close"`
+		Count  float64 `json:"count"`
+		High   float64 `json:"high"`
+		ID     int64   `json:"id"`
+		Low    float64 `json:"low"`
+		Open   float64 `json:"open"`
+		Amount float64 `json:"amount"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// EstimatedFundingRateData stores estimated funding rate data
+type EstimatedFundingRateData struct {
+	Channel string `json:"ch"`
+	Data    []struct {
+		Volume float64 `json:"vol"`
+		Close  float64 `json:"close"`
+		Count  float64 `json:"count"`
+		High   float64 `json:"high"`
+		ID     int64   `json:"id"`
+		Low    float64 `json:"low"`
+		Open   float64 `json:"open"`
+		Amount float64 `json:"amount"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// BasisData stores basis data for swaps
+type BasisData struct {
+	Channel string `json:"ch"`
+	Data    []struct {
+		Basis         float64 `json:"basis"`
+		BasisRate     float64 `json:"basis_rate"`
+		ContractPrice float64 `json:"contract_price"`
+		ID            float64 `json:"id"`
+		IndexPrice    float64 `json:"index_price"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
 }
 
 // *******************************************************

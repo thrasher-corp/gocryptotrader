@@ -25,29 +25,29 @@ const (
 	huobiAPIVersion2 = "2"
 
 	// Coin Margined Swap (perpetual futures) endpoints
-	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info"
-	huobiSwapFunding                     = "swap-api/v1/swap_funding_rate"
-	huobiSwapIndexPriceInfo              = "/swap-api/v1/swap_index"
-	huobiSwapPriceLimitation             = "/swap-api/v1/swap_price_limit"
-	huobiSwapOpenInterestInfo            = "/swap-api/v1/swap_open_interest"
-	huobiSwapMarketDepth                 = "/swap-ex/market/depth"
-	huobiKLineData                       = "/swap-ex/market/history/kline"
-	huobiMarketDataOverview              = "/swap-ex/market/detail/merged"
-	huobiLastTradeContract               = "/swap-ex/market/trade"
-	huobiRequestBatchOfTradingRecords    = "/swap-ex/market/history/trade"
-	huobiInsuranceBalanceAndClawbackRate = "/swap-api/v1/swap_risk_info"
-	huobiInsuranceBalanceHistory         = "/swap-api/v1/swap_insurance_fund"
-	huobiTieredAdjustmentFactor          = "/swap-api/v1/swap_adjustfactor"
-	huobiOpenInterestInfo                = "/swap-api/v1/swap_his_open_interest"
-	huobiSwapSystemStatus                = "/swap-api/v1/swap_api_state"
-	huobiSwapSentimentData               = "/swap-api/v1/swap_elite_account_ratio"
-	huobiSwapSentimentPosition           = "/swap-api/v1/swap_elite_position_ratio"
-	huobiSwapLiquidationOrders           = "/swap-api/v1/swap_liquidation_orders"
-	huobiSwapFundingRate                 = "swap-api/v1/swap_funding_rate"
-	huobiSwapHistoricalFundingRate       = "swap-api/v1/swap_historical_funding_rate"
-	huobiPremiumIndexKlineData           = "/index/market/history/swap_premium_index_kline"
-	huobiPredictedFundingRateData        = "/index/market/history/swap_estimated_rate_kline"
-	huobiBasisData                       = "/index/market/history/swap_basis"
+	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info?"
+	huobiSwapFunding                     = "swap-api/v1/swap_funding_rate?"
+	huobiSwapIndexPriceInfo              = "swap-api/v1/swap_index?"
+	huobiSwapPriceLimitation             = "swap-api/v1/swap_price_limit?"
+	huobiSwapOpenInterestInfo            = "swap-api/v1/swap_open_interest?"
+	huobiSwapMarketDepth                 = "swap-ex/market/depth?"
+	huobiKLineData                       = "swap-ex/market/history/kline?"
+	huobiMarketDataOverview              = "swap-ex/market/detail/merged?"
+	huobiLastTradeContract               = "swap-ex/market/trade?"
+	huobiRequestBatchOfTradingRecords    = "swap-ex/market/history/trade?"
+	huobiInsuranceBalanceAndClawbackRate = "swap-api/v1/swap_risk_info?"
+	huobiInsuranceBalanceHistory         = "swap-api/v1/swap_insurance_fund?"
+	huobiTieredAdjustmentFactor          = "swap-api/v1/swap_adjustfactor?"
+	huobiOpenInterestInfo                = "swap-api/v1/swap_his_open_interest?"
+	huobiSwapSystemStatus                = "swap-api/v1/swap_api_state?"
+	huobiSwapSentimentAccountData        = "swap-api/v1/swap_elite_account_ratio?"
+	huobiSwapSentimentPosition           = "swap-api/v1/swap_elite_position_ratio?"
+	huobiSwapLiquidationOrders           = "swap-api/v1/swap_liquidation_orders?"
+	huobiSwapFundingRate                 = "wap-api/v1/swap_funding_rate?"
+	huobiSwapHistoricalFundingRate       = "wap-api/v1/swap_historical_funding_rate?"
+	huobiPremiumIndexKlineData           = "index/market/history/swap_premium_index_kline?"
+	huobiPredictedFundingRateData        = "index/market/history/swap_estimated_rate_kline?"
+	huobiBasisData                       = "index/market/history/swap_basis?"
 
 	// Spot endpoints
 	huobiMarketHistoryKline    = "market/history/kline"
@@ -86,6 +86,16 @@ const (
 	huobiMarginRates           = "margin/loan-info"
 )
 
+var acceptablePeriods = []string{"5min", "15min", "30min", "60min", "4hour", "1day"}
+
+var acceptableBasisPriceTypes = []string{"open", "close", "high", "low", "average"}
+
+var acceptableTradeTypes = map[string]int64{
+	"filled": 0,
+	"closed": 5,
+	"open":   6,
+}
+
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
@@ -95,13 +105,12 @@ type HUOBI struct {
 // QuerySwapIndexPriceInfo gets perpetual swap index's price info
 func (h *HUOBI) QuerySwapIndexPriceInfo(code string) (SwapIndexPriceData, error) {
 	var resp SwapIndexPriceData
-	var path string
+	path := huobiURL + huobiSwapIndexPriceInfo
 	if code != "" {
 		params := url.Values{}
 		params.Set("contract_code", code)
-		path = huobiSwapIndexPriceInfo + params.Encode()
+		path = huobiURL + huobiSwapIndexPriceInfo + params.Encode()
 	}
-	path = huobiSwapIndexPriceInfo
 	return resp, h.SendHTTPRequest(path, &resp)
 }
 
@@ -110,8 +119,230 @@ func (h *HUOBI) GetSwapPriceLimits(code string) (SwapPriceLimitsData, error) {
 	var resp SwapPriceLimitsData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	return resp, h.SendHTTPRequest(huobiSwapPriceLimitation+params.Encode(), &resp)
+	return resp, h.SendHTTPRequest(huobiURL+huobiSwapPriceLimitation+params.Encode(),
+		&resp)
 }
+
+// SwapOpenInterestInformation gets open interest data for perpetual futures
+func (h *HUOBI) SwapOpenInterestInformation(code string) (SwapOpenInterestData, error) {
+	var resp SwapOpenInterestData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	return resp, h.SendHTTPRequest(huobiURL+huobiSwapOpenInterestInfo+params.Encode(), &resp)
+}
+
+// GetSwapMarketDepth gets market depth for perpetual futures
+func (h *HUOBI) GetSwapMarketDepth(code, dataType string) (SwapMarketDepthData, error) {
+	var resp SwapMarketDepthData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	params.Set("type", dataType)
+	return resp, h.SendHTTPRequest(huobiURL+huobiSwapMarketDepth+params.Encode(), &resp)
+}
+
+// GetSwapKlineData gets kline data for perpetual futures
+func (h *HUOBI) GetSwapKlineData(code, period string, size int64, startTime, endTime time.Time) (SwapKlineData, error) {
+	var resp SwapKlineData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if !common.StringDataCompare(acceptablePeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	if !(size > 1) && !(size < 2000) {
+		return resp, fmt.Errorf("invalid size")
+	}
+	params.Set("size", strconv.FormatInt(size, 10))
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, h.SendHTTPRequest(huobiURL+huobiKLineData+params.Encode(), &resp)
+}
+
+// GetSwapMarketOverview gets kline data for perpetual futures
+func (h *HUOBI) GetSwapMarketOverview(code string) (MarketOverviewData, error) {
+	var resp MarketOverviewData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	return resp, h.SendHTTPRequest(huobiURL+huobiMarketDataOverview+params.Encode(), &resp)
+}
+
+// GetLastTrade gets the last trade for a given perpetual contract
+func (h *HUOBI) GetLastTrade(code string) (LastTradeData, error) {
+	var resp LastTradeData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	return resp, h.SendHTTPRequest(huobiURL+huobiLastTradeContract+params.Encode(), &resp)
+}
+
+// GetBatchTrades gets batch trades for a specified contract (fetching size cannot be bigger than 2000)
+func (h *HUOBI) GetBatchTrades(code string, size int64) (BatchTradesData, error) {
+	var resp BatchTradesData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if !(size > 1) && !(size < 2000) {
+		return resp, fmt.Errorf("invalid size")
+	}
+	params.Set("size", strconv.FormatInt(size, 10))
+	return resp, h.SendHTTPRequest(huobiURL+huobiRequestBatchOfTradingRecords+params.Encode(), &resp)
+}
+
+// GetInsuranceData gets insurance fund data and clawback rates
+func (h *HUOBI) GetInsuranceData(code string) (InsuranceAndClawbackData, error) {
+	var resp InsuranceAndClawbackData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	return resp, h.SendHTTPRequest(huobiURL+huobiInsuranceBalanceAndClawbackRate+params.Encode(), &resp)
+}
+
+// GetHistoricalInsuranceData gets historical insurance fund data and clawback rates
+func (h *HUOBI) GetHistoricalInsuranceData(code string, pageIndex, pageSize int64) (HistoricalInsuranceFundBalance, error) {
+	var resp HistoricalInsuranceFundBalance
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if pageIndex != 0 {
+		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
+	}
+	if pageSize != 0 {
+		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
+	}
+	return resp, h.SendHTTPRequest(huobiURL+huobiInsuranceBalanceHistory+params.Encode(), &resp)
+}
+
+// GetTieredAjustmentFactorInfo gets tiered adjustment factor data
+func (h *HUOBI) GetTieredAjustmentFactorInfo(code string) (TieredAdjustmentFactorData, error) {
+	var resp TieredAdjustmentFactorData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	return resp, h.SendHTTPRequest(huobiURL+huobiTieredAdjustmentFactor+params.Encode(), &resp)
+}
+
+// GetOpenInterestInfo gets open interest data
+func (h *HUOBI) GetOpenInterestInfo(code, period string, size, amountType float64) (TieredAdjustmentFactorData, error) {
+	var resp TieredAdjustmentFactorData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	return resp, h.SendHTTPRequest(huobiURL+huobiOpenInterestInfo+params.Encode(), &resp)
+}
+
+// GetSystemStatusInfo gets system status data
+func (h *HUOBI) GetSystemStatusInfo(code, period string, size, amountType float64) (SystemStatusData, error) {
+	var resp SystemStatusData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	return resp, h.SendHTTPRequest(huobiURL+huobiSwapSystemStatus+params.Encode(), &resp)
+}
+
+// GetTraderSentimentIndexAccount gets top trader sentiment function-account
+func (h *HUOBI) GetTraderSentimentIndexAccount(code, period string) (TraderSentimentIndexAccountData, error) {
+	var resp TraderSentimentIndexAccountData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if !common.StringDataCompare(acceptablePeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	return resp, h.SendHTTPRequest(huobiURL+huobiSwapSentimentAccountData+params.Encode(), &resp)
+}
+
+// GetTraderSentimentIndexPosition gets top trader sentiment function-position
+func (h *HUOBI) GetTraderSentimentIndexPosition(code, period string) (TraderSentimentIndexPositionData, error) {
+	var resp TraderSentimentIndexPositionData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if !common.StringDataCompare(acceptablePeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	return resp, h.SendHTTPRequest(huobiURL+huobiSwapSentimentPosition+params.Encode(), &resp)
+}
+
+// GetLiquidationOrders gets liquidation orders for a given perp
+func (h *HUOBI) GetLiquidationOrders(code, tradeType string, pageIndex, pageSize int64, createDate time.Time) (LiquidationOrdersData, error) {
+	var resp LiquidationOrdersData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	tType, ok := acceptableTradeTypes[tradeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid trade type")
+	}
+	params.Set("type", strconv.FormatInt(tType, 10))
+	if pageIndex != 0 {
+		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
+	}
+	if pageSize != 0 {
+		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
+	}
+	if !createDate.IsZero() {
+		params.Set("create_date", strconv.FormatInt(createDate.Unix(), 10))
+	}
+	return resp, h.SendHTTPRequest(huobiURL+huobiSwapLiquidationOrders+params.Encode(), &resp)
+}
+
+// GetHistoricalFundingRates gets historical funding rates for perpetual futures
+func (h *HUOBI) GetHistoricalFundingRates(code string, pageSize, pageIndex int64) (HistoricalFundingRateData, error) {
+	var resp HistoricalFundingRateData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if pageIndex != 0 {
+		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
+	}
+	if pageSize != 0 {
+		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
+	}
+	return resp, h.SendHTTPRequest(huobiURL+huobiSwapHistoricalFundingRate+params.Encode(), &resp)
+}
+
+// GetPremiumIndexKlineData gets kline data for premium index
+func (h *HUOBI) GetPremiumIndexKlineData(code, period string, size int64) (PremiumIndexKlineData, error) {
+	var resp PremiumIndexKlineData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if !common.StringDataCompare(acceptablePeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	if !(size > 1) && !(size < 2000) {
+		return resp, fmt.Errorf("invalid size")
+	}
+	params.Set("size", strconv.FormatInt(size, 10))
+	return resp, h.SendHTTPRequest(huobiURL+huobiPremiumIndexKlineData+params.Encode(), &resp)
+}
+
+// GetEstimatedFundingRates gets estimated funding rates for perpetual futures
+func (h *HUOBI) GetEstimatedFundingRates(code, period string, size int64) (EstimatedFundingRateData, error) {
+	var resp EstimatedFundingRateData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if !common.StringDataCompare(acceptablePeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	params.Set("size", strconv.FormatInt(size, 10))
+	return resp, h.SendHTTPRequest(huobiURL+huobiPredictedFundingRateData+params.Encode(), &resp)
+}
+
+// GetBasisData gets basis data for perpetual futures
+func (h *HUOBI) GetBasisData(code, period, basisPriceType string, size int64) (BasisData, error) {
+	var resp BasisData
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if !common.StringDataCompare(acceptablePeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	params.Set("size", strconv.FormatInt(size, 10))
+	if !common.StringDataCompare(acceptableBasisPriceTypes, basisPriceType) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	return resp, h.SendHTTPRequest(huobiURL+huobiBasisData+params.Encode(), &resp)
+}
+
+// ************************************************************************
 
 // GetSwapMarkets gets data of swap markets
 func (h *HUOBI) GetSwapMarkets(contract string) ([]SwapMarketsData, error) {

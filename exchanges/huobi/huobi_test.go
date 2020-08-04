@@ -77,6 +77,96 @@ func setupWsTests(t *testing.T) {
 	wsSetupRan = true
 }
 
+func TestQuerySwapIndexPriceInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.QuerySwapIndexPriceInfo("BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSwapOpenInterestInformation(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.SwapOpenInterestInformation("BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapMarketDepth(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapMarketDepth("BTC-USD", "step0")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapKlineData(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapKlineData("BTC-USD", "5min", 5, time.Now().Add(-time.Hour), time.Now())
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapMarketOverview(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapMarketOverview("BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLastTrade(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetLastTrade("BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBatchTrades(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetBatchTrades("BTC-USD", 5)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInsuranceData(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetInsuranceData("BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapPriceLimits(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapPriceLimits("BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetMarginRates(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetMarginRates("BTC/USDT")
