@@ -8,15 +8,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/toorop/go-pusher"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/toorop/go-pusher"
 )
 
 const (
@@ -199,7 +201,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 				Err:      err,
 			}
 		}
-		l.Websocket.DataHandler <- stream.TradeData{
+		l.Websocket.DataHandler <- trade.Data{
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
 			CurrencyPair: curr,
 			AssetType:    asset.Spot,

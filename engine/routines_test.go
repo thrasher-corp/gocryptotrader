@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
@@ -33,7 +34,7 @@ func TestHandleData(t *testing.T) {
 	if err == nil {
 		t.Error("Expected nil data error")
 	}
-	err = WebsocketDataHandler(exchName, stream.TradeData{})
+	err = WebsocketDataHandler(exchName, trade.Data{})
 	if err != nil {
 		t.Error(err)
 	}

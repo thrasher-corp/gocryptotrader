@@ -9,12 +9,14 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -122,7 +124,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- stream.TradeData{
+		b.Websocket.DataHandler <- trade.Data{
 			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 			CurrencyPair: p,
 			AssetType:    a,

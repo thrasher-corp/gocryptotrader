@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,7 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -306,7 +308,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
-				f.Websocket.DataHandler <- stream.TradeData{
+				f.Websocket.DataHandler <- trade.Data{
 					Timestamp:    resultData.TradeData[z].Time,
 					CurrencyPair: p,
 					AssetType:    a,
@@ -424,7 +426,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 
 // WsProcessUpdateOB processes an update on the orderbook
 func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	update := buffer.Update{
+	update := orderbookbuffer.Update{
 		Asset:      a,
 		Pair:       p,
 		UpdateTime: timestampFromFloat64(data.Time),

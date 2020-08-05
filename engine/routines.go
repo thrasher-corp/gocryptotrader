@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -288,7 +289,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		log.Info(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
-	case stream.TradeData:
+	case trade.Data:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
 				exchName,

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -19,7 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -411,7 +413,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 						Err:      err,
 					}
 				}
-				g.Websocket.DataHandler <- stream.TradeData{
+				g.Websocket.DataHandler <- trade.Data{
 					Timestamp:    time.Unix(0, result.TimestampMS*int64(time.Millisecond)),
 					CurrencyPair: pair,
 					AssetType:    asset.Spot,
@@ -437,7 +439,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		if len(asks) == 0 && len(bids) == 0 {
 			return
 		}
-		err := g.Websocket.Orderbook.Update(&buffer.Update{
+		err := g.Websocket.Orderbook.Update(&orderbookbuffer.Update{
 			Asks:       asks,
 			Bids:       bids,
 			Pair:       pair,

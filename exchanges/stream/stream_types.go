@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -55,18 +56,6 @@ type PingHandler struct {
 	MessageType       int
 	Message           []byte
 	Delay             time.Duration
-}
-
-// TradeData defines trade data
-type TradeData struct {
-	Timestamp    time.Time
-	CurrencyPair currency.Pair
-	AssetType    asset.Item
-	Exchange     string
-	EventType    order.Type
-	Price        float64
-	Amount       float64
-	Side         order.Side
 }
 
 // FundingData defines funding data

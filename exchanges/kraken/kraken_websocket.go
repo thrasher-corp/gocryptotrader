@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,7 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	trade2 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -589,7 +591,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			tType = order.Limit
 		}
 
-		k.Websocket.DataHandler <- stream.TradeData{
+		k.Websocket.DataHandler <- trade2.Data{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
 			Exchange:     k.Name,
@@ -697,7 +699,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, askData, bidData []interface{}) error {
-	update := buffer.Update{
+	update := orderbookbuffer.Update{
 		Asset: asset.Spot,
 		Pair:  channelData.Pair,
 	}

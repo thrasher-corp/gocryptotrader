@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,7 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -319,7 +321,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		c.Websocket.DataHandler <- stream.TradeData{
+		c.Websocket.DataHandler <- trade.Data{
 			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -540,7 +542,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		return err
 	}
 
-	bufferUpdate := &buffer.Update{
+	bufferUpdate := &orderbookbuffer.Update{
 		Pair:     p,
 		UpdateID: update.TransID,
 		Asset:    asset.Spot,

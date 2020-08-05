@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 )
 
 const (
@@ -211,7 +213,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			b.Websocket.DataHandler <- stream.TradeData{
+			b.Websocket.DataHandler <- trade.Data{
 				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
 				CurrencyPair: p,
 				AssetType:    a,

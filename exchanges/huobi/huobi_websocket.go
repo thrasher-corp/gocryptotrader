@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	trade2 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -362,7 +364,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			if trade.Tick.Data[i].Direction != "buy" {
 				side = order.Sell
 			}
-			h.Websocket.DataHandler <- stream.TradeData{
+			h.Websocket.DataHandler <- trade2.Data{
 				Exchange:     h.Name,
 				AssetType:    a,
 				CurrencyPair: p,

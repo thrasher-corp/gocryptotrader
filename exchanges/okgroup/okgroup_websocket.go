@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -19,7 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -479,7 +481,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			amount = response.Data[i].Quantity
 		}
 
-		o.Websocket.DataHandler <- stream.TradeData{
+		o.Websocket.DataHandler <- trade.Data{
 			Amount:       amount,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
@@ -692,7 +694,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
-	update := buffer.Update{
+	update := orderbookbuffer.Update{
 		Asset:      a,
 		Pair:       instrument,
 		UpdateTime: wsEventData.Timestamp,

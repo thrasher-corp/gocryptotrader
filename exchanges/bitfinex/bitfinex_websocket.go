@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,7 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -368,7 +370,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					continue
 				}
 
-				b.Websocket.DataHandler <- stream.TradeData{
+				b.Websocket.DataHandler <- trade.Data{
 					CurrencyPair: pair,
 					Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
 					Price:        trades[i].Price,
@@ -872,7 +874,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook) error {
-	orderbookUpdate := buffer.Update{
+	orderbookUpdate := orderbookbuffer.Update{
 		Asset: assetType,
 		Pair:  p,
 	}

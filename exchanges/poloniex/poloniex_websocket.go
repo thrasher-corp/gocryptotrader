@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,7 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	trade2 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
@@ -355,7 +357,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 
-						p.Websocket.DataHandler <- stream.TradeData{
+						p.Websocket.DataHandler <- trade2.Data{
 							Timestamp:    time.Unix(trade.Timestamp, 0),
 							CurrencyPair: pair,
 							Side:         side,
@@ -527,7 +529,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 	if err != nil {
 		return err
 	}
-	update := &buffer.Update{
+	update := &orderbookbuffer.Update{
 		Pair:     cP,
 		Asset:    asset.Spot,
 		UpdateID: sequenceNumber,

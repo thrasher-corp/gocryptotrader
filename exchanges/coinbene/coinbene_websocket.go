@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -17,7 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
@@ -220,7 +222,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		c.Websocket.DataHandler <- stream.TradeData{
+		c.Websocket.DataHandler <- trade.Data{
 			CurrencyPair: newP,
 			Timestamp:    t,
 			Price:        price,
@@ -307,7 +309,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		} else if orderBook.Action == "update" {
-			newOB := buffer.Update{
+			newOB := orderbookbuffer.Update{
 				Asks:       asks,
 				Bids:       bids,
 				Asset:      asset.PerpetualSwap,

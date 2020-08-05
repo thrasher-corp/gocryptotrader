@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -17,7 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -241,7 +243,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					}
 				}
 
-				b.Websocket.DataHandler <- stream.TradeData{
+				b.Websocket.DataHandler <- trade.Data{
 					Timestamp:    trades.Data[i].Timestamp,
 					Price:        trades.Data[i].Price,
 					Amount:       float64(trades.Data[i].Size),
@@ -531,7 +533,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			})
 		}
 
-		err := b.Websocket.Orderbook.Update(&buffer.Update{
+		err := b.Websocket.Orderbook.Update(&orderbookbuffer.Update{
 			Bids:   bids,
 			Asks:   asks,
 			Pair:   p,

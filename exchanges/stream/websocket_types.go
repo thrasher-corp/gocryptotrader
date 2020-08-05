@@ -6,7 +6,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 )
 
 // Websocket functionality list and state consts
@@ -69,7 +70,8 @@ type Websocket struct {
 	Wg        *sync.WaitGroup
 
 	// Orderbook is a local buffer of orderbooks
-	Orderbook buffer.Orderbook
+	Orderbook orderbookbuffer.Orderbook
+	Trade trade.Traderino
 
 	// trafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}

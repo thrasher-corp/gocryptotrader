@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -423,7 +423,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 		return err
 	}
 
-	return h.Websocket.Orderbook.Update(&buffer.Update{
+	return h.Websocket.Orderbook.Update(&orderbookbuffer.Update{
 		Asks:     asks,
 		Bids:     bids,
 		Pair:     p,
