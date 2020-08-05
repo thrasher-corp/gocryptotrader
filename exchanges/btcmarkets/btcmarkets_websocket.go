@@ -160,7 +160,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			side = order.Sell
 		}
 
-		b.Websocket.DataHandler <- trade2.Data{
+		b.Websocket.Trade.ProcessIndividual(&trade2.Data{
 			Timestamp:    trade.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -169,7 +169,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Amount:       trade.Volume,
 			Side:         side,
 			EventType:    order.UnknownType,
-		}
+		})
 	case tick:
 		var tick WsTick
 		err := json.Unmarshal(respRaw, &tick)

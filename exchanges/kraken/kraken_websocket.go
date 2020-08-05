@@ -591,7 +591,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			tType = order.Limit
 		}
 
-		k.Websocket.DataHandler <- trade2.Data{
+		k.Websocket.Trade.ProcessIndividual(&trade2.Data{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
 			Exchange:     k.Name,
@@ -600,7 +600,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(timeData),
 			Side:         tSide,
 			EventType:    tType,
-		}
+		})
 	}
 }
 

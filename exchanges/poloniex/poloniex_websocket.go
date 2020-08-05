@@ -357,13 +357,13 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 
-						p.Websocket.DataHandler <- trade2.Data{
+						p.Websocket.Trade.ProcessIndividual(&trade2.Data{
 							Timestamp:    time.Unix(trade.Timestamp, 0),
 							CurrencyPair: pair,
 							Side:         side,
 							Amount:       trade.Volume,
 							Price:        trade.Price,
-						}
+						})
 					default:
 						p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
 						return nil

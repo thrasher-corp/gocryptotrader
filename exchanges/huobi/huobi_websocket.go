@@ -364,7 +364,8 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			if trade.Tick.Data[i].Direction != "buy" {
 				side = order.Sell
 			}
-			h.Websocket.DataHandler <- trade2.Data{
+
+			h.Websocket.Trade.ProcessIndividual(&trade2.Data{
 				Exchange:     h.Name,
 				AssetType:    a,
 				CurrencyPair: p,
@@ -373,7 +374,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				Amount: trade.Tick.Data[i].Amount,
 				Price:  trade.Tick.Data[i].Price,
 				Side:   side,
-			}
+			})
 		}
 	case strings.Contains(init.Channel, "detail"),
 		strings.Contains(init.Rep, "detail"):
