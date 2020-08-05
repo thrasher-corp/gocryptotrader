@@ -616,7 +616,7 @@ func genOHCLVData() (out candle.Item, outItem Item, err error) {
 	out.ExchangeID = exchangeUUID.String()
 	out.Base = currency.BTC.String()
 	out.Quote = currency.USDT.String()
-	out.Interval = "24h"
+	out.Interval = 86400
 	out.Asset = "spot"
 
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)

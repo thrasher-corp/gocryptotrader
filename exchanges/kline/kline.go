@@ -300,6 +300,7 @@ func (k *Item) SortCandlesByTimestamp(asc bool) {
 	})
 }
 
+// FormatDates converts all date to UTC time
 func (k *Item) FormatDates() {
 	for x := range k.Candles {
 		k.Candles[x].Time = k.Candles[x].Time.UTC()

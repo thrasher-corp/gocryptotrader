@@ -308,7 +308,6 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			tempResp.ID = newUUID
 			tempResp.Exchange = new(withdraw.ExchangeResponse)
 			tempResp.Exchange.ID = v[x].ExchangeID
-			tempResp.Exchange.Name = v[x].ExchangeNameID.String
 			tempResp.Exchange.Status = v[x].Status
 			tempResp.RequestDetails = new(withdraw.Request)
 			tempResp.RequestDetails = &withdraw.Request{
@@ -316,6 +315,14 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				Description: v[x].Description.String,
 				Amount:      v[x].Amount,
 				Type:        withdraw.RequestType(v[x].WithdrawType),
+			}
+
+			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Unable to get exchange name setting value to exchange_name_id")
+				tempResp.Exchange.Name = v[x].ExchangeNameID.String
+			} else {
+				tempResp.Exchange.Name = exchangeName.Name
 			}
 
 			createdAtTime, err := time.Parse(time.RFC3339, v[x].CreatedAt)
@@ -370,7 +377,6 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			tempResp.ID = newUUID
 			tempResp.Exchange = new(withdraw.ExchangeResponse)
 			tempResp.Exchange.ID = v[x].ExchangeID
-			tempResp.Exchange.Name = v[x].ExchangeNameID.String
 			tempResp.Exchange.Status = v[x].Status
 			tempResp.RequestDetails = new(withdraw.Request)
 			tempResp.RequestDetails = &withdraw.Request{
@@ -381,6 +387,14 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			}
 			tempResp.CreatedAt = v[x].CreatedAt
 			tempResp.UpdatedAt = v[x].UpdatedAt
+
+			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Unable to get exchange name setting value to exchange_name_id")
+				tempResp.Exchange.Name = v[x].ExchangeNameID.String
+			} else {
+				tempResp.Exchange.Name = exchangeName.Name
+			}
 
 			if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
 				tempResp.RequestDetails.Crypto = new(withdraw.CryptoRequest)

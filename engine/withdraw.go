@@ -120,7 +120,7 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 			Id: ret[x].ID.String(),
 			Exchange: &gctrpc.WithdrawlExchangeEvent{
 				Name:   ret[x].Exchange.Name,
-				Id:     ret[x].Exchange.Name,
+				Id:     ret[x].Exchange.ID,
 				Status: ret[x].Exchange.Status,
 			},
 			Request: &gctrpc.WithdrawalRequestEvent{

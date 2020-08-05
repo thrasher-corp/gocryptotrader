@@ -15,7 +15,7 @@ type Item struct {
 	ExchangeID string
 	Base       string
 	Quote      string
-	Interval   string
+	Interval   int64
 	Asset      string
 	Candles    []Candle
 }

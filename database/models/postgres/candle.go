@@ -27,7 +27,7 @@ type Candle struct {
 	ExchangeID string    `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
 	Base       string    `boil:"base" json:"base" toml:"base" yaml:"base"`
 	Quote      string    `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
-	Interval   string    `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
+	Interval   int64     `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
 	Timestamp  time.Time `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
 	Open       float64   `boil:"open" json:"open" toml:"open" yaml:"open"`
 	High       float64   `boil:"high" json:"high" toml:"high" yaml:"high"`
@@ -90,7 +90,7 @@ var CandleWhere = struct {
 	ExchangeID whereHelperstring
 	Base       whereHelperstring
 	Quote      whereHelperstring
-	Interval   whereHelperstring
+	Interval   whereHelperint64
 	Timestamp  whereHelpertime_Time
 	Open       whereHelperfloat64
 	High       whereHelperfloat64
@@ -103,7 +103,7 @@ var CandleWhere = struct {
 	ExchangeID: whereHelperstring{field: "\"candle\".\"exchange_id\""},
 	Base:       whereHelperstring{field: "\"candle\".\"base\""},
 	Quote:      whereHelperstring{field: "\"candle\".\"quote\""},
-	Interval:   whereHelperstring{field: "\"candle\".\"interval\""},
+	Interval:   whereHelperint64{field: "\"candle\".\"interval\""},
 	Timestamp:  whereHelpertime_Time{field: "\"candle\".\"timestamp\""},
 	Open:       whereHelperfloat64{field: "\"candle\".\"open\""},
 	High:       whereHelperfloat64{field: "\"candle\".\"high\""},

@@ -160,7 +160,7 @@ func TestInsertFromCSV(t *testing.T) {
 
 			exchange.ResetExchangeCache()
 			testFile := filepath.Join("..", "..", "..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv")
-			count, err := InsertFromCSV(testExchanges[0].Name, "BTC", "USDT", "24h", "spot", testFile)
+			count, err := InsertFromCSV(testExchanges[0].Name, "BTC", "USDT", 86400, "spot", testFile)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -221,7 +221,7 @@ func TestSeries(t *testing.T) {
 
 			start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 			end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-			ret, err := Series(testExchanges[0].Name, "BTC", "USDT", "24h", "spot", start, end)
+			ret, err := Series(testExchanges[0].Name, "BTC", "USDT", 86400, "spot", start, end)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -229,7 +229,7 @@ func TestSeries(t *testing.T) {
 				t.Errorf("unexpected number of results received:  %v", len(ret.Candles))
 			}
 
-			ret, err = Series("", "", "", "", "", start, end)
+			ret, err = Series("", "", "", 0, "", start, end)
 			if err != nil {
 				if !errors.Is(err, errInvalidInput) {
 					t.Fatal(err)
@@ -270,7 +270,7 @@ func genOHCLVData() (out Item, err error) {
 	out.ExchangeID = exchangeUUID.String()
 	out.Base = currency.BTC.String()
 	out.Quote = currency.USDT.String()
-	out.Interval = "24h"
+	out.Interval = 86400
 	out.Asset = "spot"
 
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)

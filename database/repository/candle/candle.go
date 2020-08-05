@@ -25,8 +25,8 @@ import (
 )
 
 // Series returns candle data
-func Series(exchangeName, base, quote, interval, asset string, start, end time.Time) (out Item, err error) {
-	if exchangeName == "" || base == "" || quote == "" || interval == "" {
+func Series(exchangeName, base, quote string, interval int64, asset string, start, end time.Time) (out Item, err error) {
+	if exchangeName == "" || base == "" || quote == "" || interval <= 0 {
 		return out, errInvalidInput
 	}
 
@@ -128,7 +128,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 			ExchangeID: null.NewString(in.ExchangeID, true),
 			Base:       in.Base,
 			Quote:      in.Quote,
-			Interval:   in.Interval,
+			Interval:   strconv.FormatInt(in.Interval, 10),
 			Asset:      null.NewString(in.Asset, true),
 			Timestamp:  in.Candles[x].Timestamp.Format(time.RFC3339),
 			Open:       in.Candles[x].Open,
@@ -189,7 +189,7 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 }
 
 // InsertFromCSV load a CSV list of candle data and insert into database
-func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (uint64, error) {
+func InsertFromCSV(exchangeName, base, quote string, interval int64, asset, file string) (uint64, error) {
 	csvFile, err := os.Open(file)
 	if err != nil {
 		return 0, err

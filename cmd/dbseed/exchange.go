@@ -16,8 +16,8 @@ var seedExchangeCommand = &cli.Command{
 	Usage: "seed exchange data",
 	Subcommands: []*cli.Command{
 		{
-			Name:      "file",
-			Usage:     "seed exchange data from a file",
+			Name:  "file",
+			Usage: "seed exchange data from a file",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:      "filename",
@@ -29,8 +29,8 @@ var seedExchangeCommand = &cli.Command{
 			Action: seedExchangeFromFile,
 		},
 		{
-			Name:      "add",
-			Usage:     "add a single exchange",
+			Name:  "add",
+			Usage: "add a single exchange",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "name",

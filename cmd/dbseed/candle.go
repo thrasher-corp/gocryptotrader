@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/urfave/cli/v2"
@@ -28,7 +30,7 @@ var seedCandleCommand = &cli.Command{
 					Name:  "quote",
 					Usage: "Quote currency of supplied candle data",
 				},
-				&cli.StringFlag{
+				&cli.Int64Flag{
 					Name:  "interval",
 					Usage: "Interval of supplied candle data",
 				},
@@ -74,11 +76,15 @@ func seedCandleFromFile(c *cli.Context) error {
 		quote = c.Args().Get(2)
 	}
 
-	var interval string
+	var interval int64
 	if c.IsSet("interval") {
-		interval = c.String("interval")
+		interval = c.Int64("interval")
 	} else if c.Args().Get(3) != "" {
-		interval = c.Args().Get(3)
+		var err error
+		interval, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		if err != nil {
+			return errors.New("failed to convert interval")
+		}
 	}
 
 	var asset string

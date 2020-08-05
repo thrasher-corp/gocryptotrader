@@ -19,8 +19,8 @@ import (
 // LoadFromDatabase returns Item from database seeded data
 func LoadFromDatabase(exchange string, pair currency.Pair, interval Interval, a asset.Item, start, end time.Time) (Item, error) {
 	retCandle, err := candle.Series(exchange,
-		pair.Base.String(), a.String(), pair.Quote.String(),
-		interval.Short(), start, end)
+		pair.Base.String(), pair.Quote.String(),
+		int64(interval.Duration().Seconds()), a.String(), start, end)
 	if err != nil {
 		return Item{}, err
 	}
@@ -67,12 +67,14 @@ func StoreInDatabase(in *Item) (uint64, error) {
 		ExchangeID: exchangeUUID.String(),
 		Base:       in.Pair.Base.Upper().String(),
 		Quote:      in.Pair.Quote.Upper().String(),
-		Interval:   in.Interval.Short(),
+		Interval:   int64(in.Interval.Duration().Seconds()),
 		Asset:      in.Asset.String(),
 	}
 
 	for x := range in.Candles {
 		if in.Candles[x].Time.Sub(in.Candles[0].Time) != in.Interval.Duration()*time.Duration(x) {
+			fmt.Printf("Received: %v | Expected: %v\n", in.Candles[x].Time.Sub(in.Candles[0].Time), in.Interval.Duration()*time.Duration(x))
+
 			continue
 		}
 

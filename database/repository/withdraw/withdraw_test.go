@@ -22,7 +22,7 @@ var (
 	verbose       = false
 	testExchanges = []exchange.Details{
 		{
-			Name: "one",
+			Name: "One",
 		},
 	}
 )
@@ -154,6 +154,10 @@ func withdrawHelper(t *testing.T) {
 	v, err := GetEventsByExchange(testExchanges[0].Name, 10)
 	if err != nil {
 		t.Error(err)
+	}
+
+	if v[0].Exchange.Name != testExchanges[0].Name {
+		t.Fatalf("expected name to be translated to valid string instead received: %v", v[0].Exchange.Name)
 	}
 
 	_, err = GetEventByExchangeID(testExchanges[0].Name, "test-1")
