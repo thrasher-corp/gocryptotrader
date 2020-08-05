@@ -58,7 +58,12 @@ func seedExchangeFromDefaultList(c *cli.Context) error {
 			Name: strings.Title(exchange.Exchanges[x]),
 		})
 	}
-	return exchangeDB.InsertMany(allExchanges)
+	err = exchangeDB.InsertMany(allExchanges)
+	if err != nil {
+		return err
+	}
+	fmt.Println("command completed successfully")
+	return nil
 }
 
 func seedExchangeFromFile(c *cli.Context) error {
