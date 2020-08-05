@@ -157,6 +157,116 @@ func TestGetInsuranceData(t *testing.T) {
 	}
 }
 
+func TestGetHistoricalInsuranceData(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetHistoricalInsuranceData("BTC-USD", 0, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTieredAjustmentFactorInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetTieredAjustmentFactorInfo("BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOpenInterestInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetOpenInterestInfo("BTC-USD", "5min", "cryptocurrency", 50)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTraderSentimentIndexAccount(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetTraderSentimentIndexAccount("BTC-USD", "5min")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTraderSentimentIndexPosition(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetTraderSentimentIndexPosition("BTC-USD", "5min")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLiquidationOrders(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetLiquidationOrders("BTC-USD", "closed", 0, 0, 7)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricalFundingRates(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetHistoricalFundingRates("BTC-USD", 0, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPremiumIndexKlineData(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetPremiumIndexKlineData("BTC-USD", "5min", 15)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetEstimatedFundingRates(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetPremiumIndexKlineData("BTC-USD", "5min", 15)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBasisData(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetBasisData("BTC-USD", "5min", "close", 5)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSystemStatusInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSystemStatusInfo("BTC-USD", "5min", "cryptocurrency", 50)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetSwapPriceLimits(t *testing.T) {
 	t.Parallel()
 	h.Verbose = true

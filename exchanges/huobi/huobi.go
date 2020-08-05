@@ -43,11 +43,24 @@ const (
 	huobiSwapSentimentAccountData        = "swap-api/v1/swap_elite_account_ratio?"
 	huobiSwapSentimentPosition           = "swap-api/v1/swap_elite_position_ratio?"
 	huobiSwapLiquidationOrders           = "swap-api/v1/swap_liquidation_orders?"
-	huobiSwapFundingRate                 = "wap-api/v1/swap_funding_rate?"
-	huobiSwapHistoricalFundingRate       = "wap-api/v1/swap_historical_funding_rate?"
+	huobiSwapFundingRate                 = "swap-api/v1/swap_funding_rate?"
+	huobiSwapHistoricalFundingRate       = "swap-api/v1/swap_historical_funding_rate?"
 	huobiPremiumIndexKlineData           = "index/market/history/swap_premium_index_kline?"
 	huobiPredictedFundingRateData        = "index/market/history/swap_estimated_rate_kline?"
 	huobiBasisData                       = "index/market/history/swap_basis?"
+	huobiSwapAccInfo                     = "/swap-api/v1/swap_account_info"
+	huobiSwapPosInfo                     = "/swap-api/v1/swap_position_info"
+	huobiSwapAssetsAndPosInfo            = "swap-api/v1/swap_account_position_info"
+	huobiSwapSubAccList                  = "/swap-api/v1/swap_sub_account_list"
+	huobiSwapSubAccInfo                  = "/swap-api/v1/swap_sub_account_info"
+	huobiSwapSubAccPosInfo               = "/swap-api/v1/swap_sub_position_info"
+	huobiSwapFinancialRecords            = "/swap-api/v1/swap_financial_record"
+	huobiSwapOrderLimitInfo              = "/swap-api/v1/swap_order_limit"
+	huobiSwapTradingFeeInfo              = "/swap-api/v1/swap_fee"
+	huobiSwapTransferLimitInfo           = "/swap-api/v1/swap_transfer_limit"
+	huobiSwapPositionLimitInfo           = "/swap-api/v1/swap_position_limit"
+	huobiSwapInternalTransferData        = "/swap-api/v1/swap_master_sub_transfer"
+	huobiSwapInternalTransferRecords     = "/swap-api/v1/swap_master_sub_transfer_record"
 
 	// Spot endpoints
 	huobiMarketHistoryKline    = "market/history/kline"
@@ -89,6 +102,11 @@ const (
 var acceptablePeriods = []string{"5min", "15min", "30min", "60min", "4hour", "1day"}
 
 var acceptableBasisPriceTypes = []string{"open", "close", "high", "low", "average"}
+
+var acceptableAmountType = map[string]int64{
+	"cont":           1,
+	"cryptocurrency": 2,
+}
 
 var acceptableTradeTypes = map[string]int64{
 	"filled": 0,
@@ -222,18 +240,43 @@ func (h *HUOBI) GetTieredAjustmentFactorInfo(code string) (TieredAdjustmentFacto
 }
 
 // GetOpenInterestInfo gets open interest data
-func (h *HUOBI) GetOpenInterestInfo(code, period string, size, amountType float64) (TieredAdjustmentFactorData, error) {
-	var resp TieredAdjustmentFactorData
+func (h *HUOBI) GetOpenInterestInfo(code, period, amountType string, size int64) (OpenInterestData, error) {
+	var resp OpenInterestData
 	params := url.Values{}
 	params.Set("contract_code", code)
+	if !common.StringDataCompare(acceptablePeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	if !(size > 0 && size <= 1200) {
+		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
+	}
+	params.Set("size", strconv.FormatInt(size, 10))
+	aType, ok := acceptableAmountType[amountType]
+	if !ok {
+		return resp, fmt.Errorf("invalid trade type")
+	}
+	params.Set("amount_type", strconv.FormatInt(aType, 10))
 	return resp, h.SendHTTPRequest(huobiURL+huobiOpenInterestInfo+params.Encode(), &resp)
 }
 
 // GetSystemStatusInfo gets system status data
-func (h *HUOBI) GetSystemStatusInfo(code, period string, size, amountType float64) (SystemStatusData, error) {
+func (h *HUOBI) GetSystemStatusInfo(code, period, amountType string, size int64) (SystemStatusData, error) {
 	var resp SystemStatusData
 	params := url.Values{}
 	params.Set("contract_code", code)
+	if !common.StringDataCompare(acceptablePeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	if size > 0 && size <= 1200 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	aType, ok := acceptableAmountType[amountType]
+	if !ok {
+		return resp, fmt.Errorf("invalid trade type")
+	}
+	params.Set("amount_type", strconv.FormatInt(aType, 10))
 	return resp, h.SendHTTPRequest(huobiURL+huobiSwapSystemStatus+params.Encode(), &resp)
 }
 
@@ -262,23 +305,24 @@ func (h *HUOBI) GetTraderSentimentIndexPosition(code, period string) (TraderSent
 }
 
 // GetLiquidationOrders gets liquidation orders for a given perp
-func (h *HUOBI) GetLiquidationOrders(code, tradeType string, pageIndex, pageSize int64, createDate time.Time) (LiquidationOrdersData, error) {
+func (h *HUOBI) GetLiquidationOrders(code, tradeType string, pageIndex, pageSize, createDate int64) (LiquidationOrdersData, error) {
 	var resp LiquidationOrdersData
 	params := url.Values{}
 	params.Set("contract_code", code)
+	if createDate != 7 && createDate != 90 {
+		return resp, fmt.Errorf("invalid createDate. 7 and 90 are the only supported values")
+	}
+	params.Set("create_date", strconv.FormatInt(createDate, 10))
 	tType, ok := acceptableTradeTypes[tradeType]
 	if !ok {
 		return resp, fmt.Errorf("invalid trade type")
 	}
-	params.Set("type", strconv.FormatInt(tType, 10))
+	params.Set("trade_type", strconv.FormatInt(tType, 10))
 	if pageIndex != 0 {
 		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
 	}
 	if pageSize != 0 {
 		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
-	}
-	if !createDate.IsZero() {
-		params.Set("create_date", strconv.FormatInt(createDate.Unix(), 10))
 	}
 	return resp, h.SendHTTPRequest(huobiURL+huobiSwapLiquidationOrders+params.Encode(), &resp)
 }
@@ -322,6 +366,9 @@ func (h *HUOBI) GetEstimatedFundingRates(code, period string, size int64) (Estim
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
+	if !(size > 0 && size <= 1200) {
+		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
+	}
 	params.Set("size", strconv.FormatInt(size, 10))
 	return resp, h.SendHTTPRequest(huobiURL+huobiPredictedFundingRateData+params.Encode(), &resp)
 }
@@ -335,6 +382,9 @@ func (h *HUOBI) GetBasisData(code, period, basisPriceType string, size int64) (B
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
+	if !(size > 0 && size <= 1200) {
+		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
+	}
 	params.Set("size", strconv.FormatInt(size, 10))
 	if !common.StringDataCompare(acceptableBasisPriceTypes, basisPriceType) {
 		return resp, fmt.Errorf("invalid period value received")

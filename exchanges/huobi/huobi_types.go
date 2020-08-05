@@ -121,7 +121,7 @@ type HistoricalInsuranceFundBalance struct {
 		ContractCode string `json:"contract_code"`
 		Tick         []struct {
 			InsuranceFund float64 `json:"insurance_fund"`
-			Timestamp     string  `json:"ts"`
+			Timestamp     int64   `json:"ts"`
 		} `json:"tick"`
 		TotalPage   int64 `json:"total_page"`
 		TotalSize   int64 `json:"total_size"`
@@ -135,7 +135,7 @@ type TieredAdjustmentFactorData struct {
 		Symbol       string `json:"symbol"`
 		ContractCode string `json:"contract_code"`
 		List         []struct {
-			LeverRate float64 `json:"lever_rate,string"`
+			LeverRate float64 `json:"lever_rate"`
 			Ladders   []struct {
 				Ladder       float64 `json:"ladder"`
 				MinSize      float64 `json:"min_size"`
@@ -154,7 +154,7 @@ type OpenInterestData struct {
 		Tick         []struct {
 			Volume     float64 `json:"volume"`
 			AmountType float64 `json:"amountType"`
-			Timestamp  string  `json:"ts"`
+			Timestamp  int64   `json:"ts"`
 		} `json:"tick"`
 	} `json:"data"`
 }
@@ -176,27 +176,27 @@ type SystemStatusData struct {
 
 // TraderSentimentIndexAccountData stores trader sentiment index data
 type TraderSentimentIndexAccountData struct {
-	Data []struct {
+	Data struct {
 		Symbol       string `json:"symbol"`
 		ContractCode string `json:"contract_code"`
 		List         []struct {
 			BuyRatio    float64 `json:"buy_ratio"`
 			SellRatio   float64 `json:"sell_ratio"`
 			LockedRatio float64 `json:"locked_ratio"`
-			Timestamp   string  `json:"ts"`
+			Timestamp   int64   `json:"ts"`
 		} `json:"list"`
 	} `json:"data"`
 }
 
 // TraderSentimentIndexPositionData stores trader sentiment index data
 type TraderSentimentIndexPositionData struct {
-	Data []struct {
+	Data struct {
 		Symbol       string `json:"symbol"`
 		ContractCode string `json:"contract_code"`
 		List         []struct {
 			BuyRatio  float64 `json:"buy_ratio"`
 			SellRatio float64 `json:"sell_ratio"`
-			Timestamp string  `json:"ts"`
+			Timestamp int64   `json:"ts"`
 		} `json:"list"`
 	} `json:"data"`
 }
@@ -211,7 +211,7 @@ type LiquidationOrdersData struct {
 			Offset       string  `json:"offset"`
 			Volume       float64 `json:"volume"`
 			Price        float64 `json:"price"`
-			CreatedAt    string  `json:"created_at"`
+			CreatedAt    int64   `json:"created_at"`
 		} `json:"orders"`
 		TotalPage   int64 `json:"totalPage"`
 		CurrentPage int64 `json:"current_page"`
@@ -221,8 +221,8 @@ type LiquidationOrdersData struct {
 
 // FundingRatesData stores funding rates data
 type FundingRatesData struct {
-	EstimatedRate   float64 `json:"estimated_rate"`
-	FundingRate     float64 `json:"funding_rate"`
+	EstimatedRate   float64 `json:"estimated_rate,string"`
+	FundingRate     float64 `json:"funding_rate,string"`
 	ContractCode    string  `json:"contractCode"`
 	Symbol          string  `json:"symbol"`
 	FeeAsset        string  `json:"fee_asset"`
@@ -232,7 +232,7 @@ type FundingRatesData struct {
 
 // HistoricalFundingRateData stores historical funding rates for perpetuals
 type HistoricalFundingRateData struct {
-	Data []struct {
+	Data struct {
 		TotalPage   int64              `json:"total_page"`
 		CurrentPage int64              `json:"current_page"`
 		TotalSize   int64              `json:"total_size"`
@@ -276,13 +276,249 @@ type EstimatedFundingRateData struct {
 type BasisData struct {
 	Channel string `json:"ch"`
 	Data    []struct {
-		Basis         float64 `json:"basis"`
-		BasisRate     float64 `json:"basis_rate"`
-		ContractPrice float64 `json:"contract_price"`
-		ID            float64 `json:"id"`
-		IndexPrice    float64 `json:"index_price"`
+		Basis         string `json:"basis"`
+		BasisRate     string `json:"basis_rate"`
+		ContractPrice string `json:"contract_price"`
+		ID            int64  `json:"id"`
+		IndexPrice    string `json:"index_price"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
+}
+
+// SwapAccountInformation stores swap account information
+type SwapAccountInformation struct {
+	Data []struct {
+		Symbol            string  `json:"symbol"`
+		ContractCode      string  `json:"contract_code"`
+		MarginBalance     float64 `json:"margin_balance"`
+		MarginPosition    float64 `json:"margin_position"`
+		MarginFrozen      float64 `json:"margin_frozen"`
+		MarginAvailable   float64 `json:"margin_available"`
+		ProfitReal        float64 `json:"profit_real"`
+		ProfitUnreal      float64 `json:"profit_unreal"`
+		WithdrawAvailable float64 `json:"withdraw_available"`
+		RiskRate          float64 `json:"risk_rate"`
+		LiquidationPrice  float64 `json:"liquidation_price"`
+		AdjustFactor      float64 `json:"adjust_factor"`
+		LeverageRate      float64 `json:"lever_rate"`
+		MarginStatic      float64 `json:"margin_static"`
+	} `json:"data"`
+}
+
+// SwapPositionInfo stores user's swap positions' info
+type SwapPositionInfo struct {
+	Data []struct {
+		Symbol         string  `json:"symbol"`
+		ContractCode   string  `json:"contract_code"`
+		Volume         float64 `json:"volume"`
+		Available      float64 `json:"available"`
+		Frozen         float64 `json:"frozen"`
+		CostOpen       float64 `json:"cost_open"`
+		CostHold       float64 `json:"cost_hold"`
+		ProfitUnreal   float64 `json:"profit_unreal"`
+		ProfitRate     float64 `json:"profit_rate"`
+		Profit         float64 `json:"profit"`
+		PositionMargin float64 `json:"position_margin"`
+		LeverRate      float64 `json:"lever_rate"`
+		Direction      string  `json:"direction"`
+		LastPrice      float64 `json:"last_price"`
+	} `json:"data"`
+}
+
+// SwapAssetsAndPositionsData stores positions and assets data for swaps
+type SwapAssetsAndPositionsData struct {
+	Timestamp int64 `json:"ts"`
+	Data      []struct {
+		Symbol            string  `json:"symbol"`
+		ContractCode      string  `json:"contract_code"`
+		MarginBalance     float64 `json:"margin_balance"`
+		MarginPosition    float64 `json:"margin_position"`
+		MarginFrozen      float64 `json:"margin_frozen"`
+		MarginAvailable   float64 `json:"margin_available"`
+		ProfitReal        float64 `json:"profit_real"`
+		ProfitUnreal      float64 `json:"profit_unreal"`
+		WithdrawAvailable float64 `json:"withdraw_available"`
+		RiskRate          float64 `json:"risk_rate"`
+		LiquidationPrice  float64 `json:"liquidation_price"`
+		AdjustFactor      float64 `json:"adjust_factor"`
+		LeverageRate      float64 `json:"lever_rate"`
+		MarginStatic      float64 `json:"margin_static"`
+		Positions         []struct {
+			Symbol         string  `json:"symbol"`
+			ContractCode   string  `json:"contract_code"`
+			Volume         float64 `json:"volume"`
+			Available      float64 `json:"available"`
+			Frozen         float64 `json:"frozen"`
+			CostOpen       float64 `json:"cost_open"`
+			CostHold       float64 `json:"cost_hold"`
+			ProfitUnreal   float64 `json:"profit_unreal"`
+			ProfitRate     float64 `json:"profit_rate"`
+			Profit         float64 `json:"profit"`
+			PositionMargin float64 `json:"position_margin"`
+			LeverRate      float64 `json:"lever_rate"`
+			Direction      string  `json:"direction"`
+			LastPrice      float64 `json:"last_price"`
+		} `json:"positions"`
+	} `json:"data"`
+}
+
+// SubAccountsAssetData stores asset data for all subaccounts
+type SubAccountsAssetData struct {
+	Timestamp int64 `json:"ts"`
+	Data      []struct {
+		SubUID int64 `json:"sub_uid"`
+		List   []struct {
+			Symbol           string  `json:"symbol"`
+			ContractCode     string  `json:"contract_code"`
+			MarginBalance    int64   `json:"margin_balance"`
+			LiquidationPrice float64 `json:"liquidation_price"`
+			RiskRate         float64 `json:"risk_rate"`
+		} `json:"list"`
+	} `json:"data"`
+}
+
+// SingleSubAccountAssetsInfo stores asset info for a single subaccount
+type SingleSubAccountAssetsInfo struct {
+	Timestamp int64 `json:"ts"`
+	Data      []struct {
+		Symbol            string  `json:"symbol"`
+		ContractCode      string  `json:"contract_code"`
+		MarginBalance     float64 `json:"margin_balance"`
+		MarginPosition    float64 `json:"margin_position"`
+		MarginFrozen      float64 `json:"margin_frozen"`
+		MarginAvailable   float64 `json:"margin_available"`
+		ProfitReal        float64 `json:"profit_real"`
+		ProfitUnreal      float64 `json:"profit_unreal"`
+		WithdrawAvailable float64 `json:"withdraw_available"`
+		RiskRate          float64 `json:"risk_rate"`
+		LiquidationPrice  float64 `json:"liquidation_price"`
+		AdjustFactor      float64 `json:"adjust_factor"`
+		LeverageRate      float64 `json:"lever_rate"`
+		MarginStatic      float64 `json:"margin_static"`
+	} `json:"data"`
+}
+
+// SingleSubAccountPositionsInfo stores single subaccount's positions data
+type SingleSubAccountPositionsInfo struct {
+	Timestamp int64 `json:"ts"`
+	Data      []struct {
+		Symbol         string  `json:"symbol"`
+		ContractCode   string  `json:"contract_code"`
+		Volume         float64 `json:"volume"`
+		Available      float64 `json:"available"`
+		Frozen         float64 `json:"frozen"`
+		CostOpen       float64 `json:"cost_open"`
+		CostHold       float64 `json:"cost_hold"`
+		ProfitUnreal   float64 `json:"profit_unreal"`
+		ProfitRate     float64 `json:"profit_rate"`
+		Profit         float64 `json:"profit"`
+		PositionMargin float64 `json:"position_margin"`
+		LeverRate      float64 `json:"lever_rate"`
+		Direction      string  `json:"direction"`
+		LastPrice      float64 `json:"last_price"`
+	} `json:"data"`
+}
+
+// FinancialRecordData stores an accounts financial records
+type FinancialRecordData struct {
+	Data struct {
+		FinancialRecord []struct {
+			ID           int64   `json:"id"`
+			Timestamp    int64   `json:"ts"`
+			Symbol       string  `json:"symbol"`
+			ContractCode string  `json:"contract_code"`
+			OrderType    int64   `json:"type"`
+			Amount       float64 `json:"amount"`
+		} `json:"financial_record"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+}
+
+// SwapOrderLimitInfo stores information about order limits on a perpetual swap
+type SwapOrderLimitInfo struct {
+	Data struct {
+		OrderPriceType string `json:"order_price_type"`
+		List           []struct {
+			Symbol       string  `json:"symbol"`
+			ContractCode string  `json:"contract_code"`
+			OpenLimit    float64 `json:"open_limit"`
+			CloseLimit   float64 `json:"close_limit"`
+		} `json:"list"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// SwapTradingFeeData stores trading fee data for swaps
+type SwapTradingFeeData struct {
+	Data []struct {
+		Symbol        string  `json:"symbol"`
+		ContractCode  string  `json:"contract_code"`
+		FeeAsset      string  `json:"fee_asset"`
+		OpenMakerFee  float64 `json:"open_maker_fee"`
+		OpenTakerFee  float64 `json:"open_taker_fee"`
+		CloseMakerFee float64 `json:"close_maker_fee"`
+		CloseTakerFee float64 `json:"close_taker_fee"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// TransferLimitData stores transfer limits
+type TransferLimitData struct {
+	Data []struct {
+		Symbol                 string  `json:"symbol"`
+		ContractCode           string  `json:"contract_code"`
+		MaxTransferIn          float64 `json:"transfer_in_max_each"`
+		MinTransferIn          float64 `json:"transfer_in_min_each"`
+		MaxTransferOut         float64 `json:"transfer_out_max_each"`
+		MinTransferOut         float64 `json:"transfer_out_min_each"`
+		MaxTransferInDaily     float64 `json:"transfer_in_max_daily"`
+		MinTransferInDaily     float64 `json:"transfer_in_min_daily"`
+		MaxTransferOutDaily    float64 `json:"transfer_out_max_daily"`
+		MinTransferOutDaily    float64 `json:"transfer_out_min_daily"`
+		NetTransferInMaxDaily  float64 `json:"net_transfer_in_max_daily"`
+		NetTransferOutMaxDaily float64 `json:"net_transfer_out_max_daily"`
+	} `json:"data"`
+	Timestamp int64 `json:"timestamp"`
+}
+
+// PositionLimitData stores position limit data
+type PositionLimitData struct {
+	Data []struct {
+		Symbol       string  `json:"symbol"`
+		ContractCode string  `json:"contract_code"`
+		BuyLimit     float64 `json:"buy_limit"`
+		SellLimit    float64 `json:"sell_limit"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// InternalAccountTransferData stores transfer data between subaccounts and main account
+type InternalAccountTransferData struct {
+	Ts   int64 `json:"ts"`
+	Data struct {
+		OrderID string `json:"order_id"`
+	} `json:"data"`
+}
+
+// InternalAccountTransferRecords stores data for transfer records within the account
+type InternalAccountTransferRecords struct {
+	Timestamp string `json:"ts"`
+	Data      struct {
+		TransferRecord []struct {
+			ID             int64   `json:"id"`
+			Timestamp      int64   `json:"ts"`
+			Symbol         string  `json:"symbol"`
+			SubUID         string  `json:"sub_uid"`
+			SubAccountName string  `json:"sub_account_name"`
+			TransferType   int64   `json:"transfer_type"`
+			Amount         float64 `json:"amount"`
+		} `json:"transfer_record"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
 }
 
 // *******************************************************
