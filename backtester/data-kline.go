@@ -1,16 +1,30 @@
 package backtest
 
+import "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+
 type DataFromKlineItem struct {
-	latest DataHandler
-	stream []DataHandler
+	kline kline.Item
+
+	latest DataEvent
+	stream []DataEvent
+	offset int
 }
 
 func (d *DataFromKlineItem) Reset() {
 	d.latest = nil
+	d.offset = 0
 }
 
 func (d *DataFromKlineItem) Next() (DataEvent, bool) {
-	return nil, false
+	if len(d.stream) <= d.offset {
+		return nil, false
+	}
+
+	ret := d.stream[d.offset]
+	d.offset++
+	d.latest = ret
+
+	return ret, true
 }
 
 func (d *DataFromKlineItem) Stream() []DataEvent {
@@ -18,13 +32,17 @@ func (d *DataFromKlineItem) Stream() []DataEvent {
 }
 
 func (d *DataFromKlineItem) History() []DataEvent {
-	return nil
+	return d.stream[:d.offset]
 }
 
 func (d *DataFromKlineItem) Latest() DataEvent {
-	return nil
+	return d.latest
 }
 
 func (d *DataFromKlineItem) Load() {
+	var candles []Candle
 
+	for x := range d.kline.Candles {
+
+	}
 }

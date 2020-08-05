@@ -11,6 +11,10 @@ type DataEvent interface {
 	Price() float64
 }
 
+type Event struct {
+	time time.Time
+}
+
 type EventHandler interface {
 	Time() time.Time
 	SetTime(time.Time)
@@ -24,7 +28,6 @@ type DataHandler interface {
 
 	Reset()
 }
-
 
 type SignalEvent interface {
 	EventHandler

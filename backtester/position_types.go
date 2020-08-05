@@ -10,16 +10,16 @@ type Position struct {
 
 	avgPrice    float64
 	avgPriceNet float64
-	avgPriceBOT float64
-	avgPriceSLD float64
+	avgPriceBought float64
+	avgPriceSold float64
 
 	value    float64
-	valueBOT float64
-	valueSLD float64
+	valueBought float64
+	valueSold float64
 
 	netValue    float64
-	netValueBOT float64
-	netValueSLD float64
+	netValueBought float64
+	netValueSold float64
 
 	marketValue float64
 	exchangeFee float64
