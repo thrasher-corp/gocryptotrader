@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -48,19 +49,19 @@ const (
 	huobiPremiumIndexKlineData           = "index/market/history/swap_premium_index_kline?"
 	huobiPredictedFundingRateData        = "index/market/history/swap_estimated_rate_kline?"
 	huobiBasisData                       = "index/market/history/swap_basis?"
-	huobiSwapAccInfo                     = "/swap-api/v1/swap_account_info"
-	huobiSwapPosInfo                     = "/swap-api/v1/swap_position_info"
+	huobiSwapAccInfo                     = "swap-api/v1/swap_account_info"
+	huobiSwapPosInfo                     = "swap-api/v1/swap_position_info"
 	huobiSwapAssetsAndPosInfo            = "swap-api/v1/swap_account_position_info"
-	huobiSwapSubAccList                  = "/swap-api/v1/swap_sub_account_list"
-	huobiSwapSubAccInfo                  = "/swap-api/v1/swap_sub_account_info"
-	huobiSwapSubAccPosInfo               = "/swap-api/v1/swap_sub_position_info"
-	huobiSwapFinancialRecords            = "/swap-api/v1/swap_financial_record"
-	huobiSwapOrderLimitInfo              = "/swap-api/v1/swap_order_limit"
-	huobiSwapTradingFeeInfo              = "/swap-api/v1/swap_fee"
-	huobiSwapTransferLimitInfo           = "/swap-api/v1/swap_transfer_limit"
-	huobiSwapPositionLimitInfo           = "/swap-api/v1/swap_position_limit"
-	huobiSwapInternalTransferData        = "/swap-api/v1/swap_master_sub_transfer"
-	huobiSwapInternalTransferRecords     = "/swap-api/v1/swap_master_sub_transfer_record"
+	huobiSwapSubAccList                  = "swap-api/v1/swap_sub_account_list"
+	huobiSwapSubAccInfo                  = "swap-api/v1/swap_sub_account_info"
+	huobiSwapSubAccPosInfo               = "swap-api/v1/swap_sub_position_info"
+	huobiSwapFinancialRecords            = "swap-api/v1/swap_financial_record"
+	huobiSwapOrderLimitInfo              = "swap-api/v1/swap_order_limit"
+	huobiSwapTradingFeeInfo              = "swap-api/v1/swap_fee"
+	huobiSwapTransferLimitInfo           = "swap-api/v1/swap_transfer_limit"
+	huobiSwapPositionLimitInfo           = "swap-api/v1/swap_position_limit"
+	huobiSwapInternalTransferData        = "swap-api/v1/swap_master_sub_transfer"
+	huobiSwapInternalTransferRecords     = "swap-api/v1/swap_master_sub_transfer_record"
 
 	// Spot endpoints
 	huobiMarketHistoryKline    = "market/history/kline"
@@ -390,6 +391,15 @@ func (h *HUOBI) GetBasisData(code, period, basisPriceType string, size int64) (B
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	return resp, h.SendHTTPRequest(huobiURL+huobiBasisData+params.Encode(), &resp)
+}
+
+// GetSwapAccountInfo gets swap account info
+func (h *HUOBI) GetSwapAccountInfo(code string) (SwapAccountInformation, error) {
+	var resp SwapAccountInformation
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapAccInfo, nil, req, &resp, false)
 }
 
 // ************************************************************************
@@ -1092,6 +1102,65 @@ func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
 	})
 }
 
+// SendAuthenticatedHTTPRequest2 sends authenticated requests to the HUOBI API
+func (h *HUOBI) SendAuthenticatedHTTPRequest2(method, endpoint string, values url.Values, data, result interface{}, isVersion2API bool) error {
+	if !h.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
+	}
+
+	if values == nil {
+		values = url.Values{}
+	}
+
+	now := time.Now()
+	values.Set("AccessKeyId", h.API.Credentials.Key)
+	values.Set("SignatureMethod", "HmacSHA256")
+	values.Set("SignatureVersion", "2")
+	values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
+
+	sigPath := fmt.Sprintf("%s\napi.hbdm.com\n%s\n%s",
+		method, endpoint, values.Encode())
+
+	fmt.Println(sigPath)
+
+	headers := make(map[string]string)
+
+	if method == http.MethodGet {
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+	} else {
+		headers["Content-Type"] = "application/json"
+	}
+	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(sigPath), []byte(h.API.Credentials.Secret))
+	urlPath := h.API.Endpoints.URL +
+		common.EncodeURLValues(endpoint, values) +
+		"&Signature=" +
+		crypto.Base64Encode(hmac)
+
+	fmt.Println(crypto.Base64Encode(hmac))
+
+	var body io.Reader
+	var payload []byte
+	var err error
+	if data != nil {
+		payload, err = json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewBuffer(payload)
+	}
+	return h.SendPayload(context.Background(), &request.Item{
+		Method:        method,
+		Path:          urlPath,
+		Headers:       headers,
+		Body:          body,
+		Result:        &result,
+		AuthRequest:   true,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	})
+}
+
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
 func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, data, result interface{}, isVersion2API bool) error {
 	if !h.AllowAuthenticatedRequest() {
@@ -1116,6 +1185,8 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 
 	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
 		method, endpoint, values.Encode())
+
+	fmt.Println(payload)
 
 	headers := make(map[string]string)
 

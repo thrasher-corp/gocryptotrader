@@ -25,7 +25,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 	testSymbol              = "btcusdt"
 )
 
@@ -279,7 +279,9 @@ func TestGetSwapPriceLimits(t *testing.T) {
 
 func TestGetMarginRates(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetMarginRates("BTC/USDT")
+	h.Verbose = true
+	a, err := h.GetMarginRates("btcusdt")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -287,6 +289,16 @@ func TestGetMarginRates(t *testing.T) {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestGetSwapAccountInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapAccountInfo("ETH-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
