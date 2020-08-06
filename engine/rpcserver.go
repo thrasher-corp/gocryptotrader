@@ -1664,7 +1664,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 		_, err = kline.StoreInDatabase(&candles)
 		if err != nil {
 			if errors.Is(err, exchangeDB.ErrNoExchangeFound) {
-				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new database via the dbseed")
+				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new exchange via the dbseed")
 			}
 			return nil, err
 		}
