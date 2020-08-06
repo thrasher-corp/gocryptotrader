@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1662,6 +1663,9 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 	if req.Sync {
 		_, err = kline.StoreInDatabase(&candles)
 		if err != nil {
+			if errors.Is(err, exchangeDB.ErrNoExchangeFound) {
+				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new database via the dbseed")
+			}
 			return nil, err
 		}
 	}
