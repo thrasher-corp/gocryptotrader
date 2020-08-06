@@ -31,4 +31,4 @@ UPDATE candle SET interval = replace (candle.interval, '2h', '7200');
 
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
--- ALTER TABLE candle DROP COLUMN asset;
+-- Nothing to run for sqlite as we leave the type as text

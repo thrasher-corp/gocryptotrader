@@ -32,4 +32,4 @@ alter table candle alter column interval type bigint using interval::bigint;
 
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
--- ALTER TABLE candle DROP COLUMN asset;
+alter table candle alter column interval type varchar(30) using interval::varchar(30);
