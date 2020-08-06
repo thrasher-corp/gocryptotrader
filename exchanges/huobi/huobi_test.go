@@ -457,8 +457,9 @@ func TestGetAccounts(t *testing.T) {
 	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
 	}
-
-	_, err := h.GetAccounts()
+	h.Verbose = true
+	a, err := h.GetAccounts()
+	t.Log(a)
 	if err != nil {
 		t.Errorf("Huobi GetAccounts: %s", err)
 	}
@@ -553,8 +554,9 @@ func TestGetMarginAccountBalance(t *testing.T) {
 	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
-
-	_, err := h.GetMarginAccountBalance(testSymbol)
+	h.Verbose = true
+	a, err := h.GetMarginAccountBalance(testSymbol)
+	t.Log(a)
 	if err != nil {
 		t.Errorf("Huobi TestGetMarginAccountBalance: %s", err)
 	}

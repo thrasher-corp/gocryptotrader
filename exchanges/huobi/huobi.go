@@ -402,6 +402,65 @@ func (h *HUOBI) GetSwapAccountInfo(code string) (SwapAccountInformation, error) 
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapAccInfo, nil, req, &resp, false)
 }
 
+// GetSwapPositionsInfo gets swap positions' info
+func (h *HUOBI) GetSwapPositionsInfo(code string) (SwapPositionInfo, error) {
+	var resp SwapPositionInfo
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapPosInfo, nil, req, &resp, false)
+}
+
+// GetSwapAssetsAndPositions gets swap positions and asset info
+func (h *HUOBI) GetSwapAssetsAndPositions(code string) (SwapAssetsAndPositionsData, error) {
+	var resp SwapAssetsAndPositionsData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapAssetsAndPosInfo, nil, req, &resp, false)
+}
+
+// GetSubAccAssetsInfo gets asset info for all subaccounts
+func (h *HUOBI) GetSubAccAssetsInfo(code string, subUID int64) (SubAccountsAssetData, error) {
+	var resp SubAccountsAssetData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	req["sub_uid"] = subUID
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapSubAccList, nil, req, &resp, false)
+}
+
+// GetSubAccPositionInfo gets a subaccount's positions info
+func (h *HUOBI) GetSubAccPositionInfo(code string, subUID int64) (SingleSubAccountPositionsInfo, error) {
+	var resp SingleSubAccountPositionsInfo
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	req["sub_uid"] = subUID
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapSubAccList, nil, req, &resp, false)
+}
+
+// GetAccountFinancialRecords gets the account's financial records
+func (h *HUOBI) GetAccountFinancialRecords(code, orderType string, createDate, pageIndex, pageSize int64) (FinancialRecordData, error) {
+	var resp FinancialRecordData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	if orderType != "" {
+		req["type"] = orderType
+	}
+	if createDate != 0 {
+		req["create_date"] = createDate
+	}
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapFinancialRecords, nil, req, &resp, false)
+}
+
 // ************************************************************************
 
 // GetSwapMarkets gets data of swap markets
@@ -1107,24 +1166,19 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest2(method, endpoint string, values ur
 	if !h.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}
-
 	if values == nil {
 		values = url.Values{}
 	}
-
 	now := time.Now()
 	values.Set("AccessKeyId", h.API.Credentials.Key)
+	// values.Set("contract_code", "ETH-USD")
 	values.Set("SignatureMethod", "HmacSHA256")
 	values.Set("SignatureVersion", "2")
 	values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
-
-	sigPath := fmt.Sprintf("%s\napi.hbdm.com\n%s\n%s",
+	sigPath := fmt.Sprintf("%s\napi.hbdm.com\n/%s\n%s",
 		method, endpoint, values.Encode())
-
-	fmt.Println(sigPath)
-
+	fmt.Println("SIGPATH BRA:", sigPath)
 	headers := make(map[string]string)
-
 	if method == http.MethodGet {
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 	} else {
@@ -1135,9 +1189,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest2(method, endpoint string, values ur
 		common.EncodeURLValues(endpoint, values) +
 		"&Signature=" +
 		crypto.Base64Encode(hmac)
-
 	fmt.Println(crypto.Base64Encode(hmac))
-
 	var body io.Reader
 	var payload []byte
 	var err error
