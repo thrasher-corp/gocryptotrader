@@ -11,3 +11,11 @@ type Candle struct {
 	Close  float64
 	Volume float64
 }
+
+func (c Candle) Time() time.Time {
+	panic("implement me")
+}
+
+func (c Candle) SetTime(t time.Time) {
+	panic("implement me")
+}
