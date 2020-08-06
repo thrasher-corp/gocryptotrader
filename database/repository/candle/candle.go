@@ -173,7 +173,7 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 			Close:      in.Candles[x].Close,
 			Volume:     in.Candles[x].Volume,
 		}
-		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_id", "base", "quote", "interval"}, boil.Infer(), boil.Infer())
+		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_id", "base", "quote", "interval", "asset"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
