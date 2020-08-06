@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	trade2 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -131,7 +131,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				ExchangeName: b.Name,
 			})
 		} else {
-			err = b.Websocket.Orderbook.Update(&orderbookbuffer.Update{
+			err = b.Websocket.Orderbook.Update(&buffer.Update{
 				UpdateTime: ob.Timestamp,
 				Asset:      asset.Spot,
 				Bids:       bids,
@@ -160,7 +160,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			side = order.Sell
 		}
 
-		b.Websocket.Trade.ProcessIndividual(&trade2.Data{
+		b.Websocket.Trade.Process(&trade2.Data{
 			Timestamp:    trade.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,

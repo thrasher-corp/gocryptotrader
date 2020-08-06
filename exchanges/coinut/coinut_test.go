@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,6 +29,11 @@ const (
 	canManipulateRealOrders = false
 )
 
+
+func TestButts (t *testing.T) {
+	tt := time.Unix(1594036487, 0)
+	t.Log(tt)
+}
 func TestMain(m *testing.M) {
 	c.SetDefaults()
 	cfg := config.GetConfig()

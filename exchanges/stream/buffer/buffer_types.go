@@ -1,4 +1,4 @@
-package orderbookbuffer
+package buffer
 
 import (
 	"sync"

@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	trade2 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -562,6 +562,7 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []interface{}) {
+	var trades []*trade2.Data
 	for i := range data {
 		trade := data[i].([]interface{})
 		timeData, err := strconv.ParseFloat(trade[2].(string), 64)
@@ -590,8 +591,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 		if trade[4].(string) == "l" {
 			tType = order.Limit
 		}
-
-		k.Websocket.Trade.ProcessIndividual(&trade2.Data{
+		trades = append(trades, &trade2.Data{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
 			Exchange:     k.Name,
@@ -602,6 +602,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			EventType:    tType,
 		})
 	}
+	k.Websocket.Trade.Process(trades...)
 }
 
 // wsProcessOrderBook determines if the orderbook data is partial or update
@@ -699,7 +700,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, askData, bidData []interface{}) error {
-	update := orderbookbuffer.Update{
+	update := buffer.Update{
 		Asset: asset.Spot,
 		Pair:  channelData.Pair,
 	}

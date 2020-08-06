@@ -3,27 +3,41 @@ package trade
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-func (t *Traderino) ProcessIndividual(data *Data) {
+var buffer []*Data
+var candles []kline.Candle
 
+func (t *Traderino) Process(data ...*Data) {
+	t.mutex.Lock()
+	for i := range data {
+		buffer = append(buffer, data[i])
+	}
+	t.mutex.Unlock()
+}
+/*
+func (t *Traderino) Processor() {
+	timer := time.NewTicker(time.Minute)
+	for {
+		select {
+		case <-timer.C:
+			t.mutex.RLock()
+			for i := range buffer {
+				if
+			}
+			t.mutex.RUnlock()
+		}
+	}
+}
+*/
+func (t *Traderino) CandleProcessor() {
+	timer := time.NewTicker(time.Minute)
+	for {
+		select {
+		case <-timer.C:
+
+		}
+	}
 }
 
-// Data defines trade data
-type Data struct {
-	Timestamp    time.Time
-	CurrencyPair currency.Pair
-	AssetType    asset.Item
-	Exchange     string
-	EventType    order.Type
-	Price        float64
-	Amount       float64
-	Side         order.Side
-}
-
-type Traderino struct {
-
-}

@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/orderbookbuffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
@@ -331,7 +331,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	if err != nil {
 		return err
 	}
-	return c.Websocket.Orderbook.Update(&orderbookbuffer.Update{
+	return c.Websocket.Orderbook.Update(&buffer.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       p,
