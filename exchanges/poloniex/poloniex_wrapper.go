@@ -674,8 +674,11 @@ func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		return kline.Item{}, err
 	}
 
+	// we use Truncate here to round star to the nearest even number that matches the requested interval
+	// example 10:17 with an interval of 15 minutes will go down 10:15
+	// this is due to poloniex returning a non-complete candle if the time does not match
 	candles, err := p.GetChartData(formattedPair.String(),
-		start, end,
+		start.Truncate(interval.Duration()), end,
 		p.FormatExchangeKlineInterval(interval))
 	if err != nil {
 		return kline.Item{}, err
@@ -689,7 +692,7 @@ func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 	}
 
 	// Workaround for first candle being from exact requested time ad not a full candle with 0 volume
-	for x := range candles[1:] {
+	for x := range candles {
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   time.Unix(candles[x].Date, 0),
 			Open:   candles[x].Open,

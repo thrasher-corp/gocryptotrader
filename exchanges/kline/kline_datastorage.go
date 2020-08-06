@@ -73,8 +73,7 @@ func StoreInDatabase(in *Item) (uint64, error) {
 
 	for x := range in.Candles {
 		if in.Candles[x].Time.Sub(in.Candles[0].Time) != in.Interval.Duration()*time.Duration(x) {
-			fmt.Printf("Received: %v | Expected: %v\n", in.Candles[x].Time.Sub(in.Candles[0].Time), in.Interval.Duration()*time.Duration(x))
-
+			log.Warnf(log.DatabaseMgr, "Unexpected time received: %v, Expected: %v disregarding entry\n", in.Candles[x].Time.Sub(in.Candles[0].Time), in.Interval.Duration()*time.Duration(x))
 			continue
 		}
 
