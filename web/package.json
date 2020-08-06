@@ -48,13 +48,14 @@
     "start:web": "ng serve --o"
   },
   "dependencies": {
-    "node-sass": "^4.10.0",
+    "@angular-devkit/build-angular": "^0.13.0",
+    "node-sass": "^4.14.1",
+    "hammerjs": "^2.0.8",
     "rxjs-compat": "^6.3.3",
-    "rxjs-tslint": "^0.1.5"
+    "rxjs-tslint": "^0.1.8"
   },
   "devDependencies": {
     "@amcharts/amcharts3-angular": "2.2.2",
-    "@angular-devkit/build-angular": "~0.10.0",
     "@angular/animations": "^7.0.3",
     "@angular/cdk": "^7.0.3",
     "@angular/cli": "^7.0.5",
@@ -79,9 +80,9 @@
     "core-js": "^2.5.7",
     "cross-env": "^5.2.0",
     "dotenv": "^6.1.0",
-    "electron": "^3.0.8",
+    "electron": "^7.2.4",
     "electron-builder": "^20.34.0",
-    "electron-reload": "^1.3.0",
+    "electron-reload": "^1.5.0",
     "fs-extra": "^7.0.1",
     "jasmine-core": "^3.3.0",
     "jasmine-spec-reporter": "^4.2.1",

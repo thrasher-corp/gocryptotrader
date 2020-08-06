@@ -1,7 +1,7 @@
 
 import {share, map} from 'rxjs/operators';
-import { NgModule, Injectable, Optional, SkipSelf } from '@angular/core';
-import { Observable, Subject } from 'rxjs/Rx';
+import { NgModule, Optional, SkipSelf } from '@angular/core';
+import { Observable, Subject } from 'rxjs';
 import { WebsocketService } from './../../services/websocket/websocket.service';
 import { WebSocketMessage } from './../../shared/classes/websocket';
 
