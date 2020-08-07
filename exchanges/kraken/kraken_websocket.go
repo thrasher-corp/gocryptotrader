@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	trade2 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -562,36 +562,36 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []interface{}) {
-	var trades []*trade2.Data
+	var trades []trade.Data
 	for i := range data {
-		trade := data[i].([]interface{})
-		timeData, err := strconv.ParseFloat(trade[2].(string), 64)
+		t := data[i].([]interface{})
+		timeData, err := strconv.ParseFloat(t[2].(string), 64)
 		if err != nil {
 			k.Websocket.DataHandler <- err
 			return
 		}
 
-		price, err := strconv.ParseFloat(trade[0].(string), 64)
+		price, err := strconv.ParseFloat(t[0].(string), 64)
 		if err != nil {
 			k.Websocket.DataHandler <- err
 			return
 		}
 
-		amount, err := strconv.ParseFloat(trade[1].(string), 64)
+		amount, err := strconv.ParseFloat(t[1].(string), 64)
 		if err != nil {
 			k.Websocket.DataHandler <- err
 			return
 		}
 		var tSide = order.Buy
-		if trade[3].(string) == "s" {
+		if t[3].(string) == "s" {
 			tSide = order.Sell
 		}
 
 		var tType = order.Market
-		if trade[4].(string) == "l" {
+		if t[4].(string) == "l" {
 			tType = order.Limit
 		}
-		trades = append(trades, &trade2.Data{
+		trades = append(trades, trade.Data{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
 			Exchange:     k.Name,

@@ -44,10 +44,19 @@ type Data struct {
 	Side         order.Side
 }
 
+type CandleHolder struct {
+	candle kline.Candle
+	trades []Data
+}
+
 // Traderino is a holder of trades right now
 type Traderino struct {
 	mutex sync.Mutex
 	shutdown chan struct{}
+	Name string
+	started    int32
+	lastCandleTime time.Time
+	previousCandles []CandleHolder
 }
 
 type ByDate []Data
@@ -61,5 +70,19 @@ func (b ByDate) Less(i, j int) bool {
 }
 
 func (b ByDate) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+type ByDate2 []CandleHolder
+
+func (b ByDate2) Len() int {
+	return len(b)
+}
+
+func (b ByDate2) Less(i, j int) bool {
+	return b[i].candle.Time.Before(b[j].candle.Time)
+}
+
+func (b ByDate2) Swap(i, j int) {
 	b[i], b[j] = b[j], b[i]
 }

@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	trade2 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
+	 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
@@ -314,8 +314,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						}
 					case "t":
 						currencyPair := currencyIDMap[channelID]
-						var trade WsTrade
-						trade.Symbol = currencyIDMap[channelID]
+						var t WsTrade
+						t.Symbol = currencyIDMap[channelID]
 						dataL3, ok := dataL2.([]interface{})
 						if !ok {
 							return errors.New("websocket trade update error: type conversion failure")
@@ -342,27 +342,27 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						if dataL3[2].(float64) != 1 {
 							side = order.Sell
 						}
-						trade.Volume, err = strconv.ParseFloat(dataL3[3].(string), 64)
+						t.Volume, err = strconv.ParseFloat(dataL3[3].(string), 64)
 						if err != nil {
 							return err
 						}
-						trade.Price, err = strconv.ParseFloat(dataL3[4].(string), 64)
+						t.Price, err = strconv.ParseFloat(dataL3[4].(string), 64)
 						if err != nil {
 							return err
 						}
-						trade.Timestamp = int64(dataL3[5].(float64))
+						t.Timestamp = int64(dataL3[5].(float64))
 
 						pair, err := currency.NewPairFromString(currencyPair)
 						if err != nil {
 							return err
 						}
 
-						p.Websocket.Trade.Process(&trade2.Data{
-							Timestamp:    time.Unix(trade.Timestamp, 0),
+						p.Websocket.Trade.Process(trade.Data{
+							Timestamp:    time.Unix(t.Timestamp, 0),
 							CurrencyPair: pair,
 							Side:         side,
-							Amount:       trade.Volume,
-							Price:        trade.Price,
+							Amount:       t.Volume,
+							Price:        t.Price,
 						})
 					default:
 						p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}

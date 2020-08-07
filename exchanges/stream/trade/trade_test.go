@@ -33,7 +33,7 @@ func TestSeparateTradesByUnitOfTime(t *testing.T) {
 		})
 	}
 	sort.Sort(ByDate(datas))
-	groupedData := splitTradeDataIntoIntervals(kline.FifteenSecond, datas...)
+	groupedData := convertTradeDatasToCandles(kline.FifteenSecond, datas...)
 	t.Log(len(groupedData))
 	var candles []kline.Candle
 	for k, v := range groupedData {

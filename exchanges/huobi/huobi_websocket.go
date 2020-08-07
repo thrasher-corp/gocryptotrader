@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	trade2 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -346,32 +346,32 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			Interval:   data[3],
 		}
 	case strings.Contains(init.Channel, "trade.detail"):
-		var trade WsTrade
-		err := json.Unmarshal(respRaw, &trade)
+		var t WsTrade
+		err := json.Unmarshal(respRaw, &t)
 		if err != nil {
 			return err
 		}
-		data := strings.Split(trade.Channel, ".")
+		data := strings.Split(t.Channel, ".")
 		var p currency.Pair
 		var a asset.Item
 		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
 		if err != nil {
 			return err
 		}
-		var trades []*trade2.Data
-		for i := range trade.Tick.Data {
+		var trades []trade.Data
+		for i := range t.Tick.Data {
 			side := order.Buy
-			if trade.Tick.Data[i].Direction != "buy" {
+			if t.Tick.Data[i].Direction != "buy" {
 				side = order.Sell
 			}
-			trades = append(trades, &trade2.Data{
+			trades = append(trades, trade.Data{
 				Exchange:     h.Name,
 				AssetType:    a,
 				CurrencyPair: p,
 				Timestamp: time.Unix(0,
-					trade.Tick.Data[i].Timestamp*int64(time.Millisecond)),
-				Amount: trade.Tick.Data[i].Amount,
-				Price:  trade.Tick.Data[i].Price,
+					t.Tick.Data[i].Timestamp*int64(time.Millisecond)),
+				Amount: t.Tick.Data[i].Amount,
+				Price:  t.Tick.Data[i].Price,
 				Side:   side,
 			})
 		}

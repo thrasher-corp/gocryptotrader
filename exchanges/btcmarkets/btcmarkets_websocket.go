@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	trade2 "github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -144,29 +144,29 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case tradeEndPoint:
-		var trade WsTrade
-		err := json.Unmarshal(respRaw, &trade)
+		var t WsTrade
+		err := json.Unmarshal(respRaw, &t)
 		if err != nil {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(trade.Currency)
+		p, err := currency.NewPairFromString(t.Currency)
 		if err != nil {
 			return err
 		}
 
 		side := order.Buy
-		if trade.Side == "Ask" {
+		if t.Side == "Ask" {
 			side = order.Sell
 		}
 
-		b.Websocket.Trade.Process(&trade2.Data{
-			Timestamp:    trade.Timestamp,
+		b.Websocket.Trade.Process(trade.Data{
+			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     b.Name,
-			Price:        trade.Price,
-			Amount:       trade.Volume,
+			Price:        t.Price,
+			Amount:       t.Volume,
 			Side:         side,
 			EventType:    order.UnknownType,
 		})
