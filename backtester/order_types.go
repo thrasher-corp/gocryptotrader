@@ -11,8 +11,8 @@ type Order struct {
 	id           int
 	orderType    order.Type
 	status       order.Status
-	amount       int64
-	amountFilled int64
+	amount       float64
+	amountFilled float64
 	avgFillPrice float64
 	limitPrice   float64
 

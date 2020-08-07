@@ -317,7 +317,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				}
 				tempResp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
 				tempResp.RequestDetails.Crypto.Address = x.Address
-				tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
+  				tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
 				tempResp.RequestDetails.Crypto.FeeAmount = x.Fee
 			} else {
 				x, err := v[x].WithdrawalFiats().One(ctx, database.DB.SQL)

@@ -1,13 +1,12 @@
 package backtest
 
-type ExchangeFeeHandler interface {
-	Fee() (float64, error)
+func (e *FixedExchangeFee) Calculate(_,_ float64) (float64, error) {
+	return e.ExchangeFee.Fee, nil
 }
 
-type FixedExchangeFee struct {
-	ExchangeFee float64
-}
-
-func (e *FixedExchangeFee) Fee() (float64, error) {
-	return e.ExchangeFee, nil
+func (c *PercentageFee) Calculate(amount, price float64) (float64, error) {
+	if amount == 0 || price == 0 {
+		return 0, nil
+	}
+	return amount * price * c.Fee, nil
 }

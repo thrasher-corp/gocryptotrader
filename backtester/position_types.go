@@ -30,3 +30,20 @@ type Position struct {
 	unrealProfitLoss float64
 	totalProfitLoss  float64
 }
+
+
+type RiskHandler interface {
+	EvaluateOrder(OrderEvent, DataEvent, map[string]Position) (*Order, error)
+}
+
+type Risk struct {
+}
+
+type SizeHandler interface {
+	SizeOrder(OrderEvent, DataEvent, PortfolioHandler) (*Order, error)
+}
+
+type Size struct {
+	DefaultSize  float64
+	DefaultValue float64
+}
