@@ -805,6 +805,7 @@ func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		Exchange: c.Name,
 		Pair:     pair,
 		Interval: interval,
+		Asset:    a,
 	}
 
 	for x := range candles.Data {

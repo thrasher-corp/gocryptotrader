@@ -180,6 +180,7 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 
 // UUIDByName returns UUID of exchange
 func UUIDByName(exchange string) (uuid.UUID, error) {
+	exchange = strings.ToLower(exchange)
 	v := exchangeCache.Get(exchange)
 	if v != nil {
 		return v.(uuid.UUID), nil
@@ -226,7 +227,7 @@ func LoadCSV(file string) (out []Details, err error) {
 		}
 
 		out = append(out, Details{
-			Name: strings.Title(row[0]),
+			Name: row[0],
 		})
 	}
 }

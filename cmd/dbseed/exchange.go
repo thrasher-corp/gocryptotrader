@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -55,7 +54,7 @@ func seedExchangeFromDefaultList(c *cli.Context) error {
 	var allExchanges []exchangeDB.Details
 	for x := range exchange.Exchanges {
 		allExchanges = append(allExchanges, exchangeDB.Details{
-			Name: strings.Title(exchange.Exchanges[x]),
+			Name: exchange.Exchanges[x],
 		})
 	}
 	err = exchangeDB.InsertMany(allExchanges)
@@ -121,7 +120,7 @@ func addSingleExchange(c *cli.Context) error {
 	}
 
 	err = exchangeDB.Insert(exchangeDB.Details{
-		Name: strings.Title(exchangeName),
+		Name: exchangeName,
 	})
 
 	if err != nil {

@@ -319,8 +319,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Unable to get exchange name setting value to exchange_name_id")
-				tempResp.Exchange.Name = v[x].ExchangeNameID.String
+				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
 			} else {
 				tempResp.Exchange.Name = exchangeName.Name
 			}
@@ -390,8 +389,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Unable to get exchange name setting value to exchange_name_id")
-				tempResp.Exchange.Name = v[x].ExchangeNameID.String
+				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
 			} else {
 				tempResp.Exchange.Name = exchangeName.Name
 			}

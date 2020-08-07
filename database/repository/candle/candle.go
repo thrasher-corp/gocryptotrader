@@ -9,7 +9,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -30,7 +29,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		return out, errInvalidInput
 	}
 
-	exchangeUUID, err := exchange.UUIDByName(strings.Title(exchangeName))
+	exchangeUUID, err := exchange.UUIDByName(exchangeName)
 	if err != nil {
 		return
 	}
@@ -204,7 +203,7 @@ func InsertFromCSV(exchangeName, base, quote string, interval int64, asset, file
 
 	csvData := csv.NewReader(csvFile)
 
-	exchangeUUID, err := exchange.UUIDByName(strings.Title(exchangeName))
+	exchangeUUID, err := exchange.UUIDByName(exchangeName)
 	if err != nil {
 		return 0, err
 	}
