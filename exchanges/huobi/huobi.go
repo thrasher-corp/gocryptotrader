@@ -56,12 +56,29 @@ const (
 	huobiSwapSubAccInfo                  = "swap-api/v1/swap_sub_account_info"
 	huobiSwapSubAccPosInfo               = "swap-api/v1/swap_sub_position_info"
 	huobiSwapFinancialRecords            = "swap-api/v1/swap_financial_record"
+	huobiSwapSettlementRecords           = "swap-api/v1/swap_user_settlement_records"
+	huobiSwapAvailableLeverage           = "swap-api/v1/swap_available_level_rate"
 	huobiSwapOrderLimitInfo              = "swap-api/v1/swap_order_limit"
 	huobiSwapTradingFeeInfo              = "swap-api/v1/swap_fee"
 	huobiSwapTransferLimitInfo           = "swap-api/v1/swap_transfer_limit"
 	huobiSwapPositionLimitInfo           = "swap-api/v1/swap_position_limit"
 	huobiSwapInternalTransferData        = "swap-api/v1/swap_master_sub_transfer"
 	huobiSwapInternalTransferRecords     = "swap-api/v1/swap_master_sub_transfer_record"
+	huobiSwapPlaceOrder                  = "/swap-api/v1/swap_order"
+	huobiSwapPlaceBatchOrder             = "/swap-api/v1/swap_batchorder"
+	huobiSwapCancelOrder                 = "/swap-api/v1/swap_cancel"
+	huobiSwapCancelAllOrders             = "/swap-api/v1/swap_cancelall"
+	huobiSwapLightningCloseOrder         = "/swap-api/v1/swap_lightning_close_position"
+	huobiSwapOrderInfo                   = "/swap-api/v1/swap_order_info"
+	huobiSwapOrderDetails                = "/swap-api/v1/swap_order_detail"
+	huobiSwapOpenOrders                  = "/swap-api/v1/swap_openorders"
+	huobiSwapOrderHistory                = "/swap-api/v1/swap_hisorders"
+	huobiSwapTradeHistory                = "/swap-api/v1/swap_matchresults"
+	huobiSwapTriggerOrder                = "swap-api/v1/swap_trigger_order"
+	huobiSwapCancelTriggerOrder          = "/swap-api/v1/swap_trigger_cancel"
+	huobiSwapCancelAllTriggerOrders      = "/swap-api/v1/swap_trigger_cancelall"
+	huobiSwapOpenTriggerOrders           = "swap-api/v1/contract_trigger_openorders"
+	huobiSwapTriggerOrderHistory         = "/swap-api/v1/swap_trigger_hisorders"
 
 	// Spot endpoints
 	huobiMarketHistoryKline    = "market/history/kline"
@@ -109,10 +126,20 @@ var acceptableAmountType = map[string]int64{
 	"cryptocurrency": 2,
 }
 
+var acceptableTransferType = []string{
+	"master_to_sub", "sub_to_master",
+}
+
 var acceptableTradeTypes = map[string]int64{
 	"filled": 0,
 	"closed": 5,
 	"open":   6,
+}
+
+var acceptableOrderTypes = []string{
+	"limit", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
+	"fok", "ioc", "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
+	"optimal_10_ioc", "optimal_20_ioc", "opponent_fok", "optimal_20_fok",
 }
 
 // HUOBI is the overarching type across this package
@@ -459,6 +486,139 @@ func (h *HUOBI) GetAccountFinancialRecords(code, orderType string, createDate, p
 	}
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapFinancialRecords, nil, req, &resp, false)
+}
+
+// GetSwapSettlementRecords gets the swap account's settlement records
+func (h *HUOBI) GetSwapSettlementRecords(code string, startTime, endTime time.Time, pageIndex, pageSize int64) (FinancialRecordData, error) {
+	var resp FinancialRecordData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
+		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
+	}
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapSettlementRecords, nil, req, &resp, false)
+}
+
+// GetAvailableLeverage gets user's available leverage data
+func (h *HUOBI) GetAvailableLeverage(code string) (FinancialRecordData, error) {
+	var resp FinancialRecordData
+	req := make(map[string]interface{})
+	if code != "" {
+		req["contract_code"] = code
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapAvailableLeverage, nil, req, &resp, false)
+}
+
+// GetSwapOrderLimitInfo gets order limit info for swaps
+func (h *HUOBI) GetSwapOrderLimitInfo(code, orderType string) (SwapOrderLimitInfo, error) {
+	var resp SwapOrderLimitInfo
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	if !common.StringDataCompare(acceptableOrderTypes, orderType) {
+		return resp, fmt.Errorf("inavlid ordertype provided")
+	}
+	req["order_price_type"] = orderType
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapOrderLimitInfo, nil, req, &resp, false)
+}
+
+// GetSwapTradingFeeInfo gets trading fee info for swaps
+func (h *HUOBI) GetSwapTradingFeeInfo(code string) (SwapTradingFeeData, error) {
+	var resp SwapTradingFeeData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapTradingFeeInfo, nil, req, &resp, false)
+}
+
+// GetSwapTransferLimitInfo gets transfer limit info for swaps
+func (h *HUOBI) GetSwapTransferLimitInfo(code string) (TransferLimitData, error) {
+	var resp TransferLimitData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapTradingFeeInfo, nil, req, &resp, false)
+}
+
+// GetSwapPositionLimitInfo gets transfer limit info for swaps
+func (h *HUOBI) GetSwapPositionLimitInfo(code string) (TransferLimitData, error) {
+	var resp TransferLimitData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapPositionLimitInfo, nil, req, &resp, false)
+}
+
+// AccountTransferData gets asset transfer data between master and subaccounts
+func (h *HUOBI) AccountTransferData(code, subUID, transferType string, amount float64) (InternalAccountTransferData, error) {
+	var resp InternalAccountTransferData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	req["subUID"] = subUID
+	req["amount"] = amount
+	if !common.StringDataCompare(acceptableTransferType, transferType) {
+		return resp, fmt.Errorf("inavlid transferType received")
+	}
+	req["transfer_type"] = transferType
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapInternalTransferData, nil, req, &resp, false)
+}
+
+// AccountTransferRecords gets asset transfer records between master and subaccounts
+func (h *HUOBI) AccountTransferRecords(code, subUID, transferType string, amount float64) (InternalAccountTransferData, error) {
+	var resp InternalAccountTransferData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	req["subUID"] = subUID
+	req["amount"] = amount
+	if !common.StringDataCompare(acceptableTransferType, transferType) {
+		return resp, fmt.Errorf("inavlid transferType received")
+	}
+	req["transfer_type"] = transferType
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapInternalTransferRecords, nil, req, &resp, false)
+}
+
+// PlaceSwapOrders places orders for swaps
+func (h *HUOBI) PlaceSwapOrders(code, clientOrderID, direction, offset, orderPriceType string, price, volume, leverage float64) (SwapOrderData, error) {
+	var resp SwapOrderData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	if clientOrderID != "" {
+		req["client_order_id"] = clientOrderID
+	}
+	req["direction"] = direction
+	req["offset"] = offset
+	req["order_price_type"] = orderPriceType
+	req["price"] = price
+	req["volume"] = volume
+	req["lever_rate"] = leverage
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapInternalTransferRecords, nil, req, &resp, false)
+}
+
+// PlaceBatchOrders places a batch of orders for swaps
+func (h *HUOBI) PlaceBatchOrders(data BatchOrderRequestType) (SwapOrderData, error) {
+	var resp SwapOrderData
+	req := make(map[string]interface{})
+	if !((0 < len(data.Data)) && (len(data.Data) <= 10)) {
+		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
+	}
+	req["orders_data"] = data.Data
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapInternalTransferRecords, nil, req, &resp, false)
 }
 
 // ************************************************************************

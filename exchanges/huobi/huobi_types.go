@@ -521,6 +521,312 @@ type InternalAccountTransferRecords struct {
 	} `json:"data"`
 }
 
+// SwapOrderData stores swap order data
+type SwapOrderData struct {
+	Data struct {
+		OrderID       int64 `json:"order_id"`
+		OrderIDString int64 `json:"order_id_string"`
+		ClientOrderID int64 `json:"client_order_id"`
+	} `json:"data"`
+	Timestamp string `json:"ts"`
+}
+
+// BatchOrderData stores data for batch orders
+type BatchOrderData struct {
+	Data struct {
+		Errors []struct {
+			ErrCode int64  `json:"err_code"`
+			ErrMsg  string `json:"err_msg"`
+			Index   int64  `json:"index"`
+		} `json:"errors"`
+		Success []struct {
+			Index         int64  `json:"index"`
+			OrderID       int64  `json:"order_id"`
+			OrderIDString string `json:"order_id_str"`
+		} `json:"success"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// BatchOrderRequestType stores batch order request data
+type BatchOrderRequestType struct {
+	Data []struct {
+		ContractCode   string  `json:"contract_code"`
+		ClientOrderID  string  `json:"client_order_id"`
+		Price          float64 `json:"price"`
+		Volume         float64 `json:"volume"`
+		Direction      string  `json:"direction"`
+		Offset         string  `json:"offset"`
+		LeverageRate   float64 `json:"lever_rate"`
+		OrderPriceType float64 `json:"order_price_type"`
+	}
+}
+
+// CancelOrdersData stores order cancellation data
+type CancelOrdersData struct {
+	Errors []struct {
+		OrderID string `json:"order_id"`
+		ErrCode int64  `json:"err_code"`
+		ErrMsg  string `json:"err_msg"`
+	} `json:"errors"`
+	Successes string `json:"successes"`
+	Timestamp string `json:"ts"`
+}
+
+// LightningCloseOrderData stores order data from a lightning close order
+type LightningCloseOrderData struct {
+	Data struct {
+		OrderID       int64  `json:"order_id"`
+		OrderIDString string `json:"order_id_str"`
+		ClientOrderID int64  `json:"client_order_id"`
+	}
+	Timestamp string `json:"ts"`
+}
+
+// SwapOrderInfo stores info for swap orders
+type SwapOrderInfo struct {
+	Data []struct {
+		Symbol          string  `json:"symbol"`
+		ContractCode    string  `json:"contract_code"`
+		Volume          float64 `json:"volume"`
+		Price           float64 `json:"price"`
+		OrderPriceType  string  `json:"order_price_type"`
+		Direction       string  `json:"direction"`
+		Offset          string  `json:"offset"`
+		LeverRate       int64   `json:"lever_rate"`
+		OrderID         int64   `json:"order_id"`
+		OrderIDString   string  `json:"order_id_string"`
+		ClientOrderID   int64   `json:"client_order_id"`
+		OrderSource     string  `json:"order_source"`
+		CreatedAt       int64   `json:"created_at"`
+		CancelledAt     int64   `json:"cancelled_at"`
+		TradeVolume     float64 `json:"trade_volume"`
+		TradeTurnover   float64 `json:"trade_turnover"`
+		Fee             float64 `json:"fee"`
+		TradeAvgPrice   float64 `json:"trade_avg_price"`
+		MarginFrozen    float64 `json:"margin_frozen"`
+		Profit          float64 `json:"profit"`
+		Status          int64   `json:"status"`
+		FeeAsset        float64 `json:"fee_asset"`
+		LiquidationType int64   `json:"liquidation_type"`
+	}
+	Timestamp int64 `json:"ts"`
+}
+
+// OrderDetailData acquires order details
+type OrderDetailData struct {
+	Data struct {
+		Symbol          string  `json:"symbol"`
+		ContractCode    string  `json:"contract_code"`
+		Volume          float64 `json:"volume"`
+		Price           float64 `json:"price"`
+		OrderPriceType  string  `json:"order_price_type"`
+		Direction       string  `json:"direction"`
+		Offset          string  `json:"offset"`
+		LeverRate       float64 `json:"lever_rate"`
+		MarginFrozen    float64 `json:"margin_frozen"`
+		Profit          float64 `json:"profit"`
+		OrderSource     string  `json:"order_source"`
+		CreatedAt       int64   `json:"created_at"`
+		FinalInterest   float64 `json:"final_interest"`
+		AdjustValue     float64 `json:"adjust_value"`
+		FeeAsset        string  `json:"fee_asset"`
+		LiquidationType string  `json:"liquidation_type"`
+		OrderID         int64   `json:"order_id"`
+		OrderIDStr      string  `json:"order_id_str"`
+		ClientOrderID   int     `json:"client_order_id"`
+		TradeVolume     float64 `json:"trade_volume"`
+		TradeTurnover   float64 `json:"trade_turnover"`
+		OrderType       int     `json:"order_type"`
+		Status          int     `json:"status"`
+		TradeAvgPrice   float64 `json:"trade_avg_price"`
+		Trades          []struct {
+			ID            string  `json:"id"`
+			TradeID       float64 `json:"trade_id"`
+			TradeVolume   float64 `json:"trade_volume"`
+			TradePrice    float64 `json:"trade_price"`
+			TradeFee      float64 `json:"trade_fee"`
+			TradeTurnover float64 `json:"trade_turnover"`
+			Role          string  `json:"role"`
+			CreatedAt     int64   `json:"created_at"`
+		} `json:"trades"`
+		TotalPage   int64 `json:"total_page"`
+		TotalSize   int64 `json:"total_size"`
+		CurrentPage int64 `json:"current_page"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// SwapOpenOrdersData stores open orders data for swaps
+type SwapOpenOrdersData struct {
+	Data struct {
+		Orders []struct {
+			Symbol         string  `json:"symbol"`
+			ContractCode   string  `json:"contract_code"`
+			Volume         float64 `json:"volume"`
+			Price          float64 `json:"price"`
+			OrderPriceType string  `json:"order_price_type"`
+			OrderType      int64   `json:"order_type"`
+			Direction      string  `json:"direction"`
+			Offset         string  `json:"offset"`
+			LeverageRate   int64   `json:"lever_rate"`
+			OrderID        int64   `json:"order_id"`
+			OrderIDString  int64   `json:"order_id_str"`
+			OrderSource    string  `json:"order_source"`
+			CreatedAt      int64   `json:"created_at"`
+			TradeVolume    float64 `json:"trade_volume"`
+			TradeTurnover  float64 `json:"trade_turnover"`
+			Fee            float64 `json:"fee"`
+			TradeAvgPrice  float64 `json:"trade_avg_price"`
+			MarginFrozen   int64   `json:"margin_frozen"`
+			Profit         float64 `json:"profit"`
+			Status         int64   `json:"status"`
+			FeeAsset       string  `json:"fee_asset"`
+		} `json:"orders"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// GetSwapOrderHistory gets order history for swaps
+type GetSwapOrderHistory struct {
+	Data struct {
+		Orders []struct {
+			Symbol         string  `json:"symbol"`
+			ContractCode   string  `json:"contract_code"`
+			Volume         float64 `json:"volume"`
+			Price          float64 `json:"price"`
+			OrderPriceType string  `json:"order_price_type"`
+			Direction      string  `json:"direction"`
+			Offset         string  `json:"offset"`
+			LeverageRate   float64 `json:"lever_rate"`
+		} `json:"orders"`
+	} `json:"data"`
+}
+
+// AccountTradeHistoryData stores account trade history for swaps
+type AccountTradeHistoryData struct {
+	Data struct {
+		CurrentPage int64 `json:"current_page"`
+		TotalPage   int64 `json:"total_page"`
+		TotalSize   int64 `json:"total_size"`
+		Trades      []struct {
+			ID               string  `json:"id"`
+			ContractCode     string  `json:"contract_code"`
+			CreateDate       string  `json:"create_date"`
+			Direction        string  `json:"direction"`
+			MatchID          int64   `json:"match_id"`
+			Offset           string  `json:"offset"`
+			OffsetProfitloss float64 `json:"offset_profitloss"`
+			OrderID          int64   `json:"order_id"`
+			OrderIDString    string  `json:"order_id_str"`
+			Symbol           string  `json:"symbol"`
+			OrderSource      string  `json:"order_source"`
+			TradeFee         float64 `json:"trade_fee"`
+			TradePrice       float64 `json:"trade_price"`
+			TradeTurnover    float64 `json:"trade_turnover"`
+			TradeVolume      float64 `json:"trade_volume"`
+			Role             string  `json:"role"`
+			FeeAsset         string  `json:"fee_asset"`
+		} `json:"trades"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// TriggerOrderData stores trigger order data
+type TriggerOrderData struct {
+	Data struct {
+		OrderID       int64  `json:"order_id"`
+		OrderIDString string `json:"order_id_str"`
+	} `json:"data"`
+}
+
+// CancelTriggerOrdersData stores trigger order cancel data
+type CancelTriggerOrdersData struct {
+	Data struct {
+		Errors []struct {
+			OrderID int64  `json:"order_id"`
+			ErrCode int64  `json:"err_code"`
+			ErrMsg  string `json:"err_msg"`
+		} `json:"errors"`
+		Successes string `json:"successes"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// TriggerOpenOrdersData stores trigger open orders data
+type TriggerOpenOrdersData struct {
+	Data struct {
+		Orders []struct {
+			Symbol         string  `json:"symbol"`
+			ContractCode   string  `json:"contract_code"`
+			TriggerType    string  `json:"trigger_type"`
+			Volume         float64 `json:"volume"`
+			OrderType      int64   `json:"order_type"`
+			Direction      string  `json:"direction"`
+			Offset         string  `json:"offset"`
+			LeverageRate   float64 `json:"lever_rate"`
+			OrderID        int64   `json:"order_id"`
+			OrderIDString  string  `json:"order_id_str"`
+			OrderSource    string  `json:"order_source"`
+			TriggerPrice   float64 `json:"trigger_price"`
+			OrderPrice     float64 `json:"order_price"`
+			CreatedAt      int64   `json:"created_at"`
+			OrderPriceType string  `json:"order_price_type"`
+			Status         int64   `json:"status"`
+		} `json:"orders"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// TriggerOrderHistory stores trigger order history data for swaps
+type TriggerOrderHistory struct {
+	Data struct {
+		Orders []struct {
+			Symbol          string  `json:"symbol"`
+			ContractCode    string  `json:"contract_code"`
+			TriggerType     string  `json:"trigger_type"`
+			Volume          float64 `json:"volume"`
+			OrderType       int64   `json:"order_type"`
+			Direction       string  `json:"direction"`
+			Offset          string  `json:"offset"`
+			LeverageRate    float64 `json:"lever_rate"`
+			OrderID         int64   `json:"order_id"`
+			OrderIDString   string  `json:"order_id_string"`
+			RelationOrderID string  `json:"relation_order_id"`
+			OrderPriceType  string  `json:"order_price_type"`
+			Status          int64   `json:"status"`
+			OrderSource     string  `json:"order_source"`
+			TriggerPrice    float64 `json:"trigger_price"`
+			TriggeredPrice  float64 `json:"triggered_price"`
+			OrderPrice      float64 `json:"order_price"`
+			CreatedAt       int64   `json:"created_at"`
+			TriggeredAt     int64   `json:"triggered_at"`
+			OrderInsertAt   float64 `json:"order_insert_at"`
+			CancelledAt     int64   `json:"cancelled_at"`
+			FailCode        int64   `json:"fail_code"`
+			FailReason      string  `json:"fail_reason"`
+		} `json:"orders"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// TransferMarginBetweenAccountsData stores margin transfer data between spot and swap accounts
+type TransferMarginBetweenAccountsData struct {
+	Code    int64  `json:"code"`
+	Data    int64  `json:"data"`
+	Message string `json:"message"`
+	Success bool   `json:"success"`
+}
+
 // *******************************************************
 
 // Response stores the Huobi response information
