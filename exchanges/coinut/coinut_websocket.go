@@ -293,6 +293,37 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		var trades []trade.Data
+		for i := range tradeSnap.Trades{
+			pairs, err := c.GetEnabledPairs(asset.Spot)
+			if err != nil {
+				return err
+			}
+			currencyPair := c.instrumentMap.LookupInstrument(tradeSnap..InstID)
+			p, err := currency.NewPairFromFormattedPairs(currencyPair,
+				pairs,
+				format)
+			if err != nil {
+				return err
+			}
+
+			tSide, err := order.StringToOrderSide(tradeSnap.Trades[i].Side)
+			if err != nil {
+				c.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: c.Name,
+					Err:      err,
+				}
+			}
+
+			trade.Data{
+				Timestamp:    time.Unix(tradeSnap.Trades[i].Timestamp, 0),
+				CurrencyPair: p,
+				AssetType:    asset.Spot,
+				Exchange:     c.Name,
+				Price:        tradeSnap.Trades[i].Price,
+				Side:         tSide,
+			}
+		}
 
 	case "inst_trade_update":
 		var tradeUpdate WsTradeUpdate
@@ -321,14 +352,14 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		c.Websocket.DataHandler <- trade.Data{
+		c.Websocket.Trade.Process(trade.Data{
 			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     c.Name,
 			Price:        tradeUpdate.Price,
 			Side:         tSide,
-		}
+		})
 	case "order_filled", "order_rejected", "order_accepted":
 		var orderContainer wsOrderContainer
 		err := json.Unmarshal(respRaw, &orderContainer)
@@ -557,7 +588,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"inst_tick", "inst_order_book"}
+	var channels = []string{"inst_tick", "inst_order_book", "inst_trade"}
 	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -590,6 +621,10 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
 			Subscribe:    true,
 			Nonce:        getNonce(),
+		}
+		if channelsToSubscribe[i].Channel == "inst_trade" {
+			// send message return response
+			// process trade data :/
 		}
 		err = c.Websocket.Conn.SendJSONMessage(subscribe)
 		if err != nil {

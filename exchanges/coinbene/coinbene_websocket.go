@@ -221,8 +221,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
-		c.Websocket.DataHandler <- trade.Data{
+		c.Websocket.Trade.Process(trade.Data{
 			CurrencyPair: newP,
 			Timestamp:    t,
 			Price:        price,
@@ -230,7 +229,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			Exchange:     c.Name,
 			AssetType:    asset.PerpetualSwap,
 			Side:         tSide,
-		}
+		})
 	case strings.Contains(result[topic].(string), "orderBook"):
 		orderBook := struct {
 			Topic  string `json:"topic"`
