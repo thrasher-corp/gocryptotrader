@@ -136,6 +136,13 @@ var acceptableTradeTypes = map[string]int64{
 	"open":   6,
 }
 
+var acceptableOrderType = map[string]int64{
+	"quotation":         1,
+	"cancelledOrder":    2,
+	"forcedLiquidation": 3,
+	"deliveryOrder":     4,
+}
+
 var acceptableOrderTypes = []string{
 	"limit", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
 	"fok", "ioc", "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
@@ -606,7 +613,7 @@ func (h *HUOBI) PlaceSwapOrders(code, clientOrderID, direction, offset, orderPri
 	req["volume"] = volume
 	req["lever_rate"] = leverage
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapInternalTransferRecords, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapPlaceOrder, nil, req, &resp, false)
 }
 
 // PlaceBatchOrders places a batch of orders for swaps
@@ -618,8 +625,57 @@ func (h *HUOBI) PlaceBatchOrders(data BatchOrderRequestType) (SwapOrderData, err
 	}
 	req["orders_data"] = data.Data
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapInternalTransferRecords, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapPlaceBatchOrder, nil, req, &resp, false)
 }
+
+// CancelSwapOrder sends a request to cancel an order
+func (h *HUOBI) CancelSwapOrder(orderID, clientOrderID, contractCode string) (CancelOrdersData, error) {
+	var resp CancelOrdersData
+	req := make(map[string]interface{})
+	if orderID != "" {
+		req["order_id"] = orderID
+	}
+	if clientOrderID != "" {
+		req["client_order_id"] = clientOrderID
+	}
+	req["contract_code"] = contractCode
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapCancelOrder, nil, req, &resp, false)
+}
+
+// CancelAllSwapOrders sends a request to cancel an order
+func (h *HUOBI) CancelAllSwapOrders(contractCode string) (CancelOrdersData, error) {
+	var resp CancelOrdersData
+	req := make(map[string]interface{})
+	req["contract_code"] = contractCode
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapCancelAllOrders, nil, req, &resp, false)
+}
+
+// PlaceLightningCloseOrder places a lightning close order
+func (h *HUOBI) PlaceLightningCloseOrder(contractCode string) (CancelOrdersData, error) {
+	var resp CancelOrdersData
+	req := make(map[string]interface{})
+	req["contract_code"] = contractCode
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapLightningCloseOrder, nil, req, &resp, false)
+}
+
+// GetSwapOrderDetails gets order info
+func (h *HUOBI) GetSwapOrderDetails(contractCode, orderID, createdAt, orderType, pageIndex, pageSize string) (CancelOrdersData, error) {
+	var resp CancelOrdersData
+	req := make(map[string]interface{})
+	req["contract_code"] = contractCode
+	req["order_id"] = orderID
+	req["created_at"] = createdAt
+	req["order_type"] = orderType
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapOrderDetails, nil, req, &resp, false)
+}
+
+//
+
+//
 
 // ************************************************************************
 
