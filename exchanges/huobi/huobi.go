@@ -653,8 +653,8 @@ func (h *HUOBI) CancelAllSwapOrders(contractCode string) (CancelOrdersData, erro
 }
 
 // PlaceLightningCloseOrder places a lightning close order
-func (h *HUOBI) PlaceLightningCloseOrder(contractCode string) (CancelOrdersData, error) {
-	var resp CancelOrdersData
+func (h *HUOBI) PlaceLightningCloseOrder(contractCode string) (LightningCloseOrderData, error) {
+	var resp LightningCloseOrderData
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
 	h.API.Endpoints.URL = huobiURL
@@ -662,20 +662,71 @@ func (h *HUOBI) PlaceLightningCloseOrder(contractCode string) (CancelOrdersData,
 }
 
 // GetSwapOrderDetails gets order info
-func (h *HUOBI) GetSwapOrderDetails(contractCode, orderID, createdAt, orderType, pageIndex, pageSize string) (CancelOrdersData, error) {
-	var resp CancelOrdersData
+func (h *HUOBI) GetSwapOrderDetails(contractCode, orderID, createdAt, orderType string, pageIndex, pageSize int64) (SwapOrderData, error) {
+	var resp SwapOrderData
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
 	req["order_id"] = orderID
 	req["created_at"] = createdAt
-	req["order_type"] = orderType
+	oType, ok := acceptableOrderType[orderType]
+	if !ok {
+		return resp, fmt.Errorf("invalid ordertype")
+	}
+	req["order_type"] = oType
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize > 0 && pageSize <= 50 {
+		req["page_size"] = pageSize
+	}
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapOrderDetails, nil, req, &resp, false)
 }
 
-//
+// GetSwapOpenOrders gets open orders for swap
+func (h *HUOBI) GetSwapOpenOrders(contractCode string, pageIndex, pageSize int64) (SwapOpenOrdersData, error) {
+	var resp SwapOpenOrdersData
+	req := make(map[string]interface{})
+	req["contract_code"] = contractCode
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize > 0 && pageSize <= 50 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapOpenOrders, nil, req, &resp, false)
+}
 
-//
+// GetSwapOrderHistory gets swap order history
+func (h *HUOBI) GetSwapOrderHistory(contractCode string, pageIndex, pageSize int64) (SwapOrderHistory, error) {
+	var resp SwapOrderHistory
+	req := make(map[string]interface{})
+	req["contract_code"] = contractCode
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize > 0 && pageSize <= 50 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapOpenOrders, nil, req, &resp, false)
+}
+
+// GetSwapTradeHistory gets swap trade history
+func (h *HUOBI) GetSwapTradeHistory(contractCode, tradeHistory string, createDate, pageIndex, pageSize int64) (AccountTradeHistoryData, error) {
+	var resp AccountTradeHistoryData
+	req := make(map[string]interface{})
+	req["contract_code"] = contractCode
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize > 0 && pageSize <= 50 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapOpenOrders, nil, req, &resp, false)
+}
 
 // ************************************************************************
 

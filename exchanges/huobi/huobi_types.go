@@ -690,8 +690,8 @@ type SwapOpenOrdersData struct {
 	Timestamp int64 `json:"ts"`
 }
 
-// GetSwapOrderHistory gets order history for swaps
-type GetSwapOrderHistory struct {
+// SwapOrderHistory gets order history for swaps
+type SwapOrderHistory struct {
 	Data struct {
 		Orders []struct {
 			Symbol         string  `json:"symbol"`
