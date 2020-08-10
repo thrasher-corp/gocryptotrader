@@ -298,14 +298,14 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 			return nil
 		case wsTrades:
-			var trades []WebsocketTrade
+			var tradeHolder []WebsocketTrade
 			switch len(d) {
 			case 2:
 				snapshot := d[1].([]interface{})
 				for i := range snapshot {
 					elem := snapshot[i].([]interface{})
 					if len(elem) == 5 {
-						trades = append(trades, WebsocketTrade{
+						tradeHolder = append(tradeHolder, WebsocketTrade{
 							ID:        int64(elem[0].(float64)),
 							Timestamp: int64(elem[1].(float64)),
 							Amount:    elem[2].(float64),
@@ -313,7 +313,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							Period:    int64(elem[4].(float64)),
 						})
 					} else {
-						trades = append(trades, WebsocketTrade{
+						tradeHolder = append(tradeHolder, WebsocketTrade{
 							ID:        int64(elem[0].(float64)),
 							Timestamp: int64(elem[1].(float64)),
 							Amount:    elem[2].(float64),
@@ -331,7 +331,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				data := d[2].([]interface{})
 				if len(data) == 5 {
-					trades = append(trades, WebsocketTrade{
+					tradeHolder = append(tradeHolder, WebsocketTrade{
 						ID:        int64(data[0].(float64)),
 						Timestamp: int64(data[1].(float64)),
 						Amount:    data[2].(float64),
@@ -339,7 +339,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						Period:    int64(data[4].(float64)),
 					})
 				} else {
-					trades = append(trades, WebsocketTrade{
+					tradeHolder = append(tradeHolder, WebsocketTrade{
 						ID:        int64(data[0].(float64)),
 						Timestamp: int64(data[1].(float64)),
 						Amount:    data[2].(float64),
@@ -347,39 +347,27 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					})
 				}
 			}
-
-			for i := range trades {
+			var trades []trade.Data
+			for i := range tradeHolder {
 				side := order.Buy
-				newAmount := trades[i].Amount
+				newAmount := tradeHolder[i].Amount
 				if newAmount < 0 {
 					side = order.Sell
 					newAmount *= -1
 				}
 
-				if trades[i].Rate > 0 {
-					b.Websocket.DataHandler <- stream.FundingData{
-						CurrencyPair: pair,
-						Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
-						Amount:       newAmount,
-						Exchange:     b.Name,
-						AssetType:    chanAsset,
-						Side:         side,
-						Rate:         trades[i].Rate,
-						Period:       trades[i].Period,
-					}
-					continue
-				}
-
-				b.Websocket.DataHandler <- trade.Data{
+				trades = append(trades, trade.Data{
 					CurrencyPair: pair,
-					Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
-					Price:        trades[i].Price,
+					Timestamp:    time.Unix(0, tradeHolder[i].Timestamp*int64(time.Millisecond)),
+					Price:        tradeHolder[i].Price,
 					Amount:       newAmount,
 					Exchange:     b.Name,
 					AssetType:    chanAsset,
 					Side:         side,
-				}
+				})
 			}
+
+			b.Websocket.Trade.Process(trades...)
 			return nil
 		}
 

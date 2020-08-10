@@ -216,15 +216,15 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 		case bitmexWSTrade:
-			var trades TradeData
-			err = json.Unmarshal(respRaw, &trades)
+			var tradeHolder TradeData
+			err = json.Unmarshal(respRaw, &tradeHolder)
 			if err != nil {
 				return err
 			}
-
-			for i := range trades.Data {
+			var trades []trade.Data
+			for i := range tradeHolder.Data {
 				var p currency.Pair
-				p, err = currency.NewPairFromString(trades.Data[i].Symbol)
+				p, err = currency.NewPairFromString(tradeHolder.Data[i].Symbol)
 				if err != nil {
 					return err
 				}
@@ -235,7 +235,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					return err
 				}
 				var oSide order.Side
-				oSide, err = order.StringToOrderSide(trades.Data[i].Side)
+				oSide, err = order.StringToOrderSide(tradeHolder.Data[i].Side)
 				if err != nil {
 					b.Websocket.DataHandler <- order.ClassificationError{
 						Exchange: b.Name,
@@ -243,17 +243,17 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					}
 				}
 
-				b.Websocket.DataHandler <- trade.Data{
-					Timestamp:    trades.Data[i].Timestamp,
-					Price:        trades.Data[i].Price,
-					Amount:       float64(trades.Data[i].Size),
+				trades = append(trades, trade.Data{
+					Timestamp:    tradeHolder.Data[i].Timestamp,
+					Price:        tradeHolder.Data[i].Price,
+					Amount:       float64(tradeHolder.Data[i].Size),
 					CurrencyPair: p,
 					Exchange:     b.Name,
 					AssetType:    a,
 					Side:         oSide,
-				}
+				})
 			}
-
+			b.Websocket.Trade.Process(trades...)
 		case bitmexWSAnnouncement:
 			var announcement AnnouncementData
 			err = json.Unmarshal(respRaw, &announcement)

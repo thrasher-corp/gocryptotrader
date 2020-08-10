@@ -35,10 +35,10 @@ type BasicData struct {
 // Data defines trade data
 type Data struct {
 	Timestamp    time.Time
-	CurrencyPair currency.Pair
-	AssetType    asset.Item
 	Exchange     string
 	EventType    order.Type
+	CurrencyPair currency.Pair
+	AssetType    asset.Item
 	Price        float64
 	Amount       float64
 	Side         order.Side

@@ -9,6 +9,7 @@ var TableNames = struct {
 	Exchange          string
 	Script            string
 	ScriptExecution   string
+	Trade             string
 	WithdrawalCrypto  string
 	WithdrawalFiat    string
 	WithdrawalHistory string
@@ -18,6 +19,7 @@ var TableNames = struct {
 	Exchange:          "exchange",
 	Script:            "script",
 	ScriptExecution:   "script_execution",
+	Trade:             "trade",
 	WithdrawalCrypto:  "withdrawal_crypto",
 	WithdrawalFiat:    "withdrawal_fiat",
 	WithdrawalHistory: "withdrawal_history",

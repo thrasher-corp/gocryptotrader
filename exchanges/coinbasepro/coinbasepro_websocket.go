@@ -342,7 +342,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"heartbeat", "level2", "ticker", "user"}
+	var channels = []string{"heartbeat", "level2", "ticker", "user", "matches"}
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

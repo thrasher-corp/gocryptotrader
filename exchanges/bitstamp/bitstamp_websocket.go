@@ -93,7 +93,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		currencyPair := strings.Split(wsResponse.Channel, "_")
+		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
 		p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
 		if err != nil {
 			return err
@@ -109,7 +109,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		currencyPair := strings.Split(wsResponse.Channel, "_")
+		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
 		p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
 		if err != nil {
 			return err
@@ -124,7 +124,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- trade.Data{
+		b.Websocket.Trade.Process(trade.Data{
 			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 			CurrencyPair: p,
 			AssetType:    a,
@@ -133,7 +133,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			Price:        wsTradeTemp.Data.Price,
 			Amount:       wsTradeTemp.Data.Amount,
 			Side:         side,
-		}
+		})
 	case "order_created", "order_deleted", "order_changed":
 		if b.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket order acknowledgement", b.Name)

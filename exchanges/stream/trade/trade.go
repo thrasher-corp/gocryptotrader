@@ -30,24 +30,22 @@ func (t *Traderino) Process(data ...Data) {
 	t.mutex.Unlock()
 }
 
-// Processor will convert buffered trade data into candles
-// then stores the candles and clears the buffer to allow
-// more allocations
+// Processor will save trade data to the database in batches
 func (t *Traderino) Processor() {
 	if atomic.AddInt32(&t.started, 1) != 1 {
-		log.Error(log.WebsocketMgr, "websocket trade processor already started")
+		log.Errorf(log.WebsocketMgr, "%s websocket trade processor already started", t.Name)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&t.started, 1, 0)
 	}()
-	log.Debugln(log.OrderBook, "Order manager starting...")
+	log.Debugf(log.OrderBook, "%s Order manager starting...", t.Name)
 	timer := time.NewTicker(time.Minute)
 	for {
 		select {
 		case <-t.shutdown:
 			return
 		case <-timer.C:
-			log.Debug(log.WebsocketMgr, "TRADE PROCESSOR STARTING")
+			log.Debugf(log.WebsocketMgr, "%s TRADE PROCESSOR STARTING", t.Name)
 			t.mutex.Lock()
 			sort.Sort(ByDate(buffer))
 			groupedData := convertTradeDatasToCandles(kline.FifteenSecond, buffer...)
@@ -58,6 +56,7 @@ func (t *Traderino) Processor() {
 			for i := range candles {
 				for j := range t.previousCandles {
 					if candles[i].candle.Time.Equal(t.previousCandles[j].candle.Time) {
+						log.Debugf(log.WebsocketMgr, "%s Amending candles" ,t.Name)
 						t.previousCandles[j].amendCandle(candles[i].trades...)
 						candles[i].candle = t.previousCandles[j].candle
 					}
@@ -66,7 +65,7 @@ func (t *Traderino) Processor() {
 			// now save previous candles
 			err := t.SaveCandlesToButt(t.previousCandles)
 			if err != nil {
-				log.Error(log.WebsocketMgr,"Processor SaveCandlesToButt ", err)
+				log.Errorf(log.WebsocketMgr,"%s Processor SaveCandlesToButt ", t.Name, err)
 				t.mutex.Unlock()
 				continue
 			}
@@ -80,7 +79,7 @@ func (t *Traderino) Processor() {
 }
 
 func (t *Traderino) SaveCandlesToButt(candles []CandleHolder) error {
-
+	return nil
 }
 
 func convertTradeDatasToCandles(interval kline.Interval, times ...Data) map[int64][]Data {
@@ -100,6 +99,8 @@ func getNearestInterval(t time.Time, interval kline.Interval) int64 {
 }
 
 func (c *CandleHolder) amendCandle(datas ...Data) {
+	log.Debugf(log.WebsocketMgr, "Before: %v", c.candle)
+
 	sort.Sort(ByDate(datas))
 	c.trades = append(c.trades, datas...)
 	sort.Sort(ByDate(c.trades))
@@ -126,6 +127,7 @@ func (c *CandleHolder) amendCandle(datas ...Data) {
 			c.candle.High = c.trades[i].Price
 		}
 	}
+	log.Debugf(log.WebsocketMgr, "After: %v", c.candle)
 }
 
 func classifyOHLCV (t time.Time, datas ...Data) (c CandleHolder) {

@@ -187,13 +187,14 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Pair:         p,
 			}
 		}
-
 	case strings.Contains(result["topic"].(string), "tradeHistory"):
+		// auth trade history endpoint
 		var tradeHistory wsTradeHistory
 		err = json.Unmarshal(respRaw, &tradeHistory)
 		if err != nil {
 			return err
 		}
+		var trades []trade.Data
 		for x := range tradeHistory.Data {
 			side := order.Buy
 			if tradeHistory.Data[x].Gain == -1 {
@@ -213,7 +214,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			b.Websocket.DataHandler <- trade.Data{
+			trades = append(trades, trade.Data{
 				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
 				CurrencyPair: p,
 				AssetType:    a,
@@ -221,8 +222,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Price:        tradeHistory.Data[x].Price,
 				Amount:       tradeHistory.Data[x].Amount,
 				Side:         side,
-			}
+			})
 		}
+		b.Websocket.Trade.Process(trades...)
 	case strings.Contains(result["topic"].(string), "orderBookApi"):
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)
