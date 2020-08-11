@@ -758,7 +758,6 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 		return kline.Item{}, err
 	}
 
-
 	klineParams := KlinesRequestParams{
 		Type:   z.FormatExchangeKlineInterval(interval),
 		Symbol: formattedPair.String(),
