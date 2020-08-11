@@ -208,7 +208,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 
 		if p.HeaderResponse != nil {
 			for k, v := range resp.Header {
-				(http.Header)(*p.HeaderResponse)[k] = v
+				(*p.HeaderResponse)[k] = v
 			}
 		}
 
