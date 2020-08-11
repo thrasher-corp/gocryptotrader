@@ -85,7 +85,7 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 
 	if i.HeaderResponse != nil {
 		if *i.HeaderResponse == nil {
-			return nil, errors.New("header passback is nil")
+			return nil, errors.New("header response is nil")
 		}
 	}
 

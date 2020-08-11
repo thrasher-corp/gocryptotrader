@@ -53,7 +53,7 @@ type Item struct {
 	HTTPDebugging bool
 	HTTPRecording bool
 	IsReserved    bool
-	// HeaderPassback for inspection of header contents package side useful for
+	// HeaderResponse for inspection of header contents package side useful for
 	// pagination
 	HeaderResponse *http.Header
 	Endpoint       EndpointLimit
