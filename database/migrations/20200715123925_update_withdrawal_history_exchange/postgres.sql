@@ -1,8 +1,8 @@
 -- +goose Up
 -- SQL in this section is executed when the migration is applied.
-INSERT INTO exchange(name) SELECT INITCAP(exchange) from withdrawal_history;
+INSERT INTO exchange(name) SELECT exchange from withdrawal_history;
 ALTER TABLE withdrawal_history ADD COLUMN exchange_name_id UUID REFERENCES exchange(id);
-UPDATE withdrawal_history SET exchange_name_id = r.ID FROM (SELECT * from exchange) as r WHERE INITCAP(exchange) = r.name;
+UPDATE withdrawal_history SET exchange_name_id = r.ID FROM (SELECT * from exchange) as r WHERE exchange = r.name;
 ALTER TABLE withdrawal_history DROP COLUMN exchange;
 
 -- +goose Down

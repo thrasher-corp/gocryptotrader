@@ -4,7 +4,7 @@ INSERT INTO exchange(id, name)
 SELECT
     lower(hex( randomblob(4)) || '-' || hex( randomblob(2)) || '-' || '4' || substr( hex( randomblob(2)), 2) || '-'
          || substr('AB89', 1 + (abs(random()) % 4) , 1)  ||
-         substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6))), upper(substr(exchange, 1, 1))||substr(exchange, 2)
+         substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6))), exchange
          from withdrawal_history;
 
 ALTER TABLE withdrawal_history ADD COLUMN exchange_name_id;
