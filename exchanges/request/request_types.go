@@ -55,7 +55,7 @@ type Item struct {
 	IsReserved    bool
 	// HeaderPassback for inspection of header contents package side useful for
 	// pagination
-	HeaderPassback http.Header
+	HeaderPassback *http.Header
 	Endpoint       EndpointLimit
 }
 

@@ -202,7 +202,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 
 		if p.HeaderPassback != nil {
 			for k, v := range resp.Header {
-				p.HeaderPassback[k] = v
+				(http.Header)(*p.HeaderPassback)[k] = v
 			}
 		}
 
