@@ -278,17 +278,29 @@ func TestDoRequest(t *testing.T) {
 	var resp struct {
 		Response bool `json:"response"`
 	}
+
+	// Check header contents
+	var passback = http.Header{}
 	err = r.SendPayload(ctx, &Item{
-		Method:   http.MethodGet,
-		Path:     testURL,
-		Result:   &resp,
-		Endpoint: UnAuth,
+		Method:         http.MethodGet,
+		Path:           testURL,
+		Result:         &resp,
+		Endpoint:       UnAuth,
+		HeaderPassback: &passback,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !resp.Response {
 		t.Fatal(unexpected)
+	}
+
+	if passback.Get("Content-Length") != "17" {
+		t.Fatal("incorrect header value")
+	}
+
+	if passback.Get("Content-Type") != "application/json" {
+		t.Fatal("incorrect header value")
 	}
 
 	// Check error
