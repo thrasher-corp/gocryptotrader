@@ -302,9 +302,245 @@ func TestGetSwapAccountInfo(t *testing.T) {
 	}
 }
 
-func TestGetSwapFundingRates(t *testing.T) {
+func TestGetSwapPositionsInfo(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetSwapFundingRates("BTC-USD")
+	h.Verbose = true
+	a, err := h.GetSwapPositionsInfo("ETH-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapAssetsAndPositions(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapAssetsAndPositions("ETH-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccAssetsInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSubAccAssetsInfo("ETH-USD", 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccPositionInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSubAccPositionInfo("ETH-USD", 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountFinancialRecords(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetAccountFinancialRecords("ETH-USD", "3,4", 15, 0, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapSettlementRecords(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapSettlementRecords("ETH-USD", time.Time{}, time.Time{}, 0, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAvailableLeverage(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetAvailableLeverage("ETH-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOrderLimitInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapOrderLimitInfo("ETH-USD", "limit")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapTradingFeeInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapTradingFeeInfo("ETH-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapTransferLimitInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapTransferLimitInfo("ETH-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapPositionLimitInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.GetSwapPositionLimitInfo("ETH-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAccountTransferData(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.AccountTransferData("ETH-USD", "", "master_to_sub", 15)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAccountTransferRecords(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.AccountTransferRecords("ETH-USD", "master_to_sub", 0, 0, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceSwapOrders(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.PlaceSwapOrders("ETH-USD", "", "buy", "open", "limit", 0.01, 1, 1)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceBatchOrders(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	var req BatchOrderRequestType
+	order1 := batchOrderData{
+		ContractCode:   "BTC-USD",
+		ClientOrderID:  "",
+		Price:          5,
+		Volume:         1,
+		Direction:      "buy",
+		Offset:         "open",
+		LeverageRate:   1,
+		OrderPriceType: "limit",
+	}
+	order2 := batchOrderData{
+		ContractCode:   "ETH-USD",
+		ClientOrderID:  "",
+		Price:          2.5,
+		Volume:         1,
+		Direction:      "buy",
+		Offset:         "open",
+		LeverageRate:   1,
+		OrderPriceType: "limit",
+	}
+	req.Data = append(req.Data, order1)
+	req.Data = append(req.Data, order2)
+
+	a, err := h.PlaceBatchOrders(req)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelSwapOrder(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.CancelSwapOrder("test123", "", "BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllSwapOrders(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.CancelAllSwapOrders("BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceLightningCloseOrder(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.PlaceLightningCloseOrder("BTC-USD", "buy", "limit", 5, 1)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOrderDetails(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetSwapOrderDetails("BTC-USD", "test123", "10", "cancelledOrder", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOpenOrders(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetSwapOpenOrders("BTC-USD", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOrderHistory(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetSwapOrderHistory("ETH-USD", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapTradeHistory(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetSwapTradeHistory("ETH-USD", 10, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceSwapTriggerOrder(t *testing.T) {
+	t.Parallel()
+	_, err := h.PlaceSwapTriggerOrder("ETH-USD", "greaterOrEqual", "buy", "open", "optimal_5", 5, 3, 1, 1)
 	if err != nil {
 		t.Error(err)
 	}
