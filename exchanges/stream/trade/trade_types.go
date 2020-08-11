@@ -15,23 +15,6 @@ var (
 	candles []kline.Candle
 )
 
-// BasicData is not yet converted stuff, so its
-// much cleaner to pass-by-value using base types
-// I dont want any kind of pointers here to allow for
-// easy memory reclamation and not needing to put so much
-// on the stack
-type BasicData struct {
-	Timestamp    int64
-	CurrencyPair string
-	Delimiter string
-	AssetType    asset.Item
-	Exchange     string
-	EventType    order.Type
-	Price        float64
-	Amount       float64
-	Side         order.Side
-}
-
 // Data defines trade data
 type Data struct {
 	Timestamp    time.Time

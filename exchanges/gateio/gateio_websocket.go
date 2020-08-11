@@ -172,9 +172,9 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		}
 
 	case strings.Contains(result.Method, "trades"):
-		var trades []WebsocketTrade
+		var tradeData []WebsocketTrade
 		var c string
-		err = json.Unmarshal(result.Params[1], &trades)
+		err = json.Unmarshal(result.Params[1], &tradeData)
 		if err != nil {
 			return err
 		}
@@ -188,26 +188,27 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
-		for i := range trades {
+		var trades []trade.Data
+		for i := range tradeData {
 			var tSide order.Side
-			tSide, err = order.StringToOrderSide(trades[i].Type)
+			tSide, err = order.StringToOrderSide(tradeData[i].Type)
 			if err != nil {
 				g.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: g.Name,
 					Err:      err,
 				}
 			}
-			g.Websocket.DataHandler <- trade.Data{
-				Timestamp:    time.Now(),
+			trades = append(trades, trade.Data{
+				Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
 				Exchange:     g.Name,
-				Price:        trades[i].Price,
-				Amount:       trades[i].Amount,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Amount,
 				Side:         tSide,
-			}
+			})
 		}
+		g.Websocket.Trade.Process(trades...)
 	case strings.Contains(result.Method, "balance.update"):
 		var balance wsBalanceSubscription
 		err = json.Unmarshal(respRaw, &balance)

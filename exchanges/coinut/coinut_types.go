@@ -344,6 +344,7 @@ type WsOrderbookUpdate struct {
 // WsTradeSnapshot defines Market trade response from the websocket
 // connection
 type WsTradeSnapshot struct {
+	InstrumentID int64 `json:"inst_id"`
 	Nonce  int64         `json:"nonce"`
 	Reply  string        `json:"reply"`
 	Status []interface{} `json:"status"`

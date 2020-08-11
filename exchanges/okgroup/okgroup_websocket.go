@@ -148,7 +148,6 @@ const (
 	allowableIterations = 25
 	delimiterColon      = ":"
 	delimiterDash       = "-"
-	delimiterUnderscore = "_"
 
 	maxConnByteLen = 4096
 )
@@ -412,7 +411,7 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -455,6 +454,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 	}
 
 	a := o.GetAssetTypeFromTableName(response.Table)
+	var trades []trade.Data
 	for i := range response.Data {
 		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 
@@ -463,7 +463,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -480,8 +480,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 		if response.Data[i].Quantity != 0 {
 			amount = response.Data[i].Quantity
 		}
-
-		o.Websocket.DataHandler <- trade.Data{
+		trades = append(trades, trade.Data{
 			Amount:       amount,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
@@ -489,8 +488,9 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			Price:        response.Data[i].Price,
 			Side:         tSide,
 			Timestamp:    response.Data[i].Timestamp,
-		}
+		})
 	}
+	o.Websocket.Trade.Process(trades...)
 	return nil
 }
 
@@ -511,7 +511,7 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -577,7 +577,7 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}

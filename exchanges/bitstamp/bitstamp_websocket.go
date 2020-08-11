@@ -129,7 +129,6 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			CurrencyPair: p,
 			AssetType:    a,
 			Exchange:     b.Name,
-			EventType:    order.UnknownType,
 			Price:        wsTradeTemp.Data.Price,
 			Amount:       wsTradeTemp.Data.Amount,
 			Side:         side,

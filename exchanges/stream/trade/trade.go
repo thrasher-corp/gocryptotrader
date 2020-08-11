@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -25,6 +26,25 @@ func (t *Traderino) Shutdown() {
 func (t *Traderino) Process(data ...Data) {
 	t.mutex.Lock()
 	for i := range data {
+		if data[i].Price == 0 ||
+			data[i].Amount == 0 ||
+			data[i].CurrencyPair.IsEmpty() ||
+			data[i].Exchange == "" ||
+			data[i].Timestamp.IsZero() {
+			log.Error(log.WebsocketMgr, "%s received invalid trade data: %+v", t.Name, data[i])
+			continue
+		}
+
+		if data[i].Price < 0 {
+			data[i].Price = data[i].Price * -1
+		}
+		if data[i].Amount < 0 {
+			data[i].Amount = data[i].Amount * -1
+		}
+		if data[i].Side == "" {
+			data[i].Side = order.UnknownSide
+		}
+
 		buffer = append(buffer, data[i])
 	}
 	t.mutex.Unlock()

@@ -95,7 +95,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case strings.Contains(result.Channel, "ticker"):
-		cPair := strings.Split(result.Channel, "_")
+		cPair := strings.Split(result.Channel, currency.UnderscoreDelimiter)
 		var wsTicker WsTicker
 		err := json.Unmarshal(fixedJSON, &wsTicker)
 		if err != nil {
@@ -143,7 +143,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			})
 		}
 
-		channelInfo := strings.Split(result.Channel, "_")
+		channelInfo := strings.Split(result.Channel, currency.UnderscoreDelimiter)
 		cPair, err := currency.NewPairFromString(channelInfo[0])
 		if err != nil {
 			return err
@@ -161,7 +161,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case strings.Contains(result.Channel, "_order"):
-		cPair := strings.Split(result.Channel, "_")
+		cPair := strings.Split(result.Channel, currency.UnderscoreDelimiter)
 		var o WsSubmitOrderResponse
 		err := json.Unmarshal(fixedJSON, &o)
 		if err != nil {
@@ -191,7 +191,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			AssetType: a,
 		}
 	case strings.Contains(result.Channel, "_cancelorder"):
-		cPair := strings.Split(result.Channel, "_")
+		cPair := strings.Split(result.Channel, currency.UnderscoreDelimiter)
 		var o WsSubmitOrderResponse
 		err := json.Unmarshal(fixedJSON, &o)
 		if err != nil {
@@ -216,37 +216,38 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Status:   order.Cancelled,
 		}
 	case strings.Contains(result.Channel, "trades"):
-		var trades WsTrades
-		err := json.Unmarshal(fixedJSON, &trades)
+		var tradeData WsTrades
+		err := json.Unmarshal(fixedJSON, &tradeData)
 		if err != nil {
 			return err
 		}
-
-		for i := range trades.Data {
-			channelInfo := strings.Split(result.Channel, "_")
+		var trades []trade.Data
+		for i := range tradeData.Data {
+			channelInfo := strings.Split(result.Channel, currency.UnderscoreDelimiter)
 			cPair, err := currency.NewPairFromString(channelInfo[0])
 			if err != nil {
 				return err
 			}
 
-			tSide, err := order.StringToOrderSide(trades.Data[i].TradeType)
+			tSide, err := order.StringToOrderSide(tradeData.Data[i].TradeType)
 			if err != nil {
-				z.Websocket.DataHandler <- order.ClassificationError{
+				return &order.ClassificationError{
 					Exchange: z.Name,
 					Err:      err,
 				}
 			}
 
-			z.Websocket.DataHandler <- trade.Data{
-				Timestamp:    time.Unix(trades.Data[i].Date, 0),
+			trades = append(trades, trade.Data{
+				Timestamp:    time.Unix(tradeData.Data[i].Date, 0),
 				CurrencyPair: cPair,
 				AssetType:    asset.Spot,
 				Exchange:     z.Name,
-				Price:        trades.Data[i].Price,
-				Amount:       trades.Data[i].Amount,
+				Price:        tradeData.Data[i].Price,
+				Amount:       tradeData.Data[i].Amount,
 				Side:         tSide,
-			}
+			})
 		}
+		z.Websocket.Trade.Process(trades...)
 	default:
 		z.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: z.Name +

@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -200,6 +201,33 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		var trades []trade.Data
+		p, err := currency.NewPairFromString(tradeSnapshot.Params.Symbol)
+		if err != nil {
+			return &order.ClassificationError{
+				Exchange: h.Name,
+				Err:      err,
+			}
+		}
+		for i := range tradeSnapshot.Params.Data {
+			side, err := order.StringToOrderSide(tradeSnapshot.Params.Data[i].Side)
+			if err != nil {
+				return &order.ClassificationError{
+					Exchange: h.Name,
+					Err:      err,
+				}
+			}
+			trades = append(trades, trade.Data{
+				Timestamp:   tradeSnapshot.Params.Data[i].Timestamp,
+				Exchange:     h.Name,
+				CurrencyPair: p,
+				AssetType:    asset.Spot,
+				Price:        tradeSnapshot.Params.Data[i].Price,
+				Amount:       tradeSnapshot.Params.Data[i].Quantity,
+				Side:         side,
+			})
+		}
+		h.Websocket.Trade.Process(trades...)
 	case "updateTrades":
 		var tradeUpdates WsTrade
 		err := json.Unmarshal(respRaw, &tradeUpdates)

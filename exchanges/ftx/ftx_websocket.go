@@ -299,6 +299,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+			var trades []trade.Data
 			for z := range resultData.TradeData {
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(resultData.TradeData[z].Side)
@@ -308,7 +309,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
-				f.Websocket.DataHandler <- trade.Data{
+				trades = append(trades, trade.Data{
 					Timestamp:    resultData.TradeData[z].Time,
 					CurrencyPair: p,
 					AssetType:    a,
@@ -316,8 +317,9 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 					Price:        resultData.TradeData[z].Price,
 					Amount:       resultData.TradeData[z].Size,
 					Side:         oSide,
-				}
+				})
 			}
+			f.Websocket.Trade.Process(trades...)
 		case wsOrders:
 			var resultData WsOrderDataStore
 			err = json.Unmarshal(respRaw, &resultData)

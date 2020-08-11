@@ -299,7 +299,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			currencyPair := c.instrumentMap.LookupInstrument(tradeSnap..InstID)
+			currencyPair := c.instrumentMap.LookupInstrument(tradeSnap.InstrumentID)
 			p, err := currency.NewPairFromFormattedPairs(currencyPair,
 				pairs,
 				format)
@@ -315,16 +315,16 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 				}
 			}
 
-			trade.Data{
+			trades = append(trades, trade.Data{
 				Timestamp:    time.Unix(tradeSnap.Trades[i].Timestamp, 0),
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
 				Exchange:     c.Name,
 				Price:        tradeSnap.Trades[i].Price,
 				Side:         tSide,
-			}
+			})
 		}
-
+		c.Websocket.Trade.Process(trades...)
 	case "inst_trade_update":
 		var tradeUpdate WsTradeUpdate
 		err := json.Unmarshal(respRaw, &tradeUpdate)
@@ -621,10 +621,6 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
 			Subscribe:    true,
 			Nonce:        getNonce(),
-		}
-		if channelsToSubscribe[i].Channel == "inst_trade" {
-			// send message return response
-			// process trade data :/
 		}
 		err = c.Websocket.Conn.SendJSONMessage(subscribe)
 		if err != nil {

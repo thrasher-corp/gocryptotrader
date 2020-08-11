@@ -192,7 +192,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 	if err != nil {
 		return err
 	}
-
+	var trades []trade.Data
 	for i := range tradeData.Trades {
 		tSide, err := order.StringToOrderSide(tradeData.Trades[i].Type)
 		if err != nil {
@@ -201,17 +201,17 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 				Err:      err,
 			}
 		}
-		l.Websocket.DataHandler <- trade.Data{
+		trades = append(trades, trade.Data{
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
 			CurrencyPair: curr,
 			AssetType:    asset.Spot,
 			Exchange:     l.Name,
-			EventType:    order.UnknownType,
 			Price:        tradeData.Trades[i].Price,
 			Amount:       tradeData.Trades[i].Amount,
 			Side:         tSide,
-		}
+		})
 	}
+	l.Websocket.Trade.Process(trades...)
 	return nil
 }
 

@@ -28,7 +28,6 @@ import (
 const (
 	geminiWebsocketEndpoint        = "wss://api.gemini.com/v1/"
 	geminiWebsocketSandboxEndpoint = "wss://api.sandbox.gemini.com/v1/"
-	geminiWsEvent                  = "event"
 	geminiWsMarketData             = "marketdata"
 	geminiWsOrderEvents            = "order/events"
 )
@@ -403,6 +402,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		}
 	} else {
 		var asks, bids []orderbook.Item
+		var trades []trade.Data
 		for i := range result.Events {
 			switch result.Events[i].Type {
 			case "trade":
@@ -413,7 +413,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 						Err:      err,
 					}
 				}
-				g.Websocket.DataHandler <- trade.Data{
+				trades = append(trades, trade.Data{
 					Timestamp:    time.Unix(0, result.TimestampMS*int64(time.Millisecond)),
 					CurrencyPair: pair,
 					AssetType:    asset.Spot,
@@ -421,7 +421,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 					Price:        result.Events[i].Price,
 					Amount:       result.Events[i].Amount,
 					Side:         tSide,
-				}
+				})
 			case "change":
 				item := orderbook.Item{
 					Amount: result.Events[i].Remaining,
@@ -435,6 +435,9 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			default:
 				g.Websocket.DataHandler <- fmt.Errorf("%s - Unhandled websocket update: %+v", g.Name, result)
 			}
+		}
+		if len(trades) > 0 {
+			g.Websocket.Trade.Process(trades...)
 		}
 		if len(asks) == 0 && len(bids) == 0 {
 			return

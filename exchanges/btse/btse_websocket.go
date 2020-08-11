@@ -265,7 +265,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Amount: amount,
 			})
 		}
-		p, err := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
+		p, err := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, currency.UnderscoreDelimiter)])
 		if err != nil {
 			return err
 		}

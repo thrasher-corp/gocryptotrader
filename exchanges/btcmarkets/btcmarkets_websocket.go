@@ -168,7 +168,6 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Price:        t.Price,
 			Amount:       t.Volume,
 			Side:         side,
-			EventType:    order.UnknownType,
 		})
 	case tick:
 		var tick WsTick
