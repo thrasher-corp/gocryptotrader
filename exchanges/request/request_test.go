@@ -144,6 +144,14 @@ func TestCheckRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var passback http.Header
+	check.HeaderPassback = &passback
+	_, err = check.validateRequest(ctx, r)
+	if err == nil {
+		t.Fatal("expected error when underlying memory is not allocated")
+	}
+	passback = http.Header{}
+
 	// Test setting headers
 	check.Headers = map[string]string{
 		"Content-Type": "Super awesome HTTP party experience",

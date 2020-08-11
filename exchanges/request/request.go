@@ -83,6 +83,12 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 		return nil, errors.New("invalid path")
 	}
 
+	if i.HeaderPassback != nil {
+		if *i.HeaderPassback == nil {
+			return nil, errors.New("header passback is nil")
+		}
+	}
+
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
 		return nil, err
