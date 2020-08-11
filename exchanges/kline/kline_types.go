@@ -81,7 +81,7 @@ type ErrorKline struct {
 }
 
 // Error returns short interval unsupported message
-func (k ErrorKline) Error() string {
+func (k *ErrorKline) Error() string {
 	var errorMsg strings.Builder
 	if k.Interval > 0 {
 		errorMsg.WriteString("Interval: " + k.Interval.String() + " not supported ")
