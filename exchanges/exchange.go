@@ -1063,11 +1063,6 @@ func (e *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
-	formattedPair, errFmt := e.FormatExchangeCurrency(pair, a)
-	if errFmt != nil {
-		return errFmt
-	}
-
 	var errorList []string
 	var err kline.ErrorKline
 	if e.CurrencyPairs.IsAssetEnabled(a) != nil {
@@ -1077,7 +1072,7 @@ func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 		var found = false
 		curr := e.CurrencyPairs.Pairs[a].Enabled
 		for x := range curr {
-			if curr[x] == formattedPair {
+			if curr[x] == pair {
 				found = true
 			}
 		}
