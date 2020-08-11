@@ -749,14 +749,16 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if err := z.ValidateKline(pair, a, interval); err != nil {
-		return kline.Item{}, err
-	}
-
 	formattedPair, err := z.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
+
+
+	if err := z.ValidateKline(formattedPair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+
 
 	klineParams := KlinesRequestParams{
 		Type:   z.FormatExchangeKlineInterval(interval),
