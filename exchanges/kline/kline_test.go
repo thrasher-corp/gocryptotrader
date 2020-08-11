@@ -24,7 +24,7 @@ var (
 	verbose       = false
 	testExchanges = []exchange.Details{
 		{
-			Name: "One",
+			Name: "one",
 		},
 	}
 )
@@ -254,14 +254,15 @@ func TestDurationToWord(t *testing.T) {
 func TestKlineErrors(t *testing.T) {
 	v := ErrorKline{
 		Interval: OneYear,
+		Pair:     currency.NewPair(currency.BTC, currency.AUD),
 	}
 
-	if v.Error() != "oneyear interval unsupported by exchange" {
-		t.Fatal("unexpected error returned")
+	if v.Error() == "" {
+		t.Fatal("expected error return received empty value")
 	}
 
-	if v.Unwrap().Error() != "8760h0m0s interval unsupported by exchange" {
-		t.Fatal("unexpected error returned")
+	if v.Unwrap().Error() == "" {
+		t.Fatal("expected error return received empty value")
 	}
 }
 
@@ -411,7 +412,7 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	}
 
 	for x := 0; x < 100; x++ {
-		y := rand.Float64()
+		y := rand.Float64() // nolint gosec: used for generating test data no need to import crypo/rand
 		tempKline.Candles = append(tempKline.Candles,
 			Candle{
 				Time:   time.Now().AddDate(0, 0, -x),
@@ -666,77 +667,5 @@ func TestLoadCSV(t *testing.T) {
 
 	if v[364].Open != 7246 {
 		t.Fatalf("unexpected value received: %v", v[364].Open)
-	}
-}
-
-func TestStoreInDatabaseShouldOnlyInsertWithValidIntervals(t *testing.T) {
-	setupTest(t)
-
-	testCases := []struct {
-		name   string
-		config *database.Config
-		seedDB func(bool) error
-		runner func(t *testing.T)
-		closer func(dbConn *database.Instance) error
-	}{
-		{
-			name:   "postgresql",
-			config: testhelpers.PostgresTestDatabase,
-			seedDB: seedDB,
-		},
-		{
-			name: "SQLite",
-			config: &database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
-			},
-			seedDB: seedDB,
-		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
-				t.Skip("database not configured skipping test")
-			}
-
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if test.seedDB != nil {
-				err = test.seedDB(false)
-				if err != nil {
-					t.Error(err)
-				}
-			}
-
-			_, ohlcvData, err := genOHCLVData()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			ohlcvData.Interval = OneMin
-			r, err := StoreInDatabase(&ohlcvData)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if r != 1 {
-				t.Fatalf("unexpected number of records inserted: %v", r)
-			}
-			err = testhelpers.CloseDatabase(dbConn)
-			if err != nil {
-				t.Error(err)
-			}
-		})
-	}
-
-	err := os.RemoveAll(testhelpers.TempDir)
-	if err != nil {
-		t.Fatalf("Failed to remove temp db file: %v", err)
 	}
 }

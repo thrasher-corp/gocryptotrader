@@ -320,6 +320,12 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
+				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID.String)
+				if errUUID != nil {
+					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
+				} else {
+					tempResp.Exchange.UUID = tempUUID
+				}
 			} else {
 				tempResp.Exchange.Name = exchangeName.Name
 			}
@@ -390,6 +396,12 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
+				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID.String)
+				if errUUID != nil {
+					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
+				} else {
+					tempResp.Exchange.UUID = tempUUID
+				}
 			} else {
 				tempResp.Exchange.Name = exchangeName.Name
 			}

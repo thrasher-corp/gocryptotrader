@@ -762,10 +762,8 @@ func checkInterval(i time.Duration) (int64, error) {
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
 func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !c.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := c.ValidateKline(p, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	if kline.TotalCandlesPerInterval(start, end, interval) > c.Features.Enabled.Kline.ResultLimit {
@@ -814,10 +812,8 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !c.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := c.ValidateKline(p, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	ret := kline.Item{

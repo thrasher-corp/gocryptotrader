@@ -112,6 +112,7 @@ type Response struct {
 // ExchangeResponse holds information returned from an exchange
 type ExchangeResponse struct {
 	Name   string `json:"name"`
+	UUID   uuid.UUID
 	ID     string `json:"id"`
 	Status string `json:"status"`
 }

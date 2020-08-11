@@ -831,7 +831,7 @@ func TestWsCreateSubUserResponse(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	currencyPair, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -848,7 +848,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	currencyPair, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
 		t.Fatal(err)
 	}

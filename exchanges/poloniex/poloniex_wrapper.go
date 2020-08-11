@@ -663,10 +663,8 @@ func (p *Poloniex) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !p.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := p.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	formattedPair, err := p.FormatExchangeCurrency(pair, a)

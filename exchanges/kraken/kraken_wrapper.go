@@ -863,10 +863,8 @@ func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !k.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := k.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	ret := kline.Item{
@@ -909,12 +907,9 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !k.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := k.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
-
 	ret := kline.Item{
 		Exchange: k.Name,
 		Pair:     pair,

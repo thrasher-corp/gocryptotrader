@@ -22,7 +22,7 @@ var (
 	verbose       = false
 	testExchanges = []exchange.Details{
 		{
-			Name: "One",
+			Name: "one",
 		},
 	}
 )

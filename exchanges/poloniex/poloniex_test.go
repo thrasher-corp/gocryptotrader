@@ -525,7 +525,7 @@ func TestWsHandleAccountData(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCLTC")
+	currencyPair, err := currency.NewPairFromString("BTC_LTC")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -546,7 +546,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCLTC")
+	currencyPair, err := currency.NewPairFromString("BTC_LTC")
 	if err != nil {
 		t.Fatal(err)
 	}

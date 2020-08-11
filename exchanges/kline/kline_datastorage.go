@@ -72,11 +72,6 @@ func StoreInDatabase(in *Item) (uint64, error) {
 	}
 
 	for x := range in.Candles {
-		if in.Candles[x].Time.Sub(in.Candles[0].Time) != in.Interval.Duration()*time.Duration(x) {
-			log.Warnf(log.DatabaseMgr, "Unexpected time received: %v, Expected: %v disregarding entry\n", in.Candles[x].Time.Sub(in.Candles[0].Time), in.Interval.Duration()*time.Duration(x))
-			continue
-		}
-
 		databaseCandles.Candles = append(databaseCandles.Candles, candle.Candle{
 			Timestamp: in.Candles[x].Time,
 			Open:      in.Candles[x].Open,

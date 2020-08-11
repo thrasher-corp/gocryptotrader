@@ -1613,10 +1613,6 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 		return nil, errors.New("Exchange " + req.Exchange + " not found")
 	}
 
-	if exchange.GetBase().CurrencyPairs.IsAssetEnabled(asset.Item(req.AssetType)) != nil {
-		return nil, fmt.Errorf("asset %v not supported by exchange %v", req.AssetType, req.Exchange)
-	}
-
 	var candles kline.Item
 	var err error
 	if req.ExRequest {
