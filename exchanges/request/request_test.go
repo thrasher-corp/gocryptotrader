@@ -145,7 +145,7 @@ func TestCheckRequest(t *testing.T) {
 	}
 
 	var passback http.Header
-	check.HeaderPassback = &passback
+	check.HeaderResponse = &passback
 	_, err = check.validateRequest(ctx, r)
 	if err == nil {
 		t.Fatal("expected error when underlying memory is not allocated")
@@ -294,7 +294,7 @@ func TestDoRequest(t *testing.T) {
 		Path:           testURL,
 		Result:         &resp,
 		Endpoint:       UnAuth,
-		HeaderPassback: &passback,
+		HeaderResponse: &passback,
 	})
 	if err != nil {
 		t.Fatal(err)

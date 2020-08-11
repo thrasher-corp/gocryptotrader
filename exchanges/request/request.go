@@ -83,8 +83,8 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 		return nil, errors.New("invalid path")
 	}
 
-	if i.HeaderPassback != nil {
-		if *i.HeaderPassback == nil {
+	if i.HeaderResponse != nil {
+		if *i.HeaderResponse == nil {
 			return nil, errors.New("header passback is nil")
 		}
 	}
@@ -206,9 +206,9 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			}
 		}
 
-		if p.HeaderPassback != nil {
+		if p.HeaderResponse != nil {
 			for k, v := range resp.Header {
-				(http.Header)(*p.HeaderPassback)[k] = v
+				(http.Header)(*p.HeaderResponse)[k] = v
 			}
 		}
 
