@@ -56,7 +56,7 @@ func (z *ZB) SetDefaults() {
 	z.API.CredentialsValidator.RequiresKey = true
 	z.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter}
+	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	err := z.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
@@ -749,13 +749,12 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	formattedPair, err := z.FormatExchangeCurrency(pair, a)
-	if err != nil {
+	if err := z.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
 
-
-	if err := z.ValidateKline(formattedPair, a, interval); err != nil {
+	formattedPair, err := z.FormatExchangeCurrency(pair, a)
+	if err != nil {
 		return kline.Item{}, err
 	}
 
