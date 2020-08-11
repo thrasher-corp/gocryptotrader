@@ -200,6 +200,12 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			}
 		}
 
+		if p.HeaderPassback != nil {
+			for k, v := range resp.Header {
+				p.HeaderPassback[k] = v
+			}
+		}
+
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusAccepted {
 			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",

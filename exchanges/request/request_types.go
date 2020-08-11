@@ -53,7 +53,10 @@ type Item struct {
 	HTTPDebugging bool
 	HTTPRecording bool
 	IsReserved    bool
-	Endpoint      EndpointLimit
+	// HeaderPassback for inspection of header contents package side useful for
+	// pagination
+	HeaderPassback http.Header
+	Endpoint       EndpointLimit
 }
 
 // Backoff determines how long to wait between request attempts.
