@@ -315,10 +315,18 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						var trade WsTrade
 						trade.Symbol = currencyIDMap[channelID]
 						dataL3 := dataL2.([]interface{})
-						trade.TradeID, err = strconv.ParseInt(dataL3[1].(string), 10, 64)
-						if err != nil {
-							return err
+
+						// tradeID type intermittently changes
+						switch t := dataL3[1].(type) {
+						case string:
+							trade.TradeID, err = strconv.ParseInt(t, 10, 64)
+							if err != nil {
+								return err
+							}
+						case float64:
+							trade.TradeID = int64(t)
 						}
+
 						side := order.Buy
 						if dataL3[2].(float64) != 1 {
 							side = order.Sell
