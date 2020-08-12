@@ -12,6 +12,145 @@ type Response struct {
 	Msg  string `json:"msg"`
 }
 
+// FuturesOBData stores orderbook data for futures
+type FuturesOBData struct {
+	Time int64      `json:"T"`
+	Bids [][]string `json:"bids"`
+	Asks [][]string `json:"asks"`
+}
+
+// FuturesPublicTradesData stores recent public trades for futures
+type FuturesPublicTradesData struct {
+	ID           int64   `json:"id"`
+	Price        float64 `json:"price,string"`
+	Qty          float64 `json:"qty,string"`
+	QuoteQty     float64 `json:"quoteQty,string"`
+	Time         int64   `json:"time"`
+	IsBuyerMaker bool    `json:"isBuyerMaker"`
+}
+
+// CompressedTradesData stores futures trades data in a compressed format
+type CompressedTradesData struct {
+	TradeID      int64   `json:"a"`
+	Price        float64 `json:"p"`
+	Quantity     float64 `json:"q"`
+	FirstTradeID int64   `json:"f"`
+	LastTradeID  int64   `json:"l"`
+	Timestamp    int64   `json:"t"`
+	BuyerMaker   bool    `json:"b"`
+}
+
+// MarkPriceData stores mark price data for futures
+type MarkPriceData struct {
+	Symbol          string  `json:"symbol"`
+	MarkPrice       float64 `json:"markPrice"`
+	LastFundingRate float64 `json:"lastFundingRate"`
+	NextFundingTime int64   `json:"nextFundingTime"`
+	Time            int64   `json:"time"`
+}
+
+// TickerPriceChangeStatistics stores price change stats for futures tickers
+type TickerPriceChangeStatistics struct {
+	Symbol             string  `json:"symbol"`
+	PriceChange        float64 `json:"priceChange"`
+	PriceChnagePercent float64 `json:"priceChangePercent"`
+	WeightedAvgPrice   float64 `json:"weightedAvgPrice"`
+	PrevClosePrice     float64 `json:"prevClosePrice"`
+	LastPrice          float64 `json:"lastPrice"`
+	LastQty            float64 `json:"lastQty"`
+	OpenPrice          float64 `json:"openPrice"`
+	HighPrice          float64 `json:"highPrice"`
+	LowPrice           float64 `json:"lowPrice"`
+	Volume             float64 `json:"volume"`
+	QuoteVolume        float64 `json:"quoteVolume"`
+	OpenTime           int64   `json:"openTime"`
+	CloseTime          int64   `json:"closeTime"`
+	FirstID            int64   `json:"firstID"`
+	LastID             int64   `json:"lastID"`
+	Count              int64   `json:"count"`
+}
+
+// SymbolPriceTicker stores ticker price stats
+type SymbolPriceTicker struct {
+	Symbol string  `json:"symbol"`
+	Price  float64 `json:"price"`
+	Time   int64   `json:"time"`
+}
+
+// SymbolOrderBookTicker stores orderbook ticker data
+type SymbolOrderBookTicker struct {
+	Symbol   string  `json:"symbol"`
+	BidPrice float64 `json:"bidPrice"`
+	AskPrice float64 `json:"askPrice"`
+	BidQty   float64 `json:"bidQty"`
+	AskQty   float64 `json:"askQty"`
+	Time     int64   `json:"time"`
+}
+
+// AllLiquidationOrders gets all liquidation orders
+type AllLiquidationOrders struct {
+	Symbol       string  `json:"symbol"`
+	Price        float64 `json:"price"`
+	OrigQty      float64 `json:"origQty"`
+	ExecutedQty  float64 `json:"executedQty"`
+	AveragePrice float64 `json:"averagePrice"`
+	Status       string  `json:"status"`
+	TimeInForce  string  `json:"timeInForce"`
+	OrderType    string  `json:"type"`
+	Side         string  `json:"side"`
+	Time         int64   `json:"time"`
+}
+
+// OpenInterestData stores open interest data
+type OpenInterestData struct {
+	OpenInterest float64 `json:"openInterest"`
+	Symbol       string  `json:"symbol"`
+	Time         int64   `json:"time"`
+}
+
+// OpenInterestStats stores stats for open interest data
+type OpenInterestStats struct {
+	Symbol               string  `json:"symbol"`
+	SumOpenInterest      float64 `json:"sumOpenInterest"`
+	SumOpenInterestValue float64 `json:"sumOpenInterestValue"`
+	Timestamp            string  `json:"timestamp"`
+}
+
+// TopTraderAccountRatio stores account ratio data for top traders
+type TopTraderAccountRatio struct {
+	Symbol         string  `json:"symbol"`
+	LongShortRatio float64 `json:"longShortRatio"`
+	LongAccount    float64 `json:"longAccount"`
+	ShortAccount   float64 `json:"shortAccount"`
+	Timestamp      string  `json:"timestamp"`
+}
+
+// TopTraderPositionRatio stores positons' ratio for top trader accounts
+type TopTraderPositionRatio struct {
+	Symbol         string  `json:"symbol"`
+	LongShortRatio float64 `json:"longShortRatio"`
+	LongAccount    float64 `json:"longAccount"`
+	ShortAccount   float64 `json:"shortAccount"`
+	Timestamp      string  `json:"timestamp"`
+}
+
+// GlobalLongShortRatio stores ratio data of all longs vs shorts
+type GlobalLongShortRatio struct {
+	Symbol         string  `json:"symbol"`
+	LongShortRatio float64 `json:"longShortRatio"`
+	LongAccount    float64 `json:"longAccount"`
+	ShortAccount   float64 `json:"shortAccount"`
+	Timestamp      string  `json:"timestamp"`
+}
+
+// TakerBuySellVolume stores taker buy sell volume
+type TakerBuySellVolume struct {
+	BuySellRatio float64 `json:"buySellRatio"`
+	BuyVol       float64 `json:"buyVol"`
+	SellVol      float64 `json:"sellVol"`
+	Timestamp    string  `json:"timestamp"`
+}
+
 // MarginInfoData stores margin info data
 type MarginInfoData struct {
 	Data []struct {

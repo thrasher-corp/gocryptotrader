@@ -546,6 +546,38 @@ func TestPlaceSwapTriggerOrder(t *testing.T) {
 	}
 }
 
+func TestCancelSwapTriggerOrder(t *testing.T) {
+	t.Parallel()
+	_, err := h.CancelSwapTriggerOrder("ETH-USD", "test123")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllSwapTriggerOrders(t *testing.T) {
+	t.Parallel()
+	_, err := h.CancelAllSwapTriggerOrders("ETH-USD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapTriggerOpenOrders(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetSwapTriggerOpenOrders("ETH-USD", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapTriggerOrderHistory(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetSwapTriggerOrderHistory("ETH-USD", "open", "all", 15, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetSwapMarkets(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetSwapMarkets("")

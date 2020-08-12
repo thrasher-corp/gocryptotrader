@@ -27,6 +27,28 @@ const (
 	futuresAPIURL = "https://fapi.binance.com"
 
 	// Public endpoints
+
+	// Futures
+	futuresExchangeInfo       = "/fapi/v1/exchangeInfo?"
+	futuresOrderbook          = "/fapi/v1/depth?"
+	futuresRecentTrades       = "/fapi/v1/trades?"
+	futuresHistoricalTrades   = "/fapi/v1/historicalTrades?"
+	futuresCompressedTrades   = "/fapi/v1/aggTrades?"
+	futuresKlineData          = "/fapi/v1/klines?"
+	futuresMarkPrice          = "/fapi/v1/premiumIndex?"
+	futuresFundingRateHistory = "/fapi/v1/fundingRate?"
+	futuresTickerPriceStats   = "/fapi/v1/ticker/24hr?"
+	futuresSymbolPriceTicker  = "/fapi/v1/ticker/price?"
+	futuresSymbolOrderbook    = "/fapi/v1/ticker/bookTicker?"
+	futuresLiquidationOrders  = "/fapi/v1/allForceOrders?"
+	futuresOpenInterest       = "/fapi/v1/openInterest?"
+	futuresOpenInterestStats  = "/futures/data/openInterestHist?"
+	futuresTopAccountsRatio   = "/futures/data/topLongShortAccountRatio?"
+	futuresTopPositionsRatio  = "/futures/data/topLongShortPositionRatio?"
+	futuresLongShortRatio     = "/futures/data/globalLongShortAccountRatio?"
+	futuresBuySellVolume      = "/futures/data/takerlongshortRatio?"
+
+	// Spot
 	exchangeInfo      = "/api/v3/exchangeInfo"
 	orderBookDepth    = "/api/v3/depth"
 	recentTrades      = "/api/v3/trades"
@@ -63,6 +85,76 @@ const (
 	undocumentedInterestHistory = "https://www.binance.com/gateway-api/v1/public/isolated-margin/pair/vip-level"
 )
 
+// GetFuturesOrderbook gets orderbook data for futures
+func (b *Binance) GetFuturesOrderbook(symbol string, limit int64) (OrderBook, error) {
+	var resp OrderBook
+	var data FuturesOBData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	err := b.SendHTTPRequest(futuresAPIURL+futuresOrderbook+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	var price, quantity float64
+	for x := range data.Asks {
+		price, err = strconv.ParseFloat(data.Asks[x][0], 64)
+		if err != nil {
+			return resp, err
+		}
+		quantity, err = strconv.ParseFloat(data.Asks[x][1], 64)
+		if err != nil {
+			return resp, err
+		}
+		resp.Asks = append(resp.Asks, OrderbookItem{
+			Price:    price,
+			Quantity: quantity,
+		})
+	}
+	for y := range data.Bids {
+		price, err = strconv.ParseFloat(data.Bids[y][0], 64)
+		if err != nil {
+			return resp, err
+		}
+		quantity, err = strconv.ParseFloat(data.Bids[y][1], 64)
+		if err != nil {
+			return resp, err
+		}
+		resp.Bids = append(resp.Bids, OrderbookItem{
+			Price:    price,
+			Quantity: quantity,
+		})
+	}
+	return resp, nil
+}
+
+// GetFuturesPublicTrades gets recent public trades for futures
+func (b *Binance) GetFuturesPublicTrades(symbol string, limit int64) ([]FuturesPublicTradesData, error) {
+	var resp []FuturesPublicTradesData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresRecentTrades+params.Encode(), limitDefault, &resp)
+}
+
+// GetPastPublicTrades gets past public trades for futures
+func (b *Binance) GetPastPublicTrades(symbol string, limit, fromID int64) ([]FuturesPublicTradesData, error) {
+	var resp []FuturesPublicTradesData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if fromID != 0 {
+		params.Set("fromID", strconv.FormatInt(fromID, 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresRecentTrades+params.Encode(), limitDefault, &resp)
+}
+
 // GetInterestHistory gets interest history for currency/currencies provided
 func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 	var resp MarginInfoData
@@ -71,6 +163,8 @@ func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 	}
 	return resp, nil
 }
+
+//
 
 // GetPerpMarkets returns exchange information. Check binance_types for more
 // information

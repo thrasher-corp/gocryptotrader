@@ -13,6 +13,15 @@ type assetTranslatorStore struct {
 	Assets map[string]string
 }
 
+// FuturesOrderbookData stores orderbook data for futures
+type FuturesOrderbookData struct {
+	ServerTime string `json:"serverTime"`
+	Orderbook  struct {
+		Bids [][]float64 `json:"bids"`
+		Asks [][]float64 `json:"asks"`
+	} `json:"orderBook"`
+}
+
 // TimeResponse type
 type TimeResponse struct {
 	Unixtime int64  `json:"unixtime"`
@@ -36,6 +45,20 @@ type FuturesInstrumentData struct {
 		} `json:"marginLevels"`
 	} `json:"instruments"`
 }
+
+// FuturesTradeHistoryData stores trade history data for futures
+type FuturesTradeHistoryData struct {
+	History []struct {
+		Time      string  `json:"time"`
+		TradeID   int64   `json:"trade_id"`
+		Price     float64 `json:"price"`
+		Size      float64 `json:"size"`
+		Side      string  `json:"side"`
+		TradeType string  `json:"type"`
+	} `json:"history"`
+}
+
+//
 
 // FuturesTickerData stores info for futures ticker
 type FuturesTickerData struct {

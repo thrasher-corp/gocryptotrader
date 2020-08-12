@@ -57,6 +57,42 @@ func TestGetFundingRates(t *testing.T) {
 	}
 }
 
+func TestGetFuturesOrderbook(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://fapi.binance.com"
+	a, err := b.GetFuturesOrderbook("BTCUSDT", 5)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesPublicTrades(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://fapi.binance.com"
+	a, err := b.GetFuturesPublicTrades("BTCUSDT", 5)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPastPublicTrades(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://fapi.binance.com"
+	a, err := b.GetPastPublicTrades("BTCUSDT", 5, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetPerpsExchangeInfo(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
