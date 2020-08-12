@@ -2,7 +2,6 @@ package binance
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -812,7 +811,6 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if err := b.ValidateKline(pair, a, interval); err != nil {
-		fmt.Println(err)
 		return kline.Item{}, err
 	}
 

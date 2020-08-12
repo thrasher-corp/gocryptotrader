@@ -1062,6 +1062,7 @@ func (e *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
+// ValidateKline confirms that the requested pair, asset & interval are supported and/or enabled by the requested exchange
 func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
 	var errorList []string
 	var err kline.ErrorKline
@@ -1069,8 +1070,8 @@ func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 		err.Asset = a
 		errorList = append(errorList, "asset not enabled")
 	} else if !e.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-			err.Pair = pair
-			errorList = append(errorList, "pair not enabled")
+		err.Pair = pair
+		errorList = append(errorList, "pair not enabled")
 	}
 
 	if !e.klineIntervalEnabled(interval) {
