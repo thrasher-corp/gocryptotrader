@@ -1,6 +1,6 @@
 package backtest
 
-func (e *FixedExchangeFee) Calculate(_,_ float64) (float64, error) {
+func (e *FixedExchangeFee) Calculate(_, _ float64) (float64, error) {
 	return e.ExchangeFee.Fee, nil
 }
 

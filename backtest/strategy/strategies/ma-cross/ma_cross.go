@@ -1,5 +1,0 @@
-package macross
-
-func Execute() {
-
-}

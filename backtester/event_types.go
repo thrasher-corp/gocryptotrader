@@ -34,5 +34,5 @@ type SignalEvent interface {
 
 	Direction() order.Side
 	SetOrderType(orderType order.Type)
-	GetOrderType()(orderType order.Type)
+	GetOrderType() (orderType order.Type)
 }

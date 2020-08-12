@@ -9,4 +9,3 @@ func (e Event) Time() time.Time {
 func (e *Event) SetTime(t time.Time) {
 	e.time = t
 }
-

@@ -76,5 +76,5 @@ func (o *Order) NetValue() float64 {
 		return o.amountFilled*o.avgFillPrice + o.cost
 	}
 
-	return  o.amountFilled*o.avgFillPrice - o.cost
+	return o.amountFilled*o.avgFillPrice - o.cost
 }

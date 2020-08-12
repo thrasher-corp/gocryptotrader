@@ -28,7 +28,7 @@ func (d *DataFromKlineItem) Next() (DataEvent, bool) {
 }
 
 func (d *DataFromKlineItem) Stream() []DataEvent {
-	return nil
+	return d.stream[d.offset:]
 }
 
 func (d *DataFromKlineItem) History() []DataEvent {
@@ -47,12 +47,11 @@ func (d *DataFromKlineItem) Load() {
 	var candles []*Candle
 	for x := range d.kline.Candles {
 		candles = append(candles, &Candle{
-			Open: d.kline.Candles[x].Open,
-			High: d.kline.Candles[x].High,
-			Low: d.kline.Candles[x].Low,
-			Close: d.kline.Candles[x].Close,
+			Open:   d.kline.Candles[x].Open,
+			High:   d.kline.Candles[x].High,
+			Low:    d.kline.Candles[x].Low,
+			Close:  d.kline.Candles[x].Close,
 			Volume: d.kline.Candles[x].Volume,
-
 		})
 	}
 
@@ -61,5 +60,4 @@ func (d *DataFromKlineItem) Load() {
 		list[i] = candles[i]
 	}
 	d.SetStream(list)
-
 }

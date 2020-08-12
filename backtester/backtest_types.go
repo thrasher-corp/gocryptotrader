@@ -5,22 +5,22 @@ import (
 )
 
 type Backtest struct {
-	dataProvider DataHandler
-	algo AlgoHandler
+	data      DataHandler
+	portfolio PortfolioHandler
+	algo      AlgoHandler
 
 	config *Config
 }
 
 type Config struct {
 	Item kline.Item
-	Fee float64
+	Fee  float64
 }
 
-type Data struct {}
+type Data struct{}
 
 type AlgoHandler interface {
 	Init() *Config
-	OnData(t Data,b *Backtest) (bool, error)
+	OnData(t Data, b *Backtest) (bool, error)
 	OnEnd(b *Backtest)
 }
-
