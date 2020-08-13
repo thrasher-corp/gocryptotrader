@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 )
 
 
@@ -68,34 +69,41 @@ func (t *Traderino) Processor() {
 			log.Debugf(log.WebsocketMgr, "%s TRADE PROCESSOR STARTING", t.Name)
 			t.mutex.Lock()
 			sort.Sort(ByDate(buffer))
-			groupedData := convertTradeDatasToCandles(kline.FifteenSecond, buffer...)
-			var candles []CandleHolder
-			for k, v := range groupedData {
-				candles = append(candles, classifyOHLCV(time.Unix(k, 0), v...))
-			}
-			for i := range candles {
-				for j := range t.previousCandles {
-					if candles[i].candle.Time.Equal(t.previousCandles[j].candle.Time) {
-						log.Debugf(log.WebsocketMgr, "%s Amending candles" ,t.Name)
-						t.previousCandles[j].amendCandle(candles[i].trades...)
-						candles[i].candle = t.previousCandles[j].candle
-					}
-				}
-			}
-			// now save previous candles
-			err := t.SaveCandlesToButt(t.previousCandles)
+			err := sqltrade.Insert(buffer...)
 			if err != nil {
-				log.Errorf(log.WebsocketMgr,"%s Processor SaveCandlesToButt ", t.Name, err)
-				t.mutex.Unlock()
-				continue
+				log.Error(log.Trade, err)
 			}
-
-			// now set current candles to previous for the next run
-			t.previousCandles = candles
 			buffer = nil
 			t.mutex.Unlock()
 		}
 	}
+}
+
+func convertTradesToCandles() {
+	//groupedData := convertTradeDatasToCandles(kline.FifteenSecond, buffer...)
+	//var candles []CandleHolder
+	//for k, v := range groupedData {
+	//	candles = append(candles, classifyOHLCV(time.Unix(k, 0), v...))
+	//}
+	//for i := range candles {
+	//	for j := range t.previousCandles {
+	//		if candles[i].candle.Time.Equal(t.previousCandles[j].candle.Time) {
+	//			log.Debugf(log.WebsocketMgr, "%s Amending candles" ,t.Name)
+	//			t.previousCandles[j].amendCandle(candles[i].trades...)
+	//			candles[i].candle = t.previousCandles[j].candle
+	//		}
+	//	}
+	//}
+	//// now save previous candles
+	//err := t.SaveCandlesToButt(t.previousCandles)
+	//if err != nil {
+	//	log.Errorf(log.WebsocketMgr,"%s Processor SaveCandlesToButt ", t.Name, err)
+	//	t.mutex.Unlock()
+	//	continue
+	//}
+	//
+	//// now set current candles to previous for the next run
+	//t.previousCandles = candles
 }
 
 func (t *Traderino) SaveCandlesToButt(candles []CandleHolder) error {
