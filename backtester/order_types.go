@@ -10,6 +10,7 @@ type Order struct {
 	Event
 	id           int
 	orderType    order.Type
+	orderSide    order.Side
 	status       order.Status
 	amount       float64
 	amountFilled float64

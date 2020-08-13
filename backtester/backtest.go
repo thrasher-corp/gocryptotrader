@@ -1,7 +1,5 @@
 package backtest
 
-import "fmt"
-
 func (b *Backtest) Reset() error {
 	b.data.Reset()
 	return nil
@@ -14,7 +12,15 @@ func (b *Backtest) Run() error {
 	}
 
 	for d, ok := b.data.Next(); ok; d, ok = b.data.Next() {
-		fmt.Println(d)
+		b.portfolio.Update(d)
+		_, err := b.execution.OnData(d, b)
+		if err != nil {
+			return err
+		}
+		_, err = b.algo.OnData(d, b)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -28,11 +34,10 @@ func (b *Backtest) GetPortfolio() (portfolio PortfolioHandler) {
 	return b.portfolio
 }
 
-func Run(algo AlgoHandler) error {
+func Run(algo AlgoHandler, data DataHandler) error {
 	bt := &Backtest{}
 
-	klineData := DataFromKlineItem{}
-	bt.data = &klineData
+	bt.data = data
 	bt.algo = algo
 	if err := bt.Run(); err != nil {
 		return err

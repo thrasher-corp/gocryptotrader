@@ -8,16 +8,16 @@ func (bt *testBT) Init() *Config {
 	return &Config{}
 }
 
-func (bt *testBT) OnData(t Data, b *Backtest) (bool, error) {
+func (bt *testBT) OnData(d DataEvent, b *Backtest) (bool, error) {
 	return true, nil
 }
 
-func (s *testBT) OnEnd(b *Backtest) {
-}
+func (bt *testBT) OnEnd(b *Backtest) {}
 
 func TestBacktest_Run(t *testing.T) {
 	bt := &testBT{}
-	err := Run(bt)
+	klineData := &DataFromKlineItem{}
+	err := Run(bt, klineData)
 	if err != nil {
 		t.Fatal(err)
 	}

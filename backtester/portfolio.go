@@ -63,7 +63,39 @@ func (p Portfolio) Funds() float64 {
 }
 
 func (p *Portfolio) Order(price float64, amount float64) {
+	data := Backtest{}.data
+	var orderType gctorder.Type
+	var orderSide gctorder.Side
+	var newAmount float64
 
+	if p.Holdings.Amount > amount {
+		if price < 0 {
+			orderType = gctorder.Market
+		} else {
+			orderType = gctorder.Limit
+		}
+		orderSide = gctorder.Sell
+		newAmount = p.Holdings.Amount - amount
+	} else if p.Holdings.Amount < amount {
+		if price < 0 {
+			orderType = gctorder.Market
+		} else {
+			orderType = gctorder.Limit
+		}
+		orderSide = gctorder.Buy
+		newAmount = amount - p.Holdings.Amount
+	}
+
+	initialOrder := &Order{
+		Event: Event{
+			time: data.Latest().Time(),
+		},
+		amount:     newAmount,
+		orderType:  orderType,
+		orderSide:  orderSide,
+		limitPrice: price,
+	}
+	p.OrderBook = []OrderEvent{initialOrder}
 }
 
 func (p *Portfolio) Position() Position {

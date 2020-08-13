@@ -38,9 +38,12 @@ require (
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
+	gonum.org/v1/gonum v0.7.0
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.31.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/ini.v1 v1.57.0 // indirect
 )
+
+replace github.com/thrasher-corp/gct-ta => ../gct-ta

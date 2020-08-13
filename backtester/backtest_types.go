@@ -8,6 +8,7 @@ type Backtest struct {
 	data      DataHandler
 	portfolio PortfolioHandler
 	algo      AlgoHandler
+	execution ExecutionHandler
 
 	config *Config
 }
@@ -21,6 +22,6 @@ type Data struct{}
 
 type AlgoHandler interface {
 	Init() *Config
-	OnData(t Data, b *Backtest) (bool, error)
+	OnData(d DataEvent, b *Backtest) (bool, error)
 	OnEnd(b *Backtest)
 }
