@@ -49,27 +49,6 @@ type MarkPriceData struct {
 	Time            int64   `json:"time"`
 }
 
-// TickerPriceChangeStatistics stores price change stats for futures tickers
-type TickerPriceChangeStatistics struct {
-	Symbol             string  `json:"symbol"`
-	PriceChange        float64 `json:"priceChange"`
-	PriceChnagePercent float64 `json:"priceChangePercent"`
-	WeightedAvgPrice   float64 `json:"weightedAvgPrice"`
-	PrevClosePrice     float64 `json:"prevClosePrice"`
-	LastPrice          float64 `json:"lastPrice"`
-	LastQty            float64 `json:"lastQty"`
-	OpenPrice          float64 `json:"openPrice"`
-	HighPrice          float64 `json:"highPrice"`
-	LowPrice           float64 `json:"lowPrice"`
-	Volume             float64 `json:"volume"`
-	QuoteVolume        float64 `json:"quoteVolume"`
-	OpenTime           int64   `json:"openTime"`
-	CloseTime          int64   `json:"closeTime"`
-	FirstID            int64   `json:"firstID"`
-	LastID             int64   `json:"lastID"`
-	Count              int64   `json:"count"`
-}
-
 // SymbolPriceTicker stores ticker price stats
 type SymbolPriceTicker struct {
 	Symbol string  `json:"symbol"`
@@ -85,6 +64,21 @@ type SymbolOrderBookTicker struct {
 	BidQty   float64 `json:"bidQty"`
 	AskQty   float64 `json:"askQty"`
 	Time     int64   `json:"time"`
+}
+
+// FuturesCandleStick holds kline data
+type FuturesCandleStick struct {
+	OpenTime                time.Time
+	Open                    float64
+	High                    float64
+	Low                     float64
+	Close                   float64
+	Volume                  float64
+	CloseTime               time.Time
+	BaseAssetVolume         float64
+	NumberOfTrades          int64
+	TakerBuyVolume          float64
+	TakerBuyBaseAssetVolume float64
 }
 
 // AllLiquidationOrders gets all liquidation orders
@@ -396,8 +390,20 @@ type AggregatedTrade struct {
 	FirstTradeID   int64   `json:"f"`
 	LastTradeID    int64   `json:"l"`
 	TimeStamp      int64   `json:"T"`
-	Maker          bool    `json:"m"`
+	BuyerMaker     bool    `json:"m"`
 	BestMatchPrice bool    `json:"M"`
+}
+
+// IndexMarkPrice stores data for index and mark prices
+type IndexMarkPrice struct {
+	Symbol               string  `json:"symbol"`
+	Pair                 string  `json:"pair"`
+	MarkPrice            float64 `json:"markPrice,string"`
+	IndexPrice           float64 `json:"indexPrice,string"`
+	EstimatedSettlePrice float64 `json:"estimatedSettlePrice,string"`
+	LastFundingRate      float64 `json:"lastFundingRate,string"`
+	NextFundingTime      int64   `json:"nextFundingTime"`
+	Time                 int64   `json:"time"`
 }
 
 // CandleStick holds kline data

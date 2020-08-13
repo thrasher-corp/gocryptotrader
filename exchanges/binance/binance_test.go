@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -50,7 +51,7 @@ func TestGetInterestHistory(t *testing.T) {
 func TestGetFundingRates(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	b.API.Endpoints.URL = "https://fapi.binance.com"
+	b.API.Endpoints.URL = "https://dapi.binance.com"
 	_, err := b.GetFundingRates("BTCUSDT", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -61,8 +62,8 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	b.Verbose = true
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	b.API.Endpoints.URL = "https://fapi.binance.com"
-	a, err := b.GetFuturesOrderbook("BTCUSDT", 5)
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetFuturesOrderbook("BTCUSD_PERP", 5)
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -73,8 +74,8 @@ func TestGetFuturesPublicTrades(t *testing.T) {
 	b.Verbose = true
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	b.API.Endpoints.URL = "https://fapi.binance.com"
-	a, err := b.GetFuturesPublicTrades("BTCUSDT", 5)
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetFuturesPublicTrades("BTCUSD_PERP", 5)
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -85,9 +86,21 @@ func TestGetPastPublicTrades(t *testing.T) {
 	b.Verbose = true
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	b.API.Endpoints.URL = "https://fapi.binance.com"
-	a, err := b.GetPastPublicTrades("BTCUSDT", 5, 0)
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetPastPublicTrades("BTCUSD_PERP", 5, 0)
 	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAggregatedTradesList(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetFuturesAggregatedTradesList("BTCUSD_PERP", 0, 5, time.Time{}, time.Time{})
+	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -96,8 +109,92 @@ func TestGetPastPublicTrades(t *testing.T) {
 func TestGetPerpsExchangeInfo(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	b.API.Endpoints.URL = "https://fapi.binance.com"
+	b.API.Endpoints.URL = "https://dapi.binance.com"
 	_, err := b.GetPerpMarkets()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetIndexAndMarkPrice(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetIndexAndMarkPrice("BTCUSD_PERP", "")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesKlineData(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetFuturesKlineData("BTCUSD_PERP", "1M", 5, time.Time{}, time.Time{})
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetContinuousKlineData(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetContinuousKlineData("BTCUSD", "CURRENT_QUARTER", "1M", 5, time.Time{}, time.Time{})
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetIndexPriceKlines(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetIndexPriceKlines("BTCUSD", "1M", 5, time.Time{}, time.Time{})
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetFuturesSwapTickerChangeStats("", "")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesSymbolPriceTicker(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetFuturesSymbolPriceTicker("", "")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarkPriceKline(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetMarkPriceKline("BTCUSD_200925", "1M", 5, time.Time{}, time.Time{})
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

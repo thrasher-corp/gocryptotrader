@@ -24,29 +24,32 @@ import (
 const (
 	apiURL        = "https://api.binance.com"
 	spotAPIURL    = "https://sapi.binance.com"
-	futuresAPIURL = "https://fapi.binance.com"
+	futuresAPIURL = "https://dapi.binance.com"
 
 	// Public endpoints
 
 	// Futures
-	futuresExchangeInfo       = "/fapi/v1/exchangeInfo?"
-	futuresOrderbook          = "/fapi/v1/depth?"
-	futuresRecentTrades       = "/fapi/v1/trades?"
-	futuresHistoricalTrades   = "/fapi/v1/historicalTrades?"
-	futuresCompressedTrades   = "/fapi/v1/aggTrades?"
-	futuresKlineData          = "/fapi/v1/klines?"
-	futuresMarkPrice          = "/fapi/v1/premiumIndex?"
-	futuresFundingRateHistory = "/fapi/v1/fundingRate?"
-	futuresTickerPriceStats   = "/fapi/v1/ticker/24hr?"
-	futuresSymbolPriceTicker  = "/fapi/v1/ticker/price?"
-	futuresSymbolOrderbook    = "/fapi/v1/ticker/bookTicker?"
-	futuresLiquidationOrders  = "/fapi/v1/allForceOrders?"
-	futuresOpenInterest       = "/fapi/v1/openInterest?"
-	futuresOpenInterestStats  = "/futures/data/openInterestHist?"
-	futuresTopAccountsRatio   = "/futures/data/topLongShortAccountRatio?"
-	futuresTopPositionsRatio  = "/futures/data/topLongShortPositionRatio?"
-	futuresLongShortRatio     = "/futures/data/globalLongShortAccountRatio?"
-	futuresBuySellVolume      = "/futures/data/takerlongshortRatio?"
+	futuresExchangeInfo       = "/dapi/v1/exchangeInfo?"
+	futuresOrderbook          = "/dapi/v1/depth?"
+	futuresRecentTrades       = "/dapi/v1/trades?"
+	futuresHistoricalTrades   = "/dapi/v1/historicalTrades?"
+	futuresCompressedTrades   = "/dapi/v1/aggTrades?"
+	futuresKlineData          = "/dapi/v1/klines?"
+	futuresContinuousKline    = "/dapi/v1/continuousKlines?"
+	futuresIndexKline         = "/dapi/v1/indexPriceKlines?"
+	futuresMarkPriceKline     = "/dapi/v1/markPriceKlines?"
+	futuresMarkPrice          = "/dapi/v1/premiumIndex?"
+	futuresFundingRateHistory = "/dapi/v1/fundingRate?"
+	futuresTickerPriceStats   = "/dapi/v1/ticker/24hr?"
+	futuresSymbolPriceTicker  = "/dapi/v1/ticker/price?"
+	futuresSymbolOrderbook    = "/dapi/v1/ticker/bookTicker?"
+	futuresLiquidationOrders  = "/dapi/v1/allForceOrders?"
+	futuresOpenInterest       = "/dapi/v1/openInterest?"
+	futuresOpenInterestStats  = "/dutures/data/openInterestHist?"
+	futuresTopAccountsRatio   = "/dutures/data/topLongShortAccountRatio?"
+	futuresTopPositionsRatio  = "/dutures/data/topLongShortPositionRatio?"
+	futuresLongShortRatio     = "/dutures/data/globalLongShortAccountRatio?"
+	futuresBuySellVolume      = "/dutures/data/takerlongshortRatio?"
 
 	// Spot
 	exchangeInfo      = "/api/v3/exchangeInfo"
@@ -84,6 +87,12 @@ const (
 	assetDetail                 = "/wapi/v3/assetDetail.html"
 	undocumentedInterestHistory = "https://www.binance.com/gateway-api/v1/public/isolated-margin/pair/vip-level"
 )
+
+var validFuturesIntervals = []string{
+	"1m", "3m", "5m", "15m", "30m",
+	"1h", "2h", "4h", "6h", "8h",
+	"12h", "1d", "3d", "1w", "1M",
+}
 
 // GetFuturesOrderbook gets orderbook data for futures
 func (b *Binance) GetFuturesOrderbook(symbol string, limit int64) (OrderBook, error) {
@@ -155,6 +164,351 @@ func (b *Binance) GetPastPublicTrades(symbol string, limit, fromID int64) ([]Fut
 	return resp, b.SendHTTPRequest(futuresAPIURL+futuresRecentTrades+params.Encode(), limitDefault, &resp)
 }
 
+// GetFuturesAggregatedTradesList gets aggregated trades list
+func (b *Binance) GetFuturesAggregatedTradesList(symbol string, fromID, limit int64, startTime, endTime time.Time) ([]AggregatedTrade, error) {
+	var resp []AggregatedTrade
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if fromID != 0 {
+		params.Set("fromID", strconv.FormatInt(fromID, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresCompressedTrades+params.Encode(), limitDefault, &resp)
+}
+
+// GetIndexAndMarkPrice gets index and mark prices for futres
+func (b *Binance) GetIndexAndMarkPrice(symbol, pair string) ([]IndexMarkPrice, error) {
+	var resp []IndexMarkPrice
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresMarkPrice+params.Encode(), limitDefault, &resp)
+}
+
+// GetFuturesKlineData gets futures kline data
+func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+	var data [][]interface{}
+	var resp []FuturesCandleStick
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return resp, fmt.Errorf("invalid interval parsed")
+	}
+	params.Set("interval", interval)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	err := b.SendHTTPRequest(futuresAPIURL+futuresKlineData+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	var floatData float64
+	var tempData FuturesCandleStick
+	for x := range data {
+		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Open = floatData
+		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.High = floatData
+		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Low = floatData
+		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Close = floatData
+		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Volume = floatData
+		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.BaseAssetVolume = floatData
+		tempData.TakerBuyVolume = data[x][8].(float64)
+		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.TakerBuyBaseAssetVolume = floatData
+		resp = append(resp, tempData)
+	}
+	return resp, nil
+}
+
+// GetContinuousKlineData gets continuous kline data
+func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+	var data [][]interface{}
+	var resp []FuturesCandleStick
+	params := url.Values{}
+	params.Set("pair", pair)
+	params.Set("contractType", contractType)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return resp, fmt.Errorf("invalid interval parsed")
+	}
+	params.Set("interval", interval)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	err := b.SendHTTPRequest(futuresAPIURL+futuresContinuousKline+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	var floatData float64
+	var tempData FuturesCandleStick
+	for x := range data {
+		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Open = floatData
+		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.High = floatData
+		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Low = floatData
+		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Close = floatData
+		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Volume = floatData
+		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.BaseAssetVolume = floatData
+		tempData.TakerBuyVolume = data[x][8].(float64)
+		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.TakerBuyBaseAssetVolume = floatData
+		resp = append(resp, tempData)
+	}
+	return resp, nil
+}
+
+// GetIndexPriceKlines gets continuous kline data
+func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+	var data [][]interface{}
+	var resp []FuturesCandleStick
+	params := url.Values{}
+	params.Set("pair", pair)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return resp, fmt.Errorf("invalid interval parsed")
+	}
+	params.Set("interval", interval)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	err := b.SendHTTPRequest(futuresAPIURL+futuresIndexKline+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	var floatData float64
+	var tempData FuturesCandleStick
+	for x := range data {
+		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Open = floatData
+		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.High = floatData
+		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Low = floatData
+		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Close = floatData
+		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Volume = floatData
+		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.BaseAssetVolume = floatData
+		tempData.TakerBuyVolume = data[x][8].(float64)
+		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.TakerBuyBaseAssetVolume = floatData
+		resp = append(resp, tempData)
+	}
+	return resp, nil
+}
+
+// GetMarkPriceKline gets mark price kline data
+func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+	var data [][]interface{}
+	var resp []FuturesCandleStick
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return resp, fmt.Errorf("invalid interval parsed")
+	}
+	params.Set("interval", interval)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	err := b.SendHTTPRequest(futuresAPIURL+futuresMarkPriceKline+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	var floatData float64
+	var tempData FuturesCandleStick
+	for x := range data {
+		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Open = floatData
+		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.High = floatData
+		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Low = floatData
+		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Close = floatData
+		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Volume = floatData
+		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.BaseAssetVolume = floatData
+		tempData.TakerBuyVolume = data[x][8].(float64)
+		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.TakerBuyBaseAssetVolume = floatData
+		resp = append(resp, tempData)
+	}
+	return resp, nil
+}
+
+// GetFuturesSwapTickerChangeStats gets 24hr ticker change stats for futures
+func (b *Binance) GetFuturesSwapTickerChangeStats(symbol, pair string) ([]PriceChangeStats, error) {
+	var resp []PriceChangeStats
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresTickerPriceStats+params.Encode(), limitDefault, &resp)
+}
+
+// GetFuturesSymbolPriceTicker gets price ticker for symbol
+func (b *Binance) GetFuturesSymbolPriceTicker(symbol, pair string) ([]SymbolPriceTicker, error) {
+	var resp []SymbolPriceTicker
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresSymbolPriceTicker+params.Encode(), limitDefault, &resp)
+}
+
+// *************************************************************************************
+
 // GetInterestHistory gets interest history for currency/currencies provided
 func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 	var resp MarginInfoData
@@ -163,8 +517,6 @@ func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 	}
 	return resp, nil
 }
-
-//
 
 // GetPerpMarkets returns exchange information. Check binance_types for more
 // information
