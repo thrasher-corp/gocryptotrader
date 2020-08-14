@@ -29,9 +29,10 @@ type Trade struct {
 	Currency   string      `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
 	Asset      string      `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
 	Event      string      `boil:"event" json:"event" toml:"event" yaml:"event"`
-	Price      time.Time   `boil:"price" json:"price" toml:"price" yaml:"price"`
-	Amount     time.Time   `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
+	Price      float64     `boil:"price" json:"price" toml:"price" yaml:"price"`
+	Amount     float64     `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
 	Side       string      `boil:"side" json:"side" toml:"side" yaml:"side"`
+	Timestamp  int64       `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
 
 	R *tradeR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L tradeL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -46,6 +47,7 @@ var TradeColumns = struct {
 	Price      string
 	Amount     string
 	Side       string
+	Timestamp  string
 }{
 	ID:         "id",
 	ExchangeID: "exchange_id",
@@ -55,9 +57,25 @@ var TradeColumns = struct {
 	Price:      "price",
 	Amount:     "amount",
 	Side:       "side",
+	Timestamp:  "timestamp",
 }
 
 // Generated where
+
+type whereHelperfloat64 struct{ field string }
+
+func (w whereHelperfloat64) EQ(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperfloat64) NEQ(x float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.NEQ, x)
+}
+func (w whereHelperfloat64) LT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperfloat64) LTE(x float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelperfloat64) GT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperfloat64) GTE(x float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
 
 var TradeWhere = struct {
 	ID         whereHelperstring
@@ -65,18 +83,20 @@ var TradeWhere = struct {
 	Currency   whereHelperstring
 	Asset      whereHelperstring
 	Event      whereHelperstring
-	Price      whereHelpertime_Time
-	Amount     whereHelpertime_Time
+	Price      whereHelperfloat64
+	Amount     whereHelperfloat64
 	Side       whereHelperstring
+	Timestamp  whereHelperint64
 }{
 	ID:         whereHelperstring{field: "\"trade\".\"id\""},
 	ExchangeID: whereHelpernull_String{field: "\"trade\".\"exchange_id\""},
 	Currency:   whereHelperstring{field: "\"trade\".\"currency\""},
 	Asset:      whereHelperstring{field: "\"trade\".\"asset\""},
 	Event:      whereHelperstring{field: "\"trade\".\"event\""},
-	Price:      whereHelpertime_Time{field: "\"trade\".\"price\""},
-	Amount:     whereHelpertime_Time{field: "\"trade\".\"amount\""},
+	Price:      whereHelperfloat64{field: "\"trade\".\"price\""},
+	Amount:     whereHelperfloat64{field: "\"trade\".\"amount\""},
 	Side:       whereHelperstring{field: "\"trade\".\"side\""},
+	Timestamp:  whereHelperint64{field: "\"trade\".\"timestamp\""},
 }
 
 // TradeRels is where relationship names are stored.
@@ -100,9 +120,9 @@ func (*tradeR) NewStruct() *tradeR {
 type tradeL struct{}
 
 var (
-	tradeAllColumns            = []string{"id", "exchange_id", "currency", "asset", "event", "price", "amount", "side"}
-	tradeColumnsWithoutDefault = []string{"exchange_id", "currency", "asset", "event", "side"}
-	tradeColumnsWithDefault    = []string{"id", "price", "amount"}
+	tradeAllColumns            = []string{"id", "exchange_id", "currency", "asset", "event", "price", "amount", "side", "timestamp"}
+	tradeColumnsWithoutDefault = []string{"exchange_id", "currency", "asset", "event", "price", "amount", "side", "timestamp"}
+	tradeColumnsWithDefault    = []string{"id"}
 	tradePrimaryKeyColumns     = []string{"id"}
 )
 

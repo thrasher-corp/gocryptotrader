@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -17,6 +19,7 @@ var (
 
 // Data defines trade data
 type Data struct {
+	ID uuid.UUID
 	Timestamp    time.Time
 	Exchange     string
 	EventType    order.Type

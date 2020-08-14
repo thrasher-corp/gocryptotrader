@@ -5,20 +5,24 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-
+// Insert saves trade data to the database
 func Insert(trades ...trade.Data) error {
 	ctx, tx, err := initialDBSetup()
 	if err != nil {
@@ -63,8 +67,8 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...trade.Data) error {
 			Currency:   trades[i].CurrencyPair.String(),
 			Asset:      trades[i].AssetType.String(),
 			Event:      trades[i].EventType.String(),
-		//	Price:      trades[i].Price,
-		//	Amount:     trades[i].Amount,
+			Price:      trades[i].Price,
+			Amount:     trades[i].Amount,
 			Side:       trades[i].Side.String(),
 		}
 
@@ -86,8 +90,8 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...trade.Data) error
 			Currency:   trades[i].CurrencyPair.String(),
 			Asset:      trades[i].AssetType.String(),
 			Event:      trades[i].EventType.String(),
-		//	Price:      trades[i].Price,
-		//	Amount:     trades[i].Amount,
+			Price:      trades[i].Price,
+			Amount:     trades[i].Amount,
 			Side:       trades[i].Side.String(),
 		}
 		if exchangeID.String() != "" {
@@ -136,13 +140,13 @@ func getByUUIDSQLite(ctx context.Context, uuid string) (td trade.Data, err error
 
 	td = resultToTradeData(
 		result.Side,
-		result.Amount,
-		result.Price,
 		result.Event,
 		result.Asset,
 		result.Currency,
 		result.ExchangeID,
-		result.ID,
+		result.Amount,
+		result.Price,
+		result.Timestamp,
 	)
 	return td, nil
 }
@@ -157,13 +161,13 @@ func getByUUIDPostgres(ctx context.Context, uuid string) (td trade.Data, err err
 
 	td = resultToTradeData(
 		result.Side,
-		result.Amount,
-		result.Price,
 		result.Event,
 		result.Asset,
 		result.Currency,
-		result.ExchangeID,
-		result.ID,
+		"",
+		result.Amount,
+		result.Price,
+		float64(result.Timestamp),
 	)
 	return td, nil
 }
@@ -192,7 +196,11 @@ func SelectByExchangeBetweenRange(exchangeName string, startDate, endDate int64)
 }
 
 func selectSQLite(ctx context.Context, exchangeName string, startDate, endDate int64) (td []trade.Data, err error) {
-	query := modelSQLite.Trades(qm.Where("exchange = ?, timestamp BETWEEN ? AND ?", exchangeName, startDate, endDate))
+	wheres := map[string]interface{}{
+		"exchange": exchangeName,
+	}
+	q := generateQuery(wheres, startDate, endDate, -1)
+	query := modelSQLite.Trades(q...)
 	var result []*modelSQLite.Trade
 	result, err = query.All(ctx, database.DB.SQL)
 	if err != nil {
@@ -201,20 +209,24 @@ func selectSQLite(ctx context.Context, exchangeName string, startDate, endDate i
 	for i := range result {
 		td = append(td, resultToTradeData(
 			result[i].Side,
-			result[i].Amount,
-			result[i].Price,
 			result[i].Event,
 			result[i].Asset,
 			result[i].Currency,
 			result[i].ExchangeID,
-			result[i].ID),
+			result[i].Amount,
+			result[i].Price,
+			result[i].Timestamp),
 		)
 	}
 	return td, nil
 }
 
 func selectPostgres(ctx context.Context, exchangeName string, startDate, endDate int64) (td []trade.Data, err error) {
-	query := modelPSQL.Trades(qm.Where("exchange = ? AND timestamp BETWEEN ? AND ?", exchangeName, startDate, endDate))
+	wheres := map[string]interface{}{
+		"exchange": exchangeName,
+	}
+	q := generateQuery(wheres, startDate, endDate, -1)
+	query := modelPSQL.Trades(q...)
 	var result []*modelPSQL.Trade
 	result, err = query.All(ctx, database.DB.SQL)
 	if err != nil {
@@ -223,13 +235,13 @@ func selectPostgres(ctx context.Context, exchangeName string, startDate, endDate
 	for i := range result {
 		td = append(td, resultToTradeData(
 			result[i].Side,
-			result[i].Amount,
-			result[i].Price,
 			result[i].Event,
 			result[i].Asset,
 			result[i].Currency,
-			result[i].ExchangeID,
-			result[i].ID),
+			"",
+			result[i].Amount,
+			result[i].Price,
+			float64(result[i].Timestamp)),
 		)
 	}
 	return td, nil
@@ -251,12 +263,12 @@ func DeleteTradeData(trades ...trade.Data) error {
 	}()
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		err = deleteTradeDataSQLite(ctx, tx, trades...)
+		err = deleteTradeDataSQLite(ctx, database.DB.SQL, trades...)
 		if err != nil {
 			return fmt.Errorf("trade.DeleteTradeData deleteTradeDataSQLite %w", err)
 		}
 	} else {
-		err = deleteTradeDataPostgres(ctx, tx, trades...)
+		err = deleteTradeDataPostgres(ctx, database.DB.SQL, trades...)
 		if err != nil {
 			return fmt.Errorf("trade.DeleteTradeData deleteTradeDataPostgres %w", err)
 		}
@@ -269,12 +281,24 @@ func DeleteTradeData(trades ...trade.Data) error {
 	return nil
 }
 
-func deleteTradeDataSQLite(ctx context.Context, tx *sql.Tx, trades ...trade.Data) error {
-	return nil
+func deleteTradeDataSQLite(ctx context.Context, bbb *sql.DB, trades ...trade.Data) error {
+	var tradeids []interface{}
+	for i := range trades {
+		tradeids = append(tradeids, trades[i].ID.String())
+	}
+	query := modelPSQL.Trades(qm.WhereIn(`id in ?`, tradeids...))
+	_, err := query.DeleteAll(ctx, bbb)
+	return err
 }
 
-func deleteTradeDataPostgres(ctx context.Context, tx *sql.Tx, trades ...trade.Data) error {
-	return nil
+func deleteTradeDataPostgres(ctx context.Context, bbb *sql.DB, trades ...trade.Data) error {
+	var tradeids []interface{}
+	for i := range trades {
+		tradeids = append(tradeids, trades[i].ID.String())
+	}
+	query := modelSQLite.Trades(qm.WhereIn(`id in ?`, tradeids...))
+	_, err := query.DeleteAll(ctx, bbb)
+	return err
 }
 
 
@@ -293,15 +317,32 @@ func initialDBSetup() (context.Context, *sql.Tx, error) {
 	return ctx, tx, nil
 }
 
-func resultToTradeData(side, amount, price, event, asset, currency, exchangeName, timestamp string) (td trade.Data) {
-	td.Side = side
+func resultToTradeData(side, event, assetType, curr, exchangeName string, amount, price,  timestamp float64) (td trade.Data) {
+	s, err := order.StringToOrderSide(side)
+	if err != nil {
+		// ?
+	}
+	e, err := order.StringToOrderType(event)
+	if err != nil {
+		// ?
+	}
+	a := asset.Spot
+	if asset.IsValid(asset.Item(assetType)) {
+		a = asset.Item(assetType)
+	}
+	cp, err := currency.NewPairFromString(curr)
+	if err != nil {
+		// ?
+	}
+	td.Side = s
 	td.Amount = amount
 	td.Price = price
-	td.EventType = event
-	td.AssetType = asset
-	td.CurrencyPair = currency
+	td.EventType = e
+	td.AssetType = a
+	td.CurrencyPair = cp
 	td.Exchange = exchangeName
-	td.Timestamp = timestamp
+	td.Timestamp = time.Unix(int64(timestamp), 0)
+
 	return td
 }
 

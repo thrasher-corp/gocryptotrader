@@ -6,9 +6,10 @@ CREATE TABLE IF NOT EXISTS trade
     currency varchar NOT NULL,
     asset varchar NOT NULL,
     event varchar NOT NULL,
-    price TIMESTAMP NOT NULL DEFAULT (now() at time zone 'utc'),
-    amount TIMESTAMP NOT NULL DEFAULT (now() at time zone 'utc'),
-    side varchar NOT NULL
+    price DOUBLE PRECISION NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
+    side varchar NOT NULL,
+    timestamp bigint NOT NULL
 );
 -- +goose Down
 DROP TABLE trade;
