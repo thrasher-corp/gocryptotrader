@@ -45,11 +45,12 @@ const (
 	futuresSymbolOrderbook    = "/dapi/v1/ticker/bookTicker?"
 	futuresLiquidationOrders  = "/dapi/v1/allForceOrders?"
 	futuresOpenInterest       = "/dapi/v1/openInterest?"
-	futuresOpenInterestStats  = "/dutures/data/openInterestHist?"
-	futuresTopAccountsRatio   = "/dutures/data/topLongShortAccountRatio?"
-	futuresTopPositionsRatio  = "/dutures/data/topLongShortPositionRatio?"
-	futuresLongShortRatio     = "/dutures/data/globalLongShortAccountRatio?"
-	futuresBuySellVolume      = "/dutures/data/takerlongshortRatio?"
+	futuresOpenInterestStats  = "/futures/data/openInterestHist?"
+	futuresTopAccountsRatio   = "/futures/data/topLongShortAccountRatio?"
+	futuresTopPositionsRatio  = "/futures/data/topLongShortPositionRatio?"
+	futuresLongShortRatio     = "/futures/data/globalLongShortAccountRatio?"
+	futuresBuySellVolume      = "/futures/data/takerBuySellVol?"
+	futuresBasis              = "/futures/data/basis?"
 
 	// Spot
 	exchangeInfo      = "/api/v3/exchangeInfo"
@@ -92,6 +93,10 @@ var validFuturesIntervals = []string{
 	"1m", "3m", "5m", "15m", "30m",
 	"1h", "2h", "4h", "6h", "8h",
 	"12h", "1d", "3d", "1w", "1M",
+}
+
+var validContractType = []string{
+	"ALL", "CURRENT_QUARTER", "NEXT_QUARTER",
 }
 
 // GetFuturesOrderbook gets orderbook data for futures
@@ -276,6 +281,9 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 	var resp []FuturesCandleStick
 	params := url.Values{}
 	params.Set("pair", pair)
+	if !common.StringDataCompare(validContractType, contractType) {
+		return resp, fmt.Errorf("invalid contractType")
+	}
 	params.Set("contractType", contractType)
 	if limit > 0 && limit <= 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -505,6 +513,196 @@ func (b *Binance) GetFuturesSymbolPriceTicker(symbol, pair string) ([]SymbolPric
 		params.Set("pair", pair)
 	}
 	return resp, b.SendHTTPRequest(futuresAPIURL+futuresSymbolPriceTicker+params.Encode(), limitDefault, &resp)
+}
+
+// GetFuturesOrderbookTicker gets orderbook ticker for symbol
+func (b *Binance) GetFuturesOrderbookTicker(symbol, pair string) ([]SymbolOrderBookTicker, error) {
+	var resp []SymbolOrderBookTicker
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresSymbolOrderbook+params.Encode(), limitDefault, &resp)
+}
+
+// GetFuturesLiquidationOrders gets orderbook ticker for symbol
+func (b *Binance) GetFuturesLiquidationOrders(symbol, pair string, limit int64, startTime, endTime time.Time) ([]AllLiquidationOrders, error) {
+	var resp []AllLiquidationOrders
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresLiquidationOrders+params.Encode(), limitDefault, &resp)
+}
+
+// GetOpenInterest gets open interest data for a symbol
+func (b *Binance) GetOpenInterest(symbol string) (OpenInterestData, error) {
+	var resp OpenInterestData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresOpenInterest+params.Encode(), limitDefault, &resp)
+}
+
+// GetOpenInterestStats gets open interest stats for a symbol
+func (b *Binance) GetOpenInterestStats(pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]OpenInterestStats, error) {
+	var resp []OpenInterestStats
+	params := url.Values{}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	if !common.StringDataCompare(validContractType, contractType) {
+		return resp, fmt.Errorf("invalid contractType")
+	}
+	params.Set("contractType", contractType)
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresOpenInterestStats+params.Encode(), limitDefault, &resp)
+}
+
+// GetTraderFuturesAccountRatio gets a traders futures account long/short ratio
+func (b *Binance) GetTraderFuturesAccountRatio(pair, period string, limit int64, startTime, endTime time.Time) ([]TopTraderAccountRatio, error) {
+	var resp []TopTraderAccountRatio
+	params := url.Values{}
+	params.Set("pair", pair)
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresTopAccountsRatio+params.Encode(), limitDefault, &resp)
+}
+
+// GetTraderFuturesPositionsRatio gets a traders futures positions' long/short ratio
+func (b *Binance) GetTraderFuturesPositionsRatio(pair, period string, limit int64, startTime, endTime time.Time) ([]TopTraderPositionRatio, error) {
+	var resp []TopTraderPositionRatio
+	params := url.Values{}
+	params.Set("pair", pair)
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresTopPositionsRatio+params.Encode(), limitDefault, &resp)
+}
+
+// GetMarketRatio gets global long/short ratio
+func (b *Binance) GetMarketRatio(pair, period string, limit int64, startTime, endTime time.Time) ([]TopTraderPositionRatio, error) {
+	var resp []TopTraderPositionRatio
+	params := url.Values{}
+	params.Set("pair", pair)
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresLongShortRatio+params.Encode(), limitDefault, &resp)
+}
+
+// GetFuturesTakerVolume gets futures taker buy/sell volumes
+func (b *Binance) GetFuturesTakerVolume(pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]TakerBuySellVolume, error) {
+	var resp []TakerBuySellVolume
+	params := url.Values{}
+	params.Set("pair", pair)
+	if !common.StringDataCompare(validContractType, contractType) {
+		return resp, fmt.Errorf("invalid contractType")
+	}
+	params.Set("contractType", contractType)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp, fmt.Errorf("invalid period parsed")
+	}
+	params.Set("period", period)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresBuySellVolume+params.Encode(), limitDefault, &resp)
+}
+
+// GetFuturesBasisData gets futures basis data
+func (b *Binance) GetFuturesBasisData(pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]FuturesBasisData, error) {
+	var resp []FuturesBasisData
+	params := url.Values{}
+	params.Set("pair", pair)
+	if !common.StringDataCompare(validContractType, contractType) {
+		return resp, fmt.Errorf("invalid contractType")
+	}
+	params.Set("contractType", contractType)
+	if limit > 0 && limit <= 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !common.StringDataCompare(validFuturesIntervals, period) {
+		return resp, fmt.Errorf("invalid period parsed")
+	}
+	params.Set("period", period)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(futuresAPIURL+futuresBasis+params.Encode(), limitDefault, &resp)
 }
 
 // *************************************************************************************
