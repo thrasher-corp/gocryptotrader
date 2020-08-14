@@ -314,7 +314,14 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						currencyPair := currencyIDMap[channelID]
 						var trade WsTrade
 						trade.Symbol = currencyIDMap[channelID]
-						dataL3 := dataL2.([]interface{})
+						dataL3, ok := dataL2.([]interface{})
+						if !ok {
+							return errors.New("websocket trade update error: type conversion failure")
+						}
+
+						if len(dataL3) != 6 {
+							return errors.New("websocket trade update error: incorrect data returned")
+						}
 
 						// tradeID type intermittently changes
 						switch t := dataL3[1].(type) {
