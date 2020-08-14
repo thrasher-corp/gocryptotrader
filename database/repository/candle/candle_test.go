@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	verbose       = true
+	verbose       = false
 	testExchanges = []exchange.Details{
 		{
 			Name: "one",
