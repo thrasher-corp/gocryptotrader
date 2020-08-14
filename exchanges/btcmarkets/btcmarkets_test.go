@@ -728,7 +728,7 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 	}
 	_, err = b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.FifteenMin)
 	if err != nil {
-		if err.Error() != "Interval: 15m0s not supported " {
+		if err.Error() != "interval not supported" {
 			t.Fatal(err)
 		}
 	}
