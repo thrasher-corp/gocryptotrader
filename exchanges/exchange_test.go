@@ -1839,3 +1839,51 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		})
 	}
 }
+
+func TestBase_ValidateKline(t *testing.T) {
+	pairs := currency.Pairs{
+		currency.Pair{Base: currency.BTC, Quote: currency.USDT},
+	}
+
+	availablePairs := currency.Pairs{
+		currency.Pair{Base: currency.BTC, Quote: currency.USDT},
+		currency.Pair{Base: currency.BTC, Quote: currency.AUD},
+	}
+
+	b := Base{
+		Name: "TESTNAME",
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					AssetEnabled: convert.BoolPtr(true),
+					Enabled:      pairs,
+					Available:    availablePairs,
+				},
+			},
+		},
+		Features: Features{
+			Enabled: FeaturesEnabled{
+				Kline: kline.ExchangeCapabilitiesEnabled{
+					Intervals: map[string]bool{
+						kline.OneMin.Word(): true,
+					},
+				},
+			},
+		},
+	}
+
+	err := b.ValidateKline(availablePairs[0], asset.Spot, kline.OneMin)
+	if err != nil {
+		t.Fatalf("expected validation to pass received error: %v", err)
+	}
+
+	err = b.ValidateKline(availablePairs[1], asset.Spot, kline.OneYear)
+	if err == nil {
+		t.Fatal("expected validation to fail")
+	}
+
+	err = b.ValidateKline(availablePairs[1], asset.Index, kline.OneYear)
+	if err == nil {
+		t.Fatal("expected validation to fail")
+	}
+}

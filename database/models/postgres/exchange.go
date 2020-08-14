@@ -516,7 +516,7 @@ func (exchangeL) LoadExchangeNameWithdrawalHistories(ctx context.Context, e boil
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.ID) {
+				if a == obj.ID {
 					continue Outer
 				}
 			}
@@ -571,7 +571,7 @@ func (exchangeL) LoadExchangeNameWithdrawalHistories(ctx context.Context, e boil
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if queries.Equal(local.ID, foreign.ExchangeNameID) {
+			if local.ID == foreign.ExchangeNameID {
 				local.R.ExchangeNameWithdrawalHistories = append(local.R.ExchangeNameWithdrawalHistories, foreign)
 				if foreign.R == nil {
 					foreign.R = &withdrawalHistoryR{}
@@ -646,7 +646,7 @@ func (o *Exchange) AddExchangeNameWithdrawalHistories(ctx context.Context, exec 
 	var err error
 	for _, rel := range related {
 		if insert {
-			queries.Assign(&rel.ExchangeNameID, o.ID)
+			rel.ExchangeNameID = o.ID
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
@@ -667,7 +667,7 @@ func (o *Exchange) AddExchangeNameWithdrawalHistories(ctx context.Context, exec 
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			queries.Assign(&rel.ExchangeNameID, o.ID)
+			rel.ExchangeNameID = o.ID
 		}
 	}
 
@@ -688,76 +688,6 @@ func (o *Exchange) AddExchangeNameWithdrawalHistories(ctx context.Context, exec 
 			rel.R.ExchangeName = o
 		}
 	}
-	return nil
-}
-
-// SetExchangeNameWithdrawalHistories removes all previously related items of the
-// exchange replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.ExchangeName's ExchangeNameWithdrawalHistories accordingly.
-// Replaces o.R.ExchangeNameWithdrawalHistories with related.
-// Sets related.R.ExchangeName's ExchangeNameWithdrawalHistories accordingly.
-func (o *Exchange) SetExchangeNameWithdrawalHistories(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*WithdrawalHistory) error {
-	query := "update \"withdrawal_history\" set \"exchange_name_id\" = null where \"exchange_name_id\" = $1"
-	values := []interface{}{o.ID}
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, values)
-	}
-
-	_, err := exec.ExecContext(ctx, query, values...)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
-	}
-
-	if o.R != nil {
-		for _, rel := range o.R.ExchangeNameWithdrawalHistories {
-			queries.SetScanner(&rel.ExchangeNameID, nil)
-			if rel.R == nil {
-				continue
-			}
-
-			rel.R.ExchangeName = nil
-		}
-
-		o.R.ExchangeNameWithdrawalHistories = nil
-	}
-	return o.AddExchangeNameWithdrawalHistories(ctx, exec, insert, related...)
-}
-
-// RemoveExchangeNameWithdrawalHistories relationships from objects passed in.
-// Removes related items from R.ExchangeNameWithdrawalHistories (uses pointer comparison, removal does not keep order)
-// Sets related.R.ExchangeName.
-func (o *Exchange) RemoveExchangeNameWithdrawalHistories(ctx context.Context, exec boil.ContextExecutor, related ...*WithdrawalHistory) error {
-	var err error
-	for _, rel := range related {
-		queries.SetScanner(&rel.ExchangeNameID, nil)
-		if rel.R != nil {
-			rel.R.ExchangeName = nil
-		}
-		if _, err = rel.Update(ctx, exec, boil.Whitelist("exchange_name_id")); err != nil {
-			return err
-		}
-	}
-	if o.R == nil {
-		return nil
-	}
-
-	for _, rel := range related {
-		for i, ri := range o.R.ExchangeNameWithdrawalHistories {
-			if rel != ri {
-				continue
-			}
-
-			ln := len(o.R.ExchangeNameWithdrawalHistories)
-			if ln > 1 && i < ln-1 {
-				o.R.ExchangeNameWithdrawalHistories[i] = o.R.ExchangeNameWithdrawalHistories[ln-1]
-			}
-			o.R.ExchangeNameWithdrawalHistories = o.R.ExchangeNameWithdrawalHistories[:ln-1]
-			break
-		}
-	}
-
 	return nil
 }
 

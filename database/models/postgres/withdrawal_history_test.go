@@ -1159,7 +1159,7 @@ func testWithdrawalHistoryToOneExchangeUsingExchangeName(t *testing.T) {
 	var foreign Exchange
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, withdrawalHistoryDBTypes, true, withdrawalHistoryColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, withdrawalHistoryDBTypes, false, withdrawalHistoryColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize WithdrawalHistory struct: %s", err)
 	}
 	if err := randomize.Struct(seed, &foreign, exchangeDBTypes, false, exchangeColumnsWithDefault...); err != nil {
@@ -1170,7 +1170,7 @@ func testWithdrawalHistoryToOneExchangeUsingExchangeName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queries.Assign(&local.ExchangeNameID, foreign.ID)
+	local.ExchangeNameID = foreign.ID
 	if err := local.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
@@ -1180,7 +1180,7 @@ func testWithdrawalHistoryToOneExchangeUsingExchangeName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !queries.Equal(check.ID, foreign.ID) {
+	if check.ID != foreign.ID {
 		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
 	}
 
@@ -1242,7 +1242,7 @@ func testWithdrawalHistoryToOneSetOpExchangeUsingExchangeName(t *testing.T) {
 		if x.R.ExchangeNameWithdrawalHistories[0] != &a {
 			t.Error("failed to append to foreign relationship struct")
 		}
-		if !queries.Equal(a.ExchangeNameID, x.ID) {
+		if a.ExchangeNameID != x.ID {
 			t.Error("foreign key was wrong value", a.ExchangeNameID)
 		}
 
@@ -1253,60 +1253,9 @@ func testWithdrawalHistoryToOneSetOpExchangeUsingExchangeName(t *testing.T) {
 			t.Fatal("failed to reload", err)
 		}
 
-		if !queries.Equal(a.ExchangeNameID, x.ID) {
+		if a.ExchangeNameID != x.ID {
 			t.Error("foreign key was wrong value", a.ExchangeNameID, x.ID)
 		}
-	}
-}
-
-func testWithdrawalHistoryToOneRemoveOpExchangeUsingExchangeName(t *testing.T) {
-	var err error
-
-	ctx := context.Background()
-	tx := MustTx(boil.BeginTx(ctx, nil))
-	defer func() { _ = tx.Rollback() }()
-
-	var a WithdrawalHistory
-	var b Exchange
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, withdrawalHistoryDBTypes, false, strmangle.SetComplement(withdrawalHistoryPrimaryKeyColumns, withdrawalHistoryColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.SetExchangeName(ctx, tx, true, &b); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.RemoveExchangeName(ctx, tx, &b); err != nil {
-		t.Error("failed to remove relationship")
-	}
-
-	count, err := a.ExchangeName().Count(ctx, tx)
-	if err != nil {
-		t.Error(err)
-	}
-	if count != 0 {
-		t.Error("want no relationships remaining")
-	}
-
-	if a.R.ExchangeName != nil {
-		t.Error("R struct entry should be nil")
-	}
-
-	if !queries.IsValuerNil(a.ExchangeNameID) {
-		t.Error("foreign key value should be nil")
-	}
-
-	if len(b.R.ExchangeNameWithdrawalHistories) != 0 {
-		t.Error("failed to remove a from b's relationships")
 	}
 }
 

@@ -2,7 +2,6 @@ package kline
 
 import (
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -78,24 +77,12 @@ type ErrorKline struct {
 	Asset    asset.Item
 	Pair     currency.Pair
 	Interval Interval
+	Err      error
 }
 
 // Error returns short interval unsupported message
 func (k *ErrorKline) Error() string {
-	var errorMsg strings.Builder
-	if k.Interval > 0 {
-		errorMsg.WriteString("Interval: " + k.Interval.String() + " not supported ")
-	}
-
-	if k.Pair.String() != "" {
-		errorMsg.WriteString("Pair: " + k.Pair.String() + " not enabled ")
-	}
-
-	if k.Asset.String() != "" {
-		errorMsg.WriteString("Asset: " + k.Asset.String() + " not enabled ")
-	}
-
-	return errorMsg.String()
+	return k.Err.Error()
 }
 
 // Unwrap returns interval unsupported message

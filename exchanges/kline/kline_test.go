@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"errors"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -103,7 +104,7 @@ func TestCreateKline(t *testing.T) {
 		trades = append(trades, order.TradeHistory{
 			Timestamp: time.Now().Add((time.Duration(rand.Intn(10)) * time.Minute) +
 				(time.Duration(rand.Intn(10)) * time.Second)),
-			TID:    crypto.HexEncodeToString([]byte(string(i))),
+			TID:    crypto.HexEncodeToString([]byte(string(rune(i)))),
 			Amount: float64(rand.Intn(20)) + 1,
 			Price:  1000 + float64(rand.Intn(1000)),
 		})
@@ -255,13 +256,22 @@ func TestKlineErrors(t *testing.T) {
 	v := ErrorKline{
 		Interval: OneYear,
 		Pair:     currency.NewPair(currency.BTC, currency.AUD),
+		Err:      errors.New("hello world"),
 	}
 
-	if v.Error() == "" {
+	if v.Interval != OneYear {
+		t.Fatalf("expected OneYear received %v:", v.Interval)
+	}
+
+	if v.Pair != currency.NewPair(currency.BTC, currency.AUD) {
+		t.Fatalf("expected OneYear received %v:", v.Pair)
+	}
+
+	if v.Error() != "hello world" {
 		t.Fatal("expected error return received empty value")
 	}
 
-	if v.Unwrap().Error() == "" {
+	if v.Unwrap().Error() != "hello world" {
 		t.Fatal("expected error return received empty value")
 	}
 }

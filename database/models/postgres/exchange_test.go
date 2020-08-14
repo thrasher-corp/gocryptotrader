@@ -597,8 +597,9 @@ func testExchangeToManyExchangeNameWithdrawalHistories(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queries.Assign(&b.ExchangeNameID, a.ID)
-	queries.Assign(&c.ExchangeNameID, a.ID)
+	b.ExchangeNameID = a.ID
+	c.ExchangeNameID = a.ID
+
 	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
@@ -613,10 +614,10 @@ func testExchangeToManyExchangeNameWithdrawalHistories(t *testing.T) {
 
 	bFound, cFound := false, false
 	for _, v := range check {
-		if queries.Equal(v.ExchangeNameID, b.ExchangeNameID) {
+		if v.ExchangeNameID == b.ExchangeNameID {
 			bFound = true
 		}
-		if queries.Equal(v.ExchangeNameID, c.ExchangeNameID) {
+		if v.ExchangeNameID == c.ExchangeNameID {
 			cFound = true
 		}
 	}
@@ -769,10 +770,10 @@ func testExchangeToManyAddOpExchangeNameWithdrawalHistories(t *testing.T) {
 		first := x[0]
 		second := x[1]
 
-		if !queries.Equal(a.ID, first.ExchangeNameID) {
+		if a.ID != first.ExchangeNameID {
 			t.Error("foreign key was wrong value", a.ID, first.ExchangeNameID)
 		}
-		if !queries.Equal(a.ID, second.ExchangeNameID) {
+		if a.ID != second.ExchangeNameID {
 			t.Error("foreign key was wrong value", a.ID, second.ExchangeNameID)
 		}
 
@@ -797,181 +798,6 @@ func testExchangeToManyAddOpExchangeNameWithdrawalHistories(t *testing.T) {
 		if want := int64((i + 1) * 2); count != want {
 			t.Error("want", want, "got", count)
 		}
-	}
-}
-
-func testExchangeToManySetOpExchangeNameWithdrawalHistories(t *testing.T) {
-	var err error
-
-	ctx := context.Background()
-	tx := MustTx(boil.BeginTx(ctx, nil))
-	defer func() { _ = tx.Rollback() }()
-
-	var a Exchange
-	var b, c, d, e WithdrawalHistory
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*WithdrawalHistory{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, withdrawalHistoryDBTypes, false, strmangle.SetComplement(withdrawalHistoryPrimaryKeyColumns, withdrawalHistoryColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err = a.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-
-	err = a.SetExchangeNameWithdrawalHistories(ctx, tx, false, &b, &c)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err := a.ExchangeNameWithdrawalHistories().Count(ctx, tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	err = a.SetExchangeNameWithdrawalHistories(ctx, tx, true, &d, &e)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err = a.ExchangeNameWithdrawalHistories().Count(ctx, tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	if !queries.IsValuerNil(b.ExchangeNameID) {
-		t.Error("want b's foreign key value to be nil")
-	}
-	if !queries.IsValuerNil(c.ExchangeNameID) {
-		t.Error("want c's foreign key value to be nil")
-	}
-	if !queries.Equal(a.ID, d.ExchangeNameID) {
-		t.Error("foreign key was wrong value", a.ID, d.ExchangeNameID)
-	}
-	if !queries.Equal(a.ID, e.ExchangeNameID) {
-		t.Error("foreign key was wrong value", a.ID, e.ExchangeNameID)
-	}
-
-	if b.R.ExchangeName != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if c.R.ExchangeName != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if d.R.ExchangeName != &a {
-		t.Error("relationship was not added properly to the foreign struct")
-	}
-	if e.R.ExchangeName != &a {
-		t.Error("relationship was not added properly to the foreign struct")
-	}
-
-	if a.R.ExchangeNameWithdrawalHistories[0] != &d {
-		t.Error("relationship struct slice not set to correct value")
-	}
-	if a.R.ExchangeNameWithdrawalHistories[1] != &e {
-		t.Error("relationship struct slice not set to correct value")
-	}
-}
-
-func testExchangeToManyRemoveOpExchangeNameWithdrawalHistories(t *testing.T) {
-	var err error
-
-	ctx := context.Background()
-	tx := MustTx(boil.BeginTx(ctx, nil))
-	defer func() { _ = tx.Rollback() }()
-
-	var a Exchange
-	var b, c, d, e WithdrawalHistory
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*WithdrawalHistory{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, withdrawalHistoryDBTypes, false, strmangle.SetComplement(withdrawalHistoryPrimaryKeyColumns, withdrawalHistoryColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-
-	err = a.AddExchangeNameWithdrawalHistories(ctx, tx, true, foreigners...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err := a.ExchangeNameWithdrawalHistories().Count(ctx, tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 4 {
-		t.Error("count was wrong:", count)
-	}
-
-	err = a.RemoveExchangeNameWithdrawalHistories(ctx, tx, foreigners[:2]...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err = a.ExchangeNameWithdrawalHistories().Count(ctx, tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	if !queries.IsValuerNil(b.ExchangeNameID) {
-		t.Error("want b's foreign key value to be nil")
-	}
-	if !queries.IsValuerNil(c.ExchangeNameID) {
-		t.Error("want c's foreign key value to be nil")
-	}
-
-	if b.R.ExchangeName != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if c.R.ExchangeName != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if d.R.ExchangeName != &a {
-		t.Error("relationship to a should have been preserved")
-	}
-	if e.R.ExchangeName != &a {
-		t.Error("relationship to a should have been preserved")
-	}
-
-	if len(a.R.ExchangeNameWithdrawalHistories) != 2 {
-		t.Error("should have preserved two relationships")
-	}
-
-	// Removal doesn't do a stable deletion for performance so we have to flip the order
-	if a.R.ExchangeNameWithdrawalHistories[1] != &d {
-		t.Error("relationship to d should have been preserved")
-	}
-	if a.R.ExchangeNameWithdrawalHistories[0] != &e {
-		t.Error("relationship to e should have been preserved")
 	}
 }
 

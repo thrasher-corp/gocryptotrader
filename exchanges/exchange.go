@@ -1080,6 +1080,7 @@ func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 	}
 
 	if len(errorList) > 0 {
+		err.Err = errors.New(strings.Join(errorList, ","))
 		return &err
 	}
 

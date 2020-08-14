@@ -25,7 +25,7 @@ import (
 
 // Series returns candle data
 func Series(exchangeName, base, quote string, interval int64, asset string, start, end time.Time) (out Item, err error) {
-	if exchangeName == "" || base == "" || quote == "" || interval <= 0 {
+	if exchangeName == "" || base == "" || quote == "" || asset == "" || interval <= 0 {
 		return out, errInvalidInput
 	}
 
@@ -128,7 +128,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 			Base:       in.Base,
 			Quote:      in.Quote,
 			Interval:   strconv.FormatInt(in.Interval, 10),
-			Asset:      null.NewString(in.Asset, true),
+			Asset:      in.Asset,
 			Timestamp:  in.Candles[x].Timestamp.Format(time.RFC3339),
 			Open:       in.Candles[x].Open,
 			High:       in.Candles[x].High,

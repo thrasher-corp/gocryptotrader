@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
-	"github.com/volatiletech/null"
 )
 
 var (
@@ -75,7 +74,7 @@ func Event(res *withdraw.Response) {
 
 func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err error) {
 	var tempEvent = modelPSQL.WithdrawalHistory{
-		ExchangeNameID: null.NewString(res.Exchange.Name, true),
+		ExchangeNameID: res.Exchange.Name,
 		ExchangeID:     res.Exchange.ID,
 		Status:         res.Exchange.Status,
 		Currency:       res.RequestDetails.Currency.String(),
@@ -156,7 +155,7 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 
 	var tempEvent = modelSQLite.WithdrawalHistory{
 		ID:             newUUID.String(),
-		ExchangeNameID: null.NewString(res.Exchange.Name, true),
+		ExchangeNameID: res.Exchange.Name,
 		ExchangeID:     res.Exchange.ID,
 		Status:         res.Exchange.Status,
 		Currency:       res.RequestDetails.Currency.String(),
@@ -320,7 +319,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
-				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID.String)
+				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
 				if errUUID != nil {
 					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
 				} else {
@@ -396,7 +395,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
-				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID.String)
+				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
 				if errUUID != nil {
 					log.Errorf(log.DatabaseMgr, "invalid exchange name UUID for record %v", v[x].ID)
 				} else {

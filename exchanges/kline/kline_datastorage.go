@@ -54,6 +54,10 @@ func StoreInDatabase(in *Item) (uint64, error) {
 		return 0, errors.New("currency pair cannot be empty")
 	}
 
+	if in.Asset == "" {
+		return 0, errors.New("asset cannot be blank")
+	}
+
 	if len(in.Candles) < 1 {
 		return 0, errors.New("candle data is empty")
 	}
