@@ -325,6 +325,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							}
 						case float64:
 							trade.TradeID = int64(t)
+						default:
+							return fmt.Errorf("unhandled type for websocket trade update: %v", t)
 						}
 
 						side := order.Buy
