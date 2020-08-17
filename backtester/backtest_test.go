@@ -1,6 +1,8 @@
 package backtest
 
-import "testing"
+import (
+	"testing"
+)
 
 type testBT struct{}
 

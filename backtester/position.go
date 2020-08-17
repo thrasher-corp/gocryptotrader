@@ -45,11 +45,11 @@ func (s *Size) setDefaultSize(price float64) float64 {
 }
 
 func (p *Position) update(inOrder *Order) {
-	fillQty := order.GetAmountFilled())
-	fillPrice := order.GetAvgFillPrice()
-	fillExchangeFee := order.ExchangeFee()
-	fillCost := order.Cost()
-	fillNetValue := order.NetValue()
+	fillQty := inOrder.GetAmountFilled()
+	fillPrice := inOrder.GetAvgFillPrice()
+	fillExchangeFee := inOrder.ExchangeFee()
+	fillCost := inOrder.Cost()
+	fillNetValue := inOrder.NetValue()
 
 
 	amount := p.Amount
