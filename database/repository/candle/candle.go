@@ -25,7 +25,7 @@ import (
 
 // Series returns candle data
 func Series(exchangeName, base, quote string, interval int64, asset string, start, end time.Time) (out Item, err error) {
-	if base == "" || quote == "" || asset == "" || interval <= 0 {
+	if exchangeName == "" || base == "" || quote == "" || asset == "" || interval <= 0 {
 		return out, errInvalidInput
 	}
 
@@ -37,13 +37,11 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		qm.Where("timestamp between ? and ?", start, end),
 	}
 
-	if exchangeName != "" {
-		exchangeUUID, errS := exchange.UUIDByName(exchangeName)
-		if errS != nil {
-			return out, errS
-		}
-		queries = append(queries, qm.Where("exchange_id = ?", exchangeUUID.String()))
+	exchangeUUID, errS := exchange.UUIDByName(exchangeName)
+	if errS != nil {
+		return out, errS
 	}
+	queries = append(queries, qm.Where("exchange_id = ?", exchangeUUID.String()))
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
