@@ -69,6 +69,29 @@ const (
 	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
 
 	// Authenticated endpoints
+
+	// futures
+	futuresCurrentPositionMode   = "/dapi/v1/positionSide/dual"
+	futuresOrder                 = "/dapi/v1/order"
+	futuresBatchOrder            = "/dapi/v1/batchOrders"
+	futuresCancelAllOrders       = "/dapi/v1/allOpenOrders"
+	futuresCountdownCancel       = "/dapi/v1/countdownCancelAll"
+	futuresOpenOrder             = "/dapi/v1/openOrder"
+	futuresAllOpenOrders         = "/dapi/v1/openOrders"
+	futuresAllOrders             = "/dapi/v1/allOrders"
+	futuresAccountBalance        = "/dapi/v1/balance"
+	futuresAccountInfo           = "/dapi/v1/account"
+	futuresChangeInitialLeverage = "/dapi/v1/leverage"
+	futuresChangeMarginType      = "/dapi/v1/marginType"
+	futuresModifyMargin          = "/dapi/v1/positionMargin"
+	futuresMarginChange          = "/dapi/v1/positionMargin/history"
+	futuresPositionInfo          = "/dapi/v1/positionRisk"
+	futuresAccountTradeList      = "/dapi/v1/userTrades"
+	futuresIncomeHistory         = "/dapi/v1/income"
+	futuresNotionalBracket       = "/dapi/v1/leverageBracket"
+	futuresUsersForceOrders      = "/dapi/v1/forceOrders"
+
+	// spot
 	newOrderTest = "/api/v3/order/test"
 	newOrder     = "/api/v3/order"
 	cancelOrder  = "/api/v3/order"
@@ -97,6 +120,26 @@ var validFuturesIntervals = []string{
 
 var validContractType = []string{
 	"ALL", "CURRENT_QUARTER", "NEXT_QUARTER",
+}
+
+var validOrderType = []string{
+	"LIMIT", "MARKET", "STOP", "TAKE_PROFIT",
+	"STOP_MARKET", "TAKE_PROFIT_MARKET", "TRAILING_STOP_MARKET",
+}
+
+var validNewOrderRespType = []string{"ACK", "RESULT"}
+
+var validWorkingType = []string{"MARK_PRICE", "CONTRACT_TYPE"}
+
+var validBoolString = []string{"true", "false"}
+
+var validPositionSide = []string{"BOTH", "LONG", "SHORT"}
+
+var validMarginType = []string{"ISOLATED", "CROSSED"}
+
+var validMarginChange = map[string]int64{
+	"add":    1,
+	"reduce": 2,
 }
 
 // GetFuturesOrderbook gets orderbook data for futures
@@ -705,6 +748,228 @@ func (b *Binance) GetFuturesBasisData(pair, contractType, period string, limit i
 	return resp, b.SendHTTPRequest(futuresAPIURL+futuresBasis+params.Encode(), limitDefault, &resp)
 }
 
+// FuturesNewOrder sends a new futures order to the exchange
+func (b *Binance) FuturesNewOrder(symbol, side, positionSide, orderType, timeInForce,
+	reduceOnly, newClientOrderID, closePosition, workingType, newOrderRespType string,
+	quantity, price, stopPrice, activationPrice, callbackRate float64) (FuturesOrderPlaceData, error) {
+	var resp FuturesOrderPlaceData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("side", side)
+	if positionSide != "" {
+		if !common.StringDataCompare(validPositionSide, positionSide) {
+			return resp, fmt.Errorf("invalid positionSide")
+		}
+		params.Set("positionSide", positionSide)
+	}
+	params.Set("type", orderType)
+	params.Set("timeInForce", timeInForce)
+	params.Set("orderType", orderType)
+	if reduceOnly != "" {
+		if !common.StringDataCompare(validBoolString, reduceOnly) {
+			return resp, fmt.Errorf("invalid reduceOnly")
+		}
+		params.Set("reduceOnly", reduceOnly)
+	}
+	if newClientOrderID != "" {
+		params.Set("newClientOrderID", newClientOrderID)
+	}
+	if closePosition != "" {
+		params.Set("closePosition", closePosition)
+	}
+	if workingType != "" {
+		if !common.StringDataCompare(validWorkingType, workingType) {
+			return resp, fmt.Errorf("invalid workingType")
+		}
+		params.Set("workingType", workingType)
+	}
+	if newOrderRespType != "" {
+		if !common.StringDataCompare(validNewOrderRespType, newOrderRespType) {
+			return resp, fmt.Errorf("invalid newOrderRespType")
+		}
+		params.Set("newOrderRespType", newOrderRespType)
+	}
+	if quantity != 0 {
+		params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+	}
+	if price != 0 {
+		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	}
+	if stopPrice != 0 {
+		params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
+	}
+	if activationPrice != 0 {
+		params.Set("activationPrice", strconv.FormatFloat(activationPrice, 'f', -1, 64))
+	}
+	if callbackRate != 0 {
+		params.Set("callbackRate", strconv.FormatFloat(callbackRate, 'f', -1, 64))
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+futuresOrder, params, limitDefault, &resp)
+}
+
+// FuturesGetOrderData gets futures order data
+func (b *Binance) FuturesGetOrderData(symbol, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
+	var resp FuturesOrderGetData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresOrder, params, limitDefault, &resp)
+}
+
+// FuturesCancelOrder cancels a futures order
+func (b *Binance) FuturesCancelOrder(symbol, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
+	var resp FuturesOrderGetData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+futuresOrder, params, limitDefault, &resp)
+}
+
+// CancelAllOpenOrders cancels a futures order
+func (b *Binance) CancelAllOpenOrders(symbol string) (GenericAuthResponse, error) {
+	var resp GenericAuthResponse
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+futuresCancelAllOrders, params, limitDefault, &resp)
+}
+
+// CancelBatchOrders
+
+// AutoCancelAllOpenOrders cancels all open futures orders
+// countdownTime 1000 = 1s, example - to cancel all orders after 30s (countdownTime: 30000)
+func (b *Binance) AutoCancelAllOpenOrders(symbol string, countdownTime int64) (AutoCancelAllOrdersData, error) {
+	var resp AutoCancelAllOrdersData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("countdownTime", strconv.FormatInt(countdownTime, 10))
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+futuresCountdownCancel, params, limitDefault, &resp)
+}
+
+// FuturesOpenOrderData gets open order data for futures
+func (b *Binance) FuturesOpenOrderData(symbol, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
+	var resp FuturesOrderGetData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresOpenOrder, params, limitDefault, &resp)
+}
+
+// GetFuturesAllOpenOrders gets all open orders data for futures
+func (b *Binance) GetFuturesAllOpenOrders(symbol, pair string) ([]FuturesOrderGetData, error) {
+	var resp []FuturesOrderGetData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresAllOpenOrders, params, limitDefault, &resp)
+}
+
+// GetAllFuturesOrders gets all orders active cancelled or filled
+func (b *Binance) GetAllFuturesOrders(symbol, pair string, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderGetData, error) {
+	var resp []FuturesOrderGetData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	if orderID != 0 {
+		params.Set("orderID", strconv.FormatInt(orderID, 10))
+	}
+	if limit > 0 && limit <= 100 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresAllOrders, params, limitDefault, &resp)
+}
+
+// GetFuturesAccountBalance gets account balance data for futures account
+func (b *Binance) GetFuturesAccountBalance() ([]FuturesAccountBalanceData, error) {
+	var resp []FuturesAccountBalanceData
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresAccountBalance, nil, limitDefault, &resp)
+}
+
+// GetFuturesAccountInfo gets account info data for futures account
+func (b *Binance) GetFuturesAccountInfo() (FuturesAccountInformation, error) {
+	var resp FuturesAccountInformation
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresAccountInfo, nil, limitDefault, &resp)
+}
+
+// FuturesChangeInitialLeverage changes initial leverage for the account
+func (b *Binance) FuturesChangeInitialLeverage(symbol string, leverage int64) (FuturesLeverageData, error) {
+	var resp FuturesLeverageData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !(leverage >= 1 && leverage <= 125) {
+		return resp, fmt.Errorf("invalid leverage")
+	}
+	params.Set("leverage", strconv.FormatInt(leverage, 10))
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+futuresChangeInitialLeverage, params, limitDefault, &resp)
+}
+
+// FuturesChangeMarginType changes margin type
+func (b *Binance) FuturesChangeMarginType(symbol, marginType string) (GenericAuthResponse, error) {
+	var resp GenericAuthResponse
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(validMarginType, marginType) {
+		return resp, fmt.Errorf("invalid marginType")
+	}
+	params.Set("marginType", marginType)
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+futuresChangeMarginType, params, limitDefault, &resp)
+}
+
+// ModifyIsolatedPositionMargin changes margin for an isolated position
+func (b *Binance) ModifyIsolatedPositionMargin(symbol, positionSide, changeType string, amount float64) (GenericAuthResponse, error) {
+	var resp GenericAuthResponse
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(validPositionSide, positionSide) {
+		return resp, fmt.Errorf("invalid positionSide")
+	}
+	params.Set("positionSide", positionSide)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+futuresChangeMarginType, params, limitDefault, &resp)
+}
+
 // *************************************************************************************
 
 // GetInterestHistory gets interest history for currency/currencies provided
@@ -1188,6 +1453,11 @@ func (b *Binance) SendHTTPRequest(path string, f request.EndpointLimit, result i
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 		Endpoint:      f})
+}
+
+// SendFuturesAuthRequest sends an authenticated HTTP request
+func (b *Binance) SendFuturesAuthRequest(method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
+	return nil
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request

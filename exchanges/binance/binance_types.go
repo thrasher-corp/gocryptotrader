@@ -162,10 +162,11 @@ type FuturesBasisData struct {
 	Timestamp    int64   `json:"timestamp"`
 }
 
-// NewFutureAccountTransfer stores new transfer data
-type NewFeatureAccountTransfer struct {
+// FuturesOrderPlaceData stores futures order data
+type FuturesOrderPlaceData struct {
 	ClientOrderID string  `json:"clientOrderID"`
-	CumQty        string  `json:"cumQty"`
+	CumQty        float64 `json:"cumQty"`
+	CumBase       float64 `json:"cumBase"`
 	ExecuteQty    float64 `json:"executeQty,string"`
 	OrderID       int64   `json:"orderID"`
 	AvgPrice      float64 `json:"avgPrice"`
@@ -182,6 +183,34 @@ type NewFeatureAccountTransfer struct {
 	TimeInForce   string  `json:"TimeInForce"`
 	OrderType     string  `json:"type"`
 	OrigType      string  `json:"origType"`
+	ActivatePrice float64 `json:"activatePrice"`
+	PriceRate     float64 `json:"priceRate"`
+	UpdateTime    int64   `json:"updateTime"`
+	WorkingType   string  `json:"workingType"`
+	PriceProtect  bool    `json:"priceProtect"`
+}
+
+// FuturesOrderGetData stores futures order data for get requests
+type FuturesOrderGetData struct {
+	AvgPrice      float64 `json:"avgPrice"`
+	ClientOrderID string  `json:"clientOrderID"`
+	CumQty        float64 `json:"cumQty"`
+	CumBase       float64 `json:"cumBase"`
+	ExecutedQty   float64 `json:"executedQty"`
+	OrderID       int64   `json:"orderId"`
+	OrigQty       float64 `json:"origQty"`
+	OrigType      string  `json:"origType"`
+	Price         float64 `json:"price"`
+	ReduceOnly    bool    `json:"reduceOnly"`
+	Side          string  `json:"buy"`
+	PositionSide  string  `json:"positionSide"`
+	Status        string  `json:"status"`
+	StopPrice     float64 `json:"stopPrice"`
+	ClosePosition bool    `json:"closePosition"`
+	Symbol        string  `json:"symbol"`
+	Pair          string  `json:"pair"`
+	TimeInForce   string  `json:"timeInForce"`
+	OrderType     string  `json:"type"`
 	ActivatePrice float64 `json:"activatePrice"`
 	PriceRate     float64 `json:"priceRate"`
 	UpdateTime    int64   `json:"updateTime"`
@@ -251,7 +280,7 @@ type FuturesAccountInformation struct {
 		Symbol                 string  `json:"symbol"`
 		InitialMargin          float64 `json:"initialMargin,string"`
 		MaintMargin            float64 `json:"maintMargin,string"`
-		UnrealizedProfit       float64 `json:"unrealizedProfit"`
+		UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
 		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
 		OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
 		Leverage               float64 `json:"leverage,string"`
@@ -271,6 +300,13 @@ type FuturesAccountInformation struct {
 type GenericAuthResponse struct {
 	Code int64  `json:"code"`
 	Msg  string `json:"msg"`
+}
+
+// FuturesLeverageData stores leverage data for futures
+type FuturesLeverageData struct {
+	Leverage int64   `json:"leverage"`
+	MaxQty   float64 `json:"maxQty,string"`
+	Symbol   string  `json:"symbol"`
 }
 
 // ModifyIsolatedMarginData stores margin modification data
