@@ -597,6 +597,7 @@ message GetHistoricCandlesRequest {
     int64 time_interval = 6;
     bool ex_request = 7;
     bool sync = 8;
+    bool use_db = 9;
 }
 
 message GetHistoricCandlesResponse {

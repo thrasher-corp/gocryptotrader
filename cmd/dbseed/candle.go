@@ -40,7 +40,7 @@ var seedCandleCommand = &cli.Command{
 				},
 				&cli.StringFlag{
 					Name:      "filename",
-					Usage:     "CSV file to load candle data from",
+					Usage:     "CSV file to load candle data from (see readme for formatting details)",
 					TakesFile: true,
 					FilePath:  workingDir,
 				},

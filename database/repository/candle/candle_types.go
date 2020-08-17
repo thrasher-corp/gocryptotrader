@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	errInvalidInput = errors.New("exchange, base , quote, asset, interval, start & end cannot be empty")
+	errInvalidInput = errors.New("base , quote, asset, interval, start & end cannot be empty")
 )
 
 // Item generic candle holder for modelPSQL & modelSQLite

@@ -17,7 +17,7 @@ import (
 )
 
 // LoadFromDatabase returns Item from database seeded data
-func LoadFromDatabase(exchange string, pair currency.Pair, interval Interval, a asset.Item, start, end time.Time) (Item, error) {
+func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interval Interval, start, end time.Time) (Item, error) {
 	retCandle, err := candle.Series(exchange,
 		pair.Base.String(), pair.Quote.String(),
 		int64(interval.Duration().Seconds()), a.String(), start, end)

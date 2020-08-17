@@ -3789,7 +3789,7 @@ func getHistoricCandles(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
+	if exchangeName != "" && !validExchange(exchangeName) {
 		return errInvalidExchange
 	}
 
@@ -3909,6 +3909,10 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Name:  "sync",
 			Usage: "<true/false>",
 		},
+		cli.BoolFlag{
+			Name:  "db",
+			Usage: "source data from database <true/false>",
+		},
 	},
 }
 
@@ -3923,7 +3927,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if !validExchange(exchangeName) {
+	if exchangeName != "" && !validExchange(exchangeName) {
 		return errInvalidExchange
 	}
 
@@ -3979,6 +3983,11 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		sync = c.Bool("sync")
 	}
 
+	var db bool
+	if c.IsSet("db") {
+		db = c.Bool("db")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -4016,6 +4025,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 			TimeInterval: int64(candleInterval),
 			ExRequest:    true,
 			Sync:         sync,
+			UseDb:        db,
 		})
 	if err != nil {
 		return err

@@ -25,25 +25,28 @@ import (
 
 // Series returns candle data
 func Series(exchangeName, base, quote string, interval int64, asset string, start, end time.Time) (out Item, err error) {
-	if exchangeName == "" || base == "" || quote == "" || asset == "" || interval <= 0 {
+	if base == "" || quote == "" || asset == "" || interval <= 0 {
 		return out, errInvalidInput
 	}
 
-	exchangeUUID, err := exchange.UUIDByName(exchangeName)
-	if err != nil {
-		return
+	queries := []qm.QueryMod{
+		qm.Where("base = ?", base),
+		qm.Where("quote = ?", quote),
+		qm.Where("interval = ?", interval),
+		qm.Where("asset = ?", asset),
+		qm.Where("timestamp between ? and ?", start, end),
 	}
 
-	uuidQM := qm.Where("exchange_id = ?", exchangeUUID.String())
-	baseQM := qm.Where("base = ?", base)
-	quoteQM := qm.Where("quote = ?", quote)
-	intervalQM := qm.Where("interval = ?", interval)
-
-	assetQM := qm.Where("asset = ?", asset)
-	dateQM := qm.Where("timestamp between ? and ?", start, end)
+	if exchangeName != "" {
+		exchangeUUID, errS := exchange.UUIDByName(exchangeName)
+		if errS != nil {
+			return out, errS
+		}
+		queries = append(queries, qm.Where("exchange_id = ?", exchangeUUID.String()))
+	}
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		retCandle, errC := modelSQLite.Candles(uuidQM, baseQM, quoteQM, intervalQM, dateQM, assetQM).All(context.Background(), database.DB.SQL)
+		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
 		if errC != nil {
 			return out, errC
 		}
@@ -62,7 +65,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 			})
 		}
 	} else {
-		retCandle, errC := modelPSQL.Candles(uuidQM, baseQM, quoteQM, intervalQM, dateQM).All(context.Background(), database.DB.SQL)
+		retCandle, errC := modelPSQL.Candles(queries...).All(context.Background(), database.DB.SQL)
 		if errC != nil {
 			return out, errC
 		}
