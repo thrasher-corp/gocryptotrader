@@ -314,11 +314,28 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						currencyPair := currencyIDMap[channelID]
 						var trade WsTrade
 						trade.Symbol = currencyIDMap[channelID]
-						dataL3 := dataL2.([]interface{})
-						trade.TradeID, err = strconv.ParseInt(dataL3[1].(string), 10, 64)
-						if err != nil {
-							return err
+						dataL3, ok := dataL2.([]interface{})
+						if !ok {
+							return errors.New("websocket trade update error: type conversion failure")
 						}
+
+						if len(dataL3) != 6 {
+							return errors.New("websocket trade update error: incorrect data returned")
+						}
+
+						// tradeID type intermittently changes
+						switch t := dataL3[1].(type) {
+						case string:
+							trade.TradeID, err = strconv.ParseInt(t, 10, 64)
+							if err != nil {
+								return err
+							}
+						case float64:
+							trade.TradeID = int64(t)
+						default:
+							return fmt.Errorf("unhandled type for websocket trade update: %v", t)
+						}
+
 						side := order.Buy
 						if dataL3[2].(float64) != 1 {
 							side = order.Sell
