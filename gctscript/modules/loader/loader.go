@@ -26,6 +26,13 @@ func GetModuleMap() *tengo.ModuleMap {
 		}
 	}
 
+	backtestModule := backtester.AllModuleNames()
+	for _, name := range backtestModule {
+		if mod := backtestModule.Modules[name]; mod != nil {
+			modules.AddBuiltinModule(name, mod)
+		}
+	}
+
 	stdLib := stdlib.AllModuleNames()
 	for _, name := range stdLib {
 		if mod := stdlib.BuiltinModules[name]; mod != nil {
