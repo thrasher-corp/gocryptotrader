@@ -8,7 +8,7 @@ import (
 )
 
 func (e *Exchange) OnData(data DataEvent, t *Backtest) (OrderEvent, error) {
-	portfolio := t.portfolio.(*Portfolio)
+	portfolio := t.Portfolio.(*Portfolio)
 	candle := data.(*Candle)
 
 	orders := &portfolio.OrderBook

@@ -24,7 +24,7 @@ func (s *Size) SizeOrder(orderevent OrderEvent, data DataEvent, pf PortfolioHand
 		o.SetAmount(s.setDefaultSize(data.Price()))
 	default:
 		if _, ok := pf.IsInvested(); !ok {
-			return o, errors.New("no position in portfolio")
+			return o, errors.New("no position in Portfolio")
 		}
 		if pos, ok := pf.IsLong(); ok {
 			o.SetAmount(pos.Amount)

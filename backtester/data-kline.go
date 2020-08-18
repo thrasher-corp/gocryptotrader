@@ -1,9 +1,13 @@
 package backtest
 
-import "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+import (
+	"sort"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+)
 
 type DataFromKlineItem struct {
-	kline kline.Item
+	Item kline.Item
 
 	latest DataEvent
 	stream []DataEvent
@@ -45,13 +49,13 @@ func (d *DataFromKlineItem) SetStream(stream []DataEvent) {
 
 func (d *DataFromKlineItem) Load() {
 	var candles []*Candle
-	for x := range d.kline.Candles {
+	for x := range d.Item.Candles {
 		candles = append(candles, &Candle{
-			Open:   d.kline.Candles[x].Open,
-			High:   d.kline.Candles[x].High,
-			Low:    d.kline.Candles[x].Low,
-			Close:  d.kline.Candles[x].Close,
-			Volume: d.kline.Candles[x].Volume,
+			Open:   d.Item.Candles[x].Open,
+			High:   d.Item.Candles[x].High,
+			Low:    d.Item.Candles[x].Low,
+			Close:  d.Item.Candles[x].Close,
+			Volume: d.Item.Candles[x].Volume,
 		})
 	}
 
@@ -60,4 +64,29 @@ func (d *DataFromKlineItem) Load() {
 		list[i] = candles[i]
 	}
 	d.SetStream(list)
+}
+
+func (d *DataFromKlineItem) SortStream() {
+	sort.Slice(d.stream, func(i, j int) bool {
+		b1 := d.stream[i]
+		b2 := d.stream[j]
+
+		return b1.Time().Before(b2.Time())
+	})
+}
+
+func (d *DataFromKlineItem) updateLatest(event DataEvent) {
+	if d.latest == nil {
+		d.latest = make(map[string]Data)
+	}
+
+	d.latest = event
+}
+
+func (d *Data) updateList(event DataEvent) {
+	if d.list == nil {
+		d.list = make(map[string][]DataEvent)
+	}
+
+	d.list[event.Pair()] = append(d.list[event.Pair()], event)
 }

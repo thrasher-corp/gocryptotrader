@@ -6,7 +6,7 @@ import (
 
 type Backtest struct {
 	data      DataHandler
-	portfolio PortfolioHandler
+	Portfolio PortfolioHandler
 	algo      AlgoHandler
 	execution ExecutionHandler
 

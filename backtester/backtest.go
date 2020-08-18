@@ -12,7 +12,7 @@ func (b *Backtest) Run() error {
 	}
 
 	for d, ok := b.data.Next(); ok; d, ok = b.data.Next() {
-		b.portfolio.Update(d)
+		b.Portfolio.Update(d)
 		_, err := b.execution.OnData(d, b)
 		if err != nil {
 			return err
@@ -31,7 +31,7 @@ func (b *Backtest) setup() error {
 }
 
 func (b *Backtest) GetPortfolio() (portfolio PortfolioHandler) {
-	return b.portfolio
+	return b.Portfolio
 }
 
 func Run(algo AlgoHandler, data DataHandler) error {
