@@ -58,8 +58,6 @@ type FuturesTradeHistoryData struct {
 	} `json:"history"`
 }
 
-//
-
 // FuturesTickerData stores info for futures ticker
 type FuturesTickerData struct {
 	Tickers []struct {
@@ -82,6 +80,118 @@ type FuturesTickerData struct {
 		FundingRatePrediction float64 `json:"fundingRatePrediction,omitempty"`
 	} `json:"tickers"`
 	ServerTime string `json:"serverTime"`
+}
+
+// FuturesEditedOrderData stores an edited order's data
+type FuturesEditedOrderData struct {
+	ServerTime string `json:"serverTime"`
+	EditStatus struct {
+		Status       string `json:"status"`
+		OrderID      string `json:"orderId"`
+		ReceivedTime string `json:"receivedTime"`
+		OrderEvents  []struct {
+			Old FuturesOrderData `json:"old"`
+			New FuturesOrderData `json:"new"`
+		} `json:"orderEvents"`
+		ReduceQuantity string `json:"reduceQuantity"`
+		DataType       string `json:"type"`
+	} `json:"editStatus"`
+}
+
+// FuturesSendOrderData stores send order data
+type FuturesSendOrderData struct {
+	SendStatus struct {
+		OrderID      string `json:"orderId"`
+		Status       string `json:"status"`
+		ReceivedTime string `json:"receivedTime"`
+		OrderEvents  []struct {
+			UID      string           `json:"uid"`
+			Order    FuturesOrderData `json:"order"`
+			Reason   string           `json:"reason"`
+			DataType string           `json:"type"`
+		} `json:"orderEvents"`
+	} `json:"sendStatus"`
+	ServerTime string `json:"serverTime"`
+}
+
+// FuturesOrderData stores order data
+type FuturesOrderData struct {
+	OrderID             string  `json:"orderId"`
+	ClientOrderID       string  `json:"cliOrderId"`
+	OrderType           string  `json:"type"`
+	Symbol              string  `json:"symbol"`
+	Side                string  `json:"side"`
+	Quantity            float64 `json:"quantity"`
+	Filled              float64 `json:"filled"`
+	LimitPrice          float64 `json:"limitPrice"`
+	ReduceOnly          bool    `json:"reduceOnly"`
+	Timestamp           string  `json:"timestamp"`
+	LastUpdateTimestamp string  `json:"lastUpdateTimestamp"`
+}
+
+// FuturesCancelOrderData stores cancel order data for futures
+type FuturesCancelOrderData struct {
+	CancelStatus struct {
+		Status       string `json:"status"`
+		OrderID      string `json:"order_id"`
+		ReceivedTime string `json:"receivedTime"`
+		OrderEvents  []struct {
+			UID      string           `json:"uid"`
+			Order    FuturesOrderData `json:"order"`
+			DataType string           `json:"type"`
+		} `json:"orderEvents"`
+	} `json:"cancelStatus"`
+	ServerTime string `json:"serverTime"`
+}
+
+// FuturesFillsData stores fills data
+type FuturesFillsData struct {
+	Fills []struct {
+		FillID   string  `json:"fill_id"`
+		Symbol   string  `json:"symbol"`
+		Side     string  `json:"buy"`
+		OrderID  string  `json:"order_id"`
+		Size     float64 `json:"size"`
+		Price    float64 `json:"price"`
+		FillTime string  `json:"fillTime"`
+		FillType string  `json:"fillType"`
+	} `json:"fills"`
+	ServerTime string `json:"serverTime"`
+}
+
+// FuturesTransferData stores transfer data
+type FuturesTransferData struct {
+	Result     string `json:"result"`
+	ServerTime string `json:"serverTime"`
+}
+
+// FuturesOpenPositions stores open positions data for futures
+type FuturesOpenPositions struct {
+	OpenPositions []struct {
+		Side              string  `json:"side"`
+		Symbol            string  `json:"symbol"`
+		Price             float64 `json:"price"`
+		FillTime          string  `json:"fillTime"`
+		Size              float64 `json:"size"`
+		UnrealizedFunding float64 `json:"unrealizedFunding"`
+	} `json:"openPositions"`
+	ServerTime string `json:"serverTime"`
+}
+
+// FuturesBatchOrderResponse stores batch order response for futures
+type FuturesBatchOrderResponse struct {
+	ServerTime  string `json:"serverTime"`
+	BatchStatus []struct {
+		Status           string `json:"status"`
+		OrderTag         string `json:"order_tag"`
+		OrderID          string `json:"order_id"`
+		DateTimeReceived string `json:"dateTimeReceived"`
+		OrderEvents      []struct {
+			Order           FuturesOrderData `json:"order"`
+			ReducedQuantity string           `json:"reducedQuantity"`
+			DataType        string           `json:"type"`
+		} `json:"orderEvents"`
+	}
 }
 
 // Asset holds asset information

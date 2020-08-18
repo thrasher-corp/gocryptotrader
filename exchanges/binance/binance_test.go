@@ -430,6 +430,90 @@ func TestFuturesChangeInitialLeverage(t *testing.T) {
 	}
 }
 
+func TestModifyIsolatedPositionMargin(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.ModifyIsolatedPositionMargin("BTCUSD_200925", "BOTH", "add", 5)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesMarginChangeHistory(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.FuturesMarginChangeHistory("BTCUSD_200925", "add", time.Time{}, time.Time{}, 10)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesPositionsInfo(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.FuturesPositionsInfo("BTCUSD_200925", "")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesTradeHistory(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.FuturesTradeHistory("BTCUSD_200925", "", time.Time{}, time.Time{}, 5, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesIncomeHistory(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.FuturesIncomeHistory("", "TRANSFER", time.Time{}, time.Time{}, 5)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesForceOrders(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.FuturesForceOrders("", "ADL", time.Time{}, time.Time{})
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesPositionsADLEstimate(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.FuturesPositionsADLEstimate("")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetMarkPriceKline(t *testing.T) {
 	b.Verbose = true
 	b.Requester = request.New(b.Name,

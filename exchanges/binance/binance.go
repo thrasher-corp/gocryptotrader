@@ -84,12 +84,13 @@ const (
 	futuresChangeInitialLeverage = "/dapi/v1/leverage"
 	futuresChangeMarginType      = "/dapi/v1/marginType"
 	futuresModifyMargin          = "/dapi/v1/positionMargin"
-	futuresMarginChange          = "/dapi/v1/positionMargin/history"
+	futuresMarginChangeHistory   = "/dapi/v1/positionMargin/history"
 	futuresPositionInfo          = "/dapi/v1/positionRisk"
 	futuresAccountTradeList      = "/dapi/v1/userTrades"
 	futuresIncomeHistory         = "/dapi/v1/income"
 	futuresNotionalBracket       = "/dapi/v1/leverageBracket"
 	futuresUsersForceOrders      = "/dapi/v1/forceOrders"
+	futuresADLQuantile           = "/dapi/v1/adlQuantile"
 
 	// spot
 	newOrderTest = "/api/v3/order/test"
@@ -136,6 +137,10 @@ var validBoolString = []string{"true", "false"}
 var validPositionSide = []string{"BOTH", "LONG", "SHORT"}
 
 var validMarginType = []string{"ISOLATED", "CROSSED"}
+
+var validIncomeType = []string{"TRANSFER", "WELCOME_BONUS", "REALIZED_PNL", "FUNDING_FEE", "COMMISSION", "INSURANCE_CLEAR"}
+
+var validAutoCloseTypes = []string{"LIQUIDATION", "ADL"}
 
 var validMarginChange = map[string]int64{
 	"add":    1,
@@ -965,9 +970,142 @@ func (b *Binance) ModifyIsolatedPositionMargin(symbol, positionSide, changeType 
 		return resp, fmt.Errorf("invalid positionSide")
 	}
 	params.Set("positionSide", positionSide)
+	cType, ok := validMarginChange[changeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid changeType")
+	}
+	params.Set("type", strconv.FormatInt(cType, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+futuresChangeMarginType, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+futuresModifyMargin, params, limitDefault, &resp)
+}
+
+// FuturesMarginChangeHistory gets past margin changes for positions
+func (b *Binance) FuturesMarginChangeHistory(symbol, changeType string, startTime, endTime time.Time, limit int64) ([]GetPositionMarginChangeHistoryData, error) {
+	var resp []GetPositionMarginChangeHistoryData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	cType, ok := validMarginChange[changeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid changeType")
+	}
+	params.Set("type", strconv.FormatInt(cType, 10))
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresMarginChangeHistory, params, limitDefault, &resp)
+}
+
+// FuturesPositionsInfo gets futures positions info
+func (b *Binance) FuturesPositionsInfo(marginAsset, pair string) ([]FuturesPositionInformation, error) {
+	var resp []FuturesPositionInformation
+	params := url.Values{}
+	if marginAsset != "" {
+		params.Set("marginAsset", marginAsset)
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresPositionInfo, params, limitDefault, &resp)
+}
+
+// FuturesTradeHistory gets trade history for futures account
+func (b *Binance) FuturesTradeHistory(symbol, pair string, startTime, endTime time.Time, limit, fromID int64) ([]FuturesAccountTradeList, error) {
+	var resp []FuturesAccountTradeList
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if fromID != 0 {
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresAccountTradeList, params, limitDefault, &resp)
+}
+
+// FuturesIncomeHistory gets income history for futures
+func (b *Binance) FuturesIncomeHistory(symbol, incomeType string, startTime, endTime time.Time, limit int64) ([]FuturesIncomeHistoryData, error) {
+	var resp []FuturesIncomeHistoryData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if common.StringDataCompare(validIncomeType, incomeType) {
+		params.Set("incomeType", incomeType)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresIncomeHistory, params, limitDefault, &resp)
+}
+
+// FuturesNotionalBracket gets futures notional bracket
+func (b *Binance) FuturesNotionalBracket(pair string) ([]NotionalBracketData, error) {
+	var resp []NotionalBracketData
+	params := url.Values{}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+futuresNotionalBracket, params, limitDefault, &resp)
+}
+
+// FuturesForceOrders gets futures forced orders
+func (b *Binance) FuturesForceOrders(symbol, autoCloseType string, startTime, endTime time.Time) ([]ForcedOrdersData, error) {
+	var resp []ForcedOrdersData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if autoCloseType != "" {
+		if !common.StringDataCompare(validAutoCloseTypes, autoCloseType) {
+			return resp, fmt.Errorf("invalid autoCloseType")
+		}
+		params.Set("autoCloseType", autoCloseType)
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresUsersForceOrders, params, limitDefault, &resp)
+}
+
+// FuturesPositionsADLEstimate estimates ADL on positions
+func (b *Binance) FuturesPositionsADLEstimate(symbol string) ([]ADLEstimateData, error) {
+	var resp []ADLEstimateData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+futuresADLQuantile, params, limitDefault, &resp)
 }
 
 // *************************************************************************************
