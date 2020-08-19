@@ -1,7 +1,6 @@
 package kline
 
 import (
-	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -87,7 +86,7 @@ func (k *ErrorKline) Error() string {
 
 // Unwrap returns interval unsupported message
 func (k *ErrorKline) Unwrap() error {
-	return errors.New(k.Error())
+	return k.Err
 }
 
 // DateRange holds a start and end date for kline usage

@@ -23,49 +23,49 @@ import (
 
 // Candle is an object representing the database table.
 type Candle struct {
-	ID         string    `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ExchangeID string    `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
-	Base       string    `boil:"base" json:"base" toml:"base" yaml:"base"`
-	Quote      string    `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
-	Interval   int64     `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
-	Timestamp  time.Time `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
-	Open       float64   `boil:"open" json:"open" toml:"open" yaml:"open"`
-	High       float64   `boil:"high" json:"high" toml:"high" yaml:"high"`
-	Low        float64   `boil:"low" json:"low" toml:"low" yaml:"low"`
-	Close      float64   `boil:"close" json:"close" toml:"close" yaml:"close"`
-	Volume     float64   `boil:"volume" json:"volume" toml:"volume" yaml:"volume"`
-	Asset      string    `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
+	ID             string    `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ExchangeNameID string    `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
+	Base           string    `boil:"base" json:"base" toml:"base" yaml:"base"`
+	Quote          string    `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
+	Interval       int64     `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
+	Timestamp      time.Time `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
+	Open           float64   `boil:"open" json:"open" toml:"open" yaml:"open"`
+	High           float64   `boil:"high" json:"high" toml:"high" yaml:"high"`
+	Low            float64   `boil:"low" json:"low" toml:"low" yaml:"low"`
+	Close          float64   `boil:"close" json:"close" toml:"close" yaml:"close"`
+	Volume         float64   `boil:"volume" json:"volume" toml:"volume" yaml:"volume"`
+	Asset          string    `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
 
 	R *candleR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L candleL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var CandleColumns = struct {
-	ID         string
-	ExchangeID string
-	Base       string
-	Quote      string
-	Interval   string
-	Timestamp  string
-	Open       string
-	High       string
-	Low        string
-	Close      string
-	Volume     string
-	Asset      string
+	ID             string
+	ExchangeNameID string
+	Base           string
+	Quote          string
+	Interval       string
+	Timestamp      string
+	Open           string
+	High           string
+	Low            string
+	Close          string
+	Volume         string
+	Asset          string
 }{
-	ID:         "id",
-	ExchangeID: "exchange_id",
-	Base:       "base",
-	Quote:      "quote",
-	Interval:   "interval",
-	Timestamp:  "timestamp",
-	Open:       "open",
-	High:       "high",
-	Low:        "low",
-	Close:      "close",
-	Volume:     "volume",
-	Asset:      "asset",
+	ID:             "id",
+	ExchangeNameID: "exchange_name_id",
+	Base:           "base",
+	Quote:          "quote",
+	Interval:       "interval",
+	Timestamp:      "timestamp",
+	Open:           "open",
+	High:           "high",
+	Low:            "low",
+	Close:          "close",
+	Volume:         "volume",
+	Asset:          "asset",
 }
 
 // Generated where
@@ -86,43 +86,43 @@ func (w whereHelperfloat64) GTE(x float64) qm.QueryMod {
 }
 
 var CandleWhere = struct {
-	ID         whereHelperstring
-	ExchangeID whereHelperstring
-	Base       whereHelperstring
-	Quote      whereHelperstring
-	Interval   whereHelperint64
-	Timestamp  whereHelpertime_Time
-	Open       whereHelperfloat64
-	High       whereHelperfloat64
-	Low        whereHelperfloat64
-	Close      whereHelperfloat64
-	Volume     whereHelperfloat64
-	Asset      whereHelperstring
+	ID             whereHelperstring
+	ExchangeNameID whereHelperstring
+	Base           whereHelperstring
+	Quote          whereHelperstring
+	Interval       whereHelperint64
+	Timestamp      whereHelpertime_Time
+	Open           whereHelperfloat64
+	High           whereHelperfloat64
+	Low            whereHelperfloat64
+	Close          whereHelperfloat64
+	Volume         whereHelperfloat64
+	Asset          whereHelperstring
 }{
-	ID:         whereHelperstring{field: "\"candle\".\"id\""},
-	ExchangeID: whereHelperstring{field: "\"candle\".\"exchange_id\""},
-	Base:       whereHelperstring{field: "\"candle\".\"base\""},
-	Quote:      whereHelperstring{field: "\"candle\".\"quote\""},
-	Interval:   whereHelperint64{field: "\"candle\".\"interval\""},
-	Timestamp:  whereHelpertime_Time{field: "\"candle\".\"timestamp\""},
-	Open:       whereHelperfloat64{field: "\"candle\".\"open\""},
-	High:       whereHelperfloat64{field: "\"candle\".\"high\""},
-	Low:        whereHelperfloat64{field: "\"candle\".\"low\""},
-	Close:      whereHelperfloat64{field: "\"candle\".\"close\""},
-	Volume:     whereHelperfloat64{field: "\"candle\".\"volume\""},
-	Asset:      whereHelperstring{field: "\"candle\".\"asset\""},
+	ID:             whereHelperstring{field: "\"candle\".\"id\""},
+	ExchangeNameID: whereHelperstring{field: "\"candle\".\"exchange_name_id\""},
+	Base:           whereHelperstring{field: "\"candle\".\"base\""},
+	Quote:          whereHelperstring{field: "\"candle\".\"quote\""},
+	Interval:       whereHelperint64{field: "\"candle\".\"interval\""},
+	Timestamp:      whereHelpertime_Time{field: "\"candle\".\"timestamp\""},
+	Open:           whereHelperfloat64{field: "\"candle\".\"open\""},
+	High:           whereHelperfloat64{field: "\"candle\".\"high\""},
+	Low:            whereHelperfloat64{field: "\"candle\".\"low\""},
+	Close:          whereHelperfloat64{field: "\"candle\".\"close\""},
+	Volume:         whereHelperfloat64{field: "\"candle\".\"volume\""},
+	Asset:          whereHelperstring{field: "\"candle\".\"asset\""},
 }
 
 // CandleRels is where relationship names are stored.
 var CandleRels = struct {
-	Exchange string
+	ExchangeName string
 }{
-	Exchange: "Exchange",
+	ExchangeName: "ExchangeName",
 }
 
 // candleR is where relationships are stored.
 type candleR struct {
-	Exchange *Exchange
+	ExchangeName *Exchange
 }
 
 // NewStruct creates a new relationship struct
@@ -134,8 +134,8 @@ func (*candleR) NewStruct() *candleR {
 type candleL struct{}
 
 var (
-	candleAllColumns            = []string{"id", "exchange_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume", "asset"}
-	candleColumnsWithoutDefault = []string{"exchange_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume", "asset"}
+	candleAllColumns            = []string{"id", "exchange_name_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume", "asset"}
+	candleColumnsWithoutDefault = []string{"exchange_name_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume", "asset"}
 	candleColumnsWithDefault    = []string{"id"}
 	candlePrimaryKeyColumns     = []string{"id"}
 )
@@ -415,10 +415,10 @@ func (q candleQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (boo
 	return count > 0, nil
 }
 
-// Exchange pointed to by the foreign key.
-func (o *Candle) Exchange(mods ...qm.QueryMod) exchangeQuery {
+// ExchangeName pointed to by the foreign key.
+func (o *Candle) ExchangeName(mods ...qm.QueryMod) exchangeQuery {
 	queryMods := []qm.QueryMod{
-		qm.Where("\"id\" = ?", o.ExchangeID),
+		qm.Where("\"id\" = ?", o.ExchangeNameID),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -429,9 +429,9 @@ func (o *Candle) Exchange(mods ...qm.QueryMod) exchangeQuery {
 	return query
 }
 
-// LoadExchange allows an eager lookup of values, cached into the
+// LoadExchangeName allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
-func (candleL) LoadExchange(ctx context.Context, e boil.ContextExecutor, singular bool, maybeCandle interface{}, mods queries.Applicator) error {
+func (candleL) LoadExchangeName(ctx context.Context, e boil.ContextExecutor, singular bool, maybeCandle interface{}, mods queries.Applicator) error {
 	var slice []*Candle
 	var object *Candle
 
@@ -446,7 +446,7 @@ func (candleL) LoadExchange(ctx context.Context, e boil.ContextExecutor, singula
 		if object.R == nil {
 			object.R = &candleR{}
 		}
-		args = append(args, object.ExchangeID)
+		args = append(args, object.ExchangeNameID)
 
 	} else {
 	Outer:
@@ -456,12 +456,12 @@ func (candleL) LoadExchange(ctx context.Context, e boil.ContextExecutor, singula
 			}
 
 			for _, a := range args {
-				if a == obj.ExchangeID {
+				if a == obj.ExchangeNameID {
 					continue Outer
 				}
 			}
 
-			args = append(args, obj.ExchangeID)
+			args = append(args, obj.ExchangeNameID)
 
 		}
 	}
@@ -506,22 +506,22 @@ func (candleL) LoadExchange(ctx context.Context, e boil.ContextExecutor, singula
 
 	if singular {
 		foreign := resultSlice[0]
-		object.R.Exchange = foreign
+		object.R.ExchangeName = foreign
 		if foreign.R == nil {
 			foreign.R = &exchangeR{}
 		}
-		foreign.R.Candles = append(foreign.R.Candles, object)
+		foreign.R.ExchangeNameCandles = append(foreign.R.ExchangeNameCandles, object)
 		return nil
 	}
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if local.ExchangeID == foreign.ID {
-				local.R.Exchange = foreign
+			if local.ExchangeNameID == foreign.ID {
+				local.R.ExchangeName = foreign
 				if foreign.R == nil {
 					foreign.R = &exchangeR{}
 				}
-				foreign.R.Candles = append(foreign.R.Candles, local)
+				foreign.R.ExchangeNameCandles = append(foreign.R.ExchangeNameCandles, local)
 				break
 			}
 		}
@@ -530,10 +530,10 @@ func (candleL) LoadExchange(ctx context.Context, e boil.ContextExecutor, singula
 	return nil
 }
 
-// SetExchange of the candle to the related item.
-// Sets o.R.Exchange to related.
-// Adds o to related.R.Candles.
-func (o *Candle) SetExchange(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Exchange) error {
+// SetExchangeName of the candle to the related item.
+// Sets o.R.ExchangeName to related.
+// Adds o to related.R.ExchangeNameCandles.
+func (o *Candle) SetExchangeName(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Exchange) error {
 	var err error
 	if insert {
 		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
@@ -543,7 +543,7 @@ func (o *Candle) SetExchange(ctx context.Context, exec boil.ContextExecutor, ins
 
 	updateQuery := fmt.Sprintf(
 		"UPDATE \"candle\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"exchange_id"}),
+		strmangle.SetParamNames("\"", "\"", 1, []string{"exchange_name_id"}),
 		strmangle.WhereClause("\"", "\"", 2, candlePrimaryKeyColumns),
 	)
 	values := []interface{}{related.ID, o.ID}
@@ -557,21 +557,21 @@ func (o *Candle) SetExchange(ctx context.Context, exec boil.ContextExecutor, ins
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	o.ExchangeID = related.ID
+	o.ExchangeNameID = related.ID
 	if o.R == nil {
 		o.R = &candleR{
-			Exchange: related,
+			ExchangeName: related,
 		}
 	} else {
-		o.R.Exchange = related
+		o.R.ExchangeName = related
 	}
 
 	if related.R == nil {
 		related.R = &exchangeR{
-			Candles: CandleSlice{o},
+			ExchangeNameCandles: CandleSlice{o},
 		}
 	} else {
-		related.R.Candles = append(related.R.Candles, o)
+		related.R.ExchangeNameCandles = append(related.R.ExchangeNameCandles, o)
 	}
 
 	return nil

@@ -494,7 +494,7 @@ func testExchangesInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testExchangeToManyCandles(t *testing.T) {
+func testExchangeToManyExchangeNameCandles(t *testing.T) {
 	var err error
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
@@ -519,8 +519,8 @@ func testExchangeToManyCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.ExchangeID = a.ID
-	c.ExchangeID = a.ID
+	b.ExchangeNameID = a.ID
+	c.ExchangeNameID = a.ID
 
 	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Fatal(err)
@@ -529,17 +529,17 @@ func testExchangeToManyCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	check, err := a.Candles().All(ctx, tx)
+	check, err := a.ExchangeNameCandles().All(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
 	for _, v := range check {
-		if v.ExchangeID == b.ExchangeID {
+		if v.ExchangeNameID == b.ExchangeNameID {
 			bFound = true
 		}
-		if v.ExchangeID == c.ExchangeID {
+		if v.ExchangeNameID == c.ExchangeNameID {
 			cFound = true
 		}
 	}
@@ -552,18 +552,18 @@ func testExchangeToManyCandles(t *testing.T) {
 	}
 
 	slice := ExchangeSlice{&a}
-	if err = a.L.LoadCandles(ctx, tx, false, (*[]*Exchange)(&slice), nil); err != nil {
+	if err = a.L.LoadExchangeNameCandles(ctx, tx, false, (*[]*Exchange)(&slice), nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.Candles); got != 2 {
+	if got := len(a.R.ExchangeNameCandles); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.R.Candles = nil
-	if err = a.L.LoadCandles(ctx, tx, true, &a, nil); err != nil {
+	a.R.ExchangeNameCandles = nil
+	if err = a.L.LoadExchangeNameCandles(ctx, tx, true, &a, nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.Candles); got != 2 {
+	if got := len(a.R.ExchangeNameCandles); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
@@ -650,7 +650,7 @@ func testExchangeToManyExchangeNameWithdrawalHistories(t *testing.T) {
 	}
 }
 
-func testExchangeToManyAddOpCandles(t *testing.T) {
+func testExchangeToManyAddOpExchangeNameCandles(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -687,7 +687,7 @@ func testExchangeToManyAddOpCandles(t *testing.T) {
 	}
 
 	for i, x := range foreignersSplitByInsertion {
-		err = a.AddCandles(ctx, tx, i != 0, x...)
+		err = a.AddExchangeNameCandles(ctx, tx, i != 0, x...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -695,28 +695,28 @@ func testExchangeToManyAddOpCandles(t *testing.T) {
 		first := x[0]
 		second := x[1]
 
-		if a.ID != first.ExchangeID {
-			t.Error("foreign key was wrong value", a.ID, first.ExchangeID)
+		if a.ID != first.ExchangeNameID {
+			t.Error("foreign key was wrong value", a.ID, first.ExchangeNameID)
 		}
-		if a.ID != second.ExchangeID {
-			t.Error("foreign key was wrong value", a.ID, second.ExchangeID)
+		if a.ID != second.ExchangeNameID {
+			t.Error("foreign key was wrong value", a.ID, second.ExchangeNameID)
 		}
 
-		if first.R.Exchange != &a {
+		if first.R.ExchangeName != &a {
 			t.Error("relationship was not added properly to the foreign slice")
 		}
-		if second.R.Exchange != &a {
+		if second.R.ExchangeName != &a {
 			t.Error("relationship was not added properly to the foreign slice")
 		}
 
-		if a.R.Candles[i*2] != first {
+		if a.R.ExchangeNameCandles[i*2] != first {
 			t.Error("relationship struct slice not set to correct value")
 		}
-		if a.R.Candles[i*2+1] != second {
+		if a.R.ExchangeNameCandles[i*2+1] != second {
 			t.Error("relationship struct slice not set to correct value")
 		}
 
-		count, err := a.Candles().Count(ctx, tx)
+		count, err := a.ExchangeNameCandles().Count(ctx, tx)
 		if err != nil {
 			t.Fatal(err)
 		}

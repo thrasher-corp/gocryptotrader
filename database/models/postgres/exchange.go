@@ -50,16 +50,16 @@ var ExchangeWhere = struct {
 
 // ExchangeRels is where relationship names are stored.
 var ExchangeRels = struct {
-	Candles                         string
+	ExchangeNameCandles             string
 	ExchangeNameWithdrawalHistories string
 }{
-	Candles:                         "Candles",
+	ExchangeNameCandles:             "ExchangeNameCandles",
 	ExchangeNameWithdrawalHistories: "ExchangeNameWithdrawalHistories",
 }
 
 // exchangeR is where relationships are stored.
 type exchangeR struct {
-	Candles                         CandleSlice
+	ExchangeNameCandles             CandleSlice
 	ExchangeNameWithdrawalHistories WithdrawalHistorySlice
 }
 
@@ -353,15 +353,15 @@ func (q exchangeQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (b
 	return count > 0, nil
 }
 
-// Candles retrieves all the candle's Candles with an executor.
-func (o *Exchange) Candles(mods ...qm.QueryMod) candleQuery {
+// ExchangeNameCandles retrieves all the candle's Candles with an executor via exchange_name_id column.
+func (o *Exchange) ExchangeNameCandles(mods ...qm.QueryMod) candleQuery {
 	var queryMods []qm.QueryMod
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("\"candle\".\"exchange_id\"=?", o.ID),
+		qm.Where("\"candle\".\"exchange_name_id\"=?", o.ID),
 	)
 
 	query := Candles(queryMods...)
@@ -395,9 +395,9 @@ func (o *Exchange) ExchangeNameWithdrawalHistories(mods ...qm.QueryMod) withdraw
 	return query
 }
 
-// LoadCandles allows an eager lookup of values, cached into the
+// LoadExchangeNameCandles allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
-func (exchangeL) LoadCandles(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
+func (exchangeL) LoadExchangeNameCandles(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
 	var slice []*Exchange
 	var object *Exchange
 
@@ -434,7 +434,7 @@ func (exchangeL) LoadCandles(ctx context.Context, e boil.ContextExecutor, singul
 		return nil
 	}
 
-	query := NewQuery(qm.From(`candle`), qm.WhereIn(`candle.exchange_id in ?`, args...))
+	query := NewQuery(qm.From(`candle`), qm.WhereIn(`candle.exchange_name_id in ?`, args...))
 	if mods != nil {
 		mods.Apply(query)
 	}
@@ -464,24 +464,24 @@ func (exchangeL) LoadCandles(ctx context.Context, e boil.ContextExecutor, singul
 		}
 	}
 	if singular {
-		object.R.Candles = resultSlice
+		object.R.ExchangeNameCandles = resultSlice
 		for _, foreign := range resultSlice {
 			if foreign.R == nil {
 				foreign.R = &candleR{}
 			}
-			foreign.R.Exchange = object
+			foreign.R.ExchangeName = object
 		}
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if local.ID == foreign.ExchangeID {
-				local.R.Candles = append(local.R.Candles, foreign)
+			if local.ID == foreign.ExchangeNameID {
+				local.R.ExchangeNameCandles = append(local.R.ExchangeNameCandles, foreign)
 				if foreign.R == nil {
 					foreign.R = &candleR{}
 				}
-				foreign.R.Exchange = local
+				foreign.R.ExchangeName = local
 				break
 			}
 		}
@@ -585,22 +585,22 @@ func (exchangeL) LoadExchangeNameWithdrawalHistories(ctx context.Context, e boil
 	return nil
 }
 
-// AddCandles adds the given related objects to the existing relationships
+// AddExchangeNameCandles adds the given related objects to the existing relationships
 // of the exchange, optionally inserting them as new records.
-// Appends related to o.R.Candles.
-// Sets related.R.Exchange appropriately.
-func (o *Exchange) AddCandles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Candle) error {
+// Appends related to o.R.ExchangeNameCandles.
+// Sets related.R.ExchangeName appropriately.
+func (o *Exchange) AddExchangeNameCandles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Candle) error {
 	var err error
 	for _, rel := range related {
 		if insert {
-			rel.ExchangeID = o.ID
+			rel.ExchangeNameID = o.ID
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
 				"UPDATE \"candle\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"exchange_id"}),
+				strmangle.SetParamNames("\"", "\"", 1, []string{"exchange_name_id"}),
 				strmangle.WhereClause("\"", "\"", 2, candlePrimaryKeyColumns),
 			)
 			values := []interface{}{o.ID, rel.ID}
@@ -614,25 +614,25 @@ func (o *Exchange) AddCandles(ctx context.Context, exec boil.ContextExecutor, in
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			rel.ExchangeID = o.ID
+			rel.ExchangeNameID = o.ID
 		}
 	}
 
 	if o.R == nil {
 		o.R = &exchangeR{
-			Candles: related,
+			ExchangeNameCandles: related,
 		}
 	} else {
-		o.R.Candles = append(o.R.Candles, related...)
+		o.R.ExchangeNameCandles = append(o.R.ExchangeNameCandles, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &candleR{
-				Exchange: o,
+				ExchangeName: o,
 			}
 		} else {
-			rel.R.Exchange = o
+			rel.R.ExchangeName = o
 		}
 	}
 	return nil

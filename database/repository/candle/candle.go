@@ -164,17 +164,17 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 	var totalInserted uint64
 	for x := range in.Candles {
 		var tempCandle = modelPSQL.Candle{
-			ExchangeID: in.ExchangeID,
-			Base:       in.Base,
-			Quote:      in.Quote,
-			Interval:   in.Interval,
-			Asset:      in.Asset,
-			Timestamp:  in.Candles[x].Timestamp,
-			Open:       in.Candles[x].Open,
-			High:       in.Candles[x].High,
-			Low:        in.Candles[x].Low,
-			Close:      in.Candles[x].Close,
-			Volume:     in.Candles[x].Volume,
+			ExchangeNameID: in.ExchangeID,
+			Base:           in.Base,
+			Quote:          in.Quote,
+			Interval:       in.Interval,
+			Asset:          in.Asset,
+			Timestamp:      in.Candles[x].Timestamp,
+			Open:           in.Candles[x].Open,
+			High:           in.Candles[x].High,
+			Low:            in.Candles[x].Low,
+			Close:          in.Candles[x].Close,
+			Volume:         in.Candles[x].Volume,
 		}
 		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_id", "base", "quote", "interval", "asset"}, boil.Infer(), boil.Infer())
 		if err != nil {

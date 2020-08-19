@@ -56,7 +56,7 @@ func (z *ZB) SetDefaults() {
 	z.API.CredentialsValidator.RequiresKey = true
 	z.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
+	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter}
 	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	err := z.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
