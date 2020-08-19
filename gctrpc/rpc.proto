@@ -1,9 +1,9 @@
 syntax = "proto3";
-
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 package gctrpc;
+option go_package = ".;gctrpc";
 
 message GetInfoRequest {}
 
@@ -1201,7 +1201,7 @@ service GoCryptoTrader {
             get: "/v1/websocketseturl"
         };
     }
-    rpc GetTrades() returns (TradeHistory) {
+    rpc GetTrades(GetInfoRequest) returns (TradeHistory) {
     option (google.api.http) = {
             get: "/v1/gettrades"
         };

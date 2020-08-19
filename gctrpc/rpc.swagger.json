@@ -1595,6 +1595,28 @@
         ]
       }
     },
+    "/v1/gettrades": {
+      "get": {
+        "operationId": "GetTrades",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcTradeHistory"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/removeevent": {
       "post": {
         "operationId": "GoCryptoTrader_RemoveEvent",
