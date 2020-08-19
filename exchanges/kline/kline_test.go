@@ -579,7 +579,9 @@ func TestLoadFromDatabase(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ret, err := LoadFromDatabase(testExchanges[0].Name, p, asset.Spot, OneDay, time.Now(), time.Now())
+			start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+			end := start.AddDate(1, 0, 0)
+			ret, err := LoadFromDatabase(testExchanges[0].Name, p, asset.Spot, OneDay, start, end)
 			if err != nil {
 				t.Fatal(err)
 			}
