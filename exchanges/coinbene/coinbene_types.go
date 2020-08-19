@@ -133,7 +133,7 @@ type WsTickerData struct {
 	High24h       float64   `json:"high24h,string"`
 	Low24h        float64   `json:"low24h,string"`
 	Volume24h     float64   `json:"volume24h,string"`
-	Timestamp     time.Time `json:"timestamp"`
+	Timestamp     int64 `json:"timestamp"`
 }
 
 // WsTicker stores websocket ticker
@@ -160,7 +160,7 @@ type WsUserData struct {
 	Available float64   `json:"availableBalance,string"`
 	Locked    float64   `json:"frozenBalance,string"`
 	Total     float64   `json:"balance,string"`
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp int64 `json:"timestamp"`
 }
 
 // WsUserInfo stores websocket user info
@@ -182,13 +182,24 @@ type WsPositionData struct {
 	Side              string    `json:"side"`
 	Symbol            string    `json:"symbol"`
 	MarginMode        int64     `json:"marginMode,string"`
-	CreateTime        time.Time `json:"createTime"`
+	CreateTime        int64 `json:"createTime"`
 }
 
 // WsPosition stores websocket info on user's positions
 type WsPosition struct {
 	Topic string           `json:"topic"`
 	Data  []WsPositionData `json:"data"`
+}
+
+type WsOrderbookData struct {
+	Topic  string `json:"topic"`
+	Action string `json:"action"`
+	Data   []struct {
+		Bids      [][]string `json:"bids"`
+		Asks      [][]string `json:"asks"`
+		Version   int64      `json:"version"`
+		Timestamp int64  `json:"timestamp"`
+	} `json:"data"`
 }
 
 // WsOrderData stores websocket user order data
@@ -204,7 +215,7 @@ type WsOrderData struct {
 	Fee              float64   `json:"fee,string"`
 	FilledQuantity   float64   `json:"filledQuantity,string"`
 	AveragePrice     float64   `json:"averagePrice,string"`
-	OrderTime        time.Time `json:"orderTime"`
+	OrderTime        int64 `json:"orderTime"`
 	Status           string    `json:"status"`
 	LastFillQuantity float64   `json:"lastFillQuantity,string"`
 	LastFillPrice    float64   `json:"lastFillPrice,string"`

@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	wsContractURL = "wss://ws-contract.coinbene.vip/openapi/ws"
+	wsContractURL = "wss://ws.coinbene.com/stream/ws"
 	event         = "event"
 	topic         = "topic"
 )
@@ -73,6 +73,22 @@ func (c *Coinbene) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 			})
 		}
 	}
+
+	pairs, err = c.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	for x := range channels {
+		for y := range pairs {
+			pairs[y].Delimiter = ""
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel:  "spot/" + fmt.Sprintf(channels[x], pairs[y]),
+				Currency: pairs[y],
+				Asset:    asset.Spot,
+			})
+		}
+	}
+
 	return subscriptions, nil
 }
 
@@ -175,7 +191,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Pair:         p,
 				ExchangeName: c.Name,
 				AssetType:    asset.PerpetualSwap,
-				LastUpdated:  wsTicker.Data[x].Timestamp,
+				LastUpdated:  time.Unix(wsTicker.Data[x].Timestamp, 0),
 			}
 		}
 	case strings.Contains(result[topic].(string), "tradeList"):
@@ -231,16 +247,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			Side:         tSide,
 		})
 	case strings.Contains(result[topic].(string), "orderBook"):
-		orderBook := struct {
-			Topic  string `json:"topic"`
-			Action string `json:"action"`
-			Data   []struct {
-				Bids      [][]string `json:"bids"`
-				Asks      [][]string `json:"asks"`
-				Version   int64      `json:"version"`
-				Timestamp time.Time  `json:"timestamp"`
-			} `json:"data"`
-		}{}
+		var orderBook WsOrderbookData
 		err = json.Unmarshal(respRaw, &orderBook)
 		if err != nil {
 			return err
@@ -302,7 +309,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			newOB.AssetType = asset.PerpetualSwap
 			newOB.Pair = newP
 			newOB.ExchangeName = c.Name
-			newOB.LastUpdated = orderBook.Data[0].Timestamp
+			newOB.LastUpdated = time.Unix(orderBook.Data[0].Timestamp, 0)
 			err = c.Websocket.Orderbook.LoadSnapshot(&newOB)
 			if err != nil {
 				return err
@@ -314,7 +321,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Asset:      asset.PerpetualSwap,
 				Pair:       newP,
 				UpdateID:   orderBook.Data[0].Version,
-				UpdateTime: orderBook.Data[0].Timestamp,
+				UpdateTime: time.Unix(orderBook.Data[0].Timestamp,0),
 			}
 			err = c.Websocket.Orderbook.Update(&newOB)
 			if err != nil {
@@ -438,7 +445,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Type:            oType,
 				Status:          oStatus,
 				AssetType:       asset.PerpetualSwap,
-				Date:            orders.Data[i].OrderTime,
+				Date:            time.Unix(orders.Data[i].OrderTime, 0),
 				Leverage:        strconv.FormatInt(orders.Data[i].Leverage, 10),
 				Pair:            newP,
 			}
@@ -456,7 +463,15 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 func (c *Coinbene) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var sub WsSub
 	sub.Operation = "subscribe"
+	charLim := 1
 	for i := range channelsToSubscribe {
+		if len(sub.Arguments) > charLim {
+			err := c.Websocket.Conn.SendJSONMessage(sub)
+			if err != nil {
+				return err
+			}
+			sub.Arguments = []string{}
+		}
 		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
 	}
 	err := c.Websocket.Conn.SendJSONMessage(sub)

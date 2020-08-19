@@ -1201,4 +1201,9 @@ service GoCryptoTrader {
             get: "/v1/websocketseturl"
         };
     }
+    rpc GetTrades() returns (TradeHistory) {
+    option (google.api.http) = {
+            get: "/v1/gettrades"
+        };
+    }
 }
