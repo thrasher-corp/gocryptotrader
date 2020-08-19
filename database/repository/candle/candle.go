@@ -33,7 +33,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		qm.Where("quote = ?", quote),
 		qm.Where("interval = ?", interval),
 		qm.Where("asset = ?", asset),
-		qm.Where("timestamp between ? and ?", start, end),
+		qm.Where("timestamp between ? and ?", start.UTC(), end.UTC()),
 	}
 
 	exchangeUUID, errS := exchange.UUIDByName(exchangeName)
@@ -132,7 +132,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 			Quote:          in.Quote,
 			Interval:       strconv.FormatInt(in.Interval, 10),
 			Asset:          in.Asset,
-			Timestamp:      in.Candles[x].Timestamp.Format(time.RFC3339),
+			Timestamp:      in.Candles[x].Timestamp.UTC().Format(time.RFC3339),
 			Open:           in.Candles[x].Open,
 			High:           in.Candles[x].High,
 			Low:            in.Candles[x].Low,
