@@ -29,7 +29,7 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 // TestSetup setup func
@@ -62,6 +62,16 @@ func TestGetServerTime(t *testing.T) {
 	_, err := k.GetServerTime()
 	if err != nil {
 		t.Error("GetServerTime() error", err)
+	}
+}
+
+func TestGetFuturesAccountData(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.GetFuturesAccountData()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

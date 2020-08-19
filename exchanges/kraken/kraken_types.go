@@ -194,6 +194,47 @@ type FuturesBatchOrderResponse struct {
 	}
 }
 
+// FuturesNotificationData stores notification data
+type FuturesNotificationData struct {
+	Notifications []struct {
+		NotificationType string `json:"type"`
+		Priority         string `json:"priority"`
+		Note             string `json:"note"`
+		EffectiveTime    string `json:"effectiveTime"`
+	} `json:"notifcations"`
+	ServerTime string `json:"serverTime"`
+}
+
+// FuturesAccountsData stores account data
+type FuturesAccountsData struct {
+	ServerTime string                   `json:"serverTime"`
+	Accounts   map[string]*AccountsData `json:"accounts"`
+}
+
+// AccountsData stores data of an account
+type AccountsData struct {
+	AccType  string             `json:"type,omitempty"`
+	Currency string             `json:"currency,omitempty"`
+	Balances map[string]float64 `json:"balances,omitempty"`
+	Auxilary struct {
+		AF  float64 `json:"af"`
+		PnL float64 `json:"pnl"`
+		PV  float64 `json:"pv"`
+	} `json:"auxiliary,omitempty"`
+	MarginRequirements struct {
+		IM float64 `json:"im"`
+		MM float64 `json:"mm"`
+		LT float64 `json:"lt"`
+		TT float64 `json:"tt"`
+	} `json:"marginRequirements,omitempty"`
+	TriggerEstimates struct {
+		IM float64 `json:"im"`
+		MM float64 `json:"mm"`
+		LT float64 `json:"lt"`
+		TT float64 `json:"tt"`
+	} `json:"triggerEstimates,omitempty"`
+}
+
 // Asset holds asset information
 type Asset struct {
 	Altname         string `json:"altname"`

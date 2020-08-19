@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 const (
 	krakenAPIURL             = "https://api.kraken.com"
 	krakenFuturesURL         = "https://futures.kraken.com"
+	futuresURL               = "https://futures.kraken.com/derivatives"
 	krakenAPIVersion         = "0"
 	krakenServerTime         = "Time"
 	krakenAssets             = "Assets"
@@ -54,6 +56,9 @@ const (
 	krakenFuturesInstruments = "/derivatives/api/v3/instruments"
 	krakenFuturesTickers     = "/derivatives/api/v3/tickers"
 
+	// Futures
+	futuresAccountData = "/api/v3/accounts"
+
 	// Rate limit consts
 	krakenRateInterval = time.Second
 	krakenRequestRate  = 1
@@ -67,6 +72,14 @@ var (
 type Kraken struct {
 	exchange.Base
 	wsRequestMtx sync.Mutex
+}
+
+// GetFuturesAccountData gets account data for futures
+func (k *Kraken) GetFuturesAccountData() (interface{}, error) {
+	var resp interface{}
+	params := url.Values{}
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresAccountData, params, &resp)
 }
 
 // GetServerTime returns current server time
@@ -919,7 +932,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 			k.Name)
 	}
 
-	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
+	path := fmt.Sprintf("/%s/private/%s", "3", method)
 
 	params.Set("nonce", k.Requester.GetNonce(true).String())
 	encoded := params.Encode()
@@ -943,6 +956,38 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 		Path:          k.API.Endpoints.URL + path,
 		Headers:       headers,
 		Body:          strings.NewReader(encoded),
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       k.Verbose,
+		HTTPDebugging: k.HTTPDebugging,
+		HTTPRecording: k.HTTPRecording,
+	})
+}
+
+// SendAuthenticatedHTTPRequest2 sends an auth request
+func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, params url.Values, result interface{}) (err error) {
+	if !k.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			k.Name)
+	}
+	nonce := strconv.FormatInt(int64(time.Now().UnixNano())/1000000, 10)
+	fmt.Println("nonceyBoy:", nonce)
+	encoded := params.Encode()
+	fmt.Printf("ENCODED: %v", encoded)
+	shasum := crypto.GetSHA256([]byte(encoded + nonce + path))
+	fmt.Println(encoded + nonce + path)
+	signature := crypto.Base64Encode(crypto.GetHMAC(crypto.HashSHA512,
+		append([]byte(path), shasum...), []byte(k.API.Credentials.Secret)))
+	headers := make(map[string]string)
+	headers["API-Key"] = k.API.Credentials.Key
+	headers["API-Sign"] = signature
+	fmt.Println(k.API.Endpoints.URL + path)
+	return k.SendPayload(context.Background(), &request.Item{
+		Method:        method,
+		Path:          k.API.Endpoints.URL + path,
+		Headers:       headers,
+		Body:          bytes.NewBufferString(encoded),
 		Result:        result,
 		AuthRequest:   true,
 		NonceEnabled:  true,
