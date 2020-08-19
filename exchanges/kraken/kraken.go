@@ -58,6 +58,7 @@ const (
 
 	// Futures
 	futuresAccountData = "/api/v3/accounts"
+	futuresEditOrder   = "/api/v3/editorder"
 
 	// Rate limit consts
 	krakenRateInterval = time.Second
@@ -74,9 +75,26 @@ type Kraken struct {
 	wsRequestMtx sync.Mutex
 }
 
+// FuturesEditOrder edits a futures order
+func (k *Kraken) FuturesEditOrder(orderID, clientOrderID string, size, limitPrice, stopPrice float64) (FuturesAccountsData, error) {
+	var resp FuturesAccountsData
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if clientOrderID != "" {
+		params.Set("cliOrderId", clientOrderID)
+	}
+	params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
+	params.Set("limitPrice", strconv.FormatFloat(limitPrice, 'f', -1, 64))
+	params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresAccountData, params, &resp)
+}
+
 // GetFuturesAccountData gets account data for futures
-func (k *Kraken) GetFuturesAccountData() (interface{}, error) {
-	var resp interface{}
+func (k *Kraken) GetFuturesAccountData() (FuturesAccountsData, error) {
+	var resp FuturesAccountsData
 	params := url.Values{}
 	k.API.Endpoints.URL = futuresURL
 	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresAccountData, params, &resp)
@@ -965,24 +983,28 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	})
 }
 
-// SendAuthenticatedHTTPRequest2 sends an auth request
-func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, params url.Values, result interface{}) (err error) {
+// SendAuthenticatedHTTPRequest2 will send an auth req
+func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url.Values, result interface{}) (err error) {
+	fmt.Printf("This is the incoming postData: %v\n", postData.Encode())
 	if !k.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			k.Name)
 	}
 	nonce := strconv.FormatInt(int64(time.Now().UnixNano())/1000000, 10)
-	fmt.Println("nonceyBoy:", nonce)
-	encoded := params.Encode()
-	fmt.Printf("ENCODED: %v", encoded)
-	shasum := crypto.GetSHA256([]byte(encoded + nonce + path))
-	fmt.Println(encoded + nonce + path)
-	signature := crypto.Base64Encode(crypto.GetHMAC(crypto.HashSHA512,
-		append([]byte(path), shasum...), []byte(k.API.Credentials.Secret)))
+	fmt.Println("This is the nonce:", nonce)
+	encoded := postData.Encode()
+	fmt.Printf("This is the post data encoded: [%v]\n", encoded)
+	fmt.Println("EndpointPath:", path)
+	concatenation := encoded + nonce + path
+	fmt.Println("concatenation:", concatenation)
+	shasum := crypto.GetSHA256([]byte(concatenation))
+	hmac := crypto.GetHMAC(crypto.HashSHA512, shasum, []byte(k.API.Credentials.Secret))
+	signature := crypto.Base64Encode(hmac)
 	headers := make(map[string]string)
-	headers["API-Key"] = k.API.Credentials.Key
-	headers["API-Sign"] = signature
-	fmt.Println(k.API.Endpoints.URL + path)
+	headers["APIKey"] = k.API.Credentials.Key
+	headers["Authent"] = signature
+	headers["Accept"] = "application/json"
+	headers["Nonce"] = nonce
 	return k.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          k.API.Endpoints.URL + path,
@@ -990,7 +1012,6 @@ func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, params url.V
 		Body:          bytes.NewBufferString(encoded),
 		Result:        result,
 		AuthRequest:   true,
-		NonceEnabled:  true,
 		Verbose:       k.Verbose,
 		HTTPDebugging: k.HTTPDebugging,
 		HTTPRecording: k.HTTPRecording,

@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -65,11 +66,21 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
+func TestFuturesEditOrder(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesEditOrder("test123", "", 5.2, 1, 0.9)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFuturesAccountData(t *testing.T) {
 	t.Parallel()
 	k.Verbose = true
 	a, err := k.GetFuturesAccountData()
-	t.Log(a)
+	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)
 	}

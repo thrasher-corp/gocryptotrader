@@ -207,8 +207,8 @@ type FuturesNotificationData struct {
 
 // FuturesAccountsData stores account data
 type FuturesAccountsData struct {
-	ServerTime string                   `json:"serverTime"`
-	Accounts   map[string]*AccountsData `json:"accounts"`
+	ServerTime string                  `json:"serverTime"`
+	Accounts   map[string]AccountsData `json:"accounts"`
 }
 
 // AccountsData stores data of an account
@@ -234,6 +234,43 @@ type AccountsData struct {
 		TT float64 `json:"tt"`
 	} `json:"triggerEstimates,omitempty"`
 }
+
+// CancelAllOrdersData stores order data for all cancelled orders
+type CancelAllOrdersData struct {
+	CancelStatus struct {
+		ReceivedTime    string `json:"receivedTime"`
+		CancelOnly      string `json:"cancelOnly"`
+		Status          string `json:"status"`
+		CancelledOrders []struct {
+			OrderID string `json:"order_id"`
+		} `json:"cancelledOrders"`
+		OrderEvents []struct {
+			UID string `json:"uid"`
+		} `json:"uid"`
+		Order    FuturesOrderData `json:"order"`
+		DataType string           `json:"type"`
+	} `json:"cancelStatus"`
+	ServerTime string `json:"serverTime"`
+}
+
+// CancelOrdersAfterData stores data of all orders after a certain time that are cancelled
+type CancelOrdersAfterData struct {
+	Result string `json:"result"`
+	Status struct {
+		CurrentTime string `json:"currentTime"`
+		TriggerTime string `json:"triggerTime"`
+	} `json:"status"`
+	ServerTime string `json:"serverTime"`
+}
+
+// FuturesOpenOrdersData stores open orders data for futures
+type FuturesOpenOrdersData struct {
+	Result     string             `json:"result"`
+	OpenOrders []FuturesOrderData `json:"openOrders"`
+	ServerTime string             `json:"serverTime"`
+}
+
+// RecentOrdersData stores order data of recent orders
 
 // Asset holds asset information
 type Asset struct {
