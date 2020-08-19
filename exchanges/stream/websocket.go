@@ -190,7 +190,6 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("%v Websocket already connected",
 			w.exchangeName)
 	}
-	w.setConnectingStatus(true)
 
 	w.dataMonitor()
 
@@ -198,6 +197,8 @@ func (w *Websocket) Connect() error {
 	if err != nil {
 		return err
 	}
+
+	w.setConnectingStatus(true)
 
 	// flush any subscriptions from last connection if needed
 	w.subscriptionMutex.Lock()
@@ -210,7 +211,6 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("%v Error connecting %s",
 			w.exchangeName, err)
 	}
-
 	w.setConnectedStatus(true)
 	w.setConnectingStatus(false)
 	w.setInit(true)
@@ -475,7 +475,7 @@ func (w *Websocket) FlushChannels() error {
 // trafficTimer will reset on each traffic alert
 func (w *Websocket) trafficMonitor() error {
 	if w.IsTrafficMonitorRunning() {
-		return errors.New("traffic monitor already running")
+		return nil
 	}
 	w.setTrafficMonitorRunning(true)
 	w.Wg.Add(1)
@@ -513,28 +513,32 @@ func (w *Websocket) trafficMonitor() error {
 				}
 				trafficTimer.Stop()
 				w.Wg.Done()
-				err := w.Shutdown()
-				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%v websocket: trafficMonitor shutdown err: %s",
-						w.exchangeName, err)
+				if !w.IsConnecting() && w.IsConnected() {
+					err := w.Shutdown()
+					if err != nil {
+						log.Errorf(log.WebsocketMgr,
+							"%v websocket: trafficMonitor shutdown err: %s",
+							w.exchangeName, err)
+					}
 				}
 				w.setTrafficMonitorRunning(false)
 				return
 			}
 
-			// Routine pausing mechanism
-			go func(p chan struct{}) {
-				time.Sleep(defaultTrafficPeriod)
-				p <- struct{}{}
-			}(pause)
-			select {
-			case <-w.ShutdownC:
-				trafficTimer.Stop()
-				w.setTrafficMonitorRunning(false)
-				w.Wg.Done()
-				return
-			case <-pause:
+			if w.IsConnected() {
+				// Routine pausing mechanism
+				go func(p chan struct{}) {
+					time.Sleep(defaultTrafficPeriod)
+					p <- struct{}{}
+				}(pause)
+				select {
+				case <-w.ShutdownC:
+					trafficTimer.Stop()
+					w.setTrafficMonitorRunning(false)
+					w.Wg.Done()
+					return
+				case <-pause:
+				}
 			}
 		}
 	}()
