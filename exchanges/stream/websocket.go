@@ -522,7 +522,7 @@ func (w *Websocket) trafficMonitor() {
 
 			if w.IsConnected() {
 				// Routine pausing mechanism
-				go func(p chan struct{}) {
+				go func(p chan<- struct{}) {
 					time.Sleep(defaultTrafficPeriod)
 					p <- struct{}{}
 				}(pause)
