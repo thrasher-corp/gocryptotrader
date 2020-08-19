@@ -494,7 +494,7 @@ func testExchangesInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testExchangeOneToOneCandleUsingCandle(t *testing.T) {
+func testExchangeOneToOneCandleUsingExchangeNameCandle(t *testing.T) {
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
@@ -514,38 +514,38 @@ func testExchangeOneToOneCandleUsingCandle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queries.Assign(&foreign.ExchangeID, local.ID)
+	foreign.ExchangeNameID = local.ID
 	if err := foreign.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
 
-	check, err := local.Candle().One(ctx, tx)
+	check, err := local.ExchangeNameCandle().One(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !queries.Equal(check.ExchangeID, foreign.ExchangeID) {
-		t.Errorf("want: %v, got %v", foreign.ExchangeID, check.ExchangeID)
+	if check.ExchangeNameID != foreign.ExchangeNameID {
+		t.Errorf("want: %v, got %v", foreign.ExchangeNameID, check.ExchangeNameID)
 	}
 
 	slice := ExchangeSlice{&local}
-	if err = local.L.LoadCandle(ctx, tx, false, (*[]*Exchange)(&slice), nil); err != nil {
+	if err = local.L.LoadExchangeNameCandle(ctx, tx, false, (*[]*Exchange)(&slice), nil); err != nil {
 		t.Fatal(err)
 	}
-	if local.R.Candle == nil {
+	if local.R.ExchangeNameCandle == nil {
 		t.Error("struct should have been eager loaded")
 	}
 
-	local.R.Candle = nil
-	if err = local.L.LoadCandle(ctx, tx, true, &local, nil); err != nil {
+	local.R.ExchangeNameCandle = nil
+	if err = local.L.LoadExchangeNameCandle(ctx, tx, true, &local, nil); err != nil {
 		t.Fatal(err)
 	}
-	if local.R.Candle == nil {
+	if local.R.ExchangeNameCandle == nil {
 		t.Error("struct should have been eager loaded")
 	}
 }
 
-func testExchangeOneToOneSetOpCandleUsingCandle(t *testing.T) {
+func testExchangeOneToOneSetOpCandleUsingExchangeNameCandle(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -574,87 +574,36 @@ func testExchangeOneToOneSetOpCandleUsingCandle(t *testing.T) {
 	}
 
 	for i, x := range []*Candle{&b, &c} {
-		err = a.SetCandle(ctx, tx, i != 0, x)
+		err = a.SetExchangeNameCandle(ctx, tx, i != 0, x)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if a.R.Candle != x {
+		if a.R.ExchangeNameCandle != x {
 			t.Error("relationship struct not set to correct value")
 		}
-		if x.R.Exchange != &a {
+		if x.R.ExchangeName != &a {
 			t.Error("failed to append to foreign relationship struct")
 		}
 
-		if !queries.Equal(a.ID, x.ExchangeID) {
+		if a.ID != x.ExchangeNameID {
 			t.Error("foreign key was wrong value", a.ID)
 		}
 
-		zero := reflect.Zero(reflect.TypeOf(x.ExchangeID))
-		reflect.Indirect(reflect.ValueOf(&x.ExchangeID)).Set(zero)
+		zero := reflect.Zero(reflect.TypeOf(x.ExchangeNameID))
+		reflect.Indirect(reflect.ValueOf(&x.ExchangeNameID)).Set(zero)
 
 		if err = x.Reload(ctx, tx); err != nil {
 			t.Fatal("failed to reload", err)
 		}
 
-		if !queries.Equal(a.ID, x.ExchangeID) {
-			t.Error("foreign key was wrong value", a.ID, x.ExchangeID)
+		if a.ID != x.ExchangeNameID {
+			t.Error("foreign key was wrong value", a.ID, x.ExchangeNameID)
 		}
 
 		if _, err = x.Delete(ctx, tx); err != nil {
 			t.Fatal("failed to delete x", err)
 		}
-	}
-}
-
-func testExchangeOneToOneRemoveOpCandleUsingCandle(t *testing.T) {
-	var err error
-
-	ctx := context.Background()
-	tx := MustTx(boil.BeginTx(ctx, nil))
-	defer func() { _ = tx.Rollback() }()
-
-	var a Exchange
-	var b Candle
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.SetCandle(ctx, tx, true, &b); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.RemoveCandle(ctx, tx, &b); err != nil {
-		t.Error("failed to remove relationship")
-	}
-
-	count, err := a.Candle().Count(ctx, tx)
-	if err != nil {
-		t.Error(err)
-	}
-	if count != 0 {
-		t.Error("want no relationships remaining")
-	}
-
-	if a.R.Candle != nil {
-		t.Error("R struct entry should be nil")
-	}
-
-	if !queries.IsValuerNil(b.ExchangeID) {
-		t.Error("foreign key column should be nil")
-	}
-
-	if b.R.Exchange != nil {
-		t.Error("failed to remove a from b's relationships")
 	}
 }
 

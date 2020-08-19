@@ -154,7 +154,7 @@ func TestInsert(t *testing.T) {
 // TestToOne tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOne(t *testing.T) {
-	t.Run("CandleToExchangeUsingExchange", testCandleToOneExchangeUsingExchange)
+	t.Run("CandleToExchangeUsingExchangeName", testCandleToOneExchangeUsingExchangeName)
 	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalCryptoToOneWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalFiatToOneWithdrawalHistoryUsingWithdrawalHistory)
@@ -164,7 +164,7 @@ func TestToOne(t *testing.T) {
 // TestOneToOne tests cannot be run in parallel
 // or deadlocks can occur.
 func TestOneToOne(t *testing.T) {
-	t.Run("ExchangeToCandleUsingCandle", testExchangeOneToOneCandleUsingCandle)
+	t.Run("ExchangeToCandleUsingExchangeNameCandle", testExchangeOneToOneCandleUsingExchangeNameCandle)
 }
 
 // TestToMany tests cannot be run in parallel
@@ -179,7 +179,7 @@ func TestToMany(t *testing.T) {
 // TestToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
-	t.Run("CandleToExchangeUsingCandle", testCandleToOneSetOpExchangeUsingExchange)
+	t.Run("CandleToExchangeUsingExchangeNameCandle", testCandleToOneSetOpExchangeUsingExchangeName)
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptos", testWithdrawalCryptoToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiats", testWithdrawalFiatToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
@@ -188,21 +188,17 @@ func TestToOneSet(t *testing.T) {
 
 // TestToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToOneRemove(t *testing.T) {
-	t.Run("CandleToExchangeUsingCandle", testCandleToOneRemoveOpExchangeUsingExchange)
-}
+func TestToOneRemove(t *testing.T) {}
 
 // TestOneToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestOneToOneSet(t *testing.T) {
-	t.Run("ExchangeToCandleUsingCandle", testExchangeOneToOneSetOpCandleUsingCandle)
+	t.Run("ExchangeToCandleUsingExchangeNameCandle", testExchangeOneToOneSetOpCandleUsingExchangeNameCandle)
 }
 
 // TestOneToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
-func TestOneToOneRemove(t *testing.T) {
-	t.Run("ExchangeToCandleUsingCandle", testExchangeOneToOneRemoveOpCandleUsingCandle)
-}
+func TestOneToOneRemove(t *testing.T) {}
 
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.

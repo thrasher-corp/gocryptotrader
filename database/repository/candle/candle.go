@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
-	"github.com/volatiletech/null"
 )
 
 // Series returns candle data
@@ -41,7 +40,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 	if errS != nil {
 		return out, errS
 	}
-	queries = append(queries, qm.Where("exchange_id = ?", exchangeUUID.String()))
+	queries = append(queries, qm.Where("exchange_name_id = ?", exchangeUUID.String()))
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
@@ -128,17 +127,17 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 	var totalInserted uint64
 	for x := range in.Candles {
 		var tempCandle = modelSQLite.Candle{
-			ExchangeID: null.NewString(in.ExchangeID, true),
-			Base:       in.Base,
-			Quote:      in.Quote,
-			Interval:   strconv.FormatInt(in.Interval, 10),
-			Asset:      in.Asset,
-			Timestamp:  in.Candles[x].Timestamp.Format(time.RFC3339),
-			Open:       in.Candles[x].Open,
-			High:       in.Candles[x].High,
-			Low:        in.Candles[x].Low,
-			Close:      in.Candles[x].Close,
-			Volume:     in.Candles[x].Volume,
+			ExchangeNameID: in.ExchangeID,
+			Base:           in.Base,
+			Quote:          in.Quote,
+			Interval:       strconv.FormatInt(in.Interval, 10),
+			Asset:          in.Asset,
+			Timestamp:      in.Candles[x].Timestamp.Format(time.RFC3339),
+			Open:           in.Candles[x].Open,
+			High:           in.Candles[x].High,
+			Low:            in.Candles[x].Low,
+			Close:          in.Candles[x].Close,
+			Volume:         in.Candles[x].Volume,
 		}
 		tempUUID, err := uuid.NewV4()
 		if err != nil {
@@ -176,7 +175,7 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 			Close:          in.Candles[x].Close,
 			Volume:         in.Candles[x].Volume,
 		}
-		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_id", "base", "quote", "interval", "asset"}, boil.Infer(), boil.Infer())
+		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_name_id", "base", "quote", "interval", "asset"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {

@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE "candle_new" (
                               id	        text not null primary key,
-                              exchange_name_id uuid REFERENCES exchange(id),
+                              exchange_name_id uuid REFERENCES exchange(id) NOT NULL,
                               Base text NOT NULL,
                               Quote text NOT NULL,
                               Interval text NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE "candle_new" (
                               Asset text NOT NULL,
                               unique(Timestamp, exchange_name_id, Base, Quote, Interval, Asset) ON CONFLICT IGNORE
 );
-INSERT INTO candle_new SELECT id, exchange_name_id, Base, Quote, Interval, Timestamp, Open, High, Low, Close, Volume, Asset FROM candle;
+INSERT INTO candle_new SELECT id, exchange_id, Base, Quote, Interval, Timestamp, Open, High, Low, Close, Volume, Asset FROM candle;
 DROP TABLE candle;
 ALTER TABLE candle_new RENAME TO candle;
 -- +goose Down
