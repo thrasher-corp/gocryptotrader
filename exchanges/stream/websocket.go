@@ -192,12 +192,7 @@ func (w *Websocket) Connect() error {
 	}
 
 	w.dataMonitor()
-
-	err := w.trafficMonitor()
-	if err != nil {
-		return err
-	}
-
+	w.trafficMonitor()
 	w.setConnectingStatus(true)
 
 	// flush any subscriptions from last connection if needed
@@ -205,7 +200,7 @@ func (w *Websocket) Connect() error {
 	w.subscriptions = nil
 	w.subscriptionMutex.Unlock()
 
-	err = w.connector()
+	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
 		return fmt.Errorf("%v Error connecting %s",
@@ -473,9 +468,9 @@ func (w *Websocket) FlushChannels() error {
 // trafficMonitor uses a timer of WebsocketTrafficLimitTime and once it expires,
 // it will reconnect if the TrafficAlert channel has not received any data. The
 // trafficTimer will reset on each traffic alert
-func (w *Websocket) trafficMonitor() error {
+func (w *Websocket) trafficMonitor() {
 	if w.IsTrafficMonitorRunning() {
-		return nil
+		return
 	}
 	w.setTrafficMonitorRunning(true)
 	w.Wg.Add(1)
@@ -542,7 +537,6 @@ func (w *Websocket) trafficMonitor() error {
 			}
 		}
 	}()
-	return nil
 }
 
 func (w *Websocket) setConnectedStatus(b bool) {

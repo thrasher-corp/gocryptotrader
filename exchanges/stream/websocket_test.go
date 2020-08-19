@@ -80,15 +80,10 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	}
 	ws.trafficTimeout = time.Second
 	ws.ShutdownC = make(chan struct{})
-	err = ws.trafficMonitor()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ws.trafficMonitor()
 	// try to add another traffic monitor
-	err = ws.trafficMonitor()
-	if err == nil {
-		t.Fatal("expected not allowed")
-	}
+	ws.trafficMonitor()
+
 	// Deploy traffic alert
 	ws.TrafficAlert <- struct{}{}
 	time.Sleep(time.Second * 2)
