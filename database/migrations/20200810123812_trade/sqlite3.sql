@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS trade
     exchange_id TEXT NOT NULL UNIQUE,
     currency TEXT NOT NULL,
     asset TEXT NOT NULL,
-    event TEXT NOT NULL,
     price real NOT NULL,
     amount real NOT NULL,
     side TEXT NOT NULL,

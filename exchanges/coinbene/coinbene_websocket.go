@@ -221,7 +221,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		c.Websocket.Trade.Process(trade.Data{
+		c.Websocket.Trade.AddTradesToBuffer(trade.Data{
 			CurrencyPair: newP,
 			Timestamp:    t,
 			Price:        price,

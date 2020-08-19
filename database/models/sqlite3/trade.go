@@ -26,7 +26,6 @@ type Trade struct {
 	ExchangeID string  `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
 	Currency   string  `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
 	Asset      string  `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
-	Event      string  `boil:"event" json:"event" toml:"event" yaml:"event"`
 	Price      float64 `boil:"price" json:"price" toml:"price" yaml:"price"`
 	Amount     float64 `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
 	Side       string  `boil:"side" json:"side" toml:"side" yaml:"side"`
@@ -41,7 +40,6 @@ var TradeColumns = struct {
 	ExchangeID string
 	Currency   string
 	Asset      string
-	Event      string
 	Price      string
 	Amount     string
 	Side       string
@@ -51,7 +49,6 @@ var TradeColumns = struct {
 	ExchangeID: "exchange_id",
 	Currency:   "currency",
 	Asset:      "asset",
-	Event:      "event",
 	Price:      "price",
 	Amount:     "amount",
 	Side:       "side",
@@ -80,7 +77,6 @@ var TradeWhere = struct {
 	ExchangeID whereHelperstring
 	Currency   whereHelperstring
 	Asset      whereHelperstring
-	Event      whereHelperstring
 	Price      whereHelperfloat64
 	Amount     whereHelperfloat64
 	Side       whereHelperstring
@@ -90,7 +86,6 @@ var TradeWhere = struct {
 	ExchangeID: whereHelperstring{field: "\"trade\".\"exchange_id\""},
 	Currency:   whereHelperstring{field: "\"trade\".\"currency\""},
 	Asset:      whereHelperstring{field: "\"trade\".\"asset\""},
-	Event:      whereHelperstring{field: "\"trade\".\"event\""},
 	Price:      whereHelperfloat64{field: "\"trade\".\"price\""},
 	Amount:     whereHelperfloat64{field: "\"trade\".\"amount\""},
 	Side:       whereHelperstring{field: "\"trade\".\"side\""},
@@ -114,8 +109,8 @@ func (*tradeR) NewStruct() *tradeR {
 type tradeL struct{}
 
 var (
-	tradeAllColumns            = []string{"id", "exchange_id", "currency", "asset", "event", "price", "amount", "side", "timestamp"}
-	tradeColumnsWithoutDefault = []string{"id", "exchange_id", "currency", "asset", "event", "price", "amount", "side", "timestamp"}
+	tradeAllColumns            = []string{"id", "exchange_id", "currency", "asset", "price", "amount", "side", "timestamp"}
+	tradeColumnsWithoutDefault = []string{"id", "exchange_id", "currency", "asset", "price", "amount", "side", "timestamp"}
 	tradeColumnsWithDefault    = []string{}
 	tradePrimaryKeyColumns     = []string{"id"}
 )

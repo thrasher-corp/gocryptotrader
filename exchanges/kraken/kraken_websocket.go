@@ -587,10 +587,6 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			tSide = order.Sell
 		}
 
-		var tType = order.Market
-		if t[4].(string) == "l" {
-			tType = order.Limit
-		}
 		trades = append(trades, trade.Data{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
@@ -599,10 +595,9 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Amount:       amount,
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(timeData),
 			Side:         tSide,
-			EventType:    tType,
 		})
 	}
-	k.Websocket.Trade.Process(trades...)
+	k.Websocket.Trade.AddTradesToBuffer(trades...)
 }
 
 // wsProcessOrderBook determines if the orderbook data is partial or update

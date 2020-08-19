@@ -1,38 +1,42 @@
 package trade
 
 import (
+	"errors"
 	"sort"
 	"sync/atomic"
 	"time"
 
+	"github.com/gofrs/uuid"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 )
 
-
 // Setup creates the trade processor if trading is supported
-func (t *Traderino) Setup(name string) {
-	t.Name = name
-	go t.Processor()
+func (p *Processor) Setup(name string) {
+	p.Name = name
+	go p.Run()
 }
 
 // Shutdown kills the lingering processor
-func (t *Traderino) Shutdown() {
-	close(t.shutdown)
+func (p *Processor) Shutdown() {
+	close(p.shutdown)
 }
 
-// Process will push trade data onto the buffer
-func (t *Traderino) Process(data ...Data) {
-	t.mutex.Lock()
+// AddTradesToBuffer will push trade data onto the buffer
+func (p *Processor) AddTradesToBuffer(data ...Data) {
+	p.mutex.Lock()
 	for i := range data {
 		if data[i].Price == 0 ||
 			data[i].Amount == 0 ||
 			data[i].CurrencyPair.IsEmpty() ||
 			data[i].Exchange == "" ||
 			data[i].Timestamp.IsZero() {
-			log.Error(log.WebsocketMgr, "%s received invalid trade data: %+v", t.Name, data[i])
+			log.Error(log.WebsocketMgr, "%s received invalid trade data: %+v", p.Name, data[i])
 			continue
 		}
 
@@ -45,69 +49,116 @@ func (t *Traderino) Process(data ...Data) {
 		if data[i].Side == "" {
 			data[i].Side = order.UnknownSide
 		}
-
+		uu, err := uuid.NewV4()
+		if err != nil {
+			log.Error(log.WebsocketMgr, "%s uuid failed to generate for trade: %+v", p.Name, data[i])
+			continue
+		}
+		data[i].ID = uu
 		buffer = append(buffer, data[i])
 	}
-	t.mutex.Unlock()
+	p.mutex.Unlock()
 }
 
 // Processor will save trade data to the database in batches
-func (t *Traderino) Processor() {
-	if atomic.AddInt32(&t.started, 1) != 1 {
-		log.Errorf(log.WebsocketMgr, "%s websocket trade processor already started", t.Name)
+func (p *Processor) Run() {
+	if atomic.AddInt32(&p.started, 1) != 1 {
+		log.Errorf(log.WebsocketMgr, "%s websocket trade processor already started", p.Name)
 	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&t.started, 1, 0)
+		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 	}()
-	log.Debugf(log.OrderBook, "%s Order manager starting...", t.Name)
+	log.Debugf(log.OrderBook, "%s Order manager starting...", p.Name)
 	timer := time.NewTicker(time.Minute)
 	for {
 		select {
-		case <-t.shutdown:
+		case <-p.shutdown:
 			return
 		case <-timer.C:
-			log.Debugf(log.WebsocketMgr, "%s TRADE PROCESSOR STARTING", t.Name)
-			t.mutex.Lock()
+			log.Debugf(log.WebsocketMgr, "%s Processing websocket trade data", p.Name)
+			p.mutex.Lock()
 			sort.Sort(ByDate(buffer))
 			err := sqltrade.Insert(buffer...)
 			if err != nil {
 				log.Error(log.Trade, err)
 			}
 			buffer = nil
-			t.mutex.Unlock()
+			p.mutex.Unlock()
 		}
 	}
 }
 
-func convertTradesToCandles() {
-	//groupedData := convertTradeDatasToCandles(kline.FifteenSecond, buffer...)
-	//var candles []CandleHolder
-	//for k, v := range groupedData {
-	//	candles = append(candles, classifyOHLCV(time.Unix(k, 0), v...))
+func (p *Processor) AmendCandles(interval kline.Interval, start, end int64) error {
+	//dbTrades, err := sqltrade.GetByExchangeInRange(p.Name, start, end)
+	//if err != nil {
+	//	return err
 	//}
+	//var trades []Data
+	//trades , err = p.dataToData(dbTrades...)
+	//groupedData := convertTradeDatasToCandles(interval, trades...)
+	// get candles
+	// candles, err := sqlCandles.GetByExchangeInRange()
+	// ammend the candles with trade data not present
+	// for i := range candles {
+	// candles[i].amendCandle(dbTrades...)
+	return nil
+}
+
+func (p *Processor)dataToData(dbTrades ...sqltrade.Data) (result []Data, err error) {
+	for i := range dbTrades {
+		var cp currency.Pair
+		cp, err = currency.NewPairFromString(dbTrades[i].CurrencyPair)
+		if err != nil {
+			return nil, err
+		}
+		var a = asset.Item(dbTrades[i].AssetType)
+		if !asset.IsValid(a) {
+			return nil, errors.New("invalid asset type lol")
+		}
+		var s order.Side
+		s, err = order.StringToOrderSide(dbTrades[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, Data{
+			ID:           uuid.FromStringOrNil(dbTrades[i].ID),
+			Timestamp:    time.Unix(dbTrades[i].Timestamp, 0),
+			Exchange:     p.Name,
+			CurrencyPair: cp,
+			AssetType:     a,
+			Price:        dbTrades[i].Price,
+			Amount:       dbTrades[i].Amount,
+			Side:        s,
+		})
+	}
+	return result, nil
+}
+
+func  (p *Processor) ConvertToCandles(interval kline.Interval, trades ...Data) {
+	groupedData := convertTradeDatasToCandles(interval, trades...)
+	var candles []CandleHolder
+	for k, v := range groupedData {
+		candles = append(candles, classifyOHLCV(time.Unix(k, 0), v...))
+	}
 	//for i := range candles {
-	//	for j := range t.previousCandles {
-	//		if candles[i].candle.Time.Equal(t.previousCandles[j].candle.Time) {
-	//			log.Debugf(log.WebsocketMgr, "%s Amending candles" ,t.Name)
-	//			t.previousCandles[j].amendCandle(candles[i].trades...)
-	//			candles[i].candle = t.previousCandles[j].candle
+	//	for j := range p.previousCandles {
+	//		if candles[i].candle.Time.Equal(p.previousCandles[j].candle.Time) {
+	//			log.Debugf(log.WebsocketMgr, "%s Amending candles" ,p.Name)
+	//			p.previousCandles[j].amendCandle(candles[i].trades...)
+	//			candles[i].candle = p.previousCandles[j].candle
 	//		}
 	//	}
 	//}
-	//// now save previous candles
-	//err := t.SaveCandlesToButt(t.previousCandles)
+	// now save candles
+	//err := p.SaveCandlesToButt(p.previousCandles)
 	//if err != nil {
-	//	log.Errorf(log.WebsocketMgr,"%s Processor SaveCandlesToButt ", t.Name, err)
-	//	t.mutex.Unlock()
+	//	log.Errorf(log.WebsocketMgr,"%s Run SaveCandlesToButt ", p.Name, err)
+	//	p.mutex.Unlock()
 	//	continue
 	//}
-	//
-	//// now set current candles to previous for the next run
-	//t.previousCandles = candles
-}
 
-func (t *Traderino) SaveCandlesToButt(candles []CandleHolder) error {
-	return nil
+	// now set current candles to previous for the next run
+	//p.previousCandles = candles
 }
 
 func convertTradeDatasToCandles(interval kline.Interval, times ...Data) map[int64][]Data {

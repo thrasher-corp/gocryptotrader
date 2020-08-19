@@ -72,7 +72,7 @@ type Websocket struct {
 
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
-	Trade     trade.Traderino
+	Trade     trade.Processor
 
 	// trafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}

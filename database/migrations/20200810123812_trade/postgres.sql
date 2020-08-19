@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS trade
     exchange_id uuid REFERENCES script(id),
     currency varchar NOT NULL,
     asset varchar NOT NULL,
-    event varchar NOT NULL,
     price DOUBLE PRECISION NOT NULL,
     amount DOUBLE PRECISION NOT NULL,
     side varchar NOT NULL,

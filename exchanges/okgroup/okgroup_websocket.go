@@ -490,7 +490,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			Timestamp:    response.Data[i].Timestamp,
 		})
 	}
-	o.Websocket.Trade.Process(trades...)
+	o.Websocket.Trade.AddTradesToBuffer(trades...)
 	return nil
 }
 

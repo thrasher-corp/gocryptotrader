@@ -228,7 +228,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 				Side:         side,
 			})
 		}
-		h.Websocket.Trade.Process(trades...)
+		h.Websocket.Trade.AddTradesToBuffer(trades...)
 	case "updateTrades":
 		var tradeUpdates WsTrade
 		err := json.Unmarshal(respRaw, &tradeUpdates)

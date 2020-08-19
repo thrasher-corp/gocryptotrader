@@ -253,7 +253,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					Side:         oSide,
 				})
 			}
-			b.Websocket.Trade.Process(trades...)
+			b.Websocket.Trade.AddTradesToBuffer(trades...)
 		case bitmexWSAnnouncement:
 			var announcement AnnouncementData
 			err = json.Unmarshal(respRaw, &announcement)

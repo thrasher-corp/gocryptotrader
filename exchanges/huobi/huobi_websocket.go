@@ -375,7 +375,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				Side:   side,
 			})
 		}
-		h.Websocket.Trade.Process(trades...)
+		h.Websocket.Trade.AddTradesToBuffer(trades...)
 	case strings.Contains(init.Channel, "detail"),
 		strings.Contains(init.Rep, "detail"):
 		var wsTicker WsTick

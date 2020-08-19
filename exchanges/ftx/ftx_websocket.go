@@ -319,7 +319,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 					Side:         oSide,
 				})
 			}
-			f.Websocket.Trade.Process(trades...)
+			f.Websocket.Trade.AddTradesToBuffer(trades...)
 		case wsOrders:
 			var resultData WsOrderDataStore
 			err = json.Unmarshal(respRaw, &resultData)

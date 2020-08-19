@@ -357,7 +357,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 
-						p.Websocket.Trade.Process(trade.Data{
+						p.Websocket.Trade.AddTradesToBuffer(trade.Data{
 							Timestamp:    time.Unix(t.Timestamp, 0),
 							CurrencyPair: pair,
 							Side:         side,

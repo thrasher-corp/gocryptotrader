@@ -324,7 +324,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 				Side:         tSide,
 			})
 		}
-		c.Websocket.Trade.Process(trades...)
+		c.Websocket.Trade.AddTradesToBuffer(trades...)
 	case "inst_trade_update":
 		var tradeUpdate WsTradeUpdate
 		err := json.Unmarshal(respRaw, &tradeUpdate)
@@ -352,7 +352,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		c.Websocket.Trade.Process(trade.Data{
+		c.Websocket.Trade.AddTradesToBuffer(trade.Data{
 			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
