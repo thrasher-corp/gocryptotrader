@@ -221,7 +221,10 @@ func TestSeries(t *testing.T) {
 
 			start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 			end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-			ret, err := Series(testExchanges[0].Name, "BTC", "USDT", 86400, "spot", start, end)
+			ret, err := Series(testExchanges[0].Name,
+				"BTC", "USDT",
+				86400, "spot",
+				start, end)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -233,6 +236,20 @@ func TestSeries(t *testing.T) {
 			if err != nil {
 				if !errors.Is(err, errInvalidInput) {
 					t.Fatal(err)
+				}
+			}
+
+			ret, err = Series(testExchanges[0].Name,
+				"BTC", "MOON",
+				864000, "spot",
+				start, end)
+			if err != nil {
+				if !errors.Is(err, errInvalidInput) {
+					if err.Error() != fmt.Errorf(errNoCandleDataFound, testExchanges[0].Name,
+						"BTC", "MOON",
+						"864000", "spot").Error() {
+						t.Fatal(err)
+					}
 				}
 			}
 

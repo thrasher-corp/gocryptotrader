@@ -1600,7 +1600,7 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	if !req.UseDb && req.Exchange == "" {
+	if req.Exchange == "" {
 		return nil, errors.New(errExchangeNameUnset)
 	}
 
@@ -1612,6 +1612,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 	var err error
 	resp := gctrpc.GetHistoricCandlesResponse{
 		Interval: kline.Interval(req.TimeInterval).Short(),
+		Pair:     req.Pair,
 		Start:    req.Start,
 		End:      req.End,
 	}

@@ -3789,7 +3789,7 @@ func getHistoricCandles(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if exchangeName != "" && !validExchange(exchangeName) {
+	if !validExchange(exchangeName) {
 		return errInvalidExchange
 	}
 
@@ -3927,7 +3927,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	} else {
 		exchangeName = c.Args().First()
 	}
-	if exchangeName != "" && !validExchange(exchangeName) {
+	if !validExchange(exchangeName) {
 		return errInvalidExchange
 	}
 

@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+const (
+	errNoCandleDataFound = "no candle data found: %v %v %v %v %v"
+)
+
 var (
 	errInvalidInput = errors.New("exchange, base , quote, asset, interval, start & end cannot be empty")
 )
