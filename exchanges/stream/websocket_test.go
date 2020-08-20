@@ -92,13 +92,11 @@ func TestSetup(t *testing.T) {
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
-
 	w = &Websocket{}
 	err = w.Setup(nil)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
-
 	w.Init = true
 	websocketSetup := &WebsocketSetup{}
 	err = w.Setup(websocketSetup)
@@ -147,7 +145,6 @@ func TestSetup(t *testing.T) {
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
-
 	websocketSetup.ExchangeName = "testname"
 	err = w.Setup(websocketSetup)
 	if err == nil {
@@ -201,11 +198,14 @@ func TestIsDisconnectionError(t *testing.T) {
 	}
 
 	isADisconnectionError = isDisconnectionError(&net.OpError{
-		Op:     "",
-		Net:    "",
-		Source: nil,
-		Addr:   nil,
-		Err:    errors.New("errorText"),
+		Err: errClosedConnection,
+	})
+	if isADisconnectionError {
+		t.Error("It's not")
+	}
+
+	isADisconnectionError = isDisconnectionError(&net.OpError{
+		Err: errors.New("errText"),
 	})
 	if !isADisconnectionError {
 		t.Error("It is")
@@ -281,8 +281,8 @@ outer:
 }
 
 func TestWebsocket(t *testing.T) {
-	ws := Websocket{}
-	err := ws.Setup(&WebsocketSetup{
+	wsInit := Websocket{}
+	err := wsInit.Setup(&WebsocketSetup{
 		ExchangeName: "test",
 		Enabled:      true,
 	})
@@ -290,15 +290,33 @@ func TestWebsocket(t *testing.T) {
 		t.Errorf("Expected 'test Websocket already initialised', received %v", err)
 	}
 
-	ws = *New()
+	ws := *New()
 	err = ws.SetProxyAddress("garbagio")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
+
+	ws.Conn = &WebsocketConnection{}
+	ws.AuthConn = &WebsocketConnection{}
+	ws.setEnabled(true)
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
-	if err != nil {
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+	ws.setConnectedStatus(true)
+	ws.ShutdownC = make(chan struct{})
+	ws.Wg = &sync.WaitGroup{}
+	err = ws.SetProxyAddress("https://192.168.0.1:1336")
+	if err == nil {
 		t.Error("SetProxyAddress", err)
 	}
+
+	err = ws.SetProxyAddress("https://192.168.0.1:1336")
+	if err == nil {
+		t.Error("SetProxyAddress", err)
+	}
+	ws.setEnabled(false)
+
 	// removing proxy
 	err = ws.SetProxyAddress("")
 	if err != nil {
@@ -376,7 +394,19 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Fatal("WebsocketSetup", err)
 	}
+
+	ws.defaultURL = "ws://demos.kaazing.com/echo"
+	ws.defaultURLAuth = "ws://demos.kaazing.com/echo"
+
+	err = ws.SetWebsocketURL("", false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ws.SetWebsocketURL("", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,10 +414,19 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// -- Already connected connect
+	// Attempt reconnect
+	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// -- initiate the reconnect which is usually handled by connection monitor
+	err = ws.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = ws.Connect()
 	if err == nil {
-		t.Fatal("should not connect, already connected")
+		t.Fatal("should already be connected")
 	}
 	// -- Normal shutdown
 	err = ws.Shutdown()
@@ -448,17 +487,6 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	err = ws.SubscribeToChannels(nil)
 	if err == nil {
 		t.Fatal("error cannot be nil")
-	}
-
-	err = ws.fullSubscribeToChannels(subs)
-	if err != nil {
-		t.Fatal("full subscription must be allowed")
-	}
-
-	// subscribe to nothing
-	err = ws.fullSubscribeToChannels(nil)
-	if err == nil {
-		t.Fatal("full subscription must be allowed")
 	}
 
 	err = ws.UnsubscribeChannels(subs)

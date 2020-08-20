@@ -23,6 +23,8 @@ const (
 	defaultTrafficPeriod = time.Second
 )
 
+var errClosedConnection = errors.New("use of closed network connection")
+
 // New initialises the websocket struct
 func New() *Websocket {
 	return &Websocket{
@@ -104,12 +106,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 
 	w.ShutdownC = make(chan struct{})
 	w.Wg = new(sync.WaitGroup)
-
 	w.SetCanUseAuthenticatedEndpoints(s.AuthenticatedWebsocketAPISupport)
-	err = w.Initialise()
-	if err != nil {
-		return err
-	}
 
 	w.Orderbook.Setup(s.OrderbookBufferLimit,
 		s.BufferEnabled,
@@ -449,7 +446,11 @@ func (w *Websocket) FlushChannels() error {
 		}
 
 		if len(newsubs) != 0 {
-			return w.fullSubscribeToChannels(newsubs)
+			// Purge subscription list as there will be conflicts
+			w.subscriptionMutex.Lock()
+			w.subscriptions = nil
+			w.subscriptionMutex.Unlock()
+			return w.SubscribeToChannels(newsubs)
 		}
 		return nil
 	}
@@ -700,18 +701,6 @@ func (w *Websocket) GetWebsocketURL() string {
 	return w.runningURL
 }
 
-// Initialise verifies status and connects
-func (w *Websocket) Initialise() error {
-	if w.IsEnabled() {
-		if w.IsInit() {
-			return nil
-		}
-		return fmt.Errorf("%v websocket: already initialised", w.exchangeName)
-	}
-	w.setEnabled(w.enabled)
-	return nil
-}
-
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	if proxyAddr != "" {
@@ -848,19 +837,6 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 	return w.Subscriber(channels)
 }
 
-// fullSubscribeToChannels is required to transmit full subscription. To keep
-// subscriptions active already subscribed checks are bypassed this is an edge
-// case utilised by the gateio websocket subscription endpoint.
-func (w *Websocket) fullSubscribeToChannels(channels []ChannelSubscription) error {
-	if len(channels) == 0 {
-		return fmt.Errorf("%s websocket: cannot subscribe no channels supplied",
-			w.exchangeName)
-	}
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
-	return w.Subscriber(channels)
-}
-
 // AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
 // has been successfully subscribed
 func (w *Websocket) AddSuccessfulSubscriptions(channels ...ChannelSubscription) {
@@ -917,11 +893,8 @@ func isDisconnectionError(err error) bool {
 	if websocket.IsUnexpectedCloseError(err) {
 		return true
 	}
-	switch e := err.(type) {
-	case *websocket.CloseError:
-		return true
-	case *net.OpError:
-		if e.Err.Error() == "use of closed network connection" {
+	if _, ok := err.(*net.OpError); ok {
+		if errors.Is(err, errClosedConnection) {
 			return false
 		}
 		return true
