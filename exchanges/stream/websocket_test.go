@@ -169,8 +169,14 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	ws.trafficTimeout = time.Second
 	ws.ShutdownC = make(chan struct{})
 	ws.trafficMonitor()
+	if !ws.IsTrafficMonitorRunning() {
+		t.Fatal("traffic monitor should be running")
+	}
 	// try to add another traffic monitor
 	ws.trafficMonitor()
+	if !ws.IsTrafficMonitorRunning() {
+		t.Fatal("traffic monitor should be running")
+	}
 
 	// Deploy traffic alert
 	ws.TrafficAlert <- struct{}{}
@@ -346,7 +352,7 @@ func TestWebsocket(t *testing.T) {
 	}
 
 	ws.verbose = true
-	ws.connected = true
+	ws.setConnectedStatus(true)
 	ws.Conn = &dodgyConnection{}
 	err = ws.Shutdown()
 	if err == nil {
@@ -355,7 +361,7 @@ func TestWebsocket(t *testing.T) {
 
 	ws.Conn = &WebsocketConnection{}
 
-	ws.connected = true
+	ws.setConnectedStatus(true)
 	ws.AuthConn = &dodgyConnection{}
 	err = ws.Shutdown()
 	if err == nil {
@@ -363,7 +369,7 @@ func TestWebsocket(t *testing.T) {
 	}
 
 	ws.AuthConn = &WebsocketConnection{}
-	ws.connected = false
+	ws.setConnectedStatus(false)
 
 	// -- Normal connect
 	err = ws.Connect()
@@ -506,11 +512,23 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.verbose = true
 	ws.Wg = &sync.WaitGroup{}
 	ws.connectionMonitor()
+	if !ws.IsConnectionMonitorRunning() {
+		t.Fatal("Should not have exited")
+	}
 	ws.connectionMonitor() // This one should exit
+	if !ws.IsConnectionMonitorRunning() {
+		t.Fatal("Should not have exited")
+	}
 	time.Sleep(time.Second)
-	ws.connected = true  // attempt shutdown when not enabled
-	ws.connecting = true // throw a spanner in the works
+	if ws.IsConnectionMonitorRunning() {
+		t.Fatal("Should have exited")
+	}
+	ws.setConnectedStatus(true)  // attempt shutdown when not enabled
+	ws.setConnectingStatus(true) // throw a spanner in the works
 	ws.connectionMonitor()
+	if !ws.IsConnectionMonitorRunning() {
+		t.Fatal("Should not have exited")
+	}
 	time.Sleep(time.Second)
 	if ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should have exited")
@@ -986,7 +1004,7 @@ func TestFlushChannels(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	dodgyWs.enabled = true
+	dodgyWs.setEnabled(true)
 	err = dodgyWs.FlushChannels()
 	if err == nil {
 		t.Fatal("error cannot be nil")
