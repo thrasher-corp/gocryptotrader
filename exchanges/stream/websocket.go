@@ -894,10 +894,7 @@ func isDisconnectionError(err error) bool {
 		return true
 	}
 	if _, ok := err.(*net.OpError); ok {
-		if errors.Is(err, errClosedConnection) {
-			return false
-		}
-		return true
+		return !errors.Is(err, errClosedConnection)
 	}
 	return false
 }
