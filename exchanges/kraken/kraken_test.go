@@ -76,6 +76,46 @@ func TestFuturesEditOrder(t *testing.T) {
 	}
 }
 
+func TestFuturesSendOrder(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesSendOrder("test123", "btcusd", "buy", "", "", "", 1, 1, 0.9)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesCancelOrder(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesCancelOrder("test123", "")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesGetFills(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesGetFills(time.Now().Add(-time.Hour * 24))
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesTransfer(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesGetFills(time.Now().Add(-time.Hour * 24))
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFuturesAccountData(t *testing.T) {
 	t.Parallel()
 	k.Verbose = true

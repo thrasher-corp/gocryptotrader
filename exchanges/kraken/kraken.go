@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -57,8 +58,21 @@ const (
 	krakenFuturesTickers     = "/derivatives/api/v3/tickers"
 
 	// Futures
-	futuresAccountData = "/api/v3/accounts"
-	futuresEditOrder   = "/api/v3/editorder"
+	futuresSendOrder         = "/api/v3/sendorder"
+	futuresCancelOrder       = "/api/v3/cancelorder"
+	futuresOrderFills        = "/api/v3/fills"
+	futuresTransfer          = "/api/v3/transfer"
+	futuresOpenPositions     = "/api/v3/openpositions"
+	futuresBatchOrder        = "/api/v3/batchorder"
+	futuresNotifications     = "/api/v3/notifications"
+	futuresAccountData       = "/api/v3/accounts"
+	futuresCancelAllOrders   = "/api/v3/cancelallorders"
+	futuresCancelOrdersAfter = "/api/v3/cancelallordersafter"
+	futuresOpenOrders        = "/api/v3/openorders"
+	futuresRecentOrders      = "/api/v3/recentorders"
+	futuresWithdraw          = "/api/v3/withdrawal"
+	futuresTransfers         = "/api/v3/transfers"
+	futuresEditOrder         = "/api/v3/editorder"
 
 	// Rate limit consts
 	krakenRateInterval = time.Second
@@ -68,6 +82,14 @@ const (
 var (
 	assetTranslator assetTranslatorStore
 )
+
+var validOrderType = []string{"lmt", "post", "stp", "take_profit", "ioc"}
+
+var validSide = []string{"buy", "sell"}
+
+var validTriggerSignal = []string{"mark", "index", "last"}
+
+var validReduceOnly = []string{"true", "false"}
 
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
@@ -92,6 +114,145 @@ func (k *Kraken) FuturesEditOrder(orderID, clientOrderID string, size, limitPric
 	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresAccountData, params, &resp)
 }
 
+// FuturesSendOrder sends a futures order
+func (k *Kraken) FuturesSendOrder(orderType, symbol, side, triggerSignal, clientOrderID, reduceOnly string,
+	size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
+	var resp FuturesSendOrderData
+	req := make(map[string]interface{})
+	if !common.StringDataCompare(validOrderType, orderType) {
+		return resp, fmt.Errorf("invalid orderType")
+	}
+	req["orderType"] = orderType
+	req["symbol"] = symbol
+	if !common.StringDataCompare(validSide, side) {
+		return resp, fmt.Errorf("invalid side")
+	}
+	req["side"] = side
+	if triggerSignal != "" {
+		if !common.StringDataCompare(validTriggerSignal, triggerSignal) {
+			return resp, fmt.Errorf("invalid triggerSignal")
+		}
+		req["triggerSignal"] = triggerSignal
+	}
+	if clientOrderID != "" {
+		req["cliOrdId"] = clientOrderID
+	}
+	if reduceOnly != "" {
+		if !common.StringDataCompare(validReduceOnly, reduceOnly) {
+			return resp, fmt.Errorf("invalid reduceOnly")
+		}
+		req["reduceOnly"] = reduceOnly
+	}
+	req["size"] = size
+	req["limitPrice"] = limitPrice
+	if stopPrice != 0 {
+		req["stopPrice"] = stopPrice
+	}
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresSendOrder, nil, &resp)
+}
+
+// FuturesCancelOrder cancels an order
+func (k *Kraken) FuturesCancelOrder(orderID, clientOrderID string) (FuturesCancelOrderData, error) {
+	var resp FuturesCancelOrderData
+	req := make(map[string]interface{})
+	if orderID != "" {
+		req["order_id"] = orderID
+	}
+	if clientOrderID != "" {
+		req["cliOrdId"] = clientOrderID
+	}
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresCancelOrder, nil, &resp)
+}
+
+// FuturesGetFills gets order fills for futures
+func (k *Kraken) FuturesGetFills(lastFillTime time.Time) (FuturesFillsData, error) {
+	var resp FuturesFillsData
+	req := make(map[string]interface{})
+	if !lastFillTime.IsZero() {
+		req["lastFillTime"] = lastFillTime.UTC().Format("2006-01-02T15:04:05.999Z")
+	}
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresOrderFills, nil, &resp)
+}
+
+// FuturesTransfer transfers funds between accounts
+func (k *Kraken) FuturesTransfer(fromAccount, toAccount, unit string, amount float64) (FuturesTransferData, error) {
+	var resp FuturesTransferData
+	req := make(map[string]interface{})
+	req["fromAccount"] = fromAccount
+	req["toAccount"] = toAccount
+	req["unit"] = unit
+	req["amount"] = amount
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresTransfer, nil, &resp)
+}
+
+// FuturesGetOpenPositions gets futures platform's notifications
+func (k *Kraken) FuturesGetOpenPositions() (FuturesTransferData, error) {
+	var resp FuturesTransferData
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresOpenPositions, nil, &resp)
+}
+
+// FuturesNotifications gets futures notifications
+func (k *Kraken) FuturesNotifications() (FuturesTransferData, error) {
+	var resp FuturesTransferData
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresNotifications, nil, &resp)
+}
+
+// FuturesCancelAllOrders cancels all futures orders for a given symbol or all symbols
+func (k *Kraken) FuturesCancelAllOrders(symbol string) (CancelAllOrdersData, error) {
+	var resp CancelAllOrdersData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresCancelAllOrders, nil, &resp)
+}
+
+// FuturesCancelAllOrdersAfter cancels all futures orders for all symbols after a period of time (timeout measured in seconds)
+func (k *Kraken) FuturesCancelAllOrdersAfter(timeout int64) (CancelOrdersAfterData, error) {
+	var resp CancelOrdersAfterData
+	req := make(map[string]interface{})
+	req["timeout"] = timeout
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresCancelOrdersAfter, nil, &resp)
+}
+
+// FuturesOpenOrders gets all futures open orders
+func (k *Kraken) FuturesOpenOrders(timeout int64) (FuturesOpenOrdersData, error) {
+	var resp FuturesOpenOrdersData
+	req := make(map[string]interface{})
+	req["timeout"] = timeout
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresOpenOrders, nil, &resp)
+}
+
+// FuturesRecentOrders gets recent futures orders for a symbol or all symbols
+func (k *Kraken) FuturesRecentOrders(symbol string) (FuturesOpenOrdersData, error) {
+	var resp FuturesOpenOrdersData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresRecentOrders, nil, &resp)
+}
+
+// FuturesWithdrawToSpotWallet withdraws currencies from futures wallet to spot wallet
+func (k *Kraken) FuturesWithdrawToSpotWallet(currency string, amount float64) (FuturesOpenOrdersData, error) {
+	var resp FuturesOpenOrdersData
+	req := make(map[string]interface{})
+	req["currency"] = currency
+	req["amount"] = amount
+	k.API.Endpoints.URL = futuresURL
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresWithdraw, nil, &resp)
+}
+
 // GetFuturesAccountData gets account data for futures
 func (k *Kraken) GetFuturesAccountData() (FuturesAccountsData, error) {
 	var resp FuturesAccountsData
@@ -99,6 +260,8 @@ func (k *Kraken) GetFuturesAccountData() (FuturesAccountsData, error) {
 	k.API.Endpoints.URL = futuresURL
 	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresAccountData, params, &resp)
 }
+
+//******************************************************************************
 
 // GetServerTime returns current server time
 func (k *Kraken) GetServerTime() (TimeResponse, error) {
@@ -1009,7 +1172,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url
 		Method:        method,
 		Path:          k.API.Endpoints.URL + path,
 		Headers:       headers,
-		Body:          bytes.NewBufferString(encoded),
+		Body:          bytes.NewBuffer(nil),
 		Result:        result,
 		AuthRequest:   true,
 		Verbose:       k.Verbose,

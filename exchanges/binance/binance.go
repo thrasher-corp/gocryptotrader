@@ -1593,11 +1593,6 @@ func (b *Binance) SendHTTPRequest(path string, f request.EndpointLimit, result i
 		Endpoint:      f})
 }
 
-// SendFuturesAuthRequest sends an authenticated HTTP request
-func (b *Binance) SendFuturesAuthRequest(method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
-	return nil
-}
-
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
