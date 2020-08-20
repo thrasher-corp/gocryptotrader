@@ -72,6 +72,95 @@ var defaultSetup = &WebsocketSetup{
 	Features: &protocol.Features{Subscribe: true, Unsubscribe: true},
 }
 
+type dodgyConnection struct {
+	WebsocketConnection
+}
+
+// override websocket connection method to produce a wicked terrible error
+func (d *dodgyConnection) Shutdown() error {
+	return errors.New("cannot shutdown due to some dastardly reason")
+}
+
+// override websocket connection method to produce a wicked terrible error
+func (d *dodgyConnection) Connect() error {
+	return errors.New("cannot connect due to some dastardly reason")
+}
+
+func TestSetup(t *testing.T) {
+	var w *Websocket
+	err := w.Setup(nil)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	w = &Websocket{}
+	err = w.Setup(nil)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	w.Init = true
+	websocketSetup := &WebsocketSetup{}
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	websocketSetup.Features = &protocol.Features{}
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	websocketSetup.Features.Subscribe = true
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	websocketSetup.Subscriber = func([]ChannelSubscription) error { return nil }
+	websocketSetup.Features.Unsubscribe = true
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	websocketSetup.UnSubscriber = func([]ChannelSubscription) error { return nil }
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	websocketSetup.DefaultURL = "test"
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	websocketSetup.RunningURL = "http://www.google.com"
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	websocketSetup.RunningURL = "wss://www.google.com"
+	websocketSetup.RunningURLAuth = "http://www.google.com"
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	websocketSetup.RunningURLAuth = "wss://www.google.com"
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	websocketSetup.ExchangeName = "testname"
+	err = w.Setup(websocketSetup)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	websocketSetup.WebsocketTimeout = time.Minute
+	err = w.Setup(websocketSetup)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
 func TestTrafficMonitorTimeout(t *testing.T) {
 	ws := *New()
 	err := ws.Setup(defaultSetup)
@@ -119,8 +208,35 @@ func TestIsDisconnectionError(t *testing.T) {
 }
 
 func TestConnectionMessageErrors(t *testing.T) {
+	var wsWrong = &Websocket{}
+	err := wsWrong.Connect()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	wsWrong.connector = func() error { return nil }
+	err = wsWrong.Connect()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	wsWrong.enabled = true
+	wsWrong.connecting = true
+	wsWrong.Wg = &sync.WaitGroup{}
+	err = wsWrong.Connect()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	wsWrong.connecting = false
+	wsWrong.connector = func() error { return errors.New("edge case error of dooooooom") }
+	err = wsWrong.Connect()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
 	ws := *New()
-	err := ws.Setup(defaultSetup)
+	err = ws.Setup(defaultSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,6 +345,27 @@ func TestWebsocket(t *testing.T) {
 	if err == nil {
 		t.Fatal("should not be connected to able to shut down")
 	}
+
+	ws.verbose = true
+	ws.connected = true
+	ws.Conn = &dodgyConnection{}
+	err = ws.Shutdown()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	ws.Conn = &WebsocketConnection{}
+
+	ws.connected = true
+	ws.AuthConn = &dodgyConnection{}
+	err = ws.Shutdown()
+	if err == nil {
+		t.Fatal("error cannot be nil ")
+	}
+
+	ws.AuthConn = &WebsocketConnection{}
+	ws.connected = false
+
 	// -- Normal connect
 	err = ws.Connect()
 	if err != nil {
@@ -302,6 +439,23 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
+	// subscribe to nothing
+	err = ws.SubscribeToChannels(nil)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = ws.fullSubscribeToChannels(subs)
+	if err != nil {
+		t.Fatal("full subscription must be allowed")
+	}
+
+	// subscribe to nothing
+	err = ws.fullSubscribeToChannels(nil)
+	if err == nil {
+		t.Fatal("full subscription must be allowed")
+	}
+
 	err = ws.UnsubscribeChannels(subs)
 	if err != nil {
 		t.Fatal(err)
@@ -350,7 +504,14 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
 	ws.trafficTimeout = 1
-	go ws.connectionMonitor()
+	ws.verbose = true
+	ws.Wg = &sync.WaitGroup{}
+	ws.connectionMonitor()
+	ws.connectionMonitor() // This one should exit
+	time.Sleep(time.Second)
+	ws.connected = true  // attempt shutdown when not enabled
+	ws.connecting = true // throw a spanner in the works
+	ws.connectionMonitor()
 	time.Sleep(time.Second)
 	if ws.IsConnectionMonitorRunning() {
 		t.Fatal("Should have exited")
@@ -819,6 +980,19 @@ func TestFlushChannels(t *testing.T) {
 		currency.NewPair(currency.BTC, currency.AUD),
 		currency.NewPair(currency.BTC, currency.USDT),
 	}}
+
+	dodgyWs := Websocket{}
+	err := dodgyWs.FlushChannels()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	dodgyWs.enabled = true
+	err = dodgyWs.FlushChannels()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
 	web := Websocket{enabled: true,
 		connected:    true,
 		connector:    connect,
@@ -829,12 +1003,15 @@ func TestFlushChannels(t *testing.T) {
 		features:     &protocol.Features{
 			// No features
 		}}
-	web.GenerateSubs = newgen.generateSubs
-	subs, err := web.GenerateSubs()
-	if err != nil {
-		t.Fatal(err)
+
+	problemFunc := func() ([]ChannelSubscription, error) {
+		return nil, errors.New("problems")
 	}
-	web.subscriptions = subs
+
+	noSub := func() ([]ChannelSubscription, error) {
+		return nil, nil
+	}
+
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD)}
@@ -844,16 +1021,64 @@ func TestFlushChannels(t *testing.T) {
 	}
 
 	web.features.FullPayloadSubscribe = true
+	web.GenerateSubs = problemFunc
+	err = web.FlushChannels() // error on full subscribeToChannels
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	web.GenerateSubs = noSub
+	err = web.FlushChannels() // No subs to sub
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	web.GenerateSubs = newgen.generateSubs
+	subs, err := web.GenerateSubs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	web.subscriptions = subs
 	err = web.FlushChannels()
 	if err != nil {
 		t.Fatal(err)
 	}
 	web.features.FullPayloadSubscribe = false
 	web.features.Subscribe = true
+
+	web.GenerateSubs = problemFunc
+	err = web.FlushChannels()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	web.GenerateSubs = newgen.generateSubs
 	err = web.FlushChannels()
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	web.subscriptions = []ChannelSubscription{
+		{
+			Channel:  "match channel",
+			Currency: currency.NewPair(currency.BTC, currency.AUD),
+		},
+		{
+			Channel:  "unsub channel",
+			Currency: currency.NewPair(currency.THETA, currency.USDT),
+		},
+	}
+
+	err = web.FlushChannels()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = web.FlushChannels()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	web.setConnectedStatus(true)
 	web.features.Unsubscribe = true
 	err = web.FlushChannels()
@@ -898,6 +1123,30 @@ func TestEnable(t *testing.T) {
 }
 
 func TestSetupNewConnection(t *testing.T) {
+	var nonsenseWebsock *Websocket
+	err := nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	nonsenseWebsock = &Websocket{}
+	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	nonsenseWebsock = &Websocket{exchangeName: "test"}
+	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	nonsenseWebsock.TrafficAlert = make(chan struct{})
+	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
 	web := Websocket{
 		connector:         connect,
 		Wg:                new(sync.WaitGroup),
@@ -907,7 +1156,7 @@ func TestSetupNewConnection(t *testing.T) {
 		ReadMessageErrors: make(chan error),
 	}
 
-	err := web.Setup(defaultSetup)
+	err = web.Setup(defaultSetup)
 	if err != nil {
 		t.Fatal(err)
 	}

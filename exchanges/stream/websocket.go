@@ -43,6 +43,10 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return errors.New("websocket is nil")
 	}
 
+	if s == nil {
+		return errors.New("websocket setup is nil")
+	}
+
 	if !w.Init {
 		return fmt.Errorf("%s Websocket already initialised",
 			s.ExchangeName)
@@ -96,11 +100,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if s.WebsocketTimeout < time.Second {
 		return fmt.Errorf("traffic timeout cannot be less than %s", time.Second)
 	}
-
 	w.trafficTimeout = s.WebsocketTimeout
-	if s.Features == nil {
-		return errors.New("feature set is nil")
-	}
 
 	w.ShutdownC = make(chan struct{})
 	w.Wg = new(sync.WaitGroup)
@@ -211,7 +211,7 @@ func (w *Websocket) Connect() error {
 	w.setInit(true)
 
 	if !w.IsConnectionMonitorRunning() {
-		go w.connectionMonitor()
+		w.connectionMonitor()
 	}
 
 	return nil
@@ -291,64 +291,66 @@ func (w *Websocket) connectionMonitor() {
 		return
 	}
 	w.setConnectionMonitorRunning(true)
-	timer := time.NewTimer(connectionMonitorDelay)
+	go func() {
+		timer := time.NewTimer(connectionMonitorDelay)
 
-	for {
-		if w.verbose {
-			log.Debugf(log.WebsocketMgr,
-				"%v websocket: running connection monitor cycle\n",
-				w.exchangeName)
-		}
-		if !w.IsEnabled() {
+		for {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr,
-					"%v websocket: connectionMonitor - websocket disabled, shutting down\n",
+					"%v websocket: running connection monitor cycle\n",
 					w.exchangeName)
 			}
-			if w.IsConnected() {
-				err := w.Shutdown()
-				if err != nil {
-					log.Error(log.WebsocketMgr, err)
+			if !w.IsEnabled() {
+				if w.verbose {
+					log.Debugf(log.WebsocketMgr,
+						"%v websocket: connectionMonitor - websocket disabled, shutting down\n",
+						w.exchangeName)
 				}
+				if w.IsConnected() {
+					err := w.Shutdown()
+					if err != nil {
+						log.Error(log.WebsocketMgr, err)
+					}
+				}
+				if w.verbose {
+					log.Debugf(log.WebsocketMgr,
+						"%v websocket: connection monitor exiting\n",
+						w.exchangeName)
+				}
+				timer.Stop()
+				w.setConnectionMonitorRunning(false)
+				return
 			}
-			if w.verbose {
-				log.Debugf(log.WebsocketMgr,
-					"%v websocket: connection monitor exiting\n",
-					w.exchangeName)
+			select {
+			case err := <-w.ReadMessageErrors:
+				// check if this error is a disconnection error
+				if isDisconnectionError(err) {
+					w.setInit(false)
+					log.Warnf(log.WebsocketMgr,
+						"%v websocket has been disconnected. Reason: %v",
+						w.exchangeName, err)
+					w.setConnectedStatus(false)
+				} else {
+					// pass off non disconnect errors to datahandler to manage
+					w.DataHandler <- err
+				}
+			case <-timer.C:
+				if !w.IsConnecting() && !w.IsConnected() {
+					err := w.Connect()
+					if err != nil {
+						log.Error(log.WebsocketMgr, err)
+					}
+				}
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				timer.Reset(connectionMonitorDelay)
 			}
-			timer.Stop()
-			w.setConnectionMonitorRunning(false)
-			return
 		}
-		select {
-		case err := <-w.ReadMessageErrors:
-			// check if this error is a disconnection error
-			if isDisconnectionError(err) {
-				w.setInit(false)
-				log.Warnf(log.WebsocketMgr,
-					"%v websocket has been disconnected. Reason: %v",
-					w.exchangeName, err)
-				w.setConnectedStatus(false)
-			} else {
-				// pass off non disconnect errors to datahandler to manage
-				w.DataHandler <- err
-			}
-		case <-timer.C:
-			if !w.IsConnecting() && !w.IsConnected() {
-				err := w.Connect()
-				if err != nil {
-					log.Error(log.WebsocketMgr, err)
-				}
-			}
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-			timer.Reset(connectionMonitorDelay)
-		}
-	}
+	}()
 }
 
 // Shutdown attempts to shut down a websocket connection and associated routines
@@ -429,31 +431,25 @@ func (w *Websocket) FlushChannels() error {
 					return err
 				}
 			}
-
-			if len(subs) != 0 {
-				return w.SubscribeToChannels(subs)
-			}
-
-			return nil
-		} else if len(unsubs) == 0 {
-			if len(subs) == 0 {
-				return nil
-			}
-			return w.SubscribeToChannels(subs)
 		}
+
+		if len(subs) < 1 {
+			return nil
+		}
+		return w.SubscribeToChannels(subs)
+	} else if w.features.FullPayloadSubscribe {
 		// FullPayloadSubscribe means that the endpoint requires all
 		// subscriptions to be sent via the websocket connection e.g. if you are
 		// subscribed to ticker and orderbook but require trades as well, you
 		// would need to send ticker, orderbook and trades channel subscription
 		// messages.
-	} else if w.features.FullPayloadSubscribe {
 		newsubs, err := w.GenerateSubs()
 		if err != nil {
 			return err
 		}
 
 		if len(newsubs) != 0 {
-			return w.SubscribeToChannels(newsubs)
+			return w.fullSubscribeToChannels(newsubs)
 		}
 		return nil
 	}
@@ -849,6 +845,19 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 			}
 		}
 	}
+	return w.Subscriber(channels)
+}
+
+// fullSubscribeToChannels is required to transmit full subscription. To keep
+// subscriptions active already subscribed checks are bypassed this is an edge
+// case utilised by the gateio websocket subscription endpoint.
+func (w *Websocket) fullSubscribeToChannels(channels []ChannelSubscription) error {
+	if len(channels) == 0 {
+		return fmt.Errorf("%s websocket: cannot subscribe no channels supplied",
+			w.exchangeName)
+	}
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	return w.Subscriber(channels)
 }
 
