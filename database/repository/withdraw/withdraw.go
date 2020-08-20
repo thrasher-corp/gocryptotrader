@@ -64,10 +64,6 @@ func Event(res *withdraw.Response) {
 	err = tx.Commit()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event Transaction commit failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
-		}
 		return
 	}
 }

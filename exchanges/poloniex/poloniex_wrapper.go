@@ -689,7 +689,6 @@ func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		Asset:    a,
 	}
 
-	// Workaround for first candle being from exact requested time ad not a full candle with 0 volume
 	for x := range candles {
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   time.Unix(candles[x].Date, 0),

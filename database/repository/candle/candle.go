@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -29,8 +30,8 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 	}
 
 	queries := []qm.QueryMod{
-		qm.Where("base = ?", base),
-		qm.Where("quote = ?", quote),
+		qm.Where("base = ?", strings.ToUpper(base)),
+		qm.Where("quote = ?", strings.ToUpper(quote)),
 		qm.Where("interval = ?", interval),
 		qm.Where("asset = ?", asset),
 		qm.Where("timestamp between ? and ?", start.UTC(), end.UTC()),
@@ -109,15 +110,15 @@ func Insert(in *Item) (uint64, error) {
 		totalInserted, err = insertPostgresSQL(ctx, tx, in)
 	}
 	if err != nil {
+		errRB := tx.Rollback()
+		if errRB != nil {
+			log.Errorln(log.DatabaseMgr, errRB)
+		}
 		return 0, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		errRB := tx.Rollback()
-		if errRB != nil {
-			log.Errorln(log.DatabaseMgr, errRB)
-		}
 		return 0, err
 	}
 	return totalInserted, nil
@@ -128,8 +129,8 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 	for x := range in.Candles {
 		var tempCandle = modelSQLite.Candle{
 			ExchangeNameID: in.ExchangeID,
-			Base:           in.Base,
-			Quote:          in.Quote,
+			Base:           strings.ToUpper(in.Base),
+			Quote:          strings.ToUpper(in.Quote),
 			Interval:       strconv.FormatInt(in.Interval, 10),
 			Asset:          in.Asset,
 			Timestamp:      in.Candles[x].Timestamp.UTC().Format(time.RFC3339),
@@ -146,10 +147,6 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 		tempCandle.ID = tempUUID.String()
 		err = tempCandle.Insert(ctx, tx, boil.Infer())
 		if err != nil {
-			errRB := tx.Rollback()
-			if errRB != nil {
-				log.Errorln(log.DatabaseMgr, errRB)
-			}
 			return 0, err
 		}
 		if totalInserted < math.MaxUint64 {
@@ -164,8 +161,8 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 	for x := range in.Candles {
 		var tempCandle = modelPSQL.Candle{
 			ExchangeNameID: in.ExchangeID,
-			Base:           in.Base,
-			Quote:          in.Quote,
+			Base:           strings.ToUpper(in.Base),
+			Quote:          strings.ToUpper(in.Quote),
 			Interval:       in.Interval,
 			Asset:          in.Asset,
 			Timestamp:      in.Candles[x].Timestamp,
@@ -177,10 +174,6 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 		}
 		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_name_id", "base", "quote", "interval", "asset"}, boil.Infer(), boil.Infer())
 		if err != nil {
-			errRB := tx.Rollback()
-			if errRB != nil {
-				log.Errorln(log.DatabaseMgr, errRB)
-			}
 			return 0, err
 		}
 		if totalInserted < math.MaxUint64 {

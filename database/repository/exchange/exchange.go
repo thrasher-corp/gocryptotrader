@@ -89,10 +89,6 @@ func Insert(in Details) error {
 
 	err = tx.Commit()
 	if err != nil {
-		errRB := tx.Rollback()
-		if errRB != nil {
-			log.Errorln(log.DatabaseMgr, errRB)
-		}
 		return err
 	}
 
