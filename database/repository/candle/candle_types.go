@@ -11,6 +11,7 @@ const (
 
 var (
 	errInvalidInput = errors.New("exchange, base , quote, asset, interval, start & end cannot be empty")
+	errNoCandleData = errors.New("no candle data provided")
 )
 
 // Item generic candle holder for modelPSQL & modelSQLite

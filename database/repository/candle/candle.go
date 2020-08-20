@@ -97,6 +97,10 @@ func Insert(in *Item) (uint64, error) {
 		return 0, database.ErrDatabaseSupportDisabled
 	}
 
+	if in.Candles == nil || len(in.Candles) < 1 {
+		return 0, errNoCandleData
+	}
+
 	ctx := context.Background()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
