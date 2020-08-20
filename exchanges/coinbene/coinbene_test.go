@@ -780,3 +780,26 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		})
 	}
 }
+
+func TestInferAssetFromTopic(t *testing.T) {
+	a := inferAssetFromTopic("spot/orderBook.BSVBTC")
+	if a != asset.Spot {
+		t.Error("expected spot")
+	}
+	a = inferAssetFromTopic("btc/orderBook.BSVBTC")
+	if a != asset.PerpetualSwap {
+		t.Error("expected PerpetualSwap")
+	}
+	a = inferAssetFromTopic("usdt/orderBook.BSVBTC")
+	if a != asset.PerpetualSwap {
+		t.Error("expected PerpetualSwap")
+	}
+	a = inferAssetFromTopic("orderBook.BSVBTC")
+	if a != asset.PerpetualSwap {
+		t.Error("expected PerpetualSwap")
+	}
+	a = inferAssetFromTopic("")
+	if a != asset.PerpetualSwap {
+		t.Error("expected PerpetualSwap")
+	}
+}

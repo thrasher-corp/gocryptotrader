@@ -57,7 +57,7 @@ func (c *Coinbene) WsConnect() error {
 
 // GenerateDefaultSubscriptions generates stuff
 func (c *Coinbene) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"orderBook.%s.100", "tradeList.%s", "ticker.%s", "kline.%s"}
+	var channels = []string{"orderBook.%s.100", "tradeList.%s", "ticker.%s", "kline.%s.1m"}
 	var subscriptions []stream.ChannelSubscription
 	pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
 	if err != nil {
@@ -67,7 +67,7 @@ func (c *Coinbene) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		for y := range pairs {
 			pairs[y].Delimiter = ""
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  fmt.Sprintf(channels[x], pairs[y]),
+				Channel:  "btc/" + fmt.Sprintf(channels[x], pairs[y]),
 				Currency: pairs[y],
 				Asset:    asset.PerpetualSwap,
 			})
@@ -120,14 +120,10 @@ func (c *Coinbene) wsReadData() {
 	}
 }
 
-func inferAssetFromTopic(title string) asset.Item {
+func inferAssetFromTopic(topic string) asset.Item {
 	switch {
-	case strings.Contains(title, "spot/"):
+	case strings.Contains(topic, "spot/"):
 		return asset.Spot
-	case strings.Contains(title, "btc/"),
-		strings.Contains(title, "usdt/"):
-			return asset.Margin
-
 	default:
 		return asset.PerpetualSwap
 	}
@@ -166,6 +162,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return fmt.Errorf("message: %s. code: %v", result["message"], result["code"])
 	}
+	assetType := inferAssetFromTopic(result[topic].(string))
 	switch {
 	case strings.Contains(result[topic].(string), "ticker"):
 		var wsTicker WsTicker
@@ -175,13 +172,13 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		}
 
 		var format currency.PairFormat
-		format, err = c.GetPairFormat(inferAssetFromTopic(topic), true)
+		format, err = c.GetPairFormat(assetType, true)
 		if err != nil {
 			return err
 		}
 
 		var pairs currency.Pairs
-		pairs, err = c.GetEnabledPairs(inferAssetFromTopic(topic))
+		pairs, err = c.GetEnabledPairs(assetType)
 		if err != nil {
 			return err
 		}
@@ -203,7 +200,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Ask:          wsTicker.Data[x].BestAskPrice,
 				Pair:         p,
 				ExchangeName: c.Name,
-				AssetType:   inferAssetFromTopic(topic),
+				AssetType:   assetType,
 				LastUpdated:  time.Unix(wsTicker.Data[x].Timestamp, 0),
 			}
 		}
@@ -213,78 +210,84 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		var t time.Time
-		var price, amount float64
-		t, err = time.Parse(time.RFC3339, tradeList.Data[0][3])
-		if err != nil {
-			return err
-		}
-		price, err = strconv.ParseFloat(tradeList.Data[0][0], 64)
-		if err != nil {
-			return err
-		}
-		amount, err = strconv.ParseFloat(tradeList.Data[0][2], 64)
-		if err != nil {
-			return err
-		}
-		p := strings.Replace(tradeList.Topic, "tradeList.", "", 1)
-		var tSide = order.Buy
-		if tradeList.Data[0][1] == "s" {
-			tSide = order.Sell
-		}
+		var trades []trade.Data
+		for i := range tradeList.Data {
+			var price, amount float64
+			t := time.Unix(int64(tradeList.Data[i][3].(float64)), 0)
+			price, err = strconv.ParseFloat(tradeList.Data[i][0].(string), 64)
+			if err != nil {
+				return err
+			}
+			amount, err = strconv.ParseFloat(tradeList.Data[i][2].(string), 64)
+			if err != nil {
+				return err
+			}
 
-		var format currency.PairFormat
-		format, err = c.GetPairFormat(inferAssetFromTopic(topic), true)
-		if err != nil {
-			return err
-		}
+			var tSide = order.Buy
+			if tradeList.Data[i][1] == "s" {
+				tSide = order.Sell
+			}
 
-		var pairs currency.Pairs
-		pairs, err = c.GetEnabledPairs(inferAssetFromTopic(topic))
-		if err != nil {
-			return err
-		}
+			var format currency.PairFormat
+			format, err = c.GetPairFormat(assetType, true)
+			if err != nil {
+				return err
+			}
 
-		var newP currency.Pair
-		newP, err = currency.NewPairFromFormattedPairs(p, pairs, format)
-		if err != nil {
-			return err
+			var pairs currency.Pairs
+			pairs, err = c.GetEnabledPairs(assetType)
+			if err != nil {
+				return err
+			}
+
+			var newP currency.Pair
+			p := strings.Split(tradeList.Topic, ".")
+			if len(p) == 1 {
+				return errors.New("something")
+			}
+			newP, err = currency.NewPairFromFormattedPairs(p[1], pairs, format)
+			if err != nil {
+				return err
+			}
+
+			trades = append(trades, trade.Data{
+				Timestamp:    t,
+				Exchange:     c.Name,
+				CurrencyPair: newP,
+				AssetType:    assetType,
+				Price:        price,
+				Amount:       amount,
+				Side:         tSide,
+			})
 		}
-		c.Websocket.Trade.AddTradesToBuffer(trade.Data{
-			CurrencyPair: newP,
-			Timestamp:    t,
-			Price:        price,
-			Amount:       amount,
-			Exchange:     c.Name,
-			AssetType:    inferAssetFromTopic(topic),
-			Side:         tSide,
-		})
+		c.Websocket.Trade.AddTradesToBuffer(trades...)
 	case strings.Contains(result[topic].(string), "orderBook"):
 		var orderBook WsOrderbookData
 		err = json.Unmarshal(respRaw, &orderBook)
 		if err != nil {
 			return err
 		}
-		p := strings.Replace(orderBook.Topic, "orderBook.", "", 1)
 
 		var format currency.PairFormat
-		format, err = c.GetPairFormat(inferAssetFromTopic(topic), true)
+		format, err = c.GetPairFormat(assetType, true)
 		if err != nil {
 			return err
 		}
 
 		var pairs currency.Pairs
-		pairs, err = c.GetEnabledPairs(inferAssetFromTopic(topic))
+		pairs, err = c.GetEnabledPairs(assetType)
 		if err != nil {
 			return err
 		}
-
+		p := strings.Split(orderBook.Topic, ".")
+		if len(p) == 1 {
+			return errors.New("crikey m8")
+		}
 		var newP currency.Pair
-		newP, err = currency.NewPairFromFormattedPairs(p, pairs, format)
+		newP, err = currency.NewPairFromFormattedPairs(p[1], pairs, format)
 		if err != nil {
 			return err
 		}
-
 		var amount, price float64
 		var asks, bids []orderbook.Item
 		for i := range orderBook.Data[0].Asks {
@@ -319,7 +322,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			var newOB orderbook.Base
 			newOB.Asks = asks
 			newOB.Bids = bids
-			newOB.AssetType = inferAssetFromTopic(topic)
+			newOB.AssetType = assetType
 			newOB.Pair = newP
 			newOB.ExchangeName = c.Name
 			newOB.LastUpdated = time.Unix(orderBook.Data[0].Timestamp, 0)
@@ -331,7 +334,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			newOB := buffer.Update{
 				Asks:       asks,
 				Bids:       bids,
-				Asset:      inferAssetFromTopic(topic),
+				Asset:      assetType,
 				Pair:       newP,
 				UpdateID:   orderBook.Data[0].Version,
 				UpdateTime: time.Unix(orderBook.Data[0].Timestamp,0),
@@ -343,53 +346,44 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		}
 	case strings.Contains(result[topic].(string), "kline"):
 		var kline WsKline
-		var tempFloat float64
-		var tempKline []float64
 		err = json.Unmarshal(respRaw, &kline)
 		if err != nil {
 			return err
 		}
-		for x := 2; x < len(kline.Data[0]); x++ {
-			tempFloat, err = strconv.ParseFloat(kline.Data[0][x].(string), 64)
-			if err != nil {
-				return err
-			}
-			tempKline = append(tempKline, tempFloat)
-		}
-
 		var format currency.PairFormat
-		format, err = c.GetPairFormat(inferAssetFromTopic(topic), true)
+		format, err = c.GetPairFormat(assetType, true)
 		if err != nil {
 			return err
 		}
 
 		var pairs currency.Pairs
-		pairs, err = c.GetEnabledPairs(inferAssetFromTopic(topic))
+		pairs, err = c.GetEnabledPairs(assetType)
 		if err != nil {
 			return err
 		}
 
 		var newP currency.Pair
-		newP, err = currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
-			pairs,
-			format)
+		p := strings.Split(kline.Topic, ".")
+		if len(p) == 1 {
+			return errors.New("crikey m8")
+		}
+		newP, err = currency.NewPairFromFormattedPairs(p[1], pairs, format)
 		if err != nil {
 			return err
 		}
 
-		if tempKline == nil && len(tempKline) < 5 {
-			return errors.New(c.Name + " - received bad data ")
-		}
-		c.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  time.Unix(int64(kline.Data[0][1].(float64)), 0),
-			Pair:       newP,
-			AssetType:  inferAssetFromTopic(topic),
-			Exchange:   c.Name,
-			OpenPrice:  tempKline[0],
-			ClosePrice: tempKline[1],
-			HighPrice:  tempKline[2],
-			LowPrice:   tempKline[3],
-			Volume:     tempKline[4],
+		for i := range kline.Data {
+			c.Websocket.DataHandler <- stream.KlineData{
+				Timestamp:  time.Unix(kline.Data[i].T, 0),
+				Pair:       newP,
+				AssetType:  assetType,
+				Exchange:   c.Name,
+				OpenPrice:  kline.Data[i].O,
+				ClosePrice: kline.Data[i].C,
+				HighPrice:  kline.Data[i].H,
+				LowPrice:   kline.Data[i].L,
+				Volume:     kline.Data[i].V,
+			}
 		}
 	case strings.Contains(result[topic].(string), "user.account"):
 		var userInfo WsUserInfo
@@ -412,12 +406,12 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		format, err := c.GetPairFormat(inferAssetFromTopic(topic), true)
+		format, err := c.GetPairFormat(assetType, true)
 		if err != nil {
 			return err
 		}
 
-		pairs, err := c.GetEnabledPairs(inferAssetFromTopic(topic))
+		pairs, err := c.GetEnabledPairs(assetType)
 		if err != nil {
 			return err
 		}
@@ -457,7 +451,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				ID:              orders.Data[i].OrderID,
 				Type:            oType,
 				Status:          oStatus,
-				AssetType:       inferAssetFromTopic(topic),
+				AssetType:       assetType,
 				Date:            time.Unix(orders.Data[i].OrderTime, 0),
 				Leverage:        strconv.FormatInt(orders.Data[i].Leverage, 10),
 				Pair:            newP,

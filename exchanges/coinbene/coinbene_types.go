@@ -145,14 +145,37 @@ type WsTicker struct {
 // WsTradeList stores websocket tradelist data
 type WsTradeList struct {
 	Topic string     `json:"topic"`
-	Data  [][]string `json:"data"`
+	Data  [][4]interface{} `json:"data"`
+}
+
+type WsTradeData struct {
+		BestAskPrice float64 `json:"bestAskPrice,string"`
+		BestBidPrice float64 `json:"bestBidPrice,string"`
+		High24h      float64 `json:"high24h,string"`
+		LastPrice    float64 `json:"lastPrice,string"`
+		Low24h       float64 `json:"low24h,string"`
+		Open24h      float64 `json:"open24h,string"`
+		OpenPrice    float64 `json:"openPrice,string"`
+		Symbol       string `json:"symbol"`
+		Timestamp    int64  `json:"timestamp"`
+		Volume24h    float64 `json:"volume24h,string"`
 }
 
 // WsKline stores websocket kline data
 type WsKline struct {
 	Topic string          `json:"topic"`
-	Data  [][]interface{} `json:"data"`
+	Data  []WsKLineData `json:"data"`
 }
+
+type WsKLineData  struct {
+	C float64 `json:"c"`
+	H float64 `json:"h"`
+	L float64   `json:"l"`
+	O float64   `json:"o"`
+	T int64   `json:"t"`
+	V float64   `json:"v"`
+}
+
 
 // WsUserData stores websocket user data
 type WsUserData struct {
