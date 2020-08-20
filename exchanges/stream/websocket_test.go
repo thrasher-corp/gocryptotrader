@@ -1102,7 +1102,7 @@ func TestFlushChannels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	web.subscriptionMutex.Lock()
 	web.subscriptions = []ChannelSubscription{
 		{
 			Channel:  "match channel",
@@ -1113,6 +1113,7 @@ func TestFlushChannels(t *testing.T) {
 			Currency: currency.NewPair(currency.THETA, currency.USDT),
 		},
 	}
+	web.subscriptionMutex.Unlock()
 
 	err = web.FlushChannels()
 	if err != nil {
