@@ -1415,6 +1415,10 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	}
 }
 
+func (s *RPCServer) GetTrades(_ context.Context, r *gctrpc.GetInfoRequest) (*gctrpc.TradeHistory, error) {
+	return nil, nil
+}
+
 // GetExchangeOrderbookStream streams all orderbooks associated with an exchange
 func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeOrderbookStreamServer) error {
 	if r.Exchange == "" {

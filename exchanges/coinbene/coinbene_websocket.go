@@ -120,6 +120,19 @@ func (c *Coinbene) wsReadData() {
 	}
 }
 
+func inferAssetFromTopic(title string) asset.Item {
+	switch {
+	case strings.Contains(title, "spot/"):
+		return asset.Spot
+	case strings.Contains(title, "btc/"),
+		strings.Contains(title, "usdt/"):
+			return asset.Margin
+
+	default:
+		return asset.PerpetualSwap
+	}
+}
+
 func (c *Coinbene) wsHandleData(respRaw []byte) error {
 	if string(respRaw) == stream.Ping {
 		err := c.Websocket.Conn.SendRawMessage(websocket.TextMessage, []byte(stream.Pong))
@@ -162,13 +175,13 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		}
 
 		var format currency.PairFormat
-		format, err = c.GetPairFormat(asset.PerpetualSwap, true)
+		format, err = c.GetPairFormat(inferAssetFromTopic(topic), true)
 		if err != nil {
 			return err
 		}
 
 		var pairs currency.Pairs
-		pairs, err = c.GetEnabledPairs(asset.PerpetualSwap)
+		pairs, err = c.GetEnabledPairs(inferAssetFromTopic(topic))
 		if err != nil {
 			return err
 		}
@@ -190,7 +203,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Ask:          wsTicker.Data[x].BestAskPrice,
 				Pair:         p,
 				ExchangeName: c.Name,
-				AssetType:    asset.PerpetualSwap,
+				AssetType:   inferAssetFromTopic(topic),
 				LastUpdated:  time.Unix(wsTicker.Data[x].Timestamp, 0),
 			}
 		}
@@ -221,13 +234,13 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		}
 
 		var format currency.PairFormat
-		format, err = c.GetPairFormat(asset.PerpetualSwap, true)
+		format, err = c.GetPairFormat(inferAssetFromTopic(topic), true)
 		if err != nil {
 			return err
 		}
 
 		var pairs currency.Pairs
-		pairs, err = c.GetEnabledPairs(asset.PerpetualSwap)
+		pairs, err = c.GetEnabledPairs(inferAssetFromTopic(topic))
 		if err != nil {
 			return err
 		}
@@ -243,7 +256,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			Price:        price,
 			Amount:       amount,
 			Exchange:     c.Name,
-			AssetType:    asset.PerpetualSwap,
+			AssetType:    inferAssetFromTopic(topic),
 			Side:         tSide,
 		})
 	case strings.Contains(result[topic].(string), "orderBook"):
@@ -255,13 +268,13 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		p := strings.Replace(orderBook.Topic, "orderBook.", "", 1)
 
 		var format currency.PairFormat
-		format, err = c.GetPairFormat(asset.PerpetualSwap, true)
+		format, err = c.GetPairFormat(inferAssetFromTopic(topic), true)
 		if err != nil {
 			return err
 		}
 
 		var pairs currency.Pairs
-		pairs, err = c.GetEnabledPairs(asset.PerpetualSwap)
+		pairs, err = c.GetEnabledPairs(inferAssetFromTopic(topic))
 		if err != nil {
 			return err
 		}
@@ -306,7 +319,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			var newOB orderbook.Base
 			newOB.Asks = asks
 			newOB.Bids = bids
-			newOB.AssetType = asset.PerpetualSwap
+			newOB.AssetType = inferAssetFromTopic(topic)
 			newOB.Pair = newP
 			newOB.ExchangeName = c.Name
 			newOB.LastUpdated = time.Unix(orderBook.Data[0].Timestamp, 0)
@@ -318,7 +331,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			newOB := buffer.Update{
 				Asks:       asks,
 				Bids:       bids,
-				Asset:      asset.PerpetualSwap,
+				Asset:      inferAssetFromTopic(topic),
 				Pair:       newP,
 				UpdateID:   orderBook.Data[0].Version,
 				UpdateTime: time.Unix(orderBook.Data[0].Timestamp,0),
@@ -345,13 +358,13 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		}
 
 		var format currency.PairFormat
-		format, err = c.GetPairFormat(asset.PerpetualSwap, true)
+		format, err = c.GetPairFormat(inferAssetFromTopic(topic), true)
 		if err != nil {
 			return err
 		}
 
 		var pairs currency.Pairs
-		pairs, err = c.GetEnabledPairs(asset.PerpetualSwap)
+		pairs, err = c.GetEnabledPairs(inferAssetFromTopic(topic))
 		if err != nil {
 			return err
 		}
@@ -370,7 +383,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		c.Websocket.DataHandler <- stream.KlineData{
 			Timestamp:  time.Unix(int64(kline.Data[0][1].(float64)), 0),
 			Pair:       newP,
-			AssetType:  asset.PerpetualSwap,
+			AssetType:  inferAssetFromTopic(topic),
 			Exchange:   c.Name,
 			OpenPrice:  tempKline[0],
 			ClosePrice: tempKline[1],
@@ -399,12 +412,12 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		format, err := c.GetPairFormat(asset.PerpetualSwap, true)
+		format, err := c.GetPairFormat(inferAssetFromTopic(topic), true)
 		if err != nil {
 			return err
 		}
 
-		pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
+		pairs, err := c.GetEnabledPairs(inferAssetFromTopic(topic))
 		if err != nil {
 			return err
 		}
@@ -444,7 +457,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				ID:              orders.Data[i].OrderID,
 				Type:            oType,
 				Status:          oStatus,
-				AssetType:       asset.PerpetualSwap,
+				AssetType:       inferAssetFromTopic(topic),
 				Date:            time.Unix(orders.Data[i].OrderTime, 0),
 				Leverage:        strconv.FormatInt(orders.Data[i].Leverage, 10),
 				Pair:            newP,
