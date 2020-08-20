@@ -46,7 +46,7 @@ func (s Statistic) Transactions() []OrderEvent {
 	return s.transactionHistory
 }
 
-func (s *Statistic) Reset()  {
+func (s *Statistic) Reset() {
 	s.eventHistory = nil
 	s.transactionHistory = nil
 	s.equity = nil

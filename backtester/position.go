@@ -51,7 +51,6 @@ func (p *Position) update(inOrder *Order) {
 	fillCost := inOrder.Cost()
 	fillNetValue := inOrder.NetValue()
 
-
 	amount := p.Amount
 	amountBought := p.AmountBought
 	amountSOld := p.AmountSold
@@ -105,7 +104,7 @@ func (p *Position) update(inOrder *Order) {
 		valueSld = amountSOld * avgPriceSld
 		netValueSld += fillNetValue
 	}
-	
+
 	exchangeFee += fillExchangeFee
 	cost += fillCost
 	value = valueSld - valueBot
@@ -132,7 +131,6 @@ func (p *Position) update(inOrder *Order) {
 	p.updateValue(inOrder.Price())
 }
 
-
 func (p *Position) updateValue(l float64) {
 	latest := l
 	qty := p.Amount
@@ -143,4 +141,11 @@ func (p *Position) updateValue(l float64) {
 	realProfitLoss := p.realProfitLoss
 	totalProfitLoss := realProfitLoss + unrealProfitLoss
 	p.totalProfitLoss = math.Round(totalProfitLoss*math.Pow10(DP)) / math.Pow10(DP)
+}
+
+func (p *Position) UpdateValue(data DataEvent) {
+	p.timestamp = data.Time()
+
+	latest := data.Price()
+	p.updateValue(latest)
 }

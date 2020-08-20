@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,25 +13,30 @@ import (
 type testBT struct{}
 
 func (bt *testBT) Init() *Config {
-	return &Config{}
+	fmt.Println("Init()")
+
+	return &Config{
+		Item: genOHCLVData(),
+	}
 }
 
 func (bt *testBT) OnData(d DataEvent, b *Backtest) (bool, error) {
+	fmt.Println(d.Candle())
+	if d.Price() == 1000 {
+		b.Portfolio.Order(900, 1)
+		fmt.Println(b.Portfolio.Position())
+	}
 	return true, nil
 }
 
-func (bt *testBT) OnEnd(b *Backtest) {}
+func (bt *testBT) OnEnd(b *Backtest) {
+	fmt.Println("OnEnd()")
+	fmt.Printf("%+v\n", b.Stats.PrintResult())
+}
 
 func TestBacktest_Run(t *testing.T) {
-	bt := &testBT{}
-	klineData := &DataFromKlineItem{
-		Item: genOHCLVData(),
-	}
-	klineData.Load()
-	err := Run(bt, klineData)
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := &testBT{}
+	Run(g)
 }
 
 func genOHCLVData() (outItem kline.Item) {

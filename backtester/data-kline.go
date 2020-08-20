@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -51,11 +52,12 @@ func (d *DataFromKlineItem) Load() {
 	var candles []*Candle
 	for x := range d.Item.Candles {
 		candles = append(candles, &Candle{
-			Open:   d.Item.Candles[x].Open,
-			High:   d.Item.Candles[x].High,
-			Low:    d.Item.Candles[x].Low,
-			Close:  d.Item.Candles[x].Close,
-			Volume: d.Item.Candles[x].Volume,
+			timestamp: d.Item.Candles[x].Time,
+			Open:      d.Item.Candles[x].Open,
+			High:      d.Item.Candles[x].High,
+			Low:       d.Item.Candles[x].Low,
+			Close:     d.Item.Candles[x].Close,
+			Volume:    d.Item.Candles[x].Volume,
 		})
 	}
 
@@ -64,6 +66,8 @@ func (d *DataFromKlineItem) Load() {
 		list[i] = candles[i]
 	}
 	d.SetStream(list)
+
+	fmt.Println("Data loadded")
 }
 
 func (d *DataFromKlineItem) SortStream() {
@@ -76,17 +80,5 @@ func (d *DataFromKlineItem) SortStream() {
 }
 
 func (d *DataFromKlineItem) updateLatest(event DataEvent) {
-	if d.latest == nil {
-		d.latest = make(map[string]Data)
-	}
-
 	d.latest = event
-}
-
-func (d *Data) updateList(event DataEvent) {
-	if d.list == nil {
-		d.list = make(map[string][]DataEvent)
-	}
-
-	d.list[event.Pair()] = append(d.list[event.Pair()], event)
 }

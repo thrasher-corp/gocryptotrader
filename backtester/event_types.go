@@ -9,6 +9,7 @@ import (
 type DataEvent interface {
 	EventHandler
 	Price() float64
+	Candle() Candle
 }
 
 type Event struct {

@@ -13,9 +13,9 @@ type Candle struct {
 }
 
 func (c Candle) Time() time.Time {
-	panic("implement me")
+	return time.Now()
 }
 
 func (c Candle) SetTime(t time.Time) {
-	panic("implement me")
+
 }

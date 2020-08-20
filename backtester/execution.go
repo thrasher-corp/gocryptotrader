@@ -7,7 +7,8 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (e *Exchange) OnData(data DataEvent, t *Backtest) (OrderEvent, error) {
+func (e *Execution) OnData(data DataEvent, t *Backtest) (OrderEvent, error) {
+	fmt.Println("Execution OnData()")
 	portfolio := t.Portfolio.(*Portfolio)
 	candle := data.(*Candle)
 
@@ -65,8 +66,7 @@ func (e *Exchange) OnData(data DataEvent, t *Backtest) (OrderEvent, error) {
 		if err != nil {
 			continue
 		}
-		fmt.Println(tx)
-		// t.statistic.TrackTransaction(transaction)
+		t.Stats.TrackTransaction(tx)
 
 		*orders = append((*orders)[:i], (*orders)[i+1:]...)
 	}

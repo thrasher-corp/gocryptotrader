@@ -17,7 +17,7 @@ type StatisticHandler interface {
 	TrackTransaction(OrderEvent)
 	Transactions() []OrderEvent
 
-	PrintResult()
+	PrintResult() Results
 
 	Update(DataEvent, PortfolioHandler)
 

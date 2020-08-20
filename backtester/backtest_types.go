@@ -7,8 +7,9 @@ import (
 type Backtest struct {
 	data      DataHandler
 	Portfolio PortfolioHandler
-	algo      AlgoHandler
-	execution ExecutionHandler
+	Algo      AlgoHandler
+	Execution ExecutionHandler
+	Stats     StatisticHandler
 
 	config *Config
 }

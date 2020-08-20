@@ -3,6 +3,7 @@ package loader
 import (
 	"github.com/d5/tengo/v2"
 	"github.com/d5/tengo/v2/stdlib"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/backtester"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/ta"
 )
@@ -26,9 +27,9 @@ func GetModuleMap() *tengo.ModuleMap {
 		}
 	}
 
-	backtestModule := backtester.AllModuleNames()
-	for _, name := range backtestModule {
-		if mod := backtestModule.Modules[name]; mod != nil {
+	backtestModuleList := backtester.AllModuleNames()
+	for _, name := range backtestModuleList {
+		if mod := backtester.Modules[name]; mod != nil {
 			modules.AddBuiltinModule(name, mod)
 		}
 	}

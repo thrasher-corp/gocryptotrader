@@ -4,6 +4,6 @@ type ExecutionHandler interface {
 	OnData(DataEvent, *Backtest) (OrderEvent, error)
 }
 
-type Exchange struct {
+type Execution struct {
 	ExchangeFee ExchangeFeeHandler
 }

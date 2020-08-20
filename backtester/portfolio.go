@@ -1,6 +1,10 @@
 package backtest
 
-import gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+import (
+	"fmt"
+
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
 
 func (p *Portfolio) OnFill(order *Order) (*Order, error) {
 	//p.holdings.Update(order)
@@ -63,7 +67,7 @@ func (p Portfolio) Funds() float64 {
 }
 
 func (p *Portfolio) Order(price float64, amount float64) {
-	data := Backtest{}.data
+	fmt.Println("Portfolio Order()")
 	var orderType gctorder.Type
 	var orderSide gctorder.Side
 	var newAmount float64
@@ -88,7 +92,7 @@ func (p *Portfolio) Order(price float64, amount float64) {
 
 	initialOrder := &Order{
 		Event: Event{
-			time: data.Latest().Time(),
+			// time: data.Latest().Time(),
 		},
 		amount:     newAmount,
 		orderType:  orderType,
@@ -103,7 +107,10 @@ func (p *Portfolio) Position() Position {
 }
 
 func (p *Portfolio) Update(event DataEvent) {
-
+	if pos, ok := p.IsInvested(); ok {
+		pos.UpdateValue(event)
+		p.Holdings = pos
+	}
 }
 
 func (p *Portfolio) Value() float64 {
