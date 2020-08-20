@@ -158,7 +158,6 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 }
 
 func TestTrafficMonitorTimeout(t *testing.T) {
