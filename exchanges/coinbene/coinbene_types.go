@@ -167,13 +167,14 @@ type WsKline struct {
 	Data  []WsKLineData `json:"data"`
 }
 
+// WsKLineData holds OHLCV data
 type WsKLineData  struct {
-	C float64 `json:"c"`
-	H float64 `json:"h"`
-	L float64   `json:"l"`
-	O float64   `json:"o"`
-	T int64   `json:"t"`
-	V float64   `json:"v"`
+	Open float64 `json:"o"`
+	High    float64 `json:"h"`
+	Low    float64 `json:"l"`
+	Close    float64 `json:"c"`
+	Volume    float64 `json:"v"`
+	Timestamp    int64   `json:"t"`
 }
 
 

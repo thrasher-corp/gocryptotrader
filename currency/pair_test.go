@@ -693,3 +693,86 @@ func TestIsInvalid(t *testing.T) {
 		t.Error("IsInvalid() error expect true but received false")
 	}
 }
+
+func TestMatchPairsWithNoDelimiter(t *testing.T) {
+	p1, err := NewPairDelimiter("BTC-USDT", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p2, err := NewPairDelimiter("LTC-USD", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p3, err := NewPairFromStrings("EQUAD", "BTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p4, err := NewPairFromStrings("HTDF", "USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p5, err := NewPairFromStrings("BETHER", "ETH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pairs := Pairs{
+		p1,
+		p2,
+		p3,
+		p4,
+		p5,
+	}
+
+	p, err := MatchPairsWithNoDelimiter("BTCUSDT", pairs, PairFormat{
+		Uppercase: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Quote.String() != "USDT" && p.Base.String() != "BTC" {
+		t.Error("unexpected response")
+	}
+
+	p, err = MatchPairsWithNoDelimiter("EQUADBTC", pairs, PairFormat{
+		Uppercase: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Base.String() != "EQUAD" && p.Quote.String() != "BTC" {
+		t.Errorf("unexpected response base: %v quote: %v", p.Base.String(), p.Quote.String())
+	}
+
+	p, err = MatchPairsWithNoDelimiter("EQUADBTC", pairs, PairFormat{
+		Uppercase: true,
+		Delimiter: "/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Base.String() != "EQUAD" && p.Quote.String() != "BTC" {
+		t.Errorf("unexpected response base: %v quote: %v", p.Base.String(), p.Quote.String())
+	}
+
+	p, err = MatchPairsWithNoDelimiter("HTDFUSDT", pairs, PairFormat{
+		Uppercase: true,
+		Delimiter: "/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Base.String() != "HTDF" && p.Quote.String() != "USDT" {
+		t.Errorf("unexpected response base: %v quote: %v", p.Base.String(), p.Quote.String())
+	}
+
+	p, err = MatchPairsWithNoDelimiter("BETHERETH", pairs, PairFormat{
+		Uppercase: true,
+		Delimiter: "/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Base.String() != "BETHER" && p.Quote.String() != "ETH" {
+		t.Errorf("unexpected response base: %v quote: %v", p.Base.String(), p.Quote.String())
+	}
+}

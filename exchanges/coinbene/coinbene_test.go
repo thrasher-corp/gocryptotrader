@@ -803,3 +803,28 @@ func TestInferAssetFromTopic(t *testing.T) {
 		t.Error("expected PerpetualSwap")
 	}
 }
+
+func TestGetCurrencyFromWsTopic(t *testing.T) {
+	p, err := c.getCurrencyFromWsTopic(asset.Spot, "spot/orderbook.BTCUSDT")
+	if err != nil {
+		t.Error(err)
+	}
+	if p.Base.String() != "BTC" && p.Quote.String() != "USDT" {
+		t.Errorf("unexpected currency, wanted BTCUSD, received %v", p.String())
+	}
+
+	_, err = c.getCurrencyFromWsTopic(asset.Spot, "fake")
+	if err != nil && err.Error() != "no currency found in topic fake" {
+		t.Error(err)
+	}
+
+	_, err = c.getCurrencyFromWsTopic(asset.Spot, "hello.moto")
+	if err != nil && err.Error() != "currency moto not found in enabled pairs" {
+		t.Error(err)
+	}
+	c.CurrencyPairs.Pairs[asset.Spot].Enabled.Add()
+	_, err = c.getCurrencyFromWsTopic(asset.Spot, "spot/kline.GOM2USDT.1h")
+	if err != nil && err.Error() != "currency moto not found in enabled pairs" {
+		t.Error(err)
+	}
+}
