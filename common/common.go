@@ -51,14 +51,14 @@ func initialiseHTTPClient() {
 	}
 }
 
-// NewHTTPClientWithTimeout initialises a new HTTP client with the specified
-// timeout duration
+// NewHTTPClientWithTimeout initialises a new HTTP client and its underlying
+// transport IdleConnTimeout with the specified timeout duration
 func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 	tr := &http.Transport{
 		// Added IdleConnTimeout to reduce the time of idle connections which
 		// could potentially slow macOS reconnection when there is a sudden
 		// network disconnection/issue
-		IdleConnTimeout: time.Second * 15,
+		IdleConnTimeout: t,
 	}
 	h := &http.Client{
 		Transport: tr,
