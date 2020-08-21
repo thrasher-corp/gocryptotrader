@@ -1083,7 +1083,9 @@ func TestFlushChannels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	web.subscriptionMutex.Lock()
 	web.subscriptions = subs
+	web.subscriptionMutex.Unlock()
 	err = web.FlushChannels()
 	if err != nil {
 		t.Fatal(err)
