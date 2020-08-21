@@ -225,15 +225,15 @@ func TestConnectionMessageErrors(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	wsWrong.enabled = true
-	wsWrong.connecting = true
+	wsWrong.setEnabled(true)
+	wsWrong.setConnectingStatus(true)
 	wsWrong.Wg = &sync.WaitGroup{}
 	err = wsWrong.Connect()
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
-	wsWrong.connecting = false
+	wsWrong.setConnectedStatus(false)
 	wsWrong.connector = func() error { return errors.New("edge case error of dooooooom") }
 	err = wsWrong.Connect()
 	if err == nil {
