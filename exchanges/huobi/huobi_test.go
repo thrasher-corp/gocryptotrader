@@ -25,7 +25,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 	testSymbol              = "btcusdt"
 )
 
@@ -89,9 +89,7 @@ func TestQuerySwapIndexPriceInfo(t *testing.T) {
 
 func TestSwapOpenInterestInformation(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.SwapOpenInterestInformation("BTC-USD")
-	t.Log(a)
+	_, err := h.SwapOpenInterestInformation("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -99,9 +97,7 @@ func TestSwapOpenInterestInformation(t *testing.T) {
 
 func TestGetSwapMarketDepth(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapMarketDepth("BTC-USD", "step0")
-	t.Log(a)
+	_, err := h.GetSwapMarketDepth("BTC-USD", "step0")
 	if err != nil {
 		t.Error(err)
 	}
@@ -109,9 +105,7 @@ func TestGetSwapMarketDepth(t *testing.T) {
 
 func TestGetSwapKlineData(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapKlineData("BTC-USD", "5min", 5, time.Now().Add(-time.Hour), time.Now())
-	t.Log(a)
+	_, err := h.GetSwapKlineData("BTC-USD", "5min", 5, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -119,9 +113,7 @@ func TestGetSwapKlineData(t *testing.T) {
 
 func TestGetSwapMarketOverview(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapMarketOverview("BTC-USD")
-	t.Log(a)
+	_, err := h.GetSwapMarketOverview("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -129,9 +121,7 @@ func TestGetSwapMarketOverview(t *testing.T) {
 
 func TestGetLastTrade(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetLastTrade("BTC-USD")
-	t.Log(a)
+	_, err := h.GetLastTrade("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -139,9 +129,7 @@ func TestGetLastTrade(t *testing.T) {
 
 func TestGetBatchTrades(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetBatchTrades("BTC-USD", 5)
-	t.Log(a)
+	_, err := h.GetBatchTrades("BTC-USD", 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -149,9 +137,7 @@ func TestGetBatchTrades(t *testing.T) {
 
 func TestGetInsuranceData(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetInsuranceData("BTC-USD")
-	t.Log(a)
+	_, err := h.GetInsuranceData("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -159,9 +145,7 @@ func TestGetInsuranceData(t *testing.T) {
 
 func TestGetHistoricalInsuranceData(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetHistoricalInsuranceData("BTC-USD", 0, 0)
-	t.Log(a)
+	_, err := h.GetHistoricalInsuranceData("BTC-USD", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -169,9 +153,7 @@ func TestGetHistoricalInsuranceData(t *testing.T) {
 
 func TestGetTieredAjustmentFactorInfo(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetTieredAjustmentFactorInfo("BTC-USD")
-	t.Log(a)
+	_, err := h.GetTieredAjustmentFactorInfo("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -179,9 +161,7 @@ func TestGetTieredAjustmentFactorInfo(t *testing.T) {
 
 func TestGetOpenInterestInfo(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetOpenInterestInfo("BTC-USD", "5min", "cryptocurrency", 50)
-	t.Log(a)
+	_, err := h.GetOpenInterestInfo("BTC-USD", "5min", "cryptocurrency", 50)
 	if err != nil {
 		t.Error(err)
 	}
@@ -189,9 +169,7 @@ func TestGetOpenInterestInfo(t *testing.T) {
 
 func TestGetTraderSentimentIndexAccount(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetTraderSentimentIndexAccount("BTC-USD", "5min")
-	t.Log(a)
+	_, err := h.GetTraderSentimentIndexAccount("BTC-USD", "5min")
 	if err != nil {
 		t.Error(err)
 	}
@@ -199,9 +177,7 @@ func TestGetTraderSentimentIndexAccount(t *testing.T) {
 
 func TestGetTraderSentimentIndexPosition(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetTraderSentimentIndexPosition("BTC-USD", "5min")
-	t.Log(a)
+	_, err := h.GetTraderSentimentIndexPosition("BTC-USD", "5min")
 	if err != nil {
 		t.Error(err)
 	}
@@ -209,9 +185,7 @@ func TestGetTraderSentimentIndexPosition(t *testing.T) {
 
 func TestGetLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetLiquidationOrders("BTC-USD", "closed", 0, 0, 7)
-	t.Log(a)
+	_, err := h.GetLiquidationOrders("BTC-USD", "closed", 0, 0, 7)
 	if err != nil {
 		t.Error(err)
 	}
@@ -219,9 +193,7 @@ func TestGetLiquidationOrders(t *testing.T) {
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetHistoricalFundingRates("BTC-USD", 0, 0)
-	t.Log(a)
+	_, err := h.GetHistoricalFundingRates("BTC-USD", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -229,9 +201,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestGetPremiumIndexKlineData(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetPremiumIndexKlineData("BTC-USD", "5min", 15)
-	t.Log(a)
+	_, err := h.GetPremiumIndexKlineData("BTC-USD", "5min", 15)
 	if err != nil {
 		t.Error(err)
 	}
@@ -239,9 +209,7 @@ func TestGetPremiumIndexKlineData(t *testing.T) {
 
 func TestGetEstimatedFundingRates(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetPremiumIndexKlineData("BTC-USD", "5min", 15)
-	t.Log(a)
+	_, err := h.GetPremiumIndexKlineData("BTC-USD", "5min", 15)
 	if err != nil {
 		t.Error(err)
 	}
@@ -249,9 +217,7 @@ func TestGetEstimatedFundingRates(t *testing.T) {
 
 func TestGetBasisData(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetBasisData("BTC-USD", "5min", "close", 5)
-	t.Log(a)
+	_, err := h.GetBasisData("BTC-USD", "5min", "close", 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -259,9 +225,7 @@ func TestGetBasisData(t *testing.T) {
 
 func TestGetSystemStatusInfo(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSystemStatusInfo("BTC-USD", "5min", "cryptocurrency", 50)
-	t.Log(a)
+	_, err := h.GetSystemStatusInfo("BTC-USD", "5min", "cryptocurrency", 50)
 	if err != nil {
 		t.Error(err)
 	}
@@ -269,9 +233,7 @@ func TestGetSystemStatusInfo(t *testing.T) {
 
 func TestGetSwapPriceLimits(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapPriceLimits("BTC-USD")
-	t.Log(a)
+	_, err := h.GetSwapPriceLimits("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -295,138 +257,153 @@ func TestGetMarginRates(t *testing.T) {
 func TestGetSwapAccountInfo(t *testing.T) {
 	t.Parallel()
 	h.Verbose = true
-	a, err := h.GetSwapAccountInfo("ETH-USD")
-	t.Log(a)
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := h.GetSwapAccountInfo("ETH-USD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSwapPositionsInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapPositionsInfo("ETH-USD")
-	t.Log(a)
+	_, err := h.GetSwapPositionsInfo("ETH-USD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSwapAssetsAndPositions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapAssetsAndPositions("ETH-USD")
-	t.Log(a)
+	_, err := h.GetSwapAssetsAndPositions("ETH_USD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSubAccAssetsInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSubAccAssetsInfo("ETH-USD", 0)
-	t.Log(a)
+	_, err := h.GetSubAccAssetsInfo("ETH-USD", 0)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSubAccPositionInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSubAccPositionInfo("ETH-USD", 0)
-	t.Log(a)
+	_, err := h.GetSubAccPositionInfo("ETH-USD", 0)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetAccountFinancialRecords(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetAccountFinancialRecords("ETH-USD", "3,4", 15, 0, 0)
-	t.Log(a)
+	_, err := h.GetAccountFinancialRecords("ETH-USD", "3,4", 15, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSwapSettlementRecords(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapSettlementRecords("ETH-USD", time.Time{}, time.Time{}, 0, 0)
-	t.Log(a)
+	_, err := h.GetSwapSettlementRecords("ETH-USD", time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetAvailableLeverage(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetAvailableLeverage("ETH-USD")
-	t.Log(a)
+	_, err := h.GetAvailableLeverage("ETH-USD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSwapOrderLimitInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapOrderLimitInfo("ETH-USD", "limit")
-	t.Log(a)
+	_, err := h.GetSwapOrderLimitInfo("ETH-USD", "limit")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSwapTradingFeeInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapTradingFeeInfo("ETH-USD")
-	t.Log(a)
+	_, err := h.GetSwapTradingFeeInfo("ETH-USD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSwapTransferLimitInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapTransferLimitInfo("ETH-USD")
-	t.Log(a)
+	_, err := h.GetSwapTransferLimitInfo("ETH-USD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSwapPositionLimitInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.GetSwapPositionLimitInfo("ETH-USD")
-	t.Log(a)
+	_, err := h.GetSwapPositionLimitInfo("ETH-USD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestAccountTransferData(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.AccountTransferData("ETH-USD", "", "master_to_sub", 15)
-	t.Log(a)
+	_, err := h.AccountTransferData("ETH-USD", "123", "master_to_sub", 15)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestAccountTransferRecords(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.AccountTransferRecords("ETH-USD", "master_to_sub", 0, 0, 0)
-	t.Log(a)
+	_, err := h.AccountTransferRecords("ETH-USD", "master_to_sub", 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}

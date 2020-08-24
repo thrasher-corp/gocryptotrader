@@ -233,11 +233,22 @@ type FundingRatesData struct {
 // HistoricalFundingRateData stores historical funding rates for perpetuals
 type HistoricalFundingRateData struct {
 	Data struct {
-		TotalPage   int64              `json:"total_page"`
-		CurrentPage int64              `json:"current_page"`
-		TotalSize   int64              `json:"total_size"`
-		Data        []FundingRatesData `json:"data"`
+		TotalPage   int64                `json:"total_page"`
+		CurrentPage int64                `json:"current_page"`
+		TotalSize   int64                `json:"total_size"`
+		Data        []HistoricalRateData `json:"data"`
 	}
+}
+
+// HistoricalRateData stores historical rates data
+type HistoricalRateData struct {
+	FundingRate     float64 `json:"funding_rate,string"`
+	RealizedRate    float64 `json:"realized_rate,string"`
+	FundingTime     int64   `json:"fundingTime,string"`
+	ContractCode    string  `json:"contract_code"`
+	Symbol          string  `json:"symbol"`
+	FeeAsset        string  `json:"fee_asset"`
+	AvgPremiumIndex float64 `json:"avg_premium_index,string"`
 }
 
 // PremiumIndexKlineData stores kline data for premium
@@ -419,6 +430,15 @@ type SingleSubAccountPositionsInfo struct {
 	} `json:"data"`
 }
 
+// AvailableLeverageData stores data of available leverage for account
+type AvailableLeverageData struct {
+	Data []struct {
+		ContractCode      string `json:"contract_code"`
+		AvailableLeverage string `json:"available_level_rate"`
+	} `json:"data"`
+	Timestamp int64 `json:"timestamp"`
+}
+
 // FinancialRecordData stores an accounts financial records
 type FinancialRecordData struct {
 	Data struct {
@@ -456,10 +476,10 @@ type SwapTradingFeeData struct {
 		Symbol        string  `json:"symbol"`
 		ContractCode  string  `json:"contract_code"`
 		FeeAsset      string  `json:"fee_asset"`
-		OpenMakerFee  float64 `json:"open_maker_fee"`
-		OpenTakerFee  float64 `json:"open_taker_fee"`
-		CloseMakerFee float64 `json:"close_maker_fee"`
-		CloseTakerFee float64 `json:"close_taker_fee"`
+		OpenMakerFee  float64 `json:"open_maker_fee,string"`
+		OpenTakerFee  float64 `json:"open_taker_fee,string"`
+		CloseMakerFee float64 `json:"close_maker_fee,string"`
+		CloseTakerFee float64 `json:"close_taker_fee,string"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
 }

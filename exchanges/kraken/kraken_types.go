@@ -270,6 +270,12 @@ type FuturesOpenOrdersData struct {
 	ServerTime string             `json:"serverTime"`
 }
 
+// GenericResponse stores general response data for functions that only return success
+type GenericResponse struct {
+	Timestamp string `json:"timestamp"`
+	Result    string `json:"result"`
+}
+
 // RecentOrdersData stores order data of recent orders
 
 // Asset holds asset information

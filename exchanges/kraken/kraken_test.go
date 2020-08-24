@@ -30,7 +30,7 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 // TestSetup setup func
@@ -79,7 +79,7 @@ func TestFuturesEditOrder(t *testing.T) {
 func TestFuturesSendOrder(t *testing.T) {
 	t.Parallel()
 	k.Verbose = true
-	a, err := k.FuturesSendOrder("test123", "btcusd", "buy", "", "", "", 1, 1, 0.9)
+	a, err := k.FuturesSendOrder("lmt", "PI_XBTUSD", "buy", "", "", "", 1, 1, 0.9)
 	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)
@@ -109,7 +109,37 @@ func TestFuturesGetFills(t *testing.T) {
 func TestFuturesTransfer(t *testing.T) {
 	t.Parallel()
 	k.Verbose = true
-	a, err := k.FuturesGetFills(time.Now().Add(-time.Hour * 24))
+	a, err := k.FuturesTransfer("cash", "futures", "btc", 2)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesGetOpenPositions(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesGetOpenPositions()
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesNotifications(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesNotifications()
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesCancelAllOrders("PI_XBTUSD")
 	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)
@@ -120,6 +150,56 @@ func TestGetFuturesAccountData(t *testing.T) {
 	t.Parallel()
 	k.Verbose = true
 	a, err := k.GetFuturesAccountData()
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesCancelAllOrdersAfter(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesCancelAllOrdersAfter(50)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesOpenOrders(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesOpenOrders()
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesRecentOrders(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesRecentOrders("PI_XBTUSD")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesWithdrawToSpotWallet(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesWithdrawToSpotWallet("xbt", 5)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesGetTransfers(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FuturesGetTransfers(time.Now().Add(-time.Hour * 24))
 	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)

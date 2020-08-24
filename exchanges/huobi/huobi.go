@@ -535,8 +535,8 @@ func (h *HUOBI) GetSwapSettlementRecords(code string, startTime, endTime time.Ti
 }
 
 // GetAvailableLeverage gets user's available leverage data
-func (h *HUOBI) GetAvailableLeverage(code string) (FinancialRecordData, error) {
-	var resp FinancialRecordData
+func (h *HUOBI) GetAvailableLeverage(code string) (AvailableLeverageData, error) {
+	var resp AvailableLeverageData
 	req := make(map[string]interface{})
 	if code != "" {
 		req["contract_code"] = code
@@ -573,12 +573,12 @@ func (h *HUOBI) GetSwapTransferLimitInfo(code string) (TransferLimitData, error)
 	req := make(map[string]interface{})
 	req["contract_code"] = code
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapTradingFeeInfo, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapTransferLimitInfo, nil, req, &resp, false)
 }
 
 // GetSwapPositionLimitInfo gets transfer limit info for swaps
-func (h *HUOBI) GetSwapPositionLimitInfo(code string) (TransferLimitData, error) {
-	var resp TransferLimitData
+func (h *HUOBI) GetSwapPositionLimitInfo(code string) (PositionLimitData, error) {
+	var resp PositionLimitData
 	req := make(map[string]interface{})
 	req["contract_code"] = code
 	h.API.Endpoints.URL = huobiURL
@@ -590,12 +590,12 @@ func (h *HUOBI) AccountTransferData(code, subUID, transferType string, amount fl
 	var resp InternalAccountTransferData
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	req["subUID"] = subUID
+	req["subUid"] = subUID
 	req["amount"] = amount
 	if !common.StringDataCompare(acceptableTransferType, transferType) {
 		return resp, fmt.Errorf("inavlid transferType received")
 	}
-	req["transfer_type"] = transferType
+	req["type"] = transferType
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapInternalTransferData, nil, req, &resp, false)
 }
@@ -608,7 +608,7 @@ func (h *HUOBI) AccountTransferRecords(code, transferType string, createDate, pa
 	if !common.StringDataCompare(acceptableTransferType, transferType) {
 		return resp, fmt.Errorf("inavlid transferType received")
 	}
-	req["transfer_type"] = transferType
+	req["type"] = transferType
 	if createDate > 90 {
 		return resp, fmt.Errorf("invalid create date value: only supports up to 90 days")
 	}
@@ -1553,13 +1553,11 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest2(method, endpoint string, values ur
 	}
 	now := time.Now()
 	values.Set("AccessKeyId", h.API.Credentials.Key)
-	// values.Set("contract_code", "ETH-USD")
 	values.Set("SignatureMethod", "HmacSHA256")
 	values.Set("SignatureVersion", "2")
 	values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
 	sigPath := fmt.Sprintf("%s\napi.hbdm.com\n/%s\n%s",
 		method, endpoint, values.Encode())
-	fmt.Println("SIGPATH BRA:", sigPath)
 	headers := make(map[string]string)
 	if method == http.MethodGet {
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -1567,11 +1565,11 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest2(method, endpoint string, values ur
 		headers["Content-Type"] = "application/json"
 	}
 	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(sigPath), []byte(h.API.Credentials.Secret))
+	sigValues := url.Values{}
+	sigValues.Add("Signature", crypto.Base64Encode(hmac))
 	urlPath := h.API.Endpoints.URL +
-		common.EncodeURLValues(endpoint, values) +
-		"&Signature=" +
-		crypto.Base64Encode(hmac)
-	fmt.Println(crypto.Base64Encode(hmac))
+		common.EncodeURLValues(endpoint, values) + "&" + sigValues.Encode()
+
 	var body io.Reader
 	var payload []byte
 	var err error
@@ -1582,17 +1580,36 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest2(method, endpoint string, values ur
 		}
 		body = bytes.NewBuffer(payload)
 	}
-	return h.SendPayload(context.Background(), &request.Item{
+
+	var tempResp json.RawMessage
+	errCap := struct {
+		Status string `json:"status"`
+		Code   int64  `json:"err_code"`
+		ErrMsg string `json:"err_msg"`
+	}{}
+
+	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
+	defer cancel()
+	if err := h.SendPayload(ctx, &request.Item{
 		Method:        method,
 		Path:          urlPath,
 		Headers:       headers,
 		Body:          body,
-		Result:        &result,
+		Result:        &tempResp,
 		AuthRequest:   true,
 		Verbose:       h.Verbose,
 		HTTPDebugging: h.HTTPDebugging,
 		HTTPRecording: h.HTTPRecording,
-	})
+	}); err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(tempResp, &errCap); err == nil {
+		if errCap.Code != 200 && errCap.ErrMsg != "" {
+			return errors.New(errCap.ErrMsg)
+		}
+	}
+	return json.Unmarshal(tempResp, result)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
@@ -1619,8 +1636,6 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 
 	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
 		method, endpoint, values.Encode())
-
-	fmt.Println(payload)
 
 	headers := make(map[string]string)
 
