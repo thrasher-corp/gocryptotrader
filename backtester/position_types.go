@@ -32,7 +32,7 @@ type Position struct {
 }
 
 type RiskHandler interface {
-	EvaluateOrder(OrderEvent, DataEvent, map[string]Position) (*Order, error)
+	EvaluateOrder(OrderEvent, DataEvent, Position) (*Order, error)
 }
 
 type Risk struct {

@@ -20,6 +20,10 @@ func (o Order) Direction() order.Side {
 	}
 }
 
+func (o *Order) SetOrderSide(side order.Side) {
+	o.orderSide = side
+}
+
 func (o *Order) SetOrderType(orderType order.Type) {
 	o.orderType = orderType
 }
@@ -41,10 +45,6 @@ func (o Order) Status() order.Status {
 
 func (o *Order) Cancel() {
 	o.status = order.Cancelled
-}
-
-func (o *Order) Update(_ OrderEvent) {
-
 }
 
 func (o Order) GetAmountFilled() float64 {

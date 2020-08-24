@@ -131,6 +131,11 @@ func (p *Position) update(inOrder *Order) {
 	p.updateValue(inOrder.Price())
 }
 
+func (p *Position) Update(fill *Order) {
+	p.timestamp = fill.Time()
+	p.update(fill)
+}
+
 func (p *Position) updateValue(l float64) {
 	latest := l
 	qty := p.Amount

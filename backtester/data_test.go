@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-
 var (
 	testDataFromKline = DataFromKlineItem{
 		Item: genOHCLVData(),
@@ -14,8 +13,7 @@ var (
 
 func TestReset(t *testing.T) {
 	testDataFromKline.Load()
-	_,_ = testDataFromKline.Next()
-
+	_, _ = testDataFromKline.Next()
 
 	testDataFromKline.Reset()
 
@@ -30,7 +28,7 @@ func TestReset(t *testing.T) {
 
 func TestDataFromKlineItem_Latest(t *testing.T) {
 	testDataFromKline.Load()
-	_,_ = testDataFromKline.Next()
+	_, _ = testDataFromKline.Next()
 
 	x := testDataFromKline.Latest()
 	if x.Time().Month() != time.Now().Month() {
@@ -40,7 +38,7 @@ func TestDataFromKlineItem_Latest(t *testing.T) {
 
 func TestDataFromKlineItem_History(t *testing.T) {
 	testDataFromKline.Load()
-	_,_ = testDataFromKline.Next()
+	_, _ = testDataFromKline.Next()
 	t.Log(testDataFromKline.History()[0].Time())
 }
 

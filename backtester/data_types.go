@@ -12,10 +12,3 @@ type Candle struct {
 	Volume float64
 }
 
-func (c Candle) Time() time.Time {
-	return time.Now()
-}
-
-func (c Candle) SetTime(t time.Time) {
-
-}

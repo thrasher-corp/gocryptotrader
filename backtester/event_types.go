@@ -26,7 +26,6 @@ type DataHandler interface {
 	Stream() []DataEvent
 	History() []DataEvent
 	Latest() DataEvent
-
 	Reset()
 }
 

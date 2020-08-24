@@ -1,7 +1,6 @@
 package backtest
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -66,8 +65,6 @@ func (d *DataFromKlineItem) Load() {
 		list[i] = candles[i]
 	}
 	d.SetStream(list)
-
-	fmt.Println("Data loadded")
 }
 
 func (d *DataFromKlineItem) SortStream() {
@@ -82,3 +79,4 @@ func (d *DataFromKlineItem) SortStream() {
 func (d *DataFromKlineItem) updateLatest(event DataEvent) {
 	d.latest = event
 }
+

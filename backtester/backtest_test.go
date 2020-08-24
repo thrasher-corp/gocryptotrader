@@ -8,30 +8,26 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"golang.org/x/exp/rand"
 )
 
 type testBT struct{}
 
 func (bt *testBT) Init() *Config {
-	fmt.Println("Init()")
-
 	return &Config{
 		Item: genOHCLVData(),
 	}
 }
 
 func (bt *testBT) OnData(d DataEvent, b *Backtest) (bool, error) {
-	fmt.Println(d.Candle())
-	if d.Price() == 1000 {
-		b.Portfolio.Order(900, 1)
-		fmt.Println(b.Portfolio.Position())
-	}
+	b.Portfolio.Order(1.2, 1, gctorder.Sell)
 	return true, nil
 }
 
 func (bt *testBT) OnEnd(b *Backtest) {
-	fmt.Println("OnEnd()")
-	fmt.Printf("%+v\n", b.Stats.PrintResult())
+	// b.Stats.PrintResult()
+	fmt.Println(b.Stats.ReturnResult())
 }
 
 func TestBacktest_Run(t *testing.T) {
@@ -47,14 +43,23 @@ func genOHCLVData() (outItem kline.Item) {
 	outItem.Pair = currency.NewPair(currency.BTC, currency.USDT)
 	outItem.Exchange = "test"
 
-	for x := 0; x < 365; x++ {
+	outItem.Candles = append(outItem.Candles, kline.Candle{
+		Time:   start,
+		Open:   0,
+		High:   10 + rand.Float64(),
+		Low:    10 + rand.Float64(),
+		Close:  10 + rand.Float64(),
+		Volume: 10,
+	})
+
+	for x := 1; x < 365; x++ {
 		outItem.Candles = append(outItem.Candles, kline.Candle{
 			Time:   start.Add(time.Hour * 24 * time.Duration(x)),
-			Open:   1000,
-			High:   1000,
-			Low:    1000,
-			Close:  1000,
-			Volume: 1000,
+			Open:   outItem.Candles[x-1].Close,
+			High:   outItem.Candles[x-1].Open + rand.Float64(),
+			Low:    outItem.Candles[x-1].Open - rand.Float64(),
+			Close:  outItem.Candles[x-1].Open + rand.Float64(),
+			Volume: 10,
 		})
 	}
 

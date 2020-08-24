@@ -6,6 +6,8 @@ import (
 
 func (b *Backtest) Reset() error {
 	b.data.Reset()
+	_ = b.Portfolio.Reset()
+	b.Stats.Reset()
 	return nil
 }
 
@@ -17,10 +19,13 @@ func (b *Backtest) Run() error {
 
 	for d, ok := b.data.Next(); ok; d, ok = b.data.Next() {
 		b.Portfolio.Update(d)
+		b.Stats.Update(d, b.Portfolio)
 		_, err := b.Execution.OnData(d, b)
 		if err != nil {
 			return err
 		}
+
+		b.Stats.TrackEvent(d)
 		_, err = b.Algo.OnData(d, b)
 		if err != nil {
 			return err
@@ -31,6 +36,8 @@ func (b *Backtest) Run() error {
 }
 
 func (b *Backtest) setup() error {
+	b.Portfolio.SetFunds(b.Portfolio.InitialFunds())
+
 	return nil
 }
 
@@ -41,25 +48,6 @@ func (b *Backtest) GetPortfolio() (portfolio PortfolioHandler) {
 func Run(algo AlgoHandler) {
 	config := algo.Init()
 
-	app := New(config)
-
-	data := &DataFromKlineItem{
-		Item: app.config.Item,
-	}
-
-	data.Load()
-	app.data = data
-	app.Algo = algo
-
-	err := app.Run()
-	if err != nil {
-		fmt.Printf("err: %v", err)
-	}
-
-	algo.OnEnd(app)
-}
-
-func New(config *Config) *Backtest {
 	backTest := &Backtest{
 		config: config,
 	}
@@ -67,8 +55,32 @@ func New(config *Config) *Backtest {
 	backTest.Portfolio = &Portfolio{
 		initialFunds: 10000,
 	}
-	backTest.Execution = &Execution{}
+
+	feeHandler := &PercentageFee{
+		ExchangeFee{
+			0.85,
+		},
+	}
+
+	backTest.Execution = &Execution{
+		ExchangeFee: feeHandler,
+	}
+
 	backTest.Stats = &Statistic{}
 
-	return backTest
+	data := &DataFromKlineItem{
+		Item: backTest.config.Item,
+	}
+
+	data.Load()
+	backTest.data = data
+	backTest.Algo = algo
+
+	err := backTest.Run()
+	if err != nil {
+		fmt.Printf("err: %v", err)
+	}
+
+	algo.OnEnd(backTest)
 }
+

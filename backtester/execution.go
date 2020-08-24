@@ -1,24 +1,26 @@
 package backtest
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func (e *Execution) OnData(data DataEvent, t *Backtest) (OrderEvent, error) {
-	fmt.Println("Execution OnData()")
 	portfolio := t.Portfolio.(*Portfolio)
 	candle := data.(*Candle)
-
 	orders := &portfolio.OrderBook
+
 	for i := len(*orders) - 1; i >= 0; i-- {
 		v := (*orders)[i]
 
-		order, _ := v.(*Order)
-		price := 0.0
+		order, ok := v.(*Order)
+		if !ok {
+			return nil, errors.New("invalid type")
+		}
 
+		price := 0.0
 		switch order.orderType {
 		case gctorder.Market:
 			if order.Direction() == gctorder.Buy {
@@ -59,7 +61,6 @@ func (e *Execution) OnData(data DataEvent, t *Backtest) (OrderEvent, error) {
 			return order, err
 		}
 		order.fee = fee
-
 		order.cost = +fee
 
 		tx, err := portfolio.OnFill(order)
@@ -67,7 +68,6 @@ func (e *Execution) OnData(data DataEvent, t *Backtest) (OrderEvent, error) {
 			continue
 		}
 		t.Stats.TrackTransaction(tx)
-
 		*orders = append((*orders)[:i], (*orders)[i+1:]...)
 	}
 

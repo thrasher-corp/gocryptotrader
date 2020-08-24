@@ -1,13 +1,13 @@
 package backtest
 
 import (
-	"fmt"
+	"time"
 
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func (p *Portfolio) OnFill(order *Order) (*Order, error) {
-	//p.holdings.Update(order)
+	p.Holdings.Update(order)
 
 	if order.Direction() == gctorder.Buy {
 		p.funds = -order.NetValue()
@@ -19,7 +19,27 @@ func (p *Portfolio) OnFill(order *Order) (*Order, error) {
 }
 
 func (p *Portfolio) OnSignal(signal SignalEvent, data DataHandler) (*Order, error) {
-	return nil, nil
+	var limit float64
+
+	initialOrder := &Order{
+		Event: Event{
+			time: signal.Time(),
+		},
+		orderType:  gctorder.Market,
+		orderSide: gctorder.Buy,
+		limitPrice: limit,
+	}
+
+	latest := data.Latest()
+	sizedOrder, err := p.sizeManager.SizeOrder(initialOrder, latest, p)
+	if err != nil {
+	}
+
+	order, err := p.riskManager.EvaluateOrder(sizedOrder, latest, p.Holdings)
+	if err != nil {
+	}
+
+	return order, nil
 }
 
 func (p Portfolio) IsInvested() (pos Position, ok bool) {
@@ -66,37 +86,36 @@ func (p Portfolio) Funds() float64 {
 	return p.funds
 }
 
-func (p *Portfolio) Order(price float64, amount float64) {
-	fmt.Println("Portfolio Order()")
+func (p *Portfolio) Order(price float64, amount float64, side gctorder.Side) {
 	var orderType gctorder.Type
-	var orderSide gctorder.Side
+	//var orderSide gctorder.Side
 	var newAmount float64
 
-	if p.Holdings.Amount > amount {
-		if price < 0 {
-			orderType = gctorder.Market
-		} else {
-			orderType = gctorder.Limit
-		}
-		orderSide = gctorder.Sell
-		newAmount = p.Holdings.Amount - amount
-	} else if p.Holdings.Amount < amount {
-		if price < 0 {
-			orderType = gctorder.Market
-		} else {
-			orderType = gctorder.Limit
-		}
-		orderSide = gctorder.Buy
-		newAmount = amount - p.Holdings.Amount
+
+	if price < 0 {
+		orderType = gctorder.Market
+	} else {
+		orderType = gctorder.Limit
 	}
+
+	// if p.Holdings.Amount > amount {
+	// 	newAmount = p.Holdings.Amount - amount
+	// } else if p.Holdings.Amount < amount {
+	// 	if price < 0 {
+	// 		orderType = gctorder.Market
+	// 	} else {
+	// 		orderType = gctorder.Limit
+	// 	}
+	// 	newAmount = amount - p.Holdings.Amount
+	// }
 
 	initialOrder := &Order{
 		Event: Event{
-			// time: data.Latest().Time(),
+			time: time.Now(),
 		},
 		amount:     newAmount,
 		orderType:  orderType,
-		orderSide:  orderSide,
+		orderSide:  side,
 		limitPrice: price,
 	}
 	p.OrderBook = []OrderEvent{initialOrder}
@@ -115,4 +134,21 @@ func (p *Portfolio) Update(event DataEvent) {
 
 func (p *Portfolio) Value() float64 {
 	return 0
+}
+
+
+func (p Portfolio) SizeManager() SizeHandler {
+	return p.sizeManager
+}
+
+func (p *Portfolio) SetSizeManager(size SizeHandler) {
+	p.sizeManager = size
+}
+
+func (p Portfolio) RiskManager() RiskHandler {
+	return p.riskManager
+}
+
+func (p *Portfolio) SetRiskManager(risk RiskHandler) {
+	p.riskManager = risk
 }

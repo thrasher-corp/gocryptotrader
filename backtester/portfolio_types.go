@@ -1,10 +1,14 @@
 package backtest
 
+import gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+
 type Portfolio struct {
 	initialFunds float64
 	funds        float64
 	Holdings     Position
 	OrderBook    []OrderEvent
+	sizeManager  SizeHandler
+	riskManager  RiskHandler
 }
 
 type PortfolioHandler interface {
@@ -24,7 +28,7 @@ type PortfolioHandler interface {
 
 	Reset() error
 
-	Order(price float64, amount float64)
+	Order(price float64, amount float64, side gctorder.Side)
 
 	Position() Position
 }

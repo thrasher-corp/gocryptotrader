@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const DP = 0.000000000
+const DP = 8
 
 type StatisticHandler interface {
 	Reset()
@@ -17,7 +17,8 @@ type StatisticHandler interface {
 	TrackTransaction(OrderEvent)
 	Transactions() []OrderEvent
 
-	PrintResult() Results
+	PrintResult()
+	ReturnResult() Results
 
 	Update(DataEvent, PortfolioHandler)
 

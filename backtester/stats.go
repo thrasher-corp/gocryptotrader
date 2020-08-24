@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -54,7 +55,7 @@ func (s *Statistic) Reset() {
 	s.low = equityPoint{}
 }
 
-func (s Statistic) PrintResult() Results {
+func (s Statistic) ReturnResult() Results {
 	results := Results{
 		TotalEvents:       len(s.Events()),
 		TotalTransactions: len(s.Transactions()),
@@ -70,6 +71,21 @@ func (s Statistic) PrintResult() Results {
 	}
 	return results
 }
+
+func (s Statistic) PrintResult() {
+	fmt.Println("Printing backtest results:")
+	fmt.Printf("Counted %d total events.\n", len(s.Events()))
+
+	fmt.Printf("Counted %d total transactions:\n", len(s.Transactions()))
+	for k, v := range s.Transactions() {
+		fmt.Printf("%d. Transaction: %v Action: %v Price: %f Amount %f\n", k+1, v.Time().Format("2006-01-02 15:04:05.999999999"), v.Direction(), v.Price(), v.Amount())
+	}
+
+	result, _ := s.TotalEquityReturn()
+
+	fmt.Println("TotalEquity:", result, "MaxDrawdown:",s.MaxDrawdown())
+}
+
 
 func (s Statistic) TotalEquityReturn() (r float64, err error) {
 	firstEquityPoint, _ := s.firstEquityPoint()
