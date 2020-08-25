@@ -211,7 +211,7 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestMarketPairs(currencyID, start, li
 }
 
 // GetCryptocurrencyOHLCHistorical return an interval of historic OHLCV
-// (Open, High, Low, Close, Volume) market quotes for a cryptocurrency.
+// (open, High, Low, Close, Volume) market quotes for a cryptocurrency.
 // Currently daily and hourly OHLCV periods are supported.
 //
 // currencyID - refers to the coinmarketcap currency id
@@ -249,7 +249,7 @@ func (c *Coinmarketcap) GetCryptocurrencyOHLCHistorical(currencyID int64, tStart
 }
 
 // GetCryptocurrencyOHLCLatest return the latest OHLCV
-// (Open, High, Low, Close, Volume) market values for one or more
+// (open, High, Low, Close, Volume) market values for one or more
 // cryptocurrencies in the currently UTC day. Since the current UTC day is still
 // active these values are updated frequently. You can find the final calculated
 // OHLCV values for the last completed UTC day along with all historic days

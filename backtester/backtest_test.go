@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"golang.org/x/exp/rand"
 )
 
@@ -23,8 +23,9 @@ func (bt *testBT) Init() *Config {
 }
 
 func (bt *testBT) OnData(d DataEvent, b *Backtest) (bool, error) {
-	fmt.Println(d.Time())
-	b.Portfolio.Order(1.2, 5, gctorder.Buy)
+	ret := indicators.EMA(b.data.StreamClose(), 9)
+	ret2 := indicators.EMA(b.data.StreamClose(), 21)
+	fmt.Printf("EMA9: %v\nEMA21 %v\n", ret, ret2)
 	return true, nil
 }
 

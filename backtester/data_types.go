@@ -18,4 +18,10 @@ type DataHandler interface {
 	History() []DataEvent
 	Latest() DataEvent
 	Reset()
+
+	StreamOpen() []float64
+	StreamHigh() []float64
+	StreamLow() []float64
+	StreamClose() []float64
+	StreamVolume() []float64
 }

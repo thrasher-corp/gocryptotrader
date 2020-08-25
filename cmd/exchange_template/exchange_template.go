@@ -101,7 +101,7 @@ func main() {
 	fmt.Println("Increment the available exchanges counter in config/config_test.go")
 	fmt.Println("Add the exchange name to exchanges/support.go")
 	fmt.Println("Ensure go test ./... -race passes")
-	fmt.Println("Open a pull request")
+	fmt.Println("open a pull request")
 	fmt.Println("If help is needed, please post a message in Slack.")
 }
 

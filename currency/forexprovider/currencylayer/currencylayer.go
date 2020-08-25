@@ -43,7 +43,7 @@ func (c *CurrencyLayer) Setup(config base.Settings) error {
 	c.RESTPollingDelay = config.RESTPollingDelay
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
-	// Rate limit is based off a monthly counter - Open limit used.
+	// Rate limit is based off a monthly counter - open limit used.
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
 

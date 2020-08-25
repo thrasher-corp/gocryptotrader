@@ -80,3 +80,43 @@ func (d *DataFromKlineItem) SortStream() {
 func (d *DataFromKlineItem) updateLatest(event DataEvent) {
 	d.latest = event
 }
+
+func (d *DataFromKlineItem) StreamOpen() []float64 {
+	ret := make([]float64, len(d.stream[:d.offset]))
+	for x := range d.stream[:d.offset] {
+		ret[x] = d.stream[:d.offset][x].Candle().Open
+	}
+	return ret
+}
+
+func (d *DataFromKlineItem) StreamHigh() []float64 {
+	ret := make([]float64, len(d.stream[:d.offset]))
+	for x := range d.stream[:d.offset] {
+		ret[x] = d.stream[:d.offset][x].Candle().High
+	}
+	return ret
+}
+
+func (d *DataFromKlineItem) StreamLow() []float64 {
+	ret := make([]float64, len(d.stream[:d.offset]))
+	for x := range d.stream[:d.offset] {
+		ret[x] = d.stream[:d.offset][x].Candle().Low
+	}
+	return ret
+}
+
+func (d *DataFromKlineItem) StreamClose() []float64 {
+	ret := make([]float64, len(d.stream[:d.offset]))
+	for x := range d.stream[:d.offset] {
+		ret[x] = d.stream[:d.offset][x].Candle().Close
+	}
+	return ret
+}
+
+func (d *DataFromKlineItem) StreamVolume() []float64 {
+	ret := make([]float64, len(d.stream[:d.offset]))
+	for x := range d.stream[:d.offset] {
+		ret[x] = d.stream[:d.offset][x].Candle().Volume
+	}
+	return ret
+}

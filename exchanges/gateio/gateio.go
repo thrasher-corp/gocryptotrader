@@ -239,7 +239,7 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
 		}
 		_open, err := convert.FloatFromString(k[5])
 		if err != nil {
-			return kline.Item{}, fmt.Errorf("cannot parse Kline.Open. Err: %s", err)
+			return kline.Item{}, fmt.Errorf("cannot parse Kline.open. Err: %s", err)
 		}
 		result.Candles = append(result.Candles, kline.Candle{
 			Time:   ot,
