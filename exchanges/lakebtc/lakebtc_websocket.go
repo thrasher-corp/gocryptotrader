@@ -211,7 +211,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 			Side:         tSide,
 		})
 	}
-	l.Websocket.Trade.AddTradesToBuffer(trades...)
+	trade.AddTradesToBuffer(l.Name, trades...)
 	return nil
 }
 

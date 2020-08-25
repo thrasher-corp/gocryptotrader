@@ -597,7 +597,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Side:         tSide,
 		})
 	}
-	k.Websocket.Trade.AddTradesToBuffer(trades...)
+	trade.AddTradesToBuffer(k.Name, trades...)
 }
 
 // wsProcessOrderBook determines if the orderbook data is partial or update

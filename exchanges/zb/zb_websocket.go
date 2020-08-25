@@ -247,7 +247,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 				Side:         tSide,
 			})
 		}
-		z.Websocket.Trade.AddTradesToBuffer(trades...)
+		trade.AddTradesToBuffer(z.Name, trades...)
 	default:
 		z.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: z.Name +

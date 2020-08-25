@@ -2288,7 +2288,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if err != nil {
 		return nil, err
 	}
-	trades, err := trade.TradeSqlToTrade(sqlTrades...)
+	trades, err := trade.SqlDataToTrade(sqlTrades...)
 	if err != nil {
 		return nil, err
 	}

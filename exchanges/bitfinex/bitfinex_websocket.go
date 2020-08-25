@@ -367,7 +367,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				})
 			}
 
-			b.Websocket.Trade.AddTradesToBuffer(trades...)
+			trade.AddTradesToBuffer(b.Name, trades...)
 			return nil
 		}
 

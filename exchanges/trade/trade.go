@@ -17,26 +17,28 @@ import (
 )
 
 // Setup creates the trade processor if trading is supported
-func (p *Processor) Setup(name string) {
-	p.Name = name
+func (p *Processor) setup() {
 	go p.Run()
 }
 
 // Shutdown kills the lingering processor
-func (p *Processor) Shutdown() {
-	close(p.shutdown)
+func (p *Processor) shutdown() {
+	close(p.shutdownC)
 }
 
 // AddTradesToBuffer will push trade data onto the buffer
-func (p *Processor) AddTradesToBuffer(data ...Data) {
-	p.mutex.Lock()
+func AddTradesToBuffer(exchangeName string, data ...Data) {
+	if atomic.AddInt32(&processor.started, 0) == 0 {
+		processor.setup()
+	}
+	processor.mutex.Lock()
 	for i := range data {
 		if data[i].Price == 0 ||
 			data[i].Amount == 0 ||
 			data[i].CurrencyPair.IsEmpty() ||
 			data[i].Exchange == "" ||
 			data[i].Timestamp.IsZero() {
-			log.Errorf(log.WebsocketMgr, "%s received invalid trade data: %+v", p.Name, data[i])
+			log.Errorf(log.WebsocketMgr, "%v received invalid trade data: %+v", exchangeName, data[i])
 			continue
 		}
 
@@ -51,31 +53,31 @@ func (p *Processor) AddTradesToBuffer(data ...Data) {
 		}
 		uu, err := uuid.NewV4()
 		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%s uuid failed to generate for trade: %+v", p.Name, data[i])
+			log.Errorf(log.WebsocketMgr, "%s uuid failed to generate for trade: %+v", exchangeName, data[i])
 			continue
 		}
 		data[i].ID = uu
 		buffer = append(buffer, data[i])
 	}
-	p.mutex.Unlock()
+	processor.mutex.Unlock()
 }
 
 // Processor will save trade data to the database in batches
 func (p *Processor) Run() {
 	if atomic.AddInt32(&p.started, 1) != 1 {
-		log.Errorf(log.WebsocketMgr, "%s websocket trade processor already started", p.Name)
+		log.Error(log.Trade, "trade processor already started")
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 	}()
-	log.Debugf(log.OrderBook, "%s Order manager starting...", p.Name)
+	log.Info(log.Trade, "trade processor starting...")
 	timer := time.NewTicker(time.Minute)
 	for {
 		select {
-		case <-p.shutdown:
+		case <-p.shutdownC:
 			return
 		case <-timer.C:
-			log.Debugf(log.WebsocketMgr, "%s Processing websocket trade data", p.Name)
+			log.Debug(log.WebsocketMgr, "processing trade data")
 			p.mutex.Lock()
 			sort.Sort(ByDate(buffer))
 			err := sqltrade.Insert(buffer...)
@@ -88,7 +90,8 @@ func (p *Processor) Run() {
 	}
 }
 
-func TradeSqlToTrade(dbTrades ...sqltrade.Data) (result []Data, err error) {
+// SqlDataToTrade converts sql data to glorious trade data
+func SqlDataToTrade(dbTrades ...sqltrade.Data) (result []Data, err error) {
 	for i := range dbTrades {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromString(dbTrades[i].CurrencyPair)
@@ -118,11 +121,12 @@ func TradeSqlToTrade(dbTrades ...sqltrade.Data) (result []Data, err error) {
 	return result, nil
 }
 
+// ConvertTradesToCandles turns trade data into kline.Items
 func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (kline.Item, error) {
 	if len(trades) == 0 {
 		return kline.Item{}, errors.New("no trades supplied")
 	}
-	groupedData := convertTradeDatasToCandles(interval, trades...)
+	groupedData := groupTradesToInterval(interval, trades...)
 	candles :=  kline.Item{
 		Exchange: trades[0].Exchange,
 		Pair:     trades[0].CurrencyPair,
@@ -136,7 +140,7 @@ func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (kline.Item
 	return candles, nil
 }
 
-func convertTradeDatasToCandles(interval kline.Interval, times ...Data) map[int64][]Data {
+func groupTradesToInterval(interval kline.Interval, times ...Data) map[int64][]Data {
 	groupedData := make(map[int64][]Data)
 	for i:= range times {
 		nearestInterval := getNearestInterval(times[i].Timestamp, interval)

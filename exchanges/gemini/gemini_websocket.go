@@ -437,7 +437,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			}
 		}
 		if len(trades) > 0 {
-			g.Websocket.Trade.AddTradesToBuffer(trades...)
+			trade.AddTradesToBuffer(g.Name, trades...)
 		}
 		if len(asks) == 0 && len(bids) == 0 {
 			return

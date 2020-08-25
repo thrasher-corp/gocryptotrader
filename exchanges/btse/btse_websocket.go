@@ -224,7 +224,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Side:         side,
 			})
 		}
-		b.Websocket.Trade.AddTradesToBuffer(trades...)
+		trade.AddTradesToBuffer(b.Name, trades...)
 	case strings.Contains(result["topic"].(string), "orderBookApi"):
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)

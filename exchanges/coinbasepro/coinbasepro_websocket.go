@@ -238,7 +238,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				},
 			}
 		} else {
-			c.Websocket.Trade.AddTradesToBuffer(trade.Data{
+			trade.AddTradesToBuffer(c.Name, trade.Data{
 				Timestamp:    wsOrder.Time,
 				Exchange:     c.Name,
 				CurrencyPair: p,

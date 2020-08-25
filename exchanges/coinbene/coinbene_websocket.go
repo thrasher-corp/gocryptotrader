@@ -229,7 +229,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Side:         tSide,
 			})
 		}
-		c.Websocket.Trade.AddTradesToBuffer(trades...)
+		trade.AddTradesToBuffer(c.Name, trades...)
 	case strings.Contains(result[topic].(string), "orderBook"):
 		var orderBook WsOrderbookData
 		err = json.Unmarshal(respRaw, &orderBook)

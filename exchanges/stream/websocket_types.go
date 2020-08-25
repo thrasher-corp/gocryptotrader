@@ -8,7 +8,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 // Websocket functionality list and state consts
@@ -72,7 +71,6 @@ type Websocket struct {
 
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
-	Trade     trade.Processor
 
 	// trafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}

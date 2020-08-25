@@ -15,6 +15,7 @@ import (
 var (
 	buffer []Data
 	candles []kline.Candle
+	processor Processor
 )
 
 // Data defines trade data
@@ -38,8 +39,7 @@ type CandleHolder struct {
 // and saving them to the database
 type Processor struct {
 	mutex sync.Mutex
-	shutdown chan struct{}
-	Name string
+	shutdownC chan struct{}
 	started    int32
 }
 

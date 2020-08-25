@@ -108,10 +108,6 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.AuthenticatedWebsocketAPISupport)
 
-	if w.features.TradeFetching {
-		w.Trade.Setup(w.exchangeName)
-	}
-
 	w.Orderbook.Setup(s.OrderbookBufferLimit,
 		s.BufferEnabled,
 		s.SortBuffer,
