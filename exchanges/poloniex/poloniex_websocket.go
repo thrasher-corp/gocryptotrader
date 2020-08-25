@@ -326,14 +326,14 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						}
 
 						// tradeID type intermittently changes
-						switch t := dataL3[1].(type) {
+						switch tradeIDData := dataL3[1].(type) {
 						case string:
-							trade.TradeID, err = strconv.ParseInt(t, 10, 64)
+							t.TradeID , err = strconv.ParseInt(tradeIDData, 10, 64)
 							if err != nil {
 								return err
 							}
 						case float64:
-							trade.TradeID = int64(t)
+							t.TradeID = int64(tradeIDData)
 						default:
 							return fmt.Errorf("unhandled type for websocket trade update: %v", t)
 						}
