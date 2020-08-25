@@ -38,24 +38,17 @@ func TestTrades(t *testing.T) {
 		{
 			"SQLite-Write",
 			&database.Config{
-				Driver: database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{
-						Host: "localhost",
-						Port: 5432,
-						Username: "postgres",
-						Password: "postgres",
-						Database: "trades.db",
-						SSLMode: "disable",
-					},
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
-			tradeTester4000,
+			tradeSqlTester,
 			testhelpers.CloseDatabase,
 			nil,
 		},
 		{
 			"Postgres-Write",
 			testhelpers.PostgresTestDatabase,
-			tradeTester4000,
+			tradeSqlTester,
 			nil,
 			nil,
 		},
@@ -94,7 +87,7 @@ func TestTrades(t *testing.T) {
 }
 
 
-func tradeTester4000(t *testing.T) {
+func tradeSqlTester(t *testing.T) {
 	var trades []Data
 	cp, _ := currency.NewPairFromString("BTC-USD")
 	for i := 0; i < 20; i++ {

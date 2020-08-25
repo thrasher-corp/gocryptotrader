@@ -28,12 +28,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	tradesql "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
@@ -1415,9 +1417,6 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	}
 }
 
-func (s *RPCServer) GetTrades(_ context.Context, r *gctrpc.GetInfoRequest) (*gctrpc.TradeHistory, error) {
-	return nil, nil
-}
 
 // GetExchangeOrderbookStream streams all orderbooks associated with an exchange
 func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeOrderbookStreamServer) error {
@@ -2241,4 +2240,89 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 		Data: fmt.Sprintf("new URL has been set [%s] for %s websocket connection",
 			r.Exchange,
 			r.Url)}, nil
+}
+
+// GetSavedTrades returns trades from the database
+func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
+	if r.End == 0 || r.Start == 0 || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
+		return nil, errors.New("invalid arguments received")
+	}
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+
+	trades, err := tradesql.GetByExchangeInRange(r.Exchange, r.Start, r.End)
+	if err != nil {
+		return nil, err
+	}
+	resp := &gctrpc.SavedTradesResponse{
+		ExchangeName: r.Exchange,
+		Asset:        r.AssetType,
+	}
+	for i := range trades {
+		resp.SavedTrades = append(resp.SavedTrades, &gctrpc.SavedTrades{
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Side:      trades[i].Side,
+			Timestamp: trades[i].Timestamp,
+		})
+	}
+	if len(resp.SavedTrades) == 0 {
+		return nil, fmt.Errorf("request for %v %v trade data between %v and %v and returned no results", r.Exchange, r.AssetType, r.Start, r.End)
+	}
+	return resp, nil
+}
+
+// ConvertTradesToCandles converts trades to candles using the interval requested
+// returns the data too for extra fun scrutiny
+func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertTradesToCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+	if r.End == 0 || r.Start == 0 || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.TimeInterval == 0 {
+		return nil, errors.New("invalid arguments received")
+	}
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+	sqlTrades, err := tradesql.GetByExchangeInRange(r.Exchange, r.Start, r.End)
+	if err != nil {
+		return nil, err
+	}
+	trades, err := trade.TradeSqlToTrade(sqlTrades...)
+	if err != nil {
+		return nil, err
+	}
+	if len(trades) == 0 {
+		return nil, fmt.Errorf("no trades returned from supplied params")
+	}
+	interval := kline.Interval(r.TimeInterval)
+	var klineItem kline.Item
+	klineItem, err = trade.ConvertTradesToCandles(interval, trades...)
+	if err != nil {
+		return nil, err
+	}
+	if len(klineItem.Candles) == 0 {
+		return nil, fmt.Errorf("no candles generated from trades")
+	}
+	// save the klineItem
+	// candlesql.saveToButts(klineItem)
+	resp :=  &gctrpc.GetHistoricCandlesResponse{
+		Exchange: r.Exchange,
+		Pair:     r.Pair,
+		Start:    r.Start,
+		End:      r.End,
+		Interval: interval.String(),
+	}
+	for i := range klineItem.Candles {
+		resp.Candle = append(resp.Candle, &gctrpc.Candle{
+			Time:   klineItem.Candles[i].Time.Unix(),
+			Low:    klineItem.Candles[i].Low,
+			High:   klineItem.Candles[i].High,
+			Open:   klineItem.Candles[i].Open,
+			Close:  klineItem.Candles[i].Close,
+			Volume: klineItem.Candles[i].Volume,
+		})
+	}
+
+	return resp, nil
 }

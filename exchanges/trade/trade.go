@@ -36,7 +36,7 @@ func (p *Processor) AddTradesToBuffer(data ...Data) {
 			data[i].CurrencyPair.IsEmpty() ||
 			data[i].Exchange == "" ||
 			data[i].Timestamp.IsZero() {
-			log.Error(log.WebsocketMgr, "%s received invalid trade data: %+v", p.Name, data[i])
+			log.Errorf(log.WebsocketMgr, "%s received invalid trade data: %+v", p.Name, data[i])
 			continue
 		}
 
@@ -51,7 +51,7 @@ func (p *Processor) AddTradesToBuffer(data ...Data) {
 		}
 		uu, err := uuid.NewV4()
 		if err != nil {
-			log.Error(log.WebsocketMgr, "%s uuid failed to generate for trade: %+v", p.Name, data[i])
+			log.Errorf(log.WebsocketMgr, "%s uuid failed to generate for trade: %+v", p.Name, data[i])
 			continue
 		}
 		data[i].ID = uu
@@ -88,23 +88,7 @@ func (p *Processor) Run() {
 	}
 }
 
-func (p *Processor) AmendCandles(interval kline.Interval, start, end int64) error {
-	//dbTrades, err := sqltrade.GetByExchangeInRange(p.Name, start, end)
-	//if err != nil {
-	//	return err
-	//}
-	//var trades []Data
-	//trades , err = p.dataToData(dbTrades...)
-	//groupedData := convertTradeDatasToCandles(interval, trades...)
-	// get candles
-	// candles, err := sqlCandles.GetByExchangeInRange()
-	// ammend the candles with trade data not present
-	// for i := range candles {
-	// candles[i].amendCandle(dbTrades...)
-	return nil
-}
-
-func (p *Processor)dataToData(dbTrades ...sqltrade.Data) (result []Data, err error) {
+func TradeSqlToTrade(dbTrades ...sqltrade.Data) (result []Data, err error) {
 	for i := range dbTrades {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromString(dbTrades[i].CurrencyPair)
@@ -123,7 +107,7 @@ func (p *Processor)dataToData(dbTrades ...sqltrade.Data) (result []Data, err err
 		result = append(result, Data{
 			ID:           uuid.FromStringOrNil(dbTrades[i].ID),
 			Timestamp:    time.Unix(dbTrades[i].Timestamp, 0),
-			Exchange:     p.Name,
+			Exchange:     dbTrades[i].Exchange,
 			CurrencyPair: cp,
 			AssetType:     a,
 			Price:        dbTrades[i].Price,
@@ -134,31 +118,22 @@ func (p *Processor)dataToData(dbTrades ...sqltrade.Data) (result []Data, err err
 	return result, nil
 }
 
-func  (p *Processor) ConvertToCandles(interval kline.Interval, trades ...Data) {
-	groupedData := convertTradeDatasToCandles(interval, trades...)
-	var candles []CandleHolder
-	for k, v := range groupedData {
-		candles = append(candles, classifyOHLCV(time.Unix(k, 0), v...))
+func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (kline.Item, error) {
+	if len(trades) == 0 {
+		return kline.Item{}, errors.New("no trades supplied")
 	}
-	//for i := range candles {
-	//	for j := range p.previousCandles {
-	//		if candles[i].candle.Time.Equal(p.previousCandles[j].candle.Time) {
-	//			log.Debugf(log.WebsocketMgr, "%s Amending candles" ,p.Name)
-	//			p.previousCandles[j].amendCandle(candles[i].trades...)
-	//			candles[i].candle = p.previousCandles[j].candle
-	//		}
-	//	}
-	//}
-	// now save candles
-	//err := p.SaveCandlesToButt(p.previousCandles)
-	//if err != nil {
-	//	log.Errorf(log.WebsocketMgr,"%s Run SaveCandlesToButt ", p.Name, err)
-	//	p.mutex.Unlock()
-	//	continue
-	//}
+	groupedData := convertTradeDatasToCandles(interval, trades...)
+	candles :=  kline.Item{
+		Exchange: trades[0].Exchange,
+		Pair:     trades[0].CurrencyPair,
+		Asset:    trades[0].AssetType,
+		Interval: interval,
+	}
+	for k, v := range groupedData {
+		candles.Candles = append(candles.Candles, classifyOHLCV(time.Unix(k, 0), v...))
+	}
 
-	// now set current candles to previous for the next run
-	//p.previousCandles = candles
+	return candles, nil
 }
 
 func convertTradeDatasToCandles(interval kline.Interval, times ...Data) map[int64][]Data {
@@ -209,11 +184,10 @@ func (c *CandleHolder) amendCandle(datas ...Data) {
 	log.Debugf(log.WebsocketMgr, "After: %v", c.candle)
 }
 
-func classifyOHLCV (t time.Time, datas ...Data) (c CandleHolder) {
+func classifyOHLCV (t time.Time, datas ...Data) (c kline.Candle) {
 	sort.Sort(ByDate(datas))
-	c.candle.Open = datas[0].Price
-	c.candle.Close = datas[len(datas)-1].Price
-	c.trades = datas
+	c.Open = datas[0].Price
+	c.Close = datas[len(datas)-1].Price
 	for i := range datas {
 		// some exchanges will send it as negative for sells
 		// do they though?
@@ -225,14 +199,14 @@ func classifyOHLCV (t time.Time, datas ...Data) (c CandleHolder) {
 			log.Debug(log.WebsocketMgr, "NEGATIVE TRADE")
 			datas[i].Amount = datas[i].Amount * -1
 		}
-		if datas[i].Price < c.candle.Low || c.candle.Low == 0 {
-			c.candle.Low = datas[i].Price
+		if datas[i].Price < c.Low || c.Low == 0 {
+			c.Low = datas[i].Price
 		}
-		if datas[i].Price > c.candle.High {
-			c.candle.High = datas[i].Price
+		if datas[i].Price > c.High {
+			c.High = datas[i].Price
 		}
-		c.candle.Volume += datas[i].Amount
+		c.Volume += datas[i].Amount
 	}
-	c.candle.Time = t
-	return
+	c.Time = t
+	return c
 }

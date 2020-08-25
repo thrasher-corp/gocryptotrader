@@ -588,6 +588,36 @@ message GetAuditEventResponse {
     repeated AuditEvent events = 1;
 }
 
+message GetSavedTradesRequest {
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    string asset_type = 3;
+    int64 start = 4;
+    int64 end = 5;
+}
+
+message SavedTrades {
+    double price = 1;
+    double amount = 2;
+    string side = 3;
+    int64 timestamp = 4;
+}
+
+message SavedTradesResponse {
+    string exchange_name = 1;
+    string asset = 2;
+    repeated SavedTrades saved_trades = 3;
+}
+
+message ConvertTradesToCandlesRequest {
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    string asset_type = 3;
+    int64 start = 4;
+    int64 end = 5;
+    int64 time_interval = 6;
+}
+
 message GetHistoricCandlesRequest {
     string exchange = 1;
     CurrencyPair pair = 2;
@@ -1201,9 +1231,17 @@ service GoCryptoTrader {
             get: "/v1/websocketseturl"
         };
     }
-    rpc GetTrades(GetInfoRequest) returns (TradeHistory) {
-    option (google.api.http) = {
-            get: "/v1/gettrades"
+
+    rpc GetSavedTrades(GetSavedTradesRequest) returns (SavedTradesResponse) {
+        option (google.api.http) = {
+            get: "/v1/getsavedtrades"
         };
     }
+
+    rpc ConvertTradesToCandles(ConvertTradesToCandlesRequest) returns (GetHistoricCandlesResponse) {
+        option (google.api.http) = {
+            get: "/v1/converttradestocandles"
+        };
+    }
+
 }

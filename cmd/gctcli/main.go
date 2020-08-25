@@ -143,6 +143,8 @@ func main() {
 		getHistoricCandlesExtendedCommand,
 		gctScriptCommand,
 		websocketManagerCommand,
+		getSavedTradesCommand,
+		convertSavedTradesToCandlesCommand,
 	}
 
 	err := app.Run(os.Args)
