@@ -12,7 +12,7 @@ var (
 )
 
 func TestReset(t *testing.T) {
-	testDataFromKline.Load()
+	_ = testDataFromKline.Load()
 	_, _ = testDataFromKline.Next()
 
 	testDataFromKline.Reset()

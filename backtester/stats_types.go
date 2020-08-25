@@ -28,18 +28,18 @@ type StatisticHandler interface {
 	MaxDrawdownDuration() time.Duration
 	SharpRatio(float64) float64
 	SortinoRatio(float64) float64
-	GetEquity() *[]equityPoint
+	GetEquity() *[]EquityPoint
 }
 
 type Statistic struct {
 	eventHistory       []EventHandler
 	transactionHistory []OrderEvent
-	equity             []equityPoint
-	high               equityPoint
-	low                equityPoint
+	equity             []EquityPoint
+	high               EquityPoint
+	low                EquityPoint
 }
 
-type equityPoint struct {
+type EquityPoint struct {
 	timestamp    time.Time
 	equity       float64
 	equityReturn float64

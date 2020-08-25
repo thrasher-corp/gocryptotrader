@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Statistic) Update(d DataEvent, p PortfolioHandler) {
-	e := equityPoint{}
+	e := EquityPoint{}
 	e.timestamp = d.Time()
 	e.equity = p.Value()
 
@@ -35,7 +35,7 @@ func (s *Statistic) TrackEvent(e EventHandler) {
 	s.eventHistory = append(s.eventHistory, e)
 }
 
-func (s Statistic) Events() []EventHandler {
+func (s *Statistic) Events() []EventHandler {
 	return s.eventHistory
 }
 
@@ -43,7 +43,7 @@ func (s *Statistic) TrackTransaction(f OrderEvent) {
 	s.transactionHistory = append(s.transactionHistory, f)
 }
 
-func (s Statistic) Transactions() []OrderEvent {
+func (s *Statistic) Transactions() []OrderEvent {
 	return s.transactionHistory
 }
 
@@ -51,11 +51,11 @@ func (s *Statistic) Reset() {
 	s.eventHistory = nil
 	s.transactionHistory = nil
 	s.equity = nil
-	s.high = equityPoint{}
-	s.low = equityPoint{}
+	s.high = EquityPoint{}
+	s.low = EquityPoint{}
 }
 
-func (s Statistic) ReturnResult() Results {
+func (s *Statistic) ReturnResult() Results {
 	results := Results{
 		TotalEvents:       len(s.Events()),
 		TotalTransactions: len(s.Transactions()),
@@ -72,7 +72,7 @@ func (s Statistic) ReturnResult() Results {
 	return results
 }
 
-func (s Statistic) PrintResult() {
+func (s *Statistic) PrintResult() {
 	fmt.Println("Printing backtest results:")
 	fmt.Printf("Counted %d total events.\n", len(s.Events()))
 
@@ -83,11 +83,10 @@ func (s Statistic) PrintResult() {
 
 	result, _ := s.TotalEquityReturn()
 
-	fmt.Println("TotalEquity:", result, "MaxDrawdown:",s.MaxDrawdown())
+	fmt.Println("TotalEquity:", result, "MaxDrawdown:", s.MaxDrawdown())
 }
 
-
-func (s Statistic) TotalEquityReturn() (r float64, err error) {
+func (s *Statistic) TotalEquityReturn() (r float64, err error) {
 	firstEquityPoint, _ := s.firstEquityPoint()
 	firstEquity := firstEquityPoint.equity
 
@@ -99,24 +98,24 @@ func (s Statistic) TotalEquityReturn() (r float64, err error) {
 	return total, nil
 }
 
-func (s Statistic) MaxDrawdown() float64 {
+func (s *Statistic) MaxDrawdown() float64 {
 	_, ep := s.maxDrawdownPoint()
 	return ep.drawdown
 }
 
-func (s Statistic) MaxDrawdownTime() time.Time {
+func (s *Statistic) MaxDrawdownTime() time.Time {
 	_, ep := s.maxDrawdownPoint()
 	return ep.timestamp
 }
 
-func (s Statistic) MaxDrawdownDuration() (d time.Duration) {
+func (s *Statistic) MaxDrawdownDuration() (d time.Duration) {
 	i, ep := s.maxDrawdownPoint()
 
 	if len(s.equity) == 0 {
 		return d
 	}
 
-	maxPoint := equityPoint{}
+	maxPoint := EquityPoint{}
 	for index := i; index >= 0; index-- {
 		if s.equity[index].equity > maxPoint.equity {
 			maxPoint = s.equity[index]
@@ -155,8 +154,8 @@ func (s *Statistic) SortinoRatio(riskfree float64) float64 {
 	return (mean - riskfree) / stat.StdDev(negReturns, nil)
 }
 
-func (s Statistic) firstEquityPoint() (ep equityPoint, ok bool) {
-	if len(s.equity) <= 0 {
+func (s *Statistic) firstEquityPoint() (ep EquityPoint, ok bool) {
+	if len(s.equity) == 0 {
 		return ep, false
 	}
 	ep = s.equity[0]
@@ -164,8 +163,8 @@ func (s Statistic) firstEquityPoint() (ep equityPoint, ok bool) {
 	return ep, true
 }
 
-func (s Statistic) lastEquityPoint() (ep equityPoint, ok bool) {
-	if len(s.equity) <= 0 {
+func (s *Statistic) lastEquityPoint() (ep EquityPoint, ok bool) {
+	if len(s.equity) == 0 {
 		return ep, false
 	}
 	ep = s.equity[len(s.equity)-1]
@@ -173,7 +172,7 @@ func (s Statistic) lastEquityPoint() (ep equityPoint, ok bool) {
 	return ep, true
 }
 
-func (s Statistic) calcEquityReturn(e equityPoint) equityPoint {
+func (s *Statistic) calcEquityReturn(e EquityPoint) EquityPoint {
 	last, ok := s.lastEquityPoint()
 	if !ok {
 		e.equityReturn = 0
@@ -194,7 +193,7 @@ func (s Statistic) calcEquityReturn(e equityPoint) equityPoint {
 	return e
 }
 
-func (s Statistic) calcDrawdown(e equityPoint) equityPoint {
+func (s *Statistic) calcDrawdown(e EquityPoint) EquityPoint {
 	if s.high.equity == 0 {
 		e.drawdown = 0
 		return e
@@ -214,7 +213,7 @@ func (s Statistic) calcDrawdown(e equityPoint) equityPoint {
 	return e
 }
 
-func (s Statistic) maxDrawdownPoint() (i int, ep equityPoint) {
+func (s *Statistic) maxDrawdownPoint() (i int, ep EquityPoint) {
 	if len(s.equity) == 0 {
 		return 0, ep
 	}
@@ -232,6 +231,6 @@ func (s Statistic) maxDrawdownPoint() (i int, ep equityPoint) {
 	return index, s.equity[index]
 }
 
-func (s *Statistic) GetEquity() *[]equityPoint {
+func (s *Statistic) GetEquity() *[]EquityPoint {
 	return &s.equity
 }

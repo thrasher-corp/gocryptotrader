@@ -21,14 +21,6 @@ type EventHandler interface {
 	SetTime(time.Time)
 }
 
-type DataHandler interface {
-	Next() (DataEvent, bool)
-	Stream() []DataEvent
-	History() []DataEvent
-	Latest() DataEvent
-	Reset()
-}
-
 type SignalEvent interface {
 	EventHandler
 

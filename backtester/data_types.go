@@ -12,3 +12,10 @@ type Candle struct {
 	Volume float64
 }
 
+type DataHandler interface {
+	Next() (DataEvent, bool)
+	Stream() []DataEvent
+	History() []DataEvent
+	Latest() DataEvent
+	Reset()
+}

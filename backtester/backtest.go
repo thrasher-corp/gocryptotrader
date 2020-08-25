@@ -1,9 +1,5 @@
 package backtest
 
-import (
-	"fmt"
-)
-
 func (b *Backtest) Reset() error {
 	b.data.Reset()
 	_ = b.Portfolio.Reset()
@@ -32,6 +28,8 @@ func (b *Backtest) Run() error {
 		}
 	}
 
+	b.Algo.OnEnd(b)
+
 	return nil
 }
 
@@ -45,42 +43,33 @@ func (b *Backtest) GetPortfolio() (portfolio PortfolioHandler) {
 	return b.Portfolio
 }
 
-func Run(algo AlgoHandler) {
-	config := algo.Init()
+func New(algo AlgoHandler) (*Backtest, error) {
+	cfg := algo.Init()
+
+	itemData := &DataFromKlineItem{
+		Item: cfg.Item,
+	}
+	err := itemData.Load()
+	if err != nil {
+		return nil, err
+	}
 
 	backTest := &Backtest{
-		config: config,
-	}
-
-	backTest.Portfolio = &Portfolio{
-		initialFunds: 10000,
-	}
-
-	feeHandler := &PercentageFee{
-		ExchangeFee{
-			0.85,
+		config: cfg,
+		Portfolio: &Portfolio{
+			initialFunds: cfg.InitialFunds,
 		},
+		Execution: &Execution{
+			ExchangeFee: &PercentageFee{
+				ExchangeFee{
+					Fee: cfg.Fee,
+				},
+			},
+		},
+		Stats: &Statistic{},
+		Algo:  algo,
+		data:  itemData,
 	}
 
-	backTest.Execution = &Execution{
-		ExchangeFee: feeHandler,
-	}
-
-	backTest.Stats = &Statistic{}
-
-	data := &DataFromKlineItem{
-		Item: backTest.config.Item,
-	}
-
-	data.Load()
-	backTest.data = data
-	backTest.Algo = algo
-
-	err := backTest.Run()
-	if err != nil {
-		fmt.Printf("err: %v", err)
-	}
-
-	algo.OnEnd(backTest)
+	return backTest, nil
 }
-

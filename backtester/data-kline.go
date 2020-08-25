@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"errors"
 	"sort"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -47,24 +48,24 @@ func (d *DataFromKlineItem) SetStream(stream []DataEvent) {
 	d.stream = stream
 }
 
-func (d *DataFromKlineItem) Load() {
-	var candles []*Candle
-	for x := range d.Item.Candles {
-		candles = append(candles, &Candle{
-			timestamp: d.Item.Candles[x].Time,
-			Open:      d.Item.Candles[x].Open,
-			High:      d.Item.Candles[x].High,
-			Low:       d.Item.Candles[x].Low,
-			Close:     d.Item.Candles[x].Close,
-			Volume:    d.Item.Candles[x].Volume,
-		})
+func (d *DataFromKlineItem) Load() error {
+	if len(d.Item.Candles) == 0 {
+		return errors.New("no candle data provided")
 	}
 
-	list := make([]DataEvent, len(candles))
-	for i := range candles {
-		list[i] = candles[i]
+	list := make([]DataEvent, len(d.Item.Candles))
+	for i := range d.Item.Candles {
+		list[i] = &Candle{
+			timestamp: d.Item.Candles[i].Time,
+			Open:      d.Item.Candles[i].Open,
+			High:      d.Item.Candles[i].High,
+			Low:       d.Item.Candles[i].Low,
+			Close:     d.Item.Candles[i].Close,
+			Volume:    d.Item.Candles[i].Volume,
+		}
 	}
-	d.SetStream(list)
+	d.stream = list
+	return nil
 }
 
 func (d *DataFromKlineItem) SortStream() {
@@ -79,4 +80,3 @@ func (d *DataFromKlineItem) SortStream() {
 func (d *DataFromKlineItem) updateLatest(event DataEvent) {
 	d.latest = event
 }
-

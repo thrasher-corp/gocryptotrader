@@ -26,23 +26,25 @@ func (p *Portfolio) OnSignal(signal SignalEvent, data DataHandler) (*Order, erro
 			time: signal.Time(),
 		},
 		orderType:  gctorder.Market,
-		orderSide: gctorder.Buy,
+		orderSide:  gctorder.Buy,
 		limitPrice: limit,
 	}
 
 	latest := data.Latest()
 	sizedOrder, err := p.sizeManager.SizeOrder(initialOrder, latest, p)
 	if err != nil {
+		return nil, err
 	}
 
 	order, err := p.riskManager.EvaluateOrder(sizedOrder, latest, p.Holdings)
 	if err != nil {
+		return nil, err
 	}
 
 	return order, nil
 }
 
-func (p Portfolio) IsInvested() (pos Position, ok bool) {
+func (p *Portfolio) IsInvested() (pos Position, ok bool) {
 	pos = p.Holdings
 	if pos.Amount != 0 {
 		return pos, true
@@ -50,7 +52,7 @@ func (p Portfolio) IsInvested() (pos Position, ok bool) {
 	return pos, false
 }
 
-func (p Portfolio) IsLong() (pos Position, ok bool) {
+func (p *Portfolio) IsLong() (pos Position, ok bool) {
 	pos = p.Holdings
 	if pos.Amount > 0 {
 		return pos, true
@@ -58,7 +60,7 @@ func (p Portfolio) IsLong() (pos Position, ok bool) {
 	return pos, false
 }
 
-func (p Portfolio) IsShort() (pos Position, ok bool) {
+func (p *Portfolio) IsShort() (pos Position, ok bool) {
 	pos = p.Holdings
 	if pos.Amount < 0 {
 		return pos, true
@@ -74,7 +76,7 @@ func (p *Portfolio) SetInitialFunds(funds float64) {
 	p.initialFunds = funds
 }
 
-func (p Portfolio) InitialFunds() float64 {
+func (p *Portfolio) InitialFunds() float64 {
 	return p.initialFunds
 }
 
@@ -82,15 +84,13 @@ func (p *Portfolio) SetFunds(funds float64) {
 	p.funds = funds
 }
 
-func (p Portfolio) Funds() float64 {
+func (p *Portfolio) Funds() float64 {
 	return p.funds
 }
 
-func (p *Portfolio) Order(price float64, amount float64, side gctorder.Side) {
+func (p *Portfolio) Order(price, amount float64, side gctorder.Side) {
 	var orderType gctorder.Type
-	//var orderSide gctorder.Side
 	var newAmount float64
-
 
 	if price < 0 {
 		orderType = gctorder.Market
@@ -98,16 +98,11 @@ func (p *Portfolio) Order(price float64, amount float64, side gctorder.Side) {
 		orderType = gctorder.Limit
 	}
 
-	// if p.Holdings.Amount > amount {
-	// 	newAmount = p.Holdings.Amount - amount
-	// } else if p.Holdings.Amount < amount {
-	// 	if price < 0 {
-	// 		orderType = gctorder.Market
-	// 	} else {
-	// 		orderType = gctorder.Limit
-	// 	}
-	// 	newAmount = amount - p.Holdings.Amount
-	// }
+	if p.Holdings.Amount > amount {
+		newAmount = p.Holdings.Amount - amount
+	} else if p.Holdings.Amount < amount {
+		newAmount = amount - p.Holdings.Amount
+	}
 
 	initialOrder := &Order{
 		Event: Event{
@@ -122,7 +117,7 @@ func (p *Portfolio) Order(price float64, amount float64, side gctorder.Side) {
 }
 
 func (p *Portfolio) Position() Position {
-	return Position{}
+	return p.Holdings
 }
 
 func (p *Portfolio) Update(event DataEvent) {
@@ -136,8 +131,7 @@ func (p *Portfolio) Value() float64 {
 	return 0
 }
 
-
-func (p Portfolio) SizeManager() SizeHandler {
+func (p *Portfolio) SizeManager() SizeHandler {
 	return p.sizeManager
 }
 
@@ -145,7 +139,7 @@ func (p *Portfolio) SetSizeManager(size SizeHandler) {
 	p.sizeManager = size
 }
 
-func (p Portfolio) RiskManager() RiskHandler {
+func (p *Portfolio) RiskManager() RiskHandler {
 	return p.riskManager
 }
 

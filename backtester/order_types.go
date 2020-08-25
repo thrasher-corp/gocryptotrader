@@ -22,10 +22,6 @@ type Order struct {
 	cost     float64
 }
 
-func (o Order) Fee() float64 {
-	panic("implement me")
-}
-
 type OrderEvent interface {
 	EventHandler
 

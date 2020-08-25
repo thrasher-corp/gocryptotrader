@@ -8,7 +8,7 @@ import (
 )
 
 func (r *Risk) EvaluateOrder(order OrderEvent) (*Order, error) {
-	return nil, nil
+	return order.(*Order), nil
 }
 
 func (s *Size) SizeOrder(orderevent OrderEvent, data DataEvent, pf PortfolioHandler) (*Order, error) {
@@ -58,10 +58,8 @@ func (p *Position) update(inOrder *Order) {
 	avgPriceNet := p.avgPriceNet
 	avgPriceBot := p.avgPriceBought
 	avgPriceSld := p.avgPriceSold
-	value := p.value
 	valueBot := p.valueBought
 	valueSld := p.valueSold
-	netValue := p.netValue
 	netValueBot := p.netValueBought
 	netValueSld := p.netValueSold
 
@@ -107,8 +105,8 @@ func (p *Position) update(inOrder *Order) {
 
 	exchangeFee += fillExchangeFee
 	cost += fillCost
-	value = valueSld - valueBot
-	netValue = value - cost
+	p.value = valueSld - valueBot
+	p.netValue = p.value - cost
 
 	p.Amount = amount
 	p.AmountBought = amountBought
@@ -117,10 +115,10 @@ func (p *Position) update(inOrder *Order) {
 	p.avgPriceBought = math.Round(avgPriceBot*math.Pow10(DP)) / math.Pow10(DP)
 	p.avgPriceSold = math.Round(avgPriceSld*math.Pow10(DP)) / math.Pow10(DP)
 	p.avgPriceNet = math.Round(avgPriceNet*math.Pow10(DP)) / math.Pow10(DP)
-	p.value = math.Round(value*math.Pow10(DP)) / math.Pow10(DP)
+	p.value = math.Round(p.value*math.Pow10(DP)) / math.Pow10(DP)
 	p.valueBought = math.Round(valueBot*math.Pow10(DP)) / math.Pow10(DP)
 	p.valueSold = math.Round(valueSld*math.Pow10(DP)) / math.Pow10(DP)
-	p.netValue = math.Round(netValue*math.Pow10(DP)) / math.Pow10(DP)
+	p.netValue = math.Round(p.netValue*math.Pow10(DP)) / math.Pow10(DP)
 	p.netValueBought = math.Round(netValueBot*math.Pow10(DP)) / math.Pow10(DP)
 	p.netValueSold = math.Round(netValueSld*math.Pow10(DP)) / math.Pow10(DP)
 	p.exchangeFee = exchangeFee
@@ -137,14 +135,10 @@ func (p *Position) Update(fill *Order) {
 }
 
 func (p *Position) updateValue(l float64) {
-	latest := l
-	qty := p.Amount
-	costBasis := p.costBasis
-	p.marketValue = math.Abs(qty) * latest
-	unrealProfitLoss := qty*latest - costBasis
+	p.marketValue = math.Abs(p.Amount) * l
+	unrealProfitLoss := p.Amount*l - p.costBasis
 	p.unrealProfitLoss = math.Round(unrealProfitLoss*math.Pow10(DP)) / math.Pow10(DP)
-	realProfitLoss := p.realProfitLoss
-	totalProfitLoss := realProfitLoss + unrealProfitLoss
+	totalProfitLoss := p.realProfitLoss + unrealProfitLoss
 	p.totalProfitLoss = math.Round(totalProfitLoss*math.Pow10(DP)) / math.Pow10(DP)
 }
 

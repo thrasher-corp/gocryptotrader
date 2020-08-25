@@ -15,8 +15,9 @@ type Backtest struct {
 }
 
 type Config struct {
-	Item kline.Item
-	Fee  float64
+	Item         kline.Item
+	Fee          float64
+	InitialFunds float64
 }
 
 type Data struct{}
