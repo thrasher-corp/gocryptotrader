@@ -263,11 +263,63 @@ type CancelOrdersAfterData struct {
 	ServerTime string `json:"serverTime"`
 }
 
+// RecentOrderData stores order data of a recent order
+type RecentOrderData struct {
+	UID        string `json:"uid"`
+	AccountID  string `json:"accountId"`
+	Tradeable  string `json:"tradeable"`
+	Direction  string `json:"direction"`
+	Quantity   string `json:"quantity"`
+	Filled     string `json:"filled"`
+	Timestamp  string `json:"timestamp"`
+	LimitPrice string `json:"limitPrice"`
+	OrderType  string `json:"orderType"`
+	ClientID   string `json:"clientId"`
+	StopPrice  string `json:"stopPrice"`
+}
+
+// FuturesRecentOrdersData stores recent orders data
+type FuturesRecentOrdersData struct {
+	OrderEvents []struct {
+		Timestamp int64 `json:"timestamp"`
+		Event     struct {
+			Timestamp   string `json:"timestamp"`
+			UID         string `json:"uid"`
+			OrderPlaced struct {
+				RecentOrder RecentOrderData `json:"order"`
+				Reason      string          `json:"reason"`
+			} `json:"orderPlaced"`
+			OrderCancelled struct {
+				RecentOrder RecentOrderData `json:"order"`
+				Reason      string          `json:"reason"`
+			} `json:"orderCancelled"`
+			OrderRejected struct {
+				RecentOrder RecentOrderData `json:"order"`
+				Reason      string          `json:"reason"`
+			} `json:"orderRejected"`
+			ExecutionEvent struct {
+				Execution   ExecutionData `json:"execution"`
+				Timestamp   string        `json:"timestamp"`
+				Quantity    float64       `json:"quantity"`
+				Price       float64       `json:"price"`
+				MarkPrice   float64       `json:"markPrice"`
+				LimitFilled bool          `json:"limitFilled"`
+			} `json:"executionEvent"`
+		} `json:"event"`
+	} `json:"orderEvents"`
+}
+
+// ExecutionData stores execution data
+type ExecutionData struct {
+	UID        string          `json:"uid"`
+	TakerOrder RecentOrderData `json:"takerOrder"`
+}
+
 // FuturesOpenOrdersData stores open orders data for futures
 type FuturesOpenOrdersData struct {
-	Result     string             `json:"result"`
-	OpenOrders []FuturesOrderData `json:"openOrders"`
-	ServerTime string             `json:"serverTime"`
+	Result     string            `json:"result"`
+	OpenOrders []RecentOrderData `json:"openOrders"`
+	ServerTime string            `json:"serverTime"`
 }
 
 // GenericResponse stores general response data for functions that only return success

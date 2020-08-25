@@ -67,96 +67,108 @@ func TestGetServerTime(t *testing.T) {
 }
 
 func TestFuturesEditOrder(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesEditOrder("test123", "", 5.2, 1, 0.9)
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesEditOrder("test123", "123test", 5.2, 1, 0.9)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesSendOrder(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesSendOrder("lmt", "PI_XBTUSD", "buy", "", "", "", 1, 1, 0.9)
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesSendOrder("lmt", "PI_XBTUSD", "buy", "", "", "", 1, 1, 0.9)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesCancelOrder(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesCancelOrder("test123", "")
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesCancelOrder("test123", "")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesGetFills(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesGetFills(time.Now().Add(-time.Hour * 24))
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesGetFills(time.Now().Add(-time.Hour * 24))
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesTransfer(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesTransfer("cash", "futures", "btc", 2)
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesTransfer("cash", "futures", "btc", 2)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesGetOpenPositions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesGetOpenPositions()
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesGetOpenPositions()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesNotifications(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesNotifications()
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesNotifications()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesCancelAllOrders(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesCancelAllOrders("PI_XBTUSD")
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesCancelAllOrders("PI_XBTUSD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetFuturesAccountData(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.GetFuturesAccountData()
-	fmt.Printf("%+v", a)
+	_, err := k.GetFuturesAccountData()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesCancelAllOrdersAfter(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+	}
 	t.Parallel()
 	k.Verbose = true
 	a, err := k.FuturesCancelAllOrdersAfter(50)
@@ -167,46 +179,53 @@ func TestFuturesCancelAllOrdersAfter(t *testing.T) {
 }
 
 func TestFuturesOpenOrders(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesOpenOrders()
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesOpenOrders()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesRecentOrders(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesRecentOrders("PI_XBTUSD")
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesRecentOrders("PI_XBTUSD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesWithdrawToSpotWallet(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesWithdrawToSpotWallet("xbt", 5)
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesWithdrawToSpotWallet("xbt", 5)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesGetTransfers(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesGetTransfers(time.Now().Add(-time.Hour * 24))
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesGetTransfers(time.Now().Add(-time.Hour * 24))
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetFuturesMarkets(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
 	_, err := k.GetFuturesMarkets()
 	if err != nil {

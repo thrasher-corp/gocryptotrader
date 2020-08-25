@@ -77,7 +77,6 @@ const (
 	huobiSwapTriggerOrder                = "swap-api/v1/swap_trigger_order"
 	huobiSwapCancelTriggerOrder          = "/swap-api/v1/swap_trigger_cancel"
 	huobiSwapCancelAllTriggerOrders      = "/swap-api/v1/swap_trigger_cancelall"
-	huobiSwapOpenTriggerOrders           = "swap-api/v1/contract_trigger_openorders"
 	huobiSwapTriggerOrderHistory         = "/swap-api/v1/swap_trigger_hisorders"
 
 	// Spot endpoints
@@ -117,53 +116,59 @@ const (
 	huobiMarginRates           = "margin/loan-info"
 )
 
-var acceptablePeriods = []string{"5min", "15min", "30min", "60min", "4hour", "1day"}
+var validPeriods = []string{"5min", "15min", "30min", "60min", "4hour", "1day"}
 
-var acceptableBasisPriceTypes = []string{"open", "close", "high", "low", "average"}
+var validBasisPriceTypes = []string{"open", "close", "high", "low", "average"}
 
-var acceptableAmountType = map[string]int64{
+var validAmountType = map[string]int64{
 	"cont":           1,
 	"cryptocurrency": 2,
 }
 
-var acceptableTransferType = []string{
+var validTransferType = []string{
 	"master_to_sub", "sub_to_master",
 }
 
-var acceptableTradeTypes = map[string]int64{
+var validTradeTypes = map[string]int64{
 	"filled": 0,
 	"closed": 5,
 	"open":   6,
 }
 
-var acceptableOrderType = map[string]int64{
+var validOrderType = map[string]int64{
 	"quotation":         1,
 	"cancelledOrder":    2,
 	"forcedLiquidation": 3,
 	"deliveryOrder":     4,
 }
 
-var acceptableOrderTypes = []string{
+var validOrderTypes = []string{
 	"limit", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
 	"fok", "ioc", "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
 	"optimal_10_ioc", "optimal_20_ioc", "opponent_fok", "optimal_20_fok",
 }
 
-var acceptableTriggerType = map[string]string{
+var validTriggerType = map[string]string{
 	"greaterOrEqual": "ge",
 	"smallerOrEqual": "le",
 }
 
-var acceptableOrderPriceType = []string{
+var validOrderPriceType = []string{
 	"limit", "optimal_5", "optimal_10", "optimal_20",
 }
 
-var acceptableTradeType = map[string]int64{
-	"all":        0,
-	"openLong":   1,
-	"closeShort": 2,
-	"openShort":  3,
-	"closeLong":  4,
+var validLightningOrderPriceType = []string{
+	"lightning", "lightning_fok", "lightning_ioc",
+}
+
+var validTradeType = map[string]int64{
+	"all":            0,
+	"openLong":       1,
+	"closeShort":     2,
+	"openShort":      3,
+	"closeLong":      4,
+	"liquidateLong":  5,
+	"liquidateShort": 6,
 }
 
 // HUOBI is the overarching type across this package
@@ -215,7 +220,7 @@ func (h *HUOBI) GetSwapKlineData(code, period string, size int64, startTime, end
 	var resp SwapKlineData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	if !common.StringDataCompare(acceptablePeriods, period) {
+	if !common.StringDataCompare(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
@@ -296,7 +301,7 @@ func (h *HUOBI) GetOpenInterestInfo(code, period, amountType string, size int64)
 	var resp OpenInterestData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	if !common.StringDataCompare(acceptablePeriods, period) {
+	if !common.StringDataCompare(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
@@ -304,7 +309,7 @@ func (h *HUOBI) GetOpenInterestInfo(code, period, amountType string, size int64)
 		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
-	aType, ok := acceptableAmountType[amountType]
+	aType, ok := validAmountType[amountType]
 	if !ok {
 		return resp, fmt.Errorf("invalid trade type")
 	}
@@ -317,14 +322,14 @@ func (h *HUOBI) GetSystemStatusInfo(code, period, amountType string, size int64)
 	var resp SystemStatusData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	if !common.StringDataCompare(acceptablePeriods, period) {
+	if !common.StringDataCompare(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
 	if size > 0 && size <= 1200 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	aType, ok := acceptableAmountType[amountType]
+	aType, ok := validAmountType[amountType]
 	if !ok {
 		return resp, fmt.Errorf("invalid trade type")
 	}
@@ -337,7 +342,7 @@ func (h *HUOBI) GetTraderSentimentIndexAccount(code, period string) (TraderSenti
 	var resp TraderSentimentIndexAccountData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	if !common.StringDataCompare(acceptablePeriods, period) {
+	if !common.StringDataCompare(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
@@ -349,7 +354,7 @@ func (h *HUOBI) GetTraderSentimentIndexPosition(code, period string) (TraderSent
 	var resp TraderSentimentIndexPositionData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	if !common.StringDataCompare(acceptablePeriods, period) {
+	if !common.StringDataCompare(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
@@ -365,7 +370,7 @@ func (h *HUOBI) GetLiquidationOrders(code, tradeType string, pageIndex, pageSize
 		return resp, fmt.Errorf("invalid createDate. 7 and 90 are the only supported values")
 	}
 	params.Set("create_date", strconv.FormatInt(createDate, 10))
-	tType, ok := acceptableTradeTypes[tradeType]
+	tType, ok := validTradeTypes[tradeType]
 	if !ok {
 		return resp, fmt.Errorf("invalid trade type")
 	}
@@ -398,7 +403,7 @@ func (h *HUOBI) GetPremiumIndexKlineData(code, period string, size int64) (Premi
 	var resp PremiumIndexKlineData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	if !common.StringDataCompare(acceptablePeriods, period) {
+	if !common.StringDataCompare(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
@@ -414,7 +419,7 @@ func (h *HUOBI) GetEstimatedFundingRates(code, period string, size int64) (Estim
 	var resp EstimatedFundingRateData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	if !common.StringDataCompare(acceptablePeriods, period) {
+	if !common.StringDataCompare(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
@@ -430,7 +435,7 @@ func (h *HUOBI) GetBasisData(code, period, basisPriceType string, size int64) (B
 	var resp BasisData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	if !common.StringDataCompare(acceptablePeriods, period) {
+	if !common.StringDataCompare(validPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
@@ -438,7 +443,7 @@ func (h *HUOBI) GetBasisData(code, period, basisPriceType string, size int64) (B
 		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
-	if !common.StringDataCompare(acceptableBasisPriceTypes, basisPriceType) {
+	if !common.StringDataCompare(validBasisPriceTypes, basisPriceType) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	return resp, h.SendHTTPRequest(huobiURL+huobiBasisData+params.Encode(), &resp)
@@ -550,7 +555,7 @@ func (h *HUOBI) GetSwapOrderLimitInfo(code, orderType string) (SwapOrderLimitInf
 	var resp SwapOrderLimitInfo
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	if !common.StringDataCompare(acceptableOrderTypes, orderType) {
+	if !common.StringDataCompare(validOrderTypes, orderType) {
 		return resp, fmt.Errorf("inavlid ordertype provided")
 	}
 	req["order_price_type"] = orderType
@@ -592,7 +597,7 @@ func (h *HUOBI) AccountTransferData(code, subUID, transferType string, amount fl
 	req["contract_code"] = code
 	req["subUid"] = subUID
 	req["amount"] = amount
-	if !common.StringDataCompare(acceptableTransferType, transferType) {
+	if !common.StringDataCompare(validTransferType, transferType) {
 		return resp, fmt.Errorf("inavlid transferType received")
 	}
 	req["type"] = transferType
@@ -605,7 +610,7 @@ func (h *HUOBI) AccountTransferRecords(code, transferType string, createDate, pa
 	var resp InternalAccountTransferData
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	if !common.StringDataCompare(acceptableTransferType, transferType) {
+	if !common.StringDataCompare(validTransferType, transferType) {
 		return resp, fmt.Errorf("inavlid transferType received")
 	}
 	req["type"] = transferType
@@ -633,7 +638,7 @@ func (h *HUOBI) PlaceSwapOrders(code, clientOrderID, direction, offset, orderPri
 	}
 	req["direction"] = direction
 	req["offset"] = offset
-	if !common.StringDataCompare(acceptableOrderTypes, orderPriceType) {
+	if !common.StringDataCompare(validOrderTypes, orderPriceType) {
 		return resp, fmt.Errorf("inavlid ordertype provided")
 	}
 	req["order_price_type"] = orderPriceType
@@ -645,8 +650,8 @@ func (h *HUOBI) PlaceSwapOrders(code, clientOrderID, direction, offset, orderPri
 }
 
 // PlaceBatchOrders places a batch of orders for swaps
-func (h *HUOBI) PlaceBatchOrders(data BatchOrderRequestType) (SwapOrderData, error) {
-	var resp SwapOrderData
+func (h *HUOBI) PlaceBatchOrders(data BatchOrderRequestType) (BatchOrderData, error) {
+	var resp BatchOrderData
 	req := make(map[string]interface{})
 	if !((0 < len(data.Data)) && (len(data.Data) <= 10)) {
 		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
@@ -681,10 +686,21 @@ func (h *HUOBI) CancelAllSwapOrders(contractCode string) (CancelOrdersData, erro
 }
 
 // PlaceLightningCloseOrder places a lightning close order
-func (h *HUOBI) PlaceLightningCloseOrder(contractCode, direction, orderPriceType string, volume, clientOrderID float64) (LightningCloseOrderData, error) {
+func (h *HUOBI) PlaceLightningCloseOrder(contractCode, direction, orderPriceType string, volume float64, clientOrderID int64) (LightningCloseOrderData, error) {
 	var resp LightningCloseOrderData
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
+	req["volume"] = volume
+	req["direction"] = direction
+	if clientOrderID != 0 {
+		req["client_order_id"] = clientOrderID
+	}
+	if orderPriceType != "" {
+		if !common.StringDataCompare(validLightningOrderPriceType, orderPriceType) {
+			return resp, fmt.Errorf("invalid orderPriceType")
+		}
+		req["order_price_type"] = orderPriceType
+	}
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapLightningCloseOrder, nil, req, &resp, false)
 }
@@ -696,7 +712,7 @@ func (h *HUOBI) GetSwapOrderDetails(contractCode, orderID, createdAt, orderType 
 	req["contract_code"] = contractCode
 	req["order_id"] = orderID
 	req["created_at"] = createdAt
-	oType, ok := acceptableOrderType[orderType]
+	oType, ok := validOrderType[orderType]
 	if !ok {
 		return resp, fmt.Errorf("invalid ordertype")
 	}
@@ -709,6 +725,23 @@ func (h *HUOBI) GetSwapOrderDetails(contractCode, orderID, createdAt, orderType 
 	}
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapOrderDetails, nil, req, &resp, false)
+}
+
+// GetSwapOrderInfo gets info on a swap order
+func (h *HUOBI) GetSwapOrderInfo(contractCode, orderID, clientOrderID string) (SwapOpenOrdersData, error) {
+	var resp SwapOpenOrdersData
+	req := make(map[string]interface{})
+	if contractCode != "" {
+		req["contract_code"] = contractCode
+	}
+	if orderID != "" {
+		req["order_id"] = orderID
+	}
+	if clientOrderID != "" {
+		req["client_order_id"] = clientOrderID
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapOrderInfo, nil, req, &resp, false)
 }
 
 // GetSwapOpenOrders gets open orders for swap
@@ -742,13 +775,18 @@ func (h *HUOBI) GetSwapOrderHistory(contractCode string, pageIndex, pageSize int
 }
 
 // GetSwapTradeHistory gets swap trade history
-func (h *HUOBI) GetSwapTradeHistory(contractCode string, createDate, pageIndex, pageSize int64) (AccountTradeHistoryData, error) {
+func (h *HUOBI) GetSwapTradeHistory(contractCode, tradeType string, createDate, pageIndex, pageSize int64) (AccountTradeHistoryData, error) {
 	var resp AccountTradeHistoryData
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
 	if createDate > 90 {
 		return resp, fmt.Errorf("invalid create date value: only supports up to 90 days")
 	}
+	tType, ok := validTradeType[tradeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid trade type")
+	}
+	req["trade_type"] = tType
 	req["create_date"] = strconv.FormatInt(createDate, 10)
 	if pageIndex != 0 {
 		req["page_index"] = pageIndex
@@ -765,7 +803,7 @@ func (h *HUOBI) PlaceSwapTriggerOrder(contractCode, triggerType, direction, offs
 	var resp AccountTradeHistoryData
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
-	tType, ok := acceptableTriggerType[triggerType]
+	tType, ok := validTriggerType[triggerType]
 	if !ok {
 		return resp, fmt.Errorf("invalid trigger type")
 	}
@@ -776,7 +814,7 @@ func (h *HUOBI) PlaceSwapTriggerOrder(contractCode, triggerType, direction, offs
 	req["volume"] = volume
 	req["lever_rate"] = leverageRate
 	req["order_price"] = orderPrice
-	if !common.StringDataCompare(acceptableOrderPriceType, orderPriceType) {
+	if !common.StringDataCompare(validOrderPriceType, orderPriceType) {
 		return resp, fmt.Errorf("invalid order price type")
 	}
 	req["order_price_type"] = orderPriceType
@@ -803,28 +841,13 @@ func (h *HUOBI) CancelAllSwapTriggerOrders(contractCode string) (CancelTriggerOr
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapCancelAllTriggerOrders, nil, req, &resp, false)
 }
 
-// GetSwapTriggerOpenOrders gets trigger open orders for perpetual swaps
-func (h *HUOBI) GetSwapTriggerOpenOrders(contractCode string, pageIndex, pageSize int64) (TriggerOpenOrdersData, error) {
-	var resp TriggerOpenOrdersData
-	req := make(map[string]interface{})
-	req["contract_code"] = contractCode
-	if pageIndex != 0 {
-		req["page_index"] = pageIndex
-	}
-	if pageSize > 0 && pageSize <= 50 {
-		req["page_size"] = pageSize
-	}
-	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapOpenTriggerOrders, nil, req, &resp, false)
-}
-
 // GetSwapTriggerOrderHistory gets history for swap trigger orders
 func (h *HUOBI) GetSwapTriggerOrderHistory(contractCode, status, tradeType string, createDate, pageIndex, pageSize int64) (TriggerOrderHistory, error) {
 	var resp TriggerOrderHistory
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
 	req["status"] = status
-	tType, ok := acceptableTradeType[tradeType]
+	tType, ok := validTradeType[tradeType]
 	if !ok {
 		return resp, fmt.Errorf("invalid trade type")
 	}

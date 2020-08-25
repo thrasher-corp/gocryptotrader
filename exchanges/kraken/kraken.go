@@ -231,8 +231,8 @@ func (k *Kraken) FuturesOpenOrders() (FuturesOpenOrdersData, error) {
 }
 
 // FuturesRecentOrders gets recent futures orders for a symbol or all symbols
-func (k *Kraken) FuturesRecentOrders(symbol string) (FuturesOpenOrdersData, error) {
-	var resp FuturesOpenOrdersData
+func (k *Kraken) FuturesRecentOrders(symbol string) (FuturesRecentOrdersData, error) {
+	var resp FuturesRecentOrdersData
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -1156,22 +1156,13 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 
 // SendAuthenticatedHTTPRequest2 will send an auth req
 func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url.Values, result interface{}) (err error) {
-	fmt.Printf("This is the incoming postData: %v\n", postData.Encode())
 	if !k.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			k.Name)
 	}
 	nonce := strconv.FormatInt(int64(time.Now().UnixNano())/1000000, 10)
-	fmt.Println("This is the nonce:", nonce)
 	encoded := postData.Encode()
-	// var encoded string
-	// for k, v := range postData {
-	// 	encoded = k + "=" + strings.Join(v, "")
-	// }
-	fmt.Printf("This is the post data encoded: [%v]\n", encoded)
-	fmt.Println("EndpointPath:", path)
 	concatenation := encoded + nonce + path
-	fmt.Println("concatenation:", concatenation)
 	shasum := crypto.GetSHA256([]byte(concatenation))
 	hmac := crypto.GetHMAC(crypto.HashSHA512, shasum, []byte(k.API.Credentials.Secret))
 	signature := crypto.Base64Encode(hmac)
@@ -1182,7 +1173,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url
 	headers["Nonce"] = nonce
 	return k.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          k.API.Endpoints.URL + path,
+		Path:          k.API.Endpoints.URL + path + "?" + postData.Encode(),
 		Headers:       headers,
 		Body:          bytes.NewBuffer(nil),
 		Result:        result,

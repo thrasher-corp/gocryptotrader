@@ -574,14 +574,14 @@ type BatchOrderRequestType struct {
 }
 
 type batchOrderData struct {
-	ContractCode   string
-	ClientOrderID  string
-	Price          float64
-	Volume         float64
-	Direction      string
-	Offset         string
-	LeverageRate   float64
-	OrderPriceType string
+	ContractCode   string  `json:"contract_code"`
+	ClientOrderID  string  `json:"client_order_id"`
+	Price          float64 `json:"price"`
+	Volume         float64 `json:"volume"`
+	Direction      string  `json:"direction"`
+	Offset         string  `json:"offset"`
+	LeverageRate   float64 `json:"leverRate"`
+	OrderPriceType string  `json:"orderPriceType"`
 }
 
 // CancelOrdersData stores order cancellation data
