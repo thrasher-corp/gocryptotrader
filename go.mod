@@ -35,15 +35,12 @@ require (
 	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/volatiletech/sqlboiler v3.7.1+incompatible // indirect
-	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
-	golang.org/x/net v0.0.0-20200813134508-3edf25e44fcc
-	golang.org/x/sys v0.0.0-20200817155316-9781c653f443 // indirect
-	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	google.golang.org/genproto v0.0.0-20200815001618-f69a88009b70
-	google.golang.org/grpc v1.31.0
-	google.golang.org/grpc/examples v0.0.0-20200818224027-0f73133e3aa3 // indirect
-	google.golang.org/protobuf v1.25.0 // indirect
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/net v0.0.0-20200707034311-ab3426394381
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
+	google.golang.org/genproto v0.0.0-20200806141610-86f49bd18e98
+	google.golang.org/grpc v1.31.1
+	google.golang.org/grpc/examples v0.0.0-20200825214159-c4ba4cc6af4a // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.60.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
