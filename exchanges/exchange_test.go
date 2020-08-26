@@ -1998,7 +1998,7 @@ func TestKlineIntervalEnabled(t *testing.T) {
 	}
 }
 
-func TestFormatExchangeKlineINterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	b := Base{}
 	if b.FormatExchangeKlineInterval(kline.EightHour) != "28800" {
 		t.Fatal("unexpected value")

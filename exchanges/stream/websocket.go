@@ -320,7 +320,6 @@ func (w *Websocket) connectionMonitor() {
 			}
 			select {
 			case err := <-w.ReadMessageErrors:
-				// check if this error is a disconnection error
 				if isDisconnectionError(err) {
 					w.setInit(false)
 					log.Warnf(log.WebsocketMgr,
