@@ -12,10 +12,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+
 var (
 	buffer []Data
 	candles []kline.Candle
 	processor Processor
+	bufferProcessorInterval = time.Minute
 )
 
 // Data defines trade data
@@ -39,7 +41,6 @@ type CandleHolder struct {
 // and saving them to the database
 type Processor struct {
 	mutex sync.Mutex
-	shutdownC chan struct{}
 	started    int32
 }
 

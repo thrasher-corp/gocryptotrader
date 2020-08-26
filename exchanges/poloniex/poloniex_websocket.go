@@ -357,7 +357,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 
-						trade.AddTradesToBuffer(p.Name, trade.Data{
+						return trade.AddTradesToBuffer(p.Name, trade.Data{
 							Timestamp:    time.Unix(t.Timestamp, 0),
 							CurrencyPair: pair,
 							Side:         side,

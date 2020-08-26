@@ -211,8 +211,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 			Side:         tSide,
 		})
 	}
-	trade.AddTradesToBuffer(l.Name, trades...)
-	return nil
+	return trade.AddTradesToBuffer(l.Name, trades...)
 }
 
 func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {

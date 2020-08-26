@@ -294,7 +294,7 @@ func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 		case krakenWsSpread:
 			k.wsProcessSpread(&channelData, response[1].([]interface{}))
 		case krakenWsTrade:
-			k.wsProcessTrades(&channelData, response[1].([]interface{}))
+			return k.wsProcessTrades(&channelData, response[1].([]interface{}))
 		default:
 			return fmt.Errorf("%s Unidentified websocket data received: %+v",
 				k.Name,
@@ -561,26 +561,23 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 }
 
 // wsProcessTrades converts trade data and sends it to the datahandler
-func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []interface{}) {
+func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []interface{}) error {
 	var trades []trade.Data
 	for i := range data {
 		t := data[i].([]interface{})
 		timeData, err := strconv.ParseFloat(t[2].(string), 64)
 		if err != nil {
-			k.Websocket.DataHandler <- err
-			return
+			return err
 		}
 
 		price, err := strconv.ParseFloat(t[0].(string), 64)
 		if err != nil {
-			k.Websocket.DataHandler <- err
-			return
+			return err
 		}
 
 		amount, err := strconv.ParseFloat(t[1].(string), 64)
 		if err != nil {
-			k.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		var tSide = order.Buy
 		if t[3].(string) == "s" {
@@ -597,7 +594,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Side:         tSide,
 		})
 	}
-	trade.AddTradesToBuffer(k.Name, trades...)
+	return trade.AddTradesToBuffer(k.Name, trades...)
 }
 
 // wsProcessOrderBook determines if the orderbook data is partial or update

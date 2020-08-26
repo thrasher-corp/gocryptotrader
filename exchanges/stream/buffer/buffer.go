@@ -59,7 +59,7 @@ func (w *Orderbook) Update(u *Update) error {
 		w.buffer[u.Pair][u.Asset] = nil
 	}
 
-	// AddTradesToBuffer in data handler
+	// Process in data handler
 	w.dataHandler <- obLookup
 	return nil
 }

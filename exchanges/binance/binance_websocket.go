@@ -293,7 +293,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					trade.AddTradesToBuffer(b.Name, trade.Data{
+					return trade.AddTradesToBuffer(b.Name, trade.Data{
 						CurrencyPair: pair,
 						Timestamp:    time.Unix(0, t.TimeStamp*int64(time.Millisecond)),
 						Price:        price,

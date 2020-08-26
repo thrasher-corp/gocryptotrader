@@ -369,7 +369,7 @@ func TestProcessOrderbook(t *testing.T) {
 	base.Pair = c
 	err = base.Process()
 	if err != nil {
-		t.Error("AddTradesToBuffer() error", err)
+		t.Error("Process() error", err)
 	}
 	result, err = Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {
@@ -387,7 +387,7 @@ func TestProcessOrderbook(t *testing.T) {
 	base.Pair = c
 	err = base.Process()
 	if err != nil {
-		t.Error("AddTradesToBuffer() error", err)
+		t.Error("Process() error", err)
 	}
 	result, err = Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {
@@ -401,7 +401,7 @@ func TestProcessOrderbook(t *testing.T) {
 	base.AssetType = "monthly"
 	err = base.Process()
 	if err != nil {
-		t.Error("AddTradesToBuffer() error", err)
+		t.Error("Process() error", err)
 	}
 
 	result, err = Get("ProcessOrderbook", c, "monthly")
@@ -419,7 +419,7 @@ func TestProcessOrderbook(t *testing.T) {
 	base.AssetType = "quarterly"
 	err = base.Process()
 	if err != nil {
-		t.Error("AddTradesToBuffer() error", err)
+		t.Error("Process() error", err)
 	}
 
 	_, err = Get("Blah", c, "quarterly")
@@ -483,7 +483,7 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	if catastrophicFailure {
-		t.Fatal("AddTradesToBuffer() error", err)
+		t.Fatal("Process() error", err)
 	}
 
 	wg.Wait()

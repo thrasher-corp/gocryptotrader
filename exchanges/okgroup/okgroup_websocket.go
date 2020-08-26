@@ -490,8 +490,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			Timestamp:    response.Data[i].Timestamp,
 		})
 	}
-	trade.AddTradesToBuffer(o.Name, trades...)
-	return nil
+	return trade.AddTradesToBuffer(o.Name, trades...)
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler

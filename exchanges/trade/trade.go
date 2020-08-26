@@ -2,12 +2,14 @@ package trade
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -21,13 +23,9 @@ func (p *Processor) setup() {
 	go p.Run()
 }
 
-// Shutdown kills the lingering processor
-func (p *Processor) shutdown() {
-	close(p.shutdownC)
-}
-
 // AddTradesToBuffer will push trade data onto the buffer
-func AddTradesToBuffer(exchangeName string, data ...Data) {
+func AddTradesToBuffer(exchangeName string, data ...Data) error {
+	var errs common.Errors
 	if atomic.AddInt32(&processor.started, 0) == 0 {
 		processor.setup()
 	}
@@ -38,8 +36,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) {
 			data[i].CurrencyPair.IsEmpty() ||
 			data[i].Exchange == "" ||
 			data[i].Timestamp.IsZero() {
-			log.Errorf(log.WebsocketMgr, "%v received invalid trade data: %+v", exchangeName, data[i])
-			continue
+			errs = append(errs, fmt.Errorf("%v received invalid trade data: %+v", exchangeName, data[i]))
 		}
 
 		if data[i].Price < 0 {
@@ -53,34 +50,39 @@ func AddTradesToBuffer(exchangeName string, data ...Data) {
 		}
 		uu, err := uuid.NewV4()
 		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%s uuid failed to generate for trade: %+v", exchangeName, data[i])
-			continue
+			errs = append(errs,  fmt.Errorf("%s uuid failed to generate for trade: %+v", exchangeName, data[i]))
 		}
 		data[i].ID = uu
 		buffer = append(buffer, data[i])
 	}
 	processor.mutex.Unlock()
+	if len(errs) > 0 {
+		return errs
+	}
+	return nil
 }
 
 // Processor will save trade data to the database in batches
 func (p *Processor) Run() {
-	if atomic.AddInt32(&p.started, 1) != 1 {
+	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
 		log.Error(log.Trade, "trade processor already started")
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 	}()
 	log.Info(log.Trade, "trade processor starting...")
-	timer := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(bufferProcessorInterval)
 	for {
 		select {
-		case <-p.shutdownC:
-			return
-		case <-timer.C:
-			log.Debug(log.WebsocketMgr, "processing trade data")
+		case <-ticker.C:
 			p.mutex.Lock()
-			sort.Sort(ByDate(buffer))
-			err := sqltrade.Insert(buffer...)
+			if len(buffer) == 0 {
+				p.mutex.Unlock()
+				log.Infof(log.Trade, "no trade data received in %v, shutting down", bufferProcessorInterval)
+				return
+			}
+			results := tradeToSQLData()
+			err := sqltrade.Insert(results...)
 			if err != nil {
 				log.Error(log.Trade, err)
 			}
@@ -88,6 +90,24 @@ func (p *Processor) Run() {
 			p.mutex.Unlock()
 		}
 	}
+}
+
+func tradeToSQLData() []sqltrade.Data {
+	sort.Sort(ByDate(buffer))
+	var results []sqltrade.Data
+	for i := range buffer {
+		results = append(results, sqltrade.Data{
+			ID:           buffer[i].ID.String(),
+			Timestamp:    buffer[i].Timestamp.Unix(),
+			Exchange:     buffer[i].Exchange,
+			CurrencyPair: buffer[i].CurrencyPair.String(),
+			AssetType:    buffer[i].AssetType.String(),
+			Price:        buffer[i].Price,
+			Amount:       buffer[i].Amount,
+			Side:         buffer[i].Side.String(),
+		})
+	}
+	return results
 }
 
 // SqlDataToTrade converts sql data to glorious trade data
@@ -98,6 +118,7 @@ func SqlDataToTrade(dbTrades ...sqltrade.Data) (result []Data, err error) {
 		if err != nil {
 			return nil, err
 		}
+		cp = cp.Upper()
 		var a = asset.Item(dbTrades[i].AssetType)
 		if !asset.IsValid(a) {
 			return nil, errors.New("invalid asset type lol")
@@ -156,38 +177,6 @@ func getNearestInterval(t time.Time, interval kline.Interval) int64 {
 	return t.Truncate(interval.Duration()).Unix()
 }
 
-func (c *CandleHolder) amendCandle(datas ...Data) {
-	log.Debugf(log.WebsocketMgr, "Before: %v", c.candle)
-
-	sort.Sort(ByDate(datas))
-	c.trades = append(c.trades, datas...)
-	sort.Sort(ByDate(c.trades))
-	c.candle.Open = c.trades[0].Price
-	c.candle.Close = c.trades[len(c.trades)-1].Price
-	for i := range datas {
-		c.candle.Volume += datas[i].Amount
-	}
-	for i := range c.trades {
-		// some exchanges will send it as negative for sells
-		// do they though?
-		if c.trades[i].Price < 0 {
-			log.Debug(log.WebsocketMgr, "NEGATIVE TRADE")
-			c.trades[i].Price = c.trades[i].Price * -1
-		}
-		if c.trades[i].Amount < 0 {
-			log.Debug(log.WebsocketMgr, "NEGATIVE TRADE")
-			c.trades[i].Amount = c.trades[i].Amount * -1
-		}
-		if c.trades[i].Price < c.candle.Low || c.candle.Low == 0 {
-			c.candle.Low = c.trades[i].Price
-		}
-		if c.trades[i].Price > c.candle.High {
-			c.candle.High = c.trades[i].Price
-		}
-	}
-	log.Debugf(log.WebsocketMgr, "After: %v", c.candle)
-}
-
 func classifyOHLCV (t time.Time, datas ...Data) (c kline.Candle) {
 	sort.Sort(ByDate(datas))
 	c.Open = datas[0].Price
@@ -196,11 +185,9 @@ func classifyOHLCV (t time.Time, datas ...Data) (c kline.Candle) {
 		// some exchanges will send it as negative for sells
 		// do they though?
 		if datas[i].Price < 0 {
-			log.Debug(log.WebsocketMgr, "NEGATIVE TRADE")
 			datas[i].Price = datas[i].Price * -1
 		}
 		if datas[i].Amount < 0 {
-			log.Debug(log.WebsocketMgr, "NEGATIVE TRADE")
 			datas[i].Amount = datas[i].Amount * -1
 		}
 		if datas[i].Price < c.Low || c.Low == 0 {

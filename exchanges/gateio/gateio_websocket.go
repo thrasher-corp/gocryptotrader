@@ -208,7 +208,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 				Side:         tSide,
 			})
 		}
-		trade.AddTradesToBuffer(g.Name, trades...)
+		return trade.AddTradesToBuffer(g.Name, trades...)
 	case strings.Contains(result.Method, "balance.update"):
 		var balance wsBalanceSubscription
 		err = json.Unmarshal(respRaw, &balance)

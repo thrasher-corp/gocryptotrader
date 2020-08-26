@@ -367,8 +367,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				})
 			}
 
-			trade.AddTradesToBuffer(b.Name, trades...)
-			return nil
+			return trade.AddTradesToBuffer(b.Name, trades...)
 		}
 
 		if authResp, ok := d[1].(string); ok {
