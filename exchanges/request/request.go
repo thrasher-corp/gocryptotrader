@@ -83,6 +83,12 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 		return nil, errors.New("invalid path")
 	}
 
+	if i.HeaderResponse != nil {
+		if *i.HeaderResponse == nil {
+			return nil, errors.New("header response is nil")
+		}
+	}
+
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
 		return nil, err
@@ -197,6 +203,12 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			err = mock.HTTPRecord(resp, r.Name, contents)
 			if err != nil {
 				return fmt.Errorf("mock recording failure %s", err)
+			}
+		}
+
+		if p.HeaderResponse != nil {
+			for k, v := range resp.Header {
+				(*p.HeaderResponse)[k] = v
 			}
 		}
 

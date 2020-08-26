@@ -22,6 +22,7 @@
  * Zone JS is required by Angular itself.
  */
 import 'zone.js/dist/zone-mix'; // Included with Angular CLI.
+import 'hammerjs';
 
 
 /***************************************************************************************************

@@ -330,7 +330,7 @@ type OrderBookL2 struct {
 	Symbol string  `json:"symbol"`
 }
 
-// Position Summary of open and Closed Positions
+// Position Summary of Open and Closed Positions
 type Position struct {
 	Account              int64     `json:"account"`
 	AvgCostPrice         float64   `json:"avgCostPrice"`

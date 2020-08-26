@@ -15,8 +15,8 @@ func TestRateLimit_Limit(t *testing.T) {
 	}{
 		"All Orderbooks Ticker": {Expected: limitOrderbookTickerAll, Limit: bestPriceLimit("")},
 		"Orderbook Ticker":      {Expected: limitDefault, Limit: bestPriceLimit(symbol)},
-		"All open Orders":       {Expected: limitOpenOrdersAll, Limit: openOrdersLimit("")},
-		"open Orders":           {Expected: limitOrder, Limit: openOrdersLimit(symbol)},
+		"All Open Orders":       {Expected: limitOpenOrdersAll, Limit: openOrdersLimit("")},
+		"Open Orders":           {Expected: limitOrder, Limit: openOrdersLimit(symbol)},
 		"Orderbook Depth 5":     {Expected: limitDefault, Limit: orderbookLimit(5)},
 		"Orderbook Depth 10":    {Expected: limitDefault, Limit: orderbookLimit(10)},
 		"Orderbook Depth 20":    {Expected: limitDefault, Limit: orderbookLimit(20)},

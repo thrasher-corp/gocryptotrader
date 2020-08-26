@@ -41,7 +41,7 @@ type Price struct {
 	Volume       float64       `json:"Volume"`
 	QuoteVolume  float64       `json:"QuoteVolume"`
 	PriceATH     float64       `json:"PriceATH"`
-	Open         float64       `json:"open"`
+	Open         float64       `json:"Open"`
 	Close        float64       `json:"Close"`
 	Pair         currency.Pair `json:"Pair"`
 	ExchangeName string        `json:"exchangeName"`

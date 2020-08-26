@@ -1,4 +1,4 @@
-// open Exchange Rates provides a simple, lightweight and portable JSON API with
+// Open Exchange Rates provides a simple, lightweight and portable JSON API with
 // live and historical foreign exchange (forex) rates, via a simple and
 // easy-to-integrate API, in JSON format. Data are tracked and blended
 // algorithmically from multiple reliable sources, ensuring fair and unbiased
@@ -59,7 +59,7 @@ func (o *OXR) GetRates(baseCurrency, symbols string) (map[string]float64, error)
 	return standardisedRates, nil
 }
 
-// GetLatest returns the latest exchange rates available from the open Exchange
+// GetLatest returns the latest exchange rates available from the Open Exchange
 // Rates
 func (o *OXR) GetLatest(baseCurrency, symbols string, prettyPrint, showAlternative bool) (map[string]float64, error) {
 	var resp Latest
@@ -81,7 +81,7 @@ func (o *OXR) GetLatest(baseCurrency, symbols string, prettyPrint, showAlternati
 }
 
 // GetHistoricalRates returns historical exchange rates for any date available
-// from the open Exchange Rates API.
+// from the Open Exchange Rates API.
 func (o *OXR) GetHistoricalRates(date, baseCurrency string, symbols []string, prettyPrint, showAlternative bool) (map[string]float64, error) {
 	var resp Latest
 
@@ -102,7 +102,7 @@ func (o *OXR) GetHistoricalRates(date, baseCurrency string, symbols []string, pr
 	return resp.Rates, nil
 }
 
-// GetCurrencies returns a list of all currency symbols available from the open
+// GetCurrencies returns a list of all currency symbols available from the Open
 // Exchange Rates API,
 func (o *OXR) GetCurrencies(showInactive, prettyPrint, showAlternative bool) (map[string]string, error) {
 	resp := make(map[string]string)
@@ -167,7 +167,7 @@ func (o *OXR) ConvertCurrency(amount float64, from, to string) (float64, error) 
 	return resp.Response, nil
 }
 
-// GetOHLC returns historical open, High Low, Close (OHLC) and Average exchange
+// GetOHLC returns historical Open, High Low, Close (OHLC) and Average exchange
 // rates for a given time period, ranging from 1 month to 1 minute, where
 // available.
 func (o *OXR) GetOHLC(startTime, period, baseCurrency string, symbols []string, prettyPrint bool) (map[string]interface{}, error) {
@@ -194,7 +194,7 @@ func (o *OXR) GetOHLC(startTime, period, baseCurrency string, symbols []string, 
 	return resp.Rates, nil
 }
 
-// GetUsageStats returns basic plan information and usage statistics for an open
+// GetUsageStats returns basic plan information and usage statistics for an Open
 // Exchange Rates App ID
 func (o *OXR) GetUsageStats(prettyPrint bool) (Usage, error) {
 	var resp Usage

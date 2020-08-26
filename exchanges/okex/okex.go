@@ -350,7 +350,7 @@ func (o *OKEX) GetSwapForceLiquidatedOrders(request okgroup.GetSwapForceLiquidat
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, false)
 }
 
-// GetSwapOnHoldAmountForOpenOrders Get On Hold Amount for open Orders.
+// GetSwapOnHoldAmountForOpenOrders Get On Hold Amount for Open Orders.
 func (o *OKEX) GetSwapOnHoldAmountForOpenOrders(instrumentID string) (resp okgroup.GetSwapOnHoldAmountForOpenOrdersResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v", okgroup.OKGroupAccounts, instrumentID, okGroupFutureHolds)
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSwapSubsection, requestURL, nil, &resp, true)

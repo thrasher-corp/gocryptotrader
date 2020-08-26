@@ -342,7 +342,7 @@ type GetMarketDataRequest struct {
 // GetMarketDataResponse response data for GetMarketData
 // Return Parameters
 // time 	string 	Start time
-// open 	string 	open price
+// open 	string 	Open price
 // high 	string 	Highest price
 // low 	string 	Lowest price
 // close 	string 	Close price
@@ -736,7 +736,7 @@ type GetFuturesMarketDateRequest struct {
 // GetFuturesMarketDataResponse contains candle data from a GetMarketDataRequest
 // Return Parameters
 // time 			string 	Start time
-// open 			string 	open price
+// open 			string 	Open price
 // high 			string 	Highest price
 // low 				string 	Lowest price
 // close 			string 	Close price
@@ -1094,7 +1094,7 @@ type GetSwapMarketDataRequest struct {
 // GetSwapMarketDataResponse response data for GetSwapMarketData
 // Return Parameters
 // time 			string 	Start time
-// open 			string 	open price
+// open 			string 	Open price
 // high 			string 	Highest price
 // low 				string 	Lowest price
 // close 			string 	Close price
