@@ -1,79 +1,30 @@
 package backtest
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (o *Order) ID() int {
-	return o.id
+func (o *Order) IsOrder() bool {
+	return true
 }
 
-func (o *Order) SetID(id int) {
-	o.id = id
+func (o *Order) SetDirection(s order.Side) {
+	o.Direction = s
 }
 
-func (o *Order) Direction() order.Side {
-	return o.orderSide
-}
-
-func (o *Order) SetOrderSide(side order.Side) {
-	o.orderSide = side
-}
-
-func (o *Order) SetOrderType(orderType order.Type) {
-	o.orderType = orderType
-}
-func (o *Order) GetOrderType() (orderType order.Type) {
-	return o.orderType
-}
-
-func (o *Order) Amount() float64 {
-	return o.amount
+func (o *Order) GetDirection() order.Side {
+	return o.Direction
 }
 
 func (o *Order) SetAmount(i float64) {
-	o.amount = i
+	o.Amount = i
 }
 
-func (o *Order) Status() order.Status {
-	return o.status
+func (o *Order) GetAmount() float64 {
+	return o.Amount
 }
 
-func (o *Order) Cancel() {
-	o.status = order.Cancelled
-}
-
-func (o *Order) GetAmountFilled() float64 {
-	return o.amountFilled
-}
-
-func (o *Order) GetAvgFillPrice() float64 {
-	return o.avgFillPrice
-}
-
-func (o *Order) Price() float64 {
-	return o.avgFillPrice
-}
-
-func (o *Order) ExchangeFee() float64 {
-	return o.fee
-}
-
-func (o *Order) Cost() float64 {
-	return o.cost
-}
-
-func (o *Order) Value() float64 {
-	return o.amountFilled * o.avgFillPrice
-}
-
-func (o *Order) NetValue() float64 {
-	if o.Direction() == order.Buy {
-		return o.amountFilled*o.avgFillPrice + o.cost
-	}
-	return o.amountFilled*o.avgFillPrice - o.cost
-}
-
-func (o *Order) Fee() float64 {
-	return o.fee
+func (o *Order) Pair() currency.Pair {
+	return o.CurrencyPair
 }

@@ -1,75 +1,85 @@
 package backtest
 
-func (b *Backtest) Reset() error {
-	b.data.Reset()
-	_ = b.Portfolio.Reset()
-	b.Stats.Reset()
-	return nil
+func New() *BackTest {
+	return &BackTest{}
 }
 
-func (b *Backtest) Run() error {
-	err := b.setup()
-	if err != nil {
-		return err
-	}
+func (t *BackTest) Reset() {
+	t.eventQueue = nil
+	t.data.Reset()
+	t.portfolio.Reset()
+	t.statistic.Reset()
+}
 
-	for d, ok := b.data.Next(); ok; d, ok = b.data.Next() {
-		b.Portfolio.Update(d)
-		b.Stats.Update(d, b.Portfolio)
-		_, err := b.Execution.OnData(d, b)
+func (t *BackTest) Stats() StatisticHandler {
+	return t.statistic
+}
+
+func (t *BackTest) Run() error {
+	t.portfolio.SetFunds(t.portfolio.InitialFunds())
+	for event, ok := t.nextEvent(); true; event, ok = t.nextEvent() {
+		if !ok {
+			data, ok := t.data.Next()
+			if !ok {
+				break
+			}
+			t.eventQueue = append(t.eventQueue, data)
+			continue
+		}
+
+		err := t.eventLoop(event)
 		if err != nil {
 			return err
 		}
+		t.statistic.TrackEvent(event)
+	}
 
-		b.Stats.TrackEvent(d)
-		_, err = b.Algo.OnData(d, b)
+	return nil
+}
+
+func (t *BackTest) nextEvent() (e EventHandler, ok bool) {
+	if len(t.eventQueue) == 0 {
+		return e, false
+	}
+
+	e = t.eventQueue[0]
+	t.eventQueue = t.eventQueue[1:]
+
+	return e, true
+}
+
+func (t *BackTest) eventLoop(e EventHandler) error {
+	switch event := e.(type) {
+	case DataEventHandler:
+		t.portfolio.Update(event)
+		t.statistic.Update(event, t.portfolio)
+
+		signal, err := t.strategy.OnSignal(event, t.data, t.portfolio)
 		if err != nil {
-			return err
+			break
 		}
-	}
+		t.eventQueue = append(t.eventQueue, signal)
 
-	b.Algo.OnEnd(b)
+	case SignalEvent:
+		order, err := t.portfolio.OnSignal(event, t.data)
+		if err != nil {
+			break
+		}
+		t.eventQueue = append(t.eventQueue, order)
+
+	case OrderEvent:
+		fill, err := t.exchange.ExecuteOrder(event, t.data)
+		if err != nil {
+			break
+		}
+		t.eventQueue = append(t.eventQueue, fill)
+	case FillEvent:
+		transaction, err := t.portfolio.OnFill(event, t.data)
+		if err != nil {
+			break
+		}
+		t.statistic.TrackTransaction(transaction)
+	}
 
 	return nil
-}
-
-func (b *Backtest) setup() error {
-	b.Portfolio.SetFunds(b.Portfolio.InitialFunds())
-
-	return nil
-}
-
-func (b *Backtest) GetPortfolio() (portfolio PortfolioHandler) {
-	return b.Portfolio
-}
-
-func New(algo AlgoHandler) (*Backtest, error) {
-	cfg := algo.Init()
-
-	itemData := &DataFromKlineItem{
-		Item: cfg.Item,
-	}
-	err := itemData.Load()
-	if err != nil {
-		return nil, err
-	}
-
-	backTest := &Backtest{
-		config: cfg,
-		Portfolio: &Portfolio{
-			initialFunds: cfg.InitialFunds,
-		},
-		Execution: &Execution{
-			ExchangeFee: &PercentageFee{
-				ExchangeFee{
-					Fee: cfg.Fee,
-				},
-			},
-		},
-		Stats: &Statistic{},
-		Algo:  algo,
-		data:  itemData,
-	}
-
-	return backTest, nil
 }

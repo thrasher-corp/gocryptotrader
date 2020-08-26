@@ -3,6 +3,7 @@ module github.com/thrasher-corp/gocryptotrader
 go 1.13
 
 require (
+	github.com/blend/go-sdk v1.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/d5/tengo/v2 v2.6.0
 	github.com/friendsofgo/errors v0.9.2 // indirect
@@ -21,6 +22,7 @@ require (
 	github.com/pelletier/go-toml v1.8.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.2.0
+	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
 	github.com/spf13/afero v1.3.1 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/viper v1.7.1
@@ -33,14 +35,18 @@ require (
 	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/volatiletech/sqlboiler v3.7.1+incompatible // indirect
-	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
-	golang.org/x/net v0.0.0-20200421231249-e086a090c8fd
-	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
-	golang.org/x/text v0.3.3 // indirect
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
-	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
+	github.com/wcharczuk/go-chart v2.0.1+incompatible
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5
+	golang.org/x/net v0.0.0-20200707034311-ab3426394381
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
+	gonum.org/v1/gonum v0.8.1
+	google.golang.org/genproto v0.0.0-20200806141610-86f49bd18e98
 	google.golang.org/grpc v1.31.0
-	google.golang.org/protobuf v1.25.0 // indirect
+	google.golang.org/grpc/examples v0.0.0-20200825214159-c4ba4cc6af4a // indirect
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/ini.v1 v1.57.0 // indirect
 )
+
+replace github.com/thrasher-corp/gct-ta => ../gct-ta

@@ -2,46 +2,67 @@ package backtest
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"golang.org/x/exp/rand"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-type testBT struct{}
+type TestStrategy struct{}
 
-func (bt *testBT) Init() *Config {
-	return &Config{
-		Item:         genOHCLVData(),
-		Fee:          0.85,
-		InitialFunds: 100000,
+func (s *TestStrategy) OnSignal(de DataEventHandler, d DataHandler, p PortfolioHandler) (SignalEvent, error) {
+	event := Event{Time: de.GetTime(), CurrencyPair: de.Pair()}
+	signal := Signal{Event: event}
+
+	//if d.Latest(currency.NewPair(currency.BTC, currency.USDT)).GetTime() == time.Date(2019, 6, 22, 0, 0, 0, 0, time.UTC) {
+		signal.Amount = 5
+		signal.SetDirection(order.Buy)
+	//}
+
+	if d.Latest(currency.NewPair(currency.BTC, currency.USDT)).GetTime() == time.Date(2019, 7, 22, 0, 0, 0, 0, time.UTC) {
+		signal.Amount = 1
+		signal.Price = 5
+		signal.SetDirection(order.Sell)
 	}
+	return &signal, nil
 }
 
-func (bt *testBT) OnData(d DataEvent, b *Backtest) (bool, error) {
-	ret := indicators.EMA(b.data.StreamClose(), 9)
-	ret2 := indicators.EMA(b.data.StreamClose(), 21)
-	fmt.Printf("EMA9: %v\nEMA21 %v\n", ret, ret2)
-	return true, nil
-}
+func TestBackTest(t *testing.T) {
+	bt := New()
 
-func (bt *testBT) OnEnd(b *Backtest) {
-	fmt.Println(b.Stats.ReturnResult())
-}
+	data := DataFromKline{
+		Item: genOHCLVData(),
+	}
+	_ = data.Load()
+	bt.data = &data
 
-func TestBacktest_Run(t *testing.T) {
-	algo := &testBT{}
-	bt, err := New(algo)
+	portfolio := Portfolio{
+		initialCash: 1000,
+		riskManager: &Risk{},
+		sizeManager: &Size{},
+	}
+	portfolio.SetInitialFunds(1000)
+	bt.portfolio = &portfolio
+
+	strategy := TestStrategy{}
+	bt.strategy = &strategy
+
+	exchange := Exchange{ExchangeFee: 0, CommissionRate: 0.0025}
+	bt.exchange = &exchange
+
+	statistic := Statistic{}
+	bt.statistic = &statistic
+	err := bt.Run()
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if err := bt.Run(); err != nil {
-		t.Fatal(err)
+	ret := statistic.ReturnResult()
+	for x := range ret.Transactions {
+		fmt.Println(ret.Transactions[x])
 	}
 }
 
@@ -71,7 +92,7 @@ func genOHCLVData() kline.Item {
 			High:   outItem.Candles[x-1].Open + rand.Float64(),
 			Low:    outItem.Candles[x-1].Open - rand.Float64(),
 			Close:  outItem.Candles[x-1].Open + rand.Float64(),
-			Volume: 10,
+			Volume: float64(rand.Int63n(150)),
 		}
 	}
 

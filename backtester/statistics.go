@@ -1,17 +1,24 @@
 package backtest
 
 import (
+	"errors"
 	"fmt"
-	"math"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"gonum.org/v1/gonum/stat"
 )
 
-func (s *Statistic) Update(d DataEvent, p PortfolioHandler) {
-	e := EquityPoint{}
-	e.timestamp = d.Time()
+func (s *Statistic) Update(d DataEventHandler, p PortfolioHandler) {
+	if s.initialBuy == 0 {
+		s.initialBuy = p.InitialFunds() / d.LatestPrice()
+	}
+
+	e := equityPoint{}
+	e.timestamp = d.GetTime()
 	e.equity = p.Value()
+
+	e.buyAndHoldValue = s.initialBuy * d.LatestPrice()
 
 	if len(s.equity) > 0 {
 		e = s.calcEquityReturn(e)
@@ -39,11 +46,11 @@ func (s *Statistic) Events() []EventHandler {
 	return s.eventHistory
 }
 
-func (s *Statistic) TrackTransaction(f OrderEvent) {
+func (s *Statistic) TrackTransaction(f FillEvent) {
 	s.transactionHistory = append(s.transactionHistory, f)
 }
 
-func (s *Statistic) Transactions() []OrderEvent {
+func (s *Statistic) Transactions() []FillEvent {
 	return s.transactionHistory
 }
 
@@ -51,8 +58,8 @@ func (s *Statistic) Reset() {
 	s.eventHistory = nil
 	s.transactionHistory = nil
 	s.equity = nil
-	s.high = EquityPoint{}
-	s.low = EquityPoint{}
+	s.high = equityPoint{}
+	s.low = equityPoint{}
 }
 
 func (s *Statistic) ReturnResult() Results {
@@ -63,22 +70,21 @@ func (s *Statistic) ReturnResult() Results {
 	}
 	for v := range s.Transactions() {
 		results.Transactions = append(results.Transactions, resultTransactions{
-			time:      s.Transactions()[v].Time(),
-			direction: s.Transactions()[v].Direction(),
-			price:     s.Transactions()[v].Price(),
-			amount:    s.Transactions()[v].Amount(),
+			time:      s.Transactions()[v].GetTime(),
+			direction: s.Transactions()[v].GetDirection(),
+			price:     s.Transactions()[v].GetPrice(),
+			amount:    s.Transactions()[v].GetAmount(),
 		})
 	}
 	return results
 }
 
 func (s *Statistic) PrintResult() {
-	fmt.Println("Printing backtest results:")
 	fmt.Printf("Counted %d total events.\n", len(s.Events()))
 
 	fmt.Printf("Counted %d total transactions:\n", len(s.Transactions()))
 	for k, v := range s.Transactions() {
-		fmt.Printf("%d. Transaction: %v Action: %v Price: %f Amount %f\n", k+1, v.Time().Format("2006-01-02 15:04:05.999999999"), v.Direction(), v.Price(), v.Amount())
+		fmt.Printf("%d. Transaction: %v Action: %v Price: %f Amount %f\n", k+1, v.GetTime().Format("2006-01-02 15:04:05.999999999"), v.GetDirection(), v.GetPrice(), v.GetAmount())
 	}
 
 	result, _ := s.TotalEquityReturn()
@@ -87,14 +93,17 @@ func (s *Statistic) PrintResult() {
 }
 
 func (s *Statistic) TotalEquityReturn() (r float64, err error) {
-	firstEquityPoint, _ := s.firstEquityPoint()
-	firstEquity := firstEquityPoint.equity
+	firstEquityPoint, ok := s.firstEquityPoint()
+	if !ok {
+		return r, errors.New("could not calculate totalEquityReturn, no equity points found")
+	}
+	firstEquity := decimal.NewFromFloat(firstEquityPoint.equity)
 
 	lastEquityPoint, _ := s.lastEquityPoint()
-	lastEquity := lastEquityPoint.equity
+	lastEquity := decimal.NewFromFloat(lastEquityPoint.equity)
 
-	totalEquityReturn := (lastEquity - firstEquity) / firstEquity
-	total := math.Round(totalEquityReturn*math.Pow10(DP)) / math.Pow10(DP)
+	totalEquityReturn := lastEquity.Sub(firstEquity).Div(firstEquity)
+	total, _ := totalEquityReturn.Round(DP).Float64()
 	return total, nil
 }
 
@@ -115,7 +124,7 @@ func (s *Statistic) MaxDrawdownDuration() (d time.Duration) {
 		return d
 	}
 
-	maxPoint := EquityPoint{}
+	maxPoint := equityPoint{}
 	for index := i; index >= 0; index-- {
 		if s.equity[index].equity > maxPoint.equity {
 			maxPoint = s.equity[index]
@@ -129,32 +138,41 @@ func (s *Statistic) MaxDrawdownDuration() (d time.Duration) {
 func (s *Statistic) SharpRatio(riskfree float64) float64 {
 	var equityReturns = make([]float64, len(s.equity))
 
-	for i := range s.equity {
-		equityReturns[i] = s.equity[i].equityReturn
+	for i, v := range s.equity {
+		equityReturns[i] = v.equityReturn
 	}
 	mean, stddev := stat.MeanStdDev(equityReturns, nil)
 
-	return (mean - riskfree) / stddev
+	sharp := (mean - riskfree) / stddev
+	return sharp
 }
 
 func (s *Statistic) SortinoRatio(riskfree float64) float64 {
 	var equityReturns = make([]float64, len(s.equity))
 
-	for i := range s.equity {
-		equityReturns[i] = s.equity[i].equityReturn
+	for i, v := range s.equity {
+		equityReturns[i] = v.equityReturn
 	}
 	mean := stat.Mean(equityReturns, nil)
 
-	var negReturns []float64
-	for x := range equityReturns {
-		if equityReturns[x] < 0 {
-			negReturns = append(negReturns, equityReturns[x])
+	// sortino uses the stddev of only the negativ returns
+	var negReturns = []float64{}
+	for _, v := range equityReturns {
+		if v < 0 {
+			negReturns = append(negReturns, v)
 		}
 	}
-	return (mean - riskfree) / stat.StdDev(negReturns, nil)
+	stdDev := stat.StdDev(negReturns, nil)
+
+	sortino := (mean - riskfree) / stdDev
+	return sortino
 }
 
-func (s *Statistic) firstEquityPoint() (ep EquityPoint, ok bool) {
+func (s *Statistic) ViewEquityHistory() {
+	fmt.Println(s.equity)
+}
+
+func (s *Statistic) firstEquityPoint() (ep equityPoint, ok bool) {
 	if len(s.equity) == 0 {
 		return ep, false
 	}
@@ -163,7 +181,7 @@ func (s *Statistic) firstEquityPoint() (ep EquityPoint, ok bool) {
 	return ep, true
 }
 
-func (s *Statistic) lastEquityPoint() (ep EquityPoint, ok bool) {
+func (s *Statistic) lastEquityPoint() (ep equityPoint, ok bool) {
 	if len(s.equity) == 0 {
 		return ep, false
 	}
@@ -172,48 +190,48 @@ func (s *Statistic) lastEquityPoint() (ep EquityPoint, ok bool) {
 	return ep, true
 }
 
-func (s *Statistic) calcEquityReturn(e EquityPoint) EquityPoint {
+func (s *Statistic) calcEquityReturn(e equityPoint) equityPoint {
 	last, ok := s.lastEquityPoint()
 	if !ok {
 		e.equityReturn = 0
 		return e
 	}
 
-	lastEquity := last.equity
-	currentEquity := e.equity
+	lastEquity := decimal.NewFromFloat(last.equity)
+	currentEquity := decimal.NewFromFloat(e.equity)
 
-	if lastEquity == 0 {
+	if lastEquity.Equal(decimal.Zero) {
 		e.equityReturn = 1
 		return e
 	}
 
-	equityReturn := (currentEquity - lastEquity) / lastEquity
-	e.equityReturn = math.Round(equityReturn*math.Pow10(DP)) / math.Pow10(DP)
+	equityReturn := currentEquity.Sub(lastEquity).Div(lastEquity)
+	e.equityReturn, _ = equityReturn.Round(DP).Float64()
 
 	return e
 }
 
-func (s *Statistic) calcDrawdown(e EquityPoint) EquityPoint {
+func (s *Statistic) calcDrawdown(e equityPoint) equityPoint {
 	if s.high.equity == 0 {
 		e.drawdown = 0
 		return e
 	}
 
-	lastHigh := s.high.equity
-	equity := e.equity
+	lastHigh := decimal.NewFromFloat(s.high.equity)
+	equity := decimal.NewFromFloat(e.equity)
 
-	if equity >= lastHigh {
+	if equity.GreaterThanOrEqual(lastHigh) {
 		e.drawdown = 0
 		return e
 	}
 
-	drawdown := (equity - lastHigh) / lastHigh
-	e.drawdown = math.Round(drawdown*math.Pow10(DP)) / math.Pow10(DP)
+	drawdown := equity.Sub(lastHigh).Div(lastHigh)
+	e.drawdown, _ = drawdown.Round(DP).Float64()
 
 	return e
 }
 
-func (s *Statistic) maxDrawdownPoint() (i int, ep EquityPoint) {
+func (s *Statistic) maxDrawdownPoint() (i int, ep equityPoint) {
 	if len(s.equity) == 0 {
 		return 0, ep
 	}
@@ -229,8 +247,4 @@ func (s *Statistic) maxDrawdownPoint() (i int, ep EquityPoint) {
 	}
 
 	return index, s.equity[index]
-}
-
-func (s *Statistic) GetEquity() *[]EquityPoint {
-	return &s.equity
 }

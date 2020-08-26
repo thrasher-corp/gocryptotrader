@@ -1,48 +1,35 @@
 package backtest
 
-import "time"
+import (
+	"time"
 
-type Position struct {
-	timestamp    time.Time
-	Amount       float64
-	AmountBought float64
-	AmountSold   float64
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
+type Positions struct {
+	timestamp      time.Time
+	pair           currency.Pair
+	amount         float64
+	amountBought   float64
+	amountSold     float64
 	avgPrice       float64
 	avgPriceNet    float64
 	avgPriceBought float64
 	avgPriceSold   float64
-
-	value       float64
-	valueBought float64
-	valueSold   float64
-
+	value          float64
+	valueBought    float64
+	valueSold      float64
 	netValue       float64
 	netValueBought float64
 	netValueSold   float64
-
-	marketValue float64
-	exchangeFee float64
-	cost        float64
-	costBasis   float64
+	marketPrice    float64
+	marketValue    float64
+	commission     float64
+	exchangeFee    float64
+	cost           float64
+	costBasis      float64
 
 	realProfitLoss   float64
 	unrealProfitLoss float64
 	totalProfitLoss  float64
-}
-
-type RiskHandler interface {
-	EvaluateOrder(OrderEvent, DataEvent, Position) (*Order, error)
-}
-
-type Risk struct {
-}
-
-type SizeHandler interface {
-	SizeOrder(OrderEvent, DataEvent, PortfolioHandler) (*Order, error)
-}
-
-type Size struct {
-	DefaultSize  float64
-	DefaultValue float64
 }

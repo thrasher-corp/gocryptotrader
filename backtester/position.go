@@ -1,150 +1,136 @@
 package backtest
 
 import (
-	"errors"
-	"math"
-
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/shopspring/decimal"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (r *Risk) EvaluateOrder(order OrderEvent) (*Order, error) {
-	return order.(*Order), nil
-}
+func (p *Positions) Create(fill FillEvent) {
+	p.timestamp = fill.GetTime()
+	p.pair = fill.Pair()
 
-func (s *Size) SizeOrder(orderevent OrderEvent, data DataEvent, pf PortfolioHandler) (*Order, error) {
-	if (s.DefaultSize == 0) || (s.DefaultValue == 0) {
-		return nil, errors.New("no DefaultSize or DefaultValue set")
-	}
-
-	o := orderevent.(*Order)
-	switch o.Direction() {
-	case order.Buy:
-		o.SetAmount(s.setDefaultSize(data.Price()))
-	case order.Sell:
-		o.SetAmount(s.setDefaultSize(data.Price()))
-	default:
-		if _, ok := pf.IsInvested(); !ok {
-			return o, errors.New("no position in Portfolio")
-		}
-		if pos, ok := pf.IsLong(); ok {
-			o.SetAmount(pos.Amount)
-		}
-		if pos, ok := pf.IsShort(); ok {
-			o.SetAmount(pos.Amount * -1)
-		}
-	}
-
-	return o, nil
-}
-
-func (s *Size) setDefaultSize(price float64) float64 {
-	if (s.DefaultSize * price) > s.DefaultValue {
-		return math.Floor(s.DefaultValue / price)
-	}
-	return s.DefaultSize
-}
-
-func (p *Position) update(inOrder *Order) {
-	fillQty := inOrder.GetAmountFilled()
-	fillPrice := inOrder.GetAvgFillPrice()
-	fillExchangeFee := inOrder.ExchangeFee()
-	fillCost := inOrder.Cost()
-	fillNetValue := inOrder.NetValue()
-
-	amount := p.Amount
-	amountBought := p.AmountBought
-	amountSOld := p.AmountSold
-	avgPrice := p.avgPrice
-	avgPriceNet := p.avgPriceNet
-	avgPriceBot := p.avgPriceBought
-	avgPriceSld := p.avgPriceSold
-	valueBot := p.valueBought
-	valueSld := p.valueSold
-	netValueBot := p.netValueBought
-	netValueSld := p.netValueSold
-
-	exchangeFee := p.exchangeFee
-	cost := p.cost
-	costBasis := p.costBasis
-	realProfitLoss := p.realProfitLoss
-
-	switch inOrder.Direction() {
-	case order.Buy:
-		if p.Amount >= 0 {
-			costBasis += fillNetValue
-		} else {
-			costBasis += math.Abs(fillQty) / amount * costBasis
-			realProfitLoss += fillQty*(avgPriceNet-fillPrice) - fillCost
-		}
-		avgPrice = ((math.Abs(amount) * avgPrice) + (fillQty * fillPrice)) / (math.Abs(amount) + fillQty)
-		avgPriceNet = (math.Abs(amount)*avgPriceNet + fillNetValue) / (math.Abs(amount) + fillQty)
-		avgPriceBot = ((amountBought * avgPriceBot) + (fillQty * fillPrice)) / (amountBought + fillQty)
-		amount += fillQty
-		amountBought += fillQty
-
-		valueBot = amountBought * avgPriceBot
-		netValueBot += fillNetValue
-
-	case order.Sell:
-		if p.Amount > 0 {
-			costBasis -= math.Abs(fillQty) / amount * costBasis
-			realProfitLoss += math.Abs(fillQty)*(fillPrice-avgPriceNet) - fillCost
-		} else {
-			costBasis -= fillNetValue
-		}
-		avgPrice = (math.Abs(amount)*avgPrice + fillQty*fillPrice) / (math.Abs(amount) + fillQty)
-		avgPriceNet = (math.Abs(amount)*avgPriceNet + fillNetValue) / (math.Abs(amount) + fillQty)
-		avgPriceSld = (amountSOld*avgPriceSld + fillQty*fillPrice) / (amountSOld + fillQty)
-
-		amount -= fillQty
-		amountSOld += fillQty
-
-		valueSld = amountSOld * avgPriceSld
-		netValueSld += fillNetValue
-	}
-
-	exchangeFee += fillExchangeFee
-	cost += fillCost
-	p.value = valueSld - valueBot
-	p.netValue = p.value - cost
-
-	p.Amount = amount
-	p.AmountBought = amountBought
-	p.AmountSold = amountSOld
-	p.avgPrice = math.Round(avgPrice*math.Pow10(DP)) / math.Pow10(DP)
-	p.avgPriceBought = math.Round(avgPriceBot*math.Pow10(DP)) / math.Pow10(DP)
-	p.avgPriceSold = math.Round(avgPriceSld*math.Pow10(DP)) / math.Pow10(DP)
-	p.avgPriceNet = math.Round(avgPriceNet*math.Pow10(DP)) / math.Pow10(DP)
-	p.value = math.Round(p.value*math.Pow10(DP)) / math.Pow10(DP)
-	p.valueBought = math.Round(valueBot*math.Pow10(DP)) / math.Pow10(DP)
-	p.valueSold = math.Round(valueSld*math.Pow10(DP)) / math.Pow10(DP)
-	p.netValue = math.Round(p.netValue*math.Pow10(DP)) / math.Pow10(DP)
-	p.netValueBought = math.Round(netValueBot*math.Pow10(DP)) / math.Pow10(DP)
-	p.netValueSold = math.Round(netValueSld*math.Pow10(DP)) / math.Pow10(DP)
-	p.exchangeFee = exchangeFee
-	p.cost = cost
-	p.costBasis = math.Round(costBasis*math.Pow10(DP)) / math.Pow10(DP)
-	p.realProfitLoss = math.Round(realProfitLoss*math.Pow10(DP)) / math.Pow10(DP)
-
-	p.updateValue(inOrder.Price())
-}
-
-func (p *Position) Update(fill *Order) {
-	p.timestamp = fill.Time()
 	p.update(fill)
 }
 
-func (p *Position) updateValue(l float64) {
-	p.marketValue = math.Abs(p.Amount) * l
-	unrealProfitLoss := p.Amount*l - p.costBasis
-	p.unrealProfitLoss = math.Round(unrealProfitLoss*math.Pow10(DP)) / math.Pow10(DP)
-	totalProfitLoss := p.realProfitLoss + unrealProfitLoss
-	p.totalProfitLoss = math.Round(totalProfitLoss*math.Pow10(DP)) / math.Pow10(DP)
+func (p *Positions) Update(fill FillEvent) {
+	p.timestamp = fill.GetTime()
+
+	p.update(fill)
 }
 
-func (p *Position) UpdateValue(data DataEvent) {
-	p.timestamp = data.Time()
+func (p *Positions) UpdateValue(data DataEventHandler) {
+	p.timestamp = data.GetTime()
 
-	latest := data.Price()
+	latest := data.LatestPrice()
 	p.updateValue(latest)
+}
+
+func (p *Positions) update(fill FillEvent) {
+	fillAmount := decimal.NewFromFloat(fill.GetAmount())
+	fillPrice := decimal.NewFromFloat(fill.GetPrice())
+	fillCommission := decimal.NewFromFloat(fill.GetCommission())
+	fillExchangeFee := decimal.NewFromFloat(fill.GetExchangeFee())
+	fillCost := decimal.NewFromFloat(fill.GetCost())
+	fillNetValue := decimal.NewFromFloat(fill.NetValue())
+
+	amount := decimal.NewFromFloat(p.amount)
+	amountBought := decimal.NewFromFloat(p.amountBought)
+	amountSold := decimal.NewFromFloat(p.amountSold)
+	avgPrice := decimal.NewFromFloat(p.avgPrice)
+	avgPriceNet := decimal.NewFromFloat(p.avgPriceNet)
+	avgPriceBought := decimal.NewFromFloat(p.avgPriceBought)
+	avgPriceSold := decimal.NewFromFloat(p.avgPriceSold)
+	value := decimal.NewFromFloat(p.value)
+	valueBought := decimal.NewFromFloat(p.valueBought)
+	valueSold := decimal.NewFromFloat(p.valueSold)
+	netValue := decimal.NewFromFloat(p.netValue)
+	netValueBought := decimal.NewFromFloat(p.netValueBought)
+	netValueSold := decimal.NewFromFloat(p.netValueSold)
+	commission := decimal.NewFromFloat(p.commission)
+	exchangeFee := decimal.NewFromFloat(p.exchangeFee)
+	cost := decimal.NewFromFloat(p.cost)
+	costBasis := decimal.NewFromFloat(p.costBasis)
+	realProfitLoss := decimal.NewFromFloat(p.realProfitLoss)
+
+	switch fill.GetDirection() {
+	case gctorder.Buy, gctorder.Bid:
+		if p.amount >= 0 {
+			costBasis = costBasis.Add(fillNetValue)
+		} else {
+			costBasis = costBasis.Add(fillAmount.Abs().Div(amount).Mul(costBasis))
+			realProfitLoss = realProfitLoss.Add(fillAmount.Mul(avgPriceNet.Sub(fillPrice))).Sub(fillCost)
+		}
+		avgPrice = amount.Abs().Mul(avgPrice).Add(fillAmount.Mul(fillPrice)).Div(amount.Abs().Add(fillAmount))
+		avgPriceNet = amount.Abs().Mul(avgPriceNet).Add(fillNetValue).Div(amount.Abs().Add(fillAmount))
+		avgPriceBought = amountBought.Mul(avgPriceBought).Add(fillAmount.Mul(fillPrice)).Div(amountBought.Add(fillAmount))
+
+		amount = amount.Add(fillAmount)
+		amountBought = amountBought.Add(fillAmount)
+
+		valueBought = amountBought.Mul(avgPriceBought)
+		netValueBought = netValueBought.Add(fillNetValue)
+
+	case gctorder.Sell, gctorder.Ask:
+		if p.amount > 0 {
+			costBasis = costBasis.Sub(fillAmount.Abs().Div(amount).Mul(costBasis))
+			realProfitLoss = realProfitLoss.Add(fillAmount.Abs().Mul(fillPrice.Sub(avgPriceNet))).Sub(fillCost)
+		} else {
+			costBasis = costBasis.Sub(fillNetValue)
+		}
+
+		avgPrice = amount.Abs().Mul(avgPrice).Add(fillAmount.Mul(fillPrice)).Div(amount.Abs().Add(fillAmount))
+		avgPriceNet = amount.Abs().Mul(avgPriceNet).Add(fillNetValue).Div(amount.Abs().Add(fillAmount))
+		avgPriceSold = amountSold.Mul(avgPriceSold).Add(fillAmount.Mul(fillPrice)).Div(amountSold.Add(fillAmount))
+
+		amount = amount.Sub(fillAmount)
+		amountSold = amountSold.Add(fillAmount)
+		valueSold = amountSold.Mul(avgPriceSold)
+		netValueSold = netValueSold.Add(fillNetValue)
+	}
+
+	commission = commission.Add(fillCommission)
+	exchangeFee = exchangeFee.Add(fillExchangeFee)
+	cost = cost.Add(fillCost)
+
+	value = valueSold.Sub(valueBought)
+	netValue = value.Sub(cost)
+
+	p.amount, _ = amount.Round(DP).Float64()
+	p.amountBought, _ = amountBought.Round(DP).Float64()
+	p.amountSold, _ = amountSold.Round(DP).Float64()
+	p.avgPrice, _ = avgPrice.Round(DP).Float64()
+	p.avgPriceBought, _ = avgPriceBought.Round(DP).Float64()
+	p.avgPriceSold, _ = avgPriceSold.Round(DP).Float64()
+	p.avgPriceNet, _ = avgPriceNet.Round(DP).Float64()
+	p.value, _ = value.Round(DP).Float64()
+	p.valueBought, _ = valueBought.Round(DP).Float64()
+	p.valueSold, _ = valueSold.Round(DP).Float64()
+	p.netValue, _ = netValue.Round(DP).Float64()
+	p.netValueBought, _ = netValueBought.Round(DP).Float64()
+	p.netValueSold, _ = netValueSold.Round(DP).Float64()
+	p.commission, _ = commission.Round(DP).Float64()
+	p.exchangeFee, _ = exchangeFee.Round(DP).Float64()
+	p.cost, _ = cost.Round(DP).Float64()
+	p.costBasis, _ = costBasis.Round(DP).Float64()
+	p.realProfitLoss, _ = realProfitLoss.Round(DP).Float64()
+
+	p.updateValue(fill.GetPrice())
+}
+
+func (p *Positions) updateValue(l float64) {
+	latest := decimal.NewFromFloat(l)
+	amount := decimal.NewFromFloat(p.amount)
+	costBasis := decimal.NewFromFloat(p.costBasis)
+
+	marketPrice := latest
+	p.marketPrice, _ = marketPrice.Round(DP).Float64()
+	marketValue := amount.Abs().Mul(latest)
+	p.marketValue, _ = marketValue.Round(DP).Float64()
+
+	unrealProfitLoss := amount.Mul(latest).Sub(costBasis)
+	p.unrealProfitLoss, _ = unrealProfitLoss.Round(DP).Float64()
+
+	realProfitLoss := decimal.NewFromFloat(p.realProfitLoss)
+	totalProfitLoss := realProfitLoss.Add(unrealProfitLoss)
+	p.totalProfitLoss, _ = totalProfitLoss.Round(DP).Float64()
 }
