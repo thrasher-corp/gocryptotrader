@@ -40,15 +40,21 @@ const (
 func (e *Base) checkAndInitRequester() {
 	if e.Requester == nil {
 		e.Requester = request.New(e.Name,
-			new(http.Client))
+			&http.Client{Transport: new(http.Transport)})
 	}
 }
 
-// SetHTTPClientTimeout sets the timeout value for the exchanges
-// HTTP Client
-func (e *Base) SetHTTPClientTimeout(t time.Duration) {
+// SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
+// also the underlying transports idle connection timeout
+func (e *Base) SetHTTPClientTimeout(t time.Duration) error {
 	e.checkAndInitRequester()
 	e.Requester.HTTPClient.Timeout = t
+	tr, ok := e.Requester.HTTPClient.Transport.(*http.Transport)
+	if !ok {
+		return errors.New("transport not set, cannot set timeout")
+	}
+	tr.IdleConnTimeout = t
+	return nil
 }
 
 // SetHTTPClient sets exchanges HTTP client
@@ -77,22 +83,24 @@ func (e *Base) GetHTTPClientUserAgent() string {
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
 func (e *Base) SetClientProxyAddress(addr string) error {
-	if addr != "" {
-		proxy, err := url.Parse(addr)
+	if addr == "" {
+		return nil
+	}
+	proxy, err := url.Parse(addr)
+	if err != nil {
+		return fmt.Errorf("exchange.go - setting proxy address error %s",
+			err)
+	}
+
+	err = e.Requester.SetProxy(proxy)
+	if err != nil {
+		return err
+	}
+
+	if e.Websocket != nil {
+		err = e.Websocket.SetProxyAddress(addr)
 		if err != nil {
-			return fmt.Errorf("exchange.go - setting proxy address error %s",
-				err)
-		}
-
-		// No needs to check err here as the only err condition is an empty
-		// string which is already checked above
-		_ = e.Requester.SetProxy(proxy)
-
-		if e.Websocket != nil {
-			err = e.Websocket.SetProxyAddress(addr)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 	}
 	return nil
@@ -545,7 +553,10 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	if exch.HTTPTimeout <= time.Duration(0) {
 		exch.HTTPTimeout = DefaultHTTPTimeout
 	} else {
-		e.SetHTTPClientTimeout(exch.HTTPTimeout)
+		err := e.SetHTTPClientTimeout(exch.HTTPTimeout)
+		if err != nil {
+			return err
+		}
 	}
 
 	if exch.CurrencyPairs == nil {
