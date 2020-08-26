@@ -1038,7 +1038,8 @@ func TestFlushChannels(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	web := Websocket{enabled: true,
+	web := Websocket{
+		enabled:      true,
 		connected:    true,
 		connector:    connect,
 		ShutdownC:    make(chan struct{}),
@@ -1047,7 +1048,11 @@ func TestFlushChannels(t *testing.T) {
 		Wg:           new(sync.WaitGroup),
 		features:     &protocol.Features{
 			// No features
-		}}
+		},
+		trafficTimeout: time.Second * 30, // Added for when we utilise connect()
+		// in FlushChannels() so the traffic monitor doesn't time out and turn
+		// this to an unconnected state
+	}
 
 	problemFunc := func() ([]ChannelSubscription, error) {
 		return nil, errors.New("problems")
