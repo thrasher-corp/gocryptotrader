@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -170,9 +169,7 @@ func TestFuturesCancelAllOrdersAfter(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
 	}
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FuturesCancelAllOrdersAfter(50)
-	fmt.Printf("%+v", a)
+	_, err := k.FuturesCancelAllOrdersAfter(50)
 	if err != nil {
 		t.Error(err)
 	}
