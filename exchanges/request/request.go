@@ -283,10 +283,12 @@ func (r *Requester) SetProxy(p *url.URL) error {
 		return errors.New("no proxy URL supplied")
 	}
 
-	r.HTTPClient.Transport = &http.Transport{
-		Proxy:               http.ProxyURL(p),
-		TLSHandshakeTimeout: proxyTLSTimeout,
+	t, ok := r.HTTPClient.Transport.(*http.Transport)
+	if !ok {
+		return errors.New("transport not set, cannot set proxy")
 	}
+	t.Proxy = http.ProxyURL(p)
+	t.TLSHandshakeTimeout = proxyTLSTimeout
 	return nil
 }
 

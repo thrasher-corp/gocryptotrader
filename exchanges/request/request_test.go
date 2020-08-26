@@ -474,7 +474,7 @@ func TestGetNonceMillis(t *testing.T) {
 func TestSetProxy(t *testing.T) {
 	t.Parallel()
 	r := New("test",
-		new(http.Client),
+		&http.Client{Transport: new(http.Transport)},
 		WithLimiter(&globalshell))
 	u, err := url.Parse("http://www.google.com")
 	if err != nil {
