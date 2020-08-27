@@ -178,22 +178,6 @@ type FuturesOpenPositions struct {
 	ServerTime string `json:"serverTime"`
 }
 
-// FuturesBatchOrderResponse stores batch order response for futures
-type FuturesBatchOrderResponse struct {
-	ServerTime  string `json:"serverTime"`
-	BatchStatus []struct {
-		Status           string `json:"status"`
-		OrderTag         string `json:"order_tag"`
-		OrderID          string `json:"order_id"`
-		DateTimeReceived string `json:"dateTimeReceived"`
-		OrderEvents      []struct {
-			Order           FuturesOrderData `json:"order"`
-			ReducedQuantity string           `json:"reducedQuantity"`
-			DataType        string           `json:"type"`
-		} `json:"orderEvents"`
-	}
-}
-
 // FuturesNotificationData stores notification data
 type FuturesNotificationData struct {
 	Notifications []struct {
@@ -307,6 +291,42 @@ type FuturesRecentOrdersData struct {
 			} `json:"executionEvent"`
 		} `json:"event"`
 	} `json:"orderEvents"`
+}
+
+// BatchOrderData stores batch order data
+type BatchOrderData struct {
+	Result      bool   `json:"result"`
+	ServerTime  string `json:"serverTime"`
+	BatchStatus []struct {
+		Status           string `json:"status"`
+		OrderTag         string `json:"order_tag"`
+		OrderID          string `json:"order_id"`
+		DateTimeReceived string `json:"dateTimeReceieved"`
+		OrderEvents      []struct {
+			OrderPlaced    FuturesOrderData `json:"orderPlaced"`
+			ReduceOnly     bool             `json:"reduceOnly"`
+			Timestamp      string           `json:"timestamp"`
+			OldEditedOrder FuturesOrderData `json:"old"`
+			NewEditedOrder FuturesOrderData `json:"new"`
+			UID            string           `json:"uid"`
+			RequestType    string           `json:"requestType"`
+		} `json:"orderEvents"`
+	} `json:"batchStatus"`
+}
+
+// PlaceBatchOrderData stores data required to place a batch order
+type PlaceBatchOrderData struct {
+	PlaceOrderType string  `json:"order,omitempty"`
+	OrderType      string  `json:"orderType,omitempty"`
+	OrderTag       string  `json:"order_tag,omitempty"`
+	Symbol         string  `json:"symbol,omitempty"`
+	Side           string  `json:"side,omitempty"`
+	Size           float64 `json:"size,omitempty"`
+	LimitPrice     float64 `json:"limitPrice,omitempty"`
+	StopPrice      float64 `json:"stopPrice,omitempty"`
+	ClientOrderID  int64   `json:"cliOrdId,omitempty"`
+	ReduceOnly     string  `json:"reduceOnly,omitempty"`
+	OrderID        string  `json:"order_id,omitempty"`
 }
 
 // ExecutionData stores execution data

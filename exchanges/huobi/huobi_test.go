@@ -25,7 +25,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 	testSymbol              = "btcusdt"
 )
 
@@ -417,6 +417,7 @@ func TestPlaceSwapOrders(t *testing.T) {
 
 func TestPlaceBatchOrders(t *testing.T) {
 	t.Parallel()
+	h.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
@@ -444,7 +445,8 @@ func TestPlaceBatchOrders(t *testing.T) {
 	req.Data = append(req.Data, order1)
 	req.Data = append(req.Data, order2)
 
-	_, err := h.PlaceBatchOrders(req)
+	a, err := h.PlaceBatchOrders(req)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

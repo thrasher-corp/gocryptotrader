@@ -29,7 +29,7 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 // TestSetup setup func
@@ -65,6 +65,20 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
+func TestFuturesBatchOrder(t *testing.T) {
+	k.Verbose = true
+	var data []PlaceBatchOrderData
+	var tempData PlaceBatchOrderData
+	tempData.PlaceOrderType = "cancel"
+	tempData.OrderID = "test123"
+	data = append(data, tempData)
+	a, err := k.FuturesBatchOrder(data)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestFuturesEditOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
@@ -88,6 +102,7 @@ func TestFuturesSendOrder(t *testing.T) {
 }
 
 func TestFuturesCancelOrder(t *testing.T) {
+	k.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
 	}
