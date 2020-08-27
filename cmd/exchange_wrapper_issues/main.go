@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -423,7 +424,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response: jsonifyInterface([]interface{}{r7}),
 		})
 
-		var r8 []exchange.TradeHistory
+		var r8 []trade.Data
 		r8, err = e.GetExchangeHistory(p, assetTypes[i], time.Now().Add(-time.Minute), time.Now())
 		msg = ""
 		if err != nil {

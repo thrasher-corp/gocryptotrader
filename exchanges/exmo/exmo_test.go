@@ -50,10 +50,12 @@ func TestMain(m *testing.M) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTrades("BTC_USD")
+	e.Verbose = true
+	a, err := e.GetTrades("BTC_USD")
 	if err != nil {
 		t.Errorf("Err: %s", err)
 	}
+	t.Log(a)
 }
 
 func TestGetOrderbook(t *testing.T) {

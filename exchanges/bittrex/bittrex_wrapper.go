@@ -2,6 +2,8 @@ package bittrex
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -373,8 +376,42 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *Bittrex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bittrex) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	tradeData, err := b.GetMarketHistory(p.String())
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData.Result {
+		side, err := order.StringToOrderSide(tradeData.Result[i].OrderType)
+		if err != nil {
+			return nil, err
+		}
+		ts, err := time.Parse(time.RFC3339, tradeData.Result[i].Timestamp)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     b.Name,
+			TID:          strconv.FormatInt(tradeData.Result[i].ID, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData.Result[i].Price,
+			Amount:       tradeData.Result[i].Quantity,
+			Timestamp:    ts,
+		})
+	}
+
+	err = trade.AddTradesToBuffer(b.Name, resp...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

@@ -2,6 +2,7 @@ package bitstamp
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -377,8 +379,38 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *Bitstamp) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitstamp) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	tradeData, err := b.GetTransactions(p.String(), "")
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		s := order.Buy
+		if tradeData[i].Type == 1 {
+			s = order.Sell
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     b.Name,
+			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         s,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    time.Unix(tradeData[i].Date, 0),
+		})
+	}
+
+	err = trade.AddTradesToBuffer(b.Name, resp...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -22,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -499,8 +501,42 @@ func (c *COINUT) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	if _, ok := c.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(c.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, c.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	currencyID := c.instrumentMap.LookupID(p.String())
+	if currencyID == 0 {
+		return nil, errLookupInstrumentID
+	}
+	tradeData, err := c.GetTrades(currencyID)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData.Trades {
+		side, err := order.StringToOrderSide(tradeData.Trades[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     c.Name,
+			TID:          strconv.FormatInt(tradeData.Trades[i].TransactionID, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData.Trades[i].Price,
+			Amount:       tradeData.Trades[i].Quantity,
+			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData.Trades[i].Timestamp),
+		})
+	}
+
+	err = trade.AddTradesToBuffer(c.Name, resp...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

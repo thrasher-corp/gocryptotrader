@@ -23,7 +23,7 @@ func Insert(trades ...Data) error {
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		return  fmt.Errorf("BeginTx %w", err)
+		return fmt.Errorf("BeginTx %w", err)
 	}
 	defer func() {
 		if err != nil {
@@ -50,16 +50,18 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	var err error
 	for i := range trades {
 		var tempEvent = modelSQLite.Trade{
-			ID: 		trades[i].ID,
+			ID:         trades[i].ID,
 			ExchangeID: trades[i].Exchange,
 			Currency:   trades[i].CurrencyPair,
 			Asset:      trades[i].AssetType,
 			Price:      trades[i].Price,
 			Amount:     trades[i].Amount,
 			Side:       trades[i].Side,
-			Timestamp: float64(trades[i].Timestamp),
+			Timestamp:  float64(trades[i].Timestamp),
 		}
-
+		if trades[i].TID != "" {
+			tempEvent.Tid.SetValid(trades[i].TID)
+		}
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return err
@@ -75,16 +77,19 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	exchangeID, _ := uuid.NewV4()
 	for i := range trades {
 		var tempEvent = modelPSQL.Trade{
-			Currency:   trades[i].CurrencyPair,
-			Asset:      trades[i].AssetType,
-			Price:      trades[i].Price,
-			Amount:     trades[i].Amount,
-			Side:       trades[i].Side,
-			Timestamp:  trades[i].Timestamp,
-			ID: trades[i].ID,
+			Currency:  trades[i].CurrencyPair,
+			Asset:     trades[i].AssetType,
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Side:      trades[i].Side,
+			Timestamp: trades[i].Timestamp,
+			ID:        trades[i].ID,
+		}
+		if trades[i].TID != "" {
+			tempEvent.Tid.SetValid(trades[i].TID)
 		}
 		if exchangeID.String() != "" {
-			tempEvent.ExchangeID.SetValid(trades[i].Exchange)
+			//tempEvent.ExchangeID.SetValid(trades[i].Exchange)
 		}
 
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
@@ -157,12 +162,12 @@ func getByUUIDPostgres(uuid string) (td Data, err error) {
 // GetByExchangeInRange returns all trades by an exchange in a date range
 func GetByExchangeInRange(exchangeName string, startDate, endDate int64) (td []Data, err error) {
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		td, err = getByExchangeInRangeSQLite(exchangeName ,startDate, endDate)
+		td, err = getByExchangeInRangeSQLite(exchangeName, startDate, endDate)
 		if err != nil {
 			return td, fmt.Errorf("trade.GetByExchangeInRange getByExchangeInRangeSQLite %w", err)
 		}
 	} else {
-		td, err = getByExchangeInRangePostgres(exchangeName ,startDate, endDate)
+		td, err = getByExchangeInRangePostgres(exchangeName, startDate, endDate)
 		if err != nil {
 			return td, fmt.Errorf("trade.GetByExchangeInRange getByExchangeInRangePostgres %w", err)
 		}
@@ -230,7 +235,7 @@ func DeleteTrades(trades ...Data) error {
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		return  fmt.Errorf("BeginTx %w", err)
+		return fmt.Errorf("BeginTx %w", err)
 	}
 	defer func() {
 		if err != nil {
@@ -243,7 +248,7 @@ func DeleteTrades(trades ...Data) error {
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		err = deleteTradesSQLite(context.Background(), tx, trades...)
 	} else {
-		err = deleteTradesPostgres(context.Background(), tx,  trades...)
+		err = deleteTradesPostgres(context.Background(), tx, trades...)
 	}
 	if err != nil {
 		return err
@@ -252,7 +257,7 @@ func DeleteTrades(trades ...Data) error {
 	return tx.Commit()
 }
 
-func deleteTradesSQLite(ctx context.Context,  tx *sql.Tx, trades ...Data) error {
+func deleteTradesSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	var tradeids []interface{}
 	for i := range trades {
 		tradeids = append(tradeids, trades[i].ID)
@@ -262,7 +267,7 @@ func deleteTradesSQLite(ctx context.Context,  tx *sql.Tx, trades ...Data) error 
 	return err
 }
 
-func deleteTradesPostgres(ctx context.Context,  tx *sql.Tx,trades ...Data) error {
+func deleteTradesPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	var tradeids []interface{}
 	for i := range trades {
 		tradeids = append(tradeids, trades[i].ID)
@@ -278,7 +283,7 @@ func generateQuery(clauses map[string]interface{}, start, end int64, limit int) 
 		qm.Where("timestamp BETWEEN ? AND ?", start, end),
 	}
 	for k, v := range clauses {
-		query = append(query, qm.Where(k + ` = ?`, v))
+		query = append(query, qm.Where(k+` = ?`, v))
 	}
 	return query
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -25,6 +26,9 @@ func (p *Processor) setup() {
 
 // AddTradesToBuffer will push trade data onto the buffer
 func AddTradesToBuffer(exchangeName string, data ...Data) error {
+	if database.DB == nil || database.DB.Config == nil ||  !database.DB.Config.Enabled {
+		return nil
+	}
 	var errs common.Errors
 	if atomic.AddInt32(&processor.started, 0) == 0 {
 		processor.setup()

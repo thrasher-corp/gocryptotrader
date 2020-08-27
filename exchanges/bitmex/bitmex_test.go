@@ -359,13 +359,17 @@ func TestGetStatSummary(t *testing.T) {
 }
 
 func TestGetTrade(t *testing.T) {
-	_, err := b.GetTrade(&GenericRequestParams{
-		Symbol:    "ETHUSD",
-		StartTime: time.Now().Format(time.RFC3339),
-		Reverse:   true})
+	b.Verbose = true
+	a, err := b.GetTrade(&GenericRequestParams{
+		Symbol: "XBT",
+		//Count:     1000000,
+		Reverse:   false,
+		StartTime: time.Now().Add(-time.Hour).Format(time.RFC3339),
+	})
 	if err != nil {
 		t.Error("GetTrade() error", err)
 	}
+	t.Logf("%+v", a)
 }
 
 func TestGetPreviousTrades(t *testing.T) {

@@ -477,7 +477,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 
 	params.Set("endpoint", path)
 	payload := params.Encode()
-	hmacPayload := path + string(0) + payload + string(0) + n
+	hmacPayload := path + "0" + payload + "0" + n
 	hmac := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(hmacPayload),
 		[]byte(b.API.Credentials.Secret))

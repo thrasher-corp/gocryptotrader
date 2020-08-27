@@ -2,6 +2,7 @@ package bitfinex
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -468,8 +470,34 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	tradeHistory, err := b.GetTrades(p.String(), -1 ,timestampStart.Unix() *1000, timestampEnd.Unix() * 1000, true)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeHistory {
+		tID := strconv.FormatInt(tradeHistory[i].TID, 10)
+		resp= append(resp, trade.Data{
+			TID:          tID,
+			Exchange:     b.Name,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Price:        tradeHistory[i].Price,
+			Amount:       tradeHistory[i].Amount,
+			Timestamp:    time.Unix(0, tradeHistory[i].Timestamp * int64(time.Millisecond)),
+		})
+	}
+
+	err = trade.AddTradesToBuffer(b.Name, resp...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

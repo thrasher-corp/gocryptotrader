@@ -2,6 +2,7 @@ package bitmex
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -406,8 +408,41 @@ func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *Bitmex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitmex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	tradeData, err := b.GetTrade(&GenericRequestParams{
+		EndTime:   timestampEnd.Format(time.RFC3339),
+		StartTime: timestampStart.Format(time.RFC3339),
+		Symbol:    p.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		side, err := order.StringToOrderSide(tradeData[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     b.Name,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       float64(tradeData[i].Size),
+			Timestamp:    tradeData[i].Timestamp,
+		})
+	}
+
+	err = trade.AddTradesToBuffer(b.Name, resp...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

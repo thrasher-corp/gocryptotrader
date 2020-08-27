@@ -2,7 +2,8 @@
 CREATE TABLE IF NOT EXISTS trade
 (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    exchange_id uuid REFERENCES script(id),
+    tid varchar,
+    exchange_id uuid NOT NULL,
     currency varchar NOT NULL,
     asset varchar NOT NULL,
     price DOUBLE PRECISION NOT NULL,

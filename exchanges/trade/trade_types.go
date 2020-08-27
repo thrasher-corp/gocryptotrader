@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-
 var (
 	buffer []Data
 	candles []kline.Candle
@@ -23,13 +22,14 @@ var (
 // Data defines trade data
 type Data struct {
 	ID uuid.UUID
-	Timestamp    time.Time
+	TID string
 	Exchange     string
 	CurrencyPair currency.Pair
 	AssetType    asset.Item
+	Side         order.Side
 	Price        float64
 	Amount       float64
-	Side         order.Side
+	Timestamp    time.Time
 }
 
 type CandleHolder struct {

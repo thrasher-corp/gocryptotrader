@@ -231,21 +231,21 @@ func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
 
 // GetTransactions returns transaction information
 // value paramater ["time"] = "minute", "hour", "day" will collate your
-// response into time intervals. Implementation of value in test code.
-func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Transactions, error) {
+// response into time intervals.
+func (b *Bitstamp) GetTransactions(currencyPair string, timePeriod string) ([]Transactions, error) {
 	var transactions []Transactions
-	path := common.EncodeURLValues(
-		fmt.Sprintf(
-			"%s/v%s/%s/%s/",
-			b.API.Endpoints.URL,
-			bitstampAPIVersion,
-			bitstampAPITransactions,
-			strings.ToLower(currencyPair),
-		),
-		values,
+	requestURL := fmt.Sprintf(
+		"%s/v%s/%s/%s/",
+		b.API.Endpoints.URL,
+		bitstampAPIVersion,
+		bitstampAPITransactions,
+		strings.ToLower(currencyPair),
 	)
+	if timePeriod != "" {
+		requestURL += "?time=" + timePeriod
+	}
 
-	return transactions, b.SendHTTPRequest(path, &transactions)
+	return transactions, b.SendHTTPRequest(requestURL, &transactions)
 }
 
 // GetEURUSDConversionRate returns the conversion rate between Euro and USD

@@ -1,5 +1,7 @@
 package bitflyer
 
+import "time"
+
 // ChainAnalysisBlock holds block information from the bitcoin network
 type ChainAnalysisBlock struct {
 	BlockHash     string   `json:"block_hash"`
@@ -89,7 +91,7 @@ type ExecutedTrade struct {
 	Side           string  `json:"side"`
 	Price          float64 `json:"price"`
 	Size           float64 `json:"size"`
-	ExecDate       string  `json:"exec_date"`
+	ExecDate       time.Time  `json:"exec_date"`
 	BuyAcceptedID  string  `json:"buy_child_order_acceptance_id"`
 	SellAcceptedID string  `json:"sell_child_order_acceptance_id"`
 }

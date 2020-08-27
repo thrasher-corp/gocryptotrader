@@ -169,13 +169,14 @@ func (c *Coinbene) GetTickers() ([]TickerData, error) {
 }
 
 // GetTrades gets recent trades from the exchange
-func (c *Coinbene) GetTrades(symbol string) (Trades, error) {
+func (c *Coinbene) GetTrades(symbol string, limit int64) (Trades, error) {
 	resp := struct {
 		Data [][]string `json:"data"`
 	}{}
 
 	params := url.Values{}
 	params.Set("symbol", symbol)
+	params.Set("limit", strconv.FormatInt(limit, 10))
 	path := common.EncodeURLValues(c.API.Endpoints.URL+coinbeneAPIVersion+coinbeneGetTrades, params)
 	err := c.SendHTTPRequest(path, spotMarketTrades, &resp)
 	if err != nil {

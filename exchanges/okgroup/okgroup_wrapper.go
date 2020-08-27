@@ -257,7 +257,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

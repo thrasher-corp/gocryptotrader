@@ -108,19 +108,6 @@ type FeeBuilder struct {
 	Amount        float64
 }
 
-// TradeHistory holds exchange history data
-type TradeHistory struct {
-	Timestamp   time.Time
-	TID         string
-	Price       float64
-	Amount      float64
-	Exchange    string
-	Type        string
-	Side        string
-	Fee         float64
-	Description string
-}
-
 // FundHistory holds exchange funding history data
 type FundHistory struct {
 	ExchangeName      string

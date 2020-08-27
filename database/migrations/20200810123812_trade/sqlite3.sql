@@ -2,7 +2,8 @@
 CREATE TABLE IF NOT EXISTS trade
 (
     id  TEXT PRIMARY KEY NOT NULL UNIQUE ON CONFLICT REPLACE,
-    exchange_id TEXT NOT NULL UNIQUE,
+    tid TEXT,
+    exchange_id TEXT NOT NULL,
     currency TEXT NOT NULL,
     asset TEXT NOT NULL,
     price real NOT NULL,

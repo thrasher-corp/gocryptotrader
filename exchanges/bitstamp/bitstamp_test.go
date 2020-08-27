@@ -1,7 +1,6 @@
 package bitstamp
 
 import (
-	"net/url"
 	"testing"
 	"time"
 
@@ -200,11 +199,7 @@ func TestGetTradingPairs(t *testing.T) {
 
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
-
-	value := url.Values{}
-	value.Set("time", "hour")
-
-	_, err := b.GetTransactions(currency.BTC.String()+currency.USD.String(), value)
+	_, err := b.GetTransactions(currency.BTC.String()+currency.USD.String(), "hour")
 	if err != nil {
 		t.Error("GetTransactions() error", err)
 	}

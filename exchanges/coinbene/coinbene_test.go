@@ -86,7 +86,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetTrades(spotTestPair)
+	_, err := c.GetTrades(spotTestPair, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -822,7 +822,7 @@ func TestGetCurrencyFromWsTopic(t *testing.T) {
 	if err != nil && err.Error() != "currency moto not found in enabled pairs" {
 		t.Error(err)
 	}
-	c.CurrencyPairs.Pairs[asset.Spot].Enabled.Add()
+
 	_, err = c.getCurrencyFromWsTopic(asset.Spot, "spot/kline.GOM2USDT.1h")
 	if err != nil && err.Error() != "currency moto not found in enabled pairs" {
 		t.Error(err)

@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -437,12 +438,12 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	marketName, err := f.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	var resp []exchange.TradeHistory
+	var resp []trade.Data
 	trades, err := f.GetTrades(marketName.String(),
 		time.Unix(timestampStart.Unix(), 0),
 		time.Unix(timestampEnd.Unix(), 0),
@@ -451,7 +452,7 @@ func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestam
 		return nil, err
 	}
 	for {
-		var tempResp exchange.TradeHistory
+		var tempResp trade.Data
 		if len(trades) > 0 {
 			tempResp.Amount = trades[0].Size
 			tempResp.Price = trades[0].Price

@@ -18,18 +18,20 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 	"github.com/thrasher-corp/sqlboiler/queries/qmhelper"
 	"github.com/thrasher-corp/sqlboiler/strmangle"
+	"github.com/volatiletech/null"
 )
 
 // Trade is an object representing the database table.
 type Trade struct {
-	ID         string  `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ExchangeID string  `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
-	Currency   string  `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
-	Asset      string  `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
-	Price      float64 `boil:"price" json:"price" toml:"price" yaml:"price"`
-	Amount     float64 `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
-	Side       string  `boil:"side" json:"side" toml:"side" yaml:"side"`
-	Timestamp  float64 `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
+	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Tid        null.String `boil:"tid" json:"tid,omitempty" toml:"tid" yaml:"tid,omitempty"`
+	ExchangeID string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
+	Currency   string      `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
+	Asset      string      `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
+	Price      float64     `boil:"price" json:"price" toml:"price" yaml:"price"`
+	Amount     float64     `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
+	Side       string      `boil:"side" json:"side" toml:"side" yaml:"side"`
+	Timestamp  float64     `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
 
 	R *tradeR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L tradeL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -37,6 +39,7 @@ type Trade struct {
 
 var TradeColumns = struct {
 	ID         string
+	Tid        string
 	ExchangeID string
 	Currency   string
 	Asset      string
@@ -46,6 +49,7 @@ var TradeColumns = struct {
 	Timestamp  string
 }{
 	ID:         "id",
+	Tid:        "tid",
 	ExchangeID: "exchange_id",
 	Currency:   "currency",
 	Asset:      "asset",
@@ -74,6 +78,7 @@ func (w whereHelperfloat64) GTE(x float64) qm.QueryMod {
 
 var TradeWhere = struct {
 	ID         whereHelperstring
+	Tid        whereHelpernull_String
 	ExchangeID whereHelperstring
 	Currency   whereHelperstring
 	Asset      whereHelperstring
@@ -83,6 +88,7 @@ var TradeWhere = struct {
 	Timestamp  whereHelperfloat64
 }{
 	ID:         whereHelperstring{field: "\"trade\".\"id\""},
+	Tid:        whereHelpernull_String{field: "\"trade\".\"tid\""},
 	ExchangeID: whereHelperstring{field: "\"trade\".\"exchange_id\""},
 	Currency:   whereHelperstring{field: "\"trade\".\"currency\""},
 	Asset:      whereHelperstring{field: "\"trade\".\"asset\""},
@@ -109,8 +115,8 @@ func (*tradeR) NewStruct() *tradeR {
 type tradeL struct{}
 
 var (
-	tradeAllColumns            = []string{"id", "exchange_id", "currency", "asset", "price", "amount", "side", "timestamp"}
-	tradeColumnsWithoutDefault = []string{"id", "exchange_id", "currency", "asset", "price", "amount", "side", "timestamp"}
+	tradeAllColumns            = []string{"id", "tid", "exchange_id", "currency", "asset", "price", "amount", "side", "timestamp"}
+	tradeColumnsWithoutDefault = []string{"id", "tid", "exchange_id", "currency", "asset", "price", "amount", "side", "timestamp"}
 	tradeColumnsWithDefault    = []string{}
 	tradePrimaryKeyColumns     = []string{"id"}
 )

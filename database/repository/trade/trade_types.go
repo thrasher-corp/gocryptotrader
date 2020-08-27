@@ -4,11 +4,12 @@ package trade
 // db friendly form
 type Data struct {
 	ID string
-	Timestamp    int64
+	TID string
 	Exchange     string
 	CurrencyPair string
 	AssetType    string
 	Price        float64
 	Amount       float64
 	Side        string
+	Timestamp    int64
 }
