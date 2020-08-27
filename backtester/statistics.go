@@ -62,7 +62,7 @@ func (s *Statistic) Reset() {
 	s.low = equityPoint{}
 }
 
-func (s *Statistic) ReturnResult() Results {
+func (s *Statistic) ReturnResults() Results {
 	results := Results{
 		TotalEvents:       len(s.Events()),
 		TotalTransactions: len(s.Transactions()),
@@ -117,11 +117,11 @@ func (s *Statistic) MaxDrawdownTime() time.Time {
 	return ep.timestamp
 }
 
-func (s *Statistic) MaxDrawdownDuration() (d time.Duration) {
+func (s *Statistic) MaxDrawdownDuration() time.Duration {
 	i, ep := s.maxDrawdownPoint()
 
 	if len(s.equity) == 0 {
-		return d
+		return 0
 	}
 
 	maxPoint := equityPoint{}
@@ -131,8 +131,7 @@ func (s *Statistic) MaxDrawdownDuration() (d time.Duration) {
 		}
 	}
 
-	d = ep.timestamp.Sub(maxPoint.timestamp)
-	return d
+	return ep.timestamp.Sub(maxPoint.timestamp)
 }
 
 func (s *Statistic) SharpRatio(riskfree float64) float64 {
@@ -143,8 +142,7 @@ func (s *Statistic) SharpRatio(riskfree float64) float64 {
 	}
 	mean, stddev := stat.MeanStdDev(equityReturns, nil)
 
-	sharp := (mean - riskfree) / stddev
-	return sharp
+	return (mean - riskfree) / stddev
 }
 
 func (s *Statistic) SortinoRatio(riskfree float64) float64 {
@@ -155,21 +153,18 @@ func (s *Statistic) SortinoRatio(riskfree float64) float64 {
 	}
 	mean := stat.Mean(equityReturns, nil)
 
-	// sortino uses the stddev of only the negativ returns
-	var negReturns = []float64{}
+	var negReturns []float64
 	for _, v := range equityReturns {
 		if v < 0 {
 			negReturns = append(negReturns, v)
 		}
 	}
 	stdDev := stat.StdDev(negReturns, nil)
-
-	sortino := (mean - riskfree) / stdDev
-	return sortino
+	return (mean - riskfree) / stdDev
 }
 
-func (s *Statistic) ViewEquityHistory() {
-	fmt.Println(s.equity)
+func (s *Statistic) ViewEquityHistory() []equityPoint {
+	return s.equity
 }
 
 func (s *Statistic) firstEquityPoint() (ep equityPoint, ok bool) {

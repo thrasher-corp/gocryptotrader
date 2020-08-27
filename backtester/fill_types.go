@@ -6,7 +6,7 @@ import (
 
 type Fill struct {
 	Event
-	Exchange    string
+	// Exchange    string
 	Direction   order.Side
 	Amount      float64
 	Price       float64

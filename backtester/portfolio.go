@@ -2,9 +2,9 @@ package backtest
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -13,7 +13,7 @@ func (p *Portfolio) SetSizeManager(size SizeHandler) {
 }
 
 func (p *Portfolio) Reset() {
-	p.cash = 0
+	p.funds = 0
 	p.holdings = nil
 	p.transactions = nil
 }
@@ -25,16 +25,16 @@ func (p *Portfolio) OnSignal(signal SignalEvent, data DataHandler) (*Order, erro
 		return &Order{}, errors.New("invalid Direction")
 	}
 
-	currAmount := p.holdings[signal.Pair().String()].amount
-	currCash := p.Funds()
-	currPrice := data.Latest(signal.Pair()).LatestPrice()
+	currAmount := p.holdings[signal.Pair()].amount
+	currFunds := p.Funds()
+	currPrice := data.Latest().LatestPrice()
 
 	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && currAmount <= signal.GetAmount() {
 		return &Order{}, errors.New("no holdings to sell")
 	}
 
-	if (signal.GetDirection() == gctorder.Buy || signal.GetDirection() == gctorder.Bid) && currCash <= signal.GetPrice()*currPrice {
-		return &Order{}, errors.New("tot enough cash to buy")
+	if (signal.GetDirection() == gctorder.Buy || signal.GetDirection() == gctorder.Bid) && currFunds <= signal.GetPrice()*currPrice {
+		return &Order{}, errors.New("not enough funds to buy")
 	}
 
 	initialOrder := &Order{
@@ -43,12 +43,13 @@ func (p *Portfolio) OnSignal(signal SignalEvent, data DataHandler) (*Order, erro
 			CurrencyPair: signal.Pair(),
 		},
 		Direction: signal.GetDirection(),
+		Price:     signal.GetPrice(),
 		Amount:    signal.GetAmount(),
 		OrderType: gctorder.Market,
 		Limit:     limit,
 	}
 
-	latest := data.Latest(signal.Pair())
+	latest := data.Latest()
 	sizedOrder, err := p.sizeManager.SizeOrder(initialOrder, latest, p)
 	if err != nil {
 		return nil, err
@@ -64,22 +65,22 @@ func (p *Portfolio) OnSignal(signal SignalEvent, data DataHandler) (*Order, erro
 
 func (p *Portfolio) OnFill(fill FillEvent, data DataHandler) (*Fill, error) {
 	if p.holdings == nil {
-		p.holdings = make(map[string]Positions)
+		p.holdings = make(map[currency.Pair]Positions)
 	}
 
-	if pos, ok := p.holdings[fill.Pair().String()]; ok {
+	if pos, ok := p.holdings[fill.Pair()]; ok {
 		pos.Update(fill)
-		p.holdings[fill.Pair().String()] = pos
+		p.holdings[fill.Pair()] = pos
 	} else {
 		pos := Positions{}
 		pos.Create(fill)
-		p.holdings[fill.Pair().String()] = pos
+		p.holdings[fill.Pair()] = pos
 	}
 
 	if fill.GetDirection() == gctorder.Buy {
-		p.cash -= fill.NetValue()
+		p.funds -= fill.NetValue()
 	} else if fill.GetDirection() == gctorder.Sell || fill.GetDirection() == gctorder.Ask {
-		p.cash += fill.NetValue()
+		p.funds += fill.NetValue()
 	}
 
 	p.transactions = append(p.transactions, fill)
@@ -88,24 +89,24 @@ func (p *Portfolio) OnFill(fill FillEvent, data DataHandler) (*Fill, error) {
 	return f, nil
 }
 
-func (p *Portfolio) IsInvested(symbol string) (pos Positions, ok bool) {
-	pos, ok = p.holdings[symbol]
+func (p *Portfolio) IsInvested(pair currency.Pair) (pos Positions, ok bool) {
+	pos, ok = p.holdings[pair]
 	if ok && (pos.amount != 0) {
 		return pos, true
 	}
 	return pos, false
 }
 
-func (p *Portfolio) IsLong(symbol string) (pos Positions, ok bool) {
-	pos, ok = p.holdings[symbol]
+func (p *Portfolio) IsLong(pair currency.Pair) (pos Positions, ok bool) {
+	pos, ok = p.holdings[pair]
 	if ok && (pos.amount > 0) {
 		return pos, true
 	}
 	return pos, false
 }
 
-func (p *Portfolio) IsShort(symbol string) (pos Positions, ok bool) {
-	pos, ok = p.holdings[symbol]
+func (p *Portfolio) IsShort(pair currency.Pair) (pos Positions, ok bool) {
+	pos, ok = p.holdings[pair]
 	if ok && (pos.amount < 0) {
 		return pos, true
 	}
@@ -113,26 +114,26 @@ func (p *Portfolio) IsShort(symbol string) (pos Positions, ok bool) {
 }
 
 func (p *Portfolio) Update(d DataEventHandler) {
-	if pos, ok := p.IsInvested(d.Pair().String()); ok {
+	if pos, ok := p.IsInvested(d.Pair()); ok {
 		pos.UpdateValue(d)
-		p.holdings[d.Pair().String()] = pos
+		p.holdings[d.Pair()] = pos
 	}
 }
 
 func (p *Portfolio) SetInitialFunds(initial float64) {
-	p.initialCash = initial
+	p.initialFunds = initial
 }
 
 func (p *Portfolio) InitialFunds() float64 {
-	return p.initialCash
+	return p.initialFunds
 }
 
-func (p *Portfolio) SetFunds(cash float64) {
-	p.cash = cash
+func (p *Portfolio) SetFunds(funds float64) {
+	p.funds = funds
 }
 
 func (p *Portfolio) Funds() float64 {
-	return p.cash
+	return p.funds
 }
 
 func (p *Portfolio) Value() float64 {
@@ -142,11 +143,11 @@ func (p *Portfolio) Value() float64 {
 		holdingValue = holdingValue.Add(marketValue)
 	}
 
-	cash := decimal.NewFromFloat(p.cash)
-	value, _ := cash.Add(holdingValue).Round(4).Float64()
+	funds := decimal.NewFromFloat(p.funds)
+	value, _ := funds.Add(holdingValue).Round(4).Float64()
 	return value
 }
 
-func (p *Portfolio) ViewHoldings() {
-	fmt.Println(p.holdings)
+func (p *Portfolio) ViewHoldings() map[currency.Pair]Positions {
+	return p.holdings
 }

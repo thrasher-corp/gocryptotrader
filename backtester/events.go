@@ -3,7 +3,6 @@ package backtest
 import (
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -22,18 +21,6 @@ func (e *Event) Pair() currency.Pair {
 
 func (d *DataEvent) IsDataEvent() bool {
 	return true
-}
-
-func (b *Candle) LatestPrice() float64 {
-	return b.Close
-}
-
-func (t *Tick) LatestPrice() float64 {
-	bid := decimal.NewFromFloat(t.Bid)
-	ask := decimal.NewFromFloat(t.Ask)
-	diff := decimal.New(2, 0)
-	latest, _ := bid.Add(ask).Div(diff).Round(DP).Float64()
-	return latest
 }
 
 func (s *Signal) IsSignal() bool {

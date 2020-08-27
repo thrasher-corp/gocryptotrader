@@ -3,7 +3,7 @@ package backtest
 import (
 	"sort"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/shopspring/decimal"
 )
 
 func (d *Data) Load() error {
@@ -12,9 +12,8 @@ func (d *Data) Load() error {
 
 func (d *Data) Reset() {
 	d.latest = nil
-	d.list = nil
-	d.stream = d.streamHistory
-	d.streamHistory = nil
+	d.offset = 0
+	d.stream = nil
 }
 
 func (d *Data) Stream() []DataEventHandler {
@@ -22,30 +21,26 @@ func (d *Data) Stream() []DataEventHandler {
 }
 
 func (d *Data) Next() (dh DataEventHandler, ok bool) {
-	if len(d.stream) == 0 {
-		return dh, false
+	if len(d.stream) <= d.offset {
+		return nil, false
 	}
 
-	dh = d.stream[0]
-	d.stream = d.stream[1:]
-	d.streamHistory = append(d.streamHistory, dh)
-
-	d.updateLatest(dh)
-	d.updateList(dh)
-
-	return dh, true
+	ret := d.stream[d.offset]
+	d.offset++
+	d.latest = ret
+	return ret, true
 }
 
 func (d *Data) History() []DataEventHandler {
-	return d.streamHistory
+	return d.stream[:d.offset]
 }
 
-func (d *Data) Latest(pair currency.Pair) DataEventHandler {
-	return d.latest[pair.String()]
+func (d *Data) Latest() DataEventHandler {
+	return d.latest
 }
 
-func (d *Data) List(pair currency.Pair) []DataEventHandler {
-	return d.list[pair.String()]
+func (d *Data) List() []DataEventHandler {
+	return d.stream[d.offset:]
 }
 
 func (d *Data) SortStream() {
@@ -60,18 +55,26 @@ func (d *Data) SortStream() {
 	})
 }
 
-func (d *Data) updateLatest(event DataEventHandler) {
-	if d.latest == nil {
-		d.latest = make(map[string]DataEventHandler)
-	}
-
-	d.latest[event.Pair().String()] = event
+func (c *Candle) DataType() DataType {
+	return DataTypeCandle
 }
 
-func (d *Data) updateList(event DataEventHandler) {
-	if d.list == nil {
-		d.list = make(map[string][]DataEventHandler)
-	}
+func (c *Candle) LatestPrice() float64 {
+	return c.Close
+}
 
-	d.list[event.Pair().String()] = append(d.list[event.Pair().String()], event)
+func (t *Tick) LatestPrice() float64 {
+	bid := decimal.NewFromFloat(t.Bid)
+	ask := decimal.NewFromFloat(t.Ask)
+	diff := decimal.New(2, 0)
+	latest, _ := bid.Add(ask).Div(diff).Round(DP).Float64()
+	return latest
+}
+
+func (t *Tick) DataType() DataType {
+	return DataTypeTick
+}
+
+func (t *Tick) Spread() float64 {
+	return t.Bid - t.Ask
 }

@@ -17,9 +17,9 @@ func (d *DataFromKline) Load() error {
 		return errors.New("no candle data provided")
 	}
 
-	var data []DataEventHandler
+	data := make([]DataEventHandler, len(d.Item.Candles))
 	for i := range d.Item.Candles {
-		data = append(data, &Candle{
+		data[i] = &Candle{
 			Event: Event{
 				Time: d.Item.Candles[i].Time, CurrencyPair: d.Item.Pair,
 			},
@@ -28,9 +28,17 @@ func (d *DataFromKline) Load() error {
 			Low:    d.Item.Candles[i].Low,
 			Close:  d.Item.Candles[i].Close,
 			Volume: d.Item.Candles[i].Volume,
-		})
+		}
 	}
 	d.stream = data
 	d.SortStream()
 	return nil
+}
+
+func (d *DataFromKline) StreamClose() []float64 {
+	ret := make([]float64, len(d.stream))
+	for x := range d.stream[d.offset:] {
+		ret[x] = d.stream[x].(*Candle).Close
+	}
+	return ret
 }

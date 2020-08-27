@@ -54,7 +54,7 @@ func (t *BackTest) eventLoop(e EventHandler) error {
 		t.portfolio.Update(event)
 		t.statistic.Update(event, t.portfolio)
 
-		signal, err := t.strategy.OnSignal(event, t.data, t.portfolio)
+		signal, err := t.strategy.OnSignal(t.data, t.portfolio)
 		if err != nil {
 			break
 		}

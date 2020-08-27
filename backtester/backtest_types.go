@@ -1,6 +1,6 @@
 package backtest
 
-const DP = 4
+const DP = 8
 
 type BackTest struct {
 	data       DataHandler

@@ -5,12 +5,13 @@ import (
 )
 
 func (e *Exchange) ExecuteOrder(order OrderEvent, data DataHandler) (*Fill, error) {
-	latest := data.Latest(order.Pair())
 	f := &Fill{
-		Event:    Event{Time: order.GetTime(), CurrencyPair: order.Pair()},
-		Exchange: e.Symbol,
-		Amount:   order.GetAmount(),
-		Price:    latest.LatestPrice(),
+		Event: Event{
+			Time:         order.GetTime(),
+			CurrencyPair: order.Pair(),
+		},
+		Amount: order.GetAmount(),
+		Price:  data.Latest().LatestPrice(),
 	}
 	f.Direction = order.GetDirection()
 	f.Commission = e.calculateCommission(f.Amount, f.Price)
@@ -21,8 +22,7 @@ func (e *Exchange) ExecuteOrder(order OrderEvent, data DataHandler) (*Fill, erro
 }
 
 func (e *Exchange) calculateCommission(amount, price float64) float64 {
-	var comRate = e.CommissionRate
-	return math.Floor(amount*price*comRate*10000) / 10000
+	return math.Floor(amount*price*e.CommissionRate*10000) / 10000
 }
 
 func (e *Exchange) calculateExchangeFee() float64 {

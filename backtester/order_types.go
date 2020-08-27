@@ -7,6 +7,7 @@ import (
 type Order struct {
 	Event
 	Direction order.Side
+	Price     float64
 	Amount    float64
 	OrderType order.Type
 	Limit     float64

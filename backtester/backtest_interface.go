@@ -21,8 +21,10 @@ type DataStreamer interface {
 	Next() (DataEventHandler, bool)
 	Stream() []DataEventHandler
 	History() []DataEventHandler
-	Latest(pair currency.Pair) DataEventHandler
-	List(pair currency.Pair) []DataEventHandler
+	Latest() DataEventHandler
+	List() []DataEventHandler
+
+	StreamClose() []float64
 }
 
 type EventHandler interface {
@@ -37,17 +39,16 @@ type Pair interface {
 
 type DataEventHandler interface {
 	EventHandler
+	DataType() DataType
 	LatestPrice() float64
 }
 
 type CandleEvent interface {
 	DataEventHandler
-	IsCandles() bool
 }
 
 type TickEvent interface {
 	DataEventHandler
-	IsTick() bool
 }
 
 type SignalEvent interface {
@@ -93,7 +94,9 @@ type ExecutionHandler interface {
 }
 
 type StatisticHandler interface {
-	EventTracker
+	TrackEvent(EventHandler)
+	Events() []EventHandler
+
 	Update(DataEventHandler, PortfolioHandler)
 	TrackTransaction(FillEvent)
 	Transactions() []FillEvent
@@ -108,17 +111,8 @@ type StatisticHandler interface {
 	SortinoRatio(float64) float64
 
 	PrintResult()
+	ReturnResults() Results
 	Reset()
-}
-
-type EventTracker interface {
-	TrackEvent(EventHandler)
-	Events() []EventHandler
-}
-
-type TransactionTracker interface {
-	TrackTransaction(FillEvent)
-	Transactions() []FillEvent
 }
 
 type PortfolioHandler interface {
@@ -132,17 +126,17 @@ type PortfolioHandler interface {
 	Funds() float64
 
 	Value() float64
-	ViewHoldings()
+	ViewHoldings() map[currency.Pair]Positions
 
 	Reset()
 }
 
 type StrategyHandler interface {
-	OnSignal(DataEventHandler, DataHandler, PortfolioHandler) (SignalEvent, error)
+	OnSignal(DataHandler, PortfolioHandler) (SignalEvent, error)
 }
 
 type RiskHandler interface {
-	EvaluateOrder(OrderEvent, DataEventHandler, map[string]Positions) (*Order, error)
+	EvaluateOrder(OrderEvent, DataEventHandler, map[currency.Pair]Positions) (*Order, error)
 }
 
 type SizeHandler interface {

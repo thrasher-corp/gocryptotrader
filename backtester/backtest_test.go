@@ -6,28 +6,34 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 type TestStrategy struct{}
 
-func (s *TestStrategy) OnSignal(de DataEventHandler, d DataHandler, p PortfolioHandler) (SignalEvent, error) {
-	event := Event{Time: de.GetTime(), CurrencyPair: de.Pair()}
-	signal := Signal{Event: event}
-
-	//if d.Latest(currency.NewPair(currency.BTC, currency.USDT)).GetTime() == time.Date(2019, 6, 22, 0, 0, 0, 0, time.UTC) {
-		signal.Amount = 5
-		signal.SetDirection(order.Buy)
-	//}
-
-	if d.Latest(currency.NewPair(currency.BTC, currency.USDT)).GetTime() == time.Date(2019, 7, 22, 0, 0, 0, 0, time.UTC) {
-		signal.Amount = 1
-		signal.Price = 5
-		signal.SetDirection(order.Sell)
+func (s *TestStrategy) OnSignal(d DataHandler, p PortfolioHandler) (SignalEvent, error) {
+	signal := Signal{
+		Event: Event{Time: d.Latest().GetTime(),
+			CurrencyPair: d.Latest().Pair()},
 	}
+
+
+	ret := indicators.RSI(d.StreamClose(), 14)
+	fmt.Println(ret)
+
+	// if d.Latest().GetTime() == time.Date(2019, 6, 22, 0, 0, 0, 0, time.UTC) {
+	// 	signal.Amount = 5
+	// 	signal.SetDirection(order.Buy)
+	// }
+	//
+	// if d.Latest().GetTime() == time.Date(2019, 7, 22, 0, 0, 0, 0, time.UTC) {
+	// 	signal.Amount = 1
+	// 	signal.SetDirection(order.Sell)
+	// }
+
 	return &signal, nil
 }
 
@@ -38,14 +44,22 @@ func TestBackTest(t *testing.T) {
 		Item: genOHCLVData(),
 	}
 	_ = data.Load()
+
+	// data := DataFromTick{
+	//
+	// }
+	// _ = data.Load()
 	bt.data = &data
 
 	portfolio := Portfolio{
-		initialCash: 1000,
-		riskManager: &Risk{},
-		sizeManager: &Size{},
+		initialFunds: 1000,
+		riskManager:  &Risk{},
+		sizeManager:  &Size{
+			DefaultSize: 100,
+			DefaultValue: 1000,
+		},
 	}
-	portfolio.SetInitialFunds(1000)
+
 	bt.portfolio = &portfolio
 
 	strategy := TestStrategy{}
@@ -60,10 +74,12 @@ func TestBackTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret := statistic.ReturnResult()
+	ret := statistic.ReturnResults()
 	for x := range ret.Transactions {
 		fmt.Println(ret.Transactions[x])
 	}
+	fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
+
 }
 
 func genOHCLVData() kline.Item {
