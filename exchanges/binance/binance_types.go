@@ -162,6 +162,25 @@ type FuturesBasisData struct {
 	Timestamp    int64   `json:"timestamp"`
 }
 
+// PlaceBatchOrderData stores batch order data for placing
+type PlaceBatchOrderData struct {
+	Symbol           string  `json:"symbol,omitempty"`
+	Side             string  `json:"side,omitempty"`
+	PositionSide     string  `jsoN:"positionSide,omitempty"`
+	OrderType        string  `json:"type,omitempty"`
+	TimeInForce      string  `json:"timeInForce,omitempty"`
+	Quantity         float64 `json:"quantity,omitempty"`
+	ReduceOnly       string  `json:"reduceOnly,omitempty"`
+	Price            float64 `json:"price,omitempty"`
+	NewClientOrderID string  `json:"newClientOrderId,omitempty"`
+	StopPrice        float64 `json:"stopPrice,omitempty"`
+	ActivationPrice  float64 `json:"activationPrice,omitempty"`
+	CallbackRate     float64 `json:"callbackRate,omitempty"`
+	WorkingType      string  `json:"workingType,omitempty"`
+	PriceProtect     string  `json:"priceProtect,omitempty"`
+	NewOrderRespType string  `json:"newOrderRespType,omitempty"`
+}
+
 // FuturesOrderPlaceData stores futures order data
 type FuturesOrderPlaceData struct {
 	ClientOrderID string  `json:"clientOrderID"`

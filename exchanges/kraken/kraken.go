@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -163,7 +164,7 @@ func (k *Kraken) FuturesSendOrder(orderType, symbol, side, triggerSignal, client
 		params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
 	}
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresSendOrder, nil, params, &resp)
+	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresSendOrder, params, nil, &resp)
 }
 
 // FuturesCancelOrder cancels an order
@@ -1169,7 +1170,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 }
 
 // SendAuthenticatedHTTPRequest2 will send an auth req
-func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url.Values, data, result interface{}) (err error) {
+func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url.Values, data map[string]interface{}, result interface{}) (err error) {
 	if !k.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			k.Name)
@@ -1177,16 +1178,10 @@ func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url
 	if postData == nil {
 		postData = url.Values{}
 	}
-	if data != nil {
-		jsonData, err := json.Marshal(data)
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(jsonData))
-		postData.Set("json", string(jsonData))
-	}
 	nonce := strconv.FormatInt(int64(time.Now().UnixNano())/1000000, 10)
+	fmt.Printf("HELOOOOO\n\n\n\n")
 	encoded := postData.Encode()
+	fmt.Println(encoded)
 	concatenation := encoded + nonce + path
 	shasum := crypto.GetSHA256([]byte(concatenation))
 	hmac := crypto.GetHMAC(crypto.HashSHA512, shasum, []byte(k.API.Credentials.Secret))
@@ -1197,13 +1192,25 @@ func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url
 	headers["Accept"] = "application/json"
 	headers["Nonce"] = nonce
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	if postData == nil {
+		postData = url.Values{}
+	}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	var body io.Reader
+	body = bytes.NewBuffer(jsonData)
+	fmt.Println(string(jsonData))
+	postData.Set("json", string(jsonData))
+	headers["Content-Length"] = strconv.FormatInt(int64(len(jsonData)), 10)
 
 	// a, err := url.PathEscape()
 	return k.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          k.API.Endpoints.URL + path + "?" + postData.Encode(),
 		Headers:       headers,
-		Body:          bytes.NewBuffer(nil),
+		Body:          body,
 		Result:        result,
 		AuthRequest:   true,
 		Verbose:       k.Verbose,

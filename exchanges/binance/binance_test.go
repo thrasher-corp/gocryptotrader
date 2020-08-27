@@ -19,7 +19,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 var b Binance
@@ -268,6 +268,31 @@ func TestFuturesNewOrder(t *testing.T) {
 	_, err := b.FuturesNewOrder(
 		"BTCUSD_200925", "BUY", "", "LIMIT", "GTC", "", "", "", "", "", 1, 1, 0, 0, 0,
 	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesBatchOrder(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	var data []PlaceBatchOrderData
+	var tempData PlaceBatchOrderData
+	tempData.Symbol = "BTCUSD_200925"
+	tempData.Side = "BUY"
+	tempData.PositionSide = "LONG"
+	tempData.OrderType = "LIMIT"
+	tempData.Quantity = 1
+	tempData.Price = 1
+	data = append(data, tempData)
+	a, err := b.FuturesBatchOrder(data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
