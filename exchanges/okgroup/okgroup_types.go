@@ -323,9 +323,9 @@ type GetSpotFilledOrdersInformationRequest struct {
 
 // GetSpotFilledOrdersInformationResponse response data for GetSpotFilledOrdersInformation
 type GetSpotFilledOrdersInformationResponse struct {
-	Price     string    `json:"price"`
+	Price     float64   `json:"price,string"`
 	Side      string    `json:"side"`
-	Size      string    `json:"size"`
+	Size      float64   `json:"size,string"`
 	Timestamp time.Time `json:"timestamp"`
 	TradeID   string    `json:"trade_id"`
 }
@@ -719,7 +719,7 @@ type GetFuturesFilledOrderRequest struct {
 // GetFuturesFilledOrdersResponse response data for GetFuturesFilledOrders
 type GetFuturesFilledOrdersResponse struct {
 	Price     float64   `json:"price,string"`
-	Qty       int64     `json:"qty,string"`
+	Qty       float64   `json:"qty,string"`
 	Side      string    `json:"side"`
 	Timestamp time.Time `json:"timestamp"`
 	TradeID   string    `json:"trade_id"`

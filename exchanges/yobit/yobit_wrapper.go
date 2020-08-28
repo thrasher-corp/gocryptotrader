@@ -2,6 +2,7 @@ package yobit
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -326,8 +328,38 @@ func (y *Yobit) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (y *Yobit) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+func (y *Yobit) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, _ time.Time) ([]trade.Data, error) {
+	if _, ok := y.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(y.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, y.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	tradeData, err := y.GetTrades(p.String(), timestampStart.Unix(), true)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		side := order.Buy
+		if tradeData[i].Type == "ask" {
+			side = order.Sell
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     y.Name,
+			TID:          strconv.FormatInt(tradeData[i].TID, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    time.Unix(tradeData[i].Timestamp, 0),
+		})
+	}
+
+	err = trade.AddTradesToBuffer(y.Name, resp...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

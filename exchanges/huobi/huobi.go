@@ -167,7 +167,7 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 //
 // symbol: string of currency pair
 func (h *HUOBI) GetLatestSpotPrice(symbol string) (float64, error) {
-	list, err := h.GetTradeHistory(symbol, "1")
+	list, err := h.GetTradeHistory(symbol, 1)
 
 	if err != nil {
 		return 0, err
@@ -180,12 +180,12 @@ func (h *HUOBI) GetLatestSpotPrice(symbol string) (float64, error) {
 }
 
 // GetTradeHistory returns the trades for the specified symbol
-func (h *HUOBI) GetTradeHistory(symbol, size string) ([]TradeHistory, error) {
+func (h *HUOBI) GetTradeHistory(symbol string, size int64) ([]TradeHistory, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)
 
-	if size != "" {
-		vals.Set("size", size)
+	if size > 0 {
+		vals.Set("size", strconv.FormatInt(size, 10))
 	}
 
 	type response struct {

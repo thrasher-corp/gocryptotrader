@@ -2,6 +2,7 @@ package okcoin
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -13,10 +14,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -458,4 +461,41 @@ func (o *OKCoin) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// GetExchangeHistory returns historic trade data within the timeframe provided.
+func (o *OKCoin) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	if _, ok := o.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(o.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, o.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	var resp []trade.Data
+	switch assetType {
+	case asset.Spot:
+		tradeData, err := o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
+			InstrumentID: p.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			side, err := order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     o.Name,
+				TID:          tradeData[i].TradeID,
+				CurrencyPair: p,
+				Side:         side,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Size,
+				Timestamp:    tradeData[i].Timestamp,
+			})
+		}
+	default:
+		return nil, fmt.Errorf("%s GetExchangeHistory asset type %v unsupported", o.Name, assetType)
+	}
+	return resp, nil
 }

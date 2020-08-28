@@ -93,6 +93,13 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+func TestGetTrades(t *testing.T) {
+	_, err := l.GetTrades("LTC", nil)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()

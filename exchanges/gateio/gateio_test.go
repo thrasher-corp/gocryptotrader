@@ -175,6 +175,14 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+func TestGetTradeHistory(t *testing.T) {
+	_, err := g.GetTrades(currency.NewPairWithDelimiter(currency.BTC.String(),
+		currency.USDT.String(), "_").String())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()

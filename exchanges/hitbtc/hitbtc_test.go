@@ -62,7 +62,7 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := h.GetTrades("BTCUSD", "", "", "", "", "", "")
+	_, err := h.GetTrades("BTCUSD", "", "", 0, 0, 0, 0)
 	if err != nil {
 		t.Error("Test faild - HitBTC GetTradeHistory() error", err)
 	}

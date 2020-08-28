@@ -29,8 +29,7 @@ const (
 	canManipulateRealOrders = false
 )
 
-
-func TestButts (t *testing.T) {
+func TestButts(t *testing.T) {
 	tt := time.Unix(1594036487, 0)
 	t.Log(tt)
 }
@@ -740,6 +739,7 @@ func TestWsGetInstruments(t *testing.T) {
 
 func TestWsTrades(t *testing.T) {
 	pressXToJSON := []byte(`{
+  "inst_id": 1,
   "nonce": 450319,
   "reply": "inst_trade",
   "status": [

@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -307,8 +308,33 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	if _, ok := i.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(i.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, i.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	tradeData, err := i.GetTradeHistory(p.String(), "")
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for x := range tradeData.RecentTrades {
+		resp = append(resp, trade.Data{
+			Exchange:     i.Name,
+			TID:          tradeData.RecentTrades[x].MatchNumber,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Price:        tradeData.RecentTrades[x].Price,
+			Amount:       tradeData.RecentTrades[x].Amount,
+			Timestamp:    tradeData.RecentTrades[x].Timestamp,
+		})
+	}
+
+	err = trade.AddTradesToBuffer(i.Name, resp...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

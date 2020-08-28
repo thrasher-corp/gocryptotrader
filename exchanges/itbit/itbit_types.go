@@ -40,10 +40,10 @@ type OrderbookResponse struct {
 // Trades holds recent trades with associated information
 type Trades struct {
 	RecentTrades []struct {
-		Timestamp   string  `json:"timestamp"`
-		MatchNumber string  `json:"matchNumber"`
-		Price       float64 `json:"price,string"`
-		Amount      float64 `json:"amount,string"`
+		Timestamp   time.Time `json:"timestamp"`
+		MatchNumber string    `json:"matchNumber"`
+		Price       float64   `json:"price,string"`
+		Amount      float64   `json:"amount,string"`
 	} `json:"recentTrades"`
 }
 

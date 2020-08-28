@@ -24,11 +24,11 @@ import (
 )
 
 const (
-	wsContractURL = "wss://ws.coinbene.com/stream/ws"
-	event         = "event"
-	topic         = "topic"
-	swapChannelPreix ="btc/"
-	spotChannelPrefix ="spot/"
+	wsContractURL     = "wss://ws.coinbene.com/stream/ws"
+	event             = "event"
+	topic             = "topic"
+	swapChannelPreix  = "btc/"
+	spotChannelPrefix = "spot/"
 )
 
 // WsConnect connects to websocket
@@ -59,7 +59,7 @@ func (c *Coinbene) WsConnect() error {
 
 // GenerateDefaultSubscriptions generates stuff
 func (c *Coinbene) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"orderBook.%s.100", "tradeList.%s", "ticker.%s"/*, "kline.%s.1h"*/}
+	var channels = []string{"orderBook.%s.100", "tradeList.%s", "ticker.%s", "kline.%s.1h"}
 	var subscriptions []stream.ChannelSubscription
 	perpetualPairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
 	if err != nil {
@@ -186,7 +186,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Ask:          wsTicker.Data[x].BestAskPrice,
 				Pair:         newP,
 				ExchangeName: c.Name,
-				AssetType:   assetType,
+				AssetType:    assetType,
 				LastUpdated:  time.Unix(wsTicker.Data[x].Timestamp, 0),
 			}
 		}
@@ -388,7 +388,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Type:            oType,
 				Status:          oStatus,
 				AssetType:       assetType,
-				Date:            time.Unix(orders.Data[i].OrderTime, 0),
+				Date:            orders.Data[i].OrderTime,
 				Leverage:        strconv.FormatInt(orders.Data[i].Leverage, 10),
 				Pair:            newP,
 			}

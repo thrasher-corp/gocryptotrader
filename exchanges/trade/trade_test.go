@@ -8,6 +8,8 @@ import (
 	"github.com/gofrs/uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -15,6 +17,15 @@ import (
 )
 
 func TestAddTradesToBuffer(t *testing.T) {
+	dbConf := database.Config{
+		Enabled: true,
+		Driver:  database.DBSQLite3,
+		ConnectionDetails: drivers.ConnectionDetails{
+			Host:     "localhost",
+			Database: "./rpctestdb",
+		},
+	}
+	database.DB.Config = &dbConf
 	cp, _ := currency.NewPairFromString("BTC-USD")
 	err := AddTradesToBuffer("test!", []Data{
 		{
@@ -72,7 +83,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 }
 
 func TestSqlDataToTrade(t *testing.T) {
-	uuiderino,_ := uuid.NewV4()
+	uuiderino, _ := uuid.NewV4()
 	data, err := SqlDataToTrade(sqltrade.Data{
 		ID:           uuiderino.String(),
 		Timestamp:    0,
@@ -102,7 +113,7 @@ func TestSqlDataToTrade(t *testing.T) {
 
 func TestTradeToSQLData(t *testing.T) {
 	cp, _ := currency.NewPairFromString("BTC-USD")
-	buffer = []Data {
+	buffer = []Data{
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",

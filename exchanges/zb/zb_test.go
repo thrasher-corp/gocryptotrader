@@ -909,3 +909,13 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTrades(t *testing.T) {
+	trades, err := z.GetTrades("btc_usdt")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(trades) == 0 {
+		t.Error("expected results")
+	}
+}

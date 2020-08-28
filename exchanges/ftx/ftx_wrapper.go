@@ -453,22 +453,30 @@ func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestam
 	}
 	for {
 		var tempResp trade.Data
+		side, err := order.StringToOrderSide(trades[0].Side)
+		if err != nil {
+			return nil, err
+		}
 		if len(trades) > 0 {
 			tempResp.Amount = trades[0].Size
 			tempResp.Price = trades[0].Price
 			tempResp.Exchange = f.Name
 			tempResp.Timestamp = trades[0].Time
 			tempResp.TID = strconv.FormatInt(trades[0].ID, 10)
-			tempResp.Side = trades[0].Side
+			tempResp.Side = side
 			resp = append(resp, tempResp)
 		}
 		for y := 1; y < len(trades); y++ {
+			side, err = order.StringToOrderSide(trades[y].Side)
+			if err != nil {
+				return nil, err
+			}
 			tempResp.Amount = trades[y].Size
 			tempResp.Price = trades[y].Price
 			tempResp.Exchange = f.Name
 			tempResp.Timestamp = trades[y].Time
 			tempResp.TID = strconv.FormatInt(trades[y].ID, 10)
-			tempResp.Side = trades[y].Side
+			tempResp.Side = side
 			resp = append(resp, tempResp)
 		}
 		if len(trades) != 100 {

@@ -149,7 +149,7 @@ func getByUUIDPostgres(uuid string) (td Data, err error) {
 	td = Data{
 		ID:           result.ID,
 		Timestamp:    result.Timestamp,
-		Exchange:     result.ExchangeID.String,
+		Exchange:     result.ExchangeID,
 		CurrencyPair: result.Currency,
 		AssetType:    result.Asset,
 		Price:        result.Price,
@@ -217,7 +217,7 @@ func getByExchangeInRangePostgres(exchangeName string, startDate, endDate int64)
 		td = append(td, Data{
 			ID:           result[i].ID,
 			Timestamp:    result[i].Timestamp,
-			Exchange:     result[i].ExchangeID.String,
+			Exchange:     result[i].ExchangeID,
 			CurrencyPair: result[i].Currency,
 			AssetType:    result[i].Asset,
 			Price:        result[i].Price,

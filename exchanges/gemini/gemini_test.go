@@ -59,7 +59,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTrades(testCurrency, url.Values{})
+	_, err := g.GetTrades(testCurrency, 0, 0, false)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}

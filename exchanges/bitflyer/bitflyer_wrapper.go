@@ -296,7 +296,9 @@ func (b *Bitflyer) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, 
 	}
 	var resp []trade.Data
 	for i := range tradeData {
-		side, err := order.StringToOrderSide(tradeData[i].Side)
+		tt, err := time.Parse("2006-01-02T15:04:05.07", tradeData[i].ExecDate)
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
 			return nil, err
 		}
@@ -308,7 +310,7 @@ func (b *Bitflyer) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, 
 			Side:         side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Size,
-			Timestamp:    tradeData[i].ExecDate,
+			Timestamp:    tt,
 		})
 	}
 

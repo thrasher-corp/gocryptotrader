@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -544,8 +545,40 @@ func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	if _, ok := h.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(h.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, h.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	tradeData, err := h.GetTradeHistory(p.String(), 2000)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		for j := range tradeData[i].Trades {
+			side, err := order.StringToOrderSide(tradeData[i].Trades[j].Direction)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     h.Name,
+				TID:          strconv.FormatFloat(tradeData[i].Trades[j].ID, 'f', -1, 64),
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Trades[j].Price,
+				Amount:       tradeData[i].Trades[j].Amount,
+				Timestamp:    time.Unix(tradeData[i].Timestamp, 0),
+			})
+		}
+	}
+
+	err = trade.AddTradesToBuffer(h.Name, resp...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

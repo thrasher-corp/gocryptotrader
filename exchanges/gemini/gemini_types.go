@@ -51,7 +51,7 @@ type Trade struct {
 	Price       float64 `json:"price,string"`
 	Amount      float64 `json:"amount,string"`
 	Exchange    string  `json:"exchange"`
-	Side        string  `json:"type"`
+	Type        string  `json:"type"`
 }
 
 // Auction is generalized response type

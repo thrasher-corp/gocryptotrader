@@ -29,6 +29,7 @@ const (
 	zbOrder                           = "order"
 	zbCancelOrder                     = "cancelOrder"
 	zbTicker                          = "ticker"
+	zbTrades                          = "trades"
 	zbTickers                         = "allTicker"
 	zbDepth                           = "depth"
 	zbUnfinishedOrdersIgnoreTradeType = "getUnfinishedOrdersIgnoreTradeType"
@@ -165,6 +166,14 @@ func (z *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
 func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
 	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.API.Endpoints.URL, zbAPIVersion, zbTicker, symbol)
 	var res TickerResponse
+	err := z.SendHTTPRequest(urlPath, &res, request.UnAuth)
+	return res, err
+}
+
+// GetTicker returns a ticker for a given symbol
+func (z *ZB) GetTrades(symbol string) (TradeHistory, error) {
+	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.API.Endpoints.URL, zbAPIVersion, zbTrades, symbol)
+	var res TradeHistory
 	err := z.SendHTTPRequest(urlPath, &res, request.UnAuth)
 	return res, err
 }

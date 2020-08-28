@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -328,7 +329,37 @@ func (l *Lbank) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return nil, common.ErrFunctionNotSupported
+	if _, ok := l.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	}
+	p = p.Format(l.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, l.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	tradeData, err := l.GetTrades(p.String(), 600, timestampStart.UnixNano()/1000)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		side, err := order.StringToOrderSide(tradeData[i].Type)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     l.Name,
+			TID:          tradeData[i].TID,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    time.Unix(0, tradeData[i].DateMS*int64(time.Millisecond)),
+		})
+	}
+
+	err = trade.AddTradesToBuffer(l.Name, resp...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order
@@ -571,7 +602,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			}
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
-			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 9)
+			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 0)
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
@@ -659,7 +690,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				}
 				resp.Price = tempResp.Orders[x].Price
 				resp.Amount = tempResp.Orders[x].Amount
-				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 9)
+				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 0)
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
 				resp.RemainingAmount = tempResp.Orders[x].Price - tempResp.Orders[x].DealAmount
 				resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{

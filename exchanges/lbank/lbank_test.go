@@ -91,12 +91,11 @@ func TestGetMarketDepths(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetTrades(testCurrencyPair, "600",
-		strconv.FormatInt(time.Now().Unix(), 10))
+	_, err := l.GetTrades(testCurrencyPair, 600, time.Now().Unix())
 	if err != nil {
 		t.Error(err)
 	}
-	a, err := l.GetTrades(testCurrencyPair, "600", "0")
+	a, err := l.GetTrades(testCurrencyPair, 600, 0)
 	if len(a) != 600 && err != nil {
 		t.Error(err)
 	}

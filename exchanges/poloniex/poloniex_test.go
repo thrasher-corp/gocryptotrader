@@ -57,7 +57,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetTradeHistory("BTC_XMR", "", "")
+	_, err := p.GetTradeHistory("BTC_XMR", 0, 0)
 	if err != nil {
 		t.Error("Test faild - Poloniex GetTradeHistory() error", err)
 	}

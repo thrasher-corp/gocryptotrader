@@ -123,17 +123,17 @@ type WsSub struct {
 
 // WsTickerData stores websocket ticker data
 type WsTickerData struct {
-	Symbol        string    `json:"symbol"`
-	LastPrice     float64   `json:"lastPrice,string"`
-	MarkPrice     float64   `json:"markPrice,string"`
-	BestAskPrice  float64   `json:"bestAskPrice,string"`
-	BestBidPrice  float64   `json:"bestBidPrice,string"`
-	BestAskVolume float64   `json:"bestAskVolume,string"`
-	BestBidVolume float64   `json:"bestBidVolume,string"`
-	High24h       float64   `json:"high24h,string"`
-	Low24h        float64   `json:"low24h,string"`
-	Volume24h     float64   `json:"volume24h,string"`
-	Timestamp     int64 `json:"timestamp"`
+	Symbol        string  `json:"symbol"`
+	LastPrice     float64 `json:"lastPrice,string"`
+	MarkPrice     float64 `json:"markPrice,string"`
+	BestAskPrice  float64 `json:"bestAskPrice,string"`
+	BestBidPrice  float64 `json:"bestBidPrice,string"`
+	BestAskVolume float64 `json:"bestAskVolume,string"`
+	BestBidVolume float64 `json:"bestBidVolume,string"`
+	High24h       float64 `json:"high24h,string"`
+	Low24h        float64 `json:"low24h,string"`
+	Volume24h     float64 `json:"volume24h,string"`
+	Timestamp     int64   `json:"timestamp"`
 }
 
 // WsTicker stores websocket ticker
@@ -144,39 +144,38 @@ type WsTicker struct {
 
 // WsTradeList stores websocket tradelist data
 type WsTradeList struct {
-	Topic string     `json:"topic"`
+	Topic string           `json:"topic"`
 	Data  [][4]interface{} `json:"data"`
 }
 
 type WsTradeData struct {
-		BestAskPrice float64 `json:"bestAskPrice,string"`
-		BestBidPrice float64 `json:"bestBidPrice,string"`
-		High24h      float64 `json:"high24h,string"`
-		LastPrice    float64 `json:"lastPrice,string"`
-		Low24h       float64 `json:"low24h,string"`
-		Open24h      float64 `json:"open24h,string"`
-		OpenPrice    float64 `json:"openPrice,string"`
-		Symbol       string `json:"symbol"`
-		Timestamp    int64  `json:"timestamp"`
-		Volume24h    float64 `json:"volume24h,string"`
+	BestAskPrice float64 `json:"bestAskPrice,string"`
+	BestBidPrice float64 `json:"bestBidPrice,string"`
+	High24h      float64 `json:"high24h,string"`
+	LastPrice    float64 `json:"lastPrice,string"`
+	Low24h       float64 `json:"low24h,string"`
+	Open24h      float64 `json:"open24h,string"`
+	OpenPrice    float64 `json:"openPrice,string"`
+	Symbol       string  `json:"symbol"`
+	Timestamp    int64   `json:"timestamp"`
+	Volume24h    float64 `json:"volume24h,string"`
 }
 
 // WsKline stores websocket kline data
 type WsKline struct {
-	Topic string          `json:"topic"`
+	Topic string        `json:"topic"`
 	Data  []WsKLineData `json:"data"`
 }
 
 // WsKLineData holds OHLCV data
-type WsKLineData  struct {
-	Open float64 `json:"o"`
-	High    float64 `json:"h"`
-	Low    float64 `json:"l"`
-	Close    float64 `json:"c"`
+type WsKLineData struct {
+	Open      float64 `json:"o"`
+	High      float64 `json:"h"`
+	Low       float64 `json:"l"`
+	Close     float64 `json:"c"`
 	Volume    float64 `json:"v"`
-	Timestamp    int64   `json:"t"`
+	Timestamp int64   `json:"t"`
 }
-
 
 // WsUserData stores websocket user data
 type WsUserData struct {
@@ -184,7 +183,7 @@ type WsUserData struct {
 	Available float64   `json:"availableBalance,string"`
 	Locked    float64   `json:"frozenBalance,string"`
 	Total     float64   `json:"balance,string"`
-	Timestamp int64 `json:"timestamp"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // WsUserInfo stores websocket user info
@@ -206,7 +205,7 @@ type WsPositionData struct {
 	Side              string    `json:"side"`
 	Symbol            string    `json:"symbol"`
 	MarginMode        int64     `json:"marginMode,string"`
-	CreateTime        int64 `json:"createTime"`
+	CreateTime        time.Time `json:"createTime"`
 }
 
 // WsPosition stores websocket info on user's positions
@@ -222,7 +221,7 @@ type WsOrderbookData struct {
 		Bids      [][]string `json:"bids"`
 		Asks      [][]string `json:"asks"`
 		Version   int64      `json:"version"`
-		Timestamp int64  `json:"timestamp"`
+		Timestamp int64      `json:"timestamp"`
 	} `json:"data"`
 }
 
@@ -239,7 +238,7 @@ type WsOrderData struct {
 	Fee              float64   `json:"fee,string"`
 	FilledQuantity   float64   `json:"filledQuantity,string"`
 	AveragePrice     float64   `json:"averagePrice,string"`
-	OrderTime        int64 `json:"orderTime"`
+	OrderTime        time.Time `json:"orderTime"`
 	Status           string    `json:"status"`
 	LastFillQuantity float64   `json:"lastFillQuantity,string"`
 	LastFillPrice    float64   `json:"lastFillPrice,string"`
