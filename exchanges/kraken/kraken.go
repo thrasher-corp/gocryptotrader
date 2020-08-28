@@ -3,10 +3,10 @@ package kraken
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -109,7 +109,7 @@ func (k *Kraken) FuturesBatchOrder(data []PlaceBatchOrderData) (FuturesAccountsD
 	req := make(map[string]interface{})
 	req["batchOrder"] = data
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresBatchOrder, nil, req, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresBatchOrder, nil, req, &resp)
 }
 
 // FuturesEditOrder edits a futures order
@@ -126,7 +126,7 @@ func (k *Kraken) FuturesEditOrder(orderID, clientOrderID string, size, limitPric
 	params.Set("limitPrice", strconv.FormatFloat(limitPrice, 'f', -1, 64))
 	params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresEditOrder, params, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresEditOrder, params, nil, &resp)
 }
 
 // FuturesSendOrder sends a futures order
@@ -164,7 +164,7 @@ func (k *Kraken) FuturesSendOrder(orderType, symbol, side, triggerSignal, client
 		params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
 	}
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresSendOrder, params, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresSendOrder, params, nil, &resp)
 }
 
 // FuturesCancelOrder cancels an order
@@ -178,7 +178,7 @@ func (k *Kraken) FuturesCancelOrder(orderID, clientOrderID string) (FuturesCance
 		params.Set("cliOrdId", clientOrderID)
 	}
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresCancelOrder, params, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresCancelOrder, params, nil, &resp)
 }
 
 // FuturesGetFills gets order fills for futures
@@ -189,7 +189,7 @@ func (k *Kraken) FuturesGetFills(lastFillTime time.Time) (FuturesFillsData, erro
 		params.Set("lastFillTime", lastFillTime.UTC().Format("2006-01-02T15:04:05.999Z"))
 	}
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresOrderFills, params, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodGet, futuresOrderFills, params, nil, &resp)
 }
 
 // FuturesTransfer transfers funds between accounts
@@ -201,21 +201,21 @@ func (k *Kraken) FuturesTransfer(fromAccount, toAccount, unit string, amount flo
 	req["unit"] = unit
 	req["amount"] = amount
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresTransfer, nil, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresTransfer, nil, nil, &resp)
 }
 
 // FuturesGetOpenPositions gets futures platform's notifications
 func (k *Kraken) FuturesGetOpenPositions() (FuturesOpenPositions, error) {
 	var resp FuturesOpenPositions
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresOpenPositions, nil, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodGet, futuresOpenPositions, nil, nil, &resp)
 }
 
 // FuturesNotifications gets futures notifications
 func (k *Kraken) FuturesNotifications() (FuturesNotificationData, error) {
 	var resp FuturesNotificationData
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresNotifications, nil, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodGet, futuresNotifications, nil, nil, &resp)
 }
 
 // FuturesCancelAllOrders cancels all futures orders for a given symbol or all symbols
@@ -226,7 +226,7 @@ func (k *Kraken) FuturesCancelAllOrders(symbol string) (CancelAllOrdersData, err
 		params.Set("symbol", symbol)
 	}
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresCancelAllOrders, params, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresCancelAllOrders, params, nil, &resp)
 }
 
 // FuturesCancelAllOrdersAfter cancels all futures orders for all symbols after a period of time (timeout measured in seconds)
@@ -235,14 +235,14 @@ func (k *Kraken) FuturesCancelAllOrdersAfter(timeout int64) (CancelOrdersAfterDa
 	params := url.Values{}
 	params.Set("timeout", strconv.FormatInt(timeout, 10))
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresCancelOrdersAfter, params, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresCancelOrdersAfter, params, nil, &resp)
 }
 
 // FuturesOpenOrders gets all futures open orders
 func (k *Kraken) FuturesOpenOrders() (FuturesOpenOrdersData, error) {
 	var resp FuturesOpenOrdersData
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresOpenOrders, nil, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodGet, futuresOpenOrders, nil, nil, &resp)
 }
 
 // FuturesRecentOrders gets recent futures orders for a symbol or all symbols
@@ -253,7 +253,7 @@ func (k *Kraken) FuturesRecentOrders(symbol string) (FuturesRecentOrdersData, er
 		params.Set("symbol", symbol)
 	}
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresRecentOrders, nil, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodGet, futuresRecentOrders, nil, nil, &resp)
 }
 
 // FuturesWithdrawToSpotWallet withdraws currencies from futures wallet to spot wallet
@@ -263,7 +263,7 @@ func (k *Kraken) FuturesWithdrawToSpotWallet(currency string, amount float64) (G
 	params.Set("currency", currency)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodPost, futuresWithdraw, params, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresWithdraw, params, nil, &resp)
 }
 
 // FuturesGetTransfers withdraws currencies from futures wallet to spot wallet
@@ -274,14 +274,14 @@ func (k *Kraken) FuturesGetTransfers(lastTransferTime time.Time) (GenericRespons
 		params.Set("lastTransferTime", lastTransferTime.UTC().Format(time.RFC3339))
 	}
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresTransfers, params, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodGet, futuresTransfers, params, nil, &resp)
 }
 
 // GetFuturesAccountData gets account data for futures
 func (k *Kraken) GetFuturesAccountData() (FuturesAccountsData, error) {
 	var resp FuturesAccountsData
 	k.API.Endpoints.URL = futuresURL
-	return resp, k.SendAuthenticatedHTTPRequest2(http.MethodGet, futuresAccountData, nil, nil, &resp)
+	return resp, k.SendFuturesAuthRequest(http.MethodGet, futuresAccountData, nil, nil, &resp)
 }
 
 //******************************************************************************
@@ -1169,8 +1169,16 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	})
 }
 
-// SendAuthenticatedHTTPRequest2 will send an auth req
-func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url.Values, data map[string]interface{}, result interface{}) (err error) {
+func (k *Kraken) signFuturesRequest(endpoint, nonce, data string) string {
+	message := data + nonce + endpoint
+	fmt.Println(message)
+	hash := crypto.GetSHA256([]byte(message))
+	hc := crypto.GetHMAC(crypto.HashSHA512, hash[:], []byte(k.API.Credentials.Secret))
+	return base64.StdEncoding.EncodeToString(hc)
+}
+
+// SendFuturesAuthRequest will send an auth req
+func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values, data map[string]interface{}, result interface{}) (err error) {
 	if !k.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			k.Name)
@@ -1178,39 +1186,29 @@ func (k *Kraken) SendAuthenticatedHTTPRequest2(method, path string, postData url
 	if postData == nil {
 		postData = url.Values{}
 	}
-	nonce := strconv.FormatInt(int64(time.Now().UnixNano())/1000000, 10)
-	fmt.Printf("HELOOOOO\n\n\n\n")
-	encoded := postData.Encode()
-	fmt.Println(encoded)
-	concatenation := encoded + nonce + path
-	shasum := crypto.GetSHA256([]byte(concatenation))
-	hmac := crypto.GetHMAC(crypto.HashSHA512, shasum, []byte(k.API.Credentials.Secret))
-	signature := crypto.Base64Encode(hmac)
-	headers := make(map[string]string)
-	headers["APIKey"] = k.API.Credentials.Key
-	headers["Authent"] = signature
-	headers["Accept"] = "application/json"
-	headers["Nonce"] = nonce
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
-	if postData == nil {
-		postData = url.Values{}
+	nonce := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	reqData := ""
+	if len(data) > 0 {
+		temp, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		postData.Add("json", string(temp))
+		reqData = "json=" + string(temp)
 	}
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
+	fmt.Println(path, nonce, reqData)
+	fmt.Println(k.API.Endpoints.URL + common.EncodeURLValues(path, postData))
+	sig := k.signFuturesRequest(path, nonce, reqData)
+	headers := map[string]string{
+		"APIKey":  k.API.Credentials.Key,
+		"Authent": sig,
+		"Nonce":   nonce,
 	}
-	var body io.Reader
-	body = bytes.NewBuffer(jsonData)
-	fmt.Println(string(jsonData))
-	postData.Set("json", string(jsonData))
-	headers["Content-Length"] = strconv.FormatInt(int64(len(jsonData)), 10)
-
-	// a, err := url.PathEscape()
 	return k.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          k.API.Endpoints.URL + path + "?" + postData.Encode(),
+		Path:          k.API.Endpoints.URL + common.EncodeURLValues(path, postData),
 		Headers:       headers,
-		Body:          body,
+		Body:          bytes.NewReader(nil),
 		Result:        result,
 		AuthRequest:   true,
 		Verbose:       k.Verbose,

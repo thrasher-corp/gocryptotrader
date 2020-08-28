@@ -84,7 +84,8 @@ func TestFuturesEditOrder(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
 	}
 	t.Parallel()
-	_, err := k.FuturesEditOrder("test123", "123test", 5.2, 1, 0.9)
+	a, err := k.FuturesEditOrder("test123", "123test", 5.2, 1, 0.9)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

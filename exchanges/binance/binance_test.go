@@ -37,6 +37,18 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+func TestGetFuturesExchangeInfo(t *testing.T) {
+	b.Verbose = true
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.FuturesExchangeInfo()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetInterestHistory(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
@@ -98,10 +110,12 @@ func TestGetAggregatedTradesList(t *testing.T) {
 }
 
 func TestGetPerpsExchangeInfo(t *testing.T) {
+	b.Verbose = true
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://dapi.binance.com"
-	_, err := b.GetPerpMarkets()
+	a, err := b.GetPerpMarkets()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -259,15 +273,17 @@ func TestFuturesBasisData(t *testing.T) {
 
 func TestFuturesNewOrder(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://dapi.binance.com"
-	_, err := b.FuturesNewOrder(
+	a, err := b.FuturesNewOrder(
 		"BTCUSD_200925", "BUY", "", "LIMIT", "GTC", "", "", "", "", "", 1, 1, 0, 0, 0,
 	)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -286,12 +302,26 @@ func TestFuturesBatchOrder(t *testing.T) {
 	var tempData PlaceBatchOrderData
 	tempData.Symbol = "BTCUSD_200925"
 	tempData.Side = "BUY"
-	tempData.PositionSide = "LONG"
 	tempData.OrderType = "LIMIT"
 	tempData.Quantity = 1
 	tempData.Price = 1
+	tempData.TimeInForce = "GTC"
+
 	data = append(data, tempData)
 	a, err := b.FuturesBatchOrder(data)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFuturesBatchCancelOrders(t *testing.T) {
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	b.Verbose = true
+	t.Parallel()
+	a, err := b.FuturesBatchCancelOrders("BTCUSD_200925", []string{"test123"}, []string{})
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -341,19 +371,22 @@ func TestAutoCancelAllOpenOrders(t *testing.T) {
 
 func TestFuturesOpenOrderData(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://dapi.binance.com"
-	_, err := b.FuturesOpenOrderData("BTCUSD_200925", "234", "")
+	a, err := b.FuturesOpenOrderData("BTCUSDT", "", "")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetFuturesAllOpenOrders(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
@@ -361,7 +394,8 @@ func TestGetFuturesAllOpenOrders(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://dapi.binance.com"
-	_, err := b.GetFuturesAllOpenOrders("BTCUSD_200925", "")
+	a, err := b.GetFuturesAllOpenOrders("BTCUSD_PERP", "")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -369,13 +403,15 @@ func TestGetFuturesAllOpenOrders(t *testing.T) {
 
 func TestGetAllFuturesOrders(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://dapi.binance.com"
-	_, err := b.GetAllFuturesOrders("BTCUSD_200925", "", time.Time{}, time.Time{}, 0, 2)
+	a, err := b.GetAllFuturesOrders("BTCUSD_PERP", "", time.Time{}, time.Time{}, 0, 2)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -396,10 +432,12 @@ func TestFuturesChangeMarginType(t *testing.T) {
 }
 
 func TestGetFuturesAccountBalance(t *testing.T) {
+	b.Verbose = true
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	b.API.Endpoints.URL = "https://dapi.binance.com"
-	_, err := b.GetFuturesAccountBalance()
+	b.API.Endpoints.URL = "https://fapi.binance.com"
+	a, err := b.GetFuturesAccountBalance()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

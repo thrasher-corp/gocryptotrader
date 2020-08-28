@@ -164,21 +164,51 @@ type FuturesBasisData struct {
 
 // PlaceBatchOrderData stores batch order data for placing
 type PlaceBatchOrderData struct {
-	Symbol           string  `json:"symbol,omitempty"`
-	Side             string  `json:"side,omitempty"`
-	PositionSide     string  `jsoN:"positionSide,omitempty"`
-	OrderType        string  `json:"type,omitempty"`
-	TimeInForce      string  `json:"timeInForce,omitempty"`
-	Quantity         float64 `json:"quantity,omitempty"`
-	ReduceOnly       string  `json:"reduceOnly,omitempty"`
-	Price            float64 `json:"price,omitempty"`
-	NewClientOrderID string  `json:"newClientOrderId,omitempty"`
-	StopPrice        float64 `json:"stopPrice,omitempty"`
-	ActivationPrice  float64 `json:"activationPrice,omitempty"`
-	CallbackRate     float64 `json:"callbackRate,omitempty"`
-	WorkingType      string  `json:"workingType,omitempty"`
-	PriceProtect     string  `json:"priceProtect,omitempty"`
-	NewOrderRespType string  `json:"newOrderRespType,omitempty"`
+	Symbol           string  `json:"symbol"`
+	Side             string  `json:"side"`
+	PositionSide     string  `json:"positionSide"`
+	OrderType        string  `json:"type"`
+	TimeInForce      string  `json:"timeInForce"`
+	Quantity         float64 `json:"quantity"`
+	ReduceOnly       string  `json:"reduceOnly"`
+	Price            float64 `json:"price"`
+	NewClientOrderID string  `json:"newClientOrderId"`
+	StopPrice        float64 `json:"stopPrice"`
+	ActivationPrice  float64 `json:"activationPrice"`
+	CallbackRate     float64 `json:"callbackRate"`
+	WorkingType      string  `json:"workingType"`
+	PriceProtect     string  `json:"priceProtect"`
+	NewOrderRespType string  `json:"newOrderRespType"`
+}
+
+// BatchCancelOrderData stores batch cancel order data
+type BatchCancelOrderData struct {
+	ClientOrderID string  `json:"clientOrderID"`
+	CumQty        float64 `json:"cumQty,string"`
+	CumBase       float64 `json:"cumBase,string"`
+	ExecuteQty    float64 `json:"executeQty,string"`
+	OrderID       int64   `json:"orderID,string"`
+	AvgPrice      float64 `json:"avgPrice,string"`
+	OrigQty       float64 `json:"origQty,string"`
+	Price         float64 `json:"price,string"`
+	ReduceOnly    bool    `json:"reduceOnly"`
+	Side          string  `json:"side"`
+	PositionSide  string  `json:"positionSide"`
+	Status        string  `json:"status"`
+	StopPrice     int64   `json:"stopPrice"`
+	ClosePosition bool    `json:"closePosition"`
+	Symbol        string  `json:"symbol"`
+	Pair          string  `json:"pair"`
+	TimeInForce   string  `json:"TimeInForce"`
+	OrderType     string  `json:"type"`
+	OrigType      string  `json:"origType"`
+	ActivatePrice float64 `json:"activatePrice,string"`
+	PriceRate     float64 `json:"priceRate,string"`
+	UpdateTime    int64   `json:"updateTime"`
+	WorkingType   string  `json:"workingType"`
+	PriceProtect  bool    `json:"priceProtect"`
+	Code          int64   `json:"code"`
+	Msg           string  `json:"msg"`
 }
 
 // FuturesOrderPlaceData stores futures order data
