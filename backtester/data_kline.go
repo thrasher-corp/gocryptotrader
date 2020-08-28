@@ -35,6 +35,30 @@ func (d *DataFromKline) Load() error {
 	return nil
 }
 
+func (d *DataFromKline) StreamOpen() []float64 {
+	ret := make([]float64, len(d.stream))
+	for x := range d.stream[d.offset:] {
+		ret[x] = d.stream[x].(*Candle).Open
+	}
+	return ret
+}
+
+func (d *DataFromKline) StreamHigh() []float64 {
+	ret := make([]float64, len(d.stream))
+	for x := range d.stream[d.offset:] {
+		ret[x] = d.stream[x].(*Candle).High
+	}
+	return ret
+}
+
+func (d *DataFromKline) StreamLow() []float64 {
+	ret := make([]float64, len(d.stream))
+	for x := range d.stream[d.offset:] {
+		ret[x] = d.stream[x].(*Candle).Low
+	}
+	return ret
+}
+
 func (d *DataFromKline) StreamClose() []float64 {
 	ret := make([]float64, len(d.stream))
 	for x := range d.stream[d.offset:] {
@@ -42,3 +66,13 @@ func (d *DataFromKline) StreamClose() []float64 {
 	}
 	return ret
 }
+
+func (d *DataFromKline) StreamVol() []float64 {
+	ret := make([]float64, len(d.stream))
+	for x := range d.stream[d.offset:] {
+		ret[x] = d.stream[x].(*Candle).Volume
+	}
+	return ret
+}
+
+

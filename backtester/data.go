@@ -55,6 +55,29 @@ func (d *Data) SortStream() {
 	})
 }
 
+func (d *Data) StreamOpen() []float64 {
+	return []float64{}
+}
+
+func (d *Data) StreamHigh() []float64 {
+	return []float64{}
+}
+
+func (d *Data) StreamLow() []float64 {
+	return []float64{}
+}
+func (d *Data) StreamClose() []float64 {
+	return []float64{}
+}
+
+func (d *Data) StreamVol() []float64 {
+	return []float64{}
+}
+
+func (d *Data) Offset() int {
+	return d.offset
+}
+
 func (c *Candle) DataType() DataType {
 	return DataTypeCandle
 }

@@ -22,8 +22,6 @@ type Tick struct {
 	Ask float64
 }
 
-
-
 type Data struct {
 	latest DataEventHandler
 	stream []DataEventHandler

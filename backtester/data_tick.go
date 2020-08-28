@@ -21,7 +21,7 @@ func (d *DataFromTick) Load() error {
 	for i := range d.ticks {
 		data[i] = &Tick{
 			Event: Event{
-				Time: d.ticks[i].LastUpdated,
+				Time:         d.ticks[i].LastUpdated,
 				CurrencyPair: d.ticks[i].Pair,
 			},
 			Ask: d.ticks[i].Ask,

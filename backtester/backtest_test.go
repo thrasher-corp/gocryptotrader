@@ -3,6 +3,7 @@ package backtest
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 type TestStrategy struct{}
@@ -20,19 +22,20 @@ func (s *TestStrategy) OnSignal(d DataHandler, p PortfolioHandler) (SignalEvent,
 			CurrencyPair: d.Latest().Pair()},
 	}
 
+	smaFast := indicators.SMA(d.StreamClose(), 10)
+	smaSlow := indicators.SMA(d.StreamClose(), 30)
 
-	ret := indicators.RSI(d.StreamClose(), 14)
+	ret := indicators.Crossover(smaFast, smaSlow)
 	fmt.Println(ret)
 
-	// if d.Latest().GetTime() == time.Date(2019, 6, 22, 0, 0, 0, 0, time.UTC) {
-	// 	signal.Amount = 5
-	// 	signal.SetDirection(order.Buy)
-	// }
-	//
-	// if d.Latest().GetTime() == time.Date(2019, 7, 22, 0, 0, 0, 0, time.UTC) {
-	// 	signal.Amount = 1
-	// 	signal.SetDirection(order.Sell)
-	// }
+	rsiRet := indicators.RSI(d.StreamClose(), 14)[d.Offset()-1]
+	if rsiRet < 30 {
+		signal.Amount = 5
+		signal.SetDirection(order.Buy)
+	} else if rsiRet > 70 {
+		signal.Amount = 5
+		signal.SetDirection(order.Sell)
+	}
 
 	return &signal, nil
 }
@@ -54,8 +57,8 @@ func TestBackTest(t *testing.T) {
 	portfolio := Portfolio{
 		initialFunds: 1000,
 		riskManager:  &Risk{},
-		sizeManager:  &Size{
-			DefaultSize: 100,
+		sizeManager: &Size{
+			DefaultSize:  100,
 			DefaultValue: 1000,
 		},
 	}
@@ -65,7 +68,7 @@ func TestBackTest(t *testing.T) {
 	strategy := TestStrategy{}
 	bt.strategy = &strategy
 
-	exchange := Exchange{ExchangeFee: 0, CommissionRate: 0.0025}
+	exchange := Exchange{MakerFee: 0.00, TakerFee: 0.00}
 	bt.exchange = &exchange
 
 	statistic := Statistic{}
@@ -80,6 +83,15 @@ func TestBackTest(t *testing.T) {
 	}
 	fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
 
+	out, err := os.Create("out.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for x := range ret.Transactions {
+		out.WriteString(fmt.Sprintf("%+v\n", ret.Transactions[x]))
+	}
+	out.Close()
 }
 
 func genOHCLVData() kline.Item {

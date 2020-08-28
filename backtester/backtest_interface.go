@@ -23,8 +23,13 @@ type DataStreamer interface {
 	History() []DataEventHandler
 	Latest() DataEventHandler
 	List() []DataEventHandler
+	Offset() int
 
+	StreamOpen() []float64
+	StreamHigh() []float64
+	StreamLow() []float64
 	StreamClose() []float64
+	StreamVol() []float64
 }
 
 type EventHandler interface {
