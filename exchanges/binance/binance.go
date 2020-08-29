@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	apiURL        = "https://api.binance.com"
-	spotAPIURL    = "https://sapi.binance.com"
-	futuresAPIURL = "https://fapi.binance.com"
+	apiURL         = "https://api.binance.com"
+	spotAPIURL     = "https://sapi.binance.com"
+	futuresAPIURL  = "https://dapi.binance.com"
+	uFuturesAPIURL = "https://fapi.binance.com"
 
 	// Public endpoints
 
@@ -120,13 +121,13 @@ const (
 	ufuturesOpenOrder             = "/fapi/v1/openOrder"
 	ufuturesAllOpenOrders         = "/fapi/v1/openOrders"
 	ufuturesAllOrders             = "/fapi/v1/allOrders"
-	ufuturesAccountBalance        = "/fapi/v1/balance"
-	ufuturesAccountInfo           = "/fapi/v1/account"
+	ufuturesAccountBalance        = "/fapi/v2/balance"
+	ufuturesAccountInfo           = "/fapi/v2/account"
 	ufuturesChangeInitialLeverage = "/fapi/v1/leverage"
 	ufuturesChangeMarginType      = "/fapi/v1/marginType"
 	ufuturesModifyMargin          = "/fapi/v1/positionMargin"
 	ufuturesMarginChangeHistory   = "/fapi/v1/positionMargin/history"
-	ufuturesPositionInfo          = "/fapi/v1/positionRisk"
+	ufuturesPositionInfo          = "/fapi/v2/positionRisk"
 	ufuturesAccountTradeList      = "/fapi/v1/userTrades"
 	ufuturesIncomeHistory         = "/fapi/v1/income"
 	ufuturesNotionalBracket       = "/fapi/v1/leverageBracket"
@@ -187,6 +188,712 @@ var validMarginChange = map[string]int64{
 	"add":    1,
 	"reduce": 2,
 }
+
+var uValidOBLimits = []string{"5", "10", "20", "50", "100", "500", "1000"}
+
+var uValidPeriods = []string{"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
+
+// UFuturesOrderbook gets orderbook data for uFutures
+func (b *Binance) UFuturesOrderbook(symbol string, limit int64) (OrderBook, error) {
+	var resp OrderBook
+	var data UOBData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	strLimit := strconv.FormatInt(limit, 10)
+	if common.StringDataCompare(uValidOBLimits, strLimit) {
+		params.Set("limit", strLimit)
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	err := b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesOrderbook+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	resp.Symbol = symbol
+	resp.LastUpdateID = data.LastUpdateID
+	var price, quantity float64
+	for x := range data.Asks {
+		price, err = strconv.ParseFloat(data.Asks[x][0], 64)
+		if err != nil {
+			return resp, err
+		}
+		quantity, err = strconv.ParseFloat(data.Asks[x][1], 64)
+		if err != nil {
+			return resp, err
+		}
+		resp.Asks = append(resp.Asks, OrderbookItem{
+			Price:    price,
+			Quantity: quantity,
+		})
+	}
+	for y := range data.Bids {
+		price, err = strconv.ParseFloat(data.Bids[y][0], 64)
+		if err != nil {
+			return resp, err
+		}
+		quantity, err = strconv.ParseFloat(data.Bids[y][1], 64)
+		if err != nil {
+			return resp, err
+		}
+		resp.Bids = append(resp.Bids, OrderbookItem{
+			Price:    price,
+			Quantity: quantity,
+		})
+	}
+	return resp, nil
+}
+
+// URecentTrades gets recent trades for uFutures
+func (b *Binance) URecentTrades(symbol, fromID string, limit int64) ([]UPublicTradesData, error) {
+	var resp []UPublicTradesData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if fromID != "" {
+		params.Set("fromID", fromID)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesRecentTrades+params.Encode(), limitDefault, &resp)
+}
+
+// UHistoricalTrades gets historical public trades for uFutures
+func (b *Binance) UHistoricalTrades(symbol, fromID string, limit int64) ([]UPublicTradesData, error) {
+	var resp []UPublicTradesData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if fromID != "" {
+		params.Set("fromID", fromID)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesHistoricalTrades+params.Encode(), limitDefault, &resp)
+}
+
+// UCompressedTrades gets compressed public trades for uFutures
+func (b *Binance) UCompressedTrades(symbol, fromID string, limit int64, startTime, endTime time.Time) ([]UCompressedTradeData, error) {
+	var resp []UCompressedTradeData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if fromID != "" {
+		params.Set("fromID", fromID)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesCompressedTrades+params.Encode(), limitDefault, &resp)
+}
+
+// UKlineData gets kline data for uFutures
+func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+	var data [][]interface{}
+	var resp []FuturesCandleStick
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(uValidPeriods, interval) {
+		return resp, fmt.Errorf("invalid interval")
+	}
+	params.Set("interval", interval)
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	err := b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesKlineData+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	var tempData FuturesCandleStick
+	var floatData float64
+	for x := range data {
+		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Open = floatData
+		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.High = floatData
+		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Low = floatData
+		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Close = floatData
+		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.Volume = floatData
+		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
+		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.BaseAssetVolume = floatData
+		tempData.TakerBuyVolume = data[x][8].(float64)
+		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		if err != nil {
+			return resp, err
+		}
+		tempData.TakerBuyBaseAssetVolume = floatData
+		resp = append(resp, tempData)
+	}
+	return resp, nil
+}
+
+// UGetMarkPrice gets mark price data for ufutures
+func (b *Binance) UGetMarkPrice(symbol string) ([]UMarkPrice, error) {
+	var resp []UMarkPrice
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesMarkPrice+params.Encode(), limitDefault, &resp)
+}
+
+// UGetFundingHistory gets funding history for ufutures
+func (b *Binance) UGetFundingHistory(symbol string, limit int64, startTime, endTime time.Time) ([]UFundingRateHistory, error) {
+	var resp []UFundingRateHistory
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesFundingRateHistory+params.Encode(), limitDefault, &resp)
+}
+
+// U24HTickerPriceChangeStats gets 24hr ticker price change stats for ufutures
+func (b *Binance) U24HTickerPriceChangeStats(symbol string) ([]U24HrPriceChangeStats, error) {
+	var resp []U24HrPriceChangeStats
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesTickerPriceStats+params.Encode(), limitDefault, &resp)
+}
+
+// USymbolPriceTicker gets symbol price ticker for ufutures
+func (b *Binance) USymbolPriceTicker(symbol string) ([]USymbolPriceTicker, error) {
+	var resp []USymbolPriceTicker
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesSymbolPriceTicker+params.Encode(), limitDefault, &resp)
+}
+
+// USymbolOrderbookTicker gets symbol orderbook ticker
+func (b *Binance) USymbolOrderbookTicker(symbol string) ([]USymbolOrderbookTicker, error) {
+	var resp []USymbolOrderbookTicker
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesSymbolOrderbook+params.Encode(), limitDefault, &resp)
+}
+
+// ULiquidationOrders gets public liquidation orders
+func (b *Binance) ULiquidationOrders(symbol string, limit int64, startTime, endTime time.Time) ([]ULiquidationOrdersData, error) {
+	var resp []ULiquidationOrdersData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesLiquidationOrders+params.Encode(), limitDefault, &resp)
+}
+
+// UOpenInterest gets open interest data for ufutures
+func (b *Binance) UOpenInterest(symbol string) (UOpenInterestData, error) {
+	var resp UOpenInterestData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesOpenInterest+params.Encode(), limitDefault, &resp)
+}
+
+// UOpenInterestStats gets open interest stats for ufutures
+func (b *Binance) UOpenInterestStats(symbol, period string, limit int64, startTime, endTime time.Time) ([]UOpenInterestStats, error) {
+	var resp []UOpenInterestStats
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(uValidPeriods, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesOpenInterestStats+params.Encode(), limitDefault, &resp)
+}
+
+// UTopAcccountsLongShortRatio gets long/short ratio data for top trader accounts in ufutures
+func (b *Binance) UTopAcccountsLongShortRatio(symbol, period string, limit int64, startTime, endTime time.Time) ([]ULongShortRatio, error) {
+	var resp []ULongShortRatio
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(uValidPeriods, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	if limit > 0 && limit < 500 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesTopAccountsRatio+params.Encode(), limitDefault, &resp)
+}
+
+// UTopPostionsLongShortRatio gets long/short ratio data for top positions' in ufutures
+func (b *Binance) UTopPostionsLongShortRatio(symbol, period string, limit int64, startTime, endTime time.Time) ([]ULongShortRatio, error) {
+	var resp []ULongShortRatio
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(uValidPeriods, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	if limit > 0 && limit < 500 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesTopPositionsRatio+params.Encode(), limitDefault, &resp)
+}
+
+// UGlobalLongShortRatio gets the global long/short ratio data for ufutures
+func (b *Binance) UGlobalLongShortRatio(symbol, period string, limit int64, startTime, endTime time.Time) ([]ULongShortRatio, error) {
+	var resp []ULongShortRatio
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(uValidPeriods, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	if limit > 0 && limit < 500 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesLongShortRatio+params.Encode(), limitDefault, &resp)
+}
+
+// UTakerBuySellVol gets takers' buy/sell ratio for ufutures
+func (b *Binance) UTakerBuySellVol(symbol, period string, limit int64, startTime, endTime time.Time) ([]UTakerVolumeData, error) {
+	var resp []UTakerVolumeData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(uValidPeriods, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	if limit > 0 && limit < 500 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesLongShortRatio+params.Encode(), limitDefault, &resp)
+}
+
+// UFuturesNewOrder sends a new order for ufutures
+func (b *Binance) UFuturesNewOrder(symbol, side, positionSide, orderType, timeInForce,
+	reduceOnly, newClientOrderID, closePosition, workingType, newOrderRespType string,
+	quantity, price, stopPrice, activationPrice, callbackRate float64) (UOrderData, error) {
+	var resp UOrderData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("side", side)
+	if positionSide != "" {
+		if !common.StringDataCompare(validPositionSide, positionSide) {
+			return resp, fmt.Errorf("invalid positionSide")
+		}
+		params.Set("positionSide", positionSide)
+	}
+	params.Set("type", orderType)
+	params.Set("timeInForce", timeInForce)
+	params.Set("orderType", orderType)
+	if reduceOnly != "" {
+		if !common.StringDataCompare(validBoolString, reduceOnly) {
+			return resp, fmt.Errorf("invalid reduceOnly")
+		}
+		params.Set("reduceOnly", reduceOnly)
+	}
+	if newClientOrderID != "" {
+		params.Set("newClientOrderID", newClientOrderID)
+	}
+	if closePosition != "" {
+		params.Set("closePosition", closePosition)
+	}
+	if workingType != "" {
+		if !common.StringDataCompare(validWorkingType, workingType) {
+			return resp, fmt.Errorf("invalid workingType")
+		}
+		params.Set("workingType", workingType)
+	}
+	if newOrderRespType != "" {
+		if !common.StringDataCompare(validNewOrderRespType, newOrderRespType) {
+			return resp, fmt.Errorf("invalid newOrderRespType")
+		}
+		params.Set("newOrderRespType", newOrderRespType)
+	}
+	if quantity != 0 {
+		params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+	}
+	if price != 0 {
+		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	}
+	if stopPrice != 0 {
+		params.Set("stopPrice", strconv.FormatFloat(stopPrice, 'f', -1, 64))
+	}
+	if activationPrice != 0 {
+		params.Set("activationPrice", strconv.FormatFloat(activationPrice, 'f', -1, 64))
+	}
+	if callbackRate != 0 {
+		params.Set("callbackRate", strconv.FormatFloat(callbackRate, 'f', -1, 64))
+	}
+	b.API.Endpoints.URL = futuresAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesOrder, params, limitDefault, nil, &resp)
+}
+
+// UAutoCancelAllOpenOrders auto cancels all ufutures open orders for a symbol after the set countdown time
+func (b *Binance) UAutoCancelAllOpenOrders(symbol string, countdownTime int64) (UOrderData, error) {
+	var resp UOrderData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("countdownTime", strconv.FormatInt(countdownTime, 10))
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesCountdownCancel, params, limitDefault, nil, &resp)
+}
+
+// UFetchOpenOrder sends a request to fetch open order data for ufutures
+func (b *Binance) UFetchOpenOrder(symbol, orderID, origClientOrderID string) (UOrderData, error) {
+	var resp UOrderData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesOpenOrder, params, limitDefault, nil, &resp)
+}
+
+// UAllAccountOpenOrders gets all account's orders for ufutures
+func (b *Binance) UAllAccountOpenOrders(symbol string) ([]UOrderData, error) {
+	var resp []UOrderData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAllOpenOrders, params, limitDefault, nil, &resp)
+}
+
+// UAllAccountOrders gets all account's orders for ufutures
+func (b *Binance) UAllAccountOrders(symbol string, limit int64, startTime, endTime time.Time) ([]UOrderData, error) {
+	var resp []UOrderData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if limit > 0 && limit < 500 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAllOrders, params, limitDefault, nil, &resp)
+}
+
+// UAccountBalanceV2 gets V2 account balance data
+func (b *Binance) UAccountBalanceV2() ([]UAccountBalanceV2Data, error) {
+	var resp []UAccountBalanceV2Data
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAccountBalance, nil, limitDefault, nil, &resp)
+}
+
+// UAccountInformationV2 gets V2 account balance data
+func (b *Binance) UAccountInformationV2() (UAccountInformationV2Data, error) {
+	var resp UAccountInformationV2Data
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAccountInfo, nil, limitDefault, nil, &resp)
+}
+
+// UChangeInitialLeverageRequest sends a request to change account's initial leverage
+func (b *Binance) UChangeInitialLeverageRequest(symbol string, leverage int64) (UChangeInitialLeverage, error) {
+	var resp UChangeInitialLeverage
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !(leverage > 0 && leverage < 25) {
+		return resp, fmt.Errorf("invalid leverage")
+	}
+	params.Set("leverage", strconv.FormatInt(leverage, 10))
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesChangeInitialLeverage, params, limitDefault, nil, &resp)
+}
+
+// UChangeInitialMarginType sends a request to change account's initial margin type
+func (b *Binance) UChangeInitialMarginType(symbol, marginType string) error {
+	var resp UAccountInformationV2Data
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(validMarginType, marginType) {
+		return fmt.Errorf("invalid marginType")
+	}
+	params.Set("marginType", marginType)
+	return b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesChangeMarginType, params, limitDefault, nil, &resp)
+}
+
+// UModifyIsolatedPositionMarginReq sends a request to modify isolated margin for ufutures
+func (b *Binance) UModifyIsolatedPositionMarginReq(symbol, positionSide, changeType string, amount float64) (UModifyIsolatedPosMargin, error) {
+	var resp UModifyIsolatedPosMargin
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if positionSide != "" {
+		if !common.StringDataCompare(validPositionSide, positionSide) {
+			return resp, fmt.Errorf("invalid margin changeType")
+		}
+	}
+	cType, ok := validMarginChange[changeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid margin changeType")
+	}
+	params.Set("type", strconv.FormatInt(cType, 10))
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesModifyMargin, params, limitDefault, nil, &resp)
+}
+
+// UPositionMarginChangeHistory gets margin change history for ufutures
+func (b *Binance) UPositionMarginChangeHistory(symbol, changeType string, limit int64, startTime, endTime time.Time) ([]UPositionMarginChangeHistoryData, error) {
+	var resp []UPositionMarginChangeHistoryData
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	cType, ok := validMarginChange[changeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid margin changeType")
+	}
+	params.Set("type", strconv.FormatInt(cType, 10))
+	if limit > 0 && limit < 500 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesMarginChangeHistory, params, limitDefault, nil, &resp)
+}
+
+// UPositionsInfoV2 gets positions' info for ufutures
+func (b *Binance) UPositionsInfoV2(symbol string) ([]UChangeInitialLeverage, error) {
+	var resp []UChangeInitialLeverage
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesPositionInfo, params, limitDefault, nil, &resp)
+}
+
+// UAccountTradesHistory gets account's trade history data for ufutures
+func (b *Binance) UAccountTradesHistory(symbol, fromID string, limit int64, startTime, endTime time.Time) ([]UAccountTradeHistory, error) {
+	var resp []UAccountTradeHistory
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if fromID != "" {
+		params.Set("fromID", fromID)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAccountTradeList, params, limitDefault, nil, &resp)
+}
+
+// UAccountIncomeHistory gets account's income history data for ufutures
+func (b *Binance) UAccountIncomeHistory(symbol, incomeType string, limit int64, startTime, endTime time.Time) ([]UAccountIncomeHistory, error) {
+	var resp []UAccountIncomeHistory
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if incomeType != "" {
+		if !common.StringDataCompare(validIncomeType, incomeType) {
+			return resp, fmt.Errorf("invalid incomeType")
+		}
+		params.Set("incomeType", incomeType)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesIncomeHistory, params, limitDefault, nil, &resp)
+}
+
+// UGetNotionalAndLeverageBrackets gets account's notional and leverage brackets for ufutures
+func (b *Binance) UGetNotionalAndLeverageBrackets(symbol string) ([]UNotionalLeverageAndBrakcetsData, error) {
+	var resp []UNotionalLeverageAndBrakcetsData
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesNotionalBracket, params, limitDefault, nil, &resp)
+}
+
+// UPositionsADLEstimate gets estimated ADL data for ufutures positions
+func (b *Binance) UPositionsADLEstimate(symbol string) (UPositionADLEstimationData, error) {
+	var resp UPositionADLEstimationData
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesADLQuantile, params, limitDefault, nil, &resp)
+}
+
+// UAccountForcedOrders gets account's forced (liquidation) orders for ufutures
+func (b *Binance) UAccountForcedOrders(symbol, autoCloseType string, limit int64, startTime, endTime time.Time) ([]UForceOrdersData, error) {
+	var resp []UForceOrdersData
+	b.API.Endpoints.URL = uFuturesAPIURL
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if autoCloseType != "" {
+		if !common.StringDataCompare(validAutoCloseTypes, autoCloseType) {
+			return resp, fmt.Errorf("invalid incomeType")
+		}
+		params.Set("autoCloseType", autoCloseType)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesUsersForceOrders, params, limitDefault, nil, &resp)
+}
+
+//
+
+//
+
+//
+
+//
+
+// Coin Margined Futures
 
 // FuturesExchangeInfo stores futures data
 func (b *Binance) FuturesExchangeInfo() (interface{}, error) {
