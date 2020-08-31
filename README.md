@@ -142,9 +142,9 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 641 |
-| [shazbert](https://github.com/shazbert) | 191 |
+| [shazbert](https://github.com/shazbert) | 195 |
 | [gloriousCode](https://github.com/gloriousCode) | 169 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 51 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 60 |
 | [xtda](https://github.com/xtda) | 45 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
@@ -156,6 +156,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [vazha](https://github.com/vazha) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
+| [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
@@ -165,7 +166,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
-| [azhang](https://github.com/azhang) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |

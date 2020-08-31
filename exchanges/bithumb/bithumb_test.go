@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -572,5 +573,31 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTC_KRW")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	resp, err = b.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTC_KRW")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Hour), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

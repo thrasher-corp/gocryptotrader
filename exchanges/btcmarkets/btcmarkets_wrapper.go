@@ -415,13 +415,16 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (b *BTCMarkets) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetExchangeHistory(currencyPair, assetType, time.Unix(0, 0), time.Unix(0, 0))
+	return b.GetExchangeHistory(currencyPair, assetType, time.Time{}, time.Time{})
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if timestampEnd.After(time.Now()) {
+		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
+	}
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
@@ -430,19 +433,24 @@ func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType asset.Item, t
 	var resp []trade.Data
 allTrades:
 	for {
-		tradeData, err := b.GetTradeHistory(p.String(), "", 0, ts.Unix(), 200)
+		tradeData, err := b.GetTrades(p.String(), 0, ts.Unix(), 200)
 		if err != nil {
 			return nil, err
 		}
 		for i := range tradeData {
-			side, err := order.StringToOrderSide(tradeData[i].Side)
-			if err != nil {
-				return nil, err
+			side := order.UnknownSide
+			if tradeData[i].Side != "" {
+				side, err = order.StringToOrderSide(tradeData[i].Side)
+				if err != nil {
+					return nil, err
+				}
 			}
-
+			if tradeData[i].Timestamp.After(timestampEnd) && !timestampEnd.IsZero() {
+				break allTrades
+			}
 			resp = append(resp, trade.Data{
 				Exchange:     b.Name,
-				TID:          tradeData[i].ID,
+				TID:          tradeData[i].TradeID,
 				CurrencyPair: p,
 				AssetType:    assetType,
 				Side:         side,
@@ -450,10 +458,10 @@ allTrades:
 				Amount:       tradeData[i].Amount,
 				Timestamp:    tradeData[i].Timestamp,
 			})
-			if tradeData[i].Timestamp.After(timestampEnd) {
-				break allTrades
-			}
 			if i == len(tradeData)-1 {
+				if ts == tradeData[i].Timestamp {
+					break allTrades
+				}
 				ts = tradeData[i].Timestamp
 			}
 		}
@@ -464,7 +472,7 @@ allTrades:
 
 	err := trade.AddTradesToBuffer(b.Name, resp...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s GetExchangeHistory %v", b.Name, err)
 	}
 	return resp, nil
 }

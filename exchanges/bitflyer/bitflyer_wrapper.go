@@ -55,18 +55,22 @@ func (b *Bitflyer) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{
-		Delimiter: currency.UnderscoreDelimiter,
-		Uppercase: true,
+	fmt1 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Delimiter: currency.UnderscoreDelimiter,
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: currency.UnderscoreDelimiter,
+			Uppercase: true,
+		},
 	}
-	configFmt := &currency.PairFormat{
-		Delimiter: currency.UnderscoreDelimiter,
-		Uppercase: true,
+
+	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
-	err := b.SetGlobalPairsManager(requestFmt,
-		configFmt,
-		asset.Spot,
-		asset.Futures)
+	err = b.StoreAssetPairFormat(asset.Futures, fmt1)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -321,7 +325,7 @@ func (b *Bitflyer) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]tra
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (b *Bitflyer) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }

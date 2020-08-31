@@ -362,7 +362,7 @@ func (e *EXMO) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (e *EXMO) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := e.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
@@ -373,21 +373,21 @@ func (e *EXMO) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 		return nil, err
 	}
 	var resp []trade.Data
-	lameMap := tradeData[p.String()]
-	for i := range lameMap {
-		side, err := order.StringToOrderSide(lameMap[i].Type)
+	mapData := tradeData[p.String()]
+	for i := range mapData {
+		side, err := order.StringToOrderSide(mapData[i].Type)
 		if err != nil {
 			return nil, err
 		}
 		resp = append(resp, trade.Data{
 			Exchange:     e.Name,
-			TID:          strconv.FormatInt(lameMap[i].TradeID, 10),
+			TID:          strconv.FormatInt(mapData[i].TradeID, 10),
 			CurrencyPair: p,
 			AssetType:    assetType,
 			Side:         side,
-			Price:        lameMap[i].Price,
-			Amount:       lameMap[i].Quantity,
-			Timestamp:    time.Unix(lameMap[i].Date, 0),
+			Price:        mapData[i].Price,
+			Amount:       mapData[i].Quantity,
+			Timestamp:    time.Unix(mapData[i].Date, 0),
 		})
 	}
 
@@ -398,7 +398,7 @@ func (e *EXMO) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (e *EXMO) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }

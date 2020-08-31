@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -482,5 +483,35 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	resp, err = l.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	resp, err = l.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Hour*15), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
 	}
 }

@@ -14,9 +14,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -50,6 +52,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitmex setup error", err)
 	}
+	b.UpdateTradablePairs(true)
 	os.Exit(m.Run())
 }
 
@@ -359,7 +362,6 @@ func TestGetStatSummary(t *testing.T) {
 }
 
 func TestGetTrade(t *testing.T) {
-	b.Verbose = true
 	a, err := b.GetTrade(&GenericRequestParams{
 		Symbol: "XBT",
 		//Count:     1000000,
@@ -933,5 +935,35 @@ func TestWsTrades(t *testing.T) {
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("XBTU20")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	resp, err = b.GetRecentTrades(currencyPair, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("XBTU20")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	resp, err = b.GetExchangeHistory(currencyPair, asset.Futures, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
 	}
 }

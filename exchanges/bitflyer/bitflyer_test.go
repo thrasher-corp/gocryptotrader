@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -25,7 +26,6 @@ const (
 var b Bitflyer
 
 func TestMain(m *testing.M) {
-	b.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	bitflyerConfig.API.AuthenticatedSupport = true
 	bitflyerConfig.API.Credentials.Key = apiKey
 	bitflyerConfig.API.Credentials.Secret = apiSecret
-
+	b.SetDefaults()
 	err = b.Setup(bitflyerConfig)
 	if err != nil {
 		log.Fatal("Bitflyer setup error", err)
@@ -426,5 +426,30 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTC_JPY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := b.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTC_JPY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Fatal(err)
 	}
 }

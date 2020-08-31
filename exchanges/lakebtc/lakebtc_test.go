@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -486,5 +487,35 @@ func TestWsOrderbookProcessing(t *testing.T) {
 	err := l.processOrderbook(json, "market-btcusd-global")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	resp, err = l.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	resp, err = l.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Hour*15), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
 	}
 }

@@ -78,23 +78,13 @@ func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
 }
 
 // GetTrades returns the trades for a specific currency
-func (y *Yobit) GetTrades(symbol string, start int64, sortAsc bool) ([]Trades, error) {
+func (y *Yobit) GetTrades(symbol string) ([]Trades, error) {
 	type Response struct {
 		Data map[string][]Trades
 	}
 
-	v := url.Values{}
-	if sortAsc {
-		v.Set("order", "ASC")
-	} else {
-		v.Set("order", "DESC")
-	}
-	if start != 0 {
-		v.Set("since", strconv.FormatInt(start, 10))
-	}
-
 	var response Response
-	path := y.API.Endpoints.URL + "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol + "?" + v.Encode()
+	path := y.API.Endpoints.URL + "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol
 	return response.Data[symbol], y.SendHTTPRequest(path, &response.Data)
 }
 

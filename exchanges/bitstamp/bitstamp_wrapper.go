@@ -378,7 +378,7 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitstamp) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
@@ -413,7 +413,7 @@ func (b *Bitstamp) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]tra
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (b *Bitstamp) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }

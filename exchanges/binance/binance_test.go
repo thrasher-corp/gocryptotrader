@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -66,10 +67,10 @@ func TestGetOrderBook(t *testing.T) {
 	}
 }
 
-func TestGetRecentTrades(t *testing.T) {
+func TestGetMostRecentTrades(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetRecentTrades(RecentTradeRequestParams{
+	_, err := b.GetMostRecentTrades(RecentTradeRequestParams{
 		Symbol: "BTCUSDT",
 		Limit:  15,
 	})
@@ -972,5 +973,31 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	resp, err = b.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

@@ -310,13 +310,16 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (g *Gemini) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return g.GetExchangeHistory(currencyPair, assetType, time.Unix(0, 0), time.Unix(0, 0))
+	return g.GetExchangeHistory(currencyPair, assetType, time.Time{}, time.Time{})
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if timestampEnd.After(time.Now()) {
+		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
+	}
 	if _, ok := g.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
@@ -337,7 +340,7 @@ allTrades:
 			}
 
 			tradeTS := time.Unix(tradeData[i].Timestamp, 0)
-			if tradeTS.After(timestampEnd) {
+			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
 				break allTrades
 			}
 			resp = append(resp, trade.Data{
@@ -351,6 +354,9 @@ allTrades:
 				Timestamp:    tradeTS,
 			})
 			if i == len(tradeData)-1 {
+				if ts == tradeTS {
+					break allTrades
+				}
 				ts = tradeTS
 			}
 		}
@@ -361,7 +367,7 @@ allTrades:
 
 	err := trade.AddTradesToBuffer(g.Name, resp...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s GetExchangeHistory %v", g.Name, err)
 	}
 	return resp, nil
 }

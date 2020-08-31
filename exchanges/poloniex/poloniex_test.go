@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -563,5 +564,37 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	_, err = p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
 	if err == nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTC_XMR")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	resp, err = p.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTC_XMR")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resp []trade.Data
+	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
+	tEnd := time.Date(2020, 6, 7, 0, 0, 0, 0, time.UTC)
+	resp, err = p.GetExchangeHistory(currencyPair, asset.Spot, tStart, tEnd)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
 	}
 }

@@ -63,7 +63,10 @@ func (i *ItBit) GetOrderbook(currencyPair string) (OrderbookResponse, error) {
 // timestamp - matchNumber, only executions after this will be returned
 func (i *ItBit) GetTradeHistory(currencyPair, tradeID string) (Trades, error) {
 	response := Trades{}
-	req := "trades?since=" + tradeID
+	var req = itbitTrades
+	if tradeID != "" {
+		req += "?since=" + tradeID
+	}
 	path := fmt.Sprintf("%s/%s/%s/%s", i.API.Endpoints.URL, itbitMarkets, currencyPair, req)
 
 	return response, i.SendHTTPRequest(path, &response)

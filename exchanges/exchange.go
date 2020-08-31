@@ -994,6 +994,8 @@ func (e *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 				e.Name)
 		}
 		e.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
+		e.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
+		e.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
 	}
 
 	return nil

@@ -324,7 +324,12 @@ func ({{.Variable}} *{{.CapitalName}}) GetFundingHistory() ([]exchange.FundHisto
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
+func ({{.Variable}} *{{.CapitalName}}) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func ({{.Variable}} *{{.CapitalName}}) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }

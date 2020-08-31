@@ -56,9 +56,18 @@ func (b *Bithumb) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	configFmt := &currency.PairFormat{Uppercase: true, Index: "KRW"}
-	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	fmt1 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Delimiter: currency.UnderscoreDelimiter,
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Index:     "KRW",
+			Uppercase: true,
+		},
+	}
+
+	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -330,7 +339,7 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bithumb) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
@@ -368,7 +377,7 @@ func (b *Bithumb) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (b *Bithumb) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }

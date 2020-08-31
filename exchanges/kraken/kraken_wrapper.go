@@ -516,21 +516,21 @@ func (k *Kraken) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (k *Kraken) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := k.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 	p = p.Format(k.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, k.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
-	tradeData, err := k.GetTrades(p.String())
+	tradeData, err := k.GetTrades(assetTranslator.LookupCurrency(p.String()))
 	if err != nil {
 		return nil, err
 	}
 	var resp []trade.Data
 	for i := range tradeData {
-		side, err := order.StringToOrderSide(tradeData[i].BuyOrSell)
-		if err != nil {
-			return nil, err
+		side := order.Buy
+		if tradeData[i].BuyOrSell == "s" {
+			side = order.Sell
 		}
 		resp = append(resp, trade.Data{
 			Exchange:     k.Name,
@@ -550,7 +550,7 @@ func (k *Kraken) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (k *Kraken) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }

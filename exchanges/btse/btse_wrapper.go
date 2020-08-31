@@ -397,35 +397,41 @@ func (b *BTSE) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (b *BTSE) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
-	}
 
-	trades, err := b.GetTrades(fPair.String(),
+		return nil, err
+	}	
+	tradeData, err := b.GetTrades(fPair.String(),
 		timestampStart, timestampEnd,
 		0, 0, 0,
 		false)
 	if err != nil {
 		return nil, err
 	}
-	var resp []exchange.TradeHistory
-	for x := range trades {
-		tempExch := exchange.TradeHistory{
-			Timestamp: time.Unix(0, trades[x].Time*int64(time.Millisecond)),
-			Price:     trades[x].Price,
-			Amount:    trades[x].Amount,
-			Exchange:  b.Name,
-			Side:      trades[x].Side,
-			Type:      trades[x].Type,
-			TID:       strconv.Itoa(trades[x].SerialID),
+	
+	var resp []trade.Data
+	for i := range tradeData {
+		side, err := order.StringToOrderSide(tradeData[i].Type)
+		if err != nil {
+			return nil, err
 		}
+		resp = append(resp, trade.Data{
+			Exchange:     b.Name,
+			TID:          tradeData[i].SerialID,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    tradeData[i].Time,
+		})
+	}
 
 		resp = append(resp, tempExch)
 	}
@@ -442,7 +448,7 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 		amount > val.MaxOrderSize
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (b *BTSE) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }

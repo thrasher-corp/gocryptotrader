@@ -533,7 +533,7 @@ func (o *OKGroup) ValidateCredentials() error {
 	return o.CheckTransientError(err)
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (o *OKGroup) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }

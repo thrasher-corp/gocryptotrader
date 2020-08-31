@@ -493,7 +493,7 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
@@ -527,8 +527,11 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (b *Binance) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if timestampEnd.After(time.Now()) {
+		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
+	}
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
@@ -544,7 +547,7 @@ allTrades:
 		}
 		for i := range tradeData {
 			tradeTS := time.Unix(tradeData[i].Time, 0)
-			if tradeTS.After(timestampEnd) {
+			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
 				break allTrades
 			}
 			resp = append(resp, trade.Data{
@@ -558,6 +561,9 @@ allTrades:
 				Timestamp:    tradeTS,
 			})
 			if i == len(tradeData)-1 {
+				if ts == tradeTS {
+					break allTrades
+				}
 				ts = tradeTS
 			}
 		}
@@ -567,7 +573,7 @@ allTrades:
 	}
 	err := trade.AddTradesToBuffer(b.Name, resp...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s GetExchangeHistory %v", b.Name, err)
 	}
 	return resp, nil
 }

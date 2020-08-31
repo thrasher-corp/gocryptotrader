@@ -82,7 +82,7 @@ func TestGetDepth(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTrades("btc_usd", 0, false)
+	_, err := y.GetTrades("btc_usd")
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -508,5 +508,27 @@ func TestGetDepositAddress(t *testing.T) {
 		if err == nil {
 			t.Error("GetDepositAddress() error")
 		}
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("btc_usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = y.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetExchangeHistory(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("btc_usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = y.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

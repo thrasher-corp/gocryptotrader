@@ -91,15 +91,15 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetTrades(spotPair, time.Time{}, time.Time{}, 200)
+	_, err := f.GetTrades(spotPair, 0, 0, 200)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetTrades(spotPair, time.Time{}, time.Time{}, 5)
+	_, err = f.GetTrades(spotPair, 0, 0, 5)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetTrades(spotPair, time.Unix(1559901511, 0), time.Unix(1559881511, 0), 5)
+	_, err = f.GetTrades(spotPair, 1559901511, 1559881511, 5)
 	if err == nil {
 		t.Error(err)
 	}

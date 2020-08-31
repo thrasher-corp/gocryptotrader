@@ -207,12 +207,12 @@ func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (a *Alphapoint) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
+// GetExchangeHistory returns historic trade data within the timeframe provided
 func (a *Alphapoint) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }

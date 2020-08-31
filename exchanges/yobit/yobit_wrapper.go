@@ -327,56 +327,45 @@ func (y *Yobit) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
-func (y *Yobit) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return y.GetExchangeHistory(currencyPair, assetType, time.Unix(0, 0), time.Unix(0, 0))
-}
-
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (y *Yobit) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (y *Yobit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := y.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 	p = p.Format(y.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, y.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
 	var resp []trade.Data
-	ts := timestampStart
-allTrades:
-	for {
-		tradeData, err := y.GetTrades(p.String(), ts.Unix(), true)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range tradeData {
-			tradeTS := time.Unix(tradeData[i].Timestamp, 0)
-			if tradeTS.After(timestampEnd) {
-				break allTrades
-			}
-			side := order.Buy
-			if tradeData[i].Type == "ask" {
-				side = order.Sell
-			}
-			resp = append(resp, trade.Data{
-				Exchange:     y.Name,
-				TID:          strconv.FormatInt(tradeData[i].TID, 10),
-				CurrencyPair: p,
-				AssetType:    assetType,
-				Side:         side,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Amount,
-				Timestamp:    tradeTS,
-			})
-			if i == len(tradeData)-1 {
-				ts = tradeTS
-			}
-		}
+	tradeData, err := y.GetTrades(p.String())
+	if err != nil {
+		return nil, fmt.Errorf("%s GetExchangeHistory %v", y.Name, err.Error())
 	}
 
-	err := trade.AddTradesToBuffer(y.Name, resp...)
+	for i := range tradeData {
+		tradeTS := time.Unix(tradeData[i].Timestamp, 0)
+		side := order.Buy
+		if tradeData[i].Type == "ask" {
+			side = order.Sell
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     y.Name,
+			TID:          strconv.FormatInt(tradeData[i].TID, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    tradeTS,
+		})
+	}
+	err = trade.AddTradesToBuffer(y.Name, resp...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s GetExchangeHistory %v", y.Name, err.Error())
 	}
 	return resp, nil
+}
+
+// GetExchangeHistory returns historic trade data within the timeframe provided
+func (y *Yobit) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

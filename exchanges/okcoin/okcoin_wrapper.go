@@ -463,7 +463,7 @@ func (o *OKCoin) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 	return ret, nil
 }
 
-// GetRecentTrades returns historic trade data within the timeframe provided.
+// GetRecentTrades returns the most recent trades for a currency and asset
 func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := o.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)

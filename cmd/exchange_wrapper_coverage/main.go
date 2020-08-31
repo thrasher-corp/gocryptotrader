@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -117,6 +118,11 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetAccountInfo")
 	}
 
+	_, err = e.GetRecentTrades(p, assetType)
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "GetRecentTrades")
+	}
+
 	_, err = e.GetExchangeHistory(p, assetType, time.Time{}, time.Time{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetExchangeHistory")
@@ -187,6 +193,26 @@ func testWrappers(e exchange.IBotExchange) []string {
 	_, err = e.WithdrawFiatFundsToInternationalBank(&withdraw.Request{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawFiatFundsToInternationalBank")
+	}
+
+	_, err = e.GetHistoricCandles(currency.Pair{}, asset.Spot, time.Unix(0, 0), time.Unix(0, 0), kline.OneDay)
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "GetHistoricCandles")
+	}
+
+	_, err = e.GetHistoricCandlesExtended(currency.Pair{}, asset.Spot, time.Unix(0, 0), time.Unix(0, 0), kline.OneDay)
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "GetHistoricCandlesExtended")
+	}
+
+	_, err = e.UpdateAccountInfo()
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "UpdateAccountInfo")
+	}
+
+	_, err = e.GetFeeByType(nil)
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "GetFeeByType")
 	}
 
 	return funcs
