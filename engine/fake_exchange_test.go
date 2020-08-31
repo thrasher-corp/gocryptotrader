@@ -111,6 +111,9 @@ func (h *FakePassingExchange) GetAssetTypes() asset.Items { return asset.Items{a
 func (h *FakePassingExchange) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, nil
 }
+func (h *FakePassingExchange) GetRecentTrades(_ currency.Pair, _ asset.Item) ([]trade.Data, error) {
+	return nil, nil
+}
 func (h *FakePassingExchange) SupportsAutoPairUpdates() bool        { return true }
 func (h *FakePassingExchange) SupportsRESTTickerBatchUpdates() bool { return true }
 func (h *FakePassingExchange) GetFeeByType(_ *exchange.FeeBuilder) (float64, error) {

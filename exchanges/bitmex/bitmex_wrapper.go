@@ -407,17 +407,27 @@ func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (b *Bitmex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return b.GetExchangeHistory(p, assetType, time.Unix(0, 0), time.Unix(0, 0))
+}
+
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (b *Bitmex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
-	tradeData, err := b.GetTrade(&GenericRequestParams{
-		EndTime:   timestampEnd.Format(time.RFC3339),
-		StartTime: timestampStart.Format(time.RFC3339),
-		Symbol:    p.String(),
-	})
+	req := &GenericRequestParams{
+		Symbol: p.String(),
+	}
+	if !timestampStart.IsZero() {
+		req.StartTime = timestampStart.Format(time.RFC3339)
+	}
+	if !timestampEnd.IsZero() {
+		req.EndTime = timestampEnd.Format(time.RFC3339)
+	}
+	tradeData, err := b.GetTrade(req)
 	if err != nil {
 		return nil, err
 	}

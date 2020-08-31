@@ -12,11 +12,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 )
 
 // Setup creates the trade processor if trading is supported
@@ -26,7 +26,7 @@ func (p *Processor) setup() {
 
 // AddTradesToBuffer will push trade data onto the buffer
 func AddTradesToBuffer(exchangeName string, data ...Data) error {
-	if database.DB == nil || database.DB.Config == nil ||  !database.DB.Config.Enabled {
+	if database.DB == nil || database.DB.Config == nil || !database.DB.Config.Enabled {
 		return nil
 	}
 	var errs common.Errors
@@ -54,7 +54,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 		}
 		uu, err := uuid.NewV4()
 		if err != nil {
-			errs = append(errs,  fmt.Errorf("%s uuid failed to generate for trade: %+v", exchangeName, data[i]))
+			errs = append(errs, fmt.Errorf("%s uuid failed to generate for trade: %+v", exchangeName, data[i]))
 		}
 		data[i].ID = uu
 		buffer = append(buffer, data[i])
@@ -75,7 +75,9 @@ func (p *Processor) Run() {
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 	}()
 	log.Info(log.Trade, "trade processor starting...")
+	p.mutex.Lock()
 	ticker := time.NewTicker(bufferProcessorInterval)
+	p.mutex.Unlock()
 	for {
 		select {
 		case <-ticker.C:
@@ -137,10 +139,10 @@ func SqlDataToTrade(dbTrades ...sqltrade.Data) (result []Data, err error) {
 			Timestamp:    time.Unix(dbTrades[i].Timestamp, 0),
 			Exchange:     dbTrades[i].Exchange,
 			CurrencyPair: cp,
-			AssetType:     a,
+			AssetType:    a,
 			Price:        dbTrades[i].Price,
 			Amount:       dbTrades[i].Amount,
-			Side:        s,
+			Side:         s,
 		})
 	}
 	return result, nil
@@ -152,7 +154,7 @@ func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (kline.Item
 		return kline.Item{}, errors.New("no trades supplied")
 	}
 	groupedData := groupTradesToInterval(interval, trades...)
-	candles :=  kline.Item{
+	candles := kline.Item{
 		Exchange: trades[0].Exchange,
 		Pair:     trades[0].CurrencyPair,
 		Asset:    trades[0].AssetType,
@@ -167,7 +169,7 @@ func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (kline.Item
 
 func groupTradesToInterval(interval kline.Interval, times ...Data) map[int64][]Data {
 	groupedData := make(map[int64][]Data)
-	for i:= range times {
+	for i := range times {
 		nearestInterval := getNearestInterval(times[i].Timestamp, interval)
 		groupedData[nearestInterval] = append(
 			groupedData[nearestInterval],
@@ -181,7 +183,7 @@ func getNearestInterval(t time.Time, interval kline.Interval) int64 {
 	return t.Truncate(interval.Duration()).Unix()
 }
 
-func classifyOHLCV (t time.Time, datas ...Data) (c kline.Candle) {
+func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 	sort.Sort(ByDate(datas))
 	c.Open = datas[0].Price
 	c.Close = datas[len(datas)-1].Price

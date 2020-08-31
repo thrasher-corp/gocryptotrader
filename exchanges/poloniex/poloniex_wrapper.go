@@ -409,6 +409,11 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (p *Poloniex) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return p.GetExchangeHistory(currencyPair, assetType, time.Unix(0, 0), time.Unix(0, 0))
+}
+
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if _, ok := p.CurrencyPairs.Pairs[assetType]; !ok {

@@ -544,8 +544,8 @@ func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (h *HUOBI) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := h.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
@@ -579,6 +579,11 @@ func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ t
 		return nil, err
 	}
 	return resp, nil
+}
+
+// GetExchangeHistory returns historic trade data within the timeframe provided.
+func (h *HUOBI) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

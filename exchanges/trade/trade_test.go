@@ -179,16 +179,18 @@ func TestConvertTradesToCandles(t *testing.T) {
 }
 
 func TestShutdown(t *testing.T) {
-	buffer = nil
 	var p Processor
+	p.mutex.Lock()
+	buffer = nil
 	bufferProcessorInterval = time.Second
+	p.mutex.Unlock()
 	go p.Run()
 	time.Sleep(time.Millisecond)
-	if p.started != 1 {
+	if atomic.LoadInt32(&p.started) != 1 {
 		t.Error("expected it to start running")
 	}
 	time.Sleep(time.Second * 2)
-	if p.started != 0 {
+	if atomic.LoadInt32(&p.started) != 0 {
 		t.Error("expected it to stop running")
 	}
 }

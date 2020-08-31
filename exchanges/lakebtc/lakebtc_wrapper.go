@@ -335,30 +335,46 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (l *LakeBTC) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return l.GetExchangeHistory(currencyPair, assetType, time.Unix(0, 0), time.Unix(0, 0))
+}
+
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, _ time.Time) ([]trade.Data, error) {
+func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if _, ok := l.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 	p = p.Format(l.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, l.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
-	tradeData, err := l.GetTradeHistory(p.String(), timestampStart.Unix())
-	if err != nil {
-		return nil, err
-	}
 	var resp []trade.Data
-	for i := range tradeData {
-		resp = append(resp, trade.Data{
-			TID:          strconv.FormatInt(tradeData[i].TID, 10),
-			Exchange:     l.Name,
-			CurrencyPair: p,
-			AssetType:    assetType,
-			Price:        tradeData[i].Price,
-			Amount:       tradeData[i].Amount,
-			Timestamp:    time.Unix(tradeData[i].Date, 0),
-		})
+	ts := timestampStart
+allTrades:
+	for {
+		tradeData, err := l.GetTradeHistory(p.String(), ts.Unix())
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			tradeTS := time.Unix(tradeData[i].Date, 0)
+			if tradeTS.After(timestampEnd) {
+				break allTrades
+			}
+			resp = append(resp, trade.Data{
+				TID:          strconv.FormatInt(tradeData[i].TID, 10),
+				Exchange:     l.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Amount,
+				Timestamp:    tradeTS,
+			})
+			if i == len(tradeData)-1 {
+				ts = tradeTS
+			}
+		}
 	}
 
-	err = trade.AddTradesToBuffer(l.Name, resp...)
+	err := trade.AddTradesToBuffer(l.Name, resp...)
 	if err != nil {
 		return nil, err
 	}

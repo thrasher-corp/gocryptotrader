@@ -397,10 +397,10 @@ func (b *BTSE) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if assetType != asset.Spot {
-		return nil, common.ErrNotYetImplemented
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (b *BTSE) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
+		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
@@ -440,6 +440,11 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 	return (math.Mod(amount, val.MinSizeIncrement) == 0) ||
 		amount < val.MinOrderSize ||
 		amount > val.MaxOrderSize
+}
+
+// GetExchangeHistory returns historic trade data within the timeframe provided.
+func (b *BTSE) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

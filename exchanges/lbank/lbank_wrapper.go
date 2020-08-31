@@ -327,6 +327,11 @@ func (l *Lbank) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (l *Lbank) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return l.GetExchangeHistory(p, assetType, time.Unix(0, 0), time.Unix(0, 0))
+}
+
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if _, ok := l.CurrencyPairs.Pairs[assetType]; !ok {

@@ -75,7 +75,7 @@ func TestGetRecentTrades(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Error("Binance GetRecentTrades() error", err)
+		t.Error("Binance GetMostRecentTrades() error", err)
 	}
 }
 

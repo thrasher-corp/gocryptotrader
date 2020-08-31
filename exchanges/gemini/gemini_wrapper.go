@@ -310,35 +310,56 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (g *Gemini) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return g.GetExchangeHistory(currencyPair, assetType, time.Unix(0, 0), time.Unix(0, 0))
+}
+
 // GetExchangeHistory returns historic trade data within the timeframe provided.
-func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, _ time.Time) ([]trade.Data, error) {
+func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if _, ok := g.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 	p = p.Format(g.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, g.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
-	tradeData, err := g.GetTrades(p.String(), timestampStart.Unix(), 0, false)
-	if err != nil {
-		return nil, err
-	}
 	var resp []trade.Data
-	for i := range tradeData {
-		side, err := order.StringToOrderSide(tradeData[i].Type)
+	ts := timestampStart
+	limit := 500
+allTrades:
+	for {
+		tradeData, err := g.GetTrades(p.String(), ts.Unix(), int64(limit), false)
 		if err != nil {
 			return nil, err
 		}
-		resp = append(resp, trade.Data{
-			Exchange:     g.Name,
-			TID:          strconv.FormatInt(tradeData[i].TID, 10),
-			CurrencyPair: p,
-			AssetType:    assetType,
-			Side:         side,
-			Price:        tradeData[i].Price,
-			Amount:       tradeData[i].Amount,
-			Timestamp:    time.Unix(tradeData[i].Timestamp, 0),
-		})
+		for i := range tradeData {
+			side, err := order.StringToOrderSide(tradeData[i].Type)
+			if err != nil {
+				return nil, err
+			}
+
+			tradeTS := time.Unix(tradeData[i].Timestamp, 0)
+			if tradeTS.After(timestampEnd) {
+				break allTrades
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     g.Name,
+				TID:          strconv.FormatInt(tradeData[i].TID, 10),
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Amount,
+				Timestamp:    tradeTS,
+			})
+			if i == len(tradeData)-1 {
+				ts = tradeTS
+			}
+		}
+		if len(tradeData) != limit {
+			break allTrades
+		}
 	}
 
-	err = trade.AddTradesToBuffer(g.Name, resp...)
+	err := trade.AddTradesToBuffer(g.Name, resp...)
 	if err != nil {
 		return nil, err
 	}

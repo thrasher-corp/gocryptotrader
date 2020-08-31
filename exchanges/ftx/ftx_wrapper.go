@@ -437,6 +437,11 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return resp, nil
 }
 
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (f *FTX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return f.GetExchangeHistory(p, assetType, time.Unix(0, 0), time.Unix(0, 0))
+}
+
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	marketName, err := f.FormatExchangeCurrency(p, assetType)
@@ -445,8 +450,8 @@ func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestam
 	}
 	var resp []trade.Data
 	trades, err := f.GetTrades(marketName.String(),
-		time.Unix(timestampStart.Unix(), 0),
-		time.Unix(timestampEnd.Unix(), 0),
+		timestampStart.Unix(),
+		timestampEnd.Unix(),
 		100)
 	if err != nil {
 		return nil, err
@@ -483,8 +488,8 @@ func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestam
 			break
 		}
 		trades, err = f.GetTrades(marketName.String(),
-			time.Unix(timestampStart.Unix(), 0),
-			time.Unix(trades[len(trades)-1].Time.Unix(), 0),
+			timestampStart.Unix(),
+			trades[len(trades)-1].Time.Unix(),
 			100)
 		if err != nil {
 			return resp, err

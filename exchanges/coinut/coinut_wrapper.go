@@ -500,8 +500,8 @@ func (c *COINUT) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ time.Time) ([]trade.Data, error) {
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (c *COINUT) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := c.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
@@ -537,6 +537,11 @@ func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item, _, _ 
 		return nil, err
 	}
 	return resp, nil
+}
+
+// GetExchangeHistory returns historic trade data within the timeframe provided.
+func (c *COINUT) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

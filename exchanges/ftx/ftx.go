@@ -144,19 +144,19 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 }
 
 // GetTrades gets trades based on the conditions specified
-func (f *FTX) GetTrades(marketName string, startTime, endTime time.Time, limit int64) ([]TradeData, error) {
+func (f *FTX) GetTrades(marketName string, startTime, endTime, limit int64) ([]TradeData, error) {
 	strLimit := strconv.FormatInt(limit, 10)
 	params := url.Values{}
 	params.Set("limit", strLimit)
 	resp := struct {
 		Data []TradeData `json:"result"`
 	}{}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
+	if startTime != 0 && endTime != 0 {
+		if startTime >= (endTime) {
 			return resp.Data, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("start_time", strconv.FormatInt(startTime, 10))
+		params.Set("end_time", strconv.FormatInt(endTime, 10))
 	}
 	return resp.Data, f.SendHTTPRequest(fmt.Sprintf(ftxAPIURL+getTrades, marketName)+params.Encode(),
 		&resp)

@@ -469,27 +469,32 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetRecentTrades returns historic trade data within the timeframe provided.
+func (b *Bitfinex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return b.GetExchangeHistory(p, assetType, time.Unix(0, 0), time.Unix(0, 0))
+}
+
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
-	tradeHistory, err := b.GetTrades(p.String(), -1 ,timestampStart.Unix() *1000, timestampEnd.Unix() * 1000, true)
+	tradeHistory, err := b.GetTrades(p.String(), -1, timestampStart.Unix()*1000, timestampEnd.Unix()*1000, true)
 	if err != nil {
 		return nil, err
 	}
 	var resp []trade.Data
 	for i := range tradeHistory {
 		tID := strconv.FormatInt(tradeHistory[i].TID, 10)
-		resp= append(resp, trade.Data{
+		resp = append(resp, trade.Data{
 			TID:          tID,
 			Exchange:     b.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
 			Price:        tradeHistory[i].Price,
 			Amount:       tradeHistory[i].Amount,
-			Timestamp:    time.Unix(0, tradeHistory[i].Timestamp * int64(time.Millisecond)),
+			Timestamp:    time.Unix(0, tradeHistory[i].Timestamp*int64(time.Millisecond)),
 		})
 	}
 
