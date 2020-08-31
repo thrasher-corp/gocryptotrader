@@ -61,7 +61,10 @@ and can be overridden with the ```-config``` flag
    file     seed candle data from a file
    help, h  Shows a list of commands or help for one command
 ```
-
+##### command examples
+```
+dbseed candle file --exchange=binance --base=BTC --quote=USDT --interval=86400 --asset=spot --filename=../../testdata/binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv
+```
 File structure for import contains the following rows with no headers:
 
 ```
@@ -80,6 +83,12 @@ An example of this is:
    file     seed exchange data from a file
    add      add a single exchange
    default  seed exchange from default list
+```
+##### command examples
+```
+dbseed exchange add --name=newexchange
+dbseed exchange file --filename=../../testdata/exchangelist.csv
+dbseed exchange default
 ```
 
 File structure for importing contains the following rows with no headers:

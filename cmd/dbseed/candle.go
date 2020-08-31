@@ -20,27 +20,27 @@ var seedCandleCommand = &cli.Command{
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "exchange",
-					Usage: "Exchange name of supplied candle data",
+					Usage: "exchange name of supplied candle data",
 				},
 				&cli.StringFlag{
 					Name:  "base",
-					Usage: "Base currency of supplied candle data",
+					Usage: "base currency of supplied candle data",
 				},
 				&cli.StringFlag{
 					Name:  "quote",
-					Usage: "Quote currency of supplied candle data",
+					Usage: "quote currency of supplied candle data",
 				},
 				&cli.Int64Flag{
 					Name:  "interval",
-					Usage: "Interval of supplied candle data",
+					Usage: "interval of supplied candle data",
 				},
 				&cli.StringFlag{
 					Name:  "asset",
-					Usage: "Asset type of supplied data (spot/margin/futures for example)",
+					Usage: "asset type of supplied data (spot/margin/futures for example)",
 				},
 				&cli.StringFlag{
 					Name:      "filename",
-					Usage:     "CSV file to load candle data from (see readme for formatting details)",
+					Usage:     "csv file to load candle data from (see readme for formatting details)",
 					TakesFile: true,
 					FilePath:  workingDir,
 				},
@@ -106,7 +106,7 @@ func seedCandleFromFile(c *cli.Context) error {
 		return err
 	}
 
-	err = Load(c)
+	err = load(c)
 	if err != nil {
 		return err
 	}

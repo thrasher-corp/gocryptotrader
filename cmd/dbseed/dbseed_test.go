@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	testConfig = filepath.Join("configtest.json")
+	testConfig = filepath.Join("..", "..", "testdata", "configtest.json")
 	testApp    = &cli.App{
 		Name:                 "dbseed",
 		Version:              core.Version(false),
@@ -40,7 +40,7 @@ func TestLoad(t *testing.T) {
 	fs := &flag.FlagSet{}
 	fs.String("config", testConfig, "")
 	newCtx := cli.NewContext(testApp, fs, &cli.Context{})
-	err := Load(newCtx)
+	err := load(newCtx)
 	if err != nil {
 		t.Fatal(err)
 	}

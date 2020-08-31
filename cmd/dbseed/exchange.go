@@ -47,7 +47,7 @@ var seedExchangeCommand = &cli.Command{
 }
 
 func seedExchangeFromDefaultList(c *cli.Context) error {
-	err := Load(c)
+	err := load(c)
 	if err != nil {
 		return err
 	}
@@ -71,8 +71,8 @@ func seedExchangeFromFile(c *cli.Context) error {
 	}
 
 	var fileName string
-	if c.IsSet("name") {
-		fileName = c.String("name")
+	if c.IsSet("filename") {
+		fileName = c.String("filename")
 	} else if c.Args().Get(0) != "" {
 		fileName = c.Args().Get(0)
 	}
@@ -82,7 +82,7 @@ func seedExchangeFromFile(c *cli.Context) error {
 		return err
 	}
 
-	err = Load(c)
+	err = load(c)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func addSingleExchange(c *cli.Context) error {
 		exchangeName = c.Args().Get(0)
 	}
 
-	err := Load(c)
+	err := load(c)
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,7 @@ var (
 	dbConn *database.Instance
 )
 
-func Load(c *cli.Context) error {
+func load(c *cli.Context) error {
 	var conf config.Config
 	err := conf.LoadConfig(c.String("config"), true)
 	if err != nil {
