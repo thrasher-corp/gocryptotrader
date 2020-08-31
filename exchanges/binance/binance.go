@@ -193,6 +193,13 @@ var uValidOBLimits = []string{"5", "10", "20", "50", "100", "500", "1000"}
 
 var uValidPeriods = []string{"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
 
+// UExchangeInfo stores futures data
+func (b *Binance) UExchangeInfo() (UFuturesExchangeInfo, error) {
+	var resp UFuturesExchangeInfo
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendHTTPRequest(uFuturesAPIURL+ufuturesExchangeInfo, limitDefault, &resp)
+}
+
 // UFuturesOrderbook gets orderbook data for uFutures
 func (b *Binance) UFuturesOrderbook(symbol string, limit int64) (OrderBook, error) {
 	var resp OrderBook
@@ -321,41 +328,83 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 	}
 	var tempData FuturesCandleStick
 	var floatData float64
+	var strData string
+	var ok bool
 	for x := range data {
-		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		floatData, ok = data[x][0].(float64)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][1].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Open = floatData
-		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		strData, ok = data[x][2].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.High = floatData
-		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		strData, ok = data[x][3].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Low = floatData
-		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		strData, ok = data[x][4].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Close = floatData
-		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		strData, ok = data[x][5].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Volume = floatData
-		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		floatData, ok = data[x][6].(float64)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][7].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.BaseAssetVolume = floatData
-		tempData.TakerBuyVolume = data[x][8].(float64)
-		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		floatData, ok = data[x][8].(float64)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		tempData.TakerBuyVolume = floatData
+		strData, ok = data[x][9].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
@@ -367,13 +416,33 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 
 // UGetMarkPrice gets mark price data for ufutures
 func (b *Binance) UGetMarkPrice(symbol string) ([]UMarkPrice, error) {
+	var data json.RawMessage
 	var resp []UMarkPrice
+	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
+		singleResp = true
 	}
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesMarkPrice+params.Encode(), limitDefault, &resp)
+	err := b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesMarkPrice+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	if singleResp {
+		var tempResp UMarkPrice
+		err := json.Unmarshal(data, &tempResp)
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, tempResp)
+	} else {
+		err := json.Unmarshal(data, &resp)
+		if err != nil {
+			return resp, err
+		}
+	}
+	return resp, nil
 }
 
 // UGetFundingHistory gets funding history for ufutures
@@ -399,35 +468,95 @@ func (b *Binance) UGetFundingHistory(symbol string, limit int64, startTime, endT
 
 // U24HTickerPriceChangeStats gets 24hr ticker price change stats for ufutures
 func (b *Binance) U24HTickerPriceChangeStats(symbol string) ([]U24HrPriceChangeStats, error) {
+	var data json.RawMessage
 	var resp []U24HrPriceChangeStats
+	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
+		singleResp = true
 	}
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesTickerPriceStats+params.Encode(), limitDefault, &resp)
+	err := b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesTickerPriceStats+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	if singleResp {
+		var tempResp U24HrPriceChangeStats
+		err := json.Unmarshal(data, &tempResp)
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, tempResp)
+	} else {
+		err := json.Unmarshal(data, &resp)
+		if err != nil {
+			return resp, err
+		}
+	}
+	return resp, nil
 }
 
 // USymbolPriceTicker gets symbol price ticker for ufutures
 func (b *Binance) USymbolPriceTicker(symbol string) ([]USymbolPriceTicker, error) {
 	var resp []USymbolPriceTicker
+	var data json.RawMessage
+	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
+		singleResp = true
 	}
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesSymbolPriceTicker+params.Encode(), limitDefault, &resp)
+	err := b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesSymbolPriceTicker+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	if singleResp {
+		var tempResp USymbolPriceTicker
+		err := json.Unmarshal(data, &tempResp)
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, tempResp)
+	} else {
+		err := json.Unmarshal(data, &resp)
+		if err != nil {
+			return resp, err
+		}
+	}
+	return resp, nil
 }
 
 // USymbolOrderbookTicker gets symbol orderbook ticker
 func (b *Binance) USymbolOrderbookTicker(symbol string) ([]USymbolOrderbookTicker, error) {
 	var resp []USymbolOrderbookTicker
+	var singleResp bool
+	var data json.RawMessage
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
+		singleResp = true
 	}
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesSymbolOrderbook+params.Encode(), limitDefault, &resp)
+	err := b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesSymbolOrderbook+params.Encode(), limitDefault, &data)
+	if err != nil {
+		return resp, err
+	}
+	if singleResp {
+		var tempResp USymbolOrderbookTicker
+		err := json.Unmarshal(data, &tempResp)
+		if err != nil {
+			return resp, err
+		}
+		resp = append(resp, tempResp)
+	} else {
+		err := json.Unmarshal(data, &resp)
+		if err != nil {
+			return resp, err
+		}
+	}
+	return resp, nil
 }
 
 // ULiquidationOrders gets public liquidation orders
@@ -632,17 +761,114 @@ func (b *Binance) UFuturesNewOrder(symbol, side, positionSide, orderType, timeIn
 		params.Set("callbackRate", strconv.FormatFloat(callbackRate, 'f', -1, 64))
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesOrder, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesOrder, params, limitDefault, &resp)
+}
+
+// UPlaceBatchOrders places batch orders
+func (b *Binance) UPlaceBatchOrders(data []PlaceBatchOrderData) ([]UOrderData, error) {
+	var resp []UOrderData
+	params := url.Values{}
+	for x := range data {
+		if data[x].PositionSide != "" {
+			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
+				return resp, fmt.Errorf("invalid positionSide")
+			}
+		}
+		if data[x].ReduceOnly != "" {
+			if !common.StringDataCompare(validBoolString, data[x].ReduceOnly) {
+				return resp, fmt.Errorf("invalid reduceOnly")
+			}
+		}
+		if data[x].WorkingType != "" {
+			if !common.StringDataCompare(validWorkingType, data[x].WorkingType) {
+				return resp, fmt.Errorf("invalid workingType")
+			}
+		}
+		if data[x].NewOrderRespType != "" {
+			if !common.StringDataCompare(validNewOrderRespType, data[x].NewOrderRespType) {
+				return resp, fmt.Errorf("invalid newOrderRespType")
+			}
+		}
+	}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("batchOrders", string(jsonData))
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesBatchOrder, params, limitDefault, &resp)
+}
+
+// UGetOrderData gets order data for ufutures
+func (b *Binance) UGetOrderData(symbol, orderID, cliOrderID string) (UOrderData, error) {
+	var resp UOrderData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if cliOrderID != "" {
+		params.Set("origClientOrderId", cliOrderID)
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesOrder, params, limitDefault, &resp)
+}
+
+// UCancelOrder cancel an order for ufutures
+func (b *Binance) UCancelOrder(symbol, orderID, cliOrderID string) (UOrderData, error) {
+	var resp UOrderData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if cliOrderID != "" {
+		params.Set("origClientOrderId", cliOrderID)
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+ufuturesOrder, params, limitDefault, &resp)
+}
+
+// UCancelAllOpenOrders cancels all open orders for a symbol ufutures
+func (b *Binance) UCancelAllOpenOrders(symbol string) (GenericAuthResponse, error) {
+	var resp GenericAuthResponse
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+ufuturesCancelAllOrders, params, limitDefault, &resp)
+}
+
+// UCancelBatchOrders cancel batch order for ufutures
+func (b *Binance) UCancelBatchOrders(symbol string, orderIDList, origCliOrdIDList []string) ([]UOrderData, error) {
+	var resp []UOrderData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if len(orderIDList) != 0 {
+		jsonOrders, err := json.Marshal(orderIDList)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("orderIdList", string(jsonOrders))
+	}
+	if len(origCliOrdIDList) != 0 {
+		jsonCliOrders, err := json.Marshal(origCliOrdIDList)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("origClientOrderIdList", string(jsonCliOrders))
+	}
+	b.API.Endpoints.URL = uFuturesAPIURL
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+ufuturesBatchOrder, params, limitDefault, &resp)
 }
 
 // UAutoCancelAllOpenOrders auto cancels all ufutures open orders for a symbol after the set countdown time
-func (b *Binance) UAutoCancelAllOpenOrders(symbol string, countdownTime int64) (UOrderData, error) {
-	var resp UOrderData
+func (b *Binance) UAutoCancelAllOpenOrders(symbol string, countdownTime int64) (AutoCancelAllOrdersData, error) {
+	var resp AutoCancelAllOrdersData
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("countdownTime", strconv.FormatInt(countdownTime, 10))
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesCountdownCancel, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesCountdownCancel, params, limitDefault, &resp)
 }
 
 // UFetchOpenOrder sends a request to fetch open order data for ufutures
@@ -659,7 +885,7 @@ func (b *Binance) UFetchOpenOrder(symbol, orderID, origClientOrderID string) (UO
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesOpenOrder, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesOpenOrder, params, limitDefault, &resp)
 }
 
 // UAllAccountOpenOrders gets all account's orders for ufutures
@@ -670,7 +896,7 @@ func (b *Binance) UAllAccountOpenOrders(symbol string) ([]UOrderData, error) {
 		params.Set("symbol", symbol)
 	}
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAllOpenOrders, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAllOpenOrders, params, limitDefault, &resp)
 }
 
 // UAllAccountOrders gets all account's orders for ufutures
@@ -691,21 +917,21 @@ func (b *Binance) UAllAccountOrders(symbol string, limit int64, startTime, endTi
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAllOrders, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAllOrders, params, limitDefault, &resp)
 }
 
 // UAccountBalanceV2 gets V2 account balance data
 func (b *Binance) UAccountBalanceV2() ([]UAccountBalanceV2Data, error) {
 	var resp []UAccountBalanceV2Data
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAccountBalance, nil, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAccountBalance, nil, limitDefault, &resp)
 }
 
 // UAccountInformationV2 gets V2 account balance data
 func (b *Binance) UAccountInformationV2() (UAccountInformationV2Data, error) {
 	var resp UAccountInformationV2Data
 	b.API.Endpoints.URL = uFuturesAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAccountInfo, nil, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAccountInfo, nil, limitDefault, &resp)
 }
 
 // UChangeInitialLeverageRequest sends a request to change account's initial leverage
@@ -718,7 +944,7 @@ func (b *Binance) UChangeInitialLeverageRequest(symbol string, leverage int64) (
 		return resp, fmt.Errorf("invalid leverage")
 	}
 	params.Set("leverage", strconv.FormatInt(leverage, 10))
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesChangeInitialLeverage, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesChangeInitialLeverage, params, limitDefault, &resp)
 }
 
 // UChangeInitialMarginType sends a request to change account's initial margin type
@@ -731,7 +957,7 @@ func (b *Binance) UChangeInitialMarginType(symbol, marginType string) error {
 		return fmt.Errorf("invalid marginType")
 	}
 	params.Set("marginType", marginType)
-	return b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesChangeMarginType, params, limitDefault, nil, &resp)
+	return b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesChangeMarginType, params, limitDefault, &resp)
 }
 
 // UModifyIsolatedPositionMarginReq sends a request to modify isolated margin for ufutures
@@ -751,7 +977,7 @@ func (b *Binance) UModifyIsolatedPositionMarginReq(symbol, positionSide, changeT
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesModifyMargin, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesModifyMargin, params, limitDefault, &resp)
 }
 
 // UPositionMarginChangeHistory gets margin change history for ufutures
@@ -775,7 +1001,7 @@ func (b *Binance) UPositionMarginChangeHistory(symbol, changeType string, limit 
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesMarginChangeHistory, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesMarginChangeHistory, params, limitDefault, &resp)
 }
 
 // UPositionsInfoV2 gets positions' info for ufutures
@@ -786,7 +1012,7 @@ func (b *Binance) UPositionsInfoV2(symbol string) ([]UChangeInitialLeverage, err
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesPositionInfo, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesPositionInfo, params, limitDefault, &resp)
 }
 
 // UAccountTradesHistory gets account's trade history data for ufutures
@@ -808,7 +1034,7 @@ func (b *Binance) UAccountTradesHistory(symbol, fromID string, limit int64, star
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAccountTradeList, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesAccountTradeList, params, limitDefault, &resp)
 }
 
 // UAccountIncomeHistory gets account's income history data for ufutures
@@ -833,7 +1059,7 @@ func (b *Binance) UAccountIncomeHistory(symbol, incomeType string, limit int64, 
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesIncomeHistory, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesIncomeHistory, params, limitDefault, &resp)
 }
 
 // UGetNotionalAndLeverageBrackets gets account's notional and leverage brackets for ufutures
@@ -844,7 +1070,7 @@ func (b *Binance) UGetNotionalAndLeverageBrackets(symbol string) ([]UNotionalLev
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesNotionalBracket, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesNotionalBracket, params, limitDefault, &resp)
 }
 
 // UPositionsADLEstimate gets estimated ADL data for ufutures positions
@@ -855,7 +1081,7 @@ func (b *Binance) UPositionsADLEstimate(symbol string) (UPositionADLEstimationDa
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesADLQuantile, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesADLQuantile, params, limitDefault, &resp)
 }
 
 // UAccountForcedOrders gets account's forced (liquidation) orders for ufutures
@@ -882,7 +1108,7 @@ func (b *Binance) UAccountForcedOrders(symbol, autoCloseType string, limit int64
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesUsersForceOrders, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesUsersForceOrders, params, limitDefault, &resp)
 }
 
 //
@@ -896,8 +1122,8 @@ func (b *Binance) UAccountForcedOrders(symbol, autoCloseType string, limit int64
 // Coin Margined Futures
 
 // FuturesExchangeInfo stores futures data
-func (b *Binance) FuturesExchangeInfo() (interface{}, error) {
-	var resp interface{}
+func (b *Binance) FuturesExchangeInfo() (CExchangeInfo, error) {
+	var resp CExchangeInfo
 	b.API.Endpoints.URL = futuresAPIURL
 	return resp, b.SendHTTPRequest(futuresAPIURL+cfuturesExchangeInfo, limitDefault, &resp)
 }
@@ -1033,42 +1259,84 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		return resp, err
 	}
 	var floatData float64
+	var strData string
+	var ok bool
 	var tempData FuturesCandleStick
 	for x := range data {
-		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		floatData, ok = data[x][0].(float64)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][1].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Open = floatData
-		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		strData, ok = data[x][2].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.High = floatData
-		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		strData, ok = data[x][3].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Low = floatData
-		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		strData, ok = data[x][4].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Close = floatData
-		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		strData, ok = data[x][5].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Volume = floatData
-		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		floatData, ok = data[x][6].(float64)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][7].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.BaseAssetVolume = floatData
-		tempData.TakerBuyVolume = data[x][8].(float64)
-		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		floatData, ok = data[x][8].(float64)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		tempData.TakerBuyVolume = floatData
+		strData, ok = data[x][9].(string)
+		if !ok {
+			return resp, fmt.Errorf("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
@@ -1565,13 +1833,13 @@ func (b *Binance) FuturesNewOrder(symbol, side, positionSide, orderType, timeInF
 		params.Set("callbackRate", strconv.FormatFloat(callbackRate, 'f', -1, 64))
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesOrder, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesOrder, params, limitDefault, &resp)
 }
 
 // FuturesBatchOrder sends a batch order request
 func (b *Binance) FuturesBatchOrder(data []PlaceBatchOrderData) ([]FuturesOrderPlaceData, error) {
 	var resp []FuturesOrderPlaceData
-	req := make(map[string]interface{})
+	params := url.Values{}
 	for x := range data {
 		if data[x].PositionSide != "" {
 			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
@@ -1594,12 +1862,16 @@ func (b *Binance) FuturesBatchOrder(data []PlaceBatchOrderData) ([]FuturesOrderP
 			}
 		}
 	}
-	req["batchOrders"] = data
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesBatchOrder, nil, limitDefault, req, &resp)
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("batchOrders", string(jsonData))
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesBatchOrder, params, limitDefault, &resp)
 }
 
 // FuturesBatchCancelOrders sends a batch request to cancel orders
-func (b *Binance) FuturesBatchCancelOrders(symbol string, orderList []string, origClientOrderIDList []string) ([]BatchCancelOrderData, error) {
+func (b *Binance) FuturesBatchCancelOrders(symbol string, orderList, origClientOrderIDList []string) ([]BatchCancelOrderData, error) {
 	var resp []BatchCancelOrderData
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -1619,7 +1891,7 @@ func (b *Binance) FuturesBatchCancelOrders(symbol string, orderList []string, or
 		}
 		params.Set("origClientOrderIdList", string(jsonCliOrdIDList))
 	}
-	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+cfuturesBatchOrder, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+cfuturesBatchOrder, params, limitDefault, &resp)
 }
 
 // FuturesGetOrderData gets futures order data
@@ -1634,7 +1906,7 @@ func (b *Binance) FuturesGetOrderData(symbol, orderID, origClientOrderID string)
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesOrder, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesOrder, params, limitDefault, &resp)
 }
 
 // FuturesCancelOrder cancels a futures order
@@ -1649,7 +1921,7 @@ func (b *Binance) FuturesCancelOrder(symbol, orderID, origClientOrderID string) 
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+cfuturesOrder, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+cfuturesOrder, params, limitDefault, &resp)
 }
 
 // CancelAllOpenOrders cancels a futures order
@@ -1658,7 +1930,7 @@ func (b *Binance) CancelAllOpenOrders(symbol string) (GenericAuthResponse, error
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+cfuturesCancelAllOrders, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, b.API.Endpoints.URL+cfuturesCancelAllOrders, params, limitDefault, &resp)
 }
 
 // AutoCancelAllOpenOrders cancels all open futures orders
@@ -1669,7 +1941,7 @@ func (b *Binance) AutoCancelAllOpenOrders(symbol string, countdownTime int64) (A
 	params.Set("symbol", symbol)
 	params.Set("countdownTime", strconv.FormatInt(countdownTime, 10))
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesCountdownCancel, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesCountdownCancel, params, limitDefault, &resp)
 }
 
 // FuturesOpenOrderData gets open order data for futures
@@ -1684,7 +1956,7 @@ func (b *Binance) FuturesOpenOrderData(symbol, orderID, origClientOrderID string
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesOpenOrder, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesOpenOrder, params, limitDefault, &resp)
 }
 
 // GetFuturesAllOpenOrders gets all open orders data for futures
@@ -1698,7 +1970,7 @@ func (b *Binance) GetFuturesAllOpenOrders(symbol, pair string) ([]FuturesOrderGe
 		params.Set("pair", pair)
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAllOpenOrders, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAllOpenOrders, params, limitDefault, &resp)
 }
 
 // GetAllFuturesOrders gets all orders active cancelled or filled
@@ -1725,21 +1997,21 @@ func (b *Binance) GetAllFuturesOrders(symbol, pair string, startTime, endTime ti
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAllOrders, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAllOrders, params, limitDefault, &resp)
 }
 
 // GetFuturesAccountBalance gets account balance data for futures account
 func (b *Binance) GetFuturesAccountBalance() ([]FuturesAccountBalanceData, error) {
 	var resp []FuturesAccountBalanceData
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAccountBalance, nil, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAccountBalance, nil, limitDefault, &resp)
 }
 
 // GetFuturesAccountInfo gets account info data for futures account
 func (b *Binance) GetFuturesAccountInfo() (FuturesAccountInformation, error) {
 	var resp FuturesAccountInformation
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAccountInfo, nil, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAccountInfo, nil, limitDefault, &resp)
 }
 
 // FuturesChangeInitialLeverage changes initial leverage for the account
@@ -1752,7 +2024,7 @@ func (b *Binance) FuturesChangeInitialLeverage(symbol string, leverage int64) (F
 	}
 	params.Set("leverage", strconv.FormatInt(leverage, 10))
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesChangeInitialLeverage, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesChangeInitialLeverage, params, limitDefault, &resp)
 }
 
 // FuturesChangeMarginType changes margin type
@@ -1765,7 +2037,7 @@ func (b *Binance) FuturesChangeMarginType(symbol, marginType string) (GenericAut
 	}
 	params.Set("marginType", marginType)
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesChangeMarginType, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesChangeMarginType, params, limitDefault, &resp)
 }
 
 // ModifyIsolatedPositionMargin changes margin for an isolated position
@@ -1784,7 +2056,7 @@ func (b *Binance) ModifyIsolatedPositionMargin(symbol, positionSide, changeType 
 	params.Set("type", strconv.FormatInt(cType, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesModifyMargin, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesModifyMargin, params, limitDefault, &resp)
 }
 
 // FuturesMarginChangeHistory gets past margin changes for positions
@@ -1808,7 +2080,7 @@ func (b *Binance) FuturesMarginChangeHistory(symbol, changeType string, startTim
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesMarginChangeHistory, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesMarginChangeHistory, params, limitDefault, &resp)
 }
 
 // FuturesPositionsInfo gets futures positions info
@@ -1822,7 +2094,7 @@ func (b *Binance) FuturesPositionsInfo(marginAsset, pair string) ([]FuturesPosit
 		params.Set("pair", pair)
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesPositionInfo, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesPositionInfo, params, limitDefault, &resp)
 }
 
 // FuturesTradeHistory gets trade history for futures account
@@ -1849,7 +2121,7 @@ func (b *Binance) FuturesTradeHistory(symbol, pair string, startTime, endTime ti
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAccountTradeList, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesAccountTradeList, params, limitDefault, &resp)
 }
 
 // FuturesIncomeHistory gets income history for futures
@@ -1873,7 +2145,7 @@ func (b *Binance) FuturesIncomeHistory(symbol, incomeType string, startTime, end
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesIncomeHistory, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesIncomeHistory, params, limitDefault, &resp)
 }
 
 // FuturesNotionalBracket gets futures notional bracket
@@ -1884,7 +2156,7 @@ func (b *Binance) FuturesNotionalBracket(pair string) ([]NotionalBracketData, er
 		params.Set("pair", pair)
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesNotionalBracket, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesNotionalBracket, params, limitDefault, &resp)
 }
 
 // FuturesForceOrders gets futures forced orders
@@ -1901,7 +2173,7 @@ func (b *Binance) FuturesForceOrders(symbol, autoCloseType string, startTime, en
 		params.Set("autoCloseType", autoCloseType)
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesUsersForceOrders, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesUsersForceOrders, params, limitDefault, &resp)
 }
 
 // FuturesPositionsADLEstimate estimates ADL on positions
@@ -1912,7 +2184,7 @@ func (b *Binance) FuturesPositionsADLEstimate(symbol string) ([]ADLEstimateData,
 		params.Set("symbol", symbol)
 	}
 	b.API.Endpoints.URL = futuresAPIURL
-	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesADLQuantile, params, limitDefault, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesADLQuantile, params, limitDefault, &resp)
 }
 
 // *************************************************************************************
@@ -2273,7 +2545,7 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
 
-	return b.SendAuthHTTPRequest(http.MethodPost, path, params, limitOrder, nil, resp)
+	return b.SendAuthHTTPRequest(http.MethodPost, path, params, limitOrder, resp)
 }
 
 // CancelExistingOrder sends a cancel order to Binance
@@ -2293,7 +2565,7 @@ func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOr
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 
-	return resp, b.SendAuthHTTPRequest(http.MethodDelete, path, params, limitOrder, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, path, params, limitOrder, &resp)
 }
 
 // OpenOrders Current open orders. Get all open orders on a symbol.
@@ -2310,7 +2582,7 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 		params.Set("symbol", strings.ToUpper(symbol))
 	}
 
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, openOrdersLimit(symbol), nil, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, openOrdersLimit(symbol), &resp); err != nil {
 		return resp, err
 	}
 
@@ -2333,7 +2605,7 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitOrdersAll, nil, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitOrdersAll, &resp); err != nil {
 		return resp, err
 	}
 
@@ -2355,7 +2627,7 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitOrder, nil, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitOrder, &resp); err != nil {
 		return resp, err
 	}
 
@@ -2377,7 +2649,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 	path := b.API.Endpoints.URL + accountInfo
 	params := url.Values{}
 
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Unset, nil, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Unset, &resp); err != nil {
 		return &resp.Account, err
 	}
 
@@ -2401,19 +2673,12 @@ func (b *Binance) SendHTTPRequest(path string, f request.EndpointLimit, result i
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f request.EndpointLimit, req map[string]interface{}, result interface{}) error {
+func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 	if params == nil {
 		params = url.Values{}
-	}
-	if req != nil {
-		tempData, err := json.Marshal(req["batchOrders"])
-		if err != nil {
-			return err
-		}
-		params.Set("batchOrders", string(tempData))
 	}
 	recvWindow := 5 * time.Second
 	params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
@@ -2434,6 +2699,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f 
 	errCap := struct {
 		Success bool   `json:"success"`
 		Message string `json:"msg"`
+		Code    int64  `json:"code"`
 	}{}
 	ctx, cancel := context.WithTimeout(context.Background(), recvWindow)
 	defer cancel()
@@ -2452,7 +2718,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f 
 		return err
 	}
 	if err := json.Unmarshal(interim, &errCap); err == nil {
-		if !errCap.Success && errCap.Message != "" {
+		if !errCap.Success && errCap.Message != "" && errCap.Code != 200 {
 			return errors.New(errCap.Message)
 		}
 	}
@@ -2542,7 +2808,7 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 		params.Set("addressTag", addressTag)
 	}
 
-	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, request.Unset, nil, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, request.Unset, &resp); err != nil {
 		return "", err
 	}
 
@@ -2568,7 +2834,7 @@ func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) 
 	params.Set("status", "true")
 
 	return resp.Address,
-		b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Unset, nil, &resp)
+		b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Unset, &resp)
 }
 
 // GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming

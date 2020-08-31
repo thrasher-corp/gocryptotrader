@@ -2,6 +2,7 @@ package binance
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -63,7 +64,24 @@ func (b *Binance) SetDefaults() {
 			Uppercase: true,
 		},
 	}
-
+	coinFutures := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+	}
+	usdtFutures := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+	}
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -72,7 +90,14 @@ func (b *Binance) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
+	err = b.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = b.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -277,27 +302,51 @@ func (b *Binance) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
-	info, err := b.GetExchangeInfo()
-	if err != nil {
-		return nil, err
+	if !b.SupportsAsset(a) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
 	}
-
-	format, err := b.GetPairFormat(a, false)
-	if err != nil {
-		return nil, err
-	}
-
 	var pairs []string
-	for x := range info.Symbols {
-		if info.Symbols[x].Status == "TRADING" {
-			pair := info.Symbols[x].BaseAsset +
-				format.Delimiter +
-				info.Symbols[x].QuoteAsset
-			if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
-				pairs = append(pairs, pair)
+	switch a {
+	case asset.Spot, asset.Margin:
+		info, err := b.GetExchangeInfo()
+		if err != nil {
+			return nil, err
+		}
+		format, err := b.GetPairFormat(a, false)
+		if err != nil {
+			return nil, err
+		}
+		for x := range info.Symbols {
+			if info.Symbols[x].Status == "TRADING" {
+				pair := info.Symbols[x].BaseAsset +
+					format.Delimiter +
+					info.Symbols[x].QuoteAsset
+				if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
+					pairs = append(pairs, pair)
+				}
+				if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
+					pairs = append(pairs, pair)
+				}
 			}
-			if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
-				pairs = append(pairs, pair)
+		}
+	case asset.CoinMarginedFutures:
+		cInfo, err := b.FuturesExchangeInfo()
+		if err != nil {
+			return pairs, nil
+		}
+		for z := range cInfo.Symbols {
+			if cInfo.Symbols[z].ContractStatus == "TRADING" {
+				pairs = append(pairs, cInfo.Symbols[z].Symbol)
+			}
+		}
+	case asset.USDTMarginedFutures:
+		uInfo, err := b.UExchangeInfo()
+		if err != nil {
+			return pairs, nil
+		}
+		for u := range uInfo.Symbols {
+			if uInfo.Symbols[u].Status == "TRADING" {
+				pairs = append(pairs, uInfo.Symbols[u].Symbol)
 			}
 		}
 	}
@@ -329,43 +378,154 @@ func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := b.GetTickers()
-	if err != nil {
-		return nil, err
+	if !b.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", assetType, b.Name)
 	}
+	switch assetType {
+	case asset.Spot, asset.Margin:
+		tick, err := b.GetTickers()
+		if err != nil {
+			return nil, err
+		}
 
-	pairs, err := b.GetEnabledPairs(assetType)
-	if err != nil {
-		return nil, err
-	}
+		pairs, err := b.GetEnabledPairs(assetType)
+		if err != nil {
+			return nil, err
+		}
 
-	for i := range pairs {
-		for y := range tick {
+		for i := range pairs {
+
 			pairFmt, err := b.FormatExchangeCurrency(pairs[i], assetType)
 			if err != nil {
 				return nil, err
 			}
 
-			if tick[y].Symbol != pairFmt.String() {
-				continue
-			}
+			for y := range tick {
 
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[y].LastPrice,
-				High:         tick[y].HighPrice,
-				Low:          tick[y].LowPrice,
-				Bid:          tick[y].BidPrice,
-				Ask:          tick[y].AskPrice,
-				Volume:       tick[y].Volume,
-				QuoteVolume:  tick[y].QuoteVolume,
-				Open:         tick[y].OpenPrice,
-				Close:        tick[y].PrevClosePrice,
-				Pair:         pairs[i],
-				ExchangeName: b.Name,
-				AssetType:    assetType,
-			})
+				if tick[y].Symbol != pairFmt.String() {
+					continue
+				}
+
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         tick[y].LastPrice,
+					High:         tick[y].HighPrice,
+					Low:          tick[y].LowPrice,
+					Bid:          tick[y].BidPrice,
+					Ask:          tick[y].AskPrice,
+					Volume:       tick[y].Volume,
+					QuoteVolume:  tick[y].QuoteVolume,
+					Open:         tick[y].OpenPrice,
+					Close:        tick[y].PrevClosePrice,
+					Pair:         pairs[i],
+					ExchangeName: b.Name,
+					AssetType:    assetType,
+				})
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	case asset.USDTMarginedFutures:
+		tick, err := b.U24HTickerPriceChangeStats("")
+		if err != nil {
+			return nil, err
+		}
+
+		pairs, err := b.GetEnabledPairs(assetType)
+		if err != nil {
+			return nil, err
+		}
+		for i := range pairs {
+
+			pairFmt, err := b.FormatExchangeCurrency(pairs[i], assetType)
 			if err != nil {
 				return nil, err
+			}
+
+			for y := range tick {
+
+				if tick[y].Symbol != pairFmt.String() {
+					continue
+				}
+
+				tickData, err := b.USymbolOrderbookTicker(tick[y].Symbol)
+				if err != nil {
+					return nil, err
+				}
+
+				if len(tickData) != 1 {
+					return nil, fmt.Errorf("invalid tickData response: only requested tick data for the given symbol")
+				}
+
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         tick[y].LastPrice,
+					High:         tick[y].HighPrice,
+					Low:          tick[y].LowPrice,
+					Bid:          tickData[0].BidPrice,
+					Ask:          tickData[0].AskPrice,
+					Volume:       tick[y].Volume,
+					QuoteVolume:  tick[y].QuoteVolume,
+					Open:         tick[y].OpenPrice,
+					Close:        tick[y].PrevClosePrice,
+					Pair:         pairs[i],
+					ExchangeName: b.Name,
+					AssetType:    assetType,
+				})
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	case asset.CoinMarginedFutures:
+		tick, err := b.GetFuturesSwapTickerChangeStats("", "")
+		if err != nil {
+			return nil, err
+		}
+
+		pairs, err := b.GetEnabledPairs(assetType)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range pairs {
+
+			pairFmt, err := b.FormatExchangeCurrency(pairs[i], assetType)
+			if err != nil {
+				return nil, err
+			}
+
+			for y := range tick {
+
+				if tick[y].Symbol != pairFmt.String() {
+					continue
+				}
+
+				tickData, err := b.GetFuturesOrderbookTicker(tick[y].Symbol, "")
+				if err != nil {
+					return nil, err
+				}
+
+				if len(tickData) != 1 {
+					return nil, fmt.Errorf("invalid tickData response: only requested tick data for the given symbol")
+				}
+
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         tick[y].LastPrice,
+					High:         tick[y].HighPrice,
+					Low:          tick[y].LowPrice,
+					Bid:          tickData[0].BidPrice,
+					Ask:          tickData[0].AskPrice,
+					Volume:       tick[y].Volume,
+					QuoteVolume:  tick[y].QuoteVolume,
+					Open:         tick[y].OpenPrice,
+					Close:        tick[y].PrevClosePrice,
+					Pair:         pairs[i],
+					ExchangeName: b.Name,
+					AssetType:    assetType,
+				})
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

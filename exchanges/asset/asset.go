@@ -22,6 +22,8 @@ const (
 	Futures                = Item("futures")
 	UpsideProfitContract   = Item("upsideprofitcontract")
 	DownsideProfitContract = Item("downsideprofitcontract")
+	CoinMarginedFutures    = Item("coinmarginedfutures")
+	USDTMarginedFutures    = Item("usdtmarginedfutures")
 )
 
 var supported = Items{
@@ -35,6 +37,8 @@ var supported = Items{
 	Futures,
 	UpsideProfitContract,
 	DownsideProfitContract,
+	CoinMarginedFutures,
+	USDTMarginedFutures,
 }
 
 // Supported returns a list of supported asset types

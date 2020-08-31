@@ -510,19 +510,19 @@ type FuturesBasisData struct {
 type PlaceBatchOrderData struct {
 	Symbol           string  `json:"symbol"`
 	Side             string  `json:"side"`
-	PositionSide     string  `json:"positionSide"`
+	PositionSide     string  `json:"positionSide,omitempty"`
 	OrderType        string  `json:"type"`
-	TimeInForce      string  `json:"timeInForce"`
+	TimeInForce      string  `json:"timeInForce,omitempty"`
 	Quantity         float64 `json:"quantity"`
-	ReduceOnly       string  `json:"reduceOnly"`
+	ReduceOnly       string  `json:"reduceOnly,omitempty"`
 	Price            float64 `json:"price"`
-	NewClientOrderID string  `json:"newClientOrderId"`
-	StopPrice        float64 `json:"stopPrice"`
-	ActivationPrice  float64 `json:"activationPrice"`
-	CallbackRate     float64 `json:"callbackRate"`
-	WorkingType      string  `json:"workingType"`
-	PriceProtect     string  `json:"priceProtect"`
-	NewOrderRespType string  `json:"newOrderRespType"`
+	NewClientOrderID string  `json:"newClientOrderId,omitempty"`
+	StopPrice        float64 `json:"stopPrice,omitempty"`
+	ActivationPrice  float64 `json:"activationPrice,omitempty"`
+	CallbackRate     float64 `json:"callbackRate,omitempty"`
+	WorkingType      string  `json:"workingType,omitempty"`
+	PriceProtect     string  `json:"priceProtect,omitempty"`
+	NewOrderRespType string  `json:"newOrderRespType,omitempty"`
 }
 
 // BatchCancelOrderData stores batch cancel order data
@@ -839,6 +839,90 @@ type PerpsExchangeInfo struct {
 	Symbols []SymbolsData `json:"symbols"`
 }
 
+// UFuturesExchangeInfo stores exchange info for ufutures
+type UFuturesExchangeInfo struct {
+	RateLimits []struct {
+		Interval      string `json:"interval"`
+		IntervalNum   int64  `json:"intervalNum"`
+		Limit         int64  `json:"limit"`
+		RateLimitType string `json:"rateLimitType"`
+	} `json:"rateLimits"`
+	ServerTime int64 `json:"serverTime"`
+	Symbols    []struct {
+		Symbol                   string  `json:"symbol"`
+		Status                   string  `json:"status"`
+		MaintenanceMarginPercent float64 `json:"maintMarginPercent,string"`
+		RequiredMarginPercent    float64 `json:"requiredMarginPercent,string"`
+		BaseAsset                string  `json:"baseAsset"`
+		QuoteAsset               string  `json:"quoteAsset"`
+		PricePrecision           int64   `json:"pricePrecision"`
+		QuantityPrecision        int64   `json:"quantityPrecision"`
+		BaseAssetPrecision       int64   `json:"baseAssetPrecision"`
+		QuotePrecision           int64   `json:"quotePrecision"`
+		Filters                  []struct {
+			MinPrice          float64 `json:"minPrice,string,omitempty"`
+			MaxPrice          float64 `json:"maxPrice,string,omitempty"`
+			FilterType        string  `json:"filterType,omitempty"`
+			TickSize          float64 `json:"tickSize,string,omitempty"`
+			StepSize          float64 `json:"stepSize,string,omitempty"`
+			MaxQty            float64 `json:"maxQty,string,omitempty"`
+			MinQty            float64 `json:"minQty,string,omitempty"`
+			Limit             int64   `json:"limit,omitempty"`
+			MultiplierDown    float64 `json:"multiplierDown,string,omitempty"`
+			MultiplierUp      float64 `json:"multiplierUp,string,omitempty"`
+			MultiplierDecimal float64 `json:"multiplierDecimal,string,omitempty"`
+		} `json:"filters"`
+		OrderTypes  []string `json:"orderTypes"`
+		TimeInForce []string `json:"timeInForce"`
+	} `json:"symbols"`
+	Timezone string `json:"timezone"`
+}
+
+// CExchangeInfo stores exchange info for cfutures
+type CExchangeInfo struct {
+	ExchangeFilters []interface{} `json:"exchangeFilters"`
+	RateLimits      []struct {
+		Interval      string `json:"interval"`
+		IntervalNum   int64  `json:"intervalNul"`
+		Limit         int64  `json:"limit"`
+		RateLimitType string `json:"rateLimitType"`
+	} `json:"rateLimits"`
+	ServerTime int64 `json:"serverTime"`
+	Symbols    []struct {
+		Filters []struct {
+			FilterType        string  `json:"filterType,omitempty"`
+			MinPrice          float64 `json:"minPrice,string,omitempty"`
+			MaxPrice          float64 `json:"maxPrice,string,omitempty"`
+			StepSize          float64 `json:"stepSize,string,omitempty"`
+			MaxQty            float64 `json:"maxQty,string,omitempty"`
+			MinQty            float64 `json:"minQty,string,omitempty"`
+			Limit             int64   `json:"limit,omitempty"`
+			MultiplierDown    float64 `json:"multiplierDown,string,omitempty"`
+			MultiplierUp      float64 `json:"multiplierUp,string,omitempty"`
+			MultiplierDecimal float64 `json:"multiplierDecimal,string,omitempty"`
+		} `json:"filters"`
+		OrderTypes            []string `json:"orderType"`
+		TimeInForce           []string `json:"timeInForce"`
+		Symbol                string   `json:"symbol"`
+		Pair                  string   `json:"pair"`
+		ContractType          string   `json:"contractType"`
+		DeliveryDate          int64    `json:"deliveryDate"`
+		OnboardDate           int64    `json:"onboardDate"`
+		ContractStatus        string   `json:"contractStatus"`
+		ContractSize          int64    `json:"contractSize"`
+		QuoteAsset            string   `json:"quoteAsset"`
+		BaseAsset             string   `json:"baseAsset"`
+		MarginAsset           string   `json:"marginAsset"`
+		PricePrecision        int64    `json:"pricePrecision"`
+		QuantityPrecision     int64    `json:"quantityPrecision"`
+		BaseAssetPrecision    int64    `json:"baseAssetPrecision"`
+		QuotePrecision        int64    `json:"quotePrecision"`
+		MaintMarginPercent    float64  `json:"maintMarginPercent,string"`
+		RequiredMarginPercent float64  `json:"requiredMarginPercent,string"`
+	} `json:"symbols"`
+	Timezone string `json:"timezone"`
+}
+
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
 	Code       int    `json:"code"`
@@ -1047,7 +1131,7 @@ type IndexMarkPrice struct {
 	MarkPrice            float64 `json:"markPrice,string"`
 	IndexPrice           float64 `json:"indexPrice,string"`
 	EstimatedSettlePrice float64 `json:"estimatedSettlePrice,string"`
-	LastFundingRate      float64 `json:"lastFundingRate,string"`
+	LastFundingRate      string  `json:"lastFundingRate"`
 	NextFundingTime      int64   `json:"nextFundingTime"`
 	Time                 int64   `json:"time"`
 }
