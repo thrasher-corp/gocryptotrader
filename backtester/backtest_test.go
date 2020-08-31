@@ -3,7 +3,6 @@ package backtest
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"testing"
 	"time"
 
@@ -77,21 +76,18 @@ func TestBackTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ret := statistic.ReturnResults()
-	for x := range ret.Transactions {
-		fmt.Println(ret.Transactions[x])
-	}
-	fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
-
-	out, err := os.Create("out.json")
+	// ret := statistic.ReturnResults()
+	// for x := range ret.Transactions {
+	// 	fmt.Println(ret.Transactions[x])
+	// }
+	// fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
+	//
+	// statistic.PrintResult()
+	err = statistic.SaveChart("out.png")
 	if err != nil {
-		t.Fatal(err)
+		return
 	}
-
-	for x := range ret.Transactions {
-		out.WriteString(fmt.Sprintf("%+v\n", ret.Transactions[x]))
-	}
-	out.Close()
+	bt.Reset()
 }
 
 func genOHCLVData() kline.Item {

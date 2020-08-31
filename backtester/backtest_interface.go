@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// DataHandler
 type DataHandler interface {
 	DataLoader
 	DataStreamer
@@ -17,6 +18,7 @@ type DataLoader interface {
 	Load() error
 }
 
+// DataStreamer interface handles loading, parsing, distributing BackTest data
 type DataStreamer interface {
 	Next() (DataEventHandler, bool)
 	Stream() []DataEventHandler
@@ -98,6 +100,7 @@ type ExecutionHandler interface {
 	ExecuteOrder(OrderEvent, DataHandler) (*Fill, error)
 }
 
+// StatisticHandler interface handles
 type StatisticHandler interface {
 	TrackEvent(EventHandler)
 	Events() []EventHandler
@@ -118,6 +121,8 @@ type StatisticHandler interface {
 	PrintResult()
 	ReturnResults() Results
 	Reset()
+
+	SaveChart(filename string) error
 }
 
 type PortfolioHandler interface {

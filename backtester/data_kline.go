@@ -74,5 +74,3 @@ func (d *DataFromKline) StreamVol() []float64 {
 	}
 	return ret
 }
-
-

@@ -28,3 +28,7 @@ func (o *Order) GetAmount() float64 {
 func (o *Order) Pair() currency.Pair {
 	return o.CurrencyPair
 }
+
+func (o *Order) Cancel() {
+	o.Status = order.PendingCancel
+}

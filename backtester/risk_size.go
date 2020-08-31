@@ -10,7 +10,9 @@ import (
 
 // TODO implement risk manager
 func (r *Risk) EvaluateOrder(order OrderEvent, _ DataEventHandler, _ map[currency.Pair]Positions) (*Order, error) {
-	return order.(*Order), nil
+	retOrder := order.(*Order)
+
+	return retOrder, nil
 }
 
 // TODO implement risk manager

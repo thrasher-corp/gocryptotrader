@@ -3,9 +3,11 @@ package backtest
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/wcharczuk/go-chart"
 	"gonum.org/v1/gonum/stat"
 )
 
@@ -242,4 +244,28 @@ func (s *Statistic) maxDrawdownPoint() (i int, ep equityPoint) {
 	}
 
 	return index, s.equity[index]
+}
+
+func (s *Statistic) SaveChart(filename string) error {
+	graph := chart.Chart{
+		Series: []chart.Series{
+			chart.ContinuousSeries{
+				XValues: []float64{1.0, 2.0, 3.0, 4.0},
+				YValues: []float64{1.0, 2.0, 3.0, 4.0},
+			},
+		},
+	}
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+
+
+	err = graph.Render(chart.PNG, f)
+	if err != nil {
+		return err
+	}
+
+	return 	f.Close()
 }
