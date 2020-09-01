@@ -70,7 +70,7 @@ func (b *Binance) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: "_",
 		},
 	}
 	usdtFutures := currency.PairStore{
@@ -79,7 +79,6 @@ func (b *Binance) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
 		},
 	}
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
@@ -556,15 +555,32 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	if err != nil {
 		return nil, err
 	}
+	orderBook := new(orderbook.Base)
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.Name
+	orderBook.AssetType = assetType
+	var orderbookNew OrderBook
+	switch assetType {
+	case asset.Spot, asset.Margin:
 
-	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: fpair.String(),
-		Limit:  1000})
+		orderbookNew, err = b.GetOrderBook(OrderBookDataRequestParams{
+			Symbol: fpair.String(),
+			Limit:  1000})
+
+	case asset.USDTMarginedFutures:
+
+		orderbookNew, err = b.UFuturesOrderbook(fpair.String(), 1000)
+
+	case asset.CoinMarginedFutures:
+
+		orderbookNew, err = b.GetFuturesOrderbook(fpair.String(), 1000)
+
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids,
 			orderbook.Item{
@@ -581,10 +597,6 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 			})
 	}
 
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-
 	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
@@ -594,7 +606,7 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
-// Bithumb exchange
+// Binance exchange
 func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	raw, err := b.GetAccount()

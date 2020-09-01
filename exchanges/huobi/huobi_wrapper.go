@@ -56,9 +56,40 @@ func (h *HUOBI) SetDefaults() {
 	h.API.CredentialsValidator.RequiresKey = true
 	h.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{}
-	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
-	err := h.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	fmt1 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: currency.DashDelimiter,
+			Uppercase: true,
+		},
+	}
+	coinFutures := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+	}
+	usdtFutures := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+	}
+	err := h.StoreAssetPairFormat(asset.Spot, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = h.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = h.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -285,27 +316,49 @@ func (h *HUOBI) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (h *HUOBI) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	symbols, err := h.GetSymbols()
-	if err != nil {
-		return nil, err
-	}
-
-	format, err := h.GetPairFormat(asset, false)
-	if err != nil {
-		return nil, err
+func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
+	if !h.SupportsAsset(a) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, h.Name)
 	}
 
 	var pairs []string
-	for x := range symbols {
-		if symbols[x].State != "online" {
-			continue
-		}
-		pairs = append(pairs, symbols[x].BaseCurrency+
-			format.Delimiter+
-			symbols[x].QuoteCurrency)
-	}
 
+	switch a {
+	case asset.Spot:
+		symbols, err := h.GetSymbols()
+		if err != nil {
+			return nil, err
+		}
+
+		format, err := h.GetPairFormat(a, false)
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range symbols {
+			if symbols[x].State != "online" {
+				continue
+			}
+			pairs = append(pairs, symbols[x].BaseCurrency+
+				format.Delimiter+
+				symbols[x].QuoteCurrency)
+		}
+
+	case asset.CoinMarginedFutures:
+
+		symbols, err := h.GetSwapMarkets("")
+		if err != nil {
+			return nil, err
+		}
+
+		for z := range symbols {
+			if symbols[z].ContractStatus == 1 {
+				pairs = append(pairs, symbols[z].ContractCode)
+			}
+		}
+
+	case asset.USDTMarginedFutures:
+	}
 	return pairs, nil
 }
 
@@ -326,40 +379,69 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickers, err := h.GetTickers()
-	if err != nil {
-		return nil, err
-	}
-	pairs, err := h.GetEnabledPairs(assetType)
-	if err != nil {
-		return nil, err
-	}
-	for i := range pairs {
-		for j := range tickers.Data {
-			pairFmt, err := h.FormatExchangeCurrency(pairs[i], assetType)
-			if err != nil {
-				return nil, err
-			}
 
-			if pairFmt.String() != tickers.Data[j].Symbol {
-				continue
-			}
+	if !h.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", assetType, h.Name)
+	}
+	switch assetType {
+	case asset.Spot:
+		tickers, err := h.GetTickers()
+		if err != nil {
+			return nil, err
+		}
+		pairs, err := h.GetEnabledPairs(assetType)
+		if err != nil {
+			return nil, err
+		}
+		for i := range pairs {
+			for j := range tickers.Data {
+				pairFmt, err := h.FormatExchangeCurrency(pairs[i], assetType)
+				if err != nil {
+					return nil, err
+				}
 
-			err = ticker.ProcessTicker(&ticker.Price{
-				High:         tickers.Data[j].High,
-				Low:          tickers.Data[j].Low,
-				Volume:       tickers.Data[j].Volume,
-				Open:         tickers.Data[j].Open,
-				Close:        tickers.Data[j].Close,
-				Pair:         pairs[i],
-				ExchangeName: h.Name,
-				AssetType:    assetType})
-			if err != nil {
-				return nil, err
+				if pairFmt.String() != tickers.Data[j].Symbol {
+					continue
+				}
+
+				err = ticker.ProcessTicker(&ticker.Price{
+					High:         tickers.Data[j].High,
+					Low:          tickers.Data[j].Low,
+					Volume:       tickers.Data[j].Volume,
+					Open:         tickers.Data[j].Open,
+					Close:        tickers.Data[j].Close,
+					Pair:         pairs[i],
+					ExchangeName: h.Name,
+					AssetType:    assetType})
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
-	}
+	case asset.CoinMarginedFutures:
+		fmtPair, err := h.FormatExchangeCurrency(p, assetType)
+		if err != nil {
+			return nil, err
+		}
+		marketData, err := h.GetSwapMarketOverview(fmtPair.String())
+		if err != nil {
+			return nil, err
+		}
 
+		err = ticker.ProcessTicker(&ticker.Price{
+			High:         marketData.Tick.High,
+			Low:          marketData.Tick.Low,
+			Volume:       marketData.Tick.Vol,
+			Open:         marketData.Tick.Open,
+			Close:        marketData.Tick.Close,
+			Pair:         p,
+			Bid:          marketData.Tick.Bid[0],
+			Ask:          marketData.Tick.Ask[0],
+			ExchangeName: h.Name,
+			AssetType:    assetType,
+		})
+	case asset.USDTMarginedFutures:
+	}
 	return ticker.GetTicker(h.Name, p, assetType)
 }
 

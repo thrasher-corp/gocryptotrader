@@ -1,6 +1,7 @@
 package huobi
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -75,6 +76,30 @@ func setupWsTests(t *testing.T) {
 	}
 
 	wsSetupRan = true
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FetchTradablePairs(asset.CoinMarginedFutures)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	cp1, err := currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+	a, err := h.UpdateTicker(cp1, asset.CoinMarginedFutures)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestQuerySwapIndexPriceInfo(t *testing.T) {
@@ -585,8 +610,10 @@ func TestGetSwapTriggerOrderHistory(t *testing.T) {
 }
 
 func TestGetSwapMarkets(t *testing.T) {
+	h.Verbose = true
 	t.Parallel()
-	_, err := h.GetSwapMarkets("")
+	a, err := h.GetSwapMarkets("")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

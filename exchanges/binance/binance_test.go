@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -40,12 +41,44 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestUpdateTicker(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	b.API.Endpoints.URL = "https://fapi.binance.com"
+	cp, err := currency.NewPairFromString("BTCUSD_200925")
+	fmt.Println(cp)
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := b.UpdateTicker(cp, asset.CoinMarginedFutures)
+	t.Log(resp)
+	if err != nil {
+		t.Error(err)
+	}
+	cp2, err := currency.NewPairFromString("BTCUSDT")
+	fmt.Println(cp)
+	if err != nil {
+		t.Error(err)
+	}
+	resp2, err := b.UpdateTicker(cp2, asset.USDTMarginedFutures)
+	t.Log(resp2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	cp, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UpdateTicker(cp, asset.USDTMarginedFutures)
+	_, err = b.UpdateOrderbook(cp, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	cp2, err := currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateOrderbook(cp2, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}

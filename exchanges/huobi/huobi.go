@@ -238,7 +238,7 @@ func (h *HUOBI) GetSwapKlineData(code, period string, size int64, startTime, end
 	return resp, h.SendHTTPRequest(huobiURL+huobiKLineData+params.Encode(), &resp)
 }
 
-// GetSwapMarketOverview gets kline data for perpetual futures
+// GetSwapMarketOverview gets market data overview for perpetual futures
 func (h *HUOBI) GetSwapMarketOverview(code string) (MarketOverviewData, error) {
 	var resp MarketOverviewData
 	params := url.Values{}

@@ -61,7 +61,7 @@ type MarketOverviewData struct {
 	Channel string `json:"ch"`
 	Tick    struct {
 		Vol       float64   `json:"vol,string"`
-		Asks      []float64 `json:"ask"`
+		Ask       []float64 `json:"ask"`
 		Bid       []float64 `json:"bid"`
 		Close     float64   `json:"close,string"`
 		Count     float64   `json:"count"`
