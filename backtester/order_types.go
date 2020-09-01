@@ -1,6 +1,8 @@
 package backtest
 
 import (
+	"sync"
+
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -12,4 +14,13 @@ type Order struct {
 	Amount    float64
 	OrderType order.Type
 	Limit     float64
+}
+
+
+type OrderBook struct {
+	counter int
+	orders  []OrderEvent
+	history []OrderEvent
+
+	m sync.Mutex
 }

@@ -85,8 +85,7 @@ func (p *Portfolio) OnFill(fill FillEvent, data DataHandler) (*Fill, error) {
 
 	p.transactions = append(p.transactions, fill)
 
-	f := fill.(*Fill)
-	return f, nil
+	return fill.(*Fill), nil
 }
 
 func (p *Portfolio) IsInvested(pair currency.Pair) (pos Positions, ok bool) {

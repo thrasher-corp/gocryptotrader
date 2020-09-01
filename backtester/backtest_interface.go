@@ -75,6 +75,11 @@ type OrderEvent interface {
 	SetAmount(float64)
 	GetAmount() float64
 	IsOrder() bool
+
+	GetStatus() order.Status
+	SetID(id int)
+	ID() int
+	GetLimit() float64
 }
 
 type Directioner interface {

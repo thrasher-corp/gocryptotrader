@@ -25,7 +25,11 @@ func (s *TestStrategy) OnSignal(d DataHandler, p PortfolioHandler) (SignalEvent,
 	smaSlow := indicators.SMA(d.StreamClose(), 30)
 
 	ret := indicators.Crossover(smaFast, smaSlow)
-	fmt.Println(ret)
+	if ret {
+		signal.SetDirection(order.Buy)
+	} else {
+		signal.SetDirection(order.Sell)
+	}
 
 	rsiRet := indicators.RSI(d.StreamClose(), 14)[d.Offset()-1]
 	if rsiRet < 30 {
@@ -45,15 +49,17 @@ func TestBackTest(t *testing.T) {
 	data := DataFromKline{
 		Item: genOHCLVData(),
 	}
-	_ = data.Load()
-
+	err := data.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// data := DataFromTick{
 	//
 	// }
 	// _ = data.Load()
 	bt.data = &data
 
-	portfolio := Portfolio{
+	bt.portfolio = &Portfolio{
 		initialFunds: 1000,
 		riskManager:  &Risk{},
 		sizeManager: &Size{
@@ -62,17 +68,15 @@ func TestBackTest(t *testing.T) {
 		},
 	}
 
-	bt.portfolio = &portfolio
-
-	strategy := TestStrategy{}
-	bt.strategy = &strategy
-
-	exchange := Exchange{MakerFee: 0.00, TakerFee: 0.00}
-	bt.exchange = &exchange
+	bt.strategy = &TestStrategy{}
+	bt.exchange = &Exchange{
+		MakerFee: 0.00,
+		TakerFee: 0.00,
+	}
 
 	statistic := Statistic{}
 	bt.statistic = &statistic
-	err := bt.Run()
+	err = bt.Run()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,12 +85,11 @@ func TestBackTest(t *testing.T) {
 	// 	fmt.Println(ret.Transactions[x])
 	// }
 	// fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
-	//
-	// statistic.PrintResult()
-	err = statistic.SaveChart("out.png")
+	r, err := statistic.Json()
 	if err != nil {
-		return
+		t.Fatal(err)
 	}
+	fmt.Println(string(r))
 	bt.Reset()
 }
 

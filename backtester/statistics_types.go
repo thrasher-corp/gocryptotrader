@@ -9,13 +9,13 @@ import (
 type Statistic struct {
 	eventHistory       []EventHandler
 	transactionHistory []FillEvent
-	equity             []equityPoint
-	high               equityPoint
-	low                equityPoint
+	equity             []EquityPoint
+	high               EquityPoint
+	low                EquityPoint
 	initialBuy         float64
 }
 
-type equityPoint struct {
+type EquityPoint struct {
 	timestamp       time.Time
 	equity          float64
 	equityReturn    float64
@@ -24,15 +24,15 @@ type equityPoint struct {
 }
 
 type Results struct {
-	TotalEvents       int
-	TotalTransactions int
-	Transactions      []resultTransactions
-	SharpieRatio      float64
+	TotalEvents       int                  `json:"totalEvents"`
+	TotalTransactions int                  `json:"totalTransactions"`
+	Transactions      []resultTransactions `json:"transactions"`
+	SharpieRatio      float64              `json:"sharpieRatio"`
 }
 
 type resultTransactions struct {
-	time      time.Time
-	direction order.Side
-	price     float64
-	amount    float64
+	Time      time.Time  `json:"time"`
+	Direction order.Side `json:"direction"`
+	Price     float64    `json:"price"`
+	Amount    float64    `json:"amount"`
 }

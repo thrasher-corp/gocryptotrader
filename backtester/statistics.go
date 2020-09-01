@@ -1,13 +1,14 @@
 package backtest
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/wcharczuk/go-chart"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"gonum.org/v1/gonum/stat"
 )
 
@@ -16,7 +17,7 @@ func (s *Statistic) Update(d DataEventHandler, p PortfolioHandler) {
 		s.initialBuy = p.InitialFunds() / d.LatestPrice()
 	}
 
-	e := equityPoint{}
+	e := EquityPoint{}
 	e.timestamp = d.GetTime()
 	e.equity = p.Value()
 
@@ -60,8 +61,8 @@ func (s *Statistic) Reset() {
 	s.eventHistory = nil
 	s.transactionHistory = nil
 	s.equity = nil
-	s.high = equityPoint{}
-	s.low = equityPoint{}
+	s.high = EquityPoint{}
+	s.low = EquityPoint{}
 }
 
 func (s *Statistic) ReturnResults() Results {
@@ -72,10 +73,10 @@ func (s *Statistic) ReturnResults() Results {
 	}
 	for v := range s.Transactions() {
 		results.Transactions = append(results.Transactions, resultTransactions{
-			time:      s.Transactions()[v].GetTime(),
-			direction: s.Transactions()[v].GetDirection(),
-			price:     s.Transactions()[v].GetPrice(),
-			amount:    s.Transactions()[v].GetAmount(),
+			Time:      s.Transactions()[v].GetTime(),
+			Direction: s.Transactions()[v].GetDirection(),
+			Price:     s.Transactions()[v].GetPrice(),
+			Amount:    s.Transactions()[v].GetAmount(),
 		})
 	}
 	return results
@@ -126,7 +127,7 @@ func (s *Statistic) MaxDrawdownDuration() time.Duration {
 		return 0
 	}
 
-	maxPoint := equityPoint{}
+	maxPoint := EquityPoint{}
 	for index := i; index >= 0; index-- {
 		if s.equity[index].equity > maxPoint.equity {
 			maxPoint = s.equity[index]
@@ -139,8 +140,8 @@ func (s *Statistic) MaxDrawdownDuration() time.Duration {
 func (s *Statistic) SharpRatio(riskfree float64) float64 {
 	var equityReturns = make([]float64, len(s.equity))
 
-	for i, v := range s.equity {
-		equityReturns[i] = v.equityReturn
+	for i := range s.equity {
+		equityReturns[i] = s.equity[i].equityReturn
 	}
 	mean, stddev := stat.MeanStdDev(equityReturns, nil)
 
@@ -165,11 +166,11 @@ func (s *Statistic) SortinoRatio(riskfree float64) float64 {
 	return (mean - riskfree) / stdDev
 }
 
-func (s *Statistic) ViewEquityHistory() []equityPoint {
+func (s *Statistic) ViewEquityHistory() []EquityPoint {
 	return s.equity
 }
 
-func (s *Statistic) firstEquityPoint() (ep equityPoint, ok bool) {
+func (s *Statistic) firstEquityPoint() (ep EquityPoint, ok bool) {
 	if len(s.equity) == 0 {
 		return ep, false
 	}
@@ -178,7 +179,7 @@ func (s *Statistic) firstEquityPoint() (ep equityPoint, ok bool) {
 	return ep, true
 }
 
-func (s *Statistic) lastEquityPoint() (ep equityPoint, ok bool) {
+func (s *Statistic) lastEquityPoint() (ep EquityPoint, ok bool) {
 	if len(s.equity) == 0 {
 		return ep, false
 	}
@@ -187,7 +188,7 @@ func (s *Statistic) lastEquityPoint() (ep equityPoint, ok bool) {
 	return ep, true
 }
 
-func (s *Statistic) calcEquityReturn(e equityPoint) equityPoint {
+func (s *Statistic) calcEquityReturn(e EquityPoint) EquityPoint {
 	last, ok := s.lastEquityPoint()
 	if !ok {
 		e.equityReturn = 0
@@ -208,7 +209,7 @@ func (s *Statistic) calcEquityReturn(e equityPoint) equityPoint {
 	return e
 }
 
-func (s *Statistic) calcDrawdown(e equityPoint) equityPoint {
+func (s *Statistic) calcDrawdown(e EquityPoint) EquityPoint {
 	if s.high.equity == 0 {
 		e.drawdown = 0
 		return e
@@ -228,7 +229,7 @@ func (s *Statistic) calcDrawdown(e equityPoint) equityPoint {
 	return e
 }
 
-func (s *Statistic) maxDrawdownPoint() (i int, ep equityPoint) {
+func (s *Statistic) maxDrawdownPoint() (i int, ep EquityPoint) {
 	if len(s.equity) == 0 {
 		return 0, ep
 	}
@@ -246,26 +247,32 @@ func (s *Statistic) maxDrawdownPoint() (i int, ep equityPoint) {
 	return index, s.equity[index]
 }
 
-func (s *Statistic) SaveChart(filename string) error {
-	graph := chart.Chart{
-		Series: []chart.Series{
-			chart.ContinuousSeries{
-				XValues: []float64{1.0, 2.0, 3.0, 4.0},
-				YValues: []float64{1.0, 2.0, 3.0, 4.0},
-			},
-		},
+func (s *Statistic) Json() ([]byte, error) {
+	output, err := json.Marshal(s.ReturnResults())
+	if err != nil {
+		return []byte{}, err
 	}
+	return output, nil
+}
+
+func (s *Statistic) SaveChart(filename string) error {
+	var sellPoint, buyPoint []time.Time
+	for y := range s.Transactions() {
+		if s.Transactions()[y].GetDirection() == order.Buy {
+			buyPoint = append(buyPoint, s.Transactions()[y].GetTime())
+		} else if s.Transactions()[y].GetDirection() == order.Sell {
+			sellPoint = append(sellPoint, s.Transactions()[y].GetTime())
+		}
+	}
+
+	fmt.Println(sellPoint)
+	fmt.Println(buyPoint)
 
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
+	_ = f
 
-
-	err = graph.Render(chart.PNG, f)
-	if err != nil {
-		return err
-	}
-
-	return 	f.Close()
+	return nil
 }

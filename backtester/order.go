@@ -32,3 +32,19 @@ func (o *Order) Pair() currency.Pair {
 func (o *Order) Cancel() {
 	o.Status = order.PendingCancel
 }
+
+func (o *Order) GetStatus() order.Status {
+	return o.Status
+}
+
+func (o *Order) SetID(id int) {
+	panic("implement me")
+}
+
+func (o *Order) ID() int {
+	panic("implement me")
+}
+
+func (o *Order) GetLimit() float64 {
+	panic("implement me")
+}
