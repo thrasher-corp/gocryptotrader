@@ -12,10 +12,6 @@ type Event struct {
 	CurrencyPair currency.Pair
 }
 
-type DataEvent struct {
-	Metrics map[string]float64
-}
-
 type Signal struct {
 	Event
 	Amount    float64

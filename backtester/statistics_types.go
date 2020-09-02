@@ -13,13 +13,15 @@ type Statistic struct {
 	high               EquityPoint
 	low                EquityPoint
 	initialBuy         float64
+
+	strategyName string
 }
 
 type EquityPoint struct {
 	timestamp       time.Time
 	equity          float64
 	equityReturn    float64
-	drawdown        float64
+	drawnDown       float64
 	buyAndHoldValue float64
 }
 

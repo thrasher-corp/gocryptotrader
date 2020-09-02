@@ -19,10 +19,6 @@ func (e *Event) Pair() currency.Pair {
 	return e.CurrencyPair
 }
 
-func (d *DataEvent) IsDataEvent() bool {
-	return true
-}
-
 func (s *Signal) IsSignal() bool {
 	return true
 }

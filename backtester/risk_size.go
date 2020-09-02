@@ -12,6 +12,7 @@ import (
 func (r *Risk) EvaluateOrder(order OrderEvent, _ DataEventHandler, _ map[currency.Pair]Positions) (*Order, error) {
 	retOrder := order.(*Order)
 
+
 	return retOrder, nil
 }
 

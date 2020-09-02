@@ -16,7 +16,6 @@ type Order struct {
 	Limit     float64
 }
 
-
 type OrderBook struct {
 	counter int
 	orders  []OrderEvent

@@ -112,7 +112,7 @@ func (s *Statistic) TotalEquityReturn() (r float64, err error) {
 
 func (s *Statistic) MaxDrawdown() float64 {
 	_, ep := s.maxDrawdownPoint()
-	return ep.drawdown
+	return ep.drawnDown
 }
 
 func (s *Statistic) MaxDrawdownTime() time.Time {
@@ -211,7 +211,7 @@ func (s *Statistic) calcEquityReturn(e EquityPoint) EquityPoint {
 
 func (s *Statistic) calcDrawdown(e EquityPoint) EquityPoint {
 	if s.high.equity == 0 {
-		e.drawdown = 0
+		e.drawnDown = 0
 		return e
 	}
 
@@ -219,12 +219,12 @@ func (s *Statistic) calcDrawdown(e EquityPoint) EquityPoint {
 	equity := decimal.NewFromFloat(e.equity)
 
 	if equity.GreaterThanOrEqual(lastHigh) {
-		e.drawdown = 0
+		e.drawnDown = 0
 		return e
 	}
 
 	drawdown := equity.Sub(lastHigh).Div(lastHigh)
-	e.drawdown, _ = drawdown.Round(DP).Float64()
+	e.drawnDown, _ = drawdown.Round(DP).Float64()
 
 	return e
 }
@@ -238,8 +238,8 @@ func (s *Statistic) maxDrawdownPoint() (i int, ep EquityPoint) {
 	var index = 0
 
 	for i, ep := range s.equity {
-		if ep.drawdown < maxDrawdown {
-			maxDrawdown = ep.drawdown
+		if ep.drawnDown < maxDrawdown {
+			maxDrawdown = ep.drawnDown
 			index = i
 		}
 	}
@@ -248,11 +248,21 @@ func (s *Statistic) maxDrawdownPoint() (i int, ep EquityPoint) {
 }
 
 func (s *Statistic) Json() ([]byte, error) {
-	output, err := json.Marshal(s.ReturnResults())
+	output, err := json.MarshalIndent(s.ReturnResults(), "", " ")
 	if err != nil {
 		return []byte{}, err
 	}
-	return output, nil
+
+	f, err := os.Create("out.json")
+	if err != nil {
+		return []byte{}, nil
+	}
+	_, err = f.Write(output)
+	if err != nil {
+		return []byte{}, nil
+	}
+
+	return output, f.Close()
 }
 
 func (s *Statistic) SaveChart(filename string) error {

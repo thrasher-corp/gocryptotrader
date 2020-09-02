@@ -17,9 +17,14 @@ type Candle struct {
 }
 type Tick struct {
 	Event
-	DataEvent
 	Bid float64
 	Ask float64
+}
+
+type Orderbook struct {
+	Event
+	Bids []float64
+	Asks []float64
 }
 
 type Data struct {

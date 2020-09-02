@@ -147,6 +147,7 @@ type PortfolioHandler interface {
 }
 
 type StrategyHandler interface {
+	Name() string
 	OnSignal(DataHandler, PortfolioHandler) (SignalEvent, error)
 }
 

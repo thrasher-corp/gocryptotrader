@@ -26,23 +26,19 @@ func (ob *OrderBook) Remove(id int) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("order with id %v not found", id)
+	return fmt.Errorf("order %v not found", id)
 }
 
-func (ob *OrderBook) Orders() ([]OrderEvent, bool) {
-	if len(ob.orders) == 0 {
-		return ob.orders, false
-	}
-
-	return ob.orders, true
+func (ob *OrderBook) Orders() []OrderEvent {
+	return ob.orders
 }
 
 func (ob *OrderBook) OrderBy(fn func(order OrderEvent) bool) ([]OrderEvent, bool) {
 	var orders []OrderEvent
 
-	for _, order := range ob.orders {
-		if fn(order) {
-			orders = append(orders, order)
+	for x := range ob.orders {
+		if fn(ob.orders[x]) {
+			orders = append(orders, ob.orders[x])
 		}
 	}
 

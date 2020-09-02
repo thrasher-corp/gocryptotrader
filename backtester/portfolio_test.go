@@ -3,6 +3,7 @@ package backtest
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -26,24 +27,67 @@ func TestPortfolio_IsLong(t *testing.T) {
 		wantPos Positions
 		wantOk  bool
 	}{
-		// TODO: Add test cases.
+		{
+			"IsLong - false",
+			fields{},
+			args{},
+			Positions{},
+			false,
+		},
+		{
+			"IsLong - true",
+			fields{
+				holdings: map[currency.Pair]Positions{
+					currency.NewPair(currency.BTC, currency.USDT): {
+						timestamp:        time.Time{},
+						pair:             currency.Pair{},
+						amount:           5,
+						amountBought:     0,
+						amountSold:       0,
+						avgPrice:         0,
+						avgPriceNet:      0,
+						avgPriceBought:   0,
+						avgPriceSold:     0,
+						value:            0,
+						valueBought:      0,
+						valueSold:        0,
+						netValue:         0,
+						netValueBought:   0,
+						netValueSold:     0,
+						marketPrice:      0,
+						marketValue:      0,
+						commission:       0,
+						exchangeFee:      0,
+						cost:             0,
+						costBasis:        0,
+						realProfitLoss:   0,
+						unrealProfitLoss: 0,
+						totalProfitLoss:  0,
+					},
+				},
+			},
+			args{},
+			Positions{},
+			false,
+		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for x := range tests {
+		test := tests[x]
+		t.Run(test.name, func(t *testing.T) {
 			p := &Portfolio{
-				initialFunds: tt.fields.initialFunds,
-				funds:        tt.fields.funds,
-				holdings:     tt.fields.holdings,
-				transactions: tt.fields.transactions,
-				sizeManager:  tt.fields.sizeManager,
-				riskManager:  tt.fields.riskManager,
+				initialFunds: test.fields.initialFunds,
+				funds:        test.fields.funds,
+				holdings:     test.fields.holdings,
+				transactions: test.fields.transactions,
+				sizeManager:  test.fields.sizeManager,
+				riskManager:  test.fields.riskManager,
 			}
-			gotPos, gotOk := p.IsLong(tt.args.pair)
-			if !reflect.DeepEqual(gotPos, tt.wantPos) {
-				t.Errorf("IsLong() gotPos = %v, want %v", gotPos, tt.wantPos)
+			gotPos, gotOk := p.IsLong(test.args.pair)
+			if !reflect.DeepEqual(gotPos, test.wantPos) {
+				t.Errorf("IsLong() gotPos = %v, want %v", gotPos, test.wantPos)
 			}
-			if gotOk != tt.wantOk {
-				t.Errorf("IsLong() gotOk = %v, want %v", gotOk, tt.wantOk)
+			if gotOk != test.wantOk {
+				t.Errorf("IsLong() gotOk = %v, want %v", gotOk, test.wantOk)
 			}
 		})
 	}

@@ -15,6 +15,10 @@ import (
 
 type TestStrategy struct{}
 
+func (s *TestStrategy) Name() string {
+	return "TestStrategy"
+}
+
 func (s *TestStrategy) OnSignal(d DataHandler, p PortfolioHandler) (SignalEvent, error) {
 	signal := Signal{
 		Event: Event{Time: d.Latest().GetTime(),
