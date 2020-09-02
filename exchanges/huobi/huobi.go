@@ -25,6 +25,28 @@ const (
 	huobiAPIVersion  = "1"
 	huobiAPIVersion2 = "2"
 
+	// Futures endpoints
+	fContractInfo              = "api/v1/contract_contract_info"
+	fContractIndexPrice        = "api/v1/contract_index"
+	fContractPriceLimitation   = "api/v1/contract_price_limit"
+	fContractOpenInterest      = "api/v1/contract_open_interest"
+	fEstimatedDeliveryPrice    = "api/v1/contract_delivery_price"
+	fContractMarketDepth       = "/market/depth"
+	fContractKline             = "/market/history/kline"
+	fMarketOverview            = "/market/detail/merged"
+	fLastTradeContract         = "/market/trade"
+	fContractBatchTradeRecords = "/market/history/trade"
+	fInsuranceAndClawback      = "api/v1/contract_risk_info"
+	fInsuranceBalanceHistory   = "api/v1/contract_insurance_fund"
+	fTieredAdjustmentFactor    = "api/v1/contract_adjustfactor"
+	fHisContractOpenInterest   = "api/v1/contract_his_open_interest"
+	fSystemStatus              = "api/v1/contract_api_state"
+	fTopAccountsSentiment      = "api/v1/contract_elite_account_ratio"
+	fTopPositionsSentiment     = "api/v1/contract_elite_position_ratio"
+	fLiquidationOrders         = "api/v1/contract_liquidation_orders"
+	fIndexKline                = "/index/market/history/index"
+	fBasisData                 = "/index/market/history/basis"
+
 	// Coin Margined Swap (perpetual futures) endpoints
 	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info?"
 	huobiSwapFunding                     = "swap-api/v1/swap_funding_rate?"
@@ -171,11 +193,335 @@ var validTradeType = map[string]int64{
 	"liquidateShort": 6,
 }
 
+var validContractTypes = []string{
+	"this_week", "next_week", "quarter", "next_quarter",
+}
+
+var validFuturesPeriods = []string{
+	"1min", "5min", "15min", "30min", "60min", "1hour", "4hour", "1day",
+}
+
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
 	AccountID string
 }
+
+// Futures Contracts
+
+// FGetContractInfo gets contract info for futures
+func (h *HUOBI) FGetContractInfo(symbol, contractType, code string) (FContractInfoData, error) {
+	var resp FContractInfoData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if common.StringDataCompare(validContractTypes, contractType) {
+		params.Set("contract_type", contractType)
+	}
+	if code != "" {
+		params.Set("contract_code", code)
+	}
+	path := huobiURL + fContractInfo + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FIndexPriceInfo gets index price info for a futures contract
+func (h *HUOBI) FIndexPriceInfo(symbol string) (FContractIndexPriceInfo, error) {
+	var resp FContractIndexPriceInfo
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	path := huobiURL + fContractIndexPrice + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FContractPriceLimitations gets price limits for a futures contract
+func (h *HUOBI) FContractPriceLimitations(symbol, contractType, code string) (FContractIndexPriceInfo, error) {
+	var resp FContractIndexPriceInfo
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if common.StringDataCompare(validContractTypes, contractType) {
+		params.Set("contract_type", contractType)
+	}
+	if code != "" {
+		params.Set("contract_code", code)
+	}
+	path := huobiURL + fContractPriceLimitation + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FContractOpenInterest gets open interest data for futures contracts
+func (h *HUOBI) FContractOpenInterest(symbol, contractType, code string) (FOIData, error) {
+	var resp FOIData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if common.StringDataCompare(validContractTypes, contractType) {
+		params.Set("contract_type", contractType)
+	}
+	if code != "" {
+		params.Set("contract_code", code)
+	}
+	path := huobiURL + fContractOpenInterest + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FGetEstimatedDeliveryPrice gets estimated delivery price info for futures
+func (h *HUOBI) FGetEstimatedDeliveryPrice(symbol string) (FEstimatedDeliveryPriceInfo, error) {
+	var resp FEstimatedDeliveryPriceInfo
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	path := huobiURL + fEstimatedDeliveryPrice + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FGetMarketDepth gets market depth data for futures contracts
+func (h *HUOBI) FGetMarketDepth(symbol, dataType string) (OBData, error) {
+	var resp OBData
+	var tempData FMarketDepth
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("type", dataType)
+	path := huobiURL + fContractMarketDepth + params.Encode()
+	err := h.SendHTTPRequest(path, &tempData)
+	if err != nil {
+		return resp, err
+	}
+	resp.Symbol = symbol
+	for x := range tempData.Tick.Asks {
+		resp.Asks = append(resp.Asks, obItem{
+			Price:    tempData.Tick.Asks[x][0],
+			Quantity: tempData.Tick.Bids[x][1],
+		})
+	}
+	for y := range tempData.Tick.Bids {
+		resp.Bids = append(resp.Bids, obItem{
+			Price:    tempData.Tick.Bids[y][0],
+			Quantity: tempData.Tick.Bids[y][1],
+		})
+	}
+	return resp, nil
+}
+
+// FGetKlineData gets kline data for futures
+func (h *HUOBI) FGetKlineData(symbol, period string, size int64, startTime, endTime time.Time) (FKlineData, error) {
+	var resp FKlineData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(validFuturesPeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	if !(size > 1) && !(size < 2000) {
+		return resp, fmt.Errorf("invalid size")
+	}
+	params.Set("size", strconv.FormatInt(size, 10))
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	path := huobiURL + fContractKline + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FGetMarketOverviewData gets market overview data for futures
+func (h *HUOBI) FGetMarketOverviewData(symbol string) (FMarketOverviewData, error) {
+	var resp FMarketOverviewData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	path := huobiURL + fMarketOverview + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FLastTradeData gets last trade data for a futures contract
+func (h *HUOBI) FLastTradeData(symbol string) (FLastTradeData, error) {
+	var resp FLastTradeData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	path := huobiURL + fLastTradeContract + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FRequestPublicBatchTrades gets public batch trades for a futures contract
+func (h *HUOBI) FRequestPublicBatchTrades(symbol string, size int64) (FBatchTradesForContractData, error) {
+	var resp FBatchTradesForContractData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if size > 1 && size < 2000 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	path := huobiURL + fContractBatchTradeRecords + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FQueryInsuranceAndClawbackData gets insurance and clawback data for a futures contract
+func (h *HUOBI) FQueryInsuranceAndClawbackData(symbol string) (FClawbackRateAndInsuranceData, error) {
+	var resp FClawbackRateAndInsuranceData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	path := huobiURL + fInsuranceAndClawback + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FQueryHistoricalInsuranceData gets insurance data
+func (h *HUOBI) FQueryHistoricalInsuranceData(symbol string) (FHistoricalInsuranceRecordsData, error) {
+	var resp FHistoricalInsuranceRecordsData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	path := huobiURL + fInsuranceBalanceHistory + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FQueryTieredAdjustmentFactor gets tiered adjustment factor for futures contracts
+func (h *HUOBI) FQueryTieredAdjustmentFactor(symbol string) (FTieredAdjustmentFactorInfo, error) {
+	var resp FTieredAdjustmentFactorInfo
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	path := huobiURL + fTieredAdjustmentFactor + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FQueryHisOpenInterest gets open interest for futures contract
+func (h *HUOBI) FQueryHisOpenInterest(symbol string) (FContractOIData, error) {
+	var resp FContractOIData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	path := huobiURL + fHisContractOpenInterest + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FQuerySystemStatus gets system status data
+func (h *HUOBI) FQuerySystemStatus(symbol string) (FContractOIData, error) {
+	var resp FContractOIData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	path := huobiURL + fHisContractOpenInterest + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FQueryTopAccountsRatio gets top accounts' ratio
+func (h *HUOBI) FQueryTopAccountsRatio(symbol, period string) (FTopAccountsLongShortRatio, error) {
+	var resp FTopAccountsLongShortRatio
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if !common.StringDataCompare(validPeriods, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	path := huobiURL + fTopAccountsSentiment + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FQueryTopPositionsRatio gets top positions' long/short ratio for futures
+func (h *HUOBI) FQueryTopPositionsRatio(symbol, period string) (FTopPositionsLongShortRatio, error) {
+	var resp FTopPositionsLongShortRatio
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if !common.StringDataCompare(validPeriods, period) {
+		return resp, fmt.Errorf("invalid period")
+	}
+	params.Set("period", period)
+	path := huobiURL + fTopPositionsSentiment + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FLiquidationOrders gets liquidation orders for futures contracts
+func (h *HUOBI) FLiquidationOrders(code, tradeType string, pageIndex, pageSize, createDate int64) (FLiquidationOrdersInfo, error) {
+	var resp FLiquidationOrdersInfo
+	params := url.Values{}
+	params.Set("contract_code", code)
+	if createDate != 7 && createDate != 90 {
+		return resp, fmt.Errorf("invalid createDate. 7 and 90 are the only supported values")
+	}
+	params.Set("create_date", strconv.FormatInt(createDate, 10))
+	tType, ok := validTradeTypes[tradeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid trade type")
+	}
+	params.Set("trade_type", strconv.FormatInt(tType, 10))
+	if pageIndex != 0 {
+		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
+	}
+	if pageSize != 0 {
+		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
+	}
+	path := huobiURL + fLiquidationOrders + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FIndexKline gets index kline data for futures contracts
+func (h *HUOBI) FIndexKline(symbol, period string, size int64) (FIndexKlineData, error) {
+	var resp FIndexKlineData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(validFuturesPeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	if !(size > 1) && !(size < 2000) {
+		return resp, fmt.Errorf("invalid size")
+	}
+	params.Set("size", strconv.FormatInt(size, 10))
+	path := huobiURL + fIndexKline + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FGetBasisData gets basis data futures contracts
+func (h *HUOBI) FGetBasisData(symbol, period, basisPriceType string, size int64) (FBasisData, error) {
+	var resp FBasisData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !common.StringDataCompare(validFuturesPeriods, period) {
+		return resp, fmt.Errorf("invalid period value received")
+	}
+	params.Set("period", period)
+	params.Set("size", strconv.FormatInt(size, 10))
+	if basisPriceType != "" {
+		if common.StringDataCompare(validBasisPriceTypes, basisPriceType) {
+			params.Set("basis_price_type", basisPriceType)
+		}
+	}
+	path := huobiURL + fIndexKline + params.Encode()
+	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+//
+
+//
+
+//
+
+//
+
+//
+
+//
+
+//
+
+// Coin Margined Swaps
 
 // QuerySwapIndexPriceInfo gets perpetual swap index's price info
 func (h *HUOBI) QuerySwapIndexPriceInfo(code string) (SwapIndexPriceData, error) {

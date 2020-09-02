@@ -78,6 +78,98 @@ func setupWsTests(t *testing.T) {
 	wsSetupRan = true
 }
 
+func TestFGetContractInfo(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetContractInfo("BTC", "this_week", "")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFIndexPriceInfo(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FIndexPriceInfo("BTC")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFContractPriceLimitations(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FContractPriceLimitations("BTC", "this_week", "")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFContractOpenInterest(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FContractOpenInterest("BTC", "this_week", "")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetEstimatedDeliveryPrice(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetEstimatedDeliveryPrice("BTC")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetMarketDepth(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetMarketDepth("BTC_NW", "step5")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetKlineData(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetKlineData("BTC_NW", "5m", 5, time.Time{}, time.Time{})
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetMarketOverviewData(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetMarketOverviewData("BTC_NW")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFLastTradeData(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FLastTradeData("BTC_NW")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// Futures data
+
 func TestFetchTradablePairs(t *testing.T) {
 	h.Verbose = true
 	t.Parallel()
