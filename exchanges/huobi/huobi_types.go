@@ -292,6 +292,229 @@ type FBasisData struct {
 	Timestamp int64 `json:"ts"`
 }
 
+// FUserAccountData stores user account data info for futures
+type FUserAccountData struct {
+	AccData []struct {
+		Symbol            string  `json:"symbol"`
+		MarginBalance     float64 `json:"margin_balance"`
+		MarginPosition    float64 `json:"margin_position"`
+		MarginFrozen      float64 `json:"margin_frozen"`
+		MarginAvailable   float64 `json:"margin_available"`
+		ProfitReal        float64 `json:"profit_real"`
+		ProfitUnreal      float64 `json:"profit_unreal"`
+		RiskRate          float64 `json:"risk_rate"`
+		LiquidationPrice  float64 `json:"liquidation_price"`
+		WithdrawAvailable float64 `json:"withdraw_available"`
+		LeverageRate      float64 `json:"lever_rate"`
+		AdjustFactor      float64 `json:"adjust_factor"`
+		MarginStatic      float64 `json:"margin_static"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FUsersPositionsInfo stores positions data for futures
+type FUsersPositionsInfo struct {
+	PosInfo []struct {
+		Symbol         string  `json:"symbol"`
+		ContractCode   string  `json:"contract_code"`
+		ContractType   string  `json:"contract_type"`
+		Volume         float64 `json:"volume"`
+		Available      float64 `json:"available"`
+		Frozen         float64 `json:"frozen"`
+		CostOpen       float64 `json:"cost_open"`
+		CostHold       float64 `json:"cost_hold"`
+		ProfitUnreal   float64 `json:"profit_unreal"`
+		ProfitRate     float64 `json:"profit_rate"`
+		Profit         float64 `json:"profit"`
+		PositionMargin float64 `json:"position_margin"`
+		LeverageRate   float64 `json:"lever_rate"`
+		Direction      string  `json:"direction"`
+		LastPrice      float64 `json:"last_price"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FSubAccountAssetsInfo gets subaccounts asset data
+type FSubAccountAssetsInfo struct {
+	Timestamp int64 `json:"ts"`
+	Data      []struct {
+		SubUID int64 `json:"sub_uid"`
+		List   []struct {
+			Symbol           string  `json:"symbol"`
+			MarginBalance    float64 `json:"margin_balance"`
+			LiquidationPrice float64 `json:"liquidation_price"`
+			RiskRate         float64 `json:"risk_rate"`
+		} `json:"list"`
+	} `json:"data"`
+}
+
+// FSingleSubAccountAssetsInfo stores futures assets info for a single subaccount
+type FSingleSubAccountAssetsInfo struct {
+	AssetsData []struct {
+		Symbol            string  `json:"symbol"`
+		MarginBalance     float64 `json:"margin_balance"`
+		MarginPosition    float64 `json:"margin_position"`
+		MarginFrozen      float64 `json:"margin_frozen"`
+		MarginAvailable   float64 `json:"margin_available"`
+		ProfitReal        float64 `json:"profit_real"`
+		ProfitUnreal      float64 `json:"profit_unreal"`
+		WithdrawAvailable float64 `json:"withdraw_available"`
+		RiskRate          float64 `json:"risk_rate"`
+		LiquidationPrice  float64 `json:"liquidation_price"`
+		AdjustFactor      float64 `json:"adjust_factor"`
+		LeverageRate      float64 `json:"lever_rate"`
+		MarginStatic      float64 `json:"margin_static"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FSingleSubAccountPositionsInfo stores futures positions' info for a single subaccount
+type FSingleSubAccountPositionsInfo struct {
+	PositionsData []struct {
+		Symbol         string  `json:"symbol"`
+		ContractCode   string  `json:"contract_code"`
+		ContractType   string  `json:"contract_type"`
+		Volume         float64 `json:"volume"`
+		Available      float64 `json:"available"`
+		Frozen         float64 `json:"frozen"`
+		CostOpen       float64 `json:"cost_open"`
+		CostHold       float64 `json:"cost_hold"`
+		ProfitUnreal   float64 `json:"profit_unreal"`
+		ProfitRate     float64 `json:"profit_rate"`
+		Profit         float64 `json:"profit"`
+		PositionMargin float64 `json:"position_margin"`
+		LeverageRate   float64 `json:"lever_rate"`
+		Direction      string  `json:"direction"`
+		LastPrice      float64 `json:"last_price"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FFinancialRecords stores financial records data for futures
+type FFinancialRecords struct {
+	Data struct {
+		FinancialRecord []struct {
+			ID         int64   `json:"id"`
+			Timestamp  int64   `json:"ts"`
+			Symbol     string  `json:"symbol"`
+			RecordType int64   `json:"type"`
+			Amount     float64 `json:"amount"`
+		} `json:"financial_record"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FSettlementRecords stores user's futures settlement records
+type FSettlementRecords struct {
+	Data struct {
+		SettlementRecords []struct {
+			Symbol               string  `json:"symbol"`
+			MarginBalanceInit    float64 `json:"margin_balance_init"`
+			MarginBalance        int64   `json:"margin_balance"`
+			SettlementProfitReal float64 `json:"settlement_profit_real"`
+			SettlementTime       int64   `json:"settlement_time"`
+			Clawback             float64 `json:"clawback"`
+			DeliveryFee          float64 `json:"delivery_fee"`
+			OffsetProfitLoss     float64 `json:"offset_profitloss"`
+			Fee                  float64 `json:"fee"`
+			FeeAsset             string  `json:"fee_asset"`
+			Positions            []struct {
+				Symbol                 string  `json:"symbol"`
+				ContractCode           string  `json:"contract_code"`
+				Direction              string  `json:"direction"`
+				Volume                 float64 `json:"volume"`
+				CostOpen               float64 `json:"cost_open"`
+				CostHoldPre            float64 `json:"cost_hold_pre"`
+				CostHold               float64 `json:"cost_hold"`
+				SettlementProfitUnreal float64 `json:"settlement_profit_unreal"`
+				SettlementPrice        float64 `json:"settlement_price"`
+				SettlmentType          string  `json:"settlement_type"`
+			} `json:"positions"`
+		} `json:"settlement_records"`
+		CurrentPage int64 `json:"current_page"`
+		TotalPage   int64 `json:"total_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FContractInfoOnOrderLimit stores contract info on futures order limit
+type FContractInfoOnOrderLimit struct {
+	ContractData []struct {
+		OrderPriceType string `json:"order_price_type"`
+		List           []struct {
+			Symbol        string `json:"symbol"`
+			ContractTypes []struct {
+				ContractType string `json:"contract_type"`
+				OpenLimit    int64  `json:"open_limit"`
+				CloseLimit   int64  `json:"close_limit"`
+			} `json:"types"`
+		} `json:"list"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FContractTradingFeeData stores contract trading fee data
+type FContractTradingFeeData struct {
+	ContractTradingFeeData []struct {
+		Symbol        string  `json:"symbol"`
+		OpenMakerFee  float64 `json:"open_maker_fee"`
+		OpenTakerFee  float64 `json:"open_taker_fee"`
+		CloseMakerFee float64 `json:"close_maker_fee"`
+		CloseTakerFee float64 `json:"close_taker_fee"`
+		DeliveryFee   float64 `json:"delivery_fee"`
+		FeeAsset      string  `json:"fee_asset"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FTransferLimitData stores transfer limit data for futures
+type FTransferLimitData struct {
+	Data []struct {
+		Symbol                 string  `json:"symbol"`
+		MaxTransferIn          float64 `json:"transfer_in_max_each"`
+		MinTransferIn          float64 `json:"transfer_in_min_each"`
+		MaxTransferOut         float64 `json:"transfer_out_max_each"`
+		MinTransferOut         float64 `json:"transfer_out_min_each"`
+		MaxTransferInDaily     float64 `json:"transfer_in_max_daily"`
+		MaxTransferOutDaily    float64 `json:"transfer_out_max_daily"`
+		NetTransferInMaxDaily  float64 `json:"net_transfer_in_max_daily"`
+		NetTransferOutMaxDaily float64 `json:"net_transfer_out_max_daily"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FPositionLimitData stores information on futures positions limit
+type FPositionLimitData struct {
+	Data []struct {
+		Symbol string `json:"symbol"`
+		List   []struct {
+			ContractType string  `json:"contract_type"`
+			BuyLimit     float64 `json:"buy_limit"`
+			SellLimit    float64 `json:"sell_limit"`
+		} `json:"list"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FAssetsAndPositionsData stores assets and positions data for futures
+type FAssetsAndPositionsData struct {
+	Data []struct {
+		Symbol            string  `json:"symbol"`
+		MarginBalance     float64 `json:"margin_balance"`
+		MarginPosition    float64 `json:"margin_position"`
+		MarginFrozen      float64 `json:"margin_frozen"`
+		MarginAvailable   float64 `json:"margin_available"`
+		ProfitReal        float64 `json:"profit_real"`
+		ProfitUnreal      float64 `json:"profit_unreal"`
+		RiskRate          float64 `json:"risk_rate"`
+		WithdrawAvailable float64 `json:"withdraw_available"`
+	}
+}
+
 //
 
 //
