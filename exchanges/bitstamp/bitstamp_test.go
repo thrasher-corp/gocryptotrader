@@ -678,7 +678,7 @@ func TestBitstamp_OHLC(t *testing.T) {
 }
 
 func TestBitstamp_GetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btcusd")
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -692,7 +692,7 @@ func TestBitstamp_GetHistoricCandles(t *testing.T) {
 }
 
 func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btcusd")
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}

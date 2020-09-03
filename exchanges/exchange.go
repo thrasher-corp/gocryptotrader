@@ -1063,7 +1063,7 @@ func (e *Base) AuthenticateWebsocket() error {
 }
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
-func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
+func (e *Base) klineIntervalEnabled(in kline.Interval) bool {
 	return e.Features.Enabled.Kline.Intervals[in.Word()]
 }
 
@@ -1071,4 +1071,29 @@ func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
 // Exchanges can override this if they require custom formatting
 func (e *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
+}
+
+// ValidateKline confirms that the requested pair, asset & interval are supported and/or enabled by the requested exchange
+func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
+	var errorList []string
+	var err kline.ErrorKline
+	if e.CurrencyPairs.IsAssetEnabled(a) != nil {
+		err.Asset = a
+		errorList = append(errorList, "asset not enabled")
+	} else if !e.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
+		err.Pair = pair
+		errorList = append(errorList, "pair not enabled")
+	}
+
+	if !e.klineIntervalEnabled(interval) {
+		err.Interval = interval
+		errorList = append(errorList, "interval not supported")
+	}
+
+	if len(errorList) > 0 {
+		err.Err = errors.New(strings.Join(errorList, ","))
+		return &err
+	}
+
+	return nil
 }

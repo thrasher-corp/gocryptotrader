@@ -106,6 +106,9 @@ dbmigrate -command "up"
 
 dbmigrate provides a -migrationdir flag override to tell it what path to look in for migrations
 
+###### Note: its highly recommended to backup any data before running migrations against a production database especially if you are running SQLite due to alter table limitations
+
+
 ##### Adding a new model
 Model's are generated using [SQLBoiler](https://github.com/thrasher-corp/sqlboiler) 
 A helper tool has been made located in gen_sqlboiler_config that will parse your GoCryptoTrader config and output a SQLBoiler config
@@ -122,7 +125,6 @@ along with the location of the sqlboiler generated config
 -datadir "~/.gocryptotrader/"
 -outdir "~/.gocryptotrader/"
 ```
-
 
 Generate a new model that gets placed in ./database/models/<databasetype> folder
 
@@ -143,6 +145,10 @@ And in the contrib/sqlboiler.cmd for windows users
 
 ##### Adding a Repository
 + Create Repository directory in github.com/thrasher-corp/gocryptotrader/database/repository/
+
+
+##### DBSeed helper
+A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisting with data migration 
 
 ## Contribution
 

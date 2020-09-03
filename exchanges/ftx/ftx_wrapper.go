@@ -931,10 +931,8 @@ func (f *FTX) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (f *FTX) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !f.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := f.ValidateKline(p, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	formattedPair, err := f.FormatExchangeCurrency(p, a)
@@ -972,10 +970,8 @@ func (f *FTX) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !f.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := f.ValidateKline(p, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	ret := kline.Item{

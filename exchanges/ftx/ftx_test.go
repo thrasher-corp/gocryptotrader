@@ -855,7 +855,7 @@ func TestGetFundingHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString(spotPair)
+	currencyPair, err := currency.NewPairFromString("BTC/USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -869,7 +869,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString(spotPair)
+	currencyPair, err := currency.NewPairFromString("BTC/USD")
 	if err != nil {
 		t.Fatal(err)
 	}

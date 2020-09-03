@@ -552,7 +552,7 @@ func TestGetCandleStick(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC_KRW")
+	currencyPair, err := currency.NewPairFromString("BTCKRW")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -564,7 +564,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTC_KRW")
+	currencyPair, err := currency.NewPairFromString("BTCKRW")
 	if err != nil {
 		t.Fatal(err)
 	}

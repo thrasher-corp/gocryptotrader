@@ -1362,7 +1362,7 @@ func (c *Config) checkDatabaseConfig() error {
 	}
 
 	if c.Database.Driver == database.DBSQLite || c.Database.Driver == database.DBSQLite3 {
-		databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")
+		databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "database")
 		err := common.CreateDir(databaseDir)
 		if err != nil {
 			return err
@@ -1484,7 +1484,7 @@ func GetFilePath(configfile string) (string, error) {
 		return configfile, nil
 	}
 
-	if flag.Lookup("test.v") != nil && !testBypass {
+	if flag.Lookup("test.v") != nil && !TestBypass {
 		return TestFile, nil
 	}
 

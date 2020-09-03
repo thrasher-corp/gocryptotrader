@@ -1410,7 +1410,7 @@ func TestParseTime(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("XBTUSD")
+	currencyPair, err := currency.NewPairFromString("XBT-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1426,7 +1426,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("XBTUSD")
+	currencyPair, err := currency.NewPairFromString("XBT-USD")
 	if err != nil {
 		t.Fatal(err)
 	}

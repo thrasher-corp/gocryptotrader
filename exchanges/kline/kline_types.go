@@ -1,7 +1,6 @@
 package kline
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -34,8 +33,6 @@ const (
 )
 
 const (
-	// ErrUnsupportedInterval locale for an unsupported interval
-	ErrUnsupportedInterval = "%s interval unsupported by exchange"
 	// ErrRequestExceedsExchangeLimits locale for exceeding rate limits message
 	ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
 )
@@ -76,17 +73,20 @@ type Interval time.Duration
 
 // ErrorKline struct to hold kline interval errors
 type ErrorKline struct {
+	Asset    asset.Item
+	Pair     currency.Pair
 	Interval Interval
+	Err      error
 }
 
 // Error returns short interval unsupported message
-func (k ErrorKline) Error() string {
-	return fmt.Sprintf(ErrUnsupportedInterval, k.Interval.Word())
+func (k *ErrorKline) Error() string {
+	return k.Err.Error()
 }
 
 // Unwrap returns interval unsupported message
 func (k *ErrorKline) Unwrap() error {
-	return fmt.Errorf(ErrUnsupportedInterval, k.Interval)
+	return k.Err
 }
 
 // DateRange holds a start and end date for kline usage

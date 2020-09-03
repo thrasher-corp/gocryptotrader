@@ -104,7 +104,7 @@ func CreateKline(trades []order.TradeHistory, interval Interval, p currency.Pair
 	return candles, nil
 }
 
-// validatData checks for zero values on data and sorts before turning
+// validateData checks for zero values on data and sorts before turning
 // converting into OHLC
 func validateData(trades []order.TradeHistory) error {
 	if len(trades) < 2 {
@@ -281,7 +281,7 @@ func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out 
 		}
 		y++
 	}
-	if allDateIntervals != nil {
+	if allDateIntervals != nil && lastNum+1 < len(allDateIntervals) {
 		out = append(out, DateRange{
 			Start: allDateIntervals[lastNum+1],
 			End:   allDateIntervals[len(allDateIntervals)-1],
@@ -298,4 +298,11 @@ func (k *Item) SortCandlesByTimestamp(asc bool) {
 		}
 		return k.Candles[i].Time.Before(k.Candles[j].Time)
 	})
+}
+
+// FormatDates converts all date to UTC time
+func (k *Item) FormatDates() {
+	for x := range k.Candles {
+		k.Candles[x].Time = k.Candles[x].Time.UTC()
+	}
 }

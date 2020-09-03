@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -19,6 +20,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	MigrationDir = filepath.Join("..", "migrations")
 	t := m.Run()
 
 	err = os.RemoveAll(TempDir)
@@ -63,8 +65,8 @@ func TestDatabaseConnect(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for x := range testCases {
+		test := testCases[x]
 		t.Run(test.name, func(t *testing.T) {
 			if !CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")

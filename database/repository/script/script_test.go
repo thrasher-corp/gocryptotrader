@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
-	"github.com/thrasher-corp/goose"
 	"github.com/volatiletech/null"
+)
+
+var (
+	verbose = false
 )
 
 func TestMain(m *testing.M) {
@@ -24,6 +25,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
+	}
+
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
 	}
 
 	t := m.Run()
@@ -63,8 +68,8 @@ func TestScript(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for x := range testCases {
+		test := testCases[x]
 		t.Run(test.name, func(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
@@ -73,12 +78,6 @@ func TestScript(t *testing.T) {
 			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			path := filepath.Join("..", "..", "migrations")
-			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
-			if err != nil {
-				t.Fatalf("failed to run migrations %v", err)
 			}
 
 			if test.runner != nil {

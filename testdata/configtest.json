@@ -3,7 +3,7 @@
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
  "database": {
-  "enabled": false,
+  "enabled": true,
   "verbose": false,
   "driver": "sqlite3",
   "connectionDetails": {

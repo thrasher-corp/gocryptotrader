@@ -1717,7 +1717,7 @@ func TestGetFilePath(t *testing.T) {
 	if result != expected {
 		t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
 	}
-	testBypass = true
+	TestBypass = true
 }
 
 func TestCheckRemoteControlConfig(t *testing.T) {

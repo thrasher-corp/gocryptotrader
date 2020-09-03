@@ -13,77 +13,77 @@ import "testing"
 // Separating the tests thusly grants avoidance of Postgres deadlocks.
 func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
+	t.Run("Exchanges", testExchanges)
 	t.Run("Scripts", testScripts)
-	t.Run("WithdrawalHistories", testWithdrawalHistories)
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
+	t.Run("Exchanges", testExchangesDelete)
 	t.Run("Scripts", testScriptsDelete)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesDelete)
 }
 
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
+	t.Run("Exchanges", testExchangesQueryDeleteAll)
 	t.Run("Scripts", testScriptsQueryDeleteAll)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesQueryDeleteAll)
 }
 
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
+	t.Run("Exchanges", testExchangesSliceDeleteAll)
 	t.Run("Scripts", testScriptsSliceDeleteAll)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceDeleteAll)
 }
 
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
+	t.Run("Exchanges", testExchangesExists)
 	t.Run("Scripts", testScriptsExists)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesExists)
 }
 
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
+	t.Run("Exchanges", testExchangesFind)
 	t.Run("Scripts", testScriptsFind)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesFind)
 }
 
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
+	t.Run("Exchanges", testExchangesBind)
 	t.Run("Scripts", testScriptsBind)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesBind)
 }
 
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
+	t.Run("Exchanges", testExchangesOne)
 	t.Run("Scripts", testScriptsOne)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesOne)
 }
 
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
+	t.Run("Exchanges", testExchangesAll)
 	t.Run("Scripts", testScriptsAll)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesAll)
 }
 
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
+	t.Run("Exchanges", testExchangesCount)
 	t.Run("Scripts", testScriptsCount)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesCount)
 }
 
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
+	t.Run("Exchanges", testExchangesHooks)
 	t.Run("Scripts", testScriptsHooks)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesHooks)
 }
 
 func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsert)
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
+	t.Run("Exchanges", testExchangesInsert)
+	t.Run("Exchanges", testExchangesInsertWhitelist)
 	t.Run("Scripts", testScriptsInsert)
 	t.Run("Scripts", testScriptsInsertWhitelist)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesInsert)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesInsertWhitelist)
 }
 
 // TestToOne tests cannot be run in parallel
@@ -128,30 +128,29 @@ func TestToManyRemove(t *testing.T) {}
 
 func TestReload(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReload)
-	t.Run("Scripts", testScriptsReload)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesReload)
+	t.Run("Exchanges", testExchangesReload)
 }
 
 func TestReloadAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReloadAll)
+	t.Run("Exchanges", testExchangesReloadAll)
 	t.Run("Scripts", testScriptsReloadAll)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesReloadAll)
 }
 
 func TestSelect(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSelect)
+	t.Run("Exchanges", testExchangesSelect)
 	t.Run("Scripts", testScriptsSelect)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesSelect)
 }
 
 func TestUpdate(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpdate)
+	t.Run("Exchanges", testExchangesUpdate)
 	t.Run("Scripts", testScriptsUpdate)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesUpdate)
 }
 
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
+	t.Run("Exchanges", testExchangesSliceUpdateAll)
 	t.Run("Scripts", testScriptsSliceUpdateAll)
-	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceUpdateAll)
 }

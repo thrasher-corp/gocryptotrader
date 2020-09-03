@@ -8375,23 +8375,6 @@
      "headers": {}
     },
     {
-     "data": [
-      {
-       "close": 0.00403997,
-       "date": 1405699200,
-       "high": 0.00413615,
-       "low": 0.00403986,
-       "open": 0.00404545,
-       "quoteVolume": 1205.10503896,
-       "volume": 4.95713239,
-       "weightedAverage": 0.00411344
-      }
-     ],
-     "queryString": "command=returnChartData\u0026currencyPair=BTC_XMR\u0026end=1405699400\u0026period=300\u0026start=1405699200",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
      "data": {
       "asks": [
        [
@@ -8801,6 +8784,168 @@
       "seq": 445571843
      },
      "queryString": "command=returnOrderBook\u0026currencyPair=BTC_XMR\u0026depth=50",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "close": 0.00518763,
+       "date": 1588741200,
+       "high": 0.00518763,
+       "low": 0.005187,
+       "open": 0.00518701,
+       "quoteVolume": 25.95091903,
+       "volume": 0.13460756,
+       "weightedAverage": 0.005187
+      },
+      {
+       "close": 0.00518401,
+       "date": 1588741500,
+       "high": 0.00518818,
+       "low": 0.00518401,
+       "open": 0.00518818,
+       "quoteVolume": 65.00109374,
+       "volume": 0.33723736,
+       "weightedAverage": 0.00518817
+      },
+      {
+       "close": 0.0051839,
+       "date": 1588741800,
+       "high": 0.00518444,
+       "low": 0.0051839,
+       "open": 0.00518444,
+       "quoteVolume": 0.43601529,
+       "volume": 0.00226025,
+       "weightedAverage": 0.0051839
+      },
+      {
+       "close": 0.00518201,
+       "date": 1588742100,
+       "high": 0.00518614,
+       "low": 0.00518201,
+       "open": 0.00518401,
+       "quoteVolume": 90.59918563,
+       "volume": 0.46972322,
+       "weightedAverage": 0.00518462
+      },
+      {
+       "close": 0.00518373,
+       "date": 1588742400,
+       "high": 0.0051847,
+       "low": 0.00517971,
+       "open": 0.00517972,
+       "quoteVolume": 8.6152343,
+       "volume": 0.04465903,
+       "weightedAverage": 0.00518372
+      },
+      {
+       "close": 0.00519266,
+       "date": 1588742700,
+       "high": 0.00519266,
+       "low": 0.00518553,
+       "open": 0.00518553,
+       "quoteVolume": 81.37365353,
+       "volume": 0.42217513,
+       "weightedAverage": 0.0051881
+      },
+      {
+       "close": 0.00519104,
+       "date": 1588743000,
+       "high": 0.00519597,
+       "low": 0.00519104,
+       "open": 0.00519597,
+       "quoteVolume": 1.10021375,
+       "volume": 0.0057163,
+       "weightedAverage": 0.00519562
+      },
+      {
+       "close": 0.00518988,
+       "date": 1588743300,
+       "high": 0.00518988,
+       "low": 0.00518905,
+       "open": 0.00518905,
+       "quoteVolume": 0.00086904,
+       "volume": 0.0000045,
+       "weightedAverage": 0.00518961
+      },
+      {
+       "close": 0.00519395,
+       "date": 1588743600,
+       "high": 0.00519395,
+       "low": 0.00518901,
+       "open": 0.00518903,
+       "quoteVolume": 0.03395903,
+       "volume": 0.0001763,
+       "weightedAverage": 0.00519181
+      },
+      {
+       "close": 0.00519098,
+       "date": 1588743900,
+       "high": 0.00519526,
+       "low": 0.00519098,
+       "open": 0.00519126,
+       "quoteVolume": 209.14700529,
+       "volume": 1.08631528,
+       "weightedAverage": 0.00519402
+      },
+      {
+       "close": 0.00518534,
+       "date": 1588744200,
+       "high": 0.00519198,
+       "low": 0.00518534,
+       "open": 0.00519179,
+       "quoteVolume": 176.01313731,
+       "volume": 0.91303131,
+       "weightedAverage": 0.00518729
+      },
+      {
+       "close": 0.00518573,
+       "date": 1588744500,
+       "high": 0.00518752,
+       "low": 0.00518572,
+       "open": 0.00518752,
+       "quoteVolume": 97.1672869,
+       "volume": 0.50399966,
+       "weightedAverage": 0.00518692
+      },
+      {
+       "close": 0.00518864,
+       "date": 1588744800,
+       "high": 0.00519153,
+       "low": 0.00518657,
+       "open": 0.00518826,
+       "quoteVolume": 74.95742178,
+       "volume": 0.38903394,
+       "weightedAverage": 0.00519006
+      }
+     ],
+     "queryString": "command=returnChartData\u0026currencyPair=BTC_LTC\u0026end=1588745003\u0026period=300\u0026start=1588741200",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "error": "Invalid currency pair."
+     },
+     "queryString": "command=returnChartData\u0026currencyPair=BTC_LTCC\u0026end=1588745003\u0026period=300\u0026start=1588741200",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "close": 0.00403997,
+       "date": 1405699200,
+       "high": 0.00413615,
+       "low": 0.00403986,
+       "open": 0.00404545,
+       "quoteVolume": 1205.10503896,
+       "volume": 4.95713239,
+       "weightedAverage": 0.00411344
+      }
+     ],
+     "queryString": "command=returnChartData\u0026currencyPair=BTC_XMR\u0026end=1405699400\u0026period=300\u0026start=1405699200",
      "bodyParams": "",
      "headers": {}
     }

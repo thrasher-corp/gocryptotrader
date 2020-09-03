@@ -3905,6 +3905,14 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
+		cli.BoolFlag{
+			Name:  "sync",
+			Usage: "<true/false>",
+		},
+		cli.BoolFlag{
+			Name:  "db",
+			Usage: "source data from database <true/false>",
+		},
 	},
 }
 
@@ -3970,6 +3978,16 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		}
 	}
 
+	var sync bool
+	if c.IsSet("sync") {
+		sync = c.Bool("sync")
+	}
+
+	var db bool
+	if c.IsSet("db") {
+		db = c.Bool("db")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -4006,6 +4024,8 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 			End:          e.Unix(),
 			TimeInterval: int64(candleInterval),
 			ExRequest:    true,
+			Sync:         sync,
+			UseDb:        db,
 		})
 	if err != nil {
 		return err

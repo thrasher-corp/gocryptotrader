@@ -222,7 +222,7 @@ func (e Exchange) OHLCV(exch string, pair currency.Pair, item asset.Item, start,
 	if err != nil {
 		return kline.Item{}, err
 	}
-	ret, err := ex.GetHistoricCandles(pair, item, start, end, interval)
+	ret, err := ex.GetHistoricCandlesExtended(pair, item, start, end, interval)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -230,6 +230,8 @@ func (e Exchange) OHLCV(exch string, pair currency.Pair, item asset.Item, start,
 	sort.Slice(ret.Candles, func(i, j int) bool {
 		return ret.Candles[i].Time.Before(ret.Candles[j].Time)
 	})
+
+	ret.FormatDates()
 
 	return ret, nil
 }
