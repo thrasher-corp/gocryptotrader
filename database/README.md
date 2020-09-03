@@ -146,6 +146,10 @@ And in the contrib/sqlboiler.cmd for windows users
 ##### Adding a Repository
 + Create Repository directory in github.com/thrasher-corp/gocryptotrader/database/repository/
 
+
+##### DBSeed helper
+A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisting with data migration 
+
 ## Contribution
 
 Please feel free to submit any pull requests or suggest any desired features to be added.
