@@ -23,7 +23,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 #### Prerequisites
 ##### Configuration
 
-dbtool requires a valid database configuration in your gocryptotrader config
+dbseed requires a valid database configuration in your gocryptotrader config
 
 ```sh
  "database": {
