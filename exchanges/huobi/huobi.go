@@ -47,6 +47,19 @@ const (
 	fIndexKline                = "/index/market/history/index"
 	fBasisData                 = "/index/market/history/basis"
 
+	fAccountData               = "api/v1/contract_account_info"
+	fPositionInformation       = "api/v1/contract_position_info"
+	fAllSubAccountAssets       = "api/v1/contract_sub_account_list"
+	fSingleSubAccountAssets    = "api/v1/contract_sub_account_info"
+	fSingleSubAccountPositions = "api/v1/contract_sub_position_info"
+	fFinancialRecords          = "api/v1/contract_financial_record"
+	fSettlementRecords         = "api/v1/contract_user_settlement_records"
+	fOrderLimitInfo            = "api/v1/contract_order_limit"
+	fContractTradingFee        = "api/v1/contract_fee"
+	fTransferLimitInfo         = "api/v1/contract_transfer_limit"
+	fPositionLimitInfo         = "api/v1/contract_position_limit"
+	fQueryAssetsAndPositions   = "api/v1/contract_account_position_info"
+
 	// Coin Margined Swap (perpetual futures) endpoints
 	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info?"
 	huobiSwapFunding                     = "swap-api/v1/swap_funding_rate?"
@@ -505,6 +518,15 @@ func (h *HUOBI) FGetBasisData(symbol, period, basisPriceType string, size int64)
 	}
 	path := huobiURL + fIndexKline + params.Encode()
 	return resp, h.SendHTTPRequest(path, &resp)
+}
+
+// FGetSwapAccountInfo gets swap account info for futures
+func (h *HUOBI) FGetSwapAccountInfo(code string) (FUserAccountData, error) {
+	var resp FUserAccountData
+	req := make(map[string]interface{})
+	req["contract_code"] = code
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapAccInfo, nil, req, &resp, false)
 }
 
 //

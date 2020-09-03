@@ -1,5 +1,7 @@
 package huobi
 
+// Futures
+
 // FContractInfoData gets contract info data for futures
 type FContractInfoData struct {
 	Data []struct {
@@ -515,17 +517,42 @@ type FAssetsAndPositionsData struct {
 	}
 }
 
-//
+// FAccountTransferData stores internal transfer data for futures
+type FAccountTransferData struct {
+	Status    string `json:"status"`
+	Timestamp int64  `json:"ts"`
+	Data      struct {
+		OrderID string `json:"order_id"`
+	} `json:"data"`
+}
 
-//
+// FTransferRecords gets transfer records data
+type FTransferRecords struct {
+	Timestamp int64 `json:"ts"`
+	Data      struct {
+		TransferRecord []struct {
+			ID             int64   `json:"id"`
+			Timestamp      int64   `json:"ts"`
+			Symbol         string  `json:"symbol"`
+			SubUID         int64   `json:"sub_uid"`
+			SubAccountName string  `json:"sub_account_name"`
+			TransferType   int64   `json:"transfer_type"`
+			Amount         float64 `json:"amount"`
+		} `json:"transfer_record"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+}
 
-//
-
-//
-
-//
-
-//
+// FAvailableLeverageData stores available leverage data for futures
+type FAvailableLeverageData struct {
+	Data []struct {
+		Symbol                string `json:"symbol"`
+		AvailableLeverageRate string `json:"available_level_rate"`
+	} `json:"data"`
+	Timestamp int64 `json:"timestamp"`
+}
 
 // Coin Margined Swaps
 
