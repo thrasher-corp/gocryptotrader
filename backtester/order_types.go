@@ -8,12 +8,13 @@ import (
 
 type Order struct {
 	Event
+	id        int
 	Direction order.Side
 	Status    order.Status
 	Price     float64
 	Amount    float64
 	OrderType order.Type
-	Limit     float64
+	limit     float64
 }
 
 type OrderBook struct {

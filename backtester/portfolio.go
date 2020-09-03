@@ -46,7 +46,7 @@ func (p *Portfolio) OnSignal(signal SignalEvent, data DataHandler) (*Order, erro
 		Price:     signal.GetPrice(),
 		Amount:    signal.GetAmount(),
 		OrderType: gctorder.Market,
-		Limit:     limit,
+		limit:     limit,
 	}
 
 	latest := data.Latest()
@@ -63,7 +63,7 @@ func (p *Portfolio) OnSignal(signal SignalEvent, data DataHandler) (*Order, erro
 	return order, nil
 }
 
-func (p *Portfolio) OnFill(fill FillEvent, data DataHandler) (*Fill, error) {
+func (p *Portfolio) OnFill(fill FillEvent, _ DataHandler) (*Fill, error) {
 	if p.holdings == nil {
 		p.holdings = make(map[currency.Pair]Positions)
 	}

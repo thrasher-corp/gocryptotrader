@@ -29,15 +29,16 @@ func TestRisk_EvaluateOrder(t *testing.T) {
 		},
 	}
 	for x := range tests {
-		t.Run(tests[x].name, func(t *testing.T) {
+		test := tests[x]
+		t.Run(test.name, func(t *testing.T) {
 			r := &Risk{}
-			got, err := r.EvaluateOrder(tests[x].args.order, tests[x].args.in1, tests[x].args.in2)
-			if (err != nil) != tests[x].wantErr {
-				t.Errorf("EvaluateOrder() error = %v, wantErr %v", err, tests[x].wantErr)
+			got, err := r.EvaluateOrder(test.args.order, test.args.in1, test.args.in2)
+			if (err != nil) != test.wantErr {
+				t.Errorf("EvaluateOrder() error = %v, wantErr %v", err, test.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tests[x].want) {
-				t.Errorf("EvaluateOrder() got = %v, want %v", got, tests[x].want)
+			if !reflect.DeepEqual(got, test.want) {
+				t.Errorf("EvaluateOrder() got = %v, want %v", got, test.want)
 			}
 		})
 	}
@@ -83,18 +84,19 @@ func TestSize_SizeOrder(t *testing.T) {
 		},
 	}
 	for x := range tests {
-		t.Run(tests[x].name, func(t *testing.T) {
+		test := tests[x]
+		t.Run(test.name, func(t *testing.T) {
 			s := &Size{
-				DefaultSize:  tests[x].fields.DefaultSize,
-				DefaultValue: tests[x].fields.DefaultValue,
+				DefaultSize:  test.fields.DefaultSize,
+				DefaultValue: test.fields.DefaultValue,
 			}
-			got, err := s.SizeOrder(tests[x].args.order, tests[x].args.in1, tests[x].args.in2)
-			if (err != nil) != tests[x].wantErr {
-				t.Errorf("SizeOrder() error = %v, wantErr %v", err, tests[x].wantErr)
+			got, err := s.SizeOrder(test.args.order, test.args.in1, test.args.in2)
+			if (err != nil) != test.wantErr {
+				t.Errorf("SizeOrder() error = %v, wantErr %v", err, test.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tests[x].want) {
-				t.Errorf("SizeOrder() got = %v, want %v", got, tests[x].want)
+			if !reflect.DeepEqual(got, test.want) {
+				t.Errorf("SizeOrder() got = %v, want %v", got, test.want)
 			}
 		})
 	}
@@ -127,13 +129,14 @@ func TestSize_setDefaultSize(t *testing.T) {
 		},
 	}
 	for x := range tests {
-		t.Run(tests[x].name, func(t *testing.T) {
+		test := tests[x]
+		t.Run(test.name, func(t *testing.T) {
 			s := &Size{
-				DefaultSize:  tests[x].fields.DefaultSize,
-				DefaultValue: tests[x].fields.DefaultValue,
+				DefaultSize:  test.fields.DefaultSize,
+				DefaultValue: test.fields.DefaultValue,
 			}
-			if got := s.setDefaultSize(tests[x].args.price); got != tests[x].want {
-				t.Errorf("setDefaultSize() = %v, want %v", got, tests[x].want)
+			if got := s.setDefaultSize(test.args.price); got != test.want {
+				t.Errorf("setDefaultSize() = %v, want %v", got, test.want)
 			}
 		})
 	}

@@ -70,6 +70,7 @@ func (s *Statistic) ReturnResults() Results {
 		TotalEvents:       len(s.Events()),
 		TotalTransactions: len(s.Transactions()),
 		SharpieRatio:      s.SharpRatio(0),
+		StrategyName: s.strategyName,
 	}
 	for v := range s.Transactions() {
 		results.Transactions = append(results.Transactions, resultTransactions{
@@ -247,7 +248,7 @@ func (s *Statistic) maxDrawdownPoint() (i int, ep EquityPoint) {
 	return index, s.equity[index]
 }
 
-func (s *Statistic) Json() ([]byte, error) {
+func (s *Statistic) JSON() ([]byte, error) {
 	output, err := json.MarshalIndent(s.ReturnResults(), "", " ")
 	if err != nil {
 		return []byte{}, err
@@ -285,4 +286,8 @@ func (s *Statistic) SaveChart(filename string) error {
 	_ = f
 
 	return nil
+}
+
+func (s *Statistic) SetStrategyName(name string) {
+	s.strategyName = name
 }

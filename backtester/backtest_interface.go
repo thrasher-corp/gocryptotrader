@@ -79,7 +79,7 @@ type OrderEvent interface {
 	GetStatus() order.Status
 	SetID(id int)
 	ID() int
-	GetLimit() float64
+	Limit() float64
 }
 
 type Directioner interface {
@@ -127,6 +127,7 @@ type StatisticHandler interface {
 	ReturnResults() Results
 	Reset()
 
+	SetStrategyName(string)
 	SaveChart(filename string) error
 }
 

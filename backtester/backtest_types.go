@@ -6,6 +6,7 @@ type BackTest struct {
 	data       DataHandler
 	strategy   StrategyHandler
 	portfolio  PortfolioHandler
+	orderbook  OrderBook
 	exchange   ExecutionHandler
 	statistic  StatisticHandler
 	eventQueue []EventHandler

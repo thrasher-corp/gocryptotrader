@@ -71,6 +71,7 @@ func (t *BackTest) eventLoop(e EventHandler) error {
 		if err != nil {
 			break
 		}
+		t.orderbook.Add(event)
 		t.eventQueue = append(t.eventQueue, fill)
 	case FillEvent:
 		transaction, err := t.portfolio.OnFill(event, t.data)

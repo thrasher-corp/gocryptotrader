@@ -38,13 +38,13 @@ func (o *Order) GetStatus() order.Status {
 }
 
 func (o *Order) SetID(id int) {
-	panic("implement me")
+	o.id = id
 }
 
 func (o *Order) ID() int {
-	panic("implement me")
+	return o.id
 }
 
-func (o *Order) GetLimit() float64 {
-	panic("implement me")
+func (o *Order) Limit() float64 {
+	return o.limit
 }

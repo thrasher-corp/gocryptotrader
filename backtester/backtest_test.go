@@ -57,12 +57,8 @@ func TestBackTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// data := DataFromTick{
-	//
-	// }
-	// _ = data.Load()
-	bt.data = &data
 
+	bt.data = &data
 	bt.portfolio = &Portfolio{
 		initialFunds: 1000,
 		riskManager:  &Risk{},
@@ -78,22 +74,27 @@ func TestBackTest(t *testing.T) {
 		TakerFee: 0.00,
 	}
 
-	statistic := Statistic{}
+	statistic := Statistic{
+		strategyName: "HelloWorld",
+	}
 	bt.statistic = &statistic
 	err = bt.Run()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// ret := statistic.ReturnResults()
-	// for x := range ret.Transactions {
-	// 	fmt.Println(ret.Transactions[x])
-	// }
-	// fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
-	r, err := statistic.Json()
+	ret := statistic.ReturnResults()
+	for x := range ret.Transactions {
+		fmt.Println(ret.Transactions[x])
+	}
+	fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
+	r, err := statistic.JSON()
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println(string(r))
+	// for x := range bt.orderbook.Orders() {
+	// 	fmt.Println(bt.orderbook.Orders()[x])
+	// }
 	bt.Reset()
 }
 

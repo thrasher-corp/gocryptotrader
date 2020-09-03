@@ -2,7 +2,6 @@ package backtest
 
 import (
 	"reflect"
-	"sync"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -13,7 +12,6 @@ func TestOrderBook_Add(t *testing.T) {
 		counter int
 		orders  []OrderEvent
 		history []OrderEvent
-		m       sync.Mutex
 	}
 	type args struct {
 		order OrderEvent
@@ -39,6 +37,7 @@ func TestOrderBook_Add(t *testing.T) {
 				orders:  test.fields.orders,
 				history: test.fields.history,
 			}
+			t.Log(test.args)
 			t.Log(ob)
 		})
 	}
@@ -49,7 +48,6 @@ func TestOrderBook_OrderBy(t *testing.T) {
 		counter int
 		orders  []OrderEvent
 		history []OrderEvent
-		m       sync.Mutex
 	}
 	type args struct {
 		fn func(order OrderEvent) bool
@@ -71,12 +69,12 @@ func TestOrderBook_OrderBy(t *testing.T) {
 				orders:  test.fields.orders,
 				history: test.fields.history,
 			}
-			got, got1 := ob.OrderBy(test.args.fn)
+			got, got1 := ob.orderBy(test.args.fn)
 			if !reflect.DeepEqual(got, test.want) {
-				t.Errorf("OrderBy() got = %v, want %v", got, test.want)
+				t.Errorf("orderBy() got = %v, want %v", got, test.want)
 			}
 			if got1 != test.want1 {
-				t.Errorf("OrderBy() got1 = %v, want %v", got1, test.want1)
+				t.Errorf("orderBy() got1 = %v, want %v", got1, test.want1)
 			}
 		})
 	}
@@ -87,7 +85,6 @@ func TestOrderBook_Orders(t *testing.T) {
 		counter int
 		orders  []OrderEvent
 		history []OrderEvent
-		m       sync.Mutex
 	}
 	tests := []struct {
 		name   string
@@ -118,7 +115,6 @@ func TestOrderBook_OrdersAskBySymbol(t *testing.T) {
 		counter int
 		orders  []OrderEvent
 		history []OrderEvent
-		m       sync.Mutex
 	}
 	type args struct {
 		p currency.Pair
@@ -140,12 +136,12 @@ func TestOrderBook_OrdersAskBySymbol(t *testing.T) {
 				orders:  test.fields.orders,
 				history: test.fields.history,
 			}
-			got, got1 := ob.OrdersAskBySymbol(test.args.p)
+			got, got1 := ob.OrdersAskByPair(test.args.p)
 			if !reflect.DeepEqual(got, test.want) {
-				t.Errorf("OrdersAskBySymbol() got = %v, want %v", got, test.want)
+				t.Errorf("OrdersAskByPair() got = %v, want %v", got, test.want)
 			}
 			if got1 != test.want1 {
-				t.Errorf("OrdersAskBySymbol() got1 = %v, want %v", got1, test.want1)
+				t.Errorf("OrdersAskByPair() got1 = %v, want %v", got1, test.want1)
 			}
 		})
 	}
@@ -156,7 +152,6 @@ func TestOrderBook_OrdersBidBySymbol(t *testing.T) {
 		counter int
 		orders  []OrderEvent
 		history []OrderEvent
-		m       sync.Mutex
 	}
 	type args struct {
 		p currency.Pair
@@ -170,20 +165,20 @@ func TestOrderBook_OrdersBidBySymbol(t *testing.T) {
 	}{
 		{},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for x := range tests {
+		test := &tests[x]
+		t.Run(test.name, func(t *testing.T) {
 			ob := &OrderBook{
-				counter: tt.fields.counter,
-				orders:  tt.fields.orders,
-				history: tt.fields.history,
-				m:       tt.fields.m,
+				counter: test.fields.counter,
+				orders:  test.fields.orders,
+				history: test.fields.history,
 			}
-			got, got1 := ob.OrdersBidBySymbol(tt.args.p)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("OrdersBidBySymbol() got = %v, want %v", got, tt.want)
+			got, got1 := ob.OrdersBidByPair(test.args.p)
+			if !reflect.DeepEqual(got, test.want) {
+				t.Errorf("OrdersBidByPair() got = %v, want %v", got, test.want)
 			}
-			if got1 != tt.want1 {
-				t.Errorf("OrdersBidBySymbol() got1 = %v, want %v", got1, tt.want1)
+			if got1 != test.want1 {
+				t.Errorf("OrdersBidByPair() got1 = %v, want %v", got1, test.want1)
 			}
 		})
 	}
@@ -194,7 +189,6 @@ func TestOrderBook_OrdersBySymbol(t *testing.T) {
 		counter int
 		orders  []OrderEvent
 		history []OrderEvent
-		m       sync.Mutex
 	}
 	type args struct {
 		p currency.Pair
@@ -208,20 +202,20 @@ func TestOrderBook_OrdersBySymbol(t *testing.T) {
 	}{
 		{},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for x := range tests {
+		test := &tests[x]
+		t.Run(test.name, func(t *testing.T) {
 			ob := &OrderBook{
-				counter: tt.fields.counter,
-				orders:  tt.fields.orders,
-				history: tt.fields.history,
-				m:       tt.fields.m,
+				counter: test.fields.counter,
+				orders:  test.fields.orders,
+				history: test.fields.history,
 			}
-			got, got1 := ob.OrdersBySymbol(tt.args.p)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("OrdersBySymbol() got = %v, want %v", got, tt.want)
+			got, got1 := ob.OrdersByPair(test.args.p)
+			if !reflect.DeepEqual(got, test.want) {
+				t.Errorf("OrdersByPair() got = %v, want %v", got, test.want)
 			}
-			if got1 != tt.want1 {
-				t.Errorf("OrdersBySymbol() got1 = %v, want %v", got1, tt.want1)
+			if got1 != test.want1 {
+				t.Errorf("OrdersByPair() got1 = %v, want %v", got1, test.want1)
 			}
 		})
 	}
@@ -232,7 +226,6 @@ func TestOrderBook_OrdersCanceled(t *testing.T) {
 		counter int
 		orders  []OrderEvent
 		history []OrderEvent
-		m       sync.Mutex
 	}
 	tests := []struct {
 		name   string
@@ -266,7 +259,6 @@ func TestOrderBook_OrdersOpen(t *testing.T) {
 		counter int
 		orders  []OrderEvent
 		history []OrderEvent
-		m       sync.Mutex
 	}
 	tests := []struct {
 		name   string
@@ -276,20 +268,20 @@ func TestOrderBook_OrdersOpen(t *testing.T) {
 	}{
 		{},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for x := range tests {
+		test := &tests[x]
+		t.Run(test.name, func(t *testing.T) {
 			ob := &OrderBook{
-				counter: tt.fields.counter,
-				orders:  tt.fields.orders,
-				history: tt.fields.history,
-				m:       tt.fields.m,
+				counter: test.fields.counter,
+				orders:  test.fields.orders,
+				history: test.fields.history,
 			}
 			got, got1 := ob.OrdersOpen()
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("OrdersOpen() got = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got, test.want) {
+				t.Errorf("OrdersOpen() got = %v, want %v", got, test.want)
 			}
-			if got1 != tt.want1 {
-				t.Errorf("OrdersOpen() got1 = %v, want %v", got1, tt.want1)
+			if got1 != test.want1 {
+				t.Errorf("OrdersOpen() got1 = %v, want %v", got1, test.want1)
 			}
 		})
 	}
@@ -300,7 +292,6 @@ func TestOrderBook_Remove(t *testing.T) {
 		counter int
 		orders  []OrderEvent
 		history []OrderEvent
-		m       sync.Mutex
 	}
 	type args struct {
 		id int
@@ -311,18 +302,31 @@ func TestOrderBook_Remove(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{},
+		{
+			"Valid",
+			fields{
+				orders: []OrderEvent{},
+			},
+			args{
+				0,
+			},
+			false,
+		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for x := range tests {
+		test := &tests[x]
+		t.Run(test.name, func(t *testing.T) {
 			ob := &OrderBook{
-				counter: tt.fields.counter,
-				orders:  tt.fields.orders,
-				history: tt.fields.history,
-				m:       tt.fields.m,
+				counter: test.fields.counter,
+				orders:  test.fields.orders,
+				history: test.fields.history,
 			}
-			if err := ob.Remove(tt.args.id); (err != nil) != tt.wantErr {
-				t.Errorf("Remove() error = %v, wantErr %v", err, tt.wantErr)
+			o := new(Order)
+			o.Price = 5
+			o.Amount = 5
+			ob.Add(o)
+			if err := ob.Remove(test.args.id); (err != nil) != test.wantErr {
+				t.Errorf("Remove() error = %v, wantErr %v", err, test.wantErr)
 			}
 		})
 	}

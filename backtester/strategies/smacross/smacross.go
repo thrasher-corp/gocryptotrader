@@ -2,7 +2,7 @@ package smacross
 
 import (
 	"github.com/thrasher-corp/gct-ta/indicators"
-	"github.com/thrasher-corp/gocryptotrader/backtester"
+	backtest "github.com/thrasher-corp/gocryptotrader/backtester"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 

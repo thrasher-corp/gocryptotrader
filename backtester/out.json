@@ -111,5 +111,6 @@
    "amount": 5
   }
  ],
- "sharpieRatio": 0.08059013888004031
+ "sharpieRatio": 0.08059013888004031,
+ "strategyName": "HelloWorld"
 }

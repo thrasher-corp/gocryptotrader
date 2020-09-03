@@ -8,6 +8,7 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// Add order to order book
 func (ob *OrderBook) Add(order OrderEvent) {
 	ob.m.Lock()
 	ob.counter++
@@ -16,6 +17,7 @@ func (ob *OrderBook) Add(order OrderEvent) {
 	ob.m.Unlock()
 }
 
+// Remove order from order book by ID
 func (ob *OrderBook) Remove(id int) error {
 	ob.m.Lock()
 	defer ob.m.Unlock()
@@ -29,11 +31,12 @@ func (ob *OrderBook) Remove(id int) error {
 	return fmt.Errorf("order %v not found", id)
 }
 
+// Orders returns all orders
 func (ob *OrderBook) Orders() []OrderEvent {
 	return ob.orders
 }
 
-func (ob *OrderBook) OrderBy(fn func(order OrderEvent) bool) ([]OrderEvent, bool) {
+func (ob *OrderBook) orderBy(fn func(order OrderEvent) bool) ([]OrderEvent, bool) {
 	var orders []OrderEvent
 
 	for x := range ob.orders {
@@ -49,47 +52,50 @@ func (ob *OrderBook) OrderBy(fn func(order OrderEvent) bool) ([]OrderEvent, bool
 	return orders, true
 }
 
-func (ob *OrderBook) OrdersBySymbol(p currency.Pair) ([]OrderEvent, bool) {
+// OrdersByPair returns all orders by currency Pair
+func (ob *OrderBook) OrdersByPair(p currency.Pair) ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		return order.Pair() != p
 	}
 
-	orders, ok := ob.OrderBy(fn)
+	orders, ok := ob.orderBy(fn)
 	return orders, ok
 }
 
-func (ob *OrderBook) OrdersBidBySymbol(p currency.Pair) ([]OrderEvent, bool) {
+// OrdersBidByPair returns bids by pair
+func (ob *OrderBook) OrdersBidByPair(p currency.Pair) ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		if (order.Pair() != p) || (order.GetDirection() != gctorder.Buy) {
 			return false
 		}
 		return true
 	}
-	orders, ok := ob.OrderBy(fn)
+	orders, ok := ob.orderBy(fn)
 
 	sort.Slice(orders, func(i, j int) bool {
 		o1 := orders[i]
 		o2 := orders[j]
 
-		return o1.GetLimit() < o2.GetLimit()
-
+		return o1.Limit() < o2.Limit()
 	})
 
 	return orders, ok
 }
 
-func (ob *OrderBook) OrdersAskBySymbol(p currency.Pair) ([]OrderEvent, bool) {
+//  OrdersAskByPair returns asks by pair
+func (ob *OrderBook) OrdersAskByPair(p currency.Pair) ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		if (order.Pair() != p) || (order.GetDirection() != gctorder.Sell) {
 			return false
 		}
 		return true
 	}
-	orders, ok := ob.OrderBy(fn)
+	orders, ok := ob.orderBy(fn)
 
 	return orders, ok
 }
 
+// OpenOrders retrieve all open orders / PartiallyFilled orders
 func (ob *OrderBook) OrdersOpen() ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		if (order.GetStatus() != gctorder.New) || (order.GetStatus() != gctorder.Open) || (order.GetStatus() != gctorder.PartiallyFilled) {
@@ -98,10 +104,11 @@ func (ob *OrderBook) OrdersOpen() ([]OrderEvent, bool) {
 		return true
 	}
 
-	orders, ok := ob.OrderBy(fn)
+	orders, ok := ob.orderBy(fn)
 	return orders, ok
 }
 
+// OrdersCancelled retrieve all cancelled or pending cancel orders
 func (ob *OrderBook) OrdersCanceled() ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		if (order.GetStatus() == gctorder.Cancelled) || (order.GetStatus() == gctorder.PendingCancel) {
@@ -110,5 +117,5 @@ func (ob *OrderBook) OrdersCanceled() ([]OrderEvent, bool) {
 		return false
 	}
 
-	return ob.OrderBy(fn)
+	return ob.orderBy(fn)
 }

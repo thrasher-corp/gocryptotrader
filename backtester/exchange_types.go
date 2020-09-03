@@ -8,4 +8,5 @@ type Exchange struct {
 	CommissionRate float64
 	MakerFee       float64
 	TakerFee       float64
+	Orderbook      OrderBook
 }

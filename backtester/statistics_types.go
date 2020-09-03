@@ -30,6 +30,7 @@ type Results struct {
 	TotalTransactions int                  `json:"totalTransactions"`
 	Transactions      []resultTransactions `json:"transactions"`
 	SharpieRatio      float64              `json:"sharpieRatio"`
+	StrategyName      string               `json:"strategyName"`
 }
 
 type resultTransactions struct {
