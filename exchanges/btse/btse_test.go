@@ -43,7 +43,6 @@ func TestMain(m *testing.M) {
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	btseConfig.Verbose = true
 	err = b.Setup(btseConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -184,6 +183,17 @@ func TestGetAccount(t *testing.T) {
 		t.Skip("API keys not set, skipping test")
 	}
 	_, err := b.GetAccountBalance()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountFee(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+	_, err := b.GetAccountFee("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}

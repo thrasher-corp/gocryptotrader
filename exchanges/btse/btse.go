@@ -43,6 +43,7 @@ const (
 
 	btseWallet          = "user/wallet"
 	btseWalletHistory   = btseWallet + "_history"
+	btseUserFee         = "user/fees"
 	btseOrder           = "order"
 	btsePendingOrders   = "user/open_orders"
 	btseCancelAllAfter  = "order/cancelAllAfter"
@@ -129,13 +130,22 @@ func (b *BTSE) GetServerTime() (*ServerTime, error) {
 // GetAccountBalance returns the users account balance
 func (b *BTSE) GetAccountBalance() ([]CurrencyBalance, error) {
 	var a []CurrencyBalance
-	return a, b.SendAuthenticatedHTTPRequestV3(http.MethodGet, btseWallet, true, nil, nil, &a)
+	return a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseWallet, true, nil, nil, &a)
+}
+
+func (b *BTSE) GetAccountFee(symbol string) ([]AccountFees, error) {
+	var resp []AccountFees
+	urlValues := url.Values{}
+	if symbol != "" {
+		urlValues.Add("symbol", symbol)
+	}
+	return resp, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseUserFee, true, urlValues, nil, &resp)
 }
 
 // GetAccountBalance returns the users account balance
 func (b *BTSE) GetWalletHistory(symbol string, start, end time.Time, count int) error {
 	var resp interface{}
-	_ = b.SendAuthenticatedHTTPRequestV3(http.MethodGet, btseWalletHistory, true, nil, nil, &resp)
+	_ = b.SendAuthenticatedHTTPRequest(http.MethodGet, btseWalletHistory, true, nil, nil, &resp)
 
 	return nil
 }
@@ -166,7 +176,7 @@ func (b *BTSE) CreateOrder(size, price float64, side, orderType, symbol, timeInF
 	}
 
 	var r orderResp
-	return &r.ID, b.SendAuthenticatedHTTPRequestV3(http.MethodPost, btseOrder, true, url.Values{}, req, &r)
+	return &r.ID, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, true, url.Values{}, req, &r)
 }
 
 // GetOrders returns all pending orders
@@ -180,7 +190,7 @@ func (b *BTSE) GetOrders(symbol, orderID, clOrderID string) ([]OpenOrder, error)
 		req.Add("clOrderID", clOrderID)
 	}
 	var o []OpenOrder
-	return o, b.SendAuthenticatedHTTPRequestV3(http.MethodGet, btsePendingOrders, true, req, nil, &o)
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, true, req, nil, &o)
 }
 
 // CancelExistingOrder cancels an order
@@ -195,13 +205,13 @@ func (b *BTSE) CancelExistingOrder(orderID, symbol, clOrderID string) (CancelOrd
 		req.Add("clOrderID", clOrderID)
 	}
 
-	return c, b.SendAuthenticatedHTTPRequestV3(http.MethodDelete, btseOrder, true, req, nil, &c)
+	return c, b.SendAuthenticatedHTTPRequest(http.MethodDelete, btseOrder, true, req, nil, &c)
 }
 
 func (b *BTSE) CancelAllAfter(timeout int) error {
 	req := make(map[string]interface{})
 	req["timeout"] = timeout
-	return b.SendAuthenticatedHTTPRequestV3(http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil)
+	return b.SendAuthenticatedHTTPRequest(http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil)
 }
 
 func (b *BTSE) TradeHistory(symbol, orderID string, start, end time.Time, count int) ([]TradeHistory, error) {
@@ -223,7 +233,7 @@ func (b *BTSE) TradeHistory(symbol, orderID string, start, end time.Time, count 
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	return resp, b.SendAuthenticatedHTTPRequestV3(http.MethodGet, btseExchangeHistory, true, urlValues, nil, resp)
+	return resp, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseExchangeHistory, true, urlValues, nil, resp)
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
@@ -243,7 +253,7 @@ func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}, spot
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
-func (b *BTSE) SendAuthenticatedHTTPRequestV3(method, endpoint string, isSpot bool, values url.Values, req map[string]interface{}, result interface{}) error {
+func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, isSpot bool, values url.Values, req map[string]interface{}, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)

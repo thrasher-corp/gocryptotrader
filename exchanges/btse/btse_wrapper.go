@@ -90,7 +90,7 @@ func (b *BTSE) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:      false,
+				TickerFetching:      true,
 				KlineFetching:       true,
 				TradeFetching:       true,
 				OrderbookFetching:   true,

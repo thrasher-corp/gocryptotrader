@@ -153,6 +153,13 @@ type CurrencyBalance struct {
 	Available float64 `json:"available,string"`
 }
 
+// AccountFees stores fee for each currency pair
+type AccountFees struct {
+	MakerFee int    `json:"makerFee"`
+	Symbol   string `json:"symbol"`
+	TakerFee int    `json:"takerFee"`
+}
+
 // TradeHistory stores user trades for exchange
 type TradeHistory []struct {
 	Base         string  `json:"base"`
