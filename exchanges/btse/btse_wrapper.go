@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -89,7 +90,7 @@ func (b *BTSE) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:      true,
+				TickerFetching:      false,
 				KlineFetching:       true,
 				TradeFetching:       true,
 				OrderbookFetching:   true,
@@ -114,9 +115,32 @@ func (b *BTSE) SetDefaults() {
 				GetOrder:          true,
 			},
 			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.ThreeDay.Word():   true,
+					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
+				},
+				ResultLimit: 300,
+			},
 		},
 	}
 
@@ -198,13 +222,13 @@ func (b *BTSE) Run() {
 func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
 	var currencies []string
 	if a == asset.Spot {
-		m, err := b.GetSpotMarkets()
+		m, err := b.GetMarketsSummary("")
 		if err != nil {
 			return nil, err
 		}
 
 		for x := range m {
-			if m[x].Status != "active" {
+			if !m[x].Active {
 				continue
 			}
 			currencies = append(currencies, m[x].Symbol)
@@ -262,25 +286,18 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 		return nil, err
 	}
 
-	t, err := b.GetTicker(fpair.String())
+	t, err := b.GetMarketsSummary(fpair.String())
 	if err != nil {
 		return nil, err
 	}
-
-	s, err := b.GetMarketStatistics(fpair.String())
-	if err != nil {
-		return nil, err
-	}
-
 	err = ticker.ProcessTicker(&ticker.Price{
 		Pair:         p,
-		Ask:          t.Ask,
-		Bid:          t.Bid,
-		Low:          s.Low,
-		Last:         t.Price,
-		Volume:       s.Volume,
-		High:         s.High,
-		LastUpdated:  s.Time,
+		Ask:          t[0].LowestAsk,
+		Bid:          t[0].HighestBid,
+		Low:          t[0].Low24Hr,
+		Last:         t[0].Last,
+		Volume:       t[0].Volume,
+		High:         t[0].High24Hr,
 		ExchangeName: b.Name,
 		AssetType:    assetType})
 	if err != nil {
@@ -447,16 +464,9 @@ func (b *BTSE) CancelOrder(order *order.Cancel) error {
 		return err
 	}
 
-	r, err := b.CancelExistingOrder(order.ID, fpair.String())
+	_, err = b.CancelExistingOrder(order.ID, fpair.String(), order.ClientOrderID)
 	if err != nil {
 		return err
-	}
-
-	switch r.Code {
-	case -1:
-		return errors.New("order cancellation unsuccessful")
-	case 4:
-		return errors.New("order cancellation timeout")
 	}
 
 	return nil
@@ -467,42 +477,14 @@ func (b *BTSE) CancelOrder(order *order.Cancel) error {
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
-	markets, err := b.GetSpotMarkets()
+	allOrders, err := b.CancelExistingOrder("", orderCancellation.Pair.String(), "")
 	if err != nil {
-		return resp, err
+		return resp, nil
 	}
 
-	format, err := b.GetPairFormat(orderCancellation.AssetType, false)
-	if err != nil {
-		return resp, err
-	}
-
-	resp.Status = make(map[string]string)
-	for x := range markets {
-		fair, err := b.FormatExchangeCurrency(orderCancellation.Pair,
-			orderCancellation.AssetType)
-		if err != nil {
-			return resp, err
-		}
-
-		checkPair := currency.NewPairWithDelimiter(markets[x].BaseCurrency,
-			markets[x].QuoteCurrency,
-			format.Delimiter).String()
-		if fair.String() != checkPair {
-			continue
-		} else {
-			orders, err := b.GetOrders(checkPair)
-			if err != nil {
-				return resp, err
-			}
-			for y := range orders {
-				success := "Order Cancelled"
-				_, err = b.CancelExistingOrder(orders[y].Order.ID, checkPair)
-				if err != nil {
-					success = "Order Cancellation Failed"
-				}
-				resp.Status[orders[y].Order.ID] = success
-			}
+	for x := range allOrders {
+		if allOrders[x].Status == 6 {
+			resp.Status[allOrders[x].OrderID] = order.Cancelled.String()
 		}
 	}
 	return resp, nil
@@ -510,7 +492,7 @@ func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAll
 
 // GetOrderInfo returns information on a current open order
 func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
-	o, err := b.GetOrders("")
+	o, err := b.GetOrders("", orderID, "")
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -544,7 +526,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 				err)
 		}
 		od.Exchange = b.Name
-		od.Amount = o[i].Amount
+		od.Amount = o[i].Size
 		od.ID = o[i].ID
 		od.Date, err = parseOrderTime(o[i].CreatedAt)
 		if err != nil {
@@ -554,29 +536,29 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		od.Side = side
 		od.Type = order.Type(strings.ToUpper(o[i].Type))
 		od.Price = o[i].Price
-		od.Status = order.Status(o[i].Status)
+		od.Status = order.Status(o[i].OrderState)
 
-		fills, err := b.GetFills(orderID, "", "", "", "", "")
+		th, err := b.TradeHistory("", orderID, time.Time{}, time.Time{}, 100)
 		if err != nil {
 			return od,
 				fmt.Errorf("unable to get order fills for orderID %s",
 					orderID)
 		}
 
-		for i := range fills {
-			createdAt, err := parseOrderTime(fills[i].CreatedAt)
+		for i := range th {
+			createdAt, err := parseOrderTime(th[i][i].TradeID)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
 			}
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
-				TID:       strconv.FormatInt(fills[i].ID, 10),
-				Price:     fills[i].Price,
-				Amount:    fills[i].Amount,
+				TID:       th[i][i].TradeID,
+				Price:     th[i][i].Price,
+				Amount:    th[i][i].Size,
 				Exchange:  b.Name,
-				Side:      order.Side(fills[i].Side),
-				Fee:       fills[i].Fee,
+				Side:      order.Side(th[i][i].Side),
+				Fee:       th[i][i].FeeAmount,
 			})
 		}
 	}
@@ -608,7 +590,10 @@ func (b *BTSE) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Re
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	resp, err := b.GetOrders("")
+	if len(req.Pairs) == 0 {
+		return nil, errors.New("no pair provided")
+	}
+	resp, err := b.GetOrders(req.Pairs[0].String(), "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -645,16 +630,16 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		openOrder := order.Detail{
 			Pair:     p,
 			Exchange: b.Name,
-			Amount:   resp[i].Amount,
+			Amount:   resp[i].Size,
 			ID:       resp[i].ID,
 			Date:     tm,
 			Side:     side,
 			Type:     order.Type(strings.ToUpper(resp[i].Type)),
 			Price:    resp[i].Price,
-			Status:   order.Status(resp[i].Status),
+			Status:   order.Status(resp[i].OrderState),
 		}
 
-		fills, err := b.GetFills(resp[i].ID, "", "", "", "", "")
+		fills, err := b.TradeHistory("", resp[i].ID, time.Time{}, time.Time{}, 100)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s: Unable to get order fills for orderID %s",
@@ -664,7 +649,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		}
 
 		for i := range fills {
-			createdAt, err := parseOrderTime(fills[i].CreatedAt)
+			createdAt, err := parseOrderTime(fills[i][i].Timestamp)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s GetActiveOrders unable to parse time: %s\n",
@@ -673,12 +658,12 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 			}
 			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
 				Timestamp: createdAt,
-				TID:       strconv.FormatInt(fills[i].ID, 10),
-				Price:     fills[i].Price,
-				Amount:    fills[i].Amount,
+				TID:       fills[i][i].TradeID,
+				Price:     fills[i][i].Price,
+				Amount:    fills[i][i].Size,
 				Exchange:  b.Name,
-				Side:      order.Side(fills[i].Side),
-				Fee:       fills[i].Fee,
+				Side:      order.Side(fills[i][i].Side),
+				Fee:       fills[i][i].FeeAmount,
 			})
 		}
 		orders = append(orders, openOrder)
@@ -714,10 +699,110 @@ func (b *BTSE) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTSE) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+	if err := b.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+
+	fpair, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	klineRet := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	switch a {
+	case asset.Spot:
+		req, err := b.OHLCV(fpair.String(),
+			start,
+			end,
+			intervalInt)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		for x := range req {
+			timeStamp, err := convert.TimeFromUnixTimestampFloat(req[x][0])
+			if err != nil {
+				return kline.Item{}, err
+			}
+			c := kline.Candle{
+				Time:   timeStamp,
+				Open:   req[x][1],
+				High:   req[x][2],
+				Low:    req[x][3],
+				Close:  req[x][4],
+				Volume: req[x][5],
+			}
+			klineRet.Candles = append(klineRet.Candles, c)
+		}
+	case asset.Futures:
+		return kline.Item{}, common.ErrNotYetImplemented
+	default:
+		return kline.Item{}, fmt.Errorf("asset %v not supported", a.String())
+	}
+
+	return klineRet, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+	if err := b.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+
+	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+
+	fpair, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	intervalInt, err := strconv.Atoi(b.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	klineRet := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	switch a {
+	case asset.Spot:
+		req, err := b.OHLCV(fpair.String(),
+			start,
+			end,
+			intervalInt)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		for x := range req {
+			timeStamp, err := convert.TimeFromUnixTimestampFloat(req[x][0])
+			if err != nil {
+				return kline.Item{}, err
+			}
+			c := kline.Candle{
+				Time: timeStamp,
+			}
+
+			klineRet.Candles = append(klineRet.Candles, c)
+		}
+	case asset.Futures:
+		return kline.Item{}, common.ErrNotYetImplemented
+	default:
+		return kline.Item{}, fmt.Errorf("asset %v not supported", a.String())
+	}
+
+	return klineRet, nil
 }

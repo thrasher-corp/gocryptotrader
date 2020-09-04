@@ -5,11 +5,14 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -40,6 +43,7 @@ func TestMain(m *testing.M) {
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	btseConfig.Verbose = true
 	err = b.Setup(btseConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -53,17 +57,17 @@ func areTestAPIKeysSet() bool {
 
 func TestGetMarketsSummary(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketsSummary()
+	_, err := b.GetMarketsSummary("")
 	if err != nil {
 		t.Error(err)
 	}
-}
 
-func TestGetSpotMarkets(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetSpotMarkets()
+	ret, err := b.GetMarketsSummary("BTC-USD")
 	if err != nil {
 		t.Error(err)
+	}
+	if len(ret) != 1 {
+		t.Errorf("unexpected only one reesult when requesting BTC-USD data received: %v", len(ret))
 	}
 }
 
@@ -75,6 +79,14 @@ func TestGetFuturesMarkets(t *testing.T) {
 	}
 }
 
+func TestBTSE_FetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := b.FetchTradablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFetchOrderBook(t *testing.T) {
 	t.Parallel()
 	_, err := b.FetchOrderBook(testPair)
@@ -83,27 +95,78 @@ func TestFetchOrderBook(t *testing.T) {
 	}
 }
 
+func TestFetchOrderBookL2(t *testing.T) {
+	t.Parallel()
+	_, err := b.FetchOrderBookL2(testPair, 20)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBTSE_OHLCV(t *testing.T) {
+	t.Parallel()
+	_, err := b.OHLCV(testPair, time.Time{}, time.Time{}, 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBTSE_GetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	curr, err := currency.NewPairFromString(testPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ret, err := b.GetHistoricCandles(
+		curr, asset.Spot,
+		time.Time{}, time.Time{},
+		kline.OneMin)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(ret)
+}
+
+func TestBTSE_GetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	curr, err := currency.NewPairFromString(testPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ret, err := b.GetHistoricCandlesExtended(
+		curr, asset.Spot,
+		time.Time{}, time.Time{},
+		kline.OneMin)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(ret)
+}
+
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrades(testPair)
+	_, err := b.GetTrades(testPair,
+		time.Time{}, time.Time{},
+		50)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetTicker(t *testing.T) {
+func TestBTSE_UpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker(testPair)
+	curr, err := currency.NewPairFromString(testPair)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-}
 
-func TestGetMarketStatistics(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetMarketStatistics(testPair)
+	_, err = b.UpdateTicker(curr, asset.Spot)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 }
 
@@ -126,12 +189,14 @@ func TestGetAccount(t *testing.T) {
 	}
 }
 
-func TestGetFills(t *testing.T) {
+func TestBTSE_GetWalletHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := b.GetFills("", testPair, "", "", "", "")
+	err := b.GetWalletHistory(testPair,
+		time.Time{}, time.Time{},
+		50)
 	if err != nil {
 		t.Error(err)
 	}
@@ -159,7 +224,7 @@ func TestGetOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := b.GetOrders("")
+	_, err := b.GetOrders("BTC-USDT", "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -171,6 +236,12 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Skip("API keys not set, skipping test")
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
+		Pairs: []currency.Pair{
+			{
+				Delimiter: "-",
+				Base:      currency.BTC,
+				Quote:     currency.USD,
+			}},
 		Type: order.AnyType,
 	}
 
@@ -191,6 +262,17 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := b.GetOrderHistory(&getOrdersRequest)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestBTSE_TradeHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+	_, err := b.TradeHistory(testPair, "", time.Time{}, time.Time{}, 5)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -307,17 +389,30 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    100000,
-		Amount:   0.1,
-		ClientID: "meowOrder",
+		Side:      order.Sell,
+		Type:      order.Limit,
+		Price:     100000000,
+		Amount:    0.1,
+		ClientID:  "",
+		AssetType: asset.Spot,
 	}
 	response, err := b.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+func TestCancelAllAfter(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	err := b.CancelAllAfter(1)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -334,10 +429,19 @@ func TestCancelExchangeOrder(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 	err := b.CancelOrder(orderCancellation)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestBTSE_CancelOrder(t *testing.T) {
+	t.Parallel()
+	_, err := b.CancelExistingOrder("", "BTC-USD", "")
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -354,6 +458,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 	resp, err := b.CancelAllOrders(orderCancellation)
 
