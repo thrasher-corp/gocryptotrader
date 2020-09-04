@@ -59,6 +59,24 @@ const (
 	fTransferLimitInfo         = "api/v1/contract_transfer_limit"
 	fPositionLimitInfo         = "api/v1/contract_position_limit"
 	fQueryAssetsAndPositions   = "api/v1/contract_account_position_info"
+	fTransfer                  = "api/v1/contract_master_sub_transfer"
+	fTransferRecords           = "api/v1/contract_master_sub_transfer_record"
+	fAvailableLeverage         = "api/v1/contract_available_level_rate"
+	fOrder                     = "api/v1/contract_order"
+	fBatchOrder                = "/v1/contract_batchorder"
+	fCancelOrder               = "api/v1/contract_cancel"
+	fCancelAllOrders           = "api/v1/contract_cancelall"
+	fFlashCloseOrder           = "api/v1/lightning_close_position"
+	fOrderInfo                 = "api/v1/contract_order_info"
+	fOrderDetails              = "api/v1/contract_order_detail"
+	fQueryOpenOrders           = "api/v1/contract_openorders"
+	fOrderHistory              = "api/v1/contract_hisorders"
+	fMatchResult               = "api/v1/contract_matchresults"
+	fTriggerOrder              = "api/v1/contract_trigger_order"
+	fCancelTriggerOrder        = "api/v1/contract_trigger_cancel"
+	fCancelAllTriggerOrders    = "api/v1/contract_trigger_cancelall"
+	fTriggerOpenOrders         = "api/v1/contract_trigger_openorders"
+	fTriggerOrderHistory       = "api/v1/contract_trigger_hisorders"
 
 	// Coin Margined Swap (perpetual futures) endpoints
 	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info?"
@@ -212,6 +230,39 @@ var validContractTypes = []string{
 
 var validFuturesPeriods = []string{
 	"1min", "5min", "15min", "30min", "60min", "1hour", "4hour", "1day",
+}
+
+var validFuturesOrderPriceTypes = []string{
+	"limit", "opponent", "lightning", "optimal_5", "optimal_10",
+	"optimal_20", "fok", "ioc", "opponent_ioc", "lightning_ioc",
+	"optimal_5_ioc", "optimal_10_ioc", "optimal_20_ioc", "opponent_fok",
+	"lightning_fok", "optimal_5_fok", "optimal_10_fok", "optimal_20_fok",
+}
+
+var validFuturesRecordTypes = map[string]string{
+	"closeLong":                   "3",
+	"closeShort":                  "4",
+	"openOpenPositionsTakerFees":  "5",
+	"openPositionsMakerFees":      "6",
+	"closePositionsTakerFees":     "7",
+	"closePositionsMakerFees":     "8",
+	"closeLongDelivery":           "9",
+	"closeShortDelivery":          "10",
+	"deliveryFee":                 "11",
+	"longLiquidationClose":        "12",
+	"shortLiquidationClose":       "13",
+	"transferFromSpotToContracts": "14",
+	"transferFromContractsToSpot": "15",
+	"settleUnrealizedLongPNL":     "16",
+	"settleUnrealizedShortPNL":    "17",
+	"clawback":                    "19",
+	"system":                      "26",
+	"activityPrizeRewards":        "28",
+	"rebate":                      "29",
+	"transferToSub":               "34",
+	"transferFromSub":             "35",
+	"transferToMaster":            "36",
+	"transferFromMaster":          "37",
 }
 
 // HUOBI is the overarching type across this package
@@ -520,18 +571,221 @@ func (h *HUOBI) FGetBasisData(symbol, period, basisPriceType string, size int64)
 	return resp, h.SendHTTPRequest(path, &resp)
 }
 
-// FGetSwapAccountInfo gets swap account info for futures
-func (h *HUOBI) FGetSwapAccountInfo(code string) (FUserAccountData, error) {
+// FGetAccountInfo gets user info for futures account
+func (h *HUOBI) FGetAccountInfo(symbol string) (FUserAccountData, error) {
 	var resp FUserAccountData
 	req := make(map[string]interface{})
-	req["contract_code"] = code
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapAccInfo, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fAccountData, nil, req, &resp, false)
 }
 
-//
+// FGetPositionsInfo gets positions info for futures account
+func (h *HUOBI) FGetPositionsInfo(symbol string) (FUserAccountData, error) {
+	var resp FUserAccountData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fPositionInformation, nil, req, &resp, false)
+}
 
-//
+// FGetAllSubAccountAssets gets assets info for all futures subaccounts
+func (h *HUOBI) FGetAllSubAccountAssets(symbol string) (FUserAccountData, error) {
+	var resp FUserAccountData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fAllSubAccountAssets, nil, req, &resp, false)
+}
+
+// FGetSingleSubAccountInfo gets assets info for a futures subaccount
+func (h *HUOBI) FGetSingleSubAccountInfo(symbol, subUID string) (FSingleSubAccountAssetsInfo, error) {
+	var resp FSingleSubAccountAssetsInfo
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	req["sub_uid"] = subUID
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fPositionInformation, nil, req, &resp, false)
+}
+
+// FGetSingleSubPositions gets positions info for a single sub account
+func (h *HUOBI) FGetSingleSubPositions(symbol, subUID string) (FSingleSubAccountPositionsInfo, error) {
+	var resp FSingleSubAccountPositionsInfo
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	req["sub_uid"] = subUID
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fSingleSubAccountPositions, nil, req, &resp, false)
+}
+
+// FGetFinancialRecords gets financial records for futures
+func (h *HUOBI) FGetFinancialRecords(symbol, recordType string, createDate, pageIndex, pageSize int64) (FFinancialRecords, error) {
+	var resp FFinancialRecords
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	if recordType != "" {
+		rType, ok := validFuturesRecordTypes[recordType]
+		if !ok {
+			return resp, fmt.Errorf("invalid recordType")
+		}
+		req["type"] = rType
+	}
+	if createDate > 0 && createDate < 90 {
+		req["create_date"] = createDate
+	}
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fFinancialRecords, nil, req, &resp, false)
+}
+
+// FGetSettlementRecords gets settlement records for futures
+func (h *HUOBI) FGetSettlementRecords(symbol string, pageIndex, pageSize int64, startTime, endTime time.Time) (FSettlementRecords, error) {
+	var resp FSettlementRecords
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
+		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fFinancialRecords, nil, req, &resp, false)
+}
+
+// FGetOrderLimits gets order limits for futures contracts
+func (h *HUOBI) FGetOrderLimits(symbol, orderPriceType string) (FContractInfoOnOrderLimit, error) {
+	var resp FContractInfoOnOrderLimit
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	if orderPriceType != "" {
+		if !common.StringDataCompare(validFuturesOrderPriceTypes, orderPriceType) {
+			return resp, fmt.Errorf("invalid orderPriceType")
+		}
+		req["order_price_type"] = orderPriceType
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fOrderLimitInfo, nil, req, &resp, false)
+}
+
+// FContractTradingFee gets futures contract trading fees
+func (h *HUOBI) FContractTradingFee(symbol string) (FContractTradingFeeData, error) {
+	var resp FContractTradingFeeData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fContractTradingFee, nil, req, &resp, false)
+}
+
+// FGetTransferLimits gets transfer limits for futures
+func (h *HUOBI) FGetTransferLimits(symbol string) (FTransferLimitData, error) {
+	var resp FTransferLimitData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fTransferLimitInfo, nil, req, &resp, false)
+}
+
+// FGetPositionLimits gets position limits for futures
+func (h *HUOBI) FGetPositionLimits(symbol string) (FPositionLimitData, error) {
+	var resp FPositionLimitData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fPositionLimitInfo, nil, req, &resp, false)
+}
+
+// FGetAssetsAndPositions gets assets and positions for futures
+func (h *HUOBI) FGetAssetsAndPositions(symbol string) (FAssetsAndPositionsData, error) {
+	var resp FAssetsAndPositionsData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fQueryAssetsAndPositions, nil, req, &resp, false)
+}
+
+// FTransfer transfers assets between master and subaccounts
+func (h *HUOBI) FTransfer(subUID, symbol, transferType string, amount float64) (FAssetsAndPositionsData, error) {
+	var resp FAssetsAndPositionsData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	req["subUid"] = subUID
+	req["amount"] = amount
+	if !common.StringDataCompare(validTransferType, transferType) {
+		return resp, fmt.Errorf("inavlid transferType received")
+	}
+	req["type"] = transferType
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fTransfer, nil, req, &resp, false)
+}
+
+// FGetTransferRecords gets transfer records data for futures
+func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate int64, pageIndex, pageSize int64) (FAssetsAndPositionsData, error) {
+	var resp FAssetsAndPositionsData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	if !common.StringDataCompare(validTransferType, transferType) {
+		return resp, fmt.Errorf("inavlid transferType received")
+	}
+	req["type"] = transferType
+	if createDate > 90 {
+		return resp, fmt.Errorf("invalid create date value: only supports up to 90 days")
+	}
+	req["create_date"] = strconv.FormatInt(createDate, 10)
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize > 0 && pageSize <= 50 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fQueryAssetsAndPositions, nil, req, &resp, false)
+}
+
+// FGetAvailableLeverage gets available leverage data for futures
+func (h *HUOBI) FGetAvailableLeverage(symbol string) (FAvailableLeverageData, error) {
+	var resp FAvailableLeverageData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fAvailableLeverage, nil, req, &resp, false)
+}
 
 //
 

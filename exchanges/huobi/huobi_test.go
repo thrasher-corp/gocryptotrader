@@ -168,6 +168,152 @@ func TestFLastTradeData(t *testing.T) {
 	}
 }
 
+func TestFGetAccountInfo(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetAccountInfo("")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetPositionsInfo(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetPositionsInfo("")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetAllSubAccountAssets(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetAllSubAccountAssets("")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetSingleSubAccountInfo(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetSingleSubAccountInfo("", "incorrectUID")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetSingleSubPositions(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetSingleSubPositions("", "incorrectUID")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetFinancialRecords(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetFinancialRecords("", "closeLong", 0, 0, 0)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetSettlementRecords(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetSettlementRecords("", 0, 0, time.Time{}, time.Time{})
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFContractTradingFee(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FContractTradingFee("")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetTransferLimits(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetTransferLimits("")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetPositionLimits(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetPositionLimits("")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetAssetsAndPositions(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetAssetsAndPositions("BTC")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFTransfer(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FTransfer("invalidUID", "BTC", "master_to_sub", 5)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetTransferRecords(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetTransferRecords("BTC", "master_to_sub", 0, 0, 0)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetAvailableLeverage(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetAvailableLeverage("BTC")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+//
+
+//
+
+//
+
 // Futures data
 
 func TestFetchTradablePairs(t *testing.T) {
