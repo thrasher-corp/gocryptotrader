@@ -107,8 +107,8 @@ func (b *BTSE) GetTrades(symbol string, start, end time.Time, count int) ([]Trad
 		urlValues.Add("count", strconv.Itoa(count))
 	}
 	if !start.IsZero() && !end.IsZero() {
-		if start.After(end) || end.Before(start) {
-			return t, errors.New("start and end must both be valid")
+		if start.After(end) {
+			return t, errors.New("start cannot be after end time")
 		}
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
@@ -123,8 +123,8 @@ func (b *BTSE) OHLCV(symbol string, start, end time.Time, resolution int) (OHLCV
 	urlValues.Add("symbol", symbol)
 
 	if !start.IsZero() && !end.IsZero() {
-		if start.After(end) || end.Before(start) {
-			return o, errors.New("start and end must both be valid")
+		if start.After(end) {
+			return o, errors.New("start cannot be after end time")
 		}
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
@@ -170,7 +170,7 @@ func (b *BTSE) GetWalletHistory(symbol string, start, end time.Time, count int) 
 	}
 	if !start.IsZero() && !end.IsZero() {
 		if start.After(end) || end.Before(start) {
-			return resp, errors.New("start and end must both be valid")
+			return resp, errors.New("start cannot be after end time")
 		}
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
@@ -342,6 +342,9 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, isSpot bool
 			b.Name)
 	}
 
+	// The concatenation is done this way because BTSE expect endpoint+nonce or endpoint+nonce+body
+	// when signing the data but the full path of the request  is /spot/api/v3.2/<endpoint>
+	// its messy but it works and supports futures as well
 	host := b.API.Endpoints.URL
 	if isSpot {
 		host += btseSPOTPath + btseSPOTAPIPath + endpoint

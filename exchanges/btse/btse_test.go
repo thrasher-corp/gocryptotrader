@@ -1,12 +1,14 @@
 package btse
 
 import (
+	"errors"
 	"log"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -78,19 +80,36 @@ func TestGetFuturesMarkets(t *testing.T) {
 	}
 }
 
-func TestBTSEFetchTradablePairs(t *testing.T) {
-	t.Parallel()
-	_, err := b.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestFetchOrderBook(t *testing.T) {
 	t.Parallel()
 	_, err := b.FetchOrderBook(testPair, 0, 1, 1)
 	if err != nil {
 		t.Error(err)
+	}
+
+	_, err = b.FetchOrderBook(testPair, 1, 1, 1)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+
+	p, err := currency.NewPairFromString(testPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.UpdateOrderbook(p, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.UpdateOrderbook(p, asset.Futures)
+	if err != nil {
+		if !errors.Is(err, common.ErrNotYetImplemented) {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -102,33 +121,57 @@ func TestFetchOrderBookL2(t *testing.T) {
 	}
 }
 
-func TestBTSEOHLCV(t *testing.T) {
+func TestOHLCV(t *testing.T) {
 	t.Parallel()
-	_, err := b.OHLCV(testPair, time.Time{}, time.Time{}, 60)
+	_, err := b.OHLCV(testPair,
+		time.Now().AddDate(0, 0, -1),
+		time.Now(), 60)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	_, err = b.OHLCV(testPair, time.Now(), time.Now().AddDate(0, 0, -1), 60)
+	if err == nil {
+		t.Fatal("expected error if start is after end date")
+	}
 }
 
-func TestBTSEGetHistoricCandles(t *testing.T) {
+func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	curr, err := currency.NewPairFromString(testPair)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ret, err := b.GetHistoricCandles(
+	_, err = b.GetHistoricCandles(
 		curr, asset.Spot,
 		time.Time{}, time.Time{},
 		kline.OneMin)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(ret)
+
+	_, err = b.GetHistoricCandles(
+		curr, asset.Futures,
+		time.Time{}, time.Time{},
+		kline.OneMin)
+	if err != nil {
+		if !errors.Is(err, common.ErrNotYetImplemented) {
+			t.Fatal(err)
+		}
+	}
+
+	curr.Quote = currency.XRP
+	_, err = b.GetHistoricCandles(
+		curr, asset.Spot,
+		time.Time{}, time.Time{},
+		kline.OneMin)
+	if err == nil {
+		t.Fatal("expected error when requesting with disabled pari")
+	}
 }
 
-func TestBTSEGetHistoricCandlesExtended(t *testing.T) {
+func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	curr, err := currency.NewPairFromString(testPair)
 	if err != nil {
@@ -139,23 +182,48 @@ func TestBTSEGetHistoricCandlesExtended(t *testing.T) {
 		curr, asset.Spot,
 		time.Time{}, time.Time{},
 		kline.OneMin)
-
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(
+		curr, asset.Futures,
+		time.Time{}, time.Time{},
+		kline.OneMin)
+	if err != nil {
+		if !errors.Is(err, common.ErrNotYetImplemented) {
+			t.Fatal(err)
+		}
+	}
+
+	curr.Quote = currency.XRP
+	_, err = b.GetHistoricCandlesExtended(
+		curr, asset.Spot,
+		time.Time{}, time.Time{},
+		kline.OneMin)
+	if err == nil {
+		t.Fatal("expected error when requesting with disabled pari")
 	}
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTrades(testPair,
-		time.Time{}, time.Time{},
+		time.Now().AddDate(0, 0, -1), time.Now(),
 		50)
 	if err != nil {
 		t.Error(err)
 	}
+
+	_, err = b.GetTrades(testPair,
+		time.Now(), time.Now().AddDate(0, -1, 0),
+		50)
+	if err == nil {
+		t.Error("expected error if start time is after end time")
+	}
 }
 
-func TestBTSEUpdateTicker(t *testing.T) {
+func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	curr, err := currency.NewPairFromString(testPair)
 	if err != nil {
@@ -198,7 +266,7 @@ func TestGetFeeInformation(t *testing.T) {
 	}
 }
 
-func TestBTSE_GetWalletHistory(t *testing.T) {
+func TestGetWalletHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
@@ -211,7 +279,7 @@ func TestBTSE_GetWalletHistory(t *testing.T) {
 	}
 }
 
-func TestBTSE_GetWalletAddress(t *testing.T) {
+func TestGetWalletAddress(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
@@ -222,7 +290,7 @@ func TestBTSE_GetWalletAddress(t *testing.T) {
 	}
 }
 
-func TestBTSE_CreateWalletAddress(t *testing.T) {
+func TestCreateWalletAddress(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
@@ -234,7 +302,7 @@ func TestBTSE_CreateWalletAddress(t *testing.T) {
 	t.Log(v)
 }
 
-func TestBTSE_GetDepositAddress(t *testing.T) {
+func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
@@ -294,13 +362,19 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
-func TestBTSEGetExchangeHistory(t *testing.T) {
+func TestGetExchangeHistory(t *testing.T) {
 	curr, _ := currency.NewPairFromString(testPair)
-	ret, err := b.GetExchangeHistory(curr, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now())
+	_, err := b.GetExchangeHistory(curr, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(ret)
+
+	_, err = b.GetExchangeHistory(curr, asset.Futures, time.Now().AddDate(0, -6, 0), time.Now())
+	if err != nil {
+		if !errors.Is(err, common.ErrNotYetImplemented) {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestGetOrderHistory(t *testing.T) {
@@ -317,7 +391,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-func TestBTSETradeHistory(t *testing.T) {
+func TestTradeHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
@@ -489,7 +563,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
-func TestBTSECancelOrder(t *testing.T) {
+func TestECancelOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
@@ -579,14 +653,5 @@ func TestStatusToStandardStatus(t *testing.T) {
 }
 
 func TestFetchTradablePairs(t *testing.T) {
-	assets := b.GetAssetTypes()
-	for i := range assets {
-		data, err := b.FetchTradablePairs(assets[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(data) == 0 {
-			t.Fatal("data cannot be zero")
-		}
-	}
+
 }

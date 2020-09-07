@@ -44,7 +44,7 @@ type MarketSummary []struct {
 	Futures             bool        `json:"futures"`
 }
 
-// OHLCV holds OHLCV data for set symbol
+// OHLCV holds Open, High Low, Close, Volume data for set symbol
 type OHLCV [][]float64
 
 // SpotMarket stores market data
@@ -200,7 +200,7 @@ type WalletHistory []struct {
 	Wallet      string  `json:"wallet"`
 }
 
-// WalletAddress stores address's for deposit's
+// WalletAddress stores address for crypto deposit's
 type WalletAddress []struct {
 	Address string `json:"address"`
 	Created int    `json:"created"`
@@ -300,7 +300,7 @@ type wsOrderUpdate struct {
 	Type              string  `json:"type"`
 }
 
-// ErrorResponse contains errors received from api
+// ErrorResponse contains errors received from API
 type ErrorResponse struct {
 	ErrorCode int    `json:"errorCode"`
 	Message   string `json:"message"`
