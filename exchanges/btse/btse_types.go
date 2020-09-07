@@ -98,12 +98,12 @@ type FuturesMarket struct {
 
 // Trade stores trade data
 type Trade struct {
-	SerialID string  `json:"serial_id"`
-	Symbol   string  `json:"symbol"`
-	Price    float64 `json:"price"`
-	Amount   float64 `json:"amount"`
-	Time     string  `json:"time"`
-	Type     string  `json:"type"`
+	SerialID string    `json:"serial_id"`
+	Symbol   string    `json:"symbol"`
+	Price    float64   `json:"price"`
+	Amount   float64   `json:"amount"`
+	Time     time.Time `json:"time"`
+	Type     string    `json:"type"`
 }
 
 // QuoteData stores quote data
@@ -149,15 +149,15 @@ type ServerTime struct {
 // CurrencyBalance stores the account info data
 type CurrencyBalance struct {
 	Currency  string  `json:"currency"`
-	Total     float64 `json:"total,string"`
-	Available float64 `json:"available,string"`
+	Total     float64 `json:"total"`
+	Available float64 `json:"available"`
 }
 
 // AccountFees stores fee for each currency pair
 type AccountFees struct {
-	MakerFee int    `json:"makerFee"`
-	Symbol   string `json:"symbol"`
-	TakerFee int    `json:"takerFee"`
+	MakerFee float64 `json:"makerFee"`
+	Symbol   string  `json:"symbol"`
+	TakerFee float64 `json:"takerFee"`
 }
 
 // TradeHistory stores user trades for exchange
@@ -184,6 +184,31 @@ type TradeHistory []struct {
 	TriggerType  int     `json:"triggerType"`
 	Username     string  `json:"username"`
 	Wallet       string  `json:"wallet"`
+}
+
+// WalletHistory stores account funding history
+type WalletHistory []struct {
+	Amount      float64 `json:"amount"`
+	Currency    string  `json:"currency"`
+	Description string  `json:"description"`
+	Fees        float64 `json:"fees"`
+	OrderID     int64   `json:"orderId"`
+	Status      int     `json:"status"`
+	Timestamp   int64   `json:"timestamp"`
+	Type        int     `json:"type"`
+	Username    string  `json:"username"`
+	Wallet      string  `json:"wallet"`
+}
+
+// WalletAddress stores address's for deposit's
+type WalletAddress []struct {
+	Address string `json:"address"`
+	Created int    `json:"created"`
+}
+
+// WithdrawalResponse response received when submitting a crypto withdrawal request
+type WithdrawalResponse struct {
+	WithdrawID string `json:"withdraw_id"`
 }
 
 // OpenOrder stores an open order info
@@ -273,4 +298,11 @@ type wsOrderUpdate struct {
 	Timestamp         int64   `json:"timestamp,string"`
 	TriggerPrice      float64 `json:"triggerPrice,string"`
 	Type              string  `json:"type"`
+}
+
+// ErrorResponse contains errors received from api
+type ErrorResponse struct {
+	ErrorCode int    `json:"errorCode"`
+	Message   string `json:"message"`
+	Status    int    `json:"status"`
 }

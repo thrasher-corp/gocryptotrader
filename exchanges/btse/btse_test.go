@@ -19,8 +19,8 @@ import (
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey =  ""
+	apiSecret = ""
 	canManipulateRealOrders = false
 	testPair                = "BTC-USD"
 )
@@ -78,7 +78,7 @@ func TestGetFuturesMarkets(t *testing.T) {
 	}
 }
 
-func TestBTSE_FetchTradablePairs(t *testing.T) {
+func TestBTSEFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
@@ -88,7 +88,7 @@ func TestBTSE_FetchTradablePairs(t *testing.T) {
 
 func TestFetchOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.FetchOrderBook(testPair)
+	_, err := b.FetchOrderBook(testPair, 0, 1, 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -102,7 +102,7 @@ func TestFetchOrderBookL2(t *testing.T) {
 	}
 }
 
-func TestBTSE_OHLCV(t *testing.T) {
+func TestBTSEOHLCV(t *testing.T) {
 	t.Parallel()
 	_, err := b.OHLCV(testPair, time.Time{}, time.Time{}, 60)
 	if err != nil {
@@ -110,7 +110,7 @@ func TestBTSE_OHLCV(t *testing.T) {
 	}
 }
 
-func TestBTSE_GetHistoricCandles(t *testing.T) {
+func TestBTSEGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	curr, err := currency.NewPairFromString(testPair)
 	if err != nil {
@@ -128,14 +128,14 @@ func TestBTSE_GetHistoricCandles(t *testing.T) {
 	t.Log(ret)
 }
 
-func TestBTSE_GetHistoricCandlesExtended(t *testing.T) {
+func TestBTSEGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	curr, err := currency.NewPairFromString(testPair)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ret, err := b.GetHistoricCandlesExtended(
+	_, err = b.GetHistoricCandlesExtended(
 		curr, asset.Spot,
 		time.Time{}, time.Time{},
 		kline.OneMin)
@@ -143,7 +143,6 @@ func TestBTSE_GetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(ret)
 }
 
 func TestGetTrades(t *testing.T) {
@@ -156,7 +155,7 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
-func TestBTSE_UpdateTicker(t *testing.T) {
+func TestBTSEUpdateTicker(t *testing.T) {
 	t.Parallel()
 	curr, err := currency.NewPairFromString(testPair)
 	if err != nil {
@@ -177,23 +176,23 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
-func TestGetAccount(t *testing.T) {
+func TestGetWalletInformation(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := b.GetAccountBalance()
+	_, err := b.GetWalletInformation()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetAccountFee(t *testing.T) {
+func TestGetFeeInformation(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := b.GetAccountFee("BTC-USD")
+	_, err := b.GetFeeInformation("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -204,9 +203,43 @@ func TestBTSE_GetWalletHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	err := b.GetWalletHistory(testPair,
+	_, err := b.GetWalletHistory(testPair,
 		time.Time{}, time.Time{},
 		50)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBTSE_GetWalletAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+	_, err := b.GetWalletAddress("XRP")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBTSE_CreateWalletAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+	v, err := b.CreateWalletAddress("XRP")
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(v)
+}
+
+func TestBTSE_GetDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping test")
+	}
+	_, err := b.GetDepositAddress(currency.XRP, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -261,6 +294,15 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
+func TestBTSEGetExchangeHistory(t *testing.T) {
+	curr, _ := currency.NewPairFromString(testPair)
+	ret, err := b.GetExchangeHistory(curr, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(ret)
+}
+
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -275,7 +317,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-func TestBTSE_TradeHistory(t *testing.T) {
+func TestBTSETradeHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
@@ -328,14 +370,14 @@ func TestGetFee(t *testing.T) {
 		PurchasePrice: 1000,
 	}
 
-	if resp, err := b.GetFee(feeBuilder); resp != 0.500000 || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", 0.500000, resp)
+	if resp, err := b.GetFee(feeBuilder); resp != 1.000000 || err != nil {
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", 1.000000, resp)
 		t.Error(err)
 	}
 
 	feeBuilder.IsMaker = false
-	if resp, err := b.GetFee(feeBuilder); resp != 1.00000 || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", 1.00000, resp)
+	if resp, err := b.GetFee(feeBuilder); resp != 2.00000 || err != nil {
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", 2.00000, resp)
 		t.Error(err)
 	}
 
@@ -447,8 +489,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
-func TestBTSE_CancelOrder(t *testing.T) {
+func TestBTSECancelOrder(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
 	_, err := b.CancelExistingOrder("", "BTC-USD", "")
 	if err != nil {
 		t.Fatal(err)

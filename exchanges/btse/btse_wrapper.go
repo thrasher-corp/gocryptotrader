@@ -145,7 +145,8 @@ func (b *BTSE) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(SetRateLimit()))
 
 	b.API.Endpoints.URLDefault = btseAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
@@ -336,7 +337,7 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	if err != nil {
 		return nil, err
 	}
-	a, err := b.FetchOrderBook(fpair.String())
+	a, err := b.FetchOrderBook(fpair.String(), 0, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +367,7 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 // BTSE exchange
 func (b *BTSE) UpdateAccountInfo() (account.Holdings, error) {
 	var a account.Holdings
-	balance, err := b.GetAccountBalance()
+	balance, err := b.GetWalletInformation()
 	if err != nil {
 		return a, err
 	}
@@ -414,7 +415,32 @@ func (b *BTSE) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	if assetType != asset.Spot {
+		return nil, common.ErrNotYetImplemented
+	}
+
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	trades, err := b.GetTrades(fpair.String(), timestampStart, timestampEnd, 0)
+	if err != nil {
+		return nil, err
+	}
+	var resp []exchange.TradeHistory
+	for x := range trades {
+		tempExch := exchange.TradeHistory{
+			Timestamp: trades[x].Time,
+			Price:     trades[x].Price,
+			Amount:    trades[x].Amount,
+			Exchange:  b.Name,
+			Type:      trades[x].Type,
+			TID:       trades[x].SerialID,
+		}
+		resp = append(resp, tempExch)
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order
@@ -546,19 +572,19 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		}
 
 		for i := range th {
-			createdAt, err := parseOrderTime(th[i][i].TradeID)
+			createdAt, err := parseOrderTime(th[i].TradeID)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
 			}
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
-				TID:       th[i][i].TradeID,
-				Price:     th[i][i].Price,
-				Amount:    th[i][i].Size,
+				TID:       th[i].TradeID,
+				Price:     th[i].Price,
+				Amount:    th[i].Size,
 				Exchange:  b.Name,
-				Side:      order.Side(th[i][i].Side),
-				Fee:       th[i][i].FeeAmount,
+				Side:      order.Side(th[i].Side),
+				Fee:       th[i].FeeAmount,
 			})
 		}
 	}
@@ -567,13 +593,38 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *BTSE) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+	address, err := b.GetWalletAddress(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+	if len(address) == 0 {
+		addressCreate, err := b.CreateWalletAddress(cryptocurrency.String())
+		if err != nil {
+			return "", err
+		}
+		if len(addressCreate) != 0 {
+			return addressCreate[0].Address, nil
+		}
+		return "", errors.New("address not found")
+	}
+	return address[0].Address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *BTSE) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+	amountToString := strconv.FormatFloat(withdrawRequest.Amount, 'f', 8, 64)
+	resp, err := b.WalletWithdrawal(withdrawRequest.Currency.String(),
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Crypto.AddressTag,
+		amountToString)
+	if err != nil {
+		return nil, err
+	}
+	return &withdraw.ExchangeResponse{
+		Name: b.Name,
+		ID:   resp.WithdrawID,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
@@ -649,7 +700,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		}
 
 		for i := range fills {
-			createdAt, err := parseOrderTime(fills[i][i].Timestamp)
+			createdAt, err := parseOrderTime(fills[i].Timestamp)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s GetActiveOrders unable to parse time: %s\n",
@@ -658,12 +709,12 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 			}
 			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
 				Timestamp: createdAt,
-				TID:       fills[i][i].TradeID,
-				Price:     fills[i][i].Price,
-				Amount:    fills[i][i].Size,
+				TID:       fills[i].TradeID,
+				Price:     fills[i].Price,
+				Amount:    fills[i].Size,
 				Exchange:  b.Name,
-				Side:      order.Side(fills[i][i].Side),
-				Fee:       fills[i][i].FeeAmount,
+				Side:      order.Side(fills[i].Side),
+				Fee:       fills[i].FeeAmount,
 			})
 		}
 		orders = append(orders, openOrder)
@@ -678,7 +729,42 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrFunctionNotSupported
+	var resp []order.Detail
+	if len(getOrdersRequest.Pairs) == 0 {
+		getOrdersRequest.Pairs = b.CurrencyPairs.Pairs[asset.Spot].Enabled
+	}
+	orderDeref := *getOrdersRequest
+	for x := range orderDeref.Pairs {
+		currentOrder, err := b.GetOrders(orderDeref.Pairs[x].String(), "", "")
+		if err != nil {
+			return nil, err
+		}
+		for y := range currentOrder {
+			if order.Type(currentOrder[y].Type) != orderDeref.Type {
+				continue
+			}
+			tempOrder := order.Detail{
+				Price:  currentOrder[y].Price,
+				Amount: currentOrder[y].Size,
+				Side:   order.Side(currentOrder[y].Side),
+				Pair:   orderDeref.Pairs[x],
+			}
+			switch currentOrder[x].OrderState {
+			case "STATUS_ACTIVE":
+				tempOrder.Status = order.Active
+			case "ORDER_CANCELLED":
+				tempOrder.Status = order.Cancelled
+			case "ORDER_FULLY_TRANSACTED":
+				tempOrder.Status = order.Filled
+			case "ORDER_PARTIALLY_TRANSACTED":
+				tempOrder.Status = order.PartiallyFilled
+			default:
+				tempOrder.Status = order.UnknownStatus
+			}
+			resp = append(resp, tempOrder)
+		}
+	}
+	return resp, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
