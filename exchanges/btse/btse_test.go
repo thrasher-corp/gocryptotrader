@@ -19,8 +19,8 @@ import (
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey =  ""
-	apiSecret = ""
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 	testPair                = "BTC-USD"
 )
