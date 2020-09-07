@@ -78,6 +78,7 @@ var (
 // Exchanges
 type Config struct {
 	Name              string                  `json:"name"`
+	DataDir           string                  `json:"datadir,omitempty"`
 	EncryptConfig     int                     `json:"encryptConfig"`
 	GlobalHTTPTimeout time.Duration           `json:"globalHTTPTimeout"`
 	Database          database.Config         `json:"database"`

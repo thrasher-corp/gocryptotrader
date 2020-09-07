@@ -72,14 +72,9 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	}
 
 	var b Engine
-	b.Config = &config.Cfg
-	filePath, err := config.GetFilePath(settings.ConfigFile)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 
-	log.Printf("Loading config file %s..\n", filePath)
-	err = b.Config.LoadConfig(filePath, settings.EnableDryRun)
+	b.Config, err = loadConfigWithSettings(settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
@@ -95,7 +90,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		gctlog.Infoln(gctlog.Global, "Logger initialised.")
 	}
 
-	b.Settings.ConfigFile = filePath
+	b.Settings.ConfigFile = settings.ConfigFile
 	b.Settings.DataDir = settings.DataDir
 	b.Settings.CheckParamInteraction = settings.CheckParamInteraction
 
@@ -106,6 +101,25 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 
 	ValidateSettings(&b, settings)
 	return &b, nil
+}
+
+// loadConfigWithSettings creates configuration based on the provided settings
+func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
+	filePath, err := config.GetFilePath(settings.ConfigFile)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Loading config file %s..\n", filePath)
+
+	conf := &config.Cfg
+	err = conf.ReadConfig(filePath, settings.EnableDryRun)
+	if err != nil {
+		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
+	}
+	//Apply overrides from settings
+	conf.DataDir = settings.DataDir
+
+	return conf, conf.CheckConfig()
 }
 
 // ValidateSettings validates and sets all bot settings
@@ -129,6 +143,12 @@ func ValidateSettings(b *Engine, s *Settings) {
 		} else {
 			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
 		}
+	}
+
+	if flagSet["datadir"] {
+		b.Settings.DataDir = s.DataDir
+	} else {
+		b.Settings.DataDir = b.Config.DataDir
 	}
 
 	if flagSet["grpc"] {
