@@ -169,6 +169,9 @@ func TestFLastTradeData(t *testing.T) {
 }
 
 func TestFGetAccountInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetAccountInfo("")
@@ -179,6 +182,9 @@ func TestFGetAccountInfo(t *testing.T) {
 }
 
 func TestFGetPositionsInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetPositionsInfo("")
@@ -189,6 +195,9 @@ func TestFGetPositionsInfo(t *testing.T) {
 }
 
 func TestFGetAllSubAccountAssets(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetAllSubAccountAssets("")
@@ -199,6 +208,9 @@ func TestFGetAllSubAccountAssets(t *testing.T) {
 }
 
 func TestFGetSingleSubAccountInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetSingleSubAccountInfo("", "incorrectUID")
@@ -209,6 +221,9 @@ func TestFGetSingleSubAccountInfo(t *testing.T) {
 }
 
 func TestFGetSingleSubPositions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetSingleSubPositions("", "incorrectUID")
@@ -219,6 +234,9 @@ func TestFGetSingleSubPositions(t *testing.T) {
 }
 
 func TestFGetFinancialRecords(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetFinancialRecords("", "closeLong", 0, 0, 0)
@@ -229,6 +247,9 @@ func TestFGetFinancialRecords(t *testing.T) {
 }
 
 func TestFGetSettlementRecords(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetSettlementRecords("", 0, 0, time.Time{}, time.Time{})
@@ -239,6 +260,9 @@ func TestFGetSettlementRecords(t *testing.T) {
 }
 
 func TestFContractTradingFee(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FContractTradingFee("")
@@ -249,6 +273,9 @@ func TestFContractTradingFee(t *testing.T) {
 }
 
 func TestFGetTransferLimits(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetTransferLimits("")
@@ -259,6 +286,9 @@ func TestFGetTransferLimits(t *testing.T) {
 }
 
 func TestFGetPositionLimits(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetPositionLimits("")
@@ -269,6 +299,9 @@ func TestFGetPositionLimits(t *testing.T) {
 }
 
 func TestFGetAssetsAndPositions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetAssetsAndPositions("BTC")
@@ -279,6 +312,9 @@ func TestFGetAssetsAndPositions(t *testing.T) {
 }
 
 func TestFTransfer(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FTransfer("invalidUID", "BTC", "master_to_sub", 5)
@@ -289,6 +325,9 @@ func TestFTransfer(t *testing.T) {
 }
 
 func TestFGetTransferRecords(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetTransferRecords("BTC", "master_to_sub", 0, 0, 0)
@@ -299,9 +338,81 @@ func TestFGetTransferRecords(t *testing.T) {
 }
 
 func TestFGetAvailableLeverage(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	h.Verbose = true
 	t.Parallel()
 	a, err := h.FGetAvailableLeverage("BTC")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FOrder("BTC", "quarter", "btc200925", "", "BUY", "OPEN", "limit", 5.0, 1, 1)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FCancelOrder("BTC", "123", "")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FCancelAllOrders("BTC", "123", "")
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFFlashCloseOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FFlashCloseOrder("BTC", "quarter", "btc200925", "BUY", "lightning", "", 1)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetOrderInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetOrderInfo("BTC", "", "123")
 	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)

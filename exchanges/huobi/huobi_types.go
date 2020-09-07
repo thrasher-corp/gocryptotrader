@@ -554,6 +554,324 @@ type FAvailableLeverageData struct {
 	Timestamp int64 `json:"timestamp"`
 }
 
+// FOrderData stores order data for futures
+type FOrderData struct {
+	ClientOrderID  int64   `json:"client_order_id"`
+	ContractCode   string  `json:"contract_code"`
+	ContractType   string  `json:"contract_type"`
+	Direction      string  `json:"direction"`
+	LeverageRate   int64   `json:"lever_rate"`
+	Offset         string  `json:"offset"`
+	OrderPriceType string  `json:"order_price_type"`
+	Price          float64 `json:"price"`
+	Symbol         string  `json:"symbol"`
+	Volume         float64 `json:"volume"`
+}
+
+// FBatchOrderResponse stores batch order data
+type FBatchOrderResponse struct {
+	OrdersData []FOrderData `json:"orders_data"`
+}
+
+// FCancelOrderData stores cancel order data
+type FCancelOrderData struct {
+	Data struct {
+		Errors []struct {
+			OrderID int64  `json:"order_id,string"`
+			ErrCode int64  `json:"err_code,string"`
+			ErrMsg  string `json:"err_msg,string"`
+		} `json:"errors"`
+		Successes string `json:"successes"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FFlashCloseOrderData stores order data for flash close orders
+type FFlashCloseOrderData struct {
+	Data struct {
+		OrderID       int64  `json:"order_id"`
+		OrderIDString string `json:"order_id_str"`
+		ClientOrderID int64  `json:"client_order_id"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FOrderInfo stores order info
+type FOrderInfo struct {
+	Data []struct {
+		ClientOrderID   int64   `json:"client_order_id"`
+		ContractCode    string  `json:"contract_code"`
+		ContractType    string  `json:"contract_type"`
+		CreatedAt       int64   `json:"created_at"`
+		CanceledAt      int64   `json:"canceled_at"`
+		Direction       string  `json:"direction"`
+		Fee             float64 `json:"fee"`
+		FeeAsset        string  `json:"fee_asset"`
+		LeverRate       int64   `json:"lever_rate"`
+		MarginFrozen    float64 `json:"margin_frozen"`
+		Offset          string  `json:"offset"`
+		OrderID         int64   `json:"order_id"`
+		OrderIDString   string  `json:"order_id_string"`
+		OrderPriceType  string  `json:"order_price_type"`
+		OrderSource     string  `json:"order_source"`
+		OrderType       int64   `json:"order_type"`
+		Price           float64 `json:"price"`
+		Profit          float64 `json:"profit"`
+		Status          int64   `json:"status"`
+		Symbol          string  `json:"symbol"`
+		TradeAvgPrice   float64 `json:"trade_avg_price"`
+		TradeTurnover   float64 `json:"trade_turnover"`
+		TradeVolume     float64 `json:"trade_volume"`
+		Volume          float64 `json:"volume"`
+		LiquidationType int64   `json:"liquidation_type"`
+	} `json:"data"`
+	Timestamp int64 `json:"timestamp"`
+}
+
+// FOrderDetailsData stores order details for futures orders
+type FOrderDetailsData struct {
+	Data struct {
+		Symbol         string  `json:"symbol"`
+		ContractType   string  `json:"contract_type"`
+		ContractCode   string  `json:"contract_code"`
+		Volume         float64 `json:"volume"`
+		Price          float64 `json:"price"`
+		OrderPriceType string  `json:"order_price_type"`
+		Direction      string  `json:"direction"`
+		Offset         string  `json:"offset"`
+		LeverageRate   float64 `json:"lever_rate"`
+		MarginFrozen   float64 `json:"margin_frozen"`
+		Profit         float64 `json:"profit"`
+		OrderSource    string  `json:"order_source"`
+		OrderID        int64   `json:"order_id"`
+		OrderIDString  string  `json:"order_id_str"`
+		ClientOrderID  int64   `json:"client_order_id"`
+		OrderType      int64   `json:"order_type"`
+		Status         int64   `json:"status"`
+		TradeVolume    float64 `json:"trade_volume"`
+		TradeTurnover  int64   `json:"trade_turnover"`
+		TradeAvgPrice  float64 `json:"trade_avg_price"`
+		Fee            float64 `json:"fee"`
+		CreatedAt      int64   `json:"created_at"`
+		CanceledAt     int64   `json:"canceled_at"`
+		FinalInterest  float64 `json:"final_interest"`
+		AdjustValue    int64   `json:"adjust_value"`
+		FeeAsset       string  `json:"fee_asset"`
+		Trades         []struct {
+			ID            string  `json:"id"`
+			TradeID       int64   `json:"trade_id"`
+			TradeVolume   float64 `json:"trade_volume"`
+			TradePrice    float64 `json:"trade_price"`
+			TradeFee      float64 `json:"trade_fee"`
+			TradeTurnover float64 `json:"trade_turnover"`
+			Role          string  `json:"role"`
+			CreatedAt     int64   `json:"created_at"`
+		} `json:"trades"`
+		TotalPage   int64 `json:"total_page"`
+		TotalSize   int64 `json:"total_size"`
+		CurrentPage int64 `json:"current_page"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FOpenOrdersData stores open orders data for futures
+type FOpenOrdersData struct {
+	Data struct {
+		Orders []struct {
+			Symbol         string  `json:"symbol"`
+			ContractType   string  `json:"contract_type"`
+			ContractCode   string  `json:"contract_code"`
+			Volume         float64 `json:"volume"`
+			Price          float64 `json:"price"`
+			OrderPriceType string  `json:"order_price_type"`
+			OrderType      int64   `json:"order_type"`
+			Direction      string  `json:"direction"`
+			Offset         string  `json:"offset"`
+			LeverageRate   int64   `json:"lever_rate"`
+			OrderID        int64   `json:"order_id"`
+			OrderIDString  string  `json:"order_id_string"`
+			ClientOrderID  int64   `json:"client_order_id"`
+			OrderSource    string  `json:"order_source"`
+			CreatedAt      int64   `json:"created_at"`
+			TradeVolume    float64 `json:"trade_volume"`
+			Fee            float64 `json:"fee"`
+			TradeAvgPrice  float64 `json:"trade_avg_price"`
+			MarginFrozen   float64 `json:"margin_frozen"`
+			Profit         float64 `json:"profit"`
+			Status         int64   `json:"status"`
+			FeeAsset       string  `json:"fee_asset"`
+		} `json:"orders"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FOrderHistoryData stores order history data
+type FOrderHistoryData struct {
+	Data struct {
+		Orders []struct {
+			Symbol          string  `json:"symbol"`
+			ContractType    string  `json:"contract_type"`
+			ContractCode    string  `json:"contract_code"`
+			Volume          float64 `json:"volume"`
+			Price           float64 `json:"price"`
+			OrderPriceType  string  `json:"order_price_type"`
+			Direction       string  `json:"direction"`
+			Offset          string  `json:"offset"`
+			LeverageRate    float64 `json:"lever_rate"`
+			OrderID         int64   `json:"order_id"`
+			OrderIDString   string  `json:"order_id_str"`
+			OrderSource     string  `json:"order_source"`
+			CreateDate      int64   `json:"create_date"`
+			TradeVolume     float64 `json:"trade_volume"`
+			TradeTurnover   float64 `json:"trade_turnover"`
+			Fee             float64 `json:"fee"`
+			TradeAvgPrice   float64 `json:"trade_avg_price"`
+			MarginFrozen    float64 `json:"margin_frozen"`
+			Profit          float64 `json:"profit"`
+			Status          int64   `json:"status"`
+			OrderType       int64   `json:"order_type"`
+			FeeAsset        string  `json:"fee_asset"`
+			LiquidationType int64   `json:"liquidation_type"`
+		} `json:"orders"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FTradeHistoryData stores trade history data for futures
+type FTradeHistoryData struct {
+	Data struct {
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+		Trades      []struct {
+			ID            string  `json:"id"`
+			ContractCode  string  `json:"contract_code"`
+			ContractType  string  `json:"contract_type"`
+			CreateDate    int64   `json:"create_date"`
+			Direction     string  `json:"direction"`
+			MatchID       int64   `json:"match_id"`
+			Offset        string  `json:"offset"`
+			OffsetPNL     float64 `json:"offset_profitloss"`
+			OrderID       int64   `json:"order_id"`
+			OrderIDString string  `json:"order_id_str"`
+			Symbol        string  `json:"symbol"`
+			OrderSource   string  `json:"order_source"`
+			TradeFee      float64 `json:"trade_fee"`
+			TradePrice    float64 `json:"trade_price"`
+			TradeTurnover float64 `json:"trade_turnover"`
+			TradeVolume   float64 `json:"trade_volume"`
+			Role          string  `json:"role"`
+			FeeAsset      string  `json:"fee_asset"`
+		} `json:"trades"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FTriggerOrderData stores trigger order data
+type FTriggerOrderData struct {
+	Data struct {
+		OrderID    int64  `json:"order_id"`
+		OrderIDStr string `json:"order_id_str"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FCancelTriggerOrdersData stores cancel trigger order data
+type FCancelTriggerOrdersData struct {
+	Data struct {
+		Errors []struct {
+			OrderID int64  `json:"order_id,string"`
+			ErrCode int64  `json:"err_code,string"`
+			ErrMsg  string `json:"err_msg,string"`
+		} `json:"errors"`
+		Successes string `json:"successes"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FQueryTriggerOrdersData stores trigger orders data
+type FQueryTriggerOrdersData struct {
+	Data struct {
+		Orders []struct {
+			Symbol         string  `json:"symbol"`
+			ContractCode   string  `json:"contract_code"`
+			ContractType   string  `json:"contract_type"`
+			TriggerType    string  `json:"trigger_type"`
+			Volume         float64 `json:"volume"`
+			OrderType      int64   `json:"order_type"`
+			Direction      string  `json:"direction"`
+			Offset         string  `json:"offset"`
+			LeverageRate   float64 `json:"lever_rate"`
+			OrderID        int64   `json:"order_id"`
+			OrderIDString  string  `json:"order_id_str"`
+			OrderSource    string  `json:"order_source"`
+			TriggerPrice   float64 `json:"trigger_price"`
+			OrderPrice     float64 `json:"order_price"`
+			CreatedAt      int64   `json:"created_at"`
+			OrderPriceType string  `json:"order_price_type"`
+			Status         int64   `json:"status"`
+		} `json:"orders"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+// FTriggerOrderHistoryData stores trigger order history for futures
+type FTriggerOrderHistoryData struct {
+	Data struct {
+		Orders []struct {
+			Symbol          string  `json:"symbol"`
+			ContractCode    string  `json:"contract_code"`
+			ContractType    string  `json:"contract_type"`
+			TriggerType     string  `json:"trigger_type"`
+			Volume          float64 `json:"volume"`
+			OrderType       int64   `json:"order_type"`
+			Direction       string  `json:"direction"`
+			Offset          string  `json:"offset"`
+			LeverageRate    float64 `json:"lever_rate"`
+			OrderID         int64   `json:"order_id"`
+			OrderIDString   string  `json:"order_id_str"`
+			RelationOrderID string  `json:"relation_order_id"`
+			OrderPriceType  string  `json:"order_price_type"`
+			Status          string  `json:"status"`
+			OrderSource     string  `json:"order_source"`
+			TriggerPrice    int64   `json:"trigger_price"`
+			TriggeredPrice  float64 `json:"triggered_price"`
+			OrderPrice      float64 `json:"order_price"`
+			CreatedAt       int64   `json:"created_at"`
+			TriggeredAt     int64   `json:"triggered_at"`
+			OrderInsertAt   float64 `json:"order_insert_at"`
+			CancelledAt     int64   `json:"canceled_at"`
+			FailCode        int64   `json:"fail_code"`
+			FailReason      string  `json:"fail_reason"`
+		} `json:"orders"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
+}
+
+//
+
+//
+
+//
+
+//
+
+//
+
+//
+
 // Coin Margined Swaps
 
 // SwapIndexPriceData gets price of a perpetual swap

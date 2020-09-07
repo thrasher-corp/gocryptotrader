@@ -265,6 +265,14 @@ var validFuturesRecordTypes = map[string]string{
 	"transferFromMaster":          "37",
 }
 
+var validOffsetTypes = []string{
+	"open", "close",
+}
+
+var validOPTypes = []string{
+	"lightning", "lightning_fok", "lightning_ioc",
+}
+
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
@@ -786,6 +794,132 @@ func (h *HUOBI) FGetAvailableLeverage(symbol string) (FAvailableLeverageData, er
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fAvailableLeverage, nil, req, &resp, false)
 }
+
+// FOrder places an order for futures
+func (h *HUOBI) FOrder(symbol, contractType, contractCode, clientOrderID, direction, offset, orderPriceType string, price, volume, leverageRate float64) (FOrderData, error) {
+	var resp FOrderData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	if contractType != "" {
+		if common.StringDataCompare(validContractTypes, contractType) {
+			return resp, fmt.Errorf("invalid contractType")
+		}
+		req["contract_type"] = contractType
+	}
+	if contractCode != "" {
+		req["contract_code"] = contractCode
+	}
+	if clientOrderID != "" {
+		req["client_order_id"] = clientOrderID
+	}
+	req["direction"] = direction
+	if common.StringDataCompare(validOffsetTypes, offset) {
+		return resp, fmt.Errorf("invalid offset amounts")
+	}
+	if !common.StringDataCompare(validFuturesOrderPriceTypes, orderPriceType) {
+		return resp, fmt.Errorf("invalid orderType")
+	}
+	req["order_price_type"] = orderPriceType
+	req["lever_rate"] = leverageRate
+	req["volume"] = volume
+	req["price"] = price
+	req["offset"] = offset
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fOrder, nil, req, &resp, false)
+}
+
+// FCancelOrder cancels a futures order
+func (h *HUOBI) FCancelOrder(symbol, orderID, clientOrderID string) (FCancelOrderData, error) {
+	var resp FCancelOrderData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	if orderID != "" {
+		req["order_id"] = orderID
+	}
+	if clientOrderID != "" {
+		req["client_order_id"] = clientOrderID
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelOrder, nil, req, &resp, false)
+}
+
+// FCancelAllOrders cancels all futures order for a given symbol
+func (h *HUOBI) FCancelAllOrders(symbol, orderID, clientOrderID string) (FCancelOrderData, error) {
+	var resp FCancelOrderData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	if orderID != "" {
+		req["order_id"] = orderID
+	}
+	if clientOrderID != "" {
+		req["client_order_id"] = clientOrderID
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelOrder, nil, req, &resp, false)
+}
+
+// FFlashCloseOrder flash closes a futures order
+func (h *HUOBI) FFlashCloseOrder(symbol, contractType, contractCode, direction, orderPriceType, clientOrderID string, volume float64) (FFlashCloseOrderData, error) {
+	var resp FFlashCloseOrderData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	if contractType != "" {
+		if !common.StringDataCompare(validContractTypes, contractType) {
+			return resp, fmt.Errorf("invalid contractType")
+		}
+		req["contract_type"] = contractType
+	}
+	if contractCode != "" {
+		req["contract_code"] = contractCode
+	}
+	req["direction"] = direction
+	req["volume"] = volume
+	if clientOrderID != "" {
+		req["client_order_id"] = clientOrderID
+	}
+	if orderPriceType != "" {
+		if !common.StringDataCompare(validOPTypes, orderPriceType) {
+			return resp, fmt.Errorf("invalid orderPriceType")
+		}
+		req["orderPriceType"] = orderPriceType
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fFlashCloseOrder, nil, req, &resp, false)
+}
+
+// FGetOrderInfo gets order info for futures
+func (h *HUOBI) FGetOrderInfo(symbol, clientOrderID, orderID string) (FOrderInfo, error) {
+	var resp FOrderInfo
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	if orderID != "" {
+		req["order_id"] = orderID
+	}
+	if clientOrderID != "" {
+		req["client_order_id"] = clientOrderID
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fOrderInfo, nil, req, &resp, false)
+}
+
+// // FFlashCloseOrder flash closes a futures order
+// func (h *HUOBI) FFlashCloseOrder(symbol, orderID, clientOrderID string) (FFlashCloseOrderData, error) {
+// 	var resp FFlashCloseOrderData
+// 	req := make(map[string]interface{})
+// 	req["symbol"] = symbol
+// 	if orderID != "" {
+// 		req["order_id"] = orderID
+// 	}
+// 	if clientOrderID != "" {
+// 		req["client_order_id"] = clientOrderID
+// 	}
+// 	h.API.Endpoints.URL = huobiURL
+// 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fFlashCloseOrder, nil, req, &resp, false)
+// }
 
 //
 
