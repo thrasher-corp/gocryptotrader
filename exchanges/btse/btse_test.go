@@ -42,6 +42,7 @@ func TestMain(m *testing.M) {
 	btseConfig.API.AuthenticatedSupport = true
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
+	btseConfig.Verbose = true
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(btseConfig)
 	if err != nil {

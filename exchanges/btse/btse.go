@@ -42,17 +42,17 @@ const (
 	btseOHLCV          = "ohlcv"
 
 	// Authenticated endpoints
-
 	btseWallet           = "user/wallet"
-	btseWalletHistory    = btseWallet + "_history"
-	btseWalletAddress    = btseWallet + "/address"
-	btseWalletWithdrawal = btseWallet + "/withdraw"
+	btseWalletHistory    = "user/wallet_history"
+	btseWalletAddress    = "user/wallet/address"
+	btseWalletWithdrawal = "user/wallet/withdraw"
+	btseExchangeHistory  = "user/trade_history"
 	btseUserFee          = "user/fees"
 	btseOrder            = "order"
 	btsePendingOrders    = "user/open_orders"
 	btseCancelAllAfter   = "order/cancelAllAfter"
-	btseExchangeHistory  = "user/trade_history"
-	btseTimeLayout       = "2006-01-02 15:04:04"
+
+	btseTimeLayout = "2006-01-02 15:04:04"
 )
 
 // GetMarketsSummary stores market summary data
@@ -175,7 +175,9 @@ func (b *BTSE) GetWalletHistory(symbol string, start, end time.Time, count int) 
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	urlValues.Add("count", strconv.Itoa(count))
+	if count > 0 {
+		urlValues.Add("count", strconv.Itoa(count))
+	}
 	return resp, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseWalletHistory, true, urlValues, nil, &resp, queryFunc)
 }
 
@@ -218,6 +220,7 @@ func (b *BTSE) CreateWalletAddress(currency string) (WalletAddress, error) {
 	return resp, nil
 }
 
+// WalletWithdrawal submit request to withdraw crypto currency
 func (b *BTSE) WalletWithdrawal(currency, address, tag, amount string) (WithdrawalResponse, error) {
 	var resp WithdrawalResponse
 	req := make(map[string]interface{}, 4)
@@ -286,12 +289,14 @@ func (b *BTSE) CancelExistingOrder(orderID, symbol, clOrderID string) (CancelOrd
 	return c, b.SendAuthenticatedHTTPRequest(http.MethodDelete, btseOrder, true, req, nil, &c, orderFunc)
 }
 
+// CancelAllAfter cancels all orders after timeout
 func (b *BTSE) CancelAllAfter(timeout int) error {
 	req := make(map[string]interface{})
 	req["timeout"] = timeout
 	return b.SendAuthenticatedHTTPRequest(http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
 }
 
+// TradeHistory returns previous trades on exchange
 func (b *BTSE) TradeHistory(symbol, orderID string, start, end time.Time, count int) (TradeHistory, error) {
 	var resp TradeHistory
 
@@ -456,6 +461,7 @@ func getInternationalBankWithdrawalFee(amount float64) float64 {
 	return fee
 }
 
+// calculateTradingFee return fee based on users current fee tier or default values
 func (b *BTSE) calculateTradingFee(feeBuilder *exchange.FeeBuilder) float64 {
 	formattedPair, err := b.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
 	if err != nil {
