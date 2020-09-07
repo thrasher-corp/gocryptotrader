@@ -151,16 +151,6 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(
-		curr, asset.Futures,
-		time.Time{}, time.Time{},
-		kline.OneMin)
-	if err != nil {
-		if !errors.Is(err, common.ErrNotYetImplemented) {
-			t.Fatal(err)
-		}
-	}
-
 	curr.Quote = currency.XRP
 	_, err = b.GetHistoricCandles(
 		curr, asset.Spot,
@@ -184,25 +174,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(
-		curr, asset.Futures,
-		time.Time{}, time.Time{},
-		kline.OneMin)
-	if err != nil {
-		if !errors.Is(err, common.ErrNotYetImplemented) {
-			t.Fatal(err)
-		}
-	}
-
-	curr.Quote = currency.XRP
-	_, err = b.GetHistoricCandlesExtended(
-		curr, asset.Spot,
-		time.Time{}, time.Time{},
-		kline.OneMin)
-	if err == nil {
-		t.Fatal("expected error when requesting with disabled pari")
 	}
 }
 
