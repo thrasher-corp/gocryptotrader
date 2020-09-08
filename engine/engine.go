@@ -70,6 +70,8 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	if settings == nil {
 		return nil, errors.New("engine: settings is nil")
 	}
+	// collect flags
+	flag.Visit(func(f *flag.Flag) { flagSet[f.Name] = true })
 
 	var b Engine
 	var err error
@@ -91,7 +93,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	}
 
 	b.Settings.ConfigFile = settings.ConfigFile
-	b.Settings.DataDir = settings.DataDir
+	b.Settings.DataDir = b.Config.GetDataPath()
 	b.Settings.CheckParamInteraction = settings.CheckParamInteraction
 
 	err = utils.AdjustGoMaxProcs(settings.GoMaxProcs)
@@ -99,7 +101,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
 	}
 
-	ValidateSettings(&b, settings)
+	validateSettings(&b, settings)
 	return &b, nil
 }
 
@@ -117,15 +119,15 @@ func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
 		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
 	}
 	// Apply overrides from settings
-	conf.DataDir = settings.DataDir
+	if flagSet["datadir"] {
+		conf.DataDir = settings.DataDir
+	}
 
 	return conf, conf.CheckConfig()
 }
 
-// ValidateSettings validates and sets all bot settings
-func ValidateSettings(b *Engine, s *Settings) {
-	flag.Visit(func(f *flag.Flag) { flagSet[f.Name] = true })
-
+// validateSettings validates and sets all bot settings
+func validateSettings(b *Engine, s *Settings) {
 	b.Settings.Verbose = s.Verbose
 	b.Settings.EnableDryRun = s.EnableDryRun
 	b.Settings.EnableAllExchanges = s.EnableAllExchanges
@@ -143,12 +145,6 @@ func ValidateSettings(b *Engine, s *Settings) {
 		} else {
 			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
 		}
-	}
-
-	if flagSet["datadir"] {
-		b.Settings.DataDir = s.DataDir
-	} else {
-		b.Settings.DataDir = b.Config.DataDir
 	}
 
 	if flagSet["grpc"] {
