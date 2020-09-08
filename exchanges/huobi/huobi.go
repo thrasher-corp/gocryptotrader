@@ -1057,7 +1057,7 @@ func (h *HUOBI) FPlaceTriggerOrder(symbol, contractType, contractCode, triggerTy
 	}
 	req["order_price_type"] = orderPriceType
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fMatchResult, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fTriggerOrder, nil, req, &resp, false)
 }
 
 //
