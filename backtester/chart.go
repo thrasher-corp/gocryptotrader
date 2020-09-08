@@ -3,14 +3,22 @@ package backtest
 import (
 	"html/template"
 	"os"
+	"time"
 )
 
 type ChartData struct {
 	PageTitle string
-	ChartJSON []byte
+
 }
 
-func GenerateOutput(j []byte) error {
+type timeData struct {
+	Timestamp time.Time
+	Value float64
+	Price float64
+	Direction string
+}
+
+func GenerateOutput() error {
 	tmpl := template.Must(template.ParseFiles("template.html"))
 	f, err := os.Create("output.html")
 	if err != nil {
@@ -18,7 +26,6 @@ func GenerateOutput(j []byte) error {
 	}
 	d := ChartData{
 		PageTitle:  "Test",
-		ChartJSON: j,
 	}
 	err = tmpl.Execute(f, d)
 	if err != nil {

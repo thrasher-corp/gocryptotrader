@@ -1,34 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>{{ .PageTitle }}</title>
-    <script src="https://unpkg.com/lightweight-charts@3.1.5/dist/lightweight-charts.standalone.production.js"></script>
+    <head>
+        <meta charset="utf-8">
+        <title>{{ .PageTitle }}</title>
+        <script src="https://unpkg.com/lightweight-charts@3.1.5/dist/lightweight-charts.standalone.production.js"></script>
+    </head>
 
-</head>
-<body>
-<script>
-    const chartJSON = {{ .ChartJSON }}
-        decoded = atob(chartJSON)
-    console.log(JSON.parse(decoded))
+    <body>
+        <script>
+            {{/*const chartJSON = {{ .ChartJSON }}*/}}
+            {{/*decoded = atob(chartJSON)*/}}
+            {{/*console.log(JSON.parse(decoded))*/}}
 
 
-    document.addEventListener("DOMContentLoaded", () => {
-        const chart = window.LightweightCharts.createChart(document.body, { width: 1280, height: 720 });
-        const lineSeries = chart.addLineSeries();
-        lineSeries.setData([
-            { time: '2019-04-11', value: 80.01 },
-            { time: '2019-04-12', value: 96.63 },
-            { time: '2019-04-13', value: 76.64 },
-            { time: '2019-04-14', value: 81.89 },
-            { time: '2019-04-15', value: 74.43 },
-            { time: '2019-04-16', value: 80.01 },
-            { time: '2019-04-17', value: 96.63 },
-            { time: '2019-04-18', value: 76.64 },
-            { time: '2019-04-19', value: 81.89 },
-            { time: '2019-04-20', value: 74.43 },
-        ]);
-    });
-</script>
+            const chart = LightweightCharts.createChart(document.body, { width: 1280, height: 720 });
+            const lineSeries = chart.addLineSeries();
+
+            lineSeries.setData([
+                {{range .ChartJSON }}
+                    { time: '{{.timestamp}}', value: {{.Value}} },
+                {{end}}
+                ]);
+        </script>
 </body>
 </html>
