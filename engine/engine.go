@@ -116,7 +116,7 @@ func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
 	}
-	//Apply overrides from settings
+	// Apply overrides from settings
 	conf.DataDir = settings.DataDir
 
 	return conf, conf.CheckConfig()
