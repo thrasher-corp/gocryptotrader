@@ -65,12 +65,6 @@ func (b *BTSE) GetMarketsSummary(symbol string, spot bool) (MarketSummary, error
 	return m, b.SendHTTPRequest(http.MethodGet, path, &m, spot, queryFunc)
 }
 
-// // GetFuturesMarkets returns a list of futures markets available on BTSEx
-// func (b *BTSE) GetFuturesMarkets() ([]FuturesMarket, error) {
-// 	var m []FuturesMarket
-// 	return m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, false, queryFunc)
-// }
-
 // FetchOrderBook gets orderbook data for a given pair
 func (b *BTSE) FetchOrderBook(symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
 	var o Orderbook
