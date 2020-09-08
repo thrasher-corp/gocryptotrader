@@ -166,8 +166,8 @@ type TradeHistory []struct {
 	ClOrderID    string  `json:"clOrderID"`
 	FeeAmount    float64 `json:"feeAmount"`
 	FeeCurrency  string  `json:"feeCurrency"`
-	FilledPrice  int     `json:"filledPrice"`
-	FilledSize   int     `json:"filledSize"`
+	FilledPrice  float64 `json:"filledPrice"`
+	FilledSize   float64 `json:"filledSize"`
 	OrderID      string  `json:"orderId"`
 	OrderType    int     `json:"orderType"`
 	Price        float64 `json:"price"`
@@ -180,7 +180,7 @@ type TradeHistory []struct {
 	Timestamp    string  `json:"timestamp"`
 	Total        int     `json:"total"`
 	TradeID      string  `json:"tradeId"`
-	TriggerPrice int     `json:"triggerPrice"`
+	TriggerPrice float64 `json:"triggerPrice"`
 	TriggerType  int     `json:"triggerType"`
 	Username     string  `json:"username"`
 	Wallet       string  `json:"wallet"`
@@ -224,24 +224,25 @@ type OpenOrder struct {
 	OrderState string  `json:"orderState"`
 }
 
+// CancelOrder stores cancelled order's statuses
 type CancelOrder []struct {
-	AverageFillPrice int    `json:"averageFillPrice"`
-	ClOrderID        string `json:"clOrderID"`
-	Deviation        int    `json:"deviation"`
-	FillSize         int    `json:"fillSize"`
-	Message          string `json:"message"`
-	OrderID          string `json:"orderID"`
-	OrderType        int    `json:"orderType"`
-	Price            int    `json:"price"`
-	Side             string `json:"side"`
-	Size             int    `json:"size"`
-	Status           int    `json:"status"`
-	Stealth          int    `json:"stealth"`
-	StopPrice        int    `json:"stopPrice"`
-	Symbol           string `json:"symbol"`
-	Timestamp        int64  `json:"timestamp"`
-	Trigger          bool   `json:"trigger"`
-	TriggerPrice     int    `json:"triggerPrice"`
+	AverageFillPrice float64 `json:"averageFillPrice"`
+	ClOrderID        string  `json:"clOrderID"`
+	Deviation        float64 `json:"deviation"`
+	FillSize         float64 `json:"fillSize"`
+	Message          string  `json:"message"`
+	OrderID          string  `json:"orderID"`
+	OrderType        int     `json:"orderType"`
+	Price            float64 `json:"price"`
+	Side             string  `json:"side"`
+	Size             float64 `json:"size"`
+	Status           int     `json:"status"`
+	Stealth          int     `json:"stealth"`
+	StopPrice        float64 `json:"stopPrice"`
+	Symbol           string  `json:"symbol"`
+	Timestamp        int64   `json:"timestamp"`
+	Trigger          bool    `json:"trigger"`
+	TriggerPrice     float64 `json:"triggerPrice"`
 }
 
 type wsSub struct {

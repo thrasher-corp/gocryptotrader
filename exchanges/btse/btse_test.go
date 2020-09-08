@@ -68,7 +68,7 @@ func TestGetMarketsSummary(t *testing.T) {
 		t.Error(err)
 	}
 	if len(ret) != 1 {
-		t.Errorf("unexpected only one reesult when requesting BTC-USD data received: %v", len(ret))
+		t.Errorf("unexpected only one result when requesting BTC-USD data received: %v", len(ret))
 	}
 }
 
@@ -157,7 +157,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		time.Time{}, time.Time{},
 		kline.OneMin)
 	if err == nil {
-		t.Fatal("expected error when requesting with disabled pari")
+		t.Fatal("expected error when requesting with disabled pair")
 	}
 }
 
@@ -266,11 +266,10 @@ func TestCreateWalletAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	v, err := b.CreateWalletAddress("XRP")
+	_, err := b.CreateWalletAddress("XRP")
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(v)
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -464,7 +463,7 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestParseOrderTime(t *testing.T) {
-	expected := int64(1534794360)
+	expected := int64(1534792846)
 	actual, err := parseOrderTime("2018-08-20 19:20:46")
 	if err != nil {
 		t.Fatal(err)
@@ -486,10 +485,10 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		Side:      order.Sell,
+		Side:      order.Buy,
 		Type:      order.Limit,
-		Price:     100000000,
-		Amount:    0.1,
+		Price:     -100000000,
+		Amount:    1,
 		ClientID:  "",
 		AssetType: asset.Spot,
 	}
@@ -534,7 +533,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
-func TestECancelOrder(t *testing.T) {
+func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
@@ -624,5 +623,14 @@ func TestStatusToStandardStatus(t *testing.T) {
 }
 
 func TestFetchTradablePairs(t *testing.T) {
-
+	assets := b.GetAssetTypes()
+	for i := range assets {
+		data, err := b.FetchTradablePairs(assets[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(data) == 0 {
+			t.Fatal("data cannot be zero")
+		}
+	}
 }

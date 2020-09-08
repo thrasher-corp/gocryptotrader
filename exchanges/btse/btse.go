@@ -52,7 +52,7 @@ const (
 	btsePendingOrders    = "user/open_orders"
 	btseCancelAllAfter   = "order/cancelAllAfter"
 
-	btseTimeLayout = "2006-01-02 15:04:04"
+	btseTimeLayout = "2006-01-02 15:04:05"
 )
 
 // GetMarketsSummary stores market summary data
@@ -65,7 +65,7 @@ func (b *BTSE) GetMarketsSummary(symbol string) (MarketSummary, error) {
 	return m, b.SendHTTPRequest(http.MethodGet, path, &m, true, queryFunc)
 }
 
-// GetFuturesMarkets returns a list of futures markets available on BTSE
+// GetFuturesMarkets returns a list of futures markets available on BTSEx
 func (b *BTSE) GetFuturesMarkets() ([]FuturesMarket, error) {
 	var m []FuturesMarket
 	return m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, false, queryFunc)
@@ -89,6 +89,7 @@ func (b *BTSE) FetchOrderBook(symbol string, group, limitBids, limitAsks int) (*
 		common.EncodeURLValues(btseOrderbook, urlValues), &o, true, queryFunc)
 }
 
+// FetchOrderBookL2 retrieve level 2 orderbook for requested symbol and depth
 func (b *BTSE) FetchOrderBookL2(symbol string, depth int) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
@@ -117,6 +118,7 @@ func (b *BTSE) GetTrades(symbol string, start, end time.Time, count int) ([]Trad
 		common.EncodeURLValues(btseTrades, urlValues), &t, true, queryFunc)
 }
 
+// OHLCV retrieve and return OHLCV candle data for requested symbol
 func (b *BTSE) OHLCV(symbol string, start, end time.Time, resolution int) (OHLCV, error) {
 	var o OHLCV
 	urlValues := url.Values{}
@@ -150,7 +152,7 @@ func (b *BTSE) GetWalletInformation() ([]CurrencyBalance, error) {
 	return a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseWallet, true, nil, nil, &a, queryFunc)
 }
 
-// GetFeeInformation returns
+// GetFeeInformation retrieve fee's (maker/taker) for requested symbol
 func (b *BTSE) GetFeeInformation(symbol string) ([]AccountFees, error) {
 	var resp []AccountFees
 	urlValues := url.Values{}
@@ -193,7 +195,7 @@ func (b *BTSE) GetWalletAddress(currency string) (WalletAddress, error) {
 	return resp, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseWalletAddress, true, urlValues, nil, &resp, queryFunc)
 }
 
-// GetWalletAddress returns the users account balance
+// CreateWalletAddress create new deposit address for requested currency
 func (b *BTSE) CreateWalletAddress(currency string) (WalletAddress, error) {
 	var resp WalletAddress
 	req := make(map[string]interface{}, 1)

@@ -16,11 +16,13 @@ const (
 	orderFunc
 )
 
+// RateLimit implements the request.Limiter interface
 type RateLimit struct {
 	Query  *rate.Limiter
 	Orders *rate.Limiter
 }
 
+// Limit executes rate limiting functionality for exchange
 func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	switch f {
 	case orderFunc:
@@ -31,6 +33,7 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	return nil
 }
 
+// SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
 		Orders: request.NewRateLimit(btseRateInterval, btseOrdersLimit),
