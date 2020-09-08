@@ -299,9 +299,9 @@ func TestCreateOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.CreateOrder(0.1,
-		10000,
-		order.Sell.String(),
+	_, err := b.CreateOrder(10,
+		-10000,
+		order.Buy.String(),
 		order.Limit.String(),
 		testPair,
 		"",
