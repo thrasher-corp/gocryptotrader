@@ -68,7 +68,7 @@ func TestGetMarketsSummary(t *testing.T) {
 		t.Error(err)
 	}
 	if len(ret) != 1 {
-		t.Errorf("unexpected only one result when requesting BTC-USD data received: %v", len(ret))
+		t.Errorf("expected only one result when requesting BTC-USD data received: %v", len(ret))
 	}
 }
 
@@ -297,7 +297,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
 	_, err := b.CreateOrder(10,
 		-10000,
@@ -489,7 +489,7 @@ func TestParseOrderTime(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
@@ -514,7 +514,7 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelAllAfter(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
 
 	err := b.CancelAllAfter(1)
@@ -526,7 +526,7 @@ func TestCancelAllAfter(t *testing.T) {
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
 	currencyPair := currency.NewPairWithDelimiter(currency.BTC.String(),
 		currency.USD.String(),
@@ -547,7 +547,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
 	_, err := b.CancelExistingOrder("", "BTC-USD", "")
 	if err != nil {
@@ -558,7 +558,7 @@ func TestCancelOrder(t *testing.T) {
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
 	currencyPair := currency.NewPairWithDelimiter(currency.BTC.String(),
 		currency.USD.String(),
