@@ -58,12 +58,12 @@ func areTestAPIKeysSet() bool {
 
 func TestGetMarketsSummary(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketsSummary("", false)
+	_, err := b.GetMarketsSummary("", true)
 	if err != nil {
 		t.Error(err)
 	}
 
-	ret, err := b.GetMarketsSummary("BTC-USD", false)
+	ret, err := b.GetMarketsSummary("BTC-USD", true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -79,7 +79,7 @@ func TestFetchOrderBook(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.FetchOrderBook(testPair, 0, 1, 1, false)
+	_, err = b.FetchOrderBook("BTCPFC", 0, 1, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -91,7 +91,6 @@ func TestFetchOrderBook(t *testing.T) {
 }
 
 func TestUpdateOrderbook(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 
 	p, err := currency.NewPairFromString(testPair)
