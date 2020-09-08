@@ -718,7 +718,11 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var resp []order.Detail
 	if len(getOrdersRequest.Pairs) == 0 {
-		getOrdersRequest.Pairs = b.CurrencyPairs.Pairs[asset.Spot].Enabled
+		var err error
+		getOrdersRequest.Pairs, err = b.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 	}
 	orderDeref := *getOrdersRequest
 	for x := range orderDeref.Pairs {
