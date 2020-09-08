@@ -56,23 +56,23 @@ const (
 )
 
 // GetMarketsSummary stores market summary data
-func (b *BTSE) GetMarketsSummary(symbol string) (MarketSummary, error) {
+func (b *BTSE) GetMarketsSummary(symbol string, spot bool) (MarketSummary, error) {
 	var m MarketSummary
 	path := btseMarketOverview
 	if symbol != "" {
 		path += "?symbol=" + url.QueryEscape(symbol)
 	}
-	return m, b.SendHTTPRequest(http.MethodGet, path, &m, true, queryFunc)
+	return m, b.SendHTTPRequest(http.MethodGet, path, &m, spot, queryFunc)
 }
 
-// GetFuturesMarkets returns a list of futures markets available on BTSEx
-func (b *BTSE) GetFuturesMarkets() ([]FuturesMarket, error) {
-	var m []FuturesMarket
-	return m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, false, queryFunc)
-}
+// // GetFuturesMarkets returns a list of futures markets available on BTSEx
+// func (b *BTSE) GetFuturesMarkets() ([]FuturesMarket, error) {
+// 	var m []FuturesMarket
+// 	return m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, false, queryFunc)
+// }
 
 // FetchOrderBook gets orderbook data for a given pair
-func (b *BTSE) FetchOrderBook(symbol string, group, limitBids, limitAsks int) (*Orderbook, error) {
+func (b *BTSE) FetchOrderBook(symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -86,7 +86,7 @@ func (b *BTSE) FetchOrderBook(symbol string, group, limitBids, limitAsks int) (*
 		urlValues.Add("group", strconv.Itoa(group))
 	}
 	return &o, b.SendHTTPRequest(http.MethodGet,
-		common.EncodeURLValues(btseOrderbook, urlValues), &o, true, queryFunc)
+		common.EncodeURLValues(btseOrderbook, urlValues), &o, spot, queryFunc)
 }
 
 // FetchOrderBookL2 retrieve level 2 orderbook for requested symbol and depth

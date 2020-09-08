@@ -58,12 +58,12 @@ func areTestAPIKeysSet() bool {
 
 func TestGetMarketsSummary(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketsSummary("")
+	_, err := b.GetMarketsSummary("", false)
 	if err != nil {
 		t.Error(err)
 	}
 
-	ret, err := b.GetMarketsSummary("BTC-USD")
+	ret, err := b.GetMarketsSummary("BTC-USD", false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -72,28 +72,26 @@ func TestGetMarketsSummary(t *testing.T) {
 	}
 }
 
-func TestGetFuturesMarkets(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetFuturesMarkets()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestFetchOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.FetchOrderBook(testPair, 0, 1, 1)
+	_, err := b.FetchOrderBook(testPair, 0, 1, 1, true)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.FetchOrderBook(testPair, 1, 1, 1)
+	_, err = b.FetchOrderBook(testPair, 0, 1, 1, false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchOrderBook(testPair, 1, 1, 1, true)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestUpdateOrderbook(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
 
 	p, err := currency.NewPairFromString(testPair)
@@ -105,7 +103,11 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.UpdateOrderbook(p, asset.Futures)
+	f, err := currency.NewPairFromString("BTC-PFC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.UpdateOrderbook(f, asset.Futures)
 	if err != nil {
 		if !errors.Is(err, common.ErrNotYetImplemented) {
 			t.Fatal(err)
@@ -202,6 +204,16 @@ func TestUpdateTicker(t *testing.T) {
 	}
 
 	_, err = b.UpdateTicker(curr, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	curr, err = currency.NewPairFromString("BTC-PFC")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.UpdateTicker(curr, asset.Futures)
 	if err != nil {
 		t.Fatal(err)
 	}

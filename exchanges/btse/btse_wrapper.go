@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -222,32 +221,22 @@ func (b *BTSE) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
 	var currencies []string
-	if a == asset.Spot {
-		m, err := b.GetMarketsSummary("")
-		if err != nil {
-			return nil, err
-		}
-
-		for x := range m {
-			if !m[x].Active {
-				continue
-			}
-			currencies = append(currencies, m[x].Symbol)
-		}
-	} else if a == asset.Futures {
-		m, err := b.GetFuturesMarkets()
-		if err != nil {
-			return nil, err
-		}
-
-		for x := range m {
-			if !m[x].Active {
-				continue
-			}
-			currencies = append(currencies, m[x].Symbol)
-		}
+	spot := true
+	if a == asset.Futures {
+		spot = false
 	}
 
+	m, err := b.GetMarketsSummary("", spot)
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range m {
+		if !m[x].Active {
+			continue
+		}
+		currencies = append(currencies, m[x].Symbol)
+	}
 	return currencies, nil
 }
 
@@ -276,10 +265,9 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	spot := true
 	if assetType == asset.Futures {
-		// Futures REST implementation needs to be done before this can be
-		// removed
-		return nil, common.ErrNotYetImplemented
+		spot = false
 	}
 
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
@@ -287,7 +275,7 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 		return nil, err
 	}
 
-	t, err := b.GetMarketsSummary(fpair.String())
+	t, err := b.GetMarketsSummary(fpair.String(), spot)
 	if err != nil {
 		return nil, err
 	}
@@ -327,17 +315,16 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	spot := true
 	if assetType == asset.Futures {
-		// Futures REST implementation needs to be done before this can be
-		// removed
-		return nil, common.ErrNotYetImplemented
+		spot = false
 	}
 
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	a, err := b.FetchOrderBook(fpair.String(), 0, 0, 0)
+	a, err := b.FetchOrderBook(fpair.String(), 0, 0, 0, spot)
 	if err != nil {
 		return nil, err
 	}
@@ -815,19 +802,14 @@ func (b *BTSE) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 			return kline.Item{}, err
 		}
 		for x := range req {
-			timeStamp, err := convert.TimeFromUnixTimestampFloat(req[x][0])
-			if err != nil {
-				return kline.Item{}, err
-			}
-			c := kline.Candle{
-				Time:   timeStamp,
+			klineRet.Candles = append(klineRet.Candles, kline.Candle{
+				Time:   time.Unix(int64(req[x][0]), 0),
 				Open:   req[x][1],
 				High:   req[x][2],
 				Low:    req[x][3],
 				Close:  req[x][4],
 				Volume: req[x][5],
-			}
-			klineRet.Candles = append(klineRet.Candles, c)
+			})
 		}
 	case asset.Futures:
 		return kline.Item{}, common.ErrNotYetImplemented
@@ -874,15 +856,14 @@ func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 			return kline.Item{}, err
 		}
 		for x := range req {
-			timeStamp, err := convert.TimeFromUnixTimestampFloat(req[x][0])
-			if err != nil {
-				return kline.Item{}, err
-			}
-			c := kline.Candle{
-				Time: timeStamp,
-			}
-
-			klineRet.Candles = append(klineRet.Candles, c)
+			klineRet.Candles = append(klineRet.Candles, kline.Candle{
+				Time:   time.Unix(int64(req[x][0]), 0),
+				Open:   req[x][1],
+				High:   req[x][2],
+				Low:    req[x][3],
+				Close:  req[x][4],
+				Volume: req[x][5],
+			})
 		}
 	case asset.Futures:
 		return kline.Item{}, common.ErrNotYetImplemented
