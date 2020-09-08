@@ -419,6 +419,72 @@ func TestFGetOrderInfo(t *testing.T) {
 	}
 }
 
+func TestFOrderDetails(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FOrderDetails("BTC", "123", "quotation", time.Now().Add(-1*time.Hour), 0, 0)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetOpenOrders(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetOpenOrders("BTC", 1, 2)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetOrderHistory(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FGetOrderHistory("BTC", "all", "all", "7", "", "limit", 5, 0, 0)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFTradeHistory(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FTradeHistory("ETH", "all", "", 10, 0, 0)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFPlaceTriggerOrder(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.FPlaceTriggerOrder("ETH", "all", "", "greaterOrEqual",
+		"limit", "buy", "close", 1.1, 1.05, 5, 2)
+	fmt.Printf("%+v", a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 //
 
 //

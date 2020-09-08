@@ -273,6 +273,24 @@ var validOPTypes = []string{
 	"lightning", "lightning_fok", "lightning_ioc",
 }
 
+var validFuturesReqType = map[string]int64{
+	"all":            1,
+	"finishedStatus": 2,
+}
+
+var validFuturesOrderTypes = map[string]int64{
+	"limit":        1,
+	"opponent":     3,
+	"lightning":    4,
+	"triggerOrder": 5,
+	"postOnly":     6,
+	"optimal_5":    7,
+	"optimal_10":   8,
+	"optimal_20":   9,
+	"fok":          10,
+	"ioc":          11,
+}
+
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
@@ -906,20 +924,143 @@ func (h *HUOBI) FGetOrderInfo(symbol, clientOrderID, orderID string) (FOrderInfo
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fOrderInfo, nil, req, &resp, false)
 }
 
-// // FFlashCloseOrder flash closes a futures order
-// func (h *HUOBI) FFlashCloseOrder(symbol, orderID, clientOrderID string) (FFlashCloseOrderData, error) {
-// 	var resp FFlashCloseOrderData
-// 	req := make(map[string]interface{})
-// 	req["symbol"] = symbol
-// 	if orderID != "" {
-// 		req["order_id"] = orderID
-// 	}
-// 	if clientOrderID != "" {
-// 		req["client_order_id"] = clientOrderID
-// 	}
-// 	h.API.Endpoints.URL = huobiURL
-// 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fFlashCloseOrder, nil, req, &resp, false)
-// }
+// FOrderDetails gets order details for futures orders
+func (h *HUOBI) FOrderDetails(symbol, orderID, orderType string, createdAt time.Time, pageIndex, pageSize int64) (FOrderDetailsData, error) {
+	var resp FOrderDetailsData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	req["order_id"] = orderID
+	req["created_at"] = strconv.FormatInt(createdAt.Unix(), 10)
+	oType, ok := validOrderType[orderType]
+	if !ok {
+		return resp, fmt.Errorf("invalid orderType")
+	}
+	req["order_type"] = oType
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fOrderDetails, nil, req, &resp, false)
+}
+
+// FGetOpenOrders gets order details for futures orders
+func (h *HUOBI) FGetOpenOrders(symbol string, pageIndex, pageSize int64) (FOpenOrdersData, error) {
+	var resp FOpenOrdersData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fQueryOpenOrders, nil, req, &resp, false)
+}
+
+// FGetOrderHistory gets order order history for futures
+func (h *HUOBI) FGetOrderHistory(symbol, tradeType, reqType, status, contractCode, orderType string, createDate, pageIndex, pageSize int64) (FOrderHistoryData, error) {
+	var resp FOrderHistoryData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	tType, ok := validTradeType[tradeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid tradeType")
+	}
+	req["trade_type"] = tType
+	rType, ok := validFuturesReqType[reqType]
+	if !ok {
+		return resp, fmt.Errorf("invalid reqType")
+	}
+	req["type"] = rType
+	req["status"] = status
+	if createDate < 0 || createDate > 90 {
+		return resp, fmt.Errorf("invalid createDate")
+	}
+	req["create_date"] = createDate
+	if contractCode != "" {
+		req["contract_code"] = contractCode
+	}
+	if orderType != "" {
+		oType, ok := validFuturesOrderTypes[orderType]
+		if !ok {
+			return resp, fmt.Errorf("invalid orderType")
+		}
+		req["order_type"] = oType
+	}
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fOrderHistory, nil, req, &resp, false)
+}
+
+// FTradeHistory gets trade history data for futures
+func (h *HUOBI) FTradeHistory(symbol, tradeType, contractCode string, createDate, pageIndex, pageSize int64) (FOrderHistoryData, error) {
+	var resp FOrderHistoryData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	tType, ok := validTradeType[tradeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid tradeType")
+	}
+	req["trade_type"] = tType
+	if contractCode != "" {
+		req["contract_code"] = contractCode
+	}
+	if createDate <= 0 || createDate > 90 {
+		return resp, fmt.Errorf("invalid createDate")
+	}
+	req["create_date"] = createDate
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fMatchResult, nil, req, &resp, false)
+}
+
+// FPlaceTriggerOrder places a trigger order for futures
+func (h *HUOBI) FPlaceTriggerOrder(symbol, contractType, contractCode, triggerType, orderPriceType, direction, offset string, triggerPrice, orderPrice, volume, leverageRate float64) (FTriggerOrderData, error) {
+	var resp FTriggerOrderData
+	req := make(map[string]interface{})
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	if contractCode != "" {
+		req["contract_code"] = contractCode
+	}
+	tType, ok := validTriggerType[triggerType]
+	if !ok {
+		return resp, fmt.Errorf("invalid trigger type")
+	}
+	req["trigger_type"] = tType
+	req["direction"] = direction
+	if !common.StringDataCompare(validOffsetTypes, offset) {
+		return resp, fmt.Errorf("invalid offset")
+	}
+	req["offset"] = offset
+	req["trigger_price"] = triggerPrice
+	req["volume"] = volume
+	req["lever_rate"] = leverageRate
+	req["order_price"] = orderPrice
+	if !common.StringDataCompare(validOrderPriceType, orderPriceType) {
+		return resp, fmt.Errorf("invalid order price type")
+	}
+	req["order_price_type"] = orderPriceType
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fMatchResult, nil, req, &resp, false)
+}
+
+//
 
 //
 
