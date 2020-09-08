@@ -645,3 +645,25 @@ func TestFetchTradablePairs(t *testing.T) {
 		}
 	}
 }
+
+func TestMatchType(t *testing.T) {
+	ret := matchType(1, order.AnyType)
+	if !ret {
+		t.Fatal("expected true value")
+	}
+
+	ret = matchType(76, order.Market)
+	if ret {
+		t.Fatal("expected false match")
+	}
+
+	ret = matchType(76, order.Limit)
+	if !ret {
+		t.Fatal("expected true match")
+	}
+
+	ret = matchType(77, order.Market)
+	if !ret {
+		t.Fatal("expected true match")
+	}
+}

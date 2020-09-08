@@ -423,7 +423,7 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item, timesta
 			Amount:    trades[x].Amount,
 			Exchange:  b.Name,
 			Type:      trades[x].Type,
-			TID:       trades[x].SerialID,
+			TID:       strconv.Itoa(trades[x].SerialID),
 		}
 		resp = append(resp, tempExch)
 	}
@@ -521,7 +521,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 
 	for i := range o {
-		if o[i].ID != orderID {
+		if o[i].OrderID != orderID {
 			continue
 		}
 
@@ -540,14 +540,14 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		}
 		od.Exchange = b.Name
 		od.Amount = o[i].Size
-		od.ID = o[i].ID
-		od.Date, err = parseOrderTime(o[i].CreatedAt)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
-		}
+		od.ID = o[i].OrderID
+		od.Date = time.Unix(o[i].Timestamp, 0)
 		od.Side = side
-		od.Type = order.Type(strings.ToUpper(o[i].Type))
+		if o[i].OrderType == 77 {
+			od.Type = order.Market
+		} else if o[i].OrderType == 76 {
+			od.Type = order.Limit
+		}
 		od.Price = o[i].Price
 		od.Status = order.Status(o[i].OrderState)
 
@@ -648,14 +648,6 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 			side = order.Sell
 		}
 
-		tm, err := parseOrderTime(resp[i].CreatedAt)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s GetActiveOrders unable to parse time: %s\n",
-				b.Name,
-				err)
-		}
-
 		p, err := currency.NewPairDelimiter(resp[i].Symbol,
 			format.Delimiter)
 		if err != nil {
@@ -669,20 +661,25 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 			Pair:     p,
 			Exchange: b.Name,
 			Amount:   resp[i].Size,
-			ID:       resp[i].ID,
-			Date:     tm,
+			ID:       resp[i].OrderID,
+			Date:     time.Unix(resp[i].Timestamp, 0),
 			Side:     side,
-			Type:     order.Type(strings.ToUpper(resp[i].Type)),
 			Price:    resp[i].Price,
 			Status:   order.Status(resp[i].OrderState),
 		}
 
-		fills, err := b.TradeHistory("", resp[i].ID, time.Time{}, time.Time{}, 100)
+		if resp[i].OrderType == 77 {
+			openOrder.Type = order.Market
+		} else if resp[i].OrderType == 76 {
+			openOrder.Type = order.Limit
+		}
+
+		fills, err := b.TradeHistory("", resp[i].OrderID, time.Time{}, time.Time{}, 100)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s: Unable to get order fills for orderID %s",
 				b.Name,
-				resp[i].ID)
+				resp[i].OrderID)
 			continue
 		}
 
@@ -713,6 +710,13 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 	return orders, nil
 }
 
+func matchType(input int, required order.Type) bool {
+	if (required == order.AnyType) || (input == 76 && required == order.Limit) || input == 77 && required == order.Market {
+		return true
+	}
+	return false
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
@@ -731,7 +735,7 @@ func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]orde
 			return nil, err
 		}
 		for y := range currentOrder {
-			if order.Type(currentOrder[y].Type) != orderDeref.Type {
+			if !matchType(currentOrder[y].OrderType, orderDeref.Type) {
 				continue
 			}
 			tempOrder := order.Detail{

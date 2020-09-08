@@ -98,7 +98,7 @@ type FuturesMarket struct {
 
 // Trade stores trade data
 type Trade struct {
-	SerialID string    `json:"serial_id"`
+	SerialID int       `json:"serialId"`
 	Symbol   string    `json:"symbol"`
 	Price    float64   `json:"price"`
 	Amount   float64   `json:"amount"`
@@ -213,15 +213,31 @@ type WithdrawalResponse struct {
 
 // OpenOrder stores an open order info
 type OpenOrder struct {
-	ID         string  `json:"id"`
-	Type       string  `json:"type"`
-	Side       string  `json:"side"`
-	Price      float64 `json:"price"`
-	Size       float64 `json:"size"`
-	Tag        string  `json:"tag"`
-	Symbol     string  `json:"symbol"`
-	CreatedAt  string  `json:"created_at"`
-	OrderState string  `json:"orderState"`
+	AverageFillPrice             float64 `json:"averageFillPrice"`
+	CancelDuration               int     `json:"cancelDuration"`
+	ClOrderID                    string  `json:"clOrderID"`
+	FillSize                     float64 `json:"fillSize"`
+	FilledSize                   float64 `json:"filledSize"`
+	OrderID                      string  `json:"orderID"`
+	OrderState                   string  `json:"orderState"`
+	OrderType                    int     `json:"orderType"`
+	OrderValue                   float64 `json:"orderValue"`
+	PegPriceDeviation            float64 `json:"pegPriceDeviation"`
+	PegPriceMax                  float64 `json:"pegPriceMax"`
+	PegPriceMin                  float64 `json:"pegPriceMin"`
+	Price                        float64 `json:"price"`
+	Side                         string  `json:"side"`
+	Size                         float64 `json:"size"`
+	Symbol                       string  `json:"symbol"`
+	Timestamp                    int64   `json:"timestamp"`
+	TrailValue                   float64 `json:"trailValue"`
+	TriggerOrder                 bool    `json:"triggerOrder"`
+	TriggerOrderType             int     `json:"triggerOrderType"`
+	TriggerOriginalPrice         float64 `json:"triggerOriginalPrice"`
+	TriggerPrice                 float64 `json:"triggerPrice"`
+	TriggerStopPrice             float64 `json:"triggerStopPrice"`
+	TriggerTrailingStopDeviation float64 `json:"triggerTrailingStopDeviation"`
+	Triggered                    bool    `json:"triggered"`
 }
 
 // CancelOrder stores cancelled order's statuses
