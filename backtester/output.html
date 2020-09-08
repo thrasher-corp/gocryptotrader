@@ -1,16 +1,34 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Backtest</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.jsd"></script>
+    <title>Test</title>
+    <script src="https://unpkg.com/lightweight-charts@3.1.5/dist/lightweight-charts.standalone.production.js"></script>
+
 </head>
 <body>
-<canvas id="chart" width="400" height="400"></canvas>
 <script>
-    const ctx = document.getElementById('myChart').getContext('2d');
-    const myChart = new Chart(ctx, {});
+    const chartJSON = "ewogInRvdGFsRXZlbnRzIjogNzY2LAogInRvdGFsVHJhbnNhY3Rpb25zIjogMTgsCiAidHJhbnNhY3Rpb25zIjogWwogIHsKICAgInRpbWUiOiAiMjAxOS0wMS0wMVQwMDowMDowMFoiLAogICAiZGlyZWN0aW9uIjogIkJVWSIsCiAgICJwcmljZSI6IDEwLjY2NDU2MDA1MzIxODQ5LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTAyVDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMC42ODY4MjMwNzI4NjcxMDk0LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTAzVDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMTAuOTY1NDcxOTEzODAzNzc4LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTA0VDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMS4wNjc0ODAyNjIxNjY3OTU0LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTA1VDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMTEuMjU4NTczNzcxMTQwNTkzLAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTA2VDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMS40MjgzNTE2NzkwMjM3MDE0LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTA3VDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMTEuNTU1NjU2MzM0Njk2ODg0LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTA4VDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMi4xMjUwNzA4NDQ3NzAzMzY0LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTA5VDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMTIuMTYyOTA5Nzc0MjQyMzk5LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTEwVDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMi4xODQxOTE0OTYwODQyMTE3LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTExVDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMTIuNzA0MDA5NjI5MjUxMTM0LAogICAiYW1vdW50IjogNQogIH0sCiAgewogICAidGltZSI6ICIyMDE5LTAxLTEyVDAwOjAwOjAwWiIsCiAgICJkaXJlY3Rpb24iOiAiQlVZIiwKICAgInByaWNlIjogMi43MTQ3NzcyMTE0MzQ5MTcsCiAgICJhbW91bnQiOiA1CiAgfSwKICB7CiAgICJ0aW1lIjogIjIwMTktMDEtMTNUMDA6MDA6MDBaIiwKICAgImRpcmVjdGlvbiI6ICJCVVkiLAogICAicHJpY2UiOiAxMy4wNjU4MTUxMDk3MzE0NTEsCiAgICJhbW91bnQiOiA1CiAgfSwKICB7CiAgICJ0aW1lIjogIjIwMTktMDEtMTRUMDA6MDA6MDBaIiwKICAgImRpcmVjdGlvbiI6ICJCVVkiLAogICAicHJpY2UiOiAyLjgxMjIzMTgyOTgzNDAzMzYsCiAgICJhbW91bnQiOiA1CiAgfSwKICB7CiAgICJ0aW1lIjogIjIwMTktMDEtMTVUMDA6MDA6MDBaIiwKICAgImRpcmVjdGlvbiI6ICJTRUxMIiwKICAgInByaWNlIjogMTMuNzQ2ODkzNDIyMTI0MDIzLAogICAiYW1vdW50IjogMTAwCiAgfSwKICB7CiAgICJ0aW1lIjogIjIwMTktMTItMjlUMDA6MDA6MDBaIiwKICAgImRpcmVjdGlvbiI6ICJCVVkiLAogICAicHJpY2UiOiAxMDEuMjY1NzI1MjYxNTE5OTgsCiAgICJhbW91bnQiOiA1CiAgfSwKICB7CiAgICJ0aW1lIjogIjIwMTktMTItMzBUMDA6MDA6MDBaIiwKICAgImRpcmVjdGlvbiI6ICJCVVkiLAogICAicHJpY2UiOiA5MS41MDQ4ODI1OTc0Mjg5NiwKICAgImFtb3VudCI6IDUKICB9LAogIHsKICAgInRpbWUiOiAiMjAxOS0xMi0zMVQwMDowMDowMFoiLAogICAiZGlyZWN0aW9uIjogIkJVWSIsCiAgICJwcmljZSI6IDEwMi4xNjQ0NTU4OTQ0MzUzMywKICAgImFtb3VudCI6IDUKICB9CiBdLAogInNoYXJwaWVSYXRpbyI6IDAuMDgwNTkwMTM4ODgwMDQwMzEsCiAic3RyYXRlZ3lOYW1lIjogIkhlbGxvV29ybGQiCn0="
+        decoded = atob(chartJSON)
+    console.log(JSON.parse(decoded))
+
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const chart = window.LightweightCharts.createChart(document.body, { width: 1280, height: 720 });
+        const lineSeries = chart.addLineSeries();
+        lineSeries.setData([
+            { time: '2019-04-11', value: 80.01 },
+            { time: '2019-04-12', value: 96.63 },
+            { time: '2019-04-13', value: 76.64 },
+            { time: '2019-04-14', value: 81.89 },
+            { time: '2019-04-15', value: 74.43 },
+            { time: '2019-04-16', value: 80.01 },
+            { time: '2019-04-17', value: 96.63 },
+            { time: '2019-04-18', value: 76.64 },
+            { time: '2019-04-19', value: 81.89 },
+            { time: '2019-04-20', value: 74.43 },
+        ]);
+    });
 </script>
 </body>
 </html>

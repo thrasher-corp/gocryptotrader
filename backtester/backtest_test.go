@@ -87,11 +87,15 @@ func TestBackTest(t *testing.T) {
 		fmt.Println(ret.Transactions[x])
 	}
 	fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
-	r, err := statistic.JSON()
+	r, err := statistic.JSON(false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(string(r))
+	err = GenerateOutput(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// fmt.Println(string(r))
 	// for x := range bt.orderbook.Orders() {
 	// 	fmt.Println(bt.orderbook.Orders()[x])
 	// }
