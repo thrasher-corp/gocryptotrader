@@ -2,26 +2,37 @@ package trade
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/goose"
-	"github.com/thrasher-corp/sqlboiler/boil"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+var (
+	verbose       = true
+	testExchanges = []exchange.Details{
+		{
+			Name: "one",
+		},
+		{
+			Name: "two",
+		},
+	}
+)
+
 func TestMain(m *testing.M) {
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
+	}
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
-	boil.DebugMode = true
 
 	t := m.Run()
 	os.Exit(t)
@@ -31,31 +42,28 @@ func TestTrades(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *database.Config
+		seedDB func() error
 		runner func(t *testing.T)
 		closer func(dbConn *database.Instance) error
-		output interface{}
 	}{
 		{
-			"SQLite-Write",
-			&database.Config{
+			name:   "postgresql",
+			config: testhelpers.PostgresTestDatabase,
+			seedDB: seedDB,
+		},
+		{
+			name: "SQLite",
+			config: &database.Config{
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
-			tradeSqlTester,
-			testhelpers.CloseDatabase,
-			nil,
-		},
-		{
-			"Postgres-Write",
-			testhelpers.PostgresTestDatabase,
-			tradeSqlTester,
-			nil,
-			nil,
+			seedDB: seedDB,
 		},
 	}
 
-		for _, tests := range testCases {
-		test := tests
+	for x := range testCases {
+		test := testCases[x]
+
 		t.Run(test.name, func(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
@@ -66,54 +74,51 @@ func TestTrades(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			path := filepath.Join("..", "..", "migrations")
-			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
-			if err != nil {
-				t.Fatalf("failed to run migrations %v", err)
-			}
-
-			if test.runner != nil {
-				test.runner(t)
-			}
-
-			if test.closer != nil {
-				err = test.closer(dbConn)
+			if test.seedDB != nil {
+				err = test.seedDB()
 				if err != nil {
-					t.Log(err)
+					t.Error(err)
 				}
+			}
+
+			tradeSqlTester(t)
+			err = testhelpers.CloseDatabase(dbConn)
+			if err != nil {
+				t.Error(err)
 			}
 		})
 	}
 }
 
-
 func tradeSqlTester(t *testing.T) {
 	var trades []Data
-	cp, _ := currency.NewPairFromString("BTC-USD")
 	for i := 0; i < 20; i++ {
 		uu, _ := uuid.NewV4()
 		trades = append(trades, Data{
-			ID:           uu.String(),
-			Timestamp:    time.Now().Unix(),
-			Exchange:     "Binance",
-			CurrencyPair: cp.String(),
-			AssetType:    asset.Spot.String(),
-			Price:        float64(i * (i + 3)),
-			Amount:        float64(i * (i + 2)),
-			Side:         order.Buy.String(),
+			ID:        uu.String(),
+			Timestamp: time.Now().Unix(),
+			Exchange:  testExchanges[0].Name,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+			AssetType: asset.Spot.String(),
+			Price:     float64(i * (i + 3)),
+			Amount:    float64(i * (i + 2)),
+			Side:      order.Buy.String(),
 		})
 	}
 	err := Insert(trades...)
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	if len(trades) == 0 {
+		t.Fatal("somehow did not append trades")
+	}
 	_, err = GetByUUID(trades[0].ID)
 	if err != nil {
-			t.Error(err)
+		t.Error(err)
 	}
 
-	v, err := GetByExchangeInRange("Binance", time.Now().Add(-time.Hour).Unix(), time.Now().Add(time.Hour).Unix())
+	v, err := GetByExchangeInRange(testExchanges[0].Name, time.Now().Add(-time.Hour).Unix(), time.Now().Add(time.Hour).Unix())
 	if err != nil {
 		t.Error(err)
 	}
@@ -126,11 +131,20 @@ func tradeSqlTester(t *testing.T) {
 		t.Error(err)
 	}
 
-	v, err = GetByExchangeInRange("Binance", time.Now().Add(-time.Hour).Unix(), time.Now().Add(time.Hour).Unix())
+	v, err = GetByExchangeInRange(testExchanges[0].Name, time.Now().Add(-time.Hour).Unix(), time.Now().Add(time.Hour).Unix())
 	if err != nil {
 		t.Error(err)
 	}
 	if len(v) != 0 {
 		t.Errorf("should all be ded %v", v)
 	}
+}
+
+func seedDB() error {
+	err := exchange.InsertMany(testExchanges)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

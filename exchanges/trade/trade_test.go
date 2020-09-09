@@ -85,14 +85,14 @@ func TestAddTradesToBuffer(t *testing.T) {
 func TestSqlDataToTrade(t *testing.T) {
 	uuiderino, _ := uuid.NewV4()
 	data, err := SqlDataToTrade(sqltrade.Data{
-		ID:           uuiderino.String(),
-		Timestamp:    0,
-		Exchange:     "hello",
-		CurrencyPair: "btc-usd",
-		AssetType:    "spot",
-		Price:        1337,
-		Amount:       1337,
-		Side:         "buy",
+		ID:        uuiderino.String(),
+		Timestamp: 0,
+		Exchange:  "hello",
+		Base:      "btc-usd",
+		AssetType: "spot",
+		Price:     1337,
+		Amount:    1337,
+		Side:      "buy",
 	})
 	if err != nil {
 		t.Error(err)
@@ -128,8 +128,8 @@ func TestTradeToSQLData(t *testing.T) {
 	if len(sqlData) != 1 {
 		t.Fatal("unexpected result")
 	}
-	if sqlData[0].CurrencyPair != cp.String() {
-		t.Errorf("expected \"BTC-USD\", got %v", sqlData[0].CurrencyPair)
+	if sqlData[0].Base != cp.String() {
+		t.Errorf("expected \"BTC-USD\", got %v", sqlData[0].Base)
 	}
 	if sqlData[0].AssetType != asset.Spot.String() {
 		t.Error("expected spot")

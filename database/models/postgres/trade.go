@@ -24,87 +24,81 @@ import (
 
 // Trade is an object representing the database table.
 type Trade struct {
-	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Tid        null.String `boil:"tid" json:"tid,omitempty" toml:"tid" yaml:"tid,omitempty"`
-	ExchangeID string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
-	Currency   string      `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
-	Asset      string      `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
-	Price      float64     `boil:"price" json:"price" toml:"price" yaml:"price"`
-	Amount     float64     `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
-	Side       string      `boil:"side" json:"side" toml:"side" yaml:"side"`
-	Timestamp  int64       `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
+	ID             string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ExchangeNameID string      `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
+	Tid            null.String `boil:"tid" json:"tid,omitempty" toml:"tid" yaml:"tid,omitempty"`
+	Base           string      `boil:"base" json:"base" toml:"base" yaml:"base"`
+	Quote          string      `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
+	Asset          string      `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
+	Price          float64     `boil:"price" json:"price" toml:"price" yaml:"price"`
+	Amount         float64     `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
+	Side           string      `boil:"side" json:"side" toml:"side" yaml:"side"`
+	Timestamp      int64       `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
 
 	R *tradeR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L tradeL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var TradeColumns = struct {
-	ID         string
-	Tid        string
-	ExchangeID string
-	Currency   string
-	Asset      string
-	Price      string
-	Amount     string
-	Side       string
-	Timestamp  string
+	ID             string
+	ExchangeNameID string
+	Tid            string
+	Base           string
+	Quote          string
+	Asset          string
+	Price          string
+	Amount         string
+	Side           string
+	Timestamp      string
 }{
-	ID:         "id",
-	Tid:        "tid",
-	ExchangeID: "exchange_id",
-	Currency:   "currency",
-	Asset:      "asset",
-	Price:      "price",
-	Amount:     "amount",
-	Side:       "side",
-	Timestamp:  "timestamp",
+	ID:             "id",
+	ExchangeNameID: "exchange_name_id",
+	Tid:            "tid",
+	Base:           "base",
+	Quote:          "quote",
+	Asset:          "asset",
+	Price:          "price",
+	Amount:         "amount",
+	Side:           "side",
+	Timestamp:      "timestamp",
 }
 
 // Generated where
 
-type whereHelperfloat64 struct{ field string }
-
-func (w whereHelperfloat64) EQ(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.EQ, x) }
-func (w whereHelperfloat64) NEQ(x float64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.NEQ, x)
-}
-func (w whereHelperfloat64) LT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LT, x) }
-func (w whereHelperfloat64) LTE(x float64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelperfloat64) GT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GT, x) }
-func (w whereHelperfloat64) GTE(x float64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-
 var TradeWhere = struct {
-	ID         whereHelperstring
-	Tid        whereHelpernull_String
-	ExchangeID whereHelperstring
-	Currency   whereHelperstring
-	Asset      whereHelperstring
-	Price      whereHelperfloat64
-	Amount     whereHelperfloat64
-	Side       whereHelperstring
-	Timestamp  whereHelperint64
+	ID             whereHelperstring
+	ExchangeNameID whereHelperstring
+	Tid            whereHelpernull_String
+	Base           whereHelperstring
+	Quote          whereHelperstring
+	Asset          whereHelperstring
+	Price          whereHelperfloat64
+	Amount         whereHelperfloat64
+	Side           whereHelperstring
+	Timestamp      whereHelperint64
 }{
-	ID:         whereHelperstring{field: "\"trade\".\"id\""},
-	Tid:        whereHelpernull_String{field: "\"trade\".\"tid\""},
-	ExchangeID: whereHelperstring{field: "\"trade\".\"exchange_id\""},
-	Currency:   whereHelperstring{field: "\"trade\".\"currency\""},
-	Asset:      whereHelperstring{field: "\"trade\".\"asset\""},
-	Price:      whereHelperfloat64{field: "\"trade\".\"price\""},
-	Amount:     whereHelperfloat64{field: "\"trade\".\"amount\""},
-	Side:       whereHelperstring{field: "\"trade\".\"side\""},
-	Timestamp:  whereHelperint64{field: "\"trade\".\"timestamp\""},
+	ID:             whereHelperstring{field: "\"trade\".\"id\""},
+	ExchangeNameID: whereHelperstring{field: "\"trade\".\"exchange_name_id\""},
+	Tid:            whereHelpernull_String{field: "\"trade\".\"tid\""},
+	Base:           whereHelperstring{field: "\"trade\".\"base\""},
+	Quote:          whereHelperstring{field: "\"trade\".\"quote\""},
+	Asset:          whereHelperstring{field: "\"trade\".\"asset\""},
+	Price:          whereHelperfloat64{field: "\"trade\".\"price\""},
+	Amount:         whereHelperfloat64{field: "\"trade\".\"amount\""},
+	Side:           whereHelperstring{field: "\"trade\".\"side\""},
+	Timestamp:      whereHelperint64{field: "\"trade\".\"timestamp\""},
 }
 
 // TradeRels is where relationship names are stored.
 var TradeRels = struct {
-}{}
+	ExchangeName string
+}{
+	ExchangeName: "ExchangeName",
+}
 
 // tradeR is where relationships are stored.
 type tradeR struct {
+	ExchangeName *Exchange
 }
 
 // NewStruct creates a new relationship struct
@@ -116,8 +110,8 @@ func (*tradeR) NewStruct() *tradeR {
 type tradeL struct{}
 
 var (
-	tradeAllColumns            = []string{"id", "tid", "exchange_id", "currency", "asset", "price", "amount", "side", "timestamp"}
-	tradeColumnsWithoutDefault = []string{"tid", "exchange_id", "currency", "asset", "price", "amount", "side", "timestamp"}
+	tradeAllColumns            = []string{"id", "exchange_name_id", "tid", "base", "quote", "asset", "price", "amount", "side", "timestamp"}
+	tradeColumnsWithoutDefault = []string{"exchange_name_id", "tid", "base", "quote", "asset", "price", "amount", "side", "timestamp"}
 	tradeColumnsWithDefault    = []string{"id"}
 	tradePrimaryKeyColumns     = []string{"id"}
 )
@@ -395,6 +389,168 @@ func (q tradeQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bool
 	}
 
 	return count > 0, nil
+}
+
+// ExchangeName pointed to by the foreign key.
+func (o *Trade) ExchangeName(mods ...qm.QueryMod) exchangeQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.ExchangeNameID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Exchanges(queryMods...)
+	queries.SetFrom(query.Query, "\"exchange\"")
+
+	return query
+}
+
+// LoadExchangeName allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (tradeL) LoadExchangeName(ctx context.Context, e boil.ContextExecutor, singular bool, maybeTrade interface{}, mods queries.Applicator) error {
+	var slice []*Trade
+	var object *Trade
+
+	if singular {
+		object = maybeTrade.(*Trade)
+	} else {
+		slice = *maybeTrade.(*[]*Trade)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &tradeR{}
+		}
+		args = append(args, object.ExchangeNameID)
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &tradeR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ExchangeNameID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ExchangeNameID)
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`exchange`), qm.WhereIn(`exchange.id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Exchange")
+	}
+
+	var resultSlice []*Exchange
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Exchange")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for exchange")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for exchange")
+	}
+
+	if len(tradeAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.ExchangeName = foreign
+		if foreign.R == nil {
+			foreign.R = &exchangeR{}
+		}
+		foreign.R.ExchangeNameTrades = append(foreign.R.ExchangeNameTrades, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if local.ExchangeNameID == foreign.ID {
+				local.R.ExchangeName = foreign
+				if foreign.R == nil {
+					foreign.R = &exchangeR{}
+				}
+				foreign.R.ExchangeNameTrades = append(foreign.R.ExchangeNameTrades, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// SetExchangeName of the trade to the related item.
+// Sets o.R.ExchangeName to related.
+// Adds o to related.R.ExchangeNameTrades.
+func (o *Trade) SetExchangeName(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Exchange) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"trade\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"exchange_name_id"}),
+		strmangle.WhereClause("\"", "\"", 2, tradePrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.ExchangeNameID = related.ID
+	if o.R == nil {
+		o.R = &tradeR{
+			ExchangeName: related,
+		}
+	} else {
+		o.R.ExchangeName = related
+	}
+
+	if related.R == nil {
+		related.R = &exchangeR{
+			ExchangeNameTrades: TradeSlice{o},
+		}
+	} else {
+		related.R.ExchangeNameTrades = append(related.R.ExchangeNameTrades, o)
+	}
+
+	return nil
 }
 
 // Trades retrieves all the records using an executor.

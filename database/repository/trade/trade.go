@@ -3,6 +3,7 @@ package trade
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/gofrs/uuid"
@@ -13,11 +14,24 @@ import (
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Insert saves trade data to the database
 func Insert(trades ...Data) error {
+	for i := range trades {
+		if trades[i].ExchangeNameID == "" && trades[i].Exchange != "" {
+			exchangeUUID, err := exchange.UUIDByName(trades[i].Exchange)
+			if err != nil {
+				return err
+			}
+			trades[i].ExchangeNameID = exchangeUUID.String()
+		} else if trades[i].ExchangeNameID == "" && trades[i].Exchange == "" {
+			return errors.New("exchange name/uuid not set, cannot insert")
+		}
+	}
+
 	ctx := context.Background()
 	ctx = boil.SkipTimestamps(ctx)
 
@@ -33,7 +47,8 @@ func Insert(trades ...Data) error {
 			}
 		}
 	}()
-	if repository.GetSQLDialect() == database.DBSQLite3 {
+
+	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
 		err = insertSQLite(ctx, tx, trades...)
 	} else {
 		err = insertPostgres(ctx, tx, trades...)
@@ -50,14 +65,15 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	var err error
 	for i := range trades {
 		var tempEvent = modelSQLite.Trade{
-			ID:         trades[i].ID,
-			ExchangeID: trades[i].Exchange,
-			Currency:   trades[i].CurrencyPair,
-			Asset:      trades[i].AssetType,
-			Price:      trades[i].Price,
-			Amount:     trades[i].Amount,
-			Side:       trades[i].Side,
-			Timestamp:  float64(trades[i].Timestamp),
+			ID:             trades[i].ID,
+			ExchangeNameID: trades[i].ExchangeNameID,
+			Base:           trades[i].Base,
+			Quote:          trades[i].Quote,
+			Asset:          trades[i].AssetType,
+			Price:          trades[i].Price,
+			Amount:         trades[i].Amount,
+			Side:           trades[i].Side,
+			Timestamp:      float64(trades[i].Timestamp),
 		}
 		if trades[i].TID != "" {
 			tempEvent.Tid.SetValid(trades[i].TID)
@@ -74,22 +90,20 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	// get all exchanges
 	var err error
-	exchangeID, _ := uuid.NewV4()
 	for i := range trades {
 		var tempEvent = modelPSQL.Trade{
-			Currency:  trades[i].CurrencyPair,
-			Asset:     trades[i].AssetType,
-			Price:     trades[i].Price,
-			Amount:    trades[i].Amount,
-			Side:      trades[i].Side,
-			Timestamp: trades[i].Timestamp,
-			ID:        trades[i].ID,
+			ExchangeNameID: trades[i].ExchangeNameID,
+			Base:           trades[i].Base,
+			Quote:          trades[i].Quote,
+			Asset:          trades[i].AssetType,
+			Price:          trades[i].Price,
+			Amount:         trades[i].Amount,
+			Side:           trades[i].Side,
+			Timestamp:      trades[i].Timestamp,
+			ID:             trades[i].ID,
 		}
 		if trades[i].TID != "" {
 			tempEvent.Tid.SetValid(trades[i].TID)
-		}
-		if exchangeID.String() != "" {
-			//tempEvent.ExchangeID.SetValid(trades[i].Exchange)
 		}
 
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
@@ -103,7 +117,7 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 
 // GetByUUID returns a trade by its unique ID
 func GetByUUID(uuid string) (td Data, err error) {
-	if repository.GetSQLDialect() == database.DBSQLite3 {
+	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
 		td, err = getByUUIDSQLite(uuid)
 		if err != nil {
 			return td, fmt.Errorf("trade.Get getByUUIDSQLite %w", err)
@@ -126,14 +140,15 @@ func getByUUIDSQLite(uuid string) (td Data, err error) {
 	}
 
 	td = Data{
-		ID:           result.ID,
-		Timestamp:    int64(result.Timestamp),
-		Exchange:     result.ExchangeID,
-		CurrencyPair: result.Currency,
-		AssetType:    result.Asset,
-		Price:        result.Price,
-		Amount:       result.Amount,
-		Side:         result.Side,
+		ID:        result.ID,
+		Timestamp: int64(result.Timestamp),
+		Exchange:  result.ExchangeNameID,
+		Base:      result.Base,
+		Quote:     result.Quote,
+		AssetType: result.Asset,
+		Price:     result.Price,
+		Amount:    result.Amount,
+		Side:      result.Side,
 	}
 	return td, nil
 }
@@ -147,21 +162,22 @@ func getByUUIDPostgres(uuid string) (td Data, err error) {
 	}
 
 	td = Data{
-		ID:           result.ID,
-		Timestamp:    result.Timestamp,
-		Exchange:     result.ExchangeID,
-		CurrencyPair: result.Currency,
-		AssetType:    result.Asset,
-		Price:        result.Price,
-		Amount:       result.Amount,
-		Side:         result.Side,
+		ID:        result.ID,
+		Timestamp: result.Timestamp,
+		Exchange:  result.ExchangeNameID,
+		Base:      result.Base,
+		Quote:     result.Quote,
+		AssetType: result.Asset,
+		Price:     result.Price,
+		Amount:    result.Amount,
+		Side:      result.Side,
 	}
 	return td, nil
 }
 
 // GetByExchangeInRange returns all trades by an exchange in a date range
 func GetByExchangeInRange(exchangeName string, startDate, endDate int64) (td []Data, err error) {
-	if repository.GetSQLDialect() == database.DBSQLite3 {
+	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
 		td, err = getByExchangeInRangeSQLite(exchangeName, startDate, endDate)
 		if err != nil {
 			return td, fmt.Errorf("trade.GetByExchangeInRange getByExchangeInRangeSQLite %w", err)
@@ -177,8 +193,13 @@ func GetByExchangeInRange(exchangeName string, startDate, endDate int64) (td []D
 }
 
 func getByExchangeInRangeSQLite(exchangeName string, startDate, endDate int64) (td []Data, err error) {
+	var exchangeUUID uuid.UUID
+	exchangeUUID, err = exchange.UUIDByName(exchangeName)
+	if err != nil {
+		return nil, err
+	}
 	wheres := map[string]interface{}{
-		"exchange_id": exchangeName,
+		"exchange_name_id": exchangeUUID,
 	}
 	q := generateQuery(wheres, startDate, endDate, 50000)
 	query := modelSQLite.Trades(q...)
@@ -189,22 +210,28 @@ func getByExchangeInRangeSQLite(exchangeName string, startDate, endDate int64) (
 	}
 	for i := range result {
 		td = append(td, Data{
-			ID:           result[i].ID,
-			Timestamp:    int64(result[i].Timestamp),
-			Exchange:     result[i].ExchangeID,
-			CurrencyPair: result[i].Currency,
-			AssetType:    result[i].Asset,
-			Price:        result[i].Price,
-			Amount:       result[i].Amount,
-			Side:         result[i].Side,
+			ID:        result[i].ID,
+			Timestamp: int64(result[i].Timestamp),
+			Exchange:  exchangeName,
+			Base:      result[i].Base,
+			Quote:     result[i].Quote,
+			AssetType: result[i].Asset,
+			Price:     result[i].Price,
+			Amount:    result[i].Amount,
+			Side:      result[i].Side,
 		})
 	}
 	return td, nil
 }
 
 func getByExchangeInRangePostgres(exchangeName string, startDate, endDate int64) (td []Data, err error) {
+	var exchangeUUID uuid.UUID
+	exchangeUUID, err = exchange.UUIDByName(exchangeName)
+	if err != nil {
+		return nil, err
+	}
 	wheres := map[string]interface{}{
-		"exchange_id": exchangeName,
+		"exchange_name_id": exchangeUUID,
 	}
 	q := generateQuery(wheres, startDate, endDate, -1)
 	query := modelPSQL.Trades(q...)
@@ -215,14 +242,15 @@ func getByExchangeInRangePostgres(exchangeName string, startDate, endDate int64)
 	}
 	for i := range result {
 		td = append(td, Data{
-			ID:           result[i].ID,
-			Timestamp:    result[i].Timestamp,
-			Exchange:     result[i].ExchangeID,
-			CurrencyPair: result[i].Currency,
-			AssetType:    result[i].Asset,
-			Price:        result[i].Price,
-			Amount:       result[i].Amount,
-			Side:         result[i].Side,
+			ID:        result[i].ID,
+			Timestamp: result[i].Timestamp,
+			Exchange:  exchangeName,
+			Base:      result[i].Base,
+			Quote:     result[i].Quote,
+			AssetType: result[i].Asset,
+			Price:     result[i].Price,
+			Amount:    result[i].Amount,
+			Side:      result[i].Side,
 		})
 	}
 	return td, nil
@@ -245,7 +273,7 @@ func DeleteTrades(trades ...Data) error {
 			}
 		}
 	}()
-	if repository.GetSQLDialect() == database.DBSQLite3 {
+	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
 		err = deleteTradesSQLite(context.Background(), tx, trades...)
 	} else {
 		err = deleteTradesPostgres(context.Background(), tx, trades...)

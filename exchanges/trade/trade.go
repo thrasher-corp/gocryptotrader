@@ -103,14 +103,15 @@ func tradeToSQLData() []sqltrade.Data {
 	var results []sqltrade.Data
 	for i := range buffer {
 		results = append(results, sqltrade.Data{
-			ID:           buffer[i].ID.String(),
-			Timestamp:    buffer[i].Timestamp.Unix(),
-			Exchange:     buffer[i].Exchange,
-			CurrencyPair: buffer[i].CurrencyPair.String(),
-			AssetType:    buffer[i].AssetType.String(),
-			Price:        buffer[i].Price,
-			Amount:       buffer[i].Amount,
-			Side:         buffer[i].Side.String(),
+			ID:        buffer[i].ID.String(),
+			Timestamp: buffer[i].Timestamp.Unix(),
+			Exchange:  buffer[i].Exchange,
+			Base:      buffer[i].CurrencyPair.Base.String(),
+			Quote:     buffer[i].CurrencyPair.Quote.String(),
+			AssetType: buffer[i].AssetType.String(),
+			Price:     buffer[i].Price,
+			Amount:    buffer[i].Amount,
+			Side:      buffer[i].Side.String(),
 		})
 	}
 	return results
@@ -120,7 +121,7 @@ func tradeToSQLData() []sqltrade.Data {
 func SqlDataToTrade(dbTrades ...sqltrade.Data) (result []Data, err error) {
 	for i := range dbTrades {
 		var cp currency.Pair
-		cp, err = currency.NewPairFromString(dbTrades[i].CurrencyPair)
+		cp, err = currency.NewPairFromStrings(dbTrades[i].Base, dbTrades[i].Quote)
 		if err != nil {
 			return nil, err
 		}
