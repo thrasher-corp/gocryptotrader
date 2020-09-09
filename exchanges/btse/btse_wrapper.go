@@ -221,12 +221,7 @@ func (b *BTSE) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
 	var currencies []string
-	spot := true
-	if a == asset.Futures {
-		spot = false
-	}
-
-	m, err := b.GetMarketsSummary("", spot)
+	m, err := b.GetMarketsSummary("", a == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -265,17 +260,12 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	spot := true
-	if assetType == asset.Futures {
-		spot = false
-	}
-
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	t, err := b.GetMarketsSummary(fpair.String(), spot)
+	t, err := b.GetMarketsSummary(fpair.String(), assetType == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -315,16 +305,11 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	spot := true
-	if assetType == asset.Futures {
-		spot = false
-	}
-
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	a, err := b.FetchOrderBook(fpair.String(), 0, 0, 0, spot)
+	a, err := b.FetchOrderBook(fpair.String(), 0, 0, 0, assetType == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -496,11 +481,20 @@ func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAll
 	}
 
 	for x := range allOrders {
-		if allOrders[x].Status == 6 {
+		if allOrders[x].Status == orderCancelled {
 			resp.Status[allOrders[x].OrderID] = order.Cancelled.String()
 		}
 	}
 	return resp, nil
+}
+
+func orderIntToType(i int) order.Type {
+	if i == 77 {
+		return order.Market
+	} else if i == 76 {
+		return order.Limit
+	}
+	return order.UnknownType
 }
 
 // GetOrderInfo returns information on a current open order
@@ -543,11 +537,9 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		od.ID = o[i].OrderID
 		od.Date = time.Unix(o[i].Timestamp, 0)
 		od.Side = side
-		if o[i].OrderType == 77 {
-			od.Type = order.Market
-		} else if o[i].OrderType == 76 {
-			od.Type = order.Limit
-		}
+
+		od.Type = orderIntToType(o[i].OrderType)
+
 		od.Price = o[i].Price
 		od.Status = order.Status(o[i].OrderState)
 
@@ -631,7 +623,12 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 	if len(req.Pairs) == 0 {
 		return nil, errors.New("no pair provided")
 	}
-	resp, err := b.GetOrders(req.Pairs[0].String(), "", "")
+
+	formattedPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := b.GetOrders(formattedPair.String(), "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -730,7 +727,11 @@ func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]orde
 	}
 	orderDeref := *getOrdersRequest
 	for x := range orderDeref.Pairs {
-		currentOrder, err := b.GetOrders(orderDeref.Pairs[x].String(), "", "")
+		fpair, err := b.FormatExchangeCurrency(orderDeref.Pairs[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currentOrder, err := b.GetOrders(fpair.String(), "", "")
 		if err != nil {
 			return nil, err
 		}

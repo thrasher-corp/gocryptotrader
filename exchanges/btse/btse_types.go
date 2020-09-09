@@ -5,6 +5,9 @@ import "time"
 const (
 	// Default order type is good till cancel (or filled)
 	goodTillCancel = "GTC"
+
+	orderInserted = 2
+	orderCancelled = 6
 )
 
 // MarketSummary response data
@@ -172,7 +175,7 @@ type TradeHistory []struct {
 	OrderType    int     `json:"orderType"`
 	Price        float64 `json:"price"`
 	Quote        string  `json:"quote"`
-	RealizedPnl  int     `json:"realizedPnl"`
+	RealizedPnl  float64 `json:"realizedPnl"`
 	SerialID     int     `json:"serialId"`
 	Side         string  `json:"side"`
 	Size         float64 `json:"size"`
@@ -253,7 +256,7 @@ type CancelOrder []struct {
 	Side             string  `json:"side"`
 	Size             float64 `json:"size"`
 	Status           int     `json:"status"`
-	Stealth          int     `json:"stealth"`
+	Stealth          float64 `json:"stealth"`
 	StopPrice        float64 `json:"stopPrice"`
 	Symbol           string  `json:"symbol"`
 	Timestamp        int64   `json:"timestamp"`
