@@ -108,7 +108,7 @@ type FMarketOverviewData struct {
 		Ask       [2]float64
 		Bid       [2]float64
 		Close     float64 `json:"close,string"`
-		Count     float64 `json:"count,string"`
+		Count     float64 `json:"count"`
 		High      float64 `json:"high,string"`
 		ID        int64   `jso:"id"`
 		Low       float64 `json:"low,string"`
@@ -795,8 +795,8 @@ type FCancelTriggerOrdersData struct {
 	Timestamp int64 `json:"ts"`
 }
 
-// FQueryTriggerOrdersData stores trigger orders data
-type FQueryTriggerOrdersData struct {
+// FTriggerOpenOrders stores trigger open orders data
+type FTriggerOpenOrders struct {
 	Data struct {
 		Orders []struct {
 			Symbol         string  `json:"symbol"`

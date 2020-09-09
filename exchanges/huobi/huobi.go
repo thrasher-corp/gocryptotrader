@@ -26,57 +26,57 @@ const (
 	huobiAPIVersion2 = "2"
 
 	// Futures endpoints
-	fContractInfo              = "api/v1/contract_contract_info"
-	fContractIndexPrice        = "api/v1/contract_index"
-	fContractPriceLimitation   = "api/v1/contract_price_limit"
-	fContractOpenInterest      = "api/v1/contract_open_interest"
-	fEstimatedDeliveryPrice    = "api/v1/contract_delivery_price"
-	fContractMarketDepth       = "/market/depth"
-	fContractKline             = "/market/history/kline"
-	fMarketOverview            = "/market/detail/merged"
-	fLastTradeContract         = "/market/trade"
-	fContractBatchTradeRecords = "/market/history/trade"
-	fInsuranceAndClawback      = "api/v1/contract_risk_info"
-	fInsuranceBalanceHistory   = "api/v1/contract_insurance_fund"
-	fTieredAdjustmentFactor    = "api/v1/contract_adjustfactor"
-	fHisContractOpenInterest   = "api/v1/contract_his_open_interest"
+	fContractInfo              = "api/v1/contract_contract_info?"
+	fContractIndexPrice        = "api/v1/contract_index?"
+	fContractPriceLimitation   = "api/v1/contract_price_limit?"
+	fContractOpenInterest      = "api/v1/contract_open_interest?"
+	fEstimatedDeliveryPrice    = "api/v1/contract_delivery_price?"
+	fContractMarketDepth       = "/market/depth?"
+	fContractKline             = "/market/history/kline?"
+	fMarketOverview            = "/market/detail/merged?"
+	fLastTradeContract         = "/market/trade?"
+	fContractBatchTradeRecords = "/market/history/trade?"
+	fInsuranceAndClawback      = "api/v1/contract_risk_info?"
+	fInsuranceBalanceHistory   = "api/v1/contract_insurance_fund?"
+	fTieredAdjustmentFactor    = "api/v1/contract_adjustfactor?"
+	fHisContractOpenInterest   = "api/v1/contract_his_open_interest?"
 	fSystemStatus              = "api/v1/contract_api_state"
-	fTopAccountsSentiment      = "api/v1/contract_elite_account_ratio"
-	fTopPositionsSentiment     = "api/v1/contract_elite_position_ratio"
-	fLiquidationOrders         = "api/v1/contract_liquidation_orders"
-	fIndexKline                = "/index/market/history/index"
-	fBasisData                 = "/index/market/history/basis"
+	fTopAccountsSentiment      = "api/v1/contract_elite_account_ratio?"
+	fTopPositionsSentiment     = "api/v1/contract_elite_position_ratio?"
+	fLiquidationOrders         = "api/v1/contract_liquidation_orders?"
+	fIndexKline                = "/index/market/history/index?"
+	fBasisData                 = "/index/market/history/basis?"
 
-	fAccountData               = "api/v1/contract_account_info"
-	fPositionInformation       = "api/v1/contract_position_info"
-	fAllSubAccountAssets       = "api/v1/contract_sub_account_list"
-	fSingleSubAccountAssets    = "api/v1/contract_sub_account_info"
-	fSingleSubAccountPositions = "api/v1/contract_sub_position_info"
-	fFinancialRecords          = "api/v1/contract_financial_record"
-	fSettlementRecords         = "api/v1/contract_user_settlement_records"
-	fOrderLimitInfo            = "api/v1/contract_order_limit"
+	fAccountData               = "api/v1/contract_account_info?"
+	fPositionInformation       = "api/v1/contract_position_info?"
+	fAllSubAccountAssets       = "api/v1/contract_sub_account_list?"
+	fSingleSubAccountAssets    = "api/v1/contract_sub_account_info?"
+	fSingleSubAccountPositions = "api/v1/contract_sub_position_info?"
+	fFinancialRecords          = "api/v1/contract_financial_record?"
+	fSettlementRecords         = "api/v1/contract_user_settlement_records?"
+	fOrderLimitInfo            = "api/v1/contract_order_limit?"
 	fContractTradingFee        = "api/v1/contract_fee"
-	fTransferLimitInfo         = "api/v1/contract_transfer_limit"
-	fPositionLimitInfo         = "api/v1/contract_position_limit"
-	fQueryAssetsAndPositions   = "api/v1/contract_account_position_info"
-	fTransfer                  = "api/v1/contract_master_sub_transfer"
-	fTransferRecords           = "api/v1/contract_master_sub_transfer_record"
-	fAvailableLeverage         = "api/v1/contract_available_level_rate"
-	fOrder                     = "api/v1/contract_order"
-	fBatchOrder                = "/v1/contract_batchorder"
-	fCancelOrder               = "api/v1/contract_cancel"
-	fCancelAllOrders           = "api/v1/contract_cancelall"
-	fFlashCloseOrder           = "api/v1/lightning_close_position"
-	fOrderInfo                 = "api/v1/contract_order_info"
-	fOrderDetails              = "api/v1/contract_order_detail"
-	fQueryOpenOrders           = "api/v1/contract_openorders"
-	fOrderHistory              = "api/v1/contract_hisorders"
-	fMatchResult               = "api/v1/contract_matchresults"
-	fTriggerOrder              = "api/v1/contract_trigger_order"
-	fCancelTriggerOrder        = "api/v1/contract_trigger_cancel"
-	fCancelAllTriggerOrders    = "api/v1/contract_trigger_cancelall"
-	fTriggerOpenOrders         = "api/v1/contract_trigger_openorders"
-	fTriggerOrderHistory       = "api/v1/contract_trigger_hisorders"
+	fTransferLimitInfo         = "api/v1/contract_transfer_limit?"
+	fPositionLimitInfo         = "api/v1/contract_position_limit?"
+	fQueryAssetsAndPositions   = "api/v1/contract_account_position_info?"
+	fTransfer                  = "api/v1/contract_master_sub_transfer?"
+	fTransferRecords           = "api/v1/contract_master_sub_transfer_record?"
+	fAvailableLeverage         = "api/v1/contract_available_level_rate?"
+	fOrder                     = "api/v1/contract_order?"
+	fBatchOrder                = "/v1/contract_batchorder?"
+	fCancelOrder               = "api/v1/contract_cancel?"
+	fCancelAllOrders           = "api/v1/contract_cancelall?"
+	fFlashCloseOrder           = "api/v1/lightning_close_position?"
+	fOrderInfo                 = "api/v1/contract_order_info?"
+	fOrderDetails              = "api/v1/contract_order_detail?"
+	fQueryOpenOrders           = "api/v1/contract_openorders?"
+	fOrderHistory              = "api/v1/contract_hisorders?"
+	fMatchResult               = "api/v1/contract_matchresults?"
+	fTriggerOrder              = "api/v1/contract_trigger_order?"
+	fCancelTriggerOrder        = "api/v1/contract_trigger_cancel?"
+	fCancelAllTriggerOrders    = "api/v1/contract_trigger_cancelall?"
+	fTriggerOpenOrders         = "api/v1/contract_trigger_openorders?"
+	fTriggerOrderHistory       = "api/v1/contract_trigger_hisorders?"
 
 	// Coin Margined Swap (perpetual futures) endpoints
 	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info?"
@@ -291,6 +291,13 @@ var validFuturesOrderTypes = map[string]int64{
 	"ioc":          11,
 }
 
+var validStatusTypes = map[string]int64{
+	"all":       0,
+	"success":   4,
+	"failed":    5,
+	"cancelled": 6,
+}
+
 // HUOBI is the overarching type across this package
 type HUOBI struct {
 	exchange.Base
@@ -345,8 +352,8 @@ func (h *HUOBI) FContractPriceLimitations(symbol, contractType, code string) (FC
 }
 
 // FContractOpenInterest gets open interest data for futures contracts
-func (h *HUOBI) FContractOpenInterest(symbol, contractType, code string) (FOIData, error) {
-	var resp FOIData
+func (h *HUOBI) FContractOpenInterest(symbol, contractType, code string) (FContractOIData, error) {
+	var resp FContractOIData
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -1058,6 +1065,86 @@ func (h *HUOBI) FPlaceTriggerOrder(symbol, contractType, contractCode, triggerTy
 	req["order_price_type"] = orderPriceType
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fTriggerOrder, nil, req, &resp, false)
+}
+
+// FCancelTriggerOrder cancels trigger order for futures
+func (h *HUOBI) FCancelTriggerOrder(symbol, orderID string) (FCancelTriggerOrdersData, error) {
+	var resp FCancelTriggerOrdersData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	req["order_id"] = orderID
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelTriggerOrder, nil, req, &resp, false)
+}
+
+// FCancelAllTriggerOrders cancels all trigger order for futures
+func (h *HUOBI) FCancelAllTriggerOrders(symbol, contractCode, contractType string) (FCancelTriggerOrdersData, error) {
+	var resp FCancelTriggerOrdersData
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	if contractCode != "" {
+		req["contract_code"] = contractCode
+	}
+	if contractType != "" {
+		if !common.StringDataCompare(validContractTypes, contractType) {
+			return resp, nil
+		}
+		req["contract_type"] = contractType
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelAllTriggerOrders, nil, req, &resp, false)
+}
+
+// FQueryTriggerOpenOrders queries open trigger orders for futures
+func (h *HUOBI) FQueryTriggerOpenOrders(symbol, contractCode, contractType string) (FTriggerOpenOrders, error) {
+	var resp FTriggerOpenOrders
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	if contractCode != "" {
+		req["contract_code"] = contractCode
+	}
+	if contractType != "" {
+		if !common.StringDataCompare(validContractTypes, contractType) {
+			return resp, nil
+		}
+		req["contract_type"] = contractType
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelAllTriggerOrders, nil, req, &resp, false)
+}
+
+// FQueryTriggerOrderHistory queries trigger order history for futures
+func (h *HUOBI) FQueryTriggerOrderHistory(symbol, contractCode, tradeType, status string, createDate, pageIndex, pageSize int64) (FTriggerOpenOrders, error) {
+	var resp FTriggerOpenOrders
+	req := make(map[string]interface{})
+	req["symbol"] = symbol
+	if contractCode != "" {
+		req["contract_code"] = contractCode
+	}
+	if tradeType != "" {
+		tType, ok := validTradeType[tradeType]
+		if !ok {
+			return resp, fmt.Errorf("invalid tradeType")
+		}
+		req["trade_type"] = tType
+	}
+	validStatus, ok := validStatusTypes[status]
+	if !ok {
+		return resp, fmt.Errorf("invalid status")
+	}
+	req["status"] = validStatus
+	if createDate <= 0 || createDate > 90 {
+		return resp, fmt.Errorf("invalid createDate")
+	}
+	req["create_date"] = createDate
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelAllTriggerOrders, nil, req, &resp, false)
 }
 
 //
