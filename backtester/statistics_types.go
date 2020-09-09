@@ -15,6 +15,7 @@ type Statistic struct {
 	initialBuy         float64
 
 	strategyName string
+	pair string
 }
 
 type EquityPoint struct {
@@ -26,8 +27,10 @@ type EquityPoint struct {
 }
 
 type Results struct {
+	Pair              string               `json:"pair"`
 	TotalEvents       int                  `json:"totalEvents"`
 	TotalTransactions int                  `json:"totalTransactions"`
+	Events            []resultEvent        `json:"events"`
 	Transactions      []resultTransactions `json:"transactions"`
 	SharpieRatio      float64              `json:"sharpieRatio"`
 	StrategyName      string               `json:"strategyName"`
@@ -38,4 +41,8 @@ type resultTransactions struct {
 	Direction order.Side `json:"direction"`
 	Price     float64    `json:"price"`
 	Amount    float64    `json:"amount"`
+}
+
+type resultEvent struct {
+	Time time.Time `json:"time"`
 }

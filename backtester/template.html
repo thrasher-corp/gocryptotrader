@@ -4,23 +4,148 @@
         <meta charset="utf-8">
         <title>{{ .PageTitle }}</title>
         <script src="https://unpkg.com/lightweight-charts@3.1.5/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        html,
+        body {
+            font-family: 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+            background: #f9fafb;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .floating-tooltip-2 {
+            width: 96px;
+            height: 80px;
+            position: absolute;
+            display: none;
+            padding: 8px;
+            box-sizing: border-box;
+            font-size: 12px;
+            color: #131722;
+            background-color: rgba(255, 255, 255, 1);
+            text-align: left;
+            z-index: 1000;
+            top: 12px;
+            left: 12px;
+            pointer-events: none;
+            border: 1px solid rgba(255, 70, 70, 1);
+            border-radius: 2px;
+        }
+
+    </style>
+
     </head>
 
     <body>
-        <script>
-            {{/*const chartJSON = {{ .ChartJSON }}*/}}
-            {{/*decoded = atob(chartJSON)*/}}
-            {{/*console.log(JSON.parse(decoded))*/}}
+    <script>
+        document.body.style.position = 'relative';
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const width = 1920;
+        const height = 1080;
+        const chart = LightweightCharts.createChart(container, {
+            width: width,
+            height: height,
+            rightPriceScale: {
+                scaleMargins: {
+                    top: 0.2,
+                    bottom: 0.2,
+                },
+                borderVisible: false,
+            },
+            timeScale: {
+                borderVisible: false,
+            },
+            layout: {
+                backgroundColor: '#ffffff',
+                textColor: '#333',
+            },
+            grid: {
+                horzLines: {
+                    color: '#eee',
+                },
+                vertLines: {
+                    color: '#ffffff',
+                },
+            },
+        });
 
+        var areaSeries = chart.addAreaSeries({
+            topColor: 'rgba(255, 82, 82, 0.56)',
+            bottomColor: 'rgba(255, 82, 82, 0.04)',
+            lineColor: 'rgba(255, 82, 82, 1)',
+            lineWidth: 2,
+            symbol: '{{.Pair}}',
+        });
 
-            const chart = LightweightCharts.createChart(document.body, { width: 1280, height: 720 });
-            const lineSeries = chart.addLineSeries();
+        areaSeries.setData([
+                            {{range .TickData }}
+                                { time: '{{.Timestamp}}', value: {{.Value}} },
+                            {{end}}
+        ]);
 
-            lineSeries.setData([
-                {{range .ChartJSON }}
-                    { time: '{{.timestamp}}', value: {{.Value}} },
-                {{end}}
-                ]);
-        </script>
+        function businessDayToString(businessDay) {
+            return businessDay.year + '-' + businessDay.month + '-' + businessDay.day;
+        }
+
+        const toolTipWidth = 100;
+        const toolTipHeight = 80;
+        const toolTipMargin = 15;
+
+        const toolTip = document.createElement('div');
+        toolTip.className = 'floating-tooltip-2';
+        container.appendChild(toolTip);
+
+        // update tooltip
+        chart.subscribeCrosshairMove(function(param) {
+            if (!param.time || param.point.x < 0 || param.point.x > width || param.point.y < 0 || param.point.y > height) {
+                toolTip.style.display = 'none';
+                return;
+            }
+
+            const dateStr = LightweightCharts.isBusinessDay(param.time)
+                ? businessDayToString(param.time)
+                : new Date(param.time * 1000).toLocaleDateString();
+
+            toolTip.style.display = 'block';
+            const price = param.seriesPrices.get(areaSeries);
+            toolTip.innerHTML = '<div style="color: rgba(255, 70, 70, 1)">{{.Pair}}</div>' +
+                '<div style="font-size: 24px; margin: 4px 0px">' + Math.round(price * 100) / 100 + '</div>' +
+                '<div>' + dateStr + '</div>';
+
+            const y = param.point.y;
+
+            let left = param.point.x + toolTipMargin;
+            if (left > width - toolTipWidth) {
+                left = param.point.x - toolTipMargin - toolTipWidth;
+            }
+
+            let top = y + toolTipMargin;
+            if (top > height - toolTipHeight) {
+                top = y - toolTipHeight - toolTipMargin;
+            }
+
+            toolTip.style.left = left + 'px';
+            toolTip.style.top = top + 'px';
+        });
+    </script>
+{{/*        <script>*/}}
+{{/*            const chart = LightweightCharts.createChart(document.body, { width: 1280, height: 720 });*/}}
+{{/*            const eventSeries = chart.addLineSeries();*/}}
+
+{{/*            eventSeries.setData([*/}}
+{{/*                {{range .EventData }}*/}}
+{{/*                    { time: '{{.Timestamp}}', value: "5" },*/}}
+{{/*                {{end}}*/}}
+{{/*                ]);*/}}
+
+{{/*            const transactionSeries = chart.addLineSeries();*/}}
+
+{{/*            transactionSeries.setData([*/}}
+{{/*                {{range .TickData }}*/}}
+{{/*                { time: '{{.Timestamp}}', value: {{.Value}}},*/}}
+{{/*                {{end}}*/}}
+{{/*            ]);*/}}
+{{/*        </script>*/}}
 </body>
 </html>

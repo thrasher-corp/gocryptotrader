@@ -3,30 +3,54 @@ package backtest
 import (
 	"html/template"
 	"os"
-	"time"
 )
 
 type ChartData struct {
 	PageTitle string
-
+	Pair string
+	EventData []eventData
+	TickData  []tickData
 }
 
-type timeData struct {
-	Timestamp time.Time
-	Value float64
-	Price float64
+type eventData struct {
+	Timestamp string
+}
+
+type tickData struct {
+	Timestamp string
+	Value     float64
+	Price     float64
 	Direction string
 }
 
-func GenerateOutput() error {
+func GenerateOutput(result Results) error {
 	tmpl := template.Must(template.ParseFiles("template.html"))
 	f, err := os.Create("output.html")
 	if err != nil {
 		return err
 	}
-	d := ChartData{
-		PageTitle:  "Test",
+	var tData []tickData
+	for x := range result.Transactions {
+		tData = append(tData, tickData{
+			Timestamp: result.Transactions[x].Time.Format("2006-01-02"),
+			Value:     result.Transactions[x].Price,
+		})
 	}
+	var eData []eventData
+	for x := range result.Events {
+		eData = append(eData, eventData{
+			Timestamp: result.Events[x].Time.Format("2006-01-02"),
+		})
+	}
+
+	d := ChartData{
+		PageTitle: "Test",
+		Pair: result.Pair,
+		TickData:  tData,
+		EventData: eData,
+	}
+
+
 	err = tmpl.Execute(f, d)
 	if err != nil {
 		return err

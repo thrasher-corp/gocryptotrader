@@ -76,6 +76,8 @@ func TestBackTest(t *testing.T) {
 
 	statistic := Statistic{
 		strategyName: "HelloWorld",
+		pair: data.Item.Pair.String(),
+
 	}
 	bt.statistic = &statistic
 	err = bt.Run()
@@ -87,10 +89,11 @@ func TestBackTest(t *testing.T) {
 		fmt.Println(ret.Transactions[x])
 	}
 	fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
-	r, err := statistic.JSON(false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// r, err := statistic.JSON(false)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	r := statistic.ReturnResults()
 	err = GenerateOutput(r)
 	if err != nil {
 		t.Fatal(err)
