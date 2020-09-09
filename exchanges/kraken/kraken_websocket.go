@@ -606,7 +606,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 // Then sends to appropriate fun
 func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[string]interface{}) error {
 	if fullAsk, ok := data["as"].([]interface{}); ok {
-		fullBids := data["as"].([]interface{})
+		fullBids := data["bs"].([]interface{})
 		err := k.wsProcessOrderBookPartial(channelData, fullAsk, fullBids)
 		if err != nil {
 			return err
