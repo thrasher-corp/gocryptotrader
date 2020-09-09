@@ -1849,8 +1849,8 @@ func (c *Config) AssetTypeEnabled(a asset.Item, exch string) (bool, error) {
 // GetDataPath gets the data path for the given subpath
 func (c *Config) GetDataPath(elem ...string) string {
 	var baseDir string
-	if c.DataDir != "" {
-		baseDir = c.DataDir
+	if c.DataDirectory != "" {
+		baseDir = c.DataDirectory
 	} else {
 		baseDir = common.GetDefaultDataDir(runtime.GOOS)
 	}

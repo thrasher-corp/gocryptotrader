@@ -2067,7 +2067,7 @@ func TestConfig_GetDataPath(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Config{
-				DataDir: tt.dir,
+				DataDirectory: tt.dir,
 			}
 			if got := c.GetDataPath(tt.elem...); got != tt.want {
 				t.Errorf("Config.GetDataPath() = %v, want %v", got, tt.want)

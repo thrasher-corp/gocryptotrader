@@ -120,7 +120,7 @@ func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
 	}
 	// Apply overrides from settings
 	if flagSet["datadir"] {
-		conf.DataDir = settings.DataDir
+		conf.DataDirectory = settings.DataDir
 	}
 
 	return conf, conf.CheckConfig()
