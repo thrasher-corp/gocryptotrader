@@ -165,8 +165,7 @@ func TestFGetAccountInfo(t *testing.T) {
 	}
 	h.Verbose = true
 	t.Parallel()
-	a, err := h.FGetAccountInfo("")
-	fmt.Printf("%+v", a)
+	_, err := h.FGetAccountInfo("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -178,8 +177,7 @@ func TestFGetPositionsInfo(t *testing.T) {
 	}
 	h.Verbose = true
 	t.Parallel()
-	a, err := h.FGetPositionsInfo("")
-	fmt.Printf("%+v", a)
+	_, err := h.FGetPositionsInfo("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -204,7 +202,7 @@ func TestFGetSingleSubAccountInfo(t *testing.T) {
 	}
 	h.Verbose = true
 	t.Parallel()
-	a, err := h.FGetSingleSubAccountInfo("", "incorrectUID")
+	a, err := h.FGetSingleSubAccountInfo("", "154263566")
 	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)
@@ -217,7 +215,7 @@ func TestFGetSingleSubPositions(t *testing.T) {
 	}
 	h.Verbose = true
 	t.Parallel()
-	a, err := h.FGetSingleSubPositions("", "incorrectUID")
+	a, err := h.FGetSingleSubPositions("", "154263566")
 	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)
@@ -230,7 +228,7 @@ func TestFGetFinancialRecords(t *testing.T) {
 	}
 	h.Verbose = true
 	t.Parallel()
-	a, err := h.FGetFinancialRecords("", "closeLong", 0, 0, 0)
+	a, err := h.FGetFinancialRecords("BTC", "closeLong", 0, 0, 0)
 	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)
