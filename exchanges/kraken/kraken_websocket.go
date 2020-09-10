@@ -605,9 +605,10 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 // wsProcessOrderBook determines if the orderbook data is partial or update
 // Then sends to appropriate fun
 func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[string]interface{}) error {
-	if fullAsk, ok := data["as"].([]interface{}); ok {
-		fullBids := data["bs"].([]interface{})
-		err := k.wsProcessOrderBookPartial(channelData, fullAsk, fullBids)
+	askSnapshot, askSnapshotExists := data["as"].([]interface{})
+	bidSnapshot, bidSnapshotExists := data["bs"].([]interface{})
+	if askSnapshotExists || bidSnapshotExists  {
+		err := k.wsProcessOrderBookPartial(channelData, askSnapshot, bidSnapshot)
 		if err != nil {
 			return err
 		}
