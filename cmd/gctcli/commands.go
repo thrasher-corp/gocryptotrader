@@ -3777,6 +3777,10 @@ var getHistoricCandlesCommand = cli.Command{
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
+		cli.BoolFlag{
+			Name:  "usetradedata",
+			Usage: "will generate candles based on stored trade data <true/false>",
+		},
 	},
 }
 
@@ -3838,6 +3842,11 @@ func getHistoricCandles(c *cli.Context) error {
 		}
 	}
 
+	var useTrades bool
+	if c.IsSet("usetradedata") {
+		useTrades = c.Bool("db")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -3862,6 +3871,7 @@ func getHistoricCandles(c *cli.Context) error {
 			Start:        start.Unix(),
 			End:          end.Unix(),
 			TimeInterval: int64(candleInterval),
+			UseTrades:    useTrades,
 		})
 	if err != nil {
 		return err
@@ -3914,6 +3924,10 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 		cli.BoolFlag{
 			Name:  "db",
 			Usage: "source data from database <true/false>",
+		},
+		cli.BoolFlag{
+			Name:  "usetradedata",
+			Usage: "will generate candles based on stored trade data <true/false>",
 		},
 	},
 }
@@ -3985,9 +3999,18 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		sync = c.Bool("sync")
 	}
 
-	var db bool
+	var useDB bool
 	if c.IsSet("db") {
-		db = c.Bool("db")
+		useDB = c.Bool("db")
+	}
+
+	var useTrades bool
+	if c.IsSet("usetradedata") {
+		useTrades = c.Bool("db")
+	}
+
+	if useTrades && useDB {
+		return errors.New("cannot enable 'db' and 'usetradedata' simultaneously")
 	}
 
 	conn, err := setupClient()
@@ -4027,7 +4050,8 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 			TimeInterval: int64(candleInterval),
 			ExRequest:    true,
 			Sync:         sync,
-			UseDb:        db,
+			UseDb:        useDB,
+			UseTrades:    useTrades,
 		})
 	if err != nil {
 		return err
@@ -4157,9 +4181,9 @@ func getSavedTrades(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType:    assetType,
-			Start:        s.Unix(),
-			End:          e.Unix(),
+			AssetType: assetType,
+			Start:     s.Unix(),
+			End:       e.Unix(),
 		})
 	if err != nil {
 		return err
@@ -4168,7 +4192,6 @@ func getSavedTrades(c *cli.Context) error {
 	jsonOutput(result)
 	return nil
 }
-
 
 var convertSavedTradesToCandlesCommand = cli.Command{
 	Name:      "convertsavedtradestocandles",

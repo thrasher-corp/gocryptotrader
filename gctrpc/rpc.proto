@@ -628,6 +628,7 @@ message GetHistoricCandlesRequest {
     bool ex_request = 7;
     bool sync = 8;
     bool use_db = 9;
+    bool use_trades = 10;
 }
 
 message GetHistoricCandlesResponse {

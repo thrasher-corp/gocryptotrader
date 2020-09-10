@@ -1417,7 +1417,6 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	}
 }
 
-
 // GetExchangeOrderbookStream streams all orderbooks associated with an exchange
 func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeOrderbookStreamServer) error {
 	if r.Exchange == "" {
@@ -1608,63 +1607,88 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 }
 
 // GetHistoricCandles returns historical candles for a given exchange
-func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	if req.Exchange == "" {
+func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+	if r.Exchange == "" {
 		return nil, errors.New(errExchangeNameUnset)
 	}
 
-	if req.Pair.String() == "" {
+	if r.Pair.String() == "" {
 		return nil, errors.New(errCurrencyPairUnset)
 	}
 
 	var candles kline.Item
 	var err error
 	resp := gctrpc.GetHistoricCandlesResponse{
-		Interval: kline.Interval(req.TimeInterval).Short(),
-		Pair:     req.Pair,
-		Start:    req.Start,
-		End:      req.End,
+		Interval: kline.Interval(r.TimeInterval).Short(),
+		Pair:     r.Pair,
+		Start:    r.Start,
+		End:      r.End,
 	}
-
-	if req.UseDb {
-		candles, err = kline.LoadFromDatabase(req.Exchange,
-			currency.Pair{
-				Delimiter: req.Pair.Delimiter,
-				Base:      currency.NewCode(req.Pair.Base),
-				Quote:     currency.NewCode(req.Pair.Quote),
-			},
-			asset.Item(strings.ToLower(req.AssetType)),
-			kline.Interval(req.TimeInterval),
-			time.Unix(req.Start, 0),
-			time.Unix(req.End, 0),
-		)
-	} else {
-		exchangeEngine := GetExchangeByName(req.Exchange)
-		if exchangeEngine == nil {
-			return nil, errors.New("Exchange " + req.Exchange + " not found")
+	switch {
+	case r.UseTrades:
+		exch := GetExchangeByName(r.Exchange)
+		if exch == nil {
+			return nil, errExchangeNotLoaded
 		}
-		if req.ExRequest {
-			candles, err = exchangeEngine.GetHistoricCandlesExtended(currency.Pair{
-				Delimiter: req.Pair.Delimiter,
-				Base:      currency.NewCode(req.Pair.Base),
-				Quote:     currency.NewCode(req.Pair.Quote),
+		sqlTrades, err := tradesql.GetByExchangeInRange(r.Exchange, r.Start, r.End)
+		if err != nil {
+			return nil, err
+		}
+		trades, err := trade.SqlDataToTrade(sqlTrades...)
+		if err != nil {
+			return nil, err
+		}
+		if len(trades) == 0 {
+			return nil, fmt.Errorf("no trades returned from supplied params")
+		}
+		interval := kline.Interval(r.TimeInterval)
+		candles, err = trade.ConvertTradesToCandles(interval, trades...)
+		if err != nil {
+			return nil, err
+		}
+		if len(candles.Candles) == 0 {
+			return nil, fmt.Errorf("no candles generated from trades")
+		}
+	case r.UseDb:
+		candles, err = kline.LoadFromDatabase(r.Exchange,
+			currency.Pair{
+				Delimiter: r.Pair.Delimiter,
+				Base:      currency.NewCode(r.Pair.Base),
+				Quote:     currency.NewCode(r.Pair.Quote),
 			},
-				asset.Item(strings.ToLower(req.AssetType)),
-				time.Unix(req.Start, 0),
-				time.Unix(req.End, 0),
-				kline.Interval(req.TimeInterval))
+			asset.Item(strings.ToLower(r.AssetType)),
+			kline.Interval(r.TimeInterval),
+			time.Unix(r.Start, 0),
+			time.Unix(r.End, 0),
+		)
+	default:
+		exchangeEngine := GetExchangeByName(r.Exchange)
+		if exchangeEngine == nil {
+			return nil, errors.New("Exchange " + r.Exchange + " not found")
+		}
+		if r.ExRequest {
+			candles, err = exchangeEngine.GetHistoricCandlesExtended(currency.Pair{
+				Delimiter: r.Pair.Delimiter,
+				Base:      currency.NewCode(r.Pair.Base),
+				Quote:     currency.NewCode(r.Pair.Quote),
+			},
+				asset.Item(strings.ToLower(r.AssetType)),
+				time.Unix(r.Start, 0),
+				time.Unix(r.End, 0),
+				kline.Interval(r.TimeInterval))
 		} else {
 			candles, err = exchangeEngine.GetHistoricCandles(currency.Pair{
-				Delimiter: req.Pair.Delimiter,
-				Base:      currency.NewCode(req.Pair.Base),
-				Quote:     currency.NewCode(req.Pair.Quote),
+				Delimiter: r.Pair.Delimiter,
+				Base:      currency.NewCode(r.Pair.Base),
+				Quote:     currency.NewCode(r.Pair.Quote),
 			},
-				asset.Item(strings.ToLower(req.AssetType)),
-				time.Unix(req.Start, 0),
-				time.Unix(req.End, 0),
-				kline.Interval(req.TimeInterval))
+				asset.Item(strings.ToLower(r.AssetType)),
+				time.Unix(r.Start, 0),
+				time.Unix(r.End, 0),
+				kline.Interval(r.TimeInterval))
 		}
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1680,7 +1704,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 		})
 	}
 
-	if req.Sync && !req.UseDb {
+	if r.Sync && !r.UseDb {
 		_, err = kline.StoreInDatabase(&candles)
 		if err != nil {
 			if errors.Is(err, exchangeDB.ErrNoExchangeFound) {
@@ -2306,7 +2330,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	}
 	// save the klineItem
 	// candlesql.saveToButts(klineItem)
-	resp :=  &gctrpc.GetHistoricCandlesResponse{
+	resp := &gctrpc.GetHistoricCandlesResponse{
 		Exchange: r.Exchange,
 		Pair:     r.Pair,
 		Start:    r.Start,
