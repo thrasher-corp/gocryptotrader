@@ -120,6 +120,11 @@ func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
 	}
 	// Apply overrides from settings
 	if flagSet["datadir"] {
+		// warn if dryrun isn't  enabled
+		if !settings.EnableDryRun {
+			log.Println("Command line argument '-datadir' induces dry run mode.")
+		}
+		settings.EnableDryRun = true
 		conf.DataDirectory = settings.DataDir
 	}
 
