@@ -646,7 +646,7 @@ func (h *HUOBI) FGetSingleSubAccountInfo(symbol, subUID string) (FSingleSubAccou
 	}
 	req["sub_uid"] = subUID
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fPositionInformation, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fSingleSubAccountAssets, nil, req, &resp, false)
 }
 
 // FGetSingleSubPositions gets positions info for a single sub account

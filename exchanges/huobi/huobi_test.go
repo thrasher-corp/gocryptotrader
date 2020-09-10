@@ -24,8 +24,8 @@ import (
 
 // Please supply you own test keys here for due diligence testing.
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "GOT EEEEEEEEEEEEEEEM"
+	apiSecret               = "DEEZ Nutzzzzzzzzzzzzzzzzz"
 	canManipulateRealOrders = false
 	testSymbol              = "btcusdt"
 )
@@ -293,7 +293,7 @@ func TestFGetAssetsAndPositions(t *testing.T) {
 	}
 	h.Verbose = true
 	t.Parallel()
-	a, err := h.FGetAssetsAndPositions("BTC")
+	a, err := h.FGetAssetsAndPositions("HT")
 	fmt.Printf("%+v", a)
 	if err != nil {
 		t.Error(err)
