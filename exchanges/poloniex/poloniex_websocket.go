@@ -313,6 +313,9 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 					case "t":
+						if !p.Features.Enabled.SaveTradeData {
+							return nil
+						}
 						currencyPair := currencyIDMap[channelID]
 						var t WsTrade
 						t.Symbol = currencyIDMap[channelID]
@@ -328,7 +331,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						// tradeID type intermittently changes
 						switch tradeIDData := dataL3[1].(type) {
 						case string:
-							t.TradeID , err = strconv.ParseInt(tradeIDData, 10, 64)
+							t.TradeID, err = strconv.ParseInt(tradeIDData, 10, 64)
 							if err != nil {
 								return err
 							}

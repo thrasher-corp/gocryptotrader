@@ -329,6 +329,9 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					// "(f)te" gets sent first so we can drop "(f)tu"
 					return nil
 				}
+				if !b.Features.Enabled.SaveTradeData {
+					return nil
+				}
 				data := d[2].([]interface{})
 				if len(data) == 5 {
 					tradeHolder = append(tradeHolder, WebsocketTrade{

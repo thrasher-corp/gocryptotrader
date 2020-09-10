@@ -308,10 +308,13 @@ func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) (
 		})
 	}
 
-	err = trade.AddTradesToBuffer(l.Name, resp...)
-	if err != nil {
-		return nil, err
+	if l.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(l.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

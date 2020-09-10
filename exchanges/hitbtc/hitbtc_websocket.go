@@ -196,7 +196,10 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-	case "snapshotTrades":
+	case "snapshotTrades", "updateTrades":
+		if !h.Features.Enabled.SaveTradeData {
+			return nil
+		}
 		var tradeSnapshot WsTrade
 		err := json.Unmarshal(respRaw, &tradeSnapshot)
 		if err != nil {
@@ -219,7 +222,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 				}
 			}
 			trades = append(trades, trade.Data{
-				Timestamp:   tradeSnapshot.Params.Data[i].Timestamp,
+				Timestamp:    tradeSnapshot.Params.Data[i].Timestamp,
 				Exchange:     h.Name,
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
@@ -229,12 +232,6 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 			})
 		}
 		return trade.AddTradesToBuffer(h.Name, trades...)
-	case "updateTrades":
-		var tradeUpdates WsTrade
-		err := json.Unmarshal(respRaw, &tradeUpdates)
-		if err != nil {
-			return err
-		}
 	case "activeOrders":
 		var o wsActiveOrdersResponse
 		err := json.Unmarshal(respRaw, &o)

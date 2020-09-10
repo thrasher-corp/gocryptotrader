@@ -330,10 +330,13 @@ func (i *ItBit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 		})
 	}
 
-	err = trade.AddTradesToBuffer(i.Name, resp...)
-	if err != nil {
-		return nil, err
+	if i.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(i.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

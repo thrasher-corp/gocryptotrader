@@ -391,10 +391,13 @@ func (e *EXMO) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 		})
 	}
 
-	err = trade.AddTradesToBuffer(e.Name, resp...)
-	if err != nil {
-		return nil, err
+	if e.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(e.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

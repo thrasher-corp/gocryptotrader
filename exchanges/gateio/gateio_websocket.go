@@ -172,6 +172,9 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		}
 
 	case strings.Contains(result.Method, "trades"):
+		if !g.Features.Enabled.SaveTradeData {
+			return nil
+		}
 		var tradeData []WebsocketTrade
 		var c string
 		err = json.Unmarshal(result.Params[1], &tradeData)

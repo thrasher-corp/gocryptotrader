@@ -222,8 +222,8 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 
 		if wsOrder.UserID != "" {
 			c.Websocket.DataHandler <- &order.Detail{
-				ID: wsOrder.OrderID,
-				Pair: p,
+				ID:        wsOrder.OrderID,
+				Pair:      p,
 				AssetType: a,
 				Trades: []order.TradeHistory{
 					{
@@ -238,6 +238,9 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				},
 			}
 		} else {
+			if !c.Features.Enabled.SaveTradeData {
+				return nil
+			}
 			return trade.AddTradesToBuffer(c.Name, trade.Data{
 				Timestamp:    wsOrder.Time,
 				Exchange:     c.Name,

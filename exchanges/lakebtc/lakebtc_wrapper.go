@@ -380,10 +380,13 @@ allTrades:
 		}
 	}
 
-	err := trade.AddTradesToBuffer(l.Name, resp...)
-	if err != nil {
-		return nil, fmt.Errorf("%s GetExchangeHistory %v", l.Name, err)
+	if l.Features.Enabled.SaveTradeData {
+		err := trade.AddTradesToBuffer(l.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

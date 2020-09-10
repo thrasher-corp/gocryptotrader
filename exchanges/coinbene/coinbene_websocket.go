@@ -191,6 +191,9 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			}
 		}
 	case strings.Contains(result[topic].(string), "tradeList"):
+		if !c.Features.Enabled.SaveTradeData {
+			return nil
+		}
 		var tradeList WsTradeList
 		err = json.Unmarshal(respRaw, &tradeList)
 		if err != nil {

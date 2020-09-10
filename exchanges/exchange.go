@@ -154,6 +154,10 @@ func (e *Base) SetFeatureDefaults() {
 			e.Config.Features.Supports.Websocket = e.Features.Supports.Websocket
 		}
 
+		if e.Features.Enabled.SaveTradeData != e.Config.Features.Enabled.SaveTradeData {
+			e.Features.Enabled.SaveTradeData = e.Config.Features.Enabled.SaveTradeData
+		}
+
 		e.Features.Enabled.AutoPairUpdates = e.Config.Features.Enabled.AutoPairUpdates
 	}
 }

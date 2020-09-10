@@ -433,8 +433,13 @@ func (b *BTSE) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 		})
 	}
 
-		resp = append(resp, tempExch)
+	if b.Features.Enabled.SaveTradeData {
+		err := trade.AddTradesToBuffer(b.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

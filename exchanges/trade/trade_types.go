@@ -13,16 +13,16 @@ import (
 )
 
 var (
-	buffer []Data
-	candles []kline.Candle
-	processor Processor
-	bufferProcessorInterval = time.Minute
+	buffer                  []Data
+	candles                 []kline.Candle
+	processor               Processor
+	bufferProcessorInterval = time.Second * 30
 )
 
 // Data defines trade data
 type Data struct {
-	ID uuid.UUID
-	TID string
+	ID           uuid.UUID
+	TID          string
 	Exchange     string
 	CurrencyPair currency.Pair
 	AssetType    asset.Item
@@ -40,8 +40,8 @@ type CandleHolder struct {
 // Processor used for processing trade data in batches
 // and saving them to the database
 type Processor struct {
-	mutex sync.Mutex
-	started    int32
+	mutex   sync.Mutex
+	started int32
 }
 
 type ByDate []Data

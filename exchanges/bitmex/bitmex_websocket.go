@@ -216,6 +216,9 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 		case bitmexWSTrade:
+			if !b.Features.Enabled.SaveTradeData {
+				return nil
+			}
 			var tradeHolder TradeData
 			err = json.Unmarshal(respRaw, &tradeHolder)
 			if err != nil {

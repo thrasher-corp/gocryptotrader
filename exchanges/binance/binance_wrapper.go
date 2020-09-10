@@ -520,9 +520,11 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 		})
 	}
 
-	err = trade.AddTradesToBuffer(b.Name, resp...)
-	if err != nil {
-		return nil, err
+	if b.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(b.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return resp, nil
 }
@@ -571,10 +573,13 @@ allTrades:
 			break allTrades
 		}
 	}
-	err := trade.AddTradesToBuffer(b.Name, resp...)
-	if err != nil {
-		return nil, fmt.Errorf("%s GetExchangeHistory %v", b.Name, err)
+	if b.Features.Enabled.SaveTradeData {
+		err := trade.AddTradesToBuffer(b.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

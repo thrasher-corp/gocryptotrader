@@ -183,6 +183,9 @@ func (l *LakeBTC) wsHandleIncomingData() {
 }
 
 func (l *LakeBTC) processTrades(data, channel string) error {
+	if !l.Features.Enabled.SaveTradeData {
+		return nil
+	}
 	var tradeData WsTrades
 	err := json.Unmarshal([]byte(data), &tradeData)
 	if err != nil {

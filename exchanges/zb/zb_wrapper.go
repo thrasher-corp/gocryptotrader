@@ -422,10 +422,13 @@ func (z *ZB) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Dat
 		})
 	}
 
-	err = trade.AddTradesToBuffer(z.Name, resp...)
-	if err != nil {
-		return nil, err
+	if z.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(z.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

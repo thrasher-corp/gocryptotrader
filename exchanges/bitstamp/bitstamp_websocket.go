@@ -104,6 +104,9 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case "trade":
+		if !b.Features.Enabled.SaveTradeData {
+			return nil
+		}
 		wsTradeTemp := websocketTradeResponse{}
 		err := json.Unmarshal(respRaw, &wsTradeTemp)
 		if err != nil {

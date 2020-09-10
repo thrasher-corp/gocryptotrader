@@ -288,13 +288,16 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case "inst_trade":
+		if !c.Features.Enabled.SaveTradeData {
+			return nil
+		}
 		var tradeSnap WsTradeSnapshot
 		err := json.Unmarshal(respRaw, &tradeSnap)
 		if err != nil {
 			return err
 		}
 		var trades []trade.Data
-		for i := range tradeSnap.Trades{
+		for i := range tradeSnap.Trades {
 			pairs, err := c.GetEnabledPairs(asset.Spot)
 			if err != nil {
 				return err
@@ -326,6 +329,9 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		}
 		return trade.AddTradesToBuffer(c.Name, trades...)
 	case "inst_trade_update":
+		if !c.Features.Enabled.SaveTradeData {
+			return nil
+		}
 		var tradeUpdate WsTradeUpdate
 		err := json.Unmarshal(respRaw, &tradeUpdate)
 		if err != nil {

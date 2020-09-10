@@ -448,10 +448,13 @@ func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType asse
 		})
 	}
 
-	err = trade.AddTradesToBuffer(p.Name, resp...)
-	if err != nil {
-		return nil, err
+	if p.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(p.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

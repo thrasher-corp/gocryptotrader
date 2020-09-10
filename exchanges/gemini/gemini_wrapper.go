@@ -365,10 +365,13 @@ allTrades:
 		}
 	}
 
-	err := trade.AddTradesToBuffer(g.Name, resp...)
-	if err != nil {
-		return nil, fmt.Errorf("%s GetExchangeHistory %v", g.Name, err)
+	if g.Features.Enabled.SaveTradeData {
+		err := trade.AddTradesToBuffer(g.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

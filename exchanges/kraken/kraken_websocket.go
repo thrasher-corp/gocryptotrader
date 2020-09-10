@@ -20,8 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -562,6 +562,9 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []interface{}) error {
+	if !k.Features.Enabled.SaveTradeData {
+		return nil
+	}
 	var trades []trade.Data
 	for i := range data {
 		t := data[i].([]interface{})

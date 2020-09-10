@@ -465,10 +465,13 @@ func (c *CoinbasePro) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]
 		})
 	}
 
-	err = trade.AddTradesToBuffer(c.Name, resp...)
-	if err != nil {
-		return nil, err
+	if c.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(c.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

@@ -532,10 +532,13 @@ func (c *COINUT) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 		})
 	}
 
-	err = trade.AddTradesToBuffer(c.Name, resp...)
-	if err != nil {
-		return nil, err
+	if c.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(c.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

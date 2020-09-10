@@ -266,6 +266,9 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 
 				switch streamType[1] {
 				case "trade":
+					if !b.Features.Enabled.SaveTradeData {
+						return nil
+					}
 					var t TradeStream
 					err := json.Unmarshal(rawData, &t)
 					if err != nil {

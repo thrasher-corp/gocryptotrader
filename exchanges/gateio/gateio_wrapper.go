@@ -444,10 +444,13 @@ func (g *Gateio) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 		})
 	}
 
-	err = trade.AddTradesToBuffer(g.Name, resp...)
-	if err != nil {
-		return nil, err
+	if g.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(g.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

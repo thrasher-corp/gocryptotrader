@@ -216,6 +216,9 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Status:   order.Cancelled,
 		}
 	case strings.Contains(result.Channel, "trades"):
+		if !z.Features.Enabled.SaveTradeData {
+			return nil
+		}
 		var tradeData WsTrades
 		err := json.Unmarshal(fixedJSON, &tradeData)
 		if err != nil {

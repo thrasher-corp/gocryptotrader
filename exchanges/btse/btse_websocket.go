@@ -188,6 +188,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			}
 		}
 	case strings.Contains(result["topic"].(string), "tradeHistory"):
+		if !b.Features.Enabled.SaveTradeData {
+			return nil
+		}
 		// auth trade history endpoint
 		var tradeHistory wsTradeHistory
 		err = json.Unmarshal(respRaw, &tradeHistory)

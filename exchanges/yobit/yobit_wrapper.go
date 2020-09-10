@@ -356,10 +356,14 @@ func (y *Yobit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 			Timestamp:    tradeTS,
 		})
 	}
-	err = trade.AddTradesToBuffer(y.Name, resp...)
-	if err != nil {
-		return nil, fmt.Errorf("%s GetExchangeHistory %v", y.Name, err.Error())
+
+	if y.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(y.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

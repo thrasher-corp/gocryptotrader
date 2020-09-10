@@ -317,10 +317,11 @@ func (b *Bitflyer) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]tra
 			Timestamp:    tt,
 		})
 	}
-
-	err = trade.AddTradesToBuffer(b.Name, resp...)
-	if err != nil {
-		return nil, err
+	if b.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(b.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return resp, nil
 }

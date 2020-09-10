@@ -543,10 +543,13 @@ func (k *Kraken) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 		})
 	}
 
-	err = trade.AddTradesToBuffer(k.Name, resp...)
-	if err != nil {
-		return nil, err
+	if k.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(k.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 

@@ -501,10 +501,11 @@ func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item, tim
 			Timestamp:    time.Unix(0, tradeHistory[i].Timestamp*int64(time.Millisecond)),
 		})
 	}
-
-	err = trade.AddTradesToBuffer(b.Name, resp...)
-	if err != nil {
-		return nil, err
+	if b.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(b.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return resp, nil
 }

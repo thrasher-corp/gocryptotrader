@@ -294,6 +294,9 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		case wsTrades:
+			if !f.Features.Enabled.SaveTradeData {
+				return nil
+			}
 			var resultData WsTradeDataStore
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {

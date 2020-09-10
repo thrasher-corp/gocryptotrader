@@ -333,7 +333,7 @@ func (l *Lbank) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 }
 
 // GetExchangeHistory returns historic trade data within the timeframe provided
-func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, _ time.Time) ([]trade.Data, error) {
 	if _, ok := l.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
@@ -360,10 +360,13 @@ func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item, timest
 		})
 	}
 
-	err = trade.AddTradesToBuffer(l.Name, resp...)
-	if err != nil {
-		return nil, err
+	if l.Features.Enabled.SaveTradeData {
+		err = trade.AddTradesToBuffer(l.Name, resp...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return resp, nil
 }
 
