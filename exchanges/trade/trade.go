@@ -41,6 +41,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 			data[i].Exchange == "" ||
 			data[i].Timestamp.IsZero() {
 			errs = append(errs, fmt.Errorf("%v received invalid trade data: %+v", exchangeName, data[i]))
+			continue
 		}
 
 		if data[i].Price < 0 {
@@ -112,6 +113,7 @@ func tradeToSQLData() []sqltrade.Data {
 			Price:     buffer[i].Price,
 			Amount:    buffer[i].Amount,
 			Side:      buffer[i].Side.String(),
+			TID:       buffer[i].TID,
 		})
 	}
 	return results

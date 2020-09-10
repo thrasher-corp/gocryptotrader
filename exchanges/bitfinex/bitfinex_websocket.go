@@ -200,7 +200,9 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if !ok {
 				return errors.New("orderbook interface cast failed")
 			}
-
+			if len(obSnapBundle) == 0 {
+				return fmt.Errorf("%v - %+v", b.Name, d)
+			}
 			switch id := obSnapBundle[0].(type) {
 			case []interface{}:
 				for i := range obSnapBundle {
@@ -298,6 +300,9 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 			return nil
 		case wsTrades:
+			if chanAsset == asset.MarginFunding {
+				return nil
+			}
 			var tradeHolder []WebsocketTrade
 			switch len(d) {
 			case 2:
@@ -322,11 +327,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 				}
 			case 3:
-				if d[1].(string) == wsTradeExecutionUpdate ||
-					d[1].(string) == wsFundingTradeUpdate {
-					// "(f)te - trade executed" && "(f)tu - trade updated"
-					// contain the same amount of data
-					// "(f)te" gets sent first so we can drop "(f)tu"
+				if d[1].(string) != wsFundingTradeUpdate &&
+					d[1].(string) != wsTradeExecutionUpdate {
 					return nil
 				}
 				if !b.Features.Enabled.SaveTradeData {
@@ -358,11 +360,15 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					side = order.Sell
 					newAmount *= -1
 				}
-
+				price := tradeHolder[i].Price
+				if price == 0 && tradeHolder[i].Rate > 0 {
+					price = tradeHolder[i].Rate
+				}
 				trades = append(trades, trade.Data{
+					TID:          strconv.FormatInt(tradeHolder[i].ID, 10),
 					CurrencyPair: pair,
 					Timestamp:    time.Unix(0, tradeHolder[i].Timestamp*int64(time.Millisecond)),
-					Price:        tradeHolder[i].Price,
+					Price:        price,
 					Amount:       newAmount,
 					Exchange:     b.Name,
 					AssetType:    chanAsset,
