@@ -17,11 +17,6 @@ func Test_loadConfigWithSettings(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "empty",
-			settings: &Settings{},
-			wantErr:  true,
-		},
-		{
 			name: "invalid file",
 			settings: &Settings{
 				ConfigFile: "nonExistent.json",
