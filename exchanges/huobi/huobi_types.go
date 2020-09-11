@@ -8,7 +8,7 @@ type FContractInfoData struct {
 		Symbol         string  `json:"symbol"`
 		ContractCode   string  `json:"contract_code"`
 		ContractType   string  `json:"contract_type"`
-		ContractSize   int64   `json:"contract_size"`
+		ContractSize   float64 `json:"contract_size"`
 		PriceTick      float64 `json:"price_tick"`
 		DeliveryDate   string  `json:"delivery_date"`
 		CreateDate     string  `json:"create_date"`
@@ -463,11 +463,11 @@ type FContractInfoOnOrderLimit struct {
 type FContractTradingFeeData struct {
 	ContractTradingFeeData []struct {
 		Symbol        string  `json:"symbol"`
-		OpenMakerFee  float64 `json:"open_maker_fee"`
-		OpenTakerFee  float64 `json:"open_taker_fee"`
-		CloseMakerFee float64 `json:"close_maker_fee"`
-		CloseTakerFee float64 `json:"close_taker_fee"`
-		DeliveryFee   float64 `json:"delivery_fee"`
+		OpenMakerFee  float64 `json:"open_maker_fee,string"`
+		OpenTakerFee  float64 `json:"open_taker_fee,string"`
+		CloseMakerFee float64 `json:"close_maker_fee,string"`
+		CloseTakerFee float64 `json:"close_taker_fee,string"`
+		DeliveryFee   float64 `json:"delivery_fee,string"`
 		FeeAsset      string  `json:"fee_asset"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
@@ -514,7 +514,7 @@ type FAssetsAndPositionsData struct {
 		ProfitUnreal      float64 `json:"profit_unreal"`
 		RiskRate          float64 `json:"risk_rate"`
 		WithdrawAvailable float64 `json:"withdraw_available"`
-	}
+	} `json:"data"`
 }
 
 // FAccountTransferData stores internal transfer data for futures
@@ -589,7 +589,7 @@ type FCancelOrderData struct {
 // FFlashCloseOrderData stores order data for flash close orders
 type FFlashCloseOrderData struct {
 	Data struct {
-		OrderID       int64  `json:"order_id"`
+		OrderID       string `json:"order_id"`
 		OrderIDString string `json:"order_id_str"`
 		ClientOrderID int64  `json:"client_order_id"`
 	} `json:"data"`
@@ -1404,7 +1404,7 @@ type InternalAccountTransferRecords struct {
 			ID             int64   `json:"id"`
 			Timestamp      int64   `json:"ts"`
 			Symbol         string  `json:"symbol"`
-			SubUID         string  `json:"sub_uid"`
+			SubUID         int64   `json:"sub_uid"`
 			SubAccountName string  `json:"sub_account_name"`
 			TransferType   int64   `json:"transfer_type"`
 			Amount         float64 `json:"amount"`

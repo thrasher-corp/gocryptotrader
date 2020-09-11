@@ -627,8 +627,8 @@ func (h *HUOBI) FGetPositionsInfo(symbol string) (FUserAccountData, error) {
 }
 
 // FGetAllSubAccountAssets gets assets info for all futures subaccounts
-func (h *HUOBI) FGetAllSubAccountAssets(symbol string) (FUserAccountData, error) {
-	var resp FUserAccountData
+func (h *HUOBI) FGetAllSubAccountAssets(symbol string) (FSubAccountAssetsInfo, error) {
+	var resp FSubAccountAssetsInfo
 	req := make(map[string]interface{})
 	if symbol != "" {
 		req["symbol"] = symbol
@@ -770,8 +770,8 @@ func (h *HUOBI) FGetAssetsAndPositions(symbol string) (FAssetsAndPositionsData, 
 }
 
 // FTransfer transfers assets between master and subaccounts
-func (h *HUOBI) FTransfer(subUID, symbol, transferType string, amount float64) (FAssetsAndPositionsData, error) {
-	var resp FAssetsAndPositionsData
+func (h *HUOBI) FTransfer(subUID, symbol, transferType string, amount float64) (FAccountTransferData, error) {
+	var resp FAccountTransferData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
 	req["subUid"] = subUID
@@ -785,8 +785,8 @@ func (h *HUOBI) FTransfer(subUID, symbol, transferType string, amount float64) (
 }
 
 // FGetTransferRecords gets transfer records data for futures
-func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate int64, pageIndex, pageSize int64) (FAssetsAndPositionsData, error) {
-	var resp FAssetsAndPositionsData
+func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate int64, pageIndex, pageSize int64) (FTransferRecords, error) {
+	var resp FTransferRecords
 	req := make(map[string]interface{})
 	if symbol != "" {
 		req["symbol"] = symbol
@@ -795,7 +795,7 @@ func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate int6
 		return resp, fmt.Errorf("inavlid transferType received")
 	}
 	req["type"] = transferType
-	if createDate > 90 {
+	if createDate < 0 && createDate > 90 {
 		return resp, fmt.Errorf("invalid create date value: only supports up to 90 days")
 	}
 	req["create_date"] = strconv.FormatInt(createDate, 10)
@@ -806,7 +806,7 @@ func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate int6
 		req["page_size"] = pageSize
 	}
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fQueryAssetsAndPositions, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fTransferRecords, nil, req, &resp, false)
 }
 
 // FGetAvailableLeverage gets available leverage data for futures
@@ -873,15 +873,18 @@ func (h *HUOBI) FCancelOrder(symbol, orderID, clientOrderID string) (FCancelOrde
 }
 
 // FCancelAllOrders cancels all futures order for a given symbol
-func (h *HUOBI) FCancelAllOrders(symbol, orderID, clientOrderID string) (FCancelOrderData, error) {
+func (h *HUOBI) FCancelAllOrders(symbol, contractCode, contractType string) (FCancelOrderData, error) {
 	var resp FCancelOrderData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
-	if orderID != "" {
-		req["order_id"] = orderID
+	if contractType != "" {
+		if !common.StringDataCompare(validContractTypes, contractType) {
+			return resp, fmt.Errorf("invalid contractType")
+		}
+		req["contract_type"] = contractType
 	}
-	if clientOrderID != "" {
-		req["client_order_id"] = clientOrderID
+	if contractCode != "" {
+		req["contract_code"] = contractCode
 	}
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelOrder, nil, req, &resp, false)
@@ -1096,26 +1099,26 @@ func (h *HUOBI) FCancelAllTriggerOrders(symbol, contractCode, contractType strin
 }
 
 // FQueryTriggerOpenOrders queries open trigger orders for futures
-func (h *HUOBI) FQueryTriggerOpenOrders(symbol, contractCode, contractType string) (FTriggerOpenOrders, error) {
+func (h *HUOBI) FQueryTriggerOpenOrders(symbol, contractCode string, pageIndex, pageSize int64) (FTriggerOpenOrders, error) {
 	var resp FTriggerOpenOrders
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
 	if contractCode != "" {
 		req["contract_code"] = contractCode
 	}
-	if contractType != "" {
-		if !common.StringDataCompare(validContractTypes, contractType) {
-			return resp, nil
-		}
-		req["contract_type"] = contractType
+	if pageIndex != 0 {
+		req["page_index"] = pageIndex
+	}
+	if pageSize != 0 {
+		req["page_size"] = pageSize
 	}
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelAllTriggerOrders, nil, req, &resp, false)
 }
 
 // FQueryTriggerOrderHistory queries trigger order history for futures
-func (h *HUOBI) FQueryTriggerOrderHistory(symbol, contractCode, tradeType, status string, createDate, pageIndex, pageSize int64) (FTriggerOpenOrders, error) {
-	var resp FTriggerOpenOrders
+func (h *HUOBI) FQueryTriggerOrderHistory(symbol, contractCode, tradeType, status string, createDate, pageIndex, pageSize int64) (FTriggerOrderHistoryData, error) {
+	var resp FTriggerOrderHistoryData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
 	if contractCode != "" {
@@ -1144,7 +1147,7 @@ func (h *HUOBI) FQueryTriggerOrderHistory(symbol, contractCode, tradeType, statu
 		req["page_size"] = pageSize
 	}
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelAllTriggerOrders, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fTriggerOrderHistory, nil, req, &resp, false)
 }
 
 //

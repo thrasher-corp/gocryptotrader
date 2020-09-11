@@ -72,7 +72,7 @@ func (h *HUOBI) SetDefaults() {
 			Delimiter: "-",
 		},
 	}
-	usdtFutures := currency.PairStore{
+	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
@@ -89,7 +89,7 @@ func (h *HUOBI) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = h.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
+	err = h.StoreAssetPairFormat(asset.Futures, futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -357,7 +357,19 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 			}
 		}
 
-	case asset.USDTMarginedFutures:
+	case asset.Futures:
+
+		symbols, err := h.FGetContractInfo("", "", "")
+		if err != nil {
+			return nil, err
+		}
+
+		for c := range symbols.Data {
+			if symbols.Data[c].ContractStatus == 1 {
+				pairs = append(pairs, symbols.Data[c].ContractCode)
+			}
+		}
+
 	}
 	return pairs, nil
 }
@@ -365,16 +377,41 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := h.FetchTradablePairs(asset.Spot)
+	spotPairs, err := h.FetchTradablePairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	p, err := currency.NewPairsFromStrings(spotPairs)
+	if err != nil {
+		return err
+	}
+	err = h.UpdatePairs(p, asset.Spot, false, forceUpdate)
 	if err != nil {
 		return err
 	}
 
-	p, err := currency.NewPairsFromStrings(pairs)
+	futuresPairs, err := h.FetchTradablePairs(asset.Futures)
 	if err != nil {
 		return err
 	}
-	return h.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	fp, err := currency.NewPairsFromStrings(futuresPairs)
+	if err != nil {
+		return err
+	}
+	err = h.UpdatePairs(fp, asset.Futures, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+
+	coinmarginedFuturesPairs, err := h.FetchTradablePairs(asset.CoinMarginedFutures)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairsFromStrings(coinmarginedFuturesPairs)
+	if err != nil {
+		return err
+	}
+	return h.UpdatePairs(cp, asset.CoinMarginedFutures, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -440,7 +477,28 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 			ExchangeName: h.Name,
 			AssetType:    assetType,
 		})
-	case asset.USDTMarginedFutures:
+	case asset.Futures:
+		fmtPair, err := h.FormatExchangeCurrency(p, assetType)
+		if err != nil {
+			return nil, err
+		}
+		marketData, err := h.FGetMarketOverviewData(fmtPair.String())
+		if err != nil {
+			return nil, err
+		}
+
+		err = ticker.ProcessTicker(&ticker.Price{
+			High:         marketData.Tick.High,
+			Low:          marketData.Tick.Low,
+			Volume:       marketData.Tick.Vol,
+			Open:         marketData.Tick.Open,
+			Close:        marketData.Tick.Close,
+			Pair:         p,
+			Bid:          marketData.Tick.Bid[0],
+			Ask:          marketData.Tick.Ask[0],
+			ExchangeName: h.Name,
+			AssetType:    assetType,
+		})
 	}
 	return ticker.GetTicker(h.Name, p, assetType)
 }
@@ -465,36 +523,85 @@ func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fpair, err := h.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
-		Symbol: fpair.String(),
-		Type:   OrderBookDataRequestParamsTypeStep0,
-	})
+
+	formatPair, err := h.FormatExchangeCurrency(p, assetType)
+
 	if err != nil {
 		return nil, err
 	}
 
 	orderBook := new(orderbook.Base)
-	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
-			Amount: orderbookNew.Bids[x][1],
-			Price:  orderbookNew.Bids[x][0],
-		})
-	}
 
-	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
-			Amount: orderbookNew.Asks[x][1],
-			Price:  orderbookNew.Asks[x][0],
-		})
-	}
+	switch assetType {
+	case asset.Spot:
 
-	orderBook.Pair = p
-	orderBook.ExchangeName = h.Name
-	orderBook.AssetType = assetType
+		orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
+			Symbol: formatPair.String(),
+			Type:   OrderBookDataRequestParamsTypeStep0,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range orderbookNew.Bids {
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Amount: orderbookNew.Bids[x][1],
+				Price:  orderbookNew.Bids[x][0],
+			})
+		}
+
+		for x := range orderbookNew.Asks {
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Amount: orderbookNew.Asks[x][1],
+				Price:  orderbookNew.Asks[x][0],
+			})
+		}
+
+		orderBook.Pair = p
+		orderBook.ExchangeName = h.Name
+		orderBook.AssetType = assetType
+
+	case asset.Futures:
+
+		orderbookNew, err := h.FGetMarketDepth(formatPair.String(), "step0")
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range orderbookNew.Asks {
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Amount: orderbookNew.Asks[x].Quantity,
+				Price:  orderbookNew.Asks[x].Price,
+			})
+		}
+		for y := range orderbookNew.Bids {
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Amount: orderbookNew.Bids[y].Quantity,
+				Price:  orderbookNew.Bids[y].Price,
+			})
+		}
+
+	case asset.CoinMarginedFutures:
+
+		orderbookNew, err := h.GetSwapMarketDepth(formatPair.String(), "step0")
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range orderbookNew.Tick.Asks {
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Amount: orderbookNew.Tick.Asks[x][1],
+				Price:  orderbookNew.Tick.Asks[x][0],
+			})
+		}
+		for y := range orderbookNew.Tick.Bids {
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Amount: orderbookNew.Tick.Bids[y][1],
+				Price:  orderbookNew.Tick.Bids[y][0],
+			})
+		}
+
+	}
 
 	err = orderBook.Process()
 	if err != nil {
