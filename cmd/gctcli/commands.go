@@ -3778,8 +3778,8 @@ var getHistoricCandlesCommand = cli.Command{
 			Destination: &candleGranularity,
 		},
 		cli.BoolFlag{
-			Name:  "usetradedata",
-			Usage: "will generate candles based on stored trade data <true/false>",
+			Name:  "fillmissingdatawithtrades",
+			Usage: "will create candles for missing intervals using stored trade data <true/false>",
 		},
 	},
 }
@@ -3842,9 +3842,9 @@ func getHistoricCandles(c *cli.Context) error {
 		}
 	}
 
-	var useTrades bool
-	if c.IsSet("usetradedata") {
-		useTrades = c.Bool("db")
+	var fillMissingData bool
+	if c.IsSet("fillmissingdatawithtrades") {
+		fillMissingData = c.Bool("db")
 	}
 
 	conn, err := setupClient()
@@ -3867,11 +3867,11 @@ func getHistoricCandles(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType:    assetType,
-			Start:        start.Unix(),
-			End:          end.Unix(),
-			TimeInterval: int64(candleInterval),
-			UseTrades:    useTrades,
+			AssetType:             assetType,
+			Start:                 start.Unix(),
+			End:                   end.Unix(),
+			TimeInterval:          int64(candleInterval),
+			FillMissingWithTrades: fillMissingData,
 		})
 	if err != nil {
 		return err
@@ -3926,8 +3926,8 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Usage: "source data from database <true/false>",
 		},
 		cli.BoolFlag{
-			Name:  "usetradedata",
-			Usage: "will generate candles based on stored trade data <true/false>",
+			Name:  "fillmissingdatawithtrades",
+			Usage: "will create candles for missing intervals using stored trade data <true/false>",
 		},
 	},
 }
@@ -4004,13 +4004,9 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		useDB = c.Bool("db")
 	}
 
-	var useTrades bool
-	if c.IsSet("usetradedata") {
-		useTrades = c.Bool("db")
-	}
-
-	if useTrades && useDB {
-		return errors.New("cannot enable 'db' and 'usetradedata' simultaneously")
+	var fillMissingData bool
+	if c.IsSet("fillmissingdatawithtrades") {
+		fillMissingData = c.Bool("db")
 	}
 
 	conn, err := setupClient()
@@ -4044,14 +4040,14 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType:    assetType,
-			Start:        s.Unix(),
-			End:          e.Unix(),
-			TimeInterval: int64(candleInterval),
-			ExRequest:    true,
-			Sync:         sync,
-			UseDb:        useDB,
-			UseTrades:    useTrades,
+			AssetType:             assetType,
+			Start:                 s.Unix(),
+			End:                   e.Unix(),
+			TimeInterval:          int64(candleInterval),
+			ExRequest:             true,
+			Sync:                  sync,
+			UseDb:                 useDB,
+			FillMissingWithTrades: fillMissingData,
 		})
 	if err != nil {
 		return err
@@ -4229,6 +4225,14 @@ var convertSavedTradesToCandlesCommand = cli.Command{
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
+		cli.BoolFlag{
+			Name:  "sync",
+			Usage: "will sync the resulting candles to the database <true/false>",
+		},
+		cli.BoolFlag{
+			Name:  "force",
+			Usage: "will overwrite any conflicting candle data on save <true/false>",
+		},
 	},
 }
 
@@ -4294,6 +4298,20 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 		}
 	}
 
+	var sync bool
+	if c.IsSet("sync") {
+		sync = c.Bool("sync")
+	}
+
+	var force bool
+	if c.IsSet("force") {
+		force = c.Bool("force")
+	}
+
+	if force && !sync {
+		return errors.New("cannot forcefully overwrite without sync")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -4334,6 +4352,8 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 			Start:        s.Unix(),
 			End:          e.Unix(),
 			TimeInterval: int64(candleInterval),
+			Sync:         sync,
+			Force:        force,
 		})
 	if err != nil {
 		return err

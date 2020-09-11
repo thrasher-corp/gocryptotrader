@@ -212,7 +212,7 @@ func (a *Alphapoint) GetRecentTrades(currencyPair currency.Pair, assetType asset
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
+// GetHistoricTrades returns historic trade data within the timeframe provided
 func (a *Alphapoint) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }

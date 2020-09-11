@@ -306,3 +306,40 @@ func (k *Item) FormatDates() {
 		k.Candles[x].Time = k.Candles[x].Time.UTC()
 	}
 }
+
+func DetermineAllIntervals(start, end time.Time, interval Interval) []time.Time {
+	var allIntervals []time.Time
+	for i := start.Unix(); i < end.Unix(); i = time.Unix(i, 0).Add(interval.Duration()).Unix() {
+		t := time.Unix(i, 0)
+		trunc := t.Truncate(interval.Duration())
+		if trunc.After(start) && trunc.Before(end) {
+			allIntervals = append(allIntervals, trunc)
+		}
+	}
+
+	return allIntervals
+}
+
+func (k *Item) DetermineMissingIntervals(start, end time.Time) []time.Time {
+	allIntervals := DetermineAllIntervals(start, end, k.Interval)
+	var foundIntervals, missingIntervals []time.Time
+	for j := range allIntervals {
+		for i := range k.Candles {
+			if k.Candles[i].Time.Equal(allIntervals[j]) {
+				foundIntervals = append(foundIntervals, k.Candles[i].Time)
+			}
+		}
+	}
+	for i := range allIntervals {
+		found := false
+		for j := range foundIntervals {
+			if foundIntervals[j] == allIntervals[i] {
+				found = true
+			}
+		}
+		if !found {
+			missingIntervals = append(missingIntervals, allIntervals[i])
+		}
+	}
+	return missingIntervals
+}

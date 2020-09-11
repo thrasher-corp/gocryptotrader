@@ -3,16 +3,13 @@ package engine
 import (
 	"context"
 	"log"
-	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/goose"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -60,10 +57,7 @@ func CleanRPCTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = os.Remove(filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "database", "rpctestdb"))
-	if err != nil {
-		t.Fatal(err)
-	}
+
 }
 
 func TestGetSavedTrades(t *testing.T) {
@@ -225,7 +219,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Quote:     currency.USD.String(),
 		},
 		AssetType:    asset.Spot.String(),
-		Start:        time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
+		Start:        time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC).Unix(),
 		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Unix(),
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
@@ -234,5 +228,168 @@ func TestConvertTradesToCandles(t *testing.T) {
 	}
 	if len(candles.Candle) == 0 {
 		t.Error("no candles returned")
+	}
+
+	candles, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+		AssetType:    asset.Spot.String(),
+		Start:        time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
+		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Unix(),
+		TimeInterval: int64(kline.OneHour.Duration()),
+		Sync:         true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	candles, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+		AssetType:    asset.Spot.String(),
+		Start:        time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
+		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Unix(),
+		TimeInterval: int64(kline.OneHour.Duration()),
+		Sync:         true,
+		Force:        true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	RPCTestSetup(t)
+	defer CleanRPCTest(t)
+	var s RPCServer
+	// error checks
+	_, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: "",
+	})
+	if err != nil && err.Error() != errExchangeNameUnset {
+		t.Error(err)
+	}
+
+	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: testExchange,
+		Pair:     &gctrpc.CurrencyPair{},
+	})
+	if err != nil && err.Error() != errCurrencyPairUnset {
+		t.Error(err)
+	}
+	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
+		},
+	})
+	if err != nil && err.Error() != errStartEndTimesUnset {
+		t.Error(err)
+	}
+	var results *gctrpc.GetHistoricCandlesResponse
+	var defaultStart, defaultEnd int64
+	defaultStart = time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix()
+	defaultEnd = time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC).Unix()
+	// default run
+	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
+		},
+		Start:        defaultStart,
+		End:          defaultEnd,
+		AssetType:    asset.Spot.String(),
+		TimeInterval: int64(kline.OneHour.Duration()),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(results.Candle) == 0 {
+		t.Error("expected results")
+	}
+
+	// sync run
+	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
+		},
+		AssetType:    asset.Spot.String(),
+		Start:        defaultStart,
+		End:          defaultEnd,
+		TimeInterval: int64(kline.OneHour.Duration()),
+		Sync:         true,
+		ExRequest:    true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(results.Candle) == 0 {
+		t.Error("expected results")
+	}
+
+	// db run
+	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
+		},
+		AssetType:    asset.Spot.String(),
+		Start:        defaultStart,
+		End:          defaultEnd,
+		TimeInterval: int64(kline.OneHour.Duration()),
+		UseDb:        true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(results.Candle) == 0 {
+		t.Error("expected results")
+	}
+	err = sqltrade.Insert(sqltrade.Data{
+		TID:       "test123",
+		Exchange:  testExchange,
+		Base:      currency.BTC.String(),
+		Quote:     currency.USD.String(),
+		AssetType: asset.Spot.String(),
+		Price:     1337,
+		Amount:    1337,
+		Side:      order.Buy.String(),
+		Timestamp: time.Date(2020, 1, 2, 3, 3, 3, 7, time.UTC).Unix(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// db run including trades
+	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Base:  currency.BTC.String(),
+			Quote: currency.USD.String(),
+		},
+		AssetType:             asset.Spot.String(),
+		Start:                 defaultStart,
+		End:                   time.Date(2020, 1, 2, 4, 2, 2, 2, time.UTC).Unix(),
+		TimeInterval:          int64(kline.OneHour.Duration()),
+		UseDb:                 true,
+		FillMissingWithTrades: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if results.Candle[len(results.Candle)-1].Close != 1337 {
+		t.Error("expected fancy new candle based off fancy new trade data")
 	}
 }

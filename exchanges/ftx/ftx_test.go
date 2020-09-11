@@ -1107,7 +1107,7 @@ func TestGetExchangeHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetExchangeHistory(p, a, time.Now().Add(-time.Minute*500), time.Now())
+	_, err = f.GetHistoricTrades(p, a, time.Now().Add(-time.Minute*500), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

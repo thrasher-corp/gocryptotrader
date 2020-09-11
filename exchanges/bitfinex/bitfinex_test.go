@@ -1425,7 +1425,7 @@ func TestGetExchangeHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	var resp []trade.Data
-	resp, err = b.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	resp, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

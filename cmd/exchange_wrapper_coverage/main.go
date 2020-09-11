@@ -123,9 +123,9 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetRecentTrades")
 	}
 
-	_, err = e.GetExchangeHistory(p, assetType, time.Time{}, time.Time{})
+	_, err = e.GetHistoricTrades(p, assetType, time.Time{}, time.Time{})
 	if err == common.ErrNotYetImplemented {
-		funcs = append(funcs, "GetExchangeHistory")
+		funcs = append(funcs, "GetHistoricTrades")
 	}
 
 	_, err = e.GetFundingHistory()

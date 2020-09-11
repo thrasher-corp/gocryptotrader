@@ -340,8 +340,8 @@ func (i *ItBit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
-func (i *ItBit) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (i *ItBit) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

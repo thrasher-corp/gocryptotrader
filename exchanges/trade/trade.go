@@ -88,8 +88,7 @@ func (p *Processor) Run() {
 				log.Infof(log.Trade, "no trade data received in %v, shutting down", bufferProcessorInterval)
 				return
 			}
-			results := tradeToSQLData()
-			err := sqltrade.Insert(results...)
+			err := SaveTradesToDatabase(buffer...)
 			if err != nil {
 				log.Error(log.Trade, err)
 			}
@@ -99,21 +98,31 @@ func (p *Processor) Run() {
 	}
 }
 
-func tradeToSQLData() []sqltrade.Data {
-	sort.Sort(ByDate(buffer))
+// SaveTradesToDatabase converts trades and saves results to database
+func SaveTradesToDatabase(trades ...Data) error {
+	sqlTrades := tradeToSQLData(trades...)
+	err := sqltrade.Insert(sqlTrades...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func tradeToSQLData(trades ...Data) []sqltrade.Data {
+	sort.Sort(ByDate(trades))
 	var results []sqltrade.Data
-	for i := range buffer {
+	for i := range trades {
 		results = append(results, sqltrade.Data{
-			ID:        buffer[i].ID.String(),
-			Timestamp: buffer[i].Timestamp.Unix(),
-			Exchange:  buffer[i].Exchange,
-			Base:      buffer[i].CurrencyPair.Base.String(),
-			Quote:     buffer[i].CurrencyPair.Quote.String(),
-			AssetType: buffer[i].AssetType.String(),
-			Price:     buffer[i].Price,
-			Amount:    buffer[i].Amount,
-			Side:      buffer[i].Side.String(),
-			TID:       buffer[i].TID,
+			ID:        trades[i].ID.String(),
+			Timestamp: trades[i].Timestamp.Unix(),
+			Exchange:  trades[i].Exchange,
+			Base:      trades[i].CurrencyPair.Base.String(),
+			Quote:     trades[i].CurrencyPair.Quote.String(),
+			AssetType: trades[i].AssetType.String(),
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Side:      trades[i].Side.String(),
+			TID:       trades[i].TID,
 		})
 	}
 	return results

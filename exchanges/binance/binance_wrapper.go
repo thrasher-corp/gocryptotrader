@@ -529,8 +529,8 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
-func (b *Binance) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *Binance) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if timestampEnd.After(time.Now()) {
 		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
 	}

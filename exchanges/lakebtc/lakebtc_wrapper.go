@@ -337,11 +337,11 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (l *LakeBTC) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return l.GetExchangeHistory(currencyPair, assetType, time.Time{}, time.Time{})
+	return l.GetHistoricTrades(currencyPair, assetType, time.Time{}, time.Time{})
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
-func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (l *LakeBTC) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if timestampEnd.After(time.Now()) {
 		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
 	}

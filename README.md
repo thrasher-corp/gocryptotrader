@@ -143,9 +143,9 @@ Binaries will be published once the codebase reaches a stable condition.
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 641 |
 | [shazbert](https://github.com/shazbert) | 195 |
-| [gloriousCode](https://github.com/gloriousCode) | 169 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 60 |
-| [xtda](https://github.com/xtda) | 45 |
+| [gloriousCode](https://github.com/gloriousCode) | 170 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 64 |
+| [xtda](https://github.com/xtda) | 46 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 9 |

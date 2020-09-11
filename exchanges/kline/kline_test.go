@@ -508,7 +508,7 @@ func TestStoreInDatabase(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			r, err := StoreInDatabase(&ohlcvData)
+			r, err := StoreInDatabase(&ohlcvData, false)
 			if err != nil {
 				t.Fatal(err)
 			}

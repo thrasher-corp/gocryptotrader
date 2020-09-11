@@ -91,6 +91,90 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 	return out, err
 }
 
+// DeleteCandles saves a series of candles
+// it will delete all existing matching candles before insertion
+func DeleteCandles(in *Item) (int64, error) {
+	if database.DB.SQL == nil {
+		return 0, database.ErrDatabaseSupportDisabled
+	}
+
+	if len(in.Candles) < 1 {
+		return 0, errNoCandleData
+	}
+	ctx := context.Background()
+	queries := []qm.QueryMod{
+		qm.Where("base = ?", strings.ToUpper(in.Base)),
+		qm.Where("quote = ?", strings.ToUpper(in.Quote)),
+		qm.Where("interval = ?", in.Interval),
+		qm.Where("asset = ?", in.Asset),
+	}
+	queries = append(queries, qm.Where("exchange_name_id = ?", in.ExchangeID))
+
+	if repository.GetSQLDialect() == database.DBSQLite3 {
+		if len(in.Candles) == 1 {
+			queries = append(queries, qm.Where("timestamp = ?", in.Candles[0].Timestamp.UTC().Format(time.RFC3339)))
+		} else {
+			queries = append(queries, qm.Where("timestamp between ? and ?", in.Candles[0].Timestamp.UTC().Format(time.RFC3339), in.Candles[len(in.Candles)-1].Timestamp.UTC().Format(time.RFC3339)))
+		}
+		return deleteSQLite(ctx, queries)
+	}
+	if len(in.Candles) == 1 {
+		queries = append(queries, qm.Where("timestamp = ?", in.Candles[0].Timestamp))
+	} else {
+		queries = append(queries, qm.Where("timestamp between ? and ?", in.Candles[0].Timestamp.UTC(), in.Candles[len(in.Candles)-1].Timestamp.UTC()))
+	}
+	return deletePostgres(ctx, queries)
+}
+
+func deleteSQLite(ctx context.Context, queries []qm.QueryMod) (int64, error) {
+	retCandle, err := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
+	if err != nil {
+		return 0, err
+	}
+	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	var totalDeleted int64
+	totalDeleted, err = retCandle.DeleteAll(ctx, tx)
+	if err != nil {
+		errRB := tx.Rollback()
+		if errRB != nil {
+			log.Errorln(log.DatabaseMgr, errRB)
+		}
+		return 0, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return 0, err
+	}
+	return totalDeleted, nil
+}
+
+func deletePostgres(ctx context.Context, queries []qm.QueryMod) (int64, error) {
+	retCandle, err := modelPSQL.Candles(queries...).All(context.Background(), database.DB.SQL)
+	if err != nil {
+		return 0, err
+	}
+	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	var totalDeleted int64
+	totalDeleted, err = retCandle.DeleteAll(ctx, tx)
+	if err != nil {
+		errRB := tx.Rollback()
+		if errRB != nil {
+			log.Errorln(log.DatabaseMgr, errRB)
+		}
+		return 0, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return 0, err
+	}
+	return totalDeleted, nil
+}
+
 // Insert series of candles
 func Insert(in *Item) (uint64, error) {
 	if database.DB.SQL == nil {

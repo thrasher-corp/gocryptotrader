@@ -439,11 +439,11 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (f *FTX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return f.GetExchangeHistory(p, assetType, time.Time{}, time.Time{})
+	return f.GetHistoricTrades(p, assetType, time.Time{}, time.Time{})
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
-func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	marketName, err := f.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err

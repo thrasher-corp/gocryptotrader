@@ -336,7 +336,7 @@ func (y *Yobit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 	var resp []trade.Data
 	tradeData, err := y.GetTrades(p.String())
 	if err != nil {
-		return nil, fmt.Errorf("%s GetExchangeHistory %v", y.Name, err.Error())
+		return nil, err
 	}
 
 	for i := range tradeData {
@@ -367,8 +367,8 @@ func (y *Yobit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
-func (y *Yobit) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (y *Yobit) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

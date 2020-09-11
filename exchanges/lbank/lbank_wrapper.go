@@ -329,18 +329,18 @@ func (l *Lbank) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (l *Lbank) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return l.GetExchangeHistory(p, assetType, time.Time{}, time.Time{})
+	return l.GetHistoricTrades(p, assetType, time.Time{}, time.Time{})
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
-func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, _ time.Time) ([]trade.Data, error) {
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (l *Lbank) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, _ time.Time) ([]trade.Data, error) {
 	if _, ok := l.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 	p = p.Format(l.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, l.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
 	tradeData, err := l.GetTrades(p.String(), 600, timestampStart.UnixNano()/int64(time.Millisecond))
 	if err != nil {
-		return nil, fmt.Errorf("%s GetExchangeHistory %v", l.Name, err)
+		return nil, err
 	}
 	var resp []trade.Data
 	for i := range tradeData {

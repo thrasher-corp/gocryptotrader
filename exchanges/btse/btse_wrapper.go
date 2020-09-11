@@ -453,8 +453,19 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 		amount > val.MaxOrderSize
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
-func (b *BTSE) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *BTSE) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+
+
+
+
+
+
+
+
+
+
 	return nil, common.ErrFunctionNotSupported
 }
 

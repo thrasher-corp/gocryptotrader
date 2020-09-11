@@ -596,7 +596,7 @@ func TestGetExchangeHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Hour), time.Now())
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}

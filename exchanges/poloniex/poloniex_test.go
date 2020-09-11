@@ -590,7 +590,7 @@ func TestGetExchangeHistory(t *testing.T) {
 	var resp []trade.Data
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
 	tEnd := time.Date(2020, 6, 7, 0, 0, 0, 0, time.UTC)
-	resp, err = p.GetExchangeHistory(currencyPair, asset.Spot, tStart, tEnd)
+	resp, err = p.GetHistoricTrades(currencyPair, asset.Spot, tStart, tEnd)
 	if err != nil {
 		t.Error(err)
 	}

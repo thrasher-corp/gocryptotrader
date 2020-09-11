@@ -606,7 +606,8 @@ message SavedTrades {
 message SavedTradesResponse {
     string exchange_name = 1;
     string asset = 2;
-    repeated SavedTrades saved_trades = 3;
+    CurrencyPair pair = 3;
+    repeated SavedTrades saved_trades = 4;
 }
 
 message ConvertTradesToCandlesRequest {
@@ -616,6 +617,8 @@ message ConvertTradesToCandlesRequest {
     int64 start = 4;
     int64 end = 5;
     int64 time_interval = 6;
+    bool sync = 7;
+    bool force = 8;
 }
 
 message GetHistoricCandlesRequest {
@@ -628,7 +631,7 @@ message GetHistoricCandlesRequest {
     bool ex_request = 7;
     bool sync = 8;
     bool use_db = 9;
-    bool use_trades = 10;
+    bool fill_missing_with_trades = 10;
 }
 
 message GetHistoricCandlesResponse {

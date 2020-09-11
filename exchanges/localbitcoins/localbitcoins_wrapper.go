@@ -318,8 +318,8 @@ func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) (
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
-func (l *LocalBitcoins) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (l *LocalBitcoins) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -495,7 +495,7 @@ func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 			})
 		}
 	default:
-		return nil, fmt.Errorf("%s GetExchangeHistory asset type %v unsupported", o.Name, assetType)
+		return nil, fmt.Errorf("%s asset type %v unsupported", o.Name, assetType)
 	}
 	return resp, nil
 }

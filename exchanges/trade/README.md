@@ -27,7 +27,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + To send trade data to be processed, use the following example:
 ```
 err := trade.AddTradesToBuffer(b.Name, trade.Data{
-    CurrencyPair: pair,
+    Base:         base,
+    Quote:        quote,
     Timestamp:    time.Unix(0, t.TimeStamp*int64(time.Millisecond)),
     Price:        price,
     Amount:       amount,
@@ -41,7 +42,8 @@ _b in this context is an `IBotExchange` implemented struct_
 + The processor will add all received trades to a buffer
 + After 30 seconds, the trade processor will parse and save all trades on the buffer to the trade table
   + This is to save on constant writing to the database. Trade data, especially when received via websocket would cause massive issues on the round trip of saving data for every trade
-+ If the processor has not received any trades in that 30 second timeframe, it will shut down. Sending trade data to it later will automatically start it up again
++ If the processor has not received any trades in that 30 second timeframe, it will shut down.
+  + Sending trade data to it later will automatically start it up again
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

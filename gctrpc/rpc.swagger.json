@@ -207,6 +207,20 @@
             "required": false,
             "type": "string",
             "format": "int64"
+          },
+          {
+            "name": "sync",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
           }
         ],
         "tags": [
@@ -1227,7 +1241,7 @@
             "format": "boolean"
           },
           {
-            "name": "use_trades",
+            "name": "fill_missing_with_trades",
             "in": "query",
             "required": false,
             "type": "boolean",
@@ -3578,6 +3592,9 @@
         },
         "asset": {
           "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
         },
         "saved_trades": {
           "type": "array",

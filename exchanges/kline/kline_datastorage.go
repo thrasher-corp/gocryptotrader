@@ -45,7 +45,7 @@ func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interva
 }
 
 // StoreInDatabase returns Item from database seeded data
-func StoreInDatabase(in *Item) (uint64, error) {
+func StoreInDatabase(in *Item, force bool) (uint64, error) {
 	if in.Exchange == "" {
 		return 0, errors.New("name cannot be blank")
 	}
@@ -84,6 +84,10 @@ func StoreInDatabase(in *Item) (uint64, error) {
 			Close:     in.Candles[x].Close,
 			Volume:    in.Candles[x].Volume,
 		})
+	}
+	if force {
+		resp, err := candle.DeleteCandles(&databaseCandles)
+		return uint64(resp), err
 	}
 	return candle.Insert(&databaseCandles)
 }

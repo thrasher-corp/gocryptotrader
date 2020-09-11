@@ -312,11 +312,11 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (g *Gemini) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return g.GetExchangeHistory(currencyPair, assetType, time.Time{}, time.Time{})
+	return g.GetHistoricTrades(currencyPair, assetType, time.Time{}, time.Time{})
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided
-func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (g *Gemini) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if timestampEnd.After(time.Now()) {
 		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
 	}

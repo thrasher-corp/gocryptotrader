@@ -411,7 +411,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var getExchangeHistoryResponse []trade.Data
-			getExchangeHistoryResponse, err = e.GetExchangeHistory(p, assetTypes[i], time.Now().Add(-time.Minute), time.Now())
+			getExchangeHistoryResponse, err = e.GetHistoricTrades(p, assetTypes[i], time.Now().Add(-time.Minute), time.Now())
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -419,7 +419,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			}
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], time.Now().Add(-time.Minute), time.Now()}),
-				Function:   "GetExchangeHistory",
+				Function:   "GetHistoricTrades",
 				Error:      msg,
 				Response:   jsonifyInterface([]interface{}{getExchangeHistoryResponse}),
 			})
@@ -433,7 +433,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			}
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], time.Now().Add(-time.Minute), time.Now()}),
-				Function:   "GetExchangeHistory",
+				Function:   "GetHistoricTrades",
 				Error:      msg,
 				Response:   jsonifyInterface([]interface{}{getRecentTradesResponse}),
 			})

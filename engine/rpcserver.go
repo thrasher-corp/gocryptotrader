@@ -50,10 +50,11 @@ import (
 )
 
 const (
-	errExchangeNameUnset = "exchange name unset"
-	errCurrencyPairUnset = "currency pair unset"
-	errAssetTypeUnset    = "asset type unset"
-	errDispatchSystem    = "dispatch system offline"
+	errExchangeNameUnset  = "exchange name unset"
+	errCurrencyPairUnset  = "currency pair unset"
+	errStartEndTimesUnset = "invalid start and end times"
+	errAssetTypeUnset     = "asset type unset"
+	errDispatchSystem     = "dispatch system offline"
 )
 
 var (
@@ -1611,101 +1612,107 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 	if r.Exchange == "" {
 		return nil, errors.New(errExchangeNameUnset)
 	}
-
 	if r.Pair.String() == "" {
 		return nil, errors.New(errCurrencyPairUnset)
 	}
+	if r.Start == r.End {
+		return nil, errors.New(errStartEndTimesUnset)
+	}
 
-	var candles kline.Item
+	var klineItem kline.Item
 	var err error
+	var tStart, tEnd time.Time
+	tStart = time.Unix(r.Start, 0)
+	tEnd = time.Unix(r.End, 0)
+	interval := kline.Interval(r.TimeInterval)
+
 	resp := gctrpc.GetHistoricCandlesResponse{
-		Interval: kline.Interval(r.TimeInterval).Short(),
+		Interval: interval.Short(),
 		Pair:     r.Pair,
 		Start:    r.Start,
 		End:      r.End,
 	}
-	switch {
-	case r.UseTrades:
-		exch := GetExchangeByName(r.Exchange)
-		if exch == nil {
-			return nil, errExchangeNotLoaded
-		}
-		sqlTrades, err := tradesql.GetByExchangeInRange(r.Exchange, r.Start, r.End)
-		if err != nil {
-			return nil, err
-		}
-		trades, err := trade.SqlDataToTrade(sqlTrades...)
-		if err != nil {
-			return nil, err
-		}
-		if len(trades) == 0 {
-			return nil, fmt.Errorf("no trades returned from supplied params")
-		}
-		interval := kline.Interval(r.TimeInterval)
-		candles, err = trade.ConvertTradesToCandles(interval, trades...)
-		if err != nil {
-			return nil, err
-		}
-		if len(candles.Candles) == 0 {
-			return nil, fmt.Errorf("no candles generated from trades")
-		}
-	case r.UseDb:
-		candles, err = kline.LoadFromDatabase(r.Exchange,
+
+	if r.UseDb {
+		klineItem, err = kline.LoadFromDatabase(r.Exchange,
 			currency.Pair{
 				Delimiter: r.Pair.Delimiter,
 				Base:      currency.NewCode(r.Pair.Base),
 				Quote:     currency.NewCode(r.Pair.Quote),
 			},
 			asset.Item(strings.ToLower(r.AssetType)),
-			kline.Interval(r.TimeInterval),
-			time.Unix(r.Start, 0),
-			time.Unix(r.End, 0),
+			interval,
+			tStart,
+			tEnd,
 		)
-	default:
+		if err != nil {
+			return nil, err
+		}
+	} else {
 		exchangeEngine := GetExchangeByName(r.Exchange)
 		if exchangeEngine == nil {
 			return nil, errors.New("Exchange " + r.Exchange + " not found")
 		}
 		if r.ExRequest {
-			candles, err = exchangeEngine.GetHistoricCandlesExtended(currency.Pair{
+			klineItem, err = exchangeEngine.GetHistoricCandlesExtended(currency.Pair{
 				Delimiter: r.Pair.Delimiter,
 				Base:      currency.NewCode(r.Pair.Base),
 				Quote:     currency.NewCode(r.Pair.Quote),
 			},
 				asset.Item(strings.ToLower(r.AssetType)),
-				time.Unix(r.Start, 0),
-				time.Unix(r.End, 0),
-				kline.Interval(r.TimeInterval))
+				tStart,
+				tEnd,
+				interval)
 		} else {
-			candles, err = exchangeEngine.GetHistoricCandles(currency.Pair{
+			klineItem, err = exchangeEngine.GetHistoricCandles(currency.Pair{
 				Delimiter: r.Pair.Delimiter,
 				Base:      currency.NewCode(r.Pair.Base),
 				Quote:     currency.NewCode(r.Pair.Quote),
 			},
 				asset.Item(strings.ToLower(r.AssetType)),
-				time.Unix(r.Start, 0),
-				time.Unix(r.End, 0),
-				kline.Interval(r.TimeInterval))
+				tStart,
+				tEnd,
+				interval)
 		}
 	}
-
 	if err != nil {
 		return nil, err
 	}
-	resp.Exchange = candles.Exchange
-	for i := range candles.Candles {
+
+	if r.FillMissingWithTrades {
+		var tradeDataKline kline.Item
+		tradeDataKline, err = fillMissingCandlesWithStoredTrades(r, klineItem)
+		if err != nil {
+			return nil, err
+		}
+		klineItem.Candles = append(klineItem.Candles, tradeDataKline.Candles...)
+	}
+
+	missingIntervals := klineItem.DetermineMissingIntervals(tStart, tEnd)
+	for i := range missingIntervals {
+		log.Warnf(log.GRPCSys,
+			"Missing requested OHLCV data for %v %v %v interval at %v",
+			r.Exchange,
+			r.Pair.Base+r.Pair.Delimiter+r.Pair.Quote,
+			r.AssetType,
+			missingIntervals[i].Format(common.SimpleTimeFormat),
+		)
+	}
+
+	resp.Exchange = klineItem.Exchange
+	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   candles.Candles[i].Time.Unix(),
-			Low:    candles.Candles[i].Low,
-			High:   candles.Candles[i].High,
-			Open:   candles.Candles[i].Open,
-			Close:  candles.Candles[i].Close,
-			Volume: candles.Candles[i].Volume,
+			Time:   klineItem.Candles[i].Time.Unix(),
+			Low:    klineItem.Candles[i].Low,
+			High:   klineItem.Candles[i].High,
+			Open:   klineItem.Candles[i].Open,
+			Close:  klineItem.Candles[i].Close,
+			Volume: klineItem.Candles[i].Volume,
 		})
 	}
 
 	if r.Sync && !r.UseDb {
-		_, err = kline.StoreInDatabase(&candles)
+		_, err = kline.StoreInDatabase(&klineItem, false)
 		if err != nil {
 			if errors.Is(err, exchangeDB.ErrNoExchangeFound) {
 				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new exchange via the dbseed")
@@ -1713,7 +1720,56 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 			return nil, err
 		}
 	}
+
 	return &resp, nil
+}
+
+func fillMissingCandlesWithStoredTrades(r *gctrpc.GetHistoricCandlesRequest, klineItem kline.Item) (kline.Item, error) {
+	var response kline.Item
+	missingIntervals := klineItem.DetermineMissingIntervals(time.Unix(r.Start, 0), time.Unix(r.End, 0))
+
+	if len(missingIntervals) > 0 {
+		var tradeCandles kline.Item
+		sqlTrades, err := tradesql.GetByExchangeInRange(r.Exchange, r.Start, r.End)
+		if err != nil {
+			return klineItem, err
+		}
+		trades, err := trade.SqlDataToTrade(sqlTrades...)
+		if err != nil {
+			return klineItem, err
+		}
+		if len(trades) == 0 {
+			return klineItem, nil
+		}
+		interval := kline.Interval(r.TimeInterval)
+		tradeCandles, err = trade.ConvertTradesToCandles(interval, trades...)
+		if err != nil {
+			return klineItem, err
+		}
+		if len(tradeCandles.Candles) == 0 {
+			return klineItem, nil
+		}
+
+		for i := range tradeCandles.Candles {
+			for j := range missingIntervals {
+				if tradeCandles.Candles[i].Time.Equal(missingIntervals[j]) {
+					response.Candles = append(response.Candles, tradeCandles.Candles[i])
+				}
+			}
+		}
+
+		for i := range response.Candles {
+			log.Infof(log.GRPCSys,
+				"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
+				r.Exchange,
+				r.Pair.Base+r.Pair.Delimiter+r.Pair.Quote,
+				r.AssetType,
+				response.Candles[i].Time.Format(common.SimpleTimeFormat),
+			)
+		}
+	}
+
+	return response, nil
 }
 
 // GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
@@ -2328,8 +2384,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if len(klineItem.Candles) == 0 {
 		return nil, fmt.Errorf("no candles generated from trades")
 	}
-	// save the klineItem
-	// candlesql.saveToButts(klineItem)
+
 	resp := &gctrpc.GetHistoricCandlesResponse{
 		Exchange: r.Exchange,
 		Pair:     r.Pair,
@@ -2346,6 +2401,13 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 			Close:  klineItem.Candles[i].Close,
 			Volume: klineItem.Candles[i].Volume,
 		})
+	}
+
+	if r.Sync {
+		_, err = kline.StoreInDatabase(&klineItem, r.Force)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return resp, nil

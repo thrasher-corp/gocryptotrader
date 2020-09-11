@@ -516,9 +516,12 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = y.GetRecentTrades(currencyPair, asset.Spot)
+	resp, err := y.GetRecentTrades(currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
 	}
 }
 
@@ -527,7 +530,7 @@ func TestGetExchangeHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = y.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = y.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
