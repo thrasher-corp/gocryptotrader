@@ -607,7 +607,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[string]interface{}) error {
 	askSnapshot, askSnapshotExists := data["as"].([]interface{})
 	bidSnapshot, bidSnapshotExists := data["bs"].([]interface{})
-	if askSnapshotExists || bidSnapshotExists  {
+	if askSnapshotExists || bidSnapshotExists {
 		err := k.wsProcessOrderBookPartial(channelData, askSnapshot, bidSnapshot)
 		if err != nil {
 			return err
