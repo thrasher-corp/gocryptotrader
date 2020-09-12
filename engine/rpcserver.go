@@ -401,26 +401,37 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 	}
 
 	var bids []*gctrpc.OrderbookItem
-	for x := range ob.Bids {
-		bids = append(bids, &gctrpc.OrderbookItem{
-			Amount: ob.Bids[x].Amount,
-			Price:  ob.Bids[x].Price,
-		})
-	}
-
 	var asks []*gctrpc.OrderbookItem
-	for x := range ob.Asks {
+	localCopyOfAsks := make([]orderbook.Item, len(ob.Asks))
+	localCopyOfBids := make([]orderbook.Item, len(ob.Bids))
+	lastUpdated := ob.LastUpdated.Unix()
+	ch := make(chan bool)
+
+	go func() {
+		copy(localCopyOfBids, ob.Bids)
+		for _, b := range localCopyOfBids {
+			bids = append(bids, &gctrpc.OrderbookItem{
+				Amount: b.Amount,
+				Price:  b.Price,
+			})
+		}
+		ch <- true
+	}()
+
+	copy(localCopyOfAsks, ob.Asks)
+	for _, a := range localCopyOfAsks {
 		asks = append(asks, &gctrpc.OrderbookItem{
-			Amount: ob.Asks[x].Amount,
-			Price:  ob.Asks[x].Price,
+			Amount: a.Amount,
+			Price:  a.Price,
 		})
 	}
+	<-ch
 
 	resp := &gctrpc.OrderbookResponse{
 		Pair:        r.Pair,
 		Bids:        bids,
 		Asks:        asks,
-		LastUpdated: ob.LastUpdated.Unix(),
+		LastUpdated: lastUpdated,
 		AssetType:   r.AssetType,
 	}
 
