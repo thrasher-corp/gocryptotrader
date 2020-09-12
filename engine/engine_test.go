@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
-func Test_loadConfigWithSettings(t *testing.T) {
+func TestLoadConfigWithSettings(t *testing.T) {
 	empty := ""
 	somePath := "somePath"
 	tests := []struct {

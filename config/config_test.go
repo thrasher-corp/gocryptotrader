@@ -2037,7 +2037,7 @@ func TestRemoveExchange(t *testing.T) {
 	}
 }
 
-func TestConfig_GetDataPath(t *testing.T) {
+func TestGetDataPath(t *testing.T) {
 	tests := []struct {
 		name string
 		dir  string
