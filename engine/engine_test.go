@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -9,6 +10,8 @@ import (
 func TestLoadConfigWithSettings(t *testing.T) {
 	empty := ""
 	somePath := "somePath"
+	// Clean up after the tests
+	defer os.RemoveAll(somePath)
 	tests := []struct {
 		name     string
 		flags    []string
@@ -44,7 +47,6 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	config.TestBypass = true
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
