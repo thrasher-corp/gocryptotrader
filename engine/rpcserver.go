@@ -1712,7 +1712,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 	}
 
 	if r.Sync && !r.UseDb {
-		_, err = kline.StoreInDatabase(&klineItem, false)
+		_, err = kline.StoreInDatabase(&klineItem, r.Force)
 		if err != nil {
 			if errors.Is(err, exchangeDB.ErrNoExchangeFound) {
 				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new exchange via the dbseed")
@@ -2368,7 +2368,8 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if err != nil {
 		return nil, err
 	}
-	trades, err := trade.SqlDataToTrade(sqlTrades...)
+	var trades []trade.Data
+	trades, err = trade.SqlDataToTrade(sqlTrades...)
 	if err != nil {
 		return nil, err
 	}

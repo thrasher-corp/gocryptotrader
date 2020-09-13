@@ -97,10 +97,10 @@ func DeleteCandles(in *Item) (int64, error) {
 	if database.DB.SQL == nil {
 		return 0, database.ErrDatabaseSupportDisabled
 	}
-
 	if len(in.Candles) < 1 {
 		return 0, errNoCandleData
 	}
+
 	ctx := context.Background()
 	queries := []qm.QueryMod{
 		qm.Where("base = ?", strings.ToUpper(in.Base)),
@@ -111,18 +111,11 @@ func DeleteCandles(in *Item) (int64, error) {
 	queries = append(queries, qm.Where("exchange_name_id = ?", in.ExchangeID))
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		if len(in.Candles) == 1 {
-			queries = append(queries, qm.Where("timestamp = ?", in.Candles[0].Timestamp.UTC().Format(time.RFC3339)))
-		} else {
-			queries = append(queries, qm.Where("timestamp between ? and ?", in.Candles[0].Timestamp.UTC().Format(time.RFC3339), in.Candles[len(in.Candles)-1].Timestamp.UTC().Format(time.RFC3339)))
-		}
+		queries = append(queries, qm.Where("timestamp between ? and ?", in.Candles[0].Timestamp.UTC().Format(time.RFC3339), in.Candles[len(in.Candles)-1].Timestamp.UTC().Format(time.RFC3339)))
 		return deleteSQLite(ctx, queries)
 	}
-	if len(in.Candles) == 1 {
-		queries = append(queries, qm.Where("timestamp = ?", in.Candles[0].Timestamp))
-	} else {
-		queries = append(queries, qm.Where("timestamp between ? and ?", in.Candles[0].Timestamp.UTC(), in.Candles[len(in.Candles)-1].Timestamp.UTC()))
-	}
+
+	queries = append(queries, qm.Where("timestamp between ? and ?", in.Candles[0].Timestamp.UTC(), in.Candles[len(in.Candles)-1].Timestamp.UTC()))
 	return deletePostgres(ctx, queries)
 }
 

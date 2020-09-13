@@ -3,13 +3,16 @@ package engine
 import (
 	"context"
 	"log"
+	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/goose"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -23,6 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 )
 
+var databaseFolder = "database"
+var migrationsFolder = "migrations"
+var databaseName = "rpctestdb"
+
 // Sets up everything required to run any function inside rpcserver
 func RPCTestSetup(t *testing.T) {
 	SetupTestHelpers(t)
@@ -30,7 +37,7 @@ func RPCTestSetup(t *testing.T) {
 		Enabled: true,
 		Driver:  database.DBSQLite3,
 		ConnectionDetails: drivers.ConnectionDetails{
-			Database: "rpctestdb",
+			Database: databaseName,
 		},
 	}
 	Bot.Config.Database = dbConf
@@ -39,7 +46,7 @@ func RPCTestSetup(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	path := filepath.Join("..", "database", "migrations")
+	path := filepath.Join("..", databaseFolder, migrationsFolder)
 	err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
 	if err != nil {
 		t.Fatalf("failed to run migrations %v", err)
@@ -57,20 +64,17 @@ func CleanRPCTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	err = os.Remove(filepath.Join(common.GetDefaultDataDir(runtime.GOOS), databaseFolder, databaseName))
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGetSavedTrades(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
 	var s RPCServer
-	_, err := s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange:  "",
-		Pair:      nil,
-		AssetType: "",
-		Start:     0,
-		End:       0,
-	})
+	_, err := s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
 		t.Fatal("unexpected lack of error")
 	}
@@ -144,14 +148,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
 	var s RPCServer
-	_, err := s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
-		Exchange:     "",
-		Pair:         nil,
-		AssetType:    "",
-		Start:        0,
-		End:          0,
-		TimeInterval: 0,
-	})
+	// bad param test
+	_, err := s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{})
 	if err == nil {
 		t.Fatal("unexpected lack of error")
 	}
@@ -159,8 +157,9 @@ func TestConvertTradesToCandles(t *testing.T) {
 		t.Error(err)
 	}
 
+	// bad exchange test
 	_, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
-		Exchange: "fake",
+		Exchange: "faker",
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -178,6 +177,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		t.Error(err)
 	}
 
+	// no trades test
 	_, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
@@ -197,6 +197,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		t.Error(err)
 	}
 
+	// add a trade
 	err = sqltrade.Insert(sqltrade.Data{
 		Timestamp: time.Date(2020, 1, 1, 1, 1, 2, 1, time.UTC).Unix(),
 		Exchange:  testExchange,
@@ -210,6 +211,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// get candle from one trade
 	var candles *gctrpc.GetHistoricCandlesResponse
 	candles, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
@@ -230,6 +233,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		t.Error("no candles returned")
 	}
 
+	// save generated candle to database
 	candles, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
@@ -247,6 +251,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		t.Error(err)
 	}
 
+	// forcefully remove previous candle and insert a new one
 	candles, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
@@ -263,6 +268,28 @@ func TestConvertTradesToCandles(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+
+	// load the saved candle to verify that it was overwritten
+	getSavedCandles, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+		AssetType:    asset.Spot.String(),
+		Start:        time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
+		End:          time.Date(2020, 2, 2, 2, 2, 2, 2, time.UTC).Unix(),
+		TimeInterval: int64(kline.OneHour.Duration()),
+		UseDb:        true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(getSavedCandles.Candle) != 1 {
+		t.Error("expected only one candle")
 	}
 }
 

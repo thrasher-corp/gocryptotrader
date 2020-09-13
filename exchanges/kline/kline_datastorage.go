@@ -86,8 +86,10 @@ func StoreInDatabase(in *Item, force bool) (uint64, error) {
 		})
 	}
 	if force {
-		resp, err := candle.DeleteCandles(&databaseCandles)
-		return uint64(resp), err
+		_, err := candle.DeleteCandles(&databaseCandles)
+		if err != nil {
+			return 0, err
+		}
 	}
 	return candle.Insert(&databaseCandles)
 }

@@ -3922,6 +3922,10 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Usage: "<true/false>",
 		},
 		cli.BoolFlag{
+			Name:  "force",
+			Usage: "will overwrite any conflicting candle data on save <true/false>",
+		},
+		cli.BoolFlag{
 			Name:  "db",
 			Usage: "source data from database <true/false>",
 		},
@@ -4009,6 +4013,15 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		fillMissingData = c.Bool("db")
 	}
 
+	var force bool
+	if c.IsSet("force") {
+		force = c.Bool("force")
+	}
+
+	if force && !sync {
+		return errors.New("cannot forcefully overwrite without sync")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -4048,6 +4061,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 			Sync:                  sync,
 			UseDb:                 useDB,
 			FillMissingWithTrades: fillMissingData,
+			Force:                 force,
 		})
 	if err != nil {
 		return err

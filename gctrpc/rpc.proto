@@ -632,6 +632,7 @@ message GetHistoricCandlesRequest {
     bool sync = 8;
     bool use_db = 9;
     bool fill_missing_with_trades = 10;
+    bool force = 11;
 }
 
 message GetHistoricCandlesResponse {
