@@ -409,11 +409,14 @@ func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitmex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(p, assetType, time.Time{}, time.Time{})
+	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour*24), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if assetType == asset.Index {
+		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
+	}
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
@@ -454,7 +457,8 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 			return nil, err
 		}
 	}
-	return resp, nil
+
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order

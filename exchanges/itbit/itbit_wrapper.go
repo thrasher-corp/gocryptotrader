@@ -342,6 +342,7 @@ func (i *ItBit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (i *ItBit) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	// cannot do time based retrieval of trade data
 	return nil, common.ErrFunctionNotSupported
 }
 

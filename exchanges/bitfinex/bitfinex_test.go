@@ -1417,6 +1417,19 @@ func TestGetRecentTrades(t *testing.T) {
 	if len(resp) == 0 {
 		t.Error("expected trades")
 	}
+
+	currencyPair, err = currency.NewPairFromString("USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err = b.GetRecentTrades(currencyPair, asset.Margin)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
+	}
+
 }
 
 func TestGetExchangeHistory(t *testing.T) {

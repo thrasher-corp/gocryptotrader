@@ -63,6 +63,7 @@ func (i *ItBit) GetOrderbook(currencyPair string) (OrderbookResponse, error) {
 // timestamp - matchNumber, only executions after this will be returned
 func (i *ItBit) GetTradeHistory(currencyPair, tradeID string) (Trades, error) {
 	response := Trades{}
+
 	var req = itbitTrades
 	if tradeID != "" {
 		req += "?since=" + tradeID

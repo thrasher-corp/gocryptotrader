@@ -499,14 +499,12 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
-	tradeData, err := b.GetMostRecentTrades(RecentTradeRequestParams{
-		Symbol: p.String(),
-		Limit:  1000,
-	})
+	var resp []trade.Data
+	limit := 1000
+	tradeData, err := b.GetMostRecentTrades(RecentTradeRequestParams{p.String(), limit})
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
 	for i := range tradeData {
 		resp = append(resp, trade.Data{
 			TID:          strconv.FormatInt(tradeData[i].ID, 10),
@@ -519,60 +517,6 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
 		})
 	}
-
-	if b.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(b.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return resp, nil
-}
-
-// GetHistoricTrades returns historic trade data within the timeframe provided
-func (b *Binance) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampEnd.After(time.Now()) {
-		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
-	}
-	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
-	}
-	ts := timestampStart
-	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
-	var resp []trade.Data
-	limit := 1000
-allTrades:
-	for {
-		tradeData, err := b.GetHistoricalTrades(p.String(), limit, ts.Unix())
-		if err != nil {
-			return nil, err
-		}
-		for i := range tradeData {
-			tradeTS := time.Unix(tradeData[i].Time, 0)
-			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
-				break allTrades
-			}
-			resp = append(resp, trade.Data{
-				TID:          strconv.FormatInt(tradeData[i].ID, 10),
-				Exchange:     b.Name,
-				CurrencyPair: p,
-				AssetType:    assetType,
-				Side:         order.Buy,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Quantity,
-				Timestamp:    tradeTS,
-			})
-			if i == len(tradeData)-1 {
-				if ts == tradeTS {
-					break allTrades
-				}
-				ts = tradeTS
-			}
-		}
-		if len(tradeData) != limit {
-			break allTrades
-		}
-	}
 	if b.Features.Enabled.SaveTradeData {
 		err := trade.AddTradesToBuffer(b.Name, resp...)
 		if err != nil {
@@ -581,6 +525,11 @@ allTrades:
 	}
 
 	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *Binance) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

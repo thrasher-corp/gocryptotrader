@@ -194,3 +194,20 @@ func TestShutdown(t *testing.T) {
 		t.Error("expected it to stop running")
 	}
 }
+
+func TestFilterTradesByTime(t *testing.T) {
+	trades := []Data{
+		{
+			Exchange:  "test",
+			Timestamp: time.Now().Add(-time.Second),
+		},
+	}
+	trades = FilterTradesByTime(trades, time.Now().Add(-time.Minute), time.Now())
+	if len(trades) != 1 {
+		t.Error("failed to filter")
+	}
+	trades = FilterTradesByTime(trades, time.Now().Add(-time.Millisecond), time.Now())
+	if len(trades) != 0 {
+		t.Error("failed to filter")
+	}
+}

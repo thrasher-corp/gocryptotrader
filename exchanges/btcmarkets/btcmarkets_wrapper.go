@@ -416,58 +416,34 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (b *BTCMarkets) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(currencyPair, assetType, time.Time{}, time.Time{})
-}
-
-// GetHistoricTrades returns historic trade data within the timeframe provided
-func (b *BTCMarkets) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampEnd.After(time.Now()) {
-		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
-	}
+func (b *BTCMarkets) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
 	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
-	ts := timestampStart
 	var resp []trade.Data
-allTrades:
-	for {
-		tradeData, err := b.GetTrades(p.String(), 0, ts.Unix(), 200)
-		if err != nil {
-			return nil, err
-		}
-		for i := range tradeData {
-			side := order.UnknownSide
-			if tradeData[i].Side != "" {
-				side, err = order.StringToOrderSide(tradeData[i].Side)
-				if err != nil {
-					return nil, err
-				}
-			}
-			if tradeData[i].Timestamp.After(timestampEnd) && !timestampEnd.IsZero() {
-				break allTrades
-			}
-			resp = append(resp, trade.Data{
-				Exchange:     b.Name,
-				TID:          tradeData[i].TradeID,
-				CurrencyPair: p,
-				AssetType:    assetType,
-				Side:         side,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Amount,
-				Timestamp:    tradeData[i].Timestamp,
-			})
-			if i == len(tradeData)-1 {
-				if ts == tradeData[i].Timestamp {
-					break allTrades
-				}
-				ts = tradeData[i].Timestamp
+	tradeData, err := b.GetTrades(p.String(), 0, 0, 200)
+	if err != nil {
+		return nil, err
+	}
+	for i := range tradeData {
+		side := order.UnknownSide
+		if tradeData[i].Side != "" {
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
 			}
 		}
-		if len(tradeData) != 200 {
-			break allTrades
-		}
+		resp = append(resp, trade.Data{
+			Exchange:     b.Name,
+			TID:          tradeData[i].TradeID,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    tradeData[i].Timestamp,
+		})
 	}
 
 	if b.Features.Enabled.SaveTradeData {
@@ -478,6 +454,12 @@ allTrades:
 	}
 
 	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *BTCMarkets) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	// is supported, but by tradeid trawling, not time based
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

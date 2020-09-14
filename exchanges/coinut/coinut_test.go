@@ -1127,7 +1127,7 @@ func TestStringToStatus(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	currencyPair, err := currency.NewPairFromString("LTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}

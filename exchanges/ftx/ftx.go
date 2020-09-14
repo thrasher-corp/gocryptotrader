@@ -151,7 +151,7 @@ func (f *FTX) GetTrades(marketName string, startTime, endTime, limit int64) ([]T
 	resp := struct {
 		Data []TradeData `json:"result"`
 	}{}
-	if startTime != 0 && endTime != 0 {
+	if startTime > 0 && endTime > 0 {
 		if startTime >= (endTime) {
 			return resp.Data, errors.New("startTime cannot be after endTime")
 		}

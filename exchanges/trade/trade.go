@@ -219,3 +219,16 @@ func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 	c.Time = t
 	return c
 }
+
+// FilterTradesByTime removes any trades that are not between the start
+// and end times
+func FilterTradesByTime(trades []Data, startTime, endTime time.Time) []Data {
+	var filteredTrades []Data
+	for i := range trades {
+		if trades[i].Timestamp.After(startTime) && trades[i].Timestamp.Before(endTime) {
+			filteredTrades = append(filteredTrades, trades[i])
+		}
+	}
+
+	return filteredTrades
+}

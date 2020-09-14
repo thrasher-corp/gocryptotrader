@@ -471,11 +471,14 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitfinex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(p, assetType, time.Time{}, time.Time{})
+	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour*24), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *Bitfinex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if assetType == asset.MarginFunding {
+		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
+	}
 	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
@@ -507,7 +510,8 @@ func (b *Bitfinex) GetHistoricTrades(p currency.Pair, assetType asset.Item, time
 			return nil, err
 		}
 	}
-	return resp, nil
+
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order
@@ -961,10 +965,16 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	y := in.Base.String()
 	if (y[0] != checkString[0] && y[0] != checkString[1]) ||
 		(y[0] == checkString[1] && y[1] == checkString[1]) || in.Base == currency.TNB {
+		if fmt.Quote.IsEmpty() {
+			return string(checkString[0]) + fmt.Base.Upper().String(), nil
+		}
 		return string(checkString[0]) + fmt.Upper().String(), nil
 	}
 
 	runes := []rune(fmt.Upper().String())
+	if fmt.Quote.IsEmpty() {
+		runes = []rune(fmt.Base.Upper().String())
+	}
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes), nil
 }

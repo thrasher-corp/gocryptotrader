@@ -337,7 +337,7 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (l *LakeBTC) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return l.GetHistoricTrades(currencyPair, assetType, time.Time{}, time.Time{})
+	return l.GetHistoricTrades(currencyPair, assetType, time.Now().Add(-time.Hour*24), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -387,7 +387,7 @@ allTrades:
 		}
 	}
 
-	return resp, nil
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order

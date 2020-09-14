@@ -300,7 +300,10 @@ func (b *Bitflyer) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]tra
 	}
 	var resp []trade.Data
 	for i := range tradeData {
-		tt, err := time.Parse("2006-01-02T15:04:05.07", tradeData[i].ExecDate)
+		tt, err := time.Parse("2006-01-02T15:04:05.999999999", tradeData[i].ExecDate)
+		if err != nil {
+			return nil, err
+		}
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {

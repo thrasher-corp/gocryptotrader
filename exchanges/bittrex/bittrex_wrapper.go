@@ -391,7 +391,7 @@ func (b *Bittrex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 		if err != nil {
 			return nil, err
 		}
-		ts, err := time.Parse(time.RFC3339, tradeData.Result[i].Timestamp)
+		ts, err := time.Parse("2006-01-02T15:04:05.999999999", tradeData.Result[i].Timestamp)
 		if err != nil {
 			return nil, err
 		}

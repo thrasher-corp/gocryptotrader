@@ -1097,19 +1097,39 @@ func TestAcceptOTCQuote(t *testing.T) {
 	}
 }
 
-func TestGetExchangeHistory(t *testing.T) {
+func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	p, err := currency.NewPairFromString("ADA-PERP")
-	if err != nil {
-		t.Fatal(err)
+	assets := f.GetAssetTypes()
+	for i := range assets {
+		enabledPairs, err := f.GetEnabledPairs(assets[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*15), time.Now())
+		if err != nil {
+			t.Error(err)
+		}
+		if len(resp) == 0 {
+			t.Error("expected trades")
+		}
 	}
-	a, err := f.GetPairAssetType(p)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = f.GetHistoricTrades(p, a, time.Now().Add(-time.Minute*500), time.Now())
-	if err != nil {
-		t.Error(err)
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	assets := f.GetAssetTypes()
+	for i := range assets {
+		enabledPairs, err := f.GetEnabledPairs(assets[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := f.GetRecentTrades(enabledPairs.GetRandomPair(), assets[i])
+		if err != nil {
+			t.Error(err)
+		}
+		if len(resp) == 0 {
+			t.Error("expected trades")
+		}
 	}
 }
 

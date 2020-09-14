@@ -329,11 +329,11 @@ func (l *Lbank) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (l *Lbank) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return l.GetHistoricTrades(p, assetType, time.Time{}, time.Time{})
+	return l.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour*24), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (l *Lbank) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, _ time.Time) ([]trade.Data, error) {
+func (l *Lbank) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if _, ok := l.CurrencyPairs.Pairs[assetType]; !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
@@ -367,7 +367,7 @@ func (l *Lbank) GetHistoricTrades(p currency.Pair, assetType asset.Item, timesta
 		}
 	}
 
-	return resp, nil
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order

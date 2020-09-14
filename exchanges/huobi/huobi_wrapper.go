@@ -569,7 +569,7 @@ func (h *HUOBI) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 				Side:         side,
 				Price:        tradeData[i].Trades[j].Price,
 				Amount:       tradeData[i].Trades[j].Amount,
-				Timestamp:    time.Unix(tradeData[i].Timestamp, 0),
+				Timestamp:    time.Unix(tradeData[i].Timestamp/1000, 0),
 			})
 		}
 	}

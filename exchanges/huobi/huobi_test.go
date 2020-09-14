@@ -1110,7 +1110,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString(testSymbol)
+	currencyPair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}

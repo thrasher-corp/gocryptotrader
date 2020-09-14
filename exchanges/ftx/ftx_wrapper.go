@@ -439,7 +439,7 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (f *FTX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return f.GetHistoricTrades(p, assetType, time.Time{}, time.Time{})
+	return f.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour*24), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -457,12 +457,15 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 		return nil, err
 	}
 	for {
-		var tempResp trade.Data
-		side, err := order.StringToOrderSide(trades[0].Side)
-		if err != nil {
-			return nil, err
+		tempResp := trade.Data{
+			CurrencyPair: p,
+			AssetType:    assetType,
 		}
 		if len(trades) > 0 {
+			side, err := order.StringToOrderSide(trades[0].Side)
+			if err != nil {
+				return nil, err
+			}
 			tempResp.Amount = trades[0].Size
 			tempResp.Price = trades[0].Price
 			tempResp.Exchange = f.Name
@@ -472,7 +475,7 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 			resp = append(resp, tempResp)
 		}
 		for y := 1; y < len(trades); y++ {
-			side, err = order.StringToOrderSide(trades[y].Side)
+			side, err := order.StringToOrderSide(trades[y].Side)
 			if err != nil {
 				return nil, err
 			}
@@ -495,7 +498,8 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 			return resp, err
 		}
 	}
-	return resp, nil
+
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order
