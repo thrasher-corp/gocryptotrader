@@ -1,6 +1,8 @@
 package trade
 
 import (
+	"io/ioutil"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -17,7 +19,7 @@ import (
 )
 
 var (
-	verbose       = true
+	verbose       = false
 	testExchanges = []exchange.Details{
 		{
 			Name: "one",
@@ -32,10 +34,13 @@ func TestMain(m *testing.M) {
 	if verbose {
 		testhelpers.EnableVerboseTestOutput()
 	}
+	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
-
-	t := m.Run()
-	os.Exit(t)
+	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.Exit(m.Run())
 }
 
 func TestTrades(t *testing.T) {

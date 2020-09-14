@@ -458,7 +458,6 @@ func (b *BTCMarkets) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]t
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *BTCMarkets) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
-	// is supported, but by tradeid trawling, not time based
 	return nil, common.ErrFunctionNotSupported
 }
 

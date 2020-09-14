@@ -491,6 +491,7 @@ func TestWsOrderbookProcessing(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
@@ -506,6 +507,7 @@ func TestGetRecentTrades(t *testing.T) {
 }
 
 func TestGetExchangeHistory(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)

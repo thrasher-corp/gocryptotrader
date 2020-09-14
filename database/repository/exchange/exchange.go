@@ -72,7 +72,6 @@ func Insert(in Details) error {
 	if err != nil {
 		return err
 	}
-	in.Name = strings.ToLower(in.Name)
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		err = insertSQLite(ctx, tx, []Details{in})
 	} else {

@@ -91,8 +91,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 	return out, err
 }
 
-// DeleteCandles saves a series of candles
-// it will delete all existing matching candles before insertion
+// DeleteCandles will delete all existing matching candles
 func DeleteCandles(in *Item) (int64, error) {
 	if database.DB.SQL == nil {
 		return 0, database.ErrDatabaseSupportDisabled

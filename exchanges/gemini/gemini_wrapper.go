@@ -312,7 +312,7 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (g *Gemini) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return g.GetHistoricTrades(currencyPair, assetType, time.Now().Add(-time.Hour*24), time.Now())
+	return g.GetHistoricTrades(currencyPair, assetType, time.Time{}, time.Time{})
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -371,8 +371,11 @@ allTrades:
 			return nil, err
 		}
 	}
+	if !timestampStart.IsZero() || !timestampEnd.IsZero() {
+		return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
+	}
 
-	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

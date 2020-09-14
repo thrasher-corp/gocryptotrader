@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -121,12 +120,10 @@ func (c *Coinbene) wsReadData() {
 }
 
 func inferAssetFromTopic(topic string) asset.Item {
-	switch {
-	case strings.Contains(topic, "spot/"):
+	if strings.Contains(topic, "spot/") {
 		return asset.Spot
-	default:
-		return asset.PerpetualSwap
 	}
+	return asset.PerpetualSwap
 }
 
 func (c *Coinbene) wsHandleData(respRaw []byte) error {

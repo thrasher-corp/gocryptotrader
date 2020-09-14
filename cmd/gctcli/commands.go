@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/log"
-
 	"github.com/urfave/cli"
 )
 
@@ -3844,7 +3843,7 @@ func getHistoricCandles(c *cli.Context) error {
 
 	var fillMissingData bool
 	if c.IsSet("fillmissingdatawithtrades") {
-		fillMissingData = c.Bool("db")
+		fillMissingData = c.Bool("fillmissingdatawithtrades")
 	}
 
 	conn, err := setupClient()
@@ -4010,7 +4009,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 
 	var fillMissingData bool
 	if c.IsSet("fillmissingdatawithtrades") {
-		fillMissingData = c.Bool("db")
+		fillMissingData = c.Bool("fillmissingdatawithtrades")
 	}
 
 	var force bool

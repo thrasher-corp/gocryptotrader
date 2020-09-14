@@ -338,7 +338,6 @@ func (y *Yobit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 	if err != nil {
 		return nil, err
 	}
-
 	for i := range tradeData {
 		tradeTS := time.Unix(tradeData[i].Timestamp, 0)
 		side := order.Buy

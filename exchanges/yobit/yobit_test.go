@@ -45,6 +45,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Yobit setup error", err)
 	}
+
 	os.Exit(m.Run())
 }
 
@@ -523,6 +524,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if len(resp) == 0 {
 		t.Error("expected trades")
 	}
+
 }
 
 func TestGetExchangeHistory(t *testing.T) {

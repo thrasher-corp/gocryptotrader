@@ -83,12 +83,14 @@ func TestAddTradesToBuffer(t *testing.T) {
 }
 
 func TestSqlDataToTrade(t *testing.T) {
+	t.Parallel()
 	uuiderino, _ := uuid.NewV4()
 	data, err := SqlDataToTrade(sqltrade.Data{
 		ID:        uuiderino.String(),
 		Timestamp: 0,
 		Exchange:  "hello",
-		Base:      "btc-usd",
+		Base:      currency.BTC.String(),
+		Quote:     currency.USD.String(),
 		AssetType: "spot",
 		Price:     1337,
 		Amount:    1337,
@@ -103,8 +105,8 @@ func TestSqlDataToTrade(t *testing.T) {
 	if data[0].Side != order.Buy {
 		t.Error("expected buy side")
 	}
-	if data[0].CurrencyPair.String() != "BTC-USD" {
-		t.Errorf("expected \"BTC-USD\", got %v", data[0].CurrencyPair)
+	if data[0].CurrencyPair.String() != "BTCUSD" {
+		t.Errorf("expected \"BTCUSD\", got %v", data[0].CurrencyPair)
 	}
 	if data[0].AssetType != asset.Spot {
 		t.Error("expected spot")
@@ -112,24 +114,22 @@ func TestSqlDataToTrade(t *testing.T) {
 }
 
 func TestTradeToSQLData(t *testing.T) {
+	t.Parallel()
 	cp, _ := currency.NewPairFromString("BTC-USD")
-	buffer = []Data{
-		{
-			Timestamp:    time.Now(),
-			Exchange:     "test!",
-			CurrencyPair: cp,
-			AssetType:    asset.Spot,
-			Price:        1337,
-			Amount:       1337,
-			Side:         order.Buy,
-		},
-	}
-	sqlData := tradeToSQLData()
+	sqlData := tradeToSQLData(Data{
+		Timestamp:    time.Now(),
+		Exchange:     "test!",
+		CurrencyPair: cp,
+		AssetType:    asset.Spot,
+		Price:        1337,
+		Amount:       1337,
+		Side:         order.Buy,
+	})
 	if len(sqlData) != 1 {
 		t.Fatal("unexpected result")
 	}
-	if sqlData[0].Base != cp.String() {
-		t.Errorf("expected \"BTC-USD\", got %v", sqlData[0].Base)
+	if sqlData[0].Base != cp.Base.String() {
+		t.Errorf("expected \"BTC\", got %v", sqlData[0].Base)
 	}
 	if sqlData[0].AssetType != asset.Spot.String() {
 		t.Error("expected spot")
@@ -137,6 +137,7 @@ func TestTradeToSQLData(t *testing.T) {
 }
 
 func TestConvertTradesToCandles(t *testing.T) {
+	t.Parallel()
 	cp, _ := currency.NewPairFromString("BTC-USD")
 	candles, err := ConvertTradesToCandles(kline.FifteenSecond, []Data{
 		{
@@ -196,6 +197,7 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestFilterTradesByTime(t *testing.T) {
+	t.Parallel()
 	trades := []Data{
 		{
 			Exchange:  "test",
@@ -209,5 +211,13 @@ func TestFilterTradesByTime(t *testing.T) {
 	trades = FilterTradesByTime(trades, time.Now().Add(-time.Millisecond), time.Now())
 	if len(trades) != 0 {
 		t.Error("failed to filter")
+	}
+}
+
+func TestSaveTradesToDatabase(t *testing.T) {
+	t.Parallel()
+	err := SaveTradesToDatabase(Data{})
+	if err != nil && err.Error() != "exchange name/uuid not set, cannot insert" {
+		t.Error(err)
 	}
 }

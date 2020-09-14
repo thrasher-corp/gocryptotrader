@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
+	tradesql "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -101,18 +101,18 @@ func (p *Processor) Run() {
 // SaveTradesToDatabase converts trades and saves results to database
 func SaveTradesToDatabase(trades ...Data) error {
 	sqlTrades := tradeToSQLData(trades...)
-	err := sqltrade.Insert(sqlTrades...)
+	err := tradesql.Insert(sqlTrades...)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func tradeToSQLData(trades ...Data) []sqltrade.Data {
+func tradeToSQLData(trades ...Data) []tradesql.Data {
 	sort.Sort(ByDate(trades))
-	var results []sqltrade.Data
+	var results []tradesql.Data
 	for i := range trades {
-		results = append(results, sqltrade.Data{
+		results = append(results, tradesql.Data{
 			ID:        trades[i].ID.String(),
 			Timestamp: trades[i].Timestamp.Unix(),
 			Exchange:  trades[i].Exchange,
@@ -129,7 +129,7 @@ func tradeToSQLData(trades ...Data) []sqltrade.Data {
 }
 
 // SqlDataToTrade converts sql data to glorious trade data
-func SqlDataToTrade(dbTrades ...sqltrade.Data) (result []Data, err error) {
+func SqlDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
 	for i := range dbTrades {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromStrings(dbTrades[i].Base, dbTrades[i].Quote)
@@ -150,7 +150,7 @@ func SqlDataToTrade(dbTrades ...sqltrade.Data) (result []Data, err error) {
 			ID:           uuid.FromStringOrNil(dbTrades[i].ID),
 			Timestamp:    time.Unix(dbTrades[i].Timestamp, 0),
 			Exchange:     dbTrades[i].Exchange,
-			CurrencyPair: cp,
+			CurrencyPair: cp.Upper(),
 			AssetType:    a,
 			Price:        dbTrades[i].Price,
 			Amount:       dbTrades[i].Amount,

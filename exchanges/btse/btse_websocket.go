@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -191,7 +190,6 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		if !b.Features.Enabled.SaveTradeData {
 			return nil
 		}
-		// auth trade history endpoint
 		var tradeHistory wsTradeHistory
 		err = json.Unmarshal(respRaw, &tradeHistory)
 		if err != nil {

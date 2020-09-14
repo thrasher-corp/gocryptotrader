@@ -294,7 +294,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -368,7 +369,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -457,7 +459,8 @@
     },
     "enabled": {
      "autoPairUpdates": false,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -533,7 +536,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -608,7 +612,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -684,7 +689,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -760,7 +766,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -835,7 +842,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": true
+     "websocketAPI": true,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -911,7 +919,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -986,7 +995,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1063,7 +1073,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1141,7 +1152,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1217,7 +1229,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1290,7 +1303,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1365,7 +1379,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1440,7 +1455,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1513,7 +1529,8 @@
     },
     "enabled": {
      "autoPairUpdates": false,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1591,7 +1608,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": true
+     "websocketAPI": true,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1665,7 +1683,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": true
+     "websocketAPI": true,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1739,7 +1758,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1816,7 +1836,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": true
+     "websocketAPI": true,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -1930,7 +1951,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -2006,7 +2028,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -2084,7 +2107,8 @@
     },
     "enabled": {
      "autoPairUpdates": false,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -2160,7 +2184,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -2270,7 +2295,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -2356,7 +2382,8 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    },
    "bankAccounts": [
@@ -2437,7 +2464,8 @@
     },
     "enabled": {
      "autoPairUpdates": false,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false
     }
    }
   }

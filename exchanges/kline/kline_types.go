@@ -56,6 +56,7 @@ type Candle struct {
 	Volume float64
 }
 
+// By Date allows for sorting candle entries by date
 type ByDate []Candle
 
 func (b ByDate) Len() int {
@@ -69,7 +70,6 @@ func (b ByDate) Less(i, j int) bool {
 func (b ByDate) Swap(i, j int) {
 	b[i], b[j] = b[j], b[i]
 }
-
 
 // ExchangeCapabilitiesSupported all kline related exchange supported options
 type ExchangeCapabilitiesSupported struct {

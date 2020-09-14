@@ -1681,7 +1681,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 
 	if r.FillMissingWithTrades {
 		var tradeDataKline kline.Item
-		tradeDataKline, err = fillMissingCandlesWithStoredTrades(r, klineItem)
+		tradeDataKline, err = fillMissingCandlesWithStoredTrades(r.Start, r.End, klineItem)
 		if err != nil {
 			return nil, err
 		}
@@ -1724,13 +1724,13 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 	return &resp, nil
 }
 
-func fillMissingCandlesWithStoredTrades(r *gctrpc.GetHistoricCandlesRequest, klineItem kline.Item) (kline.Item, error) {
+func fillMissingCandlesWithStoredTrades(startTime, endTime int64, klineItem kline.Item) (kline.Item, error) {
 	var response kline.Item
-	missingIntervals := klineItem.DetermineMissingIntervals(time.Unix(r.Start, 0), time.Unix(r.End, 0))
+	missingIntervals := klineItem.DetermineMissingIntervals(time.Unix(startTime, 0), time.Unix(endTime, 0))
 
 	if len(missingIntervals) > 0 {
 		var tradeCandles kline.Item
-		sqlTrades, err := tradesql.GetByExchangeInRange(r.Exchange, r.Start, r.End)
+		sqlTrades, err := tradesql.GetByExchangeInRange(klineItem.Exchange, startTime, endTime)
 		if err != nil {
 			return klineItem, err
 		}
@@ -1741,8 +1741,7 @@ func fillMissingCandlesWithStoredTrades(r *gctrpc.GetHistoricCandlesRequest, kli
 		if len(trades) == 0 {
 			return klineItem, nil
 		}
-		interval := kline.Interval(r.TimeInterval)
-		tradeCandles, err = trade.ConvertTradesToCandles(interval, trades...)
+		tradeCandles, err = trade.ConvertTradesToCandles(klineItem.Interval, trades...)
 		if err != nil {
 			return klineItem, err
 		}
@@ -1761,9 +1760,9 @@ func fillMissingCandlesWithStoredTrades(r *gctrpc.GetHistoricCandlesRequest, kli
 		for i := range response.Candles {
 			log.Infof(log.GRPCSys,
 				"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
-				r.Exchange,
-				r.Pair.Base+r.Pair.Delimiter+r.Pair.Quote,
-				r.AssetType,
+				klineItem.Exchange,
+				klineItem.Pair.String(),
+				klineItem.Asset,
 				response.Candles[i].Time.Format(common.SimpleTimeFormat),
 			)
 		}

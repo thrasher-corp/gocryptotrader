@@ -31,10 +31,6 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestButts(t *testing.T) {
-	tt := time.Unix(1594036487, 0)
-	t.Log(tt)
-}
 func TestMain(m *testing.M) {
 	c.SetDefaults()
 	cfg := config.GetConfig()
@@ -1127,6 +1123,7 @@ func TestStringToStatus(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("LTC-USDT")
 	if err != nil {
 		t.Fatal(err)
@@ -1142,6 +1139,7 @@ func TestGetRecentTrades(t *testing.T) {
 }
 
 func TestGetExchangeHistory(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)

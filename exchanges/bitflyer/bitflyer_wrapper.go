@@ -55,22 +55,18 @@ func (b *Bitflyer) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Delimiter: currency.UnderscoreDelimiter,
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.UnderscoreDelimiter,
-			Uppercase: true,
-		},
+	requestFmt := &currency.PairFormat{
+		Delimiter: currency.UnderscoreDelimiter,
+		Uppercase: true,
 	}
-
-	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	configFmt := &currency.PairFormat{
+		Delimiter: currency.UnderscoreDelimiter,
+		Uppercase: true,
 	}
-	err = b.StoreAssetPairFormat(asset.Futures, fmt1)
+	err := b.SetGlobalPairsManager(requestFmt,
+		configFmt,
+		asset.Spot,
+		asset.Futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

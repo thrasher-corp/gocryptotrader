@@ -61,7 +61,6 @@ func Insert(trades ...Data) error {
 }
 
 func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
-	// get all exchanges
 	var err error
 	for i := range trades {
 		var tempEvent = modelSQLite.Trade{
@@ -88,7 +87,6 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 }
 
 func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
-	// get all exchanges
 	var err error
 	for i := range trades {
 		var tempEvent = modelPSQL.Trade{
@@ -233,7 +231,7 @@ func getByExchangeInRangePostgres(exchangeName string, startDate, endDate int64)
 	wheres := map[string]interface{}{
 		"exchange_name_id": exchangeUUID,
 	}
-	q := generateQuery(wheres, startDate, endDate, -1)
+	q := generateQuery(wheres, startDate, endDate, 50000)
 	query := modelPSQL.Trades(q...)
 	var result []*modelPSQL.Trade
 	result, err = query.All(context.Background(), database.DB.SQL)

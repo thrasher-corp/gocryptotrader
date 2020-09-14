@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
-	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -52,7 +51,6 @@ func RPCTestSetup(t *testing.T) {
 		t.Fatalf("failed to run migrations %v", err)
 	}
 	uuider, _ := uuid.NewV4()
-	testhelpers.EnableVerboseTestOutput()
 	err = exchange.Insert(exchange.Details{Name: testExchange, UUID: uuider})
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)

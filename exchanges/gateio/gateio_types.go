@@ -508,12 +508,14 @@ type wsOrderUpdate struct {
 	Params []interface{} `json:"params"`
 }
 
+// TradeHistory contains trade history data
 type TradeHistory struct {
 	Elapsed string              `json:"elapsed"`
 	Result  bool                `json:"result,string"`
 	Data    []TradeHistoryEntry `json:"data"`
 }
 
+// TradeHistoryEntry contains an individual trade
 type TradeHistoryEntry struct {
 	Amount    float64 `json:"amount,string"`
 	Date      string  `json:"date"`

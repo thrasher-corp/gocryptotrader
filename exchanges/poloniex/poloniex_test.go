@@ -568,6 +568,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTC_XMR")
 	if err != nil {
 		t.Fatal(err)
@@ -583,13 +584,14 @@ func TestGetRecentTrades(t *testing.T) {
 }
 
 func TestGetExchangeHistory(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTC_XMR")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var resp []trade.Data
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
-	tEnd := time.Date(2020, 6, 7, 0, 0, 0, 0, time.UTC)
+	tEnd := time.Date(2020, 6, 6, 1, 0, 0, 0, time.UTC)
 	resp, err = p.GetHistoricTrades(currencyPair, asset.Spot, tStart, tEnd)
 	if err != nil {
 		t.Error(err)

@@ -362,16 +362,14 @@ func TestGetStatSummary(t *testing.T) {
 }
 
 func TestGetTrade(t *testing.T) {
-	a, err := b.GetTrade(&GenericRequestParams{
-		Symbol: "XBT",
-		//Count:     1000000,
+	_, err := b.GetTrade(&GenericRequestParams{
+		Symbol:    "XBT",
 		Reverse:   false,
 		StartTime: time.Now().Add(-time.Hour).Format(time.RFC3339),
 	})
 	if err != nil {
 		t.Error("GetTrade() error", err)
 	}
-	t.Logf("%+v", a)
 }
 
 func TestGetPreviousTrades(t *testing.T) {
@@ -939,6 +937,7 @@ func TestWsTrades(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("XBTU20")
 	if err != nil {
 		t.Fatal(err)
@@ -954,6 +953,7 @@ func TestGetRecentTrades(t *testing.T) {
 }
 
 func TestGetExchangeHistory(t *testing.T) {
+	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("XBTU20")
 	if err != nil {
 		t.Fatal(err)
