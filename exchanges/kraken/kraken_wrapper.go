@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -66,7 +67,23 @@ func (k *Kraken) SetDefaults() {
 		Delimiter: currency.DashDelimiter,
 		Separator: ",",
 	}
+
+	futures := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+	}
+
 	err := k.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = k.StoreAssetPairFormat(asset.Futures, futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -292,47 +309,62 @@ func (k *Kraken) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	if !assetTranslator.Seeded() {
-		if err := k.SeedAssets(); err != nil {
+func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
+	var products []string
+
+	switch assetType {
+	case asset.Spot:
+		if !assetTranslator.Seeded() {
+			if err := k.SeedAssets(); err != nil {
+				return nil, err
+			}
+		}
+
+		pairs, err := k.GetAssetPairs([]string{}, "")
+		if err != nil {
 			return nil, err
 		}
-	}
 
-	pairs, err := k.GetAssetPairs([]string{}, "")
-	if err != nil {
-		return nil, err
-	}
-
-	format, err := k.GetPairFormat(asset, false)
-	if err != nil {
-		return nil, err
-	}
-
-	var products []string
-	for i := range pairs {
-		if strings.Contains(pairs[i].Altname, ".d") {
-			continue
+		format, err := k.GetPairFormat(assetType, false)
+		if err != nil {
+			return nil, err
 		}
 
-		base := assetTranslator.LookupAltname(pairs[i].Base)
-		if base == "" {
-			log.Warnf(log.ExchangeSys,
-				"%s unable to lookup altname for base currency %s",
-				k.Name,
-				pairs[i].Base)
-			continue
-		}
+		for i := range pairs {
+			if strings.Contains(pairs[i].Altname, ".d") {
+				continue
+			}
 
-		quote := assetTranslator.LookupAltname(pairs[i].Quote)
-		if quote == "" {
-			log.Warnf(log.ExchangeSys,
-				"%s unable to lookup altname for quote currency %s",
-				k.Name,
-				pairs[i].Quote)
-			continue
+			base := assetTranslator.LookupAltname(pairs[i].Base)
+			if base == "" {
+				log.Warnf(log.ExchangeSys,
+					"%s unable to lookup altname for base currency %s",
+					k.Name,
+					pairs[i].Base)
+				continue
+			}
+
+			quote := assetTranslator.LookupAltname(pairs[i].Quote)
+			if quote == "" {
+				log.Warnf(log.ExchangeSys,
+					"%s unable to lookup altname for quote currency %s",
+					k.Name,
+					pairs[i].Quote)
+				continue
+			}
+			products = append(products, base+format.Delimiter+quote)
 		}
-		products = append(products, base+format.Delimiter+quote)
+	case asset.Futures:
+		pairs, err := k.GetFuturesMarkets()
+		if err != nil {
+			return nil, err
+		}
+		for x := range pairs.Instruments {
+			if pairs.Instruments[x].Tradable == true {
+				fmt.Println(pairs.Instruments[x].Symbol)
+				products = append(products, pairs.Instruments[x].Symbol)
+			}
+		}
 	}
 	return products, nil
 }
@@ -344,12 +376,24 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-
 	p, err := currency.NewPairsFromStrings(pairs)
 	if err != nil {
 		return err
 	}
-	return k.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	err = k.UpdatePairs(p, asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+
+	futuresPairs, err := k.FetchTradablePairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	fp, err := currency.NewPairsFromStrings(futuresPairs)
+	if err != nil {
+		return err
+	}
+	return k.UpdatePairs(fp, asset.Futures, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -362,40 +406,61 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 	if err != nil {
 		return nil, err
 	}
-	tickers, err := k.GetTickers(pairsCollated)
-	if err != nil {
-		return nil, err
-	}
 
-	for i := range pairs {
-		for c, t := range tickers {
-			pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
-			if err != nil {
-				return nil, err
-			}
-			if !strings.EqualFold(pairFmt.String(), c) {
-				altCurrency := assetTranslator.LookupAltname(c)
-				if altCurrency == "" {
-					continue
-				}
-				if !strings.EqualFold(pairFmt.String(), altCurrency) {
-					continue // This looks dodge
-				}
-			}
+	switch assetType {
+	case asset.Spot:
+		tickers, err := k.GetTickers(pairsCollated)
+		if err != nil {
+			return nil, err
+		}
 
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         t.Last,
-				High:         t.High,
-				Low:          t.Low,
-				Bid:          t.Bid,
-				Ask:          t.Ask,
-				Volume:       t.Volume,
-				Open:         t.Open,
-				Pair:         pairs[i],
-				ExchangeName: k.Name,
-				AssetType:    assetType})
-			if err != nil {
-				return nil, err
+		for i := range pairs {
+			for c, t := range tickers {
+				pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
+				if err != nil {
+					return nil, err
+				}
+				if !strings.EqualFold(pairFmt.String(), c) {
+					altCurrency := assetTranslator.LookupAltname(c)
+					if altCurrency == "" {
+						continue
+					}
+					if !strings.EqualFold(pairFmt.String(), altCurrency) {
+						continue // This looks dodge
+					}
+				}
+
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         t.Last,
+					High:         t.High,
+					Low:          t.Low,
+					Bid:          t.Bid,
+					Ask:          t.Ask,
+					Volume:       t.Volume,
+					Open:         t.Open,
+					Pair:         pairs[i],
+					ExchangeName: k.Name,
+					AssetType:    assetType})
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	case asset.Futures:
+		tickers, err := k.GetFuturesTickers()
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range pairs {
+			for x := range tickers.Tickers {
+				pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
+				if err != nil {
+					return nil, err
+				}
+				if !strings.EqualFold(pairFmt.String(), tickers.Tickers[x].Symbol) {
+
+				}
 			}
 		}
 	}

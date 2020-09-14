@@ -57,7 +57,7 @@ func (h *HUOBI) SetDefaults() {
 	h.API.CredentialsValidator.RequiresSecret = true
 
 	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: false},
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: currency.DashDelimiter,
 			Uppercase: true,
@@ -436,11 +436,9 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 				if err != nil {
 					return nil, err
 				}
-
-				if pairFmt.String() != tickers.Data[j].Symbol {
+				if pairFmt.Lower().String() != strings.ToLower(tickers.Data[j].Symbol) {
 					continue
 				}
-
 				err = ticker.ProcessTicker(&ticker.Price{
 					High:         tickers.Data[j].High,
 					Low:          tickers.Data[j].Low,
@@ -534,7 +532,6 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 	switch assetType {
 	case asset.Spot:
-
 		orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
 			Symbol: formatPair.String(),
 			Type:   OrderBookDataRequestParamsTypeStep0,
@@ -602,6 +599,10 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		}
 
 	}
+
+	orderBook.Pair = p
+	orderBook.ExchangeName = h.Name
+	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
 	if err != nil {

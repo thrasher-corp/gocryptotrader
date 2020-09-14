@@ -24,42 +24,45 @@ import (
 )
 
 const (
-	krakenAPIURL             = "https://api.kraken.com"
-	krakenFuturesURL         = "https://futures.kraken.com"
-	futuresURL               = "https://futures.kraken.com/derivatives"
-	krakenAPIVersion         = "0"
-	krakenServerTime         = "Time"
-	krakenAssets             = "Assets"
-	krakenAssetPairs         = "AssetPairs?"
-	krakenTicker             = "Ticker"
-	krakenOHLC               = "OHLC"
-	krakenDepth              = "Depth"
-	krakenTrades             = "Trades"
-	krakenSpread             = "Spread"
-	krakenBalance            = "Balance"
-	krakenTradeBalance       = "TradeBalance"
-	krakenOpenOrders         = "OpenOrders"
-	krakenClosedOrders       = "ClosedOrders"
-	krakenQueryOrders        = "QueryOrders"
-	krakenTradeHistory       = "TradesHistory"
-	krakenQueryTrades        = "QueryTrades"
-	krakenOpenPositions      = "OpenPositions"
-	krakenLedgers            = "Ledgers"
-	krakenQueryLedgers       = "QueryLedgers"
-	krakenTradeVolume        = "TradeVolume"
-	krakenOrderCancel        = "CancelOrder"
-	krakenOrderPlace         = "AddOrder"
-	krakenWithdrawInfo       = "WithdrawInfo"
-	krakenWithdraw           = "Withdraw"
-	krakenDepositMethods     = "DepositMethods"
-	krakenDepositAddresses   = "DepositAddresses"
-	krakenWithdrawStatus     = "WithdrawStatus"
-	krakenWithdrawCancel     = "WithdrawCancel"
-	krakenWebsocketToken     = "GetWebSocketsToken"
-	krakenFuturesInstruments = "/derivatives/api/v3/instruments"
-	krakenFuturesTickers     = "/derivatives/api/v3/tickers"
+	krakenAPIURL           = "https://api.kraken.com"
+	krakenFuturesURL       = "https://futures.kraken.com"
+	futuresURL             = "https://futures.kraken.com/derivatives"
+	krakenAPIVersion       = "0"
+	krakenServerTime       = "Time"
+	krakenAssets           = "Assets"
+	krakenAssetPairs       = "AssetPairs?"
+	krakenTicker           = "Ticker"
+	krakenOHLC             = "OHLC"
+	krakenDepth            = "Depth"
+	krakenTrades           = "Trades"
+	krakenSpread           = "Spread"
+	krakenBalance          = "Balance"
+	krakenTradeBalance     = "TradeBalance"
+	krakenOpenOrders       = "OpenOrders"
+	krakenClosedOrders     = "ClosedOrders"
+	krakenQueryOrders      = "QueryOrders"
+	krakenTradeHistory     = "TradesHistory"
+	krakenQueryTrades      = "QueryTrades"
+	krakenOpenPositions    = "OpenPositions"
+	krakenLedgers          = "Ledgers"
+	krakenQueryLedgers     = "QueryLedgers"
+	krakenTradeVolume      = "TradeVolume"
+	krakenOrderCancel      = "CancelOrder"
+	krakenOrderPlace       = "AddOrder"
+	krakenWithdrawInfo     = "WithdrawInfo"
+	krakenWithdraw         = "Withdraw"
+	krakenDepositMethods   = "DepositMethods"
+	krakenDepositAddresses = "DepositAddresses"
+	krakenWithdrawStatus   = "WithdrawStatus"
+	krakenWithdrawCancel   = "WithdrawCancel"
+	krakenWebsocketToken   = "GetWebSocketsToken"
 
 	// Futures
+	futuresTickers      = "/api/v3/tickers"
+	futuresOrderbook    = "/api/v3/orderbook"
+	futuresInstruments  = "/api/v3/instruments"
+	futuresTradeHistory = "/api/v3/history"
+
 	futuresSendOrder         = "/api/v3/sendorder"
 	futuresCancelOrder       = "/api/v3/cancelorder"
 	futuresOrderFills        = "/api/v3/fills"
@@ -323,16 +326,36 @@ func (k *Kraken) SeedAssets() error {
 	return nil
 }
 
+// GetFuturesOrderbook gets orderbook data for futures
+func (k *Kraken) GetFuturesOrderbook(symbol string) (FuturesOrderbookData, error) {
+	var resp FuturesOrderbookData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	return resp, k.SendHTTPRequest(futuresURL+futuresOrderbook+"?"+params.Encode(), &resp)
+}
+
 // GetFuturesMarkets gets a list of futures markets and their data
 func (k *Kraken) GetFuturesMarkets() (FuturesInstrumentData, error) {
 	var resp FuturesInstrumentData
-	return resp, k.SendHTTPRequest(krakenFuturesURL+krakenFuturesInstruments, &resp)
+	return resp, k.SendHTTPRequest(futuresURL+futuresInstruments, &resp)
 }
 
 // GetFuturesTickers gets a list of futures tickers and their data
 func (k *Kraken) GetFuturesTickers() (FuturesTickerData, error) {
 	var resp FuturesTickerData
-	return resp, k.SendHTTPRequest(krakenFuturesURL+krakenFuturesTickers, &resp)
+
+	return resp, k.SendHTTPRequest(futuresURL+futuresTickers, &resp)
+}
+
+// GetFuturesTradeHistory gets public trade history data for futures
+func (k *Kraken) GetFuturesTradeHistory(symbol string, lastTime time.Time) (FuturesTradeHistoryData, error) {
+	var resp FuturesTradeHistoryData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !lastTime.IsZero() {
+		params.Set("lastTime", lastTime.Format("2006-01-02T15:04:05.070Z"))
+	}
+	return resp, k.SendHTTPRequest(futuresURL+futuresTradeHistory+"?"+params.Encode(), &resp)
 }
 
 // GetAssets returns a full asset list

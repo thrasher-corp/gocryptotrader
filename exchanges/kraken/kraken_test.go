@@ -65,6 +65,16 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.FetchTradablePairs(asset.Futures)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestFuturesBatchOrder(t *testing.T) {
 	k.Verbose = true
 	var data []PlaceBatchOrderData
@@ -235,12 +245,21 @@ func TestFuturesGetTransfers(t *testing.T) {
 	}
 }
 
-func TestGetFuturesMarkets(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
-	}
+func TestGetFuturesOrderbook(t *testing.T) {
+	k.Verbose = true
 	t.Parallel()
-	_, err := k.GetFuturesMarkets()
+	a, err := k.GetFuturesOrderbook("pi_xbtusd")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesMarkets(t *testing.T) {
+	k.Verbose = true
+	t.Parallel()
+	a, err := k.GetFuturesMarkets()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -249,6 +268,16 @@ func TestGetFuturesMarkets(t *testing.T) {
 func TestGetFuturesTickers(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetFuturesTickers()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesTradeHistory(t *testing.T) {
+	k.Verbose = true
+	t.Parallel()
+	a, err := k.GetFuturesTradeHistory("pi_xbtusd", time.Now().Add(-time.Hour*24))
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

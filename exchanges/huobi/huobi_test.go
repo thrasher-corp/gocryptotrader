@@ -515,22 +515,61 @@ func TestFetchTradablePairs(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
-	h.Verbose = true
 	t.Parallel()
-	// cp1, err := currency.NewPairFromString("BTC-USD")
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-	// resp, err := h.UpdateTicker(cp1, asset.CoinMarginedFutures)
-	// fmt.Printf("%+v", resp)
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-	cp2, err := currency.NewPairFromString("btc200925")
+	sp, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	sResp, err := h.UpdateTicker(sp, asset.Spot)
+	fmt.Printf("%+v", sResp)
+	if err != nil {
+		t.Error(err)
+	}
+	cp1, err := currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := h.UpdateTicker(cp1, asset.CoinMarginedFutures)
+	fmt.Printf("%+v", resp)
+	if err != nil {
+		t.Error(err)
+	}
+	cp2, err := currency.NewPairFromString("BTC200918")
 	if err != nil {
 		t.Error(err)
 	}
 	resp2, err := h.UpdateTicker(cp2, asset.Futures)
+	fmt.Printf("%+v", resp2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	sp, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	sResp, err := h.UpdateOrderbook(sp, asset.Spot)
+	fmt.Printf("%+v", sResp)
+	if err != nil {
+		t.Error(err)
+	}
+	cp1, err := currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := h.UpdateOrderbook(cp1, asset.CoinMarginedFutures)
+	fmt.Printf("%+v", resp)
+	if err != nil {
+		t.Error(err)
+	}
+	cp2, err := currency.NewPairFromString("BTC200918")
+	if err != nil {
+		t.Error(err)
+	}
+	resp2, err := h.UpdateOrderbook(cp2, asset.Futures)
 	fmt.Printf("%+v", resp2)
 	if err != nil {
 		t.Error(err)
@@ -1121,7 +1160,6 @@ func TestGetDepth(t *testing.T) {
 		Symbol: testSymbol,
 		Type:   OrderBookDataRequestParamsTypeStep1,
 	})
-
 	if err != nil {
 		t.Errorf("Huobi TestGetDepth: %s", err)
 	}

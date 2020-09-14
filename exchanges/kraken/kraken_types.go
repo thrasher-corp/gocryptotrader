@@ -37,7 +37,7 @@ type FuturesInstrumentData struct {
 		LastTradingTime string  `json:"lastTradingTime"`
 		TickSize        float64 `json:"tickSize"`
 		ContractSize    float64 `json:"contractSize"`
-		Tradable        bool    `json:"tradable"`
+		Tradable        bool    `json:"tradeable"`
 		MarginLevels    []struct {
 			Contracts         float64 `json:"contracts"`
 			InitialMargin     float64 `json:"initialMargin"`
