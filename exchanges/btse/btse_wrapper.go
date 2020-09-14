@@ -429,22 +429,19 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if err != nil {
 		return resp, err
 	}
-
-	r, err := b.CreateOrder(s.Amount,
-		s.Price,
-		s.Side.String(),
-		s.Type.String(),
-		fpair.String(),
-		goodTillCancel,
-		s.ClientID)
+	r, err := b.CreateOrder(s.ClientID, 0.0,
+		false,
+		s.Price, s.Side.String(), s.Amount, 0, 0,
+		fpair.String(), goodTillCancel,
+		0.0, 0.0,
+		"", s.Type.String())
 	if err != nil {
 		return resp, err
 	}
 
-	if *r != "" {
-		resp.IsOrderPlaced = true
-		resp.OrderID = *r
-	}
+	resp.IsOrderPlaced = true
+	resp.OrderID = r.OrderID
+
 	if s.Type == order.Market {
 		resp.FullyMatched = true
 	}

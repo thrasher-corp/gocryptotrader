@@ -251,7 +251,9 @@ type OpenOrder struct {
 }
 
 // CancelOrder stores cancelled order's statuses
-type CancelOrder []struct {
+type CancelOrder []Order
+
+type Order struct {
 	AverageFillPrice float64 `json:"averageFillPrice"`
 	ClOrderID        string  `json:"clOrderID"`
 	Deviation        float64 `json:"deviation"`

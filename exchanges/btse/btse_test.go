@@ -323,13 +323,28 @@ func TestCreateOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
-	_, err := b.CreateOrder(10,
-		-10000,
-		order.Buy.String(),
-		order.Limit.String(),
-		testPair,
-		"",
-		"")
+	_, err := b.CreateOrder("", 0.0,
+		false,
+		-1, "BUY", 100, 0, 0,
+		testPair, "GTC",
+		0.0, 0.0,
+		"", "LIMIT")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBTSEIndexOrderPeg(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
+	}
+	_, err := b.IndexOrderPeg("", 0.0,
+		false,
+		-1, "BUY", 100, 0, 0,
+		testPair, "GTC",
+		0.0, 0.0,
+		"", "LIMIT")
 	if err != nil {
 		t.Error(err)
 	}

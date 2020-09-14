@@ -50,6 +50,7 @@ const (
 	btseExchangeHistory  = "user/trade_history"
 	btseUserFee          = "user/fees"
 	btseOrder            = "order"
+	btsePegOrder         = "order/peg"
 	btsePendingOrders    = "user/open_orders"
 	btseCancelAllAfter   = "order/cancelAllAfter"
 )
@@ -243,32 +244,53 @@ func (b *BTSE) WalletWithdrawal(currency, address, tag, amount string) (Withdraw
 }
 
 // CreateOrder creates an order
-func (b *BTSE) CreateOrder(size, price float64, side, orderType, symbol, timeInForce, tag string) (*string, error) {
+func (b *BTSE) CreateOrder(clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) (Order, error) {
 	req := make(map[string]interface{})
-	req["size"] = size
-	req["price"] = price
+	if clOrderID != "" {
+		req["clOrderID"] = clOrderID
+	}
+	if deviation > 0.0 {
+		req["deviation"] = strconv.FormatFloat(deviation, 'f', 0, 64)
+	}
+	if postOnly {
+		req["postOnly"] = "true"
+	}
+	if price > 0.0 {
+		req["price"] = strconv.FormatFloat(price, 'f', 0, 64)
+	}
 	if side != "" {
 		req["side"] = side
 	}
-	if orderType != "" {
-		req["type"] = orderType
+	if size > 0.0 {
+		req["size"] = strconv.FormatFloat(size, 'f', 0, 64)
+	}
+	if stealth > 0.0 {
+		req["stealth"] = strconv.FormatFloat(stealth, 'f', 0, 64)
+	}
+	if stopPrice > 0.0 {
+		req["stopPrice"] = strconv.FormatFloat(stopPrice, 'f', 0, 64)
 	}
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
 	if timeInForce != "" {
-		req["time_in_force"] = timeInForce
+		req["timeInForce"] = timeInForce
 	}
-	if tag != "" {
-		req["tag"] = tag
+	if trailValue > 0.0 {
+		req["trailValue"] = strconv.FormatFloat(trailValue, 'f', 0, 64)
+	}
+	if triggerPrice > 0.0 {
+		req["triggerPrice"] = strconv.FormatFloat(triggerPrice, 'f', 0, 64)
+	}
+	if txType != "" {
+		req["txType"] = txType
+	}
+	if orderType != "" {
+		req["orderType"] = orderType
 	}
 
-	type orderResp struct {
-		ID string `json:"id"`
-	}
-
-	var r orderResp
-	return &r.ID, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, true, url.Values{}, req, &r, orderFunc)
+	var r Order
+	return r, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, true, url.Values{}, req, &r, orderFunc)
 }
 
 // GetOrders returns all pending orders
@@ -307,8 +329,53 @@ func (b *BTSE) CancelAllAfter(timeout int) error {
 	return b.SendAuthenticatedHTTPRequest(http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
 }
 
-func (b *BTSE) IndexOrderPeg() {
+func (b *BTSE) IndexOrderPeg(clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) (Order, error) {
+	var o Order
+	req := make(map[string]interface{})
+	if clOrderID != "" {
+		req["clOrderID"] = clOrderID
+	}
+	if deviation > 0.0 {
+		req["deviation"] = strconv.FormatFloat(deviation, 'f', 0, 64)
+	}
+	if postOnly {
+		req["postOnly"] = "true"
+	}
+	if price > 0.0 {
+		req["price"] = strconv.FormatFloat(price, 'f', 0, 64)
+	}
+	if side != "" {
+		req["side"] = side
+	}
+	if size > 0.0 {
+		req["size"] = strconv.FormatFloat(size, 'f', 0, 64)
+	}
+	if stealth > 0.0 {
+		req["stealth"] = strconv.FormatFloat(stealth, 'f', 0, 64)
+	}
+	if stopPrice > 0.0 {
+		req["stopPrice"] = strconv.FormatFloat(stopPrice, 'f', 0, 64)
+	}
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
+	if timeInForce != "" {
+		req["timeInForce"] = timeInForce
+	}
+	if trailValue > 0.0 {
+		req["trailValue"] = strconv.FormatFloat(trailValue, 'f', 0, 64)
+	}
+	if triggerPrice > 0.0 {
+		req["triggerPrice"] = strconv.FormatFloat(triggerPrice, 'f', 0, 64)
+	}
+	if txType != "" {
+		req["txType"] = txType
+	}
+	if orderType != "" {
+		req["orderType"] = orderType
+	}
 
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btsePegOrder, true, url.Values{}, req, nil, orderFunc)
 }
 
 // TradeHistory returns previous trades on exchange
