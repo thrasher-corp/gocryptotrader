@@ -58,12 +58,12 @@ func areTestAPIKeysSet() bool {
 
 func TestGetMarketsSummary(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketsSummary("", true)
+	_, err := b.GetMarketSummary("", true)
 	if err != nil {
 		t.Error(err)
 	}
 
-	ret, err := b.GetMarketsSummary("BTC-USD", true)
+	ret, err := b.GetMarketSummary(testPair, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,8 +137,24 @@ func TestOHLCV(t *testing.T) {
 	}
 }
 
+func TestGetPrice(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetPrice(testPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	ret := b.FormatExchangeKlineInterval(kline.OneDay)
+	if ret != "1440" {
+		t.Fatalf("unexpected result received: %v", ret)
+	}
+}
+
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	curr, err := currency.NewPairFromString(testPair)
 	if err != nil {
 		t.Fatal(err)
@@ -148,6 +164,14 @@ func TestGetHistoricCandles(t *testing.T) {
 		curr, asset.Spot,
 		time.Time{}, time.Time{},
 		kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(
+		curr, asset.Spot,
+		time.Time{}, time.Time{},
+		kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,14 +206,14 @@ func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTrades(testPair,
 		time.Now().AddDate(0, 0, -1), time.Now(),
-		50)
+		0, 0, 50, false)
 	if err != nil {
 		t.Error(err)
 	}
 
 	_, err = b.GetTrades(testPair,
 		time.Now(), time.Now().AddDate(0, -1, 0),
-		50)
+		0, 0, 50, false)
 	if err == nil {
 		t.Error("expected error if start time is after end time")
 	}
@@ -316,7 +340,7 @@ func TestGetOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := b.GetOrders("BTC-USDT", "", "")
+	_, err := b.GetOrders(testPair, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -377,7 +401,11 @@ func TestTradeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := b.TradeHistory(testPair, "", time.Time{}, time.Time{}, 5)
+	_, err := b.TradeHistory("",
+		time.Time{}, time.Time{},
+		0, 0, 0,
+		false,
+		"", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +577,7 @@ func TestCancelOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
-	_, err := b.CancelExistingOrder("", "BTC-USD", "")
+	_, err := b.CancelExistingOrder("", testPair, "")
 	if err != nil {
 		t.Fatal(err)
 	}

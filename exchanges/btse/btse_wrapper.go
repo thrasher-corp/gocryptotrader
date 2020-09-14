@@ -221,7 +221,7 @@ func (b *BTSE) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
 	var currencies []string
-	m, err := b.GetMarketsSummary("", a == asset.Spot)
+	m, err := b.GetMarketSummary("", a == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -265,12 +265,12 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 		return nil, err
 	}
 
-	t, err := b.GetMarketsSummary(fpair.String(), assetType == asset.Spot)
+	t, err := b.GetMarketSummary(fpair.String(), assetType == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	err = ticker.ProcessTicker(&ticker.Price{
-		Pair:         p,
+		Pair:         fpair,
 		Ask:          t[0].LowestAsk,
 		Bid:          t[0].HighestBid,
 		Low:          t[0].Low24Hr,
@@ -396,7 +396,10 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item, timesta
 		return nil, err
 	}
 
-	trades, err := b.GetTrades(fpair.String(), timestampStart, timestampEnd, 0)
+	trades, err := b.GetTrades(fpair.String(),
+		timestampStart, timestampEnd,
+		0, 0, 0,
+		false)
 	if err != nil {
 		return nil, err
 	}
@@ -543,7 +546,11 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		od.Price = o[i].Price
 		od.Status = order.Status(o[i].OrderState)
 
-		th, err := b.TradeHistory("", orderID, time.Time{}, time.Time{}, 100)
+		th, err := b.TradeHistory("",
+			time.Time{}, time.Time{},
+			0, 0, 0,
+			false,
+			"", orderID)
 		if err != nil {
 			return od,
 				fmt.Errorf("unable to get order fills for orderID %s",
@@ -671,7 +678,12 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 			openOrder.Type = order.Limit
 		}
 
-		fills, err := b.TradeHistory("", resp[i].OrderID, time.Time{}, time.Time{}, 100)
+		fills, err := b.TradeHistory(
+			"",
+			time.Time{}, time.Time{},
+			0, 0, 0,
+			false,
+			"", resp[i].OrderID)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s: Unable to get order fills for orderID %s",
@@ -777,6 +789,10 @@ func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 func (b *BTSE) ValidateCredentials() error {
 	_, err := b.UpdateAccountInfo()
 	return b.CheckTransientError(err)
+}
+
+func (b *BTSE) FormatExchangeKlineInterval(in kline.Interval) string {
+	return strconv.FormatFloat(in.Duration().Minutes(), 'f', 0, 64)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

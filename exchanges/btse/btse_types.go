@@ -6,49 +6,56 @@ const (
 	// Default order type is good till cancel (or filled)
 	goodTillCancel = "GTC"
 
-	orderInserted = 2
+	orderInserted  = 2
 	orderCancelled = 6
 )
 
 // MarketSummary response data
 type MarketSummary []struct {
-	Symbol              string      `json:"symbol"`
-	Last                float64     `json:"last"`
-	LowestAsk           float64     `json:"lowestAsk"`
-	HighestBid          float64     `json:"highestBid"`
-	PercentageChange    float64     `json:"percentageChange"`
-	Volume              float64     `json:"volume"`
-	High24Hr            float64     `json:"high24Hr"`
-	Low24Hr             float64     `json:"low24Hr"`
-	Base                string      `json:"base"`
-	Quote               string      `json:"quote"`
-	Active              bool        `json:"active"`
-	Size                float64     `json:"size"`
-	MinValidPrice       float64     `json:"minValidPrice"`
-	MinPriceIncrement   float64     `json:"minPriceIncrement"`
-	MinOrderSize        float64     `json:"minOrderSize"`
-	MaxOrderSize        float64     `json:"maxOrderSize"`
-	MinSizeIncrement    float64     `json:"minSizeIncrement"`
-	OpenInterest        float64     `json:"openInterest"`
-	OpenInterestUSD     float64     `json:"openInterestUSD"`
-	ContractStart       int         `json:"contractStart"`
-	ContractEnd         int         `json:"contractEnd"`
-	TimeBasedContract   bool        `json:"timeBasedContract"`
-	OpenTime            int         `json:"openTime"`
-	CloseTime           int         `json:"closeTime"`
-	StartMatching       int         `json:"startMatching"`
-	InactiveTime        int         `json:"inactiveTime"`
-	FundingRate         float64     `json:"fundingRate"`
-	ContractSize        float64     `json:"contractSize"`
-	MaxPosition         int         `json:"maxPosition"`
-	MinRiskLimit        int         `json:"minRiskLimit"`
-	MaxRiskLimit        int         `json:"maxRiskLimit"`
-	AvailableSettlement interface{} `json:"availableSettlement"`
-	Futures             bool        `json:"futures"`
+	Symbol              string   `json:"symbol"`
+	Last                float64  `json:"last"`
+	LowestAsk           float64  `json:"lowestAsk"`
+	HighestBid          float64  `json:"highestBid"`
+	PercentageChange    float64  `json:"percentageChange"`
+	Volume              float64  `json:"volume"`
+	High24Hr            float64  `json:"high24Hr"`
+	Low24Hr             float64  `json:"low24Hr"`
+	Base                string   `json:"base"`
+	Quote               string   `json:"quote"`
+	Active              bool     `json:"active"`
+	Size                float64  `json:"size"`
+	MinValidPrice       float64  `json:"minValidPrice"`
+	MinPriceIncrement   float64  `json:"minPriceIncrement"`
+	MinOrderSize        float64  `json:"minOrderSize"`
+	MaxOrderSize        float64  `json:"maxOrderSize"`
+	MinSizeIncrement    float64  `json:"minSizeIncrement"`
+	OpenInterest        float64  `json:"openInterest"`
+	OpenInterestUSD     float64  `json:"openInterestUSD"`
+	ContractStart       int      `json:"contractStart"`
+	ContractEnd         int      `json:"contractEnd"`
+	TimeBasedContract   bool     `json:"timeBasedContract"`
+	OpenTime            int      `json:"openTime"`
+	CloseTime           int      `json:"closeTime"`
+	StartMatching       int      `json:"startMatching"`
+	InactiveTime        int      `json:"inactiveTime"`
+	FundingRate         float64  `json:"fundingRate"`
+	ContractSize        float64  `json:"contractSize"`
+	MaxPosition         int      `json:"maxPosition"`
+	MinRiskLimit        int      `json:"minRiskLimit"`
+	MaxRiskLimit        int      `json:"maxRiskLimit"`
+	AvailableSettlement []string `json:"availableSettlement"`
+	Futures             bool     `json:"futures"`
 }
 
 // OHLCV holds Open, High Low, Close, Volume data for set symbol
 type OHLCV [][]float64
+
+type Price []struct {
+	IndexPrice float64 `json:"indexPrice"`
+	LastPrice  float64 `json:"lastPrice"`
+	MarkPrice  float64 `json:"markPrice"`
+	Symbol     string  `json:"symbol"`
+}
 
 // SpotMarket stores market data
 type SpotMarket struct {
@@ -181,7 +188,7 @@ type TradeHistory []struct {
 	Size         float64 `json:"size"`
 	Symbol       string  `json:"symbol"`
 	Timestamp    string  `json:"timestamp"`
-	Total        int     `json:"total"`
+	Total        float64 `json:"total"`
 	TradeID      string  `json:"tradeId"`
 	TriggerPrice float64 `json:"triggerPrice"`
 	TriggerType  int     `json:"triggerType"`

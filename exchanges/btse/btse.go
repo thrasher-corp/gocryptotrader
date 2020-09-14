@@ -40,6 +40,7 @@ const (
 	btseTrades         = "trades"
 	btseTime           = "time"
 	btseOHLCV          = "ohlcv"
+	btsePrice          = "price"
 
 	// Authenticated endpoints
 	btseWallet           = "user/wallet"
@@ -51,12 +52,10 @@ const (
 	btseOrder            = "order"
 	btsePendingOrders    = "user/open_orders"
 	btseCancelAllAfter   = "order/cancelAllAfter"
-
-	btseTimeLayout = "2006-01-02 15:04:05"
 )
 
-// GetMarketsSummary stores market summary data
-func (b *BTSE) GetMarketsSummary(symbol string, spot bool) (MarketSummary, error) {
+// GetMarketSummary stores market summary data
+func (b *BTSE) GetMarketSummary(symbol string, spot bool) (MarketSummary, error) {
 	var m MarketSummary
 	path := btseMarketOverview
 	if symbol != "" {
@@ -94,7 +93,7 @@ func (b *BTSE) FetchOrderBookL2(symbol string, depth int) (*Orderbook, error) {
 }
 
 // GetTrades returns a list of trades for the specified symbol
-func (b *BTSE) GetTrades(symbol string, start, end time.Time, count int) ([]Trade, error) {
+func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool) ([]Trade, error) {
 	var t []Trade
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -107,6 +106,15 @@ func (b *BTSE) GetTrades(symbol string, start, end time.Time, count int) ([]Trad
 		}
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	if beforeSerialID > 0 {
+		urlValues.Add("beforeSerialId", strconv.Itoa(beforeSerialID))
+	}
+	if afterSerialID > 0 {
+		urlValues.Add("afterSerialId", strconv.Itoa(afterSerialID))
+	}
+	if includeOld {
+		urlValues.Add("includeOld", "true")
 	}
 	return t, b.SendHTTPRequest(http.MethodGet,
 		common.EncodeURLValues(btseTrades, urlValues), &t, true, queryFunc)
@@ -132,6 +140,13 @@ func (b *BTSE) OHLCV(symbol string, start, end time.Time, resolution int) (OHLCV
 	urlValues.Add("resolution", strconv.FormatInt(int64(res), 10))
 	endpoint := common.EncodeURLValues(btseOHLCV, urlValues)
 	return o, b.SendHTTPRequest(http.MethodGet, endpoint, &o, true, queryFunc)
+}
+
+// GetServerTime returns the exchanges server time
+func (b *BTSE) GetPrice(symbol string) (Price, error) {
+	var p Price
+	path := btsePrice + "?symbol=" + url.QueryEscape(symbol)
+	return p, b.SendHTTPRequest(http.MethodGet, path, &p, true, queryFunc)
 }
 
 // GetServerTime returns the exchanges server time
@@ -292,25 +307,41 @@ func (b *BTSE) CancelAllAfter(timeout int) error {
 	return b.SendAuthenticatedHTTPRequest(http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
 }
 
-// TradeHistory returns previous trades on exchange
-func (b *BTSE) TradeHistory(symbol, orderID string, start, end time.Time, count int) (TradeHistory, error) {
-	var resp TradeHistory
+func (b *BTSE) IndexOrderPeg() {
 
+}
+
+// TradeHistory returns previous trades on exchange
+func (b *BTSE) TradeHistory(symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool, clOrderID, orderID string) (TradeHistory, error) {
+	var resp TradeHistory
 	urlValues := url.Values{}
 	if symbol != "" {
 		urlValues.Add("symbol", symbol)
 	}
-	if orderID != "" {
-		urlValues.Add("orderID", orderID)
-	}
-	urlValues.Add("count", strconv.Itoa(count))
-
 	if !start.IsZero() && !end.IsZero() {
 		if start.After(end) || end.Before(start) {
 			return resp, errors.New("start and end must both be valid")
 		}
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	if beforeSerialID > 0 {
+		urlValues.Add("beforeSerialId", strconv.Itoa(beforeSerialID))
+	}
+	if afterSerialID > 0 {
+		urlValues.Add("afterSerialId", strconv.Itoa(afterSerialID))
+	}
+	if includeOld {
+		urlValues.Add("includeOld", "true")
+	}
+	if count > 0 {
+		urlValues.Add("count", strconv.Itoa(count))
+	}
+	if clOrderID != "" {
+		urlValues.Add("clOrderId", clOrderID)
+	}
+	if orderID != "" {
+		urlValues.Add("orderID", orderID)
 	}
 	return resp, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseExchangeHistory, true, urlValues, nil, &resp, queryFunc)
 }
@@ -328,6 +359,7 @@ func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}, spot
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+		Endpoint:      f,
 	})
 }
 
@@ -396,6 +428,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, isSpot bool
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+		Endpoint:      f,
 	})
 }
 
@@ -483,5 +516,5 @@ func (b *BTSE) calculateTradingFee(feeBuilder *exchange.FeeBuilder) float64 {
 }
 
 func parseOrderTime(timeStr string) (time.Time, error) {
-	return time.Parse(btseTimeLayout, timeStr)
+	return time.Parse(common.SimpleTimeFormat, timeStr)
 }
