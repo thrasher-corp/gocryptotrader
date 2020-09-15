@@ -113,7 +113,7 @@ func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
 	}
 	log.Printf("Loading config file %s..\n", filePath)
 
-	conf := &config.Config{}
+	conf := &config.Cfg
 	err = conf.ReadConfig(filePath, settings.EnableDryRun)
 	if err != nil {
 		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
