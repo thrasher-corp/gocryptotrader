@@ -50,6 +50,7 @@ type MarketSummary []struct {
 // OHLCV holds Open, High Low, Close, Volume data for set symbol
 type OHLCV [][]float64
 
+// Price stores last price for requested symbol
 type Price []struct {
 	IndexPrice float64 `json:"indexPrice"`
 	LastPrice  float64 `json:"lastPrice"`
@@ -202,7 +203,7 @@ type WalletHistory []struct {
 	Currency    string  `json:"currency"`
 	Description string  `json:"description"`
 	Fees        float64 `json:"fees"`
-	OrderID     int64   `json:"orderId"`
+	OrderID     string  `json:"orderId"`
 	Status      int     `json:"status"`
 	Timestamp   int64   `json:"timestamp"`
 	Type        int     `json:"type"`
@@ -250,9 +251,10 @@ type OpenOrder struct {
 	Triggered                    bool    `json:"triggered"`
 }
 
-// CancelOrder stores cancelled order's statuses
+// CancelOrder stores slice of orders
 type CancelOrder []Order
 
+// Order stores information for a single order
 type Order struct {
 	AverageFillPrice float64 `json:"averageFillPrice"`
 	ClOrderID        string  `json:"clOrderID"`

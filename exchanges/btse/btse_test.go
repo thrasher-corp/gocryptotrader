@@ -154,7 +154,6 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	curr, err := currency.NewPairFromString(testPair)
 	if err != nil {
 		t.Fatal(err)

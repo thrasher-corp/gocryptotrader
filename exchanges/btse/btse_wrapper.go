@@ -788,6 +788,7 @@ func (b *BTSE) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval formats kline interval to exchange requested type
 func (b *BTSE) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Minutes(), 'f', 0, 64)
 }
