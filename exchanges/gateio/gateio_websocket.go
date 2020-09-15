@@ -208,6 +208,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Amount,
 				Side:         tSide,
+				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			})
 		}
 		return trade.AddTradesToBuffer(g.Name, trades...)

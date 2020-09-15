@@ -318,12 +318,14 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			}
 
 			trades = append(trades, trade.Data{
-				Timestamp:    time.Unix(tradeSnap.Trades[i].Timestamp, 0),
+				Timestamp:    time.Unix(0, tradeSnap.Trades[i].Timestamp*1000),
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
 				Exchange:     c.Name,
 				Price:        tradeSnap.Trades[i].Price,
 				Side:         tSide,
+				Amount:       tradeSnap.Trades[i].Quantity,
+				TID:          strconv.FormatInt(tradeSnap.Trades[i].TransID, 10),
 			})
 		}
 		return trade.AddTradesToBuffer(c.Name, trades...)
@@ -358,12 +360,14 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		}
 
 		return trade.AddTradesToBuffer(c.Name, trade.Data{
-			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
+			Timestamp:    time.Unix(0, tradeUpdate.Timestamp*1000),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     c.Name,
 			Price:        tradeUpdate.Price,
 			Side:         tSide,
+			Amount:       tradeUpdate.Quantity,
+			TID:          strconv.FormatInt(tradeUpdate.TransID, 10),
 		})
 	case "order_filled", "order_rejected", "order_accepted":
 		var orderContainer wsOrderContainer

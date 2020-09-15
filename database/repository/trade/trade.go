@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/sqlboiler/boil"
@@ -43,7 +44,7 @@ func Insert(trades ...Data) error {
 		if err != nil {
 			err = tx.Rollback()
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "trade.Insert tx.Rollback %v", err)
+				log.Errorf(log.DatabaseMgr, "Insert tx.Rollback %v", err)
 			}
 		}
 	}()
@@ -61,23 +62,22 @@ func Insert(trades ...Data) error {
 }
 
 func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
-	var err error
 	for i := range trades {
 		var tempEvent = modelSQLite.Trade{
 			ID:             trades[i].ID,
 			ExchangeNameID: trades[i].ExchangeNameID,
-			Base:           trades[i].Base,
-			Quote:          trades[i].Quote,
-			Asset:          trades[i].AssetType,
+			Base:           strings.ToUpper(trades[i].Base),
+			Quote:          strings.ToUpper(trades[i].Quote),
+			Asset:          strings.ToUpper(trades[i].AssetType),
 			Price:          trades[i].Price,
 			Amount:         trades[i].Amount,
-			Side:           trades[i].Side,
+			Side:           strings.ToUpper(trades[i].Side),
 			Timestamp:      float64(trades[i].Timestamp),
 		}
 		if trades[i].TID != "" {
 			tempEvent.Tid.SetValid(trades[i].TID)
 		}
-		err = tempEvent.Insert(ctx, tx, boil.Infer())
+		err := tempEvent.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return err
 		}
@@ -91,12 +91,12 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	for i := range trades {
 		var tempEvent = modelPSQL.Trade{
 			ExchangeNameID: trades[i].ExchangeNameID,
-			Base:           trades[i].Base,
-			Quote:          trades[i].Quote,
-			Asset:          trades[i].AssetType,
+			Base:           strings.ToUpper(trades[i].Base),
+			Quote:          strings.ToUpper(trades[i].Quote),
+			Asset:          strings.ToUpper(trades[i].AssetType),
 			Price:          trades[i].Price,
 			Amount:         trades[i].Amount,
-			Side:           trades[i].Side,
+			Side:           strings.ToUpper(trades[i].Side),
 			Timestamp:      trades[i].Timestamp,
 			ID:             trades[i].ID,
 		}
@@ -104,7 +104,7 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			tempEvent.Tid.SetValid(trades[i].TID)
 		}
 
-		err = tempEvent.Insert(ctx, tx, boil.Infer())
+		err = tempEvent.Upsert(ctx, tx, false, nil, boil.Infer(), boil.Infer())
 		if err != nil {
 			return err
 		}
@@ -141,12 +141,12 @@ func getByUUIDSQLite(uuid string) (td Data, err error) {
 		ID:        result.ID,
 		Timestamp: int64(result.Timestamp),
 		Exchange:  result.ExchangeNameID,
-		Base:      result.Base,
-		Quote:     result.Quote,
-		AssetType: result.Asset,
+		Base:      strings.ToUpper(result.Base),
+		Quote:     strings.ToUpper(result.Quote),
+		AssetType: strings.ToUpper(result.Asset),
 		Price:     result.Price,
 		Amount:    result.Amount,
-		Side:      result.Side,
+		Side:      strings.ToUpper(result.Side),
 	}
 	return td, nil
 }
@@ -163,12 +163,12 @@ func getByUUIDPostgres(uuid string) (td Data, err error) {
 		ID:        result.ID,
 		Timestamp: result.Timestamp,
 		Exchange:  result.ExchangeNameID,
-		Base:      result.Base,
-		Quote:     result.Quote,
-		AssetType: result.Asset,
+		Base:      strings.ToUpper(result.Base),
+		Quote:     strings.ToUpper(result.Quote),
+		AssetType: strings.ToUpper(result.Asset),
 		Price:     result.Price,
 		Amount:    result.Amount,
-		Side:      result.Side,
+		Side:      strings.ToUpper(result.Side),
 	}
 	return td, nil
 }
@@ -213,10 +213,10 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 		td = append(td, Data{
 			ID:        result[i].ID,
 			Timestamp: int64(result[i].Timestamp),
-			Exchange:  exchangeName,
-			Base:      result[i].Base,
-			Quote:     result[i].Quote,
-			AssetType: result[i].Asset,
+			Exchange:  strings.ToLower(exchangeName),
+			Base:      strings.ToUpper(result[i].Base),
+			Quote:     strings.ToUpper(result[i].Quote),
+			AssetType: strings.ToUpper(result[i].Asset),
 			Price:     result[i].Price,
 			Amount:    result[i].Amount,
 			Side:      result[i].Side,
@@ -248,13 +248,13 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 		td = append(td, Data{
 			ID:        result[i].ID,
 			Timestamp: result[i].Timestamp,
-			Exchange:  exchangeName,
-			Base:      result[i].Base,
-			Quote:     result[i].Quote,
-			AssetType: result[i].Asset,
+			Exchange:  strings.ToLower(exchangeName),
+			Base:      strings.ToUpper(result[i].Base),
+			Quote:     strings.ToUpper(result[i].Quote),
+			AssetType: strings.ToUpper(result[i].Asset),
 			Price:     result[i].Price,
 			Amount:    result[i].Amount,
-			Side:      result[i].Side,
+			Side:      strings.ToUpper(result[i].Side),
 		})
 	}
 	return td, nil
@@ -273,7 +273,7 @@ func DeleteTrades(trades ...Data) error {
 		if err != nil {
 			err = tx.Rollback()
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "trade.Insert tx.Rollback %v", err)
+				log.Errorf(log.DatabaseMgr, "DeleteTrades tx.Rollback %v", err)
 			}
 		}
 	}()

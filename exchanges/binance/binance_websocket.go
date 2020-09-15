@@ -302,6 +302,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Amount:       amount,
 						Exchange:     b.Name,
 						AssetType:    asset.Spot,
+						TID:          strconv.FormatInt(t.TradeID, 10),
 					})
 				case "ticker":
 					var t TickerStream

@@ -1,6 +1,7 @@
 package trade
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -96,7 +97,8 @@ func TestTrades(t *testing.T) {
 }
 
 func tradeSqlTester(t *testing.T) {
-	var trades []Data
+	var trades, trades2 []Data
+
 	for i := 0; i < 20; i++ {
 		uu, _ := uuid.NewV4()
 		trades = append(trades, Data{
@@ -109,18 +111,39 @@ func tradeSqlTester(t *testing.T) {
 			Price:     float64(i * (i + 3)),
 			Amount:    float64(i * (i + 2)),
 			Side:      order.Buy.String(),
+			TID:       fmt.Sprintf("%v", i),
 		})
 	}
 	err := Insert(trades...)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(trades) == 0 {
-		t.Fatal("somehow did not append trades")
+	// insert the same trades to test conflict resolution
+	for i := 0; i < 20; i++ {
+		uu, _ := uuid.NewV4()
+		trades2 = append(trades2, Data{
+			ID:        uu.String(),
+			Timestamp: time.Now().Unix(),
+			Exchange:  testExchanges[0].Name,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+			AssetType: asset.Spot.String(),
+			Price:     float64(i * (i + 3)),
+			Amount:    float64(i * (i + 2)),
+			Side:      order.Buy.String(),
+			TID:       fmt.Sprintf("%v", i),
+		})
 	}
-	_, err = GetByUUID(trades[0].ID)
+	err = Insert(trades2...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := GetInRange(testExchanges[0].Name, asset.Spot.String(), currency.BTC.String(), currency.USD.String(), time.Now().Add(-time.Hour).Unix(), time.Now().Add(time.Hour).Unix())
 	if err != nil {
 		t.Error(err)
+	}
+	if len(resp) != 20 {
+		t.Fatalf("unique constraints failing, got %v", resp)
 	}
 
 	v, err := GetInRange(
@@ -138,6 +161,11 @@ func tradeSqlTester(t *testing.T) {
 	}
 
 	err = DeleteTrades(trades...)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = DeleteTrades(trades2...)
 	if err != nil {
 		t.Error(err)
 	}

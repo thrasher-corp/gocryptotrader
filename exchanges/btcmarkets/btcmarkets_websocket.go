@@ -170,6 +170,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Price:        t.Price,
 			Amount:       t.Volume,
 			Side:         side,
+			TID:          strconv.FormatInt(t.TradeID, 10),
 		})
 	case tick:
 		var tick WsTick

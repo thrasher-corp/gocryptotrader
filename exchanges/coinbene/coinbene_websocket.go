@@ -199,7 +199,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		var trades []trade.Data
 		for i := range tradeList.Data {
 			var price, amount float64
-			t := time.Unix(int64(tradeList.Data[i][3].(float64)), 0)
+			t := time.Unix(int64(tradeList.Data[i][3].(float64))/1000, 0)
 			price, err = strconv.ParseFloat(tradeList.Data[i][0].(string), 64)
 			if err != nil {
 				return err

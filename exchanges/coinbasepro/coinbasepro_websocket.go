@@ -248,6 +248,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				Price:        wsOrder.Price,
 				Amount:       wsOrder.Size,
 				Side:         oSide,
+				TID:          strconv.FormatInt(wsOrder.TradeID, 10),
 			})
 		}
 	default:

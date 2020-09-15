@@ -375,6 +375,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				Amount: t.Tick.Data[i].Amount,
 				Price:  t.Tick.Data[i].Price,
 				Side:   side,
+				TID:    strconv.FormatFloat(t.Tick.Data[i].ID, 'f', -1, 64),
 			})
 		}
 		return trade.AddTradesToBuffer(h.Name, trades...)

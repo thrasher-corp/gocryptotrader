@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -420,6 +421,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 					Price:        result.Events[i].Price,
 					Amount:       result.Events[i].Amount,
 					Side:         tSide,
+					TID:          strconv.FormatInt(result.Events[i].ID, 10),
 				})
 			case "change":
 				item := orderbook.Item{

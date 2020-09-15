@@ -223,6 +223,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Price:        tradeHistory.Data[x].Price,
 				Amount:       tradeHistory.Data[x].Amount,
 				Side:         side,
+				TID:          strconv.FormatInt(tradeHistory.Data[x].ID, 10),
 			})
 		}
 		return trade.AddTradesToBuffer(b.Name, trades...)

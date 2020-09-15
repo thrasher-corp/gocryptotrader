@@ -246,13 +246,14 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 				}
 
 				trades = append(trades, trade.Data{
-					Timestamp:    tradeHolder.Data[i].Timestamp,
-					Price:        tradeHolder.Data[i].Price,
-					Amount:       float64(tradeHolder.Data[i].Size),
-					CurrencyPair: p,
+					TID:          tradeHolder.Data[i].TrdMatchID,
 					Exchange:     b.Name,
+					CurrencyPair: p,
 					AssetType:    a,
 					Side:         oSide,
+					Price:        tradeHolder.Data[i].Price,
+					Amount:       float64(tradeHolder.Data[i].Size),
+					Timestamp:    tradeHolder.Data[i].Timestamp,
 				})
 			}
 			return trade.AddTradesToBuffer(b.Name, trades...)

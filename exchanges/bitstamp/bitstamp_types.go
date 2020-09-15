@@ -205,7 +205,7 @@ type websocketTradeData struct {
 	Timestamp      int64   `json:"timestamp,string"`
 	Price          float64 `json:"price"`
 	Type           int     `json:"type"`
-	ID             int     `json:"id"`
+	ID             int64   `json:"id"`
 }
 
 type websocketOrderBookResponse struct {

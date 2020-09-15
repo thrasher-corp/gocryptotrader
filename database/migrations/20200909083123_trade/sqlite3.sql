@@ -10,7 +10,11 @@ CREATE TABLE IF NOT EXISTS trade
     price REAL NOT NULL,
     amount REAL NOT NULL,
     side TEXT NOT NULL,
-    timestamp REAL NOT NULL
+    timestamp INTEGER NOT NULL,
+    CONSTRAINT uniquetradeid
+        unique(exchange_name_id, tid) ON CONFLICT IGNORE,
+    CONSTRAINT uniquetrade
+        unique(exchange_name_id, base, quote, asset, price, amount, side, timestamp) ON CONFLICT IGNORE
 );
 -- +goose Down
 DROP TABLE trade;

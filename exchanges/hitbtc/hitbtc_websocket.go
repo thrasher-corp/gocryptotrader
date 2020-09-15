@@ -228,6 +228,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 				Price:        tradeSnapshot.Params.Data[i].Price,
 				Amount:       tradeSnapshot.Params.Data[i].Quantity,
 				Side:         side,
+				TID:          strconv.FormatInt(tradeSnapshot.Params.Data[i].ID, 10),
 			})
 		}
 		return trade.AddTradesToBuffer(h.Name, trades...)

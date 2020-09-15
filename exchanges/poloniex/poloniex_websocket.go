@@ -9,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/gorilla/websocket""github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -360,11 +359,14 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						}
 
 						return trade.AddTradesToBuffer(p.Name, trade.Data{
-							Timestamp:    time.Unix(t.Timestamp, 0),
+							TID:          strconv.FormatInt(t.TradeID, 10),
+							Exchange:     p.Name,
 							CurrencyPair: pair,
+							AssetType:    asset.Spot,
 							Side:         side,
-							Amount:       t.Volume,
 							Price:        t.Price,
+							Amount:       t.Volume,
+							Timestamp:    time.Unix(t.Timestamp, 0),
 						})
 					default:
 						p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}

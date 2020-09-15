@@ -134,6 +134,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			Price:        wsTradeTemp.Data.Price,
 			Amount:       wsTradeTemp.Data.Amount,
 			Side:         side,
+			TID:          strconv.FormatInt(wsTradeTemp.Data.ID, 10),
 		})
 	case "order_created", "order_deleted", "order_changed":
 		if b.Verbose {

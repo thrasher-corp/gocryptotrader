@@ -319,6 +319,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 					Price:        resultData.TradeData[z].Price,
 					Amount:       resultData.TradeData[z].Size,
 					Side:         oSide,
+					TID:          strconv.FormatInt(resultData.TradeData[z].ID, 10),
 				})
 			}
 			return trade.AddTradesToBuffer(f.Name, trades...)

@@ -448,6 +448,7 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 			Price:        tradeData[i].Price,
 			Amount:       float64(tradeData[i].Size),
 			Timestamp:    tradeData[i].Timestamp,
+			TID:          tradeData[i].TrdMatchID,
 		})
 	}
 

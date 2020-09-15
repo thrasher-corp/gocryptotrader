@@ -10,7 +10,11 @@ CREATE TABLE IF NOT EXISTS trade
     price DOUBLE PRECISION NOT NULL,
     amount DOUBLE PRECISION NOT NULL,
     side varchar NOT NULL,
-    timestamp bigint NOT NULL
+    timestamp bigint NOT NULL,
+    CONSTRAINT uniquetradeid
+        unique(exchange_name_id, tid),
+    CONSTRAINT uniquetrade
+        unique(exchange_name_id, base, quote, asset, price, amount, side, timestamp)
 );
 -- +goose Down
 DROP TABLE trade;

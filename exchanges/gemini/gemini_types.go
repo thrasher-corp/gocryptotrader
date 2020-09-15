@@ -241,6 +241,7 @@ type Event struct {
 	Remaining float64 `json:"remaining,string"`
 	Side      string  `json:"side"`
 	MakerSide string  `json:"makerSide"`
+	ID        int64   `json:"tid"`
 	Amount    float64 `json:"amount,string"`
 }
 

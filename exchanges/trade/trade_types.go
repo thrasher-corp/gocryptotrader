@@ -21,7 +21,7 @@ var (
 
 // Data defines trade data
 type Data struct {
-	ID           uuid.UUID
+	ID           uuid.UUID `json:"ID,omitempty"`
 	TID          string
 	Exchange     string
 	CurrencyPair currency.Pair

@@ -490,6 +490,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			Price:        response.Data[i].Price,
 			Side:         tSide,
 			Timestamp:    response.Data[i].Timestamp,
+			TID:          response.Data[i].TradeID,
 		})
 	}
 	return trade.AddTradesToBuffer(o.Name, trades...)

@@ -247,6 +247,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 				Price:        tradeData.Data[i].Price,
 				Amount:       tradeData.Data[i].Amount,
 				Side:         tSide,
+				TID:          strconv.FormatInt(tradeData.Data[i].TID, 10),
 			})
 		}
 		return trade.AddTradesToBuffer(z.Name, trades...)
