@@ -15,7 +15,7 @@ type Statistic struct {
 	initialBuy         float64
 
 	strategyName string
-	pair string
+	pair         string
 }
 
 type EquityPoint struct {

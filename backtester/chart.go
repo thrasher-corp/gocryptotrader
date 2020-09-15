@@ -7,7 +7,7 @@ import (
 
 type ChartData struct {
 	PageTitle string
-	Pair string
+	Pair      string
 	EventData []eventData
 	TickData  []tickData
 }
@@ -45,11 +45,10 @@ func GenerateOutput(result Results) error {
 
 	d := ChartData{
 		PageTitle: "Test",
-		Pair: result.Pair,
+		Pair:      result.Pair,
 		TickData:  tData,
 		EventData: eData,
 	}
-
 
 	err = tmpl.Execute(f, d)
 	if err != nil {

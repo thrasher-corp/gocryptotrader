@@ -76,8 +76,7 @@ func TestBackTest(t *testing.T) {
 
 	statistic := Statistic{
 		strategyName: "HelloWorld",
-		pair: data.Item.Pair.String(),
-
+		pair:         data.Item.Pair.String(),
 	}
 	bt.statistic = &statistic
 	err = bt.Run()

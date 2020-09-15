@@ -71,7 +71,7 @@ func (s *Statistic) ReturnResults() Results {
 		TotalTransactions: len(s.Transactions()),
 		SharpieRatio:      s.SharpRatio(0),
 		StrategyName:      s.strategyName,
-		Pair: s.pair,
+		Pair:              s.pair,
 	}
 	for v := range s.Transactions() {
 		results.Transactions = append(results.Transactions, resultTransactions{
