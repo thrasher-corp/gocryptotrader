@@ -330,8 +330,8 @@ func (b *BTSE) CancelAllAfter(timeout int) error {
 }
 
 // IndexOrderPeg create peg order that will track a certain percentage above/below the index price
-func (b *BTSE) IndexOrderPeg(clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) (Order, error) {
-	var o Order
+func (b *BTSE) IndexOrderPeg(clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
+	var o []Order
 	req := make(map[string]interface{})
 	if clOrderID != "" {
 		req["clOrderID"] = clOrderID
