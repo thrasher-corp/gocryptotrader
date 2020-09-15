@@ -7,13 +7,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// DataHandler
+// DataHandler interface for Loading and Streaming data
 type DataHandler interface {
 	DataLoader
 	DataStreamer
 	Reset()
 }
 
+// DataLoader interface for Loading data into backtest supported format
 type DataLoader interface {
 	Load() error
 }
@@ -34,13 +35,10 @@ type DataStreamer interface {
 	StreamVol() []float64
 }
 
+// EventHandler interace
 type EventHandler interface {
 	IsEvent() bool
 	GetTime() time.Time
-	Pair
-}
-
-type Pair interface {
 	Pair() currency.Pair
 }
 
