@@ -325,7 +325,7 @@ func TestCreateOrder(t *testing.T) {
 	}
 	_, err := b.CreateOrder("", 0.0,
 		false,
-		1, "BUY", 100, 0, 0,
+		-1, "BUY", 100, 0, 0,
 		testPair, "GTC",
 		0.0, 0.0,
 		"LIMIT", "LIMIT")
