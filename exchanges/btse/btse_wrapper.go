@@ -475,7 +475,14 @@ func (b *BTSE) CancelOrder(order *order.Cancel) error {
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
-	allOrders, err := b.CancelExistingOrder("", orderCancellation.Pair.String(), "")
+
+	fpair, err := b.FormatExchangeCurrency(orderCancellation.Pair,
+		orderCancellation.AssetType)
+	if err != nil {
+		return resp, err
+	}
+
+	allOrders, err := b.CancelExistingOrder("", fpair.String(), "")
 	if err != nil {
 		return resp, nil
 	}
