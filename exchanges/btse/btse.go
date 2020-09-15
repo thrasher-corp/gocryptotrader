@@ -143,7 +143,7 @@ func (b *BTSE) OHLCV(symbol string, start, end time.Time, resolution int) (OHLCV
 	return o, b.SendHTTPRequest(http.MethodGet, endpoint, &o, true, queryFunc)
 }
 
-// GetServerTime returns the exchanges server time
+// GetPrice get current price for requested symbol
 func (b *BTSE) GetPrice(symbol string) (Price, error) {
 	var p Price
 	path := btsePrice + "?symbol=" + url.QueryEscape(symbol)
