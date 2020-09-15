@@ -16,7 +16,7 @@ var (
 	buffer                  []Data
 	candles                 []kline.Candle
 	processor               Processor
-	bufferProcessorInterval = time.Second * 30
+	bufferProcessorInterval = time.Second * 15
 )
 
 // Data defines trade data

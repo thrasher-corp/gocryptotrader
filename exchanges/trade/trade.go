@@ -207,8 +207,6 @@ func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 	c.Open = datas[0].Price
 	c.Close = datas[len(datas)-1].Price
 	for i := range datas {
-		// some exchanges will send it as negative for sells
-		// do they though?
 		if datas[i].Price < 0 {
 			datas[i].Price = datas[i].Price * -1
 		}
@@ -223,7 +221,7 @@ func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 		}
 		c.Volume += datas[i].Amount
 	}
-	c.Time = t.UTC()
+	c.Time = t
 	return c
 }
 

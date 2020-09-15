@@ -40,9 +40,9 @@ _b in this context is an `IBotExchange` implemented struct_
 
 + If the trade processor hasn't started up, it will automatically start upon being sent trade data.
 + The processor will add all received trades to a buffer
-+ After 30 seconds, the trade processor will parse and save all trades on the buffer to the trade table
++ After 15 seconds, the trade processor will parse and save all trades on the buffer to the trade table
   + This is to save on constant writing to the database. Trade data, especially when received via websocket would cause massive issues on the round trip of saving data for every trade
-+ If the processor has not received any trades in that 30 second timeframe, it will shut down.
++ If the processor has not received any trades in that 15 second timeframe, it will shut down.
   + Sending trade data to it later will automatically start it up again
 
 

@@ -4251,7 +4251,7 @@ var convertSavedTradesToCandlesCommand = cli.Command{
 
 func convertSavedTradesToCandles(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "convertSavedTradesToCandles")
+		return cli.ShowCommandHelp(c, "convertsavedtradestocandles")
 	}
 
 	var exchangeName string
@@ -4547,7 +4547,7 @@ var findMissingSavedTradeIntervalsCommand = cli.Command{
 		cli.StringFlag{
 			Name:        "start",
 			Usage:       "<start>",
-			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Value:       time.Now().Add(-time.Hour * 24).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
@@ -4632,7 +4632,12 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-
+	// converting time to unix converts time to UTC, however,
+	// we want the local user's time offset removed from the unix value
+	_, timeOffset := e.Zone()
+	timeOffset64 := int64(timeOffset)
+	sUnix := s.Unix() - timeOffset64
+	eUnix := e.Unix() - timeOffset64
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
 	}
@@ -4647,8 +4652,8 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     s.Unix(),
-			End:       e.Unix(),
+			Start:     sUnix,
+			End:       eUnix,
 		})
 	if err != nil {
 		return err

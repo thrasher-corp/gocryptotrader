@@ -33,7 +33,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		qm.Where("base = ?", strings.ToUpper(base)),
 		qm.Where("quote = ?", strings.ToUpper(quote)),
 		qm.Where("interval = ?", interval),
-		qm.Where("asset = ?", asset),
+		qm.Where("asset = ?", strings.ToLower(asset)),
 		qm.Where("timestamp between ? and ?", start.UTC(), end.UTC()),
 	}
 
@@ -105,7 +105,7 @@ func DeleteCandles(in *Item) (int64, error) {
 		qm.Where("base = ?", strings.ToUpper(in.Base)),
 		qm.Where("quote = ?", strings.ToUpper(in.Quote)),
 		qm.Where("interval = ?", in.Interval),
-		qm.Where("asset = ?", in.Asset),
+		qm.Where("asset = ?", strings.ToLower(in.Asset)),
 	}
 	queries = append(queries, qm.Where("exchange_name_id = ?", in.ExchangeID))
 
@@ -212,7 +212,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 			Base:           strings.ToUpper(in.Base),
 			Quote:          strings.ToUpper(in.Quote),
 			Interval:       strconv.FormatInt(in.Interval, 10),
-			Asset:          in.Asset,
+			Asset:          strings.ToLower(in.Asset),
 			Timestamp:      in.Candles[x].Timestamp.UTC().Format(time.RFC3339),
 			Open:           in.Candles[x].Open,
 			High:           in.Candles[x].High,
@@ -244,7 +244,7 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 			Base:           strings.ToUpper(in.Base),
 			Quote:          strings.ToUpper(in.Quote),
 			Interval:       in.Interval,
-			Asset:          in.Asset,
+			Asset:          strings.ToLower(in.Asset),
 			Timestamp:      in.Candles[x].Timestamp,
 			Open:           in.Candles[x].Open,
 			High:           in.Candles[x].High,

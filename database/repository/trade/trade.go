@@ -68,7 +68,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
 			Quote:          strings.ToUpper(trades[i].Quote),
-			Asset:          strings.ToUpper(trades[i].AssetType),
+			Asset:          strings.ToLower(trades[i].AssetType),
 			Price:          trades[i].Price,
 			Amount:         trades[i].Amount,
 			Side:           strings.ToUpper(trades[i].Side),
@@ -93,7 +93,7 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
 			Quote:          strings.ToUpper(trades[i].Quote),
-			Asset:          strings.ToUpper(trades[i].AssetType),
+			Asset:          strings.ToLower(trades[i].AssetType),
 			Price:          trades[i].Price,
 			Amount:         trades[i].Amount,
 			Side:           strings.ToUpper(trades[i].Side),
@@ -143,7 +143,7 @@ func getByUUIDSQLite(uuid string) (td Data, err error) {
 		Exchange:  result.ExchangeNameID,
 		Base:      strings.ToUpper(result.Base),
 		Quote:     strings.ToUpper(result.Quote),
-		AssetType: strings.ToUpper(result.Asset),
+		AssetType: strings.ToLower(result.Asset),
 		Price:     result.Price,
 		Amount:    result.Amount,
 		Side:      strings.ToUpper(result.Side),
@@ -165,7 +165,7 @@ func getByUUIDPostgres(uuid string) (td Data, err error) {
 		Exchange:  result.ExchangeNameID,
 		Base:      strings.ToUpper(result.Base),
 		Quote:     strings.ToUpper(result.Quote),
-		AssetType: strings.ToUpper(result.Asset),
+		AssetType: strings.ToLower(result.Asset),
 		Price:     result.Price,
 		Amount:    result.Amount,
 		Side:      strings.ToUpper(result.Side),
@@ -198,9 +198,9 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 	}
 	wheres := map[string]interface{}{
 		"exchange_name_id": exchangeUUID,
-		"asset":            assetType,
-		"base":             base,
-		"quote":            quote,
+		"asset":            strings.ToLower(assetType),
+		"base":             strings.ToUpper(base),
+		"quote":            strings.ToUpper(quote),
 	}
 	q := generateQuery(wheres, startDate, endDate, 50000)
 	query := modelSQLite.Trades(q...)
@@ -216,7 +216,7 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 			Exchange:  strings.ToLower(exchangeName),
 			Base:      strings.ToUpper(result[i].Base),
 			Quote:     strings.ToUpper(result[i].Quote),
-			AssetType: strings.ToUpper(result[i].Asset),
+			AssetType: strings.ToLower(result[i].Asset),
 			Price:     result[i].Price,
 			Amount:    result[i].Amount,
 			Side:      result[i].Side,
@@ -233,9 +233,9 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 	}
 	wheres := map[string]interface{}{
 		"exchange_name_id": exchangeUUID,
-		"asset":            assetType,
-		"base":             base,
-		"quote":            quote,
+		"asset":            strings.ToLower(assetType),
+		"base":             strings.ToUpper(base),
+		"quote":            strings.ToUpper(quote),
 	}
 	q := generateQuery(wheres, startDate, endDate, 50000)
 	query := modelPSQL.Trades(q...)
@@ -251,7 +251,7 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 			Exchange:  strings.ToLower(exchangeName),
 			Base:      strings.ToUpper(result[i].Base),
 			Quote:     strings.ToUpper(result[i].Quote),
-			AssetType: strings.ToUpper(result[i].Asset),
+			AssetType: strings.ToLower(result[i].Asset),
 			Price:     result[i].Price,
 			Amount:    result[i].Amount,
 			Side:      strings.ToUpper(result[i].Side),
