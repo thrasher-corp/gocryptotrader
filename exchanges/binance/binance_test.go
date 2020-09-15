@@ -1,7 +1,6 @@
 package binance
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -42,22 +41,18 @@ func TestUpdateTicker(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	cp, err := currency.NewPairFromString("BTCUSD_200925")
-	fmt.Println(cp)
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := b.UpdateTicker(cp, asset.CoinMarginedFutures)
-	t.Log(resp)
+	_, err = b.UpdateTicker(cp, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
 	cp2, err := currency.NewPairFromString("BTCUSDT")
-	fmt.Println(cp)
 	if err != nil {
 		t.Error(err)
 	}
-	resp2, err := b.UpdateTicker(cp2, asset.USDTMarginedFutures)
-	t.Log(resp2)
+	_, err = b.UpdateTicker(cp2, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1055,10 +1050,24 @@ func TestGetExchangeInfo(t *testing.T) {
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+
 	_, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		t.Error("Binance FetchTradablePairs(asset asets.AssetType) error", err)
 	}
+
+	_, err = b.FetchTradablePairs(asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.FetchTradablePairs(asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
 }
 
 func TestGetOrderBook(t *testing.T) {

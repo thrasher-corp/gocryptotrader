@@ -356,6 +356,7 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 		}
 	case asset.Futures:
 		pairs, err := k.GetFuturesMarkets()
+		fmt.Println(pairs)
 		if err != nil {
 			return nil, err
 		}
@@ -372,28 +373,22 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := k.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
+	assets := k.GetAssetTypes()
+	for x := range assets {
+		pairs, err := k.FetchTradablePairs(assets[x])
+		if err != nil {
+			return err
+		}
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
+		err = k.UpdatePairs(p, assets[x], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
-	err = k.UpdatePairs(p, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-
-	futuresPairs, err := k.FetchTradablePairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	fp, err := currency.NewPairsFromStrings(futuresPairs)
-	if err != nil {
-		return err
-	}
-	return k.UpdatePairs(fp, asset.Futures, false, forceUpdate)
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -402,13 +397,14 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 	if err != nil {
 		return nil, err
 	}
-	pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
-	if err != nil {
-		return nil, err
-	}
 
 	switch assetType {
 	case asset.Spot:
+		pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
+		if err != nil {
+			return nil, err
+		}
+
 		tickers, err := k.GetTickers(pairsCollated)
 		if err != nil {
 			return nil, err
@@ -441,9 +437,6 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 					Pair:         pairs[i],
 					ExchangeName: k.Name,
 					AssetType:    assetType})
-				if err != nil {
-					return nil, err
-				}
 			}
 		}
 	case asset.Futures:
@@ -455,14 +448,26 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 		for i := range pairs {
 			for x := range tickers.Tickers {
 				pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
+				fmt.Println(pairFmt)
 				if err != nil {
 					return nil, err
 				}
 				if !strings.EqualFold(pairFmt.String(), tickers.Tickers[x].Symbol) {
-
+					err = ticker.ProcessTicker(&ticker.Price{
+						Last:         tickers.Tickers[x].Last,
+						Bid:          tickers.Tickers[x].Bid,
+						Ask:          tickers.Tickers[x].Ask,
+						Volume:       tickers.Tickers[x].Vol24h,
+						Open:         tickers.Tickers[x].Open24H,
+						Pair:         pairs[i],
+						ExchangeName: k.Name,
+						AssetType:    assetType})
 				}
 			}
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return ticker.GetTicker(k.Name, p, assetType)
 }
@@ -492,24 +497,53 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 		return nil, err
 	}
 
-	orderbookNew, err := k.GetDepth(fpair.String())
-	if err != nil {
-		return nil, err
-	}
+	fmt.Println(fpair)
 
 	var orderBook = new(orderbook.Base)
-	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
-			Amount: orderbookNew.Bids[x].Amount,
-			Price:  orderbookNew.Bids[x].Price,
-		})
-	}
 
-	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
-			Amount: orderbookNew.Asks[x].Amount,
-			Price:  orderbookNew.Asks[x].Price,
-		})
+	switch assetType {
+	case asset.Spot:
+
+		orderbookNew, err := k.GetDepth(fpair.String())
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range orderbookNew.Bids {
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Amount: orderbookNew.Bids[x].Amount,
+				Price:  orderbookNew.Bids[x].Price,
+			})
+		}
+
+		for x := range orderbookNew.Asks {
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Amount: orderbookNew.Asks[x].Amount,
+				Price:  orderbookNew.Asks[x].Price,
+			})
+		}
+
+	case asset.Futures:
+
+		futuresOB, err := k.GetFuturesOrderbook(fpair.String())
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range futuresOB.Orderbook.Asks {
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Price:  futuresOB.Orderbook.Asks[x][0],
+				Amount: futuresOB.Orderbook.Asks[x][1],
+			})
+		}
+
+		for y := range futuresOB.Orderbook.Bids {
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Price:  futuresOB.Orderbook.Bids[y][0],
+				Amount: futuresOB.Orderbook.Bids[y][1],
+			})
+		}
+
 	}
 
 	orderBook.Pair = p

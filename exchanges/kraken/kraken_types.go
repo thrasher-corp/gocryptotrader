@@ -8,6 +8,203 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
+// WSFuturesTickerData stores ws ticker data for futures
+type WSFuturesTickerData struct {
+	Time                          int64   `json:"time"`
+	Feed                          string  `json:"feed"`
+	ProductID                     string  `json:"product_id"`
+	Bid                           float64 `json:"bid"`
+	Ask                           float64 `json:"ask"`
+	BidSize                       float64 `json:"bid_size"`
+	AskSize                       float64 `json:"ask_size"`
+	Volume                        float64 `json:"volume"`
+	DTM                           float64 `json:"dtm"`
+	Leverage                      string  `json:"leverage"`
+	Index                         float64 `json:"index"`
+	Premium                       float64 `json:"premium"`
+	Last                          float64 `json:"last"`
+	Change                        float64 `json:"change"`
+	Suspended                     bool    `json:"suspended"`
+	Tag                           string  `json:"tag"`
+	Pair                          string  `json:"pair"`
+	OpenInterest                  float64 `json:"openinterest"`
+	MarkPrice                     float64 `json:"markPrice"`
+	MaturityTime                  int64   `json:"maturityTime"`
+	FundingRate                   float64 `json:"funding_rate,omitempty"`
+	FundingRatePrediction         float64 `json:"funding_rate_prediction,omitempty"`
+	RelativeFundingRate           float64 `json:"relative_funding_rate,omitempty"`
+	RelativeFundingRatePrediction float64 `json:"relative_funding_rate_prediction,omitempty"`
+	NextFundingRateTime           int64   `json:"next_funding_rate_time,omitempty"`
+}
+
+// WsFuturesTradeData stores public trade data for futures websocket
+type WsFuturesTradeData struct {
+	Feed      string `json:"feed"`
+	ProductID string `json:"product_id"`
+	Trades    []struct {
+		Feed        string  `json:"feed"`
+		ProductID   string  `json:"product_id"`
+		Side        string  `json:"side"`
+		ProductType string  `json:"type"`
+		Seq         int64   `json:"seq"`
+		Time        int64   `json:"time"`
+		Quantity    float64 `json:"qty"`
+		Price       float64 `json:"price"`
+	} `json:"trades"`
+}
+
+// WsFuturesTickerLite stores ticker lite data for futures websocket
+type WsFuturesTickerLite struct {
+	Feed      string  `json:"feed"`
+	ProductID string  `json:"product_id"`
+	Bid       float64 `json:"bid"`
+	Ask       float64 `json:"ask"`
+	Change    float64 `json:"change"`
+	Premium   float64 `json:"premium"`
+	Volume    float64 `json:"volume"`
+	Tag       string  `json:"tag"`
+	Pair      string  `json:"pair"`
+	DTM       float64 `json:"dtm"`
+}
+
+// WsFuturesOB stores orderbook data for futures websocket
+type WsFuturesOB struct {
+	Feed      string     `json:"feed"`
+	ProductID string     `json:"product_id"`
+	Seq       int64      `json:"seq"`
+	Bids      []wsOBItem `json:"bids"`
+	Asks      []wsOBItem `json:"asks"`
+}
+
+type wsOBItem struct {
+	Price    float64 `json:"price"`
+	Quantity float64 `json:"qty"`
+}
+
+// WsVerboseOpenOrders stores verbose open orders data for futures websocket
+type WsVerboseOpenOrders struct {
+	Feed    string `json:"feed"`
+	Account string `json:"account"`
+	Orders  []struct {
+		Instrument     string  `json:"instrument"`
+		Time           int64   `json:"time"`
+		LastUpdateTime int64   `json:"last_update_time"`
+		Qty            float64 `json:"qty"`
+		Filled         float64 `json:"filled"`
+		LimitPrice     float64 `json:"limit_price"`
+		StopPrice      float64 `json:"stop_price"`
+		OrderType      string  `json:"type"`
+		OrderID        string  `json:"order_id"`
+		Direction      int64   `json:"direction"`
+		ReduceOnly     bool    `json:"reduce_only"`
+	} `json:"orders"`
+}
+
+// WsOpenPositions stores open positions data for futures websocket
+type WsOpenPositions struct {
+	Feed      string `json:"feed"`
+	Account   string `json:"account"`
+	Positions []struct {
+		Instrument string  `json:"instrument"`
+		Balance    float64 `json:"balance"`
+		EntryPrice float64 `json:"entry_price"`
+		MarkPrice  float64 `json:"mark_price"`
+		IndexPrice float64 `json:"index_price"`
+		PNL        float64 `json:"pnl"`
+	} `json:"positions"`
+}
+
+// WsFuturesAccountLog stores account log data for futures websocket
+type WsFuturesAccountLog struct {
+	Feed string `json:"feed"`
+	Logs []struct {
+		ID              int64   `json:"id"`
+		Date            string  `json:"date"`
+		Asset           string  `json:"asset"`
+		Info            string  `json:"info"`
+		BookingUID      string  `json:"booking_uid"`
+		MarginAccount   string  `json:"margin_account"`
+		OldBalance      float64 `json:"old_balance"`
+		NewBalance      float64 `json:"new_balance"`
+		OldAverageEntry float64 `json:"old_average_entry"`
+		NewAverageEntry float64 `json:"new_average_entry"`
+		TradePrice      float64 `json:"trade_price"`
+		MarkPrice       float64 `json:"mark_price"`
+		RealizedPNL     float64 `json:"realized_pnl"`
+		Fee             float64 `json:"fee"`
+		Execution       string  `json:"execution"`
+		Collateral      string  `json:"collateral"`
+		FundingRate     float64 `json:"funding_rate"`
+		RealizedFunding float64 `json:"realized_funding"`
+	} `json:"logs"`
+}
+
+// WsFuturesFillsData stores fills data for futures websocket
+type WsFuturesFillsData struct {
+	Feed    string `json:"feed"`
+	Account string `json:"account"`
+	Fills   []struct {
+		Instrument    string  `json:"instrument"`
+		Time          int64   `json:"time"`
+		Price         float64 `json:"price"`
+		Seq           int64   `json:"seq"`
+		Buy           bool    `json:"buy"`
+		Quantity      float64 `json:"qty"`
+		OrderID       string  `json:"order_id"`
+		ClientOrderID string  `json:"cli_order_id"`
+		FillID        string  `json:"fill_id"`
+		FillType      string  `json:"fill_type"`
+	} `json:"fills"`
+}
+
+// WsFuturesOpenOrders stores open orders data for futures websocket
+type WsFuturesOpenOrders struct {
+	Feed    string `json:"feed"`
+	Account string `json:"account"`
+	Orders  []struct {
+		Instrument     string  `json:"instrument"`
+		Time           int64   `json:"time"`
+		LastUpdateTime int64   `json:"last_update_time"`
+		Qty            float64 `json:"qty"`
+		Filled         float64 `json:"filled"`
+		LimitPrice     float64 `json:"limit_price"`
+		StopPrice      float64 `json:"stop_price"`
+		OrderType      string  `json:"order_type"`
+		OrderID        string  `json:"order_id"`
+		Direction      string  `json:"direction"`
+		ReduceOnly     bool    `json:"reduce_only"`
+	} `json:"orders"`
+}
+
+// WsAccountBalancesAndMargin stores account balances and margin data for futures websocket
+type WsAccountBalancesAndMargin struct {
+	Seq            int64  `json:"seq"`
+	Feed           string `json:"feed"`
+	Account        string `json:"account"`
+	MarginAccounts []struct {
+		Name    string  `json:"name"`
+		PV      float64 `json:"pv"`
+		Balance float64 `json:"balance"`
+		Funding float64 `json:"funding"`
+		MM      float64 `json:"mm"`
+		PNL     float64 `json:"pnl"`
+		IM      float64 `json:"im"`
+		AM      float64 `json:"am"`
+	} `json:"margin_accounts"`
+}
+
+// WsFuturesNotifications stores notifications data for futures websocket
+type WsFuturesNotifications struct {
+	Feed          string `json:"feed"`
+	Notifications []struct {
+		ID               int64  `json:"id"`
+		NotificationType string `json:"notificationType"`
+		Priority         string `json:"priority"`
+		Note             string `json:"note"`
+		EffectiveTime    int64  `json:"effective_time"`
+	}
+}
+
 type assetTranslatorStore struct {
 	l      sync.RWMutex
 	Assets map[string]string
@@ -17,8 +214,8 @@ type assetTranslatorStore struct {
 type FuturesOrderbookData struct {
 	ServerTime string `json:"serverTime"`
 	Orderbook  struct {
-		Bids [][]float64 `json:"bids"`
-		Asks [][]float64 `json:"asks"`
+		Bids [][2]float64 `json:"bids"`
+		Asks [][2]float64 `json:"asks"`
 	} `json:"orderBook"`
 }
 

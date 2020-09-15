@@ -329,7 +329,9 @@ func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 			}
 		}
 	case asset.CoinMarginedFutures:
+		fmt.Printf("HILOOOOOOOOOOO\n\n\n")
 		cInfo, err := b.FuturesExchangeInfo()
+		fmt.Println(cInfo)
 		if err != nil {
 			return pairs, nil
 		}

@@ -2,6 +2,66 @@ package huobi
 
 // Futures
 
+// FWsKlineData stores kline data for futures websocket
+type FWsKlineData struct {
+	Channel   string `json:"ch"`
+	Timestamp int64  `json:"ts"`
+	Tick      struct {
+		ID     int64   `json:"id"`
+		MRID   int64   `json:"mrid"`
+		Volume float64 `json:"vol"`
+		Count  float64 `json:"count"`
+		Open   float64 `json:"open"`
+		Close  float64 `json:"close"`
+		Low    float64 `json:"low"`
+		High   float64 `json:"high"`
+		Amount float64 `json:"amount"`
+	} `json:"tick"`
+}
+
+// FWsRequestKline stores requested kline data for futures websocket
+type FWsRequestKline struct {
+	Rep  string `json:"rep"`
+	ID   string `json:"id"`
+	WsID int64  `json:"wsid"`
+	Tick []struct {
+		Volume float64 `json:"vol"`
+		Count  float64 `json:"count"`
+		ID     int64   `json:"id"`
+		Open   float64 `json:"open"`
+		Close  float64 `json:"close"`
+		Low    float64 `json:"low"`
+		High   float64 `json:"high"`
+		Amount float64 `json:"amount"`
+	} `json:"tick"`
+}
+
+// FWsMarketDepth stores market depth data for futures websocket
+type FWsMarketDepth struct {
+	Channel   string `json:"ch"`
+	Timestamp int64  `json:"ts"`
+	Tick      struct {
+		MRID      int64        `json:"mrid"`
+		ID        int64        `json:"id"`
+		Bids      [][2]float64 `json:"bids"`
+		Asks      [][2]float64 `json:"asks"`
+		Timestamp int64        `json:"ts"`
+		Version   int64        `json:"version"`
+		Channel   string       `json:"ch"`
+	} `json:"tick"`
+}
+
+// FWsMarketBBOData stores BBO data for futures websocket
+type FWsMarketBBOData struct {
+	Channel   string `json:"ch"`
+	Timestamp int64  `json:"ts"`
+	Tick      struct {
+		Channel string `json:"ch"`
+		MRID    int64  `json:"mrid"`
+		ID      int64  `json:"id"`
+	}
+}
+
 // FContractInfoData gets contract info data for futures
 type FContractInfoData struct {
 	Data []struct {
@@ -566,6 +626,19 @@ type FOrderData struct {
 	Price          float64 `json:"price"`
 	Symbol         string  `json:"symbol"`
 	Volume         float64 `json:"volume"`
+}
+
+type fBatchOrderData struct {
+	Symbol         string  `json:"symbol"`
+	ContractType   string  `json:"contract_type"`
+	ContractCode   string  `json:"contract_code"`
+	ClientOrderID  string  `json:"client_order_id"`
+	Price          float64 `json:"price"`
+	Volume         float64 `json:"volume"`
+	Direction      string  `json:"direction"`
+	Offset         string  `json:"offset"`
+	LeverageRate   float64 `json:"leverRate"`
+	OrderPriceType string  `json:"orderPriceType"`
 }
 
 // FBatchOrderResponse stores batch order data

@@ -67,23 +67,63 @@ func TestGetServerTime(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.FetchTradablePairs(asset.Futures)
-	t.Log(a)
+	_, err := k.FetchTradablePairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+
+	sp, err := currency.NewPairFromString("XBTUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.UpdateTicker(sp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fp, err := currency.NewPairFromString("pi_xbtusd")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.UpdateTicker(fp, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+
+	sp, err := currency.NewPairFromString("BTCEUR")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.UpdateOrderbook(sp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fp, err := currency.NewPairFromString("pi_xbtusd")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.UpdateOrderbook(fp, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFuturesBatchOrder(t *testing.T) {
-	k.Verbose = true
 	var data []PlaceBatchOrderData
 	var tempData PlaceBatchOrderData
 	tempData.PlaceOrderType = "cancel"
 	tempData.OrderID = "test123"
 	data = append(data, tempData)
-	a, err := k.FuturesBatchOrder(data)
-	t.Log(a)
+	_, err := k.FuturesBatchOrder(data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -94,8 +134,7 @@ func TestFuturesEditOrder(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
 	}
 	t.Parallel()
-	a, err := k.FuturesEditOrder("test123", "123test", 5.2, 1, 0.9)
-	t.Log(a)
+	_, err := k.FuturesEditOrder("test123", "123test", 5.2, 1, 0.9)
 	if err != nil {
 		t.Error(err)
 	}
@@ -113,7 +152,6 @@ func TestFuturesSendOrder(t *testing.T) {
 }
 
 func TestFuturesCancelOrder(t *testing.T) {
-	k.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
 	}
@@ -246,20 +284,16 @@ func TestFuturesGetTransfers(t *testing.T) {
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
-	k.Verbose = true
 	t.Parallel()
-	a, err := k.GetFuturesOrderbook("pi_xbtusd")
-	t.Log(a)
+	_, err := k.GetFuturesOrderbook("FI_xbtusd_200925")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetFuturesMarkets(t *testing.T) {
-	k.Verbose = true
 	t.Parallel()
-	a, err := k.GetFuturesMarkets()
-	t.Log(a)
+	_, err := k.GetFuturesMarkets()
 	if err != nil {
 		t.Error(err)
 	}
@@ -274,10 +308,8 @@ func TestGetFuturesTickers(t *testing.T) {
 }
 
 func TestGetFuturesTradeHistory(t *testing.T) {
-	k.Verbose = true
 	t.Parallel()
-	a, err := k.GetFuturesTradeHistory("pi_xbtusd", time.Now().Add(-time.Hour*24))
-	t.Log(a)
+	_, err := k.GetFuturesTradeHistory("pi_xbtusd", time.Now().Add(-time.Hour*24))
 	if err != nil {
 		t.Error(err)
 	}

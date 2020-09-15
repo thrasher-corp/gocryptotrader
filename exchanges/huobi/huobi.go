@@ -63,7 +63,7 @@ const (
 	fTransferRecords           = "api/v1/contract_master_sub_transfer_record"
 	fAvailableLeverage         = "api/v1/contract_available_level_rate"
 	fOrder                     = "api/v1/contract_order"
-	fBatchOrder                = "/v1/contract_batchorder"
+	fBatchOrder                = "api/v1/contract_batchorder"
 	fCancelOrder               = "api/v1/contract_cancel"
 	fCancelAllOrders           = "api/v1/contract_cancelall"
 	fFlashCloseOrder           = "api/v1/lightning_close_position"
@@ -828,7 +828,7 @@ func (h *HUOBI) FOrder(symbol, contractType, contractCode, clientOrderID, direct
 		req["symbol"] = symbol
 	}
 	if contractType != "" {
-		if common.StringDataCompare(validContractTypes, contractType) {
+		if !common.StringDataCompare(validContractTypes, contractType) {
 			return resp, fmt.Errorf("invalid contractType")
 		}
 		req["contract_type"] = contractType
@@ -840,11 +840,11 @@ func (h *HUOBI) FOrder(symbol, contractType, contractCode, clientOrderID, direct
 		req["client_order_id"] = clientOrderID
 	}
 	req["direction"] = direction
-	if common.StringDataCompare(validOffsetTypes, offset) {
+	if !common.StringDataCompare(validOffsetTypes, offset) {
 		return resp, fmt.Errorf("invalid offset amounts")
 	}
 	if !common.StringDataCompare(validFuturesOrderPriceTypes, orderPriceType) {
-		return resp, fmt.Errorf("invalid orderType")
+		return resp, fmt.Errorf("invalid orderPriceType")
 	}
 	req["order_price_type"] = orderPriceType
 	req["lever_rate"] = leverageRate
@@ -853,6 +853,31 @@ func (h *HUOBI) FOrder(symbol, contractType, contractCode, clientOrderID, direct
 	req["offset"] = offset
 	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fOrder, nil, req, &resp, false)
+}
+
+// FPlaceBatchOrder places a batch of orders for futures
+func (h *HUOBI) FPlaceBatchOrder(data []fBatchOrderData) (FBatchOrderResponse, error) {
+	var resp FBatchOrderResponse
+	req := make(map[string]interface{})
+	if !((len(data) > 0) && (len(data) <= 10)) {
+		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
+	}
+	for x := range data {
+		if data[x].ContractType != "" {
+			if !common.StringDataCompare(validContractTypes, data[x].ContractType) {
+				return resp, fmt.Errorf("invalid contractType")
+			}
+		}
+		if !common.StringDataCompare(validOffsetTypes, data[x].Offset) {
+			return resp, fmt.Errorf("invalid offset amounts")
+		}
+		if !common.StringDataCompare(validFuturesOrderPriceTypes, data[x].OrderPriceType) {
+			return resp, fmt.Errorf("invalid orderPriceType")
+		}
+	}
+	req["orders_data"] = data
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fBatchOrder, nil, req, &resp, false)
 }
 
 // FCancelOrder cancels a futures order
@@ -1636,8 +1661,8 @@ func (h *HUOBI) PlaceSwapOrders(code, clientOrderID, direction, offset, orderPri
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapPlaceOrder, nil, req, &resp, false)
 }
 
-// PlaceBatchOrders places a batch of orders for swaps
-func (h *HUOBI) PlaceBatchOrders(data BatchOrderRequestType) (BatchOrderData, error) {
+// PlaceSwapBatchOrders places a batch of orders for swaps
+func (h *HUOBI) PlaceSwapBatchOrders(data BatchOrderRequestType) (BatchOrderData, error) {
 	var resp BatchOrderData
 	req := make(map[string]interface{})
 	if !((0 < len(data.Data)) && (len(data.Data) <= 10)) {

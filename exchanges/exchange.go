@@ -493,7 +493,7 @@ func (e *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (cu
 	if err != nil {
 		return currency.Pair{}, err
 	}
-	if assetType == asset.CoinMarginedFutures || assetType == asset.USDTMarginedFutures {
+	if assetType == asset.CoinMarginedFutures || assetType == asset.USDTMarginedFutures || assetType == asset.Futures {
 		return p, nil
 	}
 	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
