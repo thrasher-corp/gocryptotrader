@@ -145,6 +145,8 @@ func main() {
 		websocketManagerCommand,
 		getSavedTradesCommand,
 		convertSavedTradesToCandlesCommand,
+		findMissingSavedCandleIntervalsCommand,
+		findMissingSavedTradeIntervalsCommand,
 	}
 
 	err := app.Run(os.Args)

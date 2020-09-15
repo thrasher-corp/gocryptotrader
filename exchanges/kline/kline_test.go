@@ -690,3 +690,80 @@ func TestLoadCSV(t *testing.T) {
 		t.Fatalf("unexpected value received: %v", v[364].Open)
 	}
 }
+
+func TestDetermineAllIntervals(t *testing.T) {
+	// bad interval
+	intervals := DetermineAllIntervals(time.Now(), time.Now().Add(-time.Hour), OneHour)
+	if len(intervals) != 0 {
+		t.Errorf("expected 0 interval(s), received %v", len(intervals))
+	}
+	// 1 interval
+	intervals = DetermineAllIntervals(time.Now().Add(-time.Hour), time.Now(), OneHour)
+	if len(intervals) != 1 {
+		t.Errorf("expected 1 interval(s), received %v", len(intervals))
+	}
+	// multiple intervals
+	intervals = DetermineAllIntervals(time.Now().Add(-time.Hour*24), time.Now(), OneHour)
+	if len(intervals) != 24 {
+		t.Errorf("expected 24 interval(s), received %v", len(intervals))
+	}
+	// odd times
+	intervals = DetermineAllIntervals(time.Now().Add(-(time.Hour*24)-(time.Minute*16)), time.Now(), OneHour)
+	if len(intervals) != 24 {
+		t.Errorf("expected 24 interval(s), received %v", len(intervals))
+	}
+	// truncate always goes to zero, no mid rounding
+	intervals = DetermineAllIntervals(time.Now().Add(-time.Minute*46), time.Now(), OneHour)
+	if len(intervals) != 0 {
+		t.Errorf("expected 0 interval(s), received %v", len(intervals))
+	}
+	// interval too large
+	intervals = DetermineAllIntervals(time.Now().Add(-time.Hour), time.Now(), OneDay)
+	if len(intervals) != 0 {
+		t.Errorf("expected 0 interval(s), received %v", len(intervals))
+	}
+}
+
+func TestDetermineMissingIntervals(t *testing.T) {
+	// no candles
+	item := Item{
+		Interval: OneHour,
+	}
+	startTime := time.Now().Add(-time.Hour * 24).UTC()
+	endTime := startTime.Add(time.Hour * 24)
+	candleTime := startTime.Add(time.Hour)
+	outsideTime := startTime.Add(time.Hour * 1337)
+	intervals := item.DetermineMissingIntervals(startTime, endTime)
+	if len(intervals) != 24 {
+		t.Errorf("expected 24 interval(s), received %v", len(intervals))
+
+	}
+	// valid scenario
+	item = Item{
+		Candles: []Candle{
+			{
+				Time: candleTime,
+			},
+		},
+		Interval: OneHour,
+	}
+	intervals = item.DetermineMissingIntervals(startTime, endTime)
+	if len(intervals) != 23 {
+		t.Errorf("expected 23 interval(s), received %v", len(intervals))
+
+	}
+	// outside range
+	item = Item{
+		Candles: []Candle{
+			{
+				Time: outsideTime,
+			},
+		},
+		Interval: OneHour,
+	}
+	intervals = item.DetermineMissingIntervals(startTime, endTime)
+	if len(intervals) != 24 {
+		t.Errorf("expected 24 interval(s), received %v", len(intervals))
+
+	}
+}

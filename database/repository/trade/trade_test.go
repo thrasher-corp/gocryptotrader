@@ -123,7 +123,13 @@ func tradeSqlTester(t *testing.T) {
 		t.Error(err)
 	}
 
-	v, err := GetByExchangeInRange(testExchanges[0].Name, time.Now().Add(-time.Hour).Unix(), time.Now().Add(time.Hour).Unix())
+	v, err := GetInRange(
+		testExchanges[0].Name,
+		asset.Spot.String(),
+		currency.BTC.String(),
+		currency.USD.String(),
+		time.Now().Add(-time.Hour).Unix(),
+		time.Now().Add(time.Hour).Unix())
 	if err != nil {
 		t.Error(err)
 	}
@@ -136,7 +142,13 @@ func tradeSqlTester(t *testing.T) {
 		t.Error(err)
 	}
 
-	v, err = GetByExchangeInRange(testExchanges[0].Name, time.Now().Add(-time.Hour).Unix(), time.Now().Add(time.Hour).Unix())
+	v, err = GetInRange(
+		testExchanges[0].Name,
+		asset.Spot.String(),
+		currency.BTC.String(),
+		currency.USD.String(),
+		time.Now().Add(-time.Hour).Unix(),
+		time.Now().Add(time.Hour).Unix())
 	if err != nil {
 		t.Error(err)
 	}

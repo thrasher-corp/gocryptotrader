@@ -100,20 +100,27 @@ func (p *Processor) Run() {
 
 // SaveTradesToDatabase converts trades and saves results to database
 func SaveTradesToDatabase(trades ...Data) error {
-	sqlTrades := tradeToSQLData(trades...)
-	err := tradesql.Insert(sqlTrades...)
+	sqlTrades, err := tradeToSQLData(trades...)
+	if err != nil {
+		return err
+	}
+	err = tradesql.Insert(sqlTrades...)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func tradeToSQLData(trades ...Data) []tradesql.Data {
+func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
 	sort.Sort(ByDate(trades))
 	var results []tradesql.Data
 	for i := range trades {
+		tradeID, err := uuid.NewV4()
+		if err != nil {
+			return nil, err
+		}
 		results = append(results, tradesql.Data{
-			ID:        trades[i].ID.String(),
+			ID:        tradeID.String(),
 			Timestamp: trades[i].Timestamp.Unix(),
 			Exchange:  trades[i].Exchange,
 			Base:      trades[i].CurrencyPair.Base.String(),
@@ -125,7 +132,7 @@ func tradeToSQLData(trades ...Data) []tradesql.Data {
 			TID:       trades[i].TID,
 		})
 	}
-	return results
+	return results, nil
 }
 
 // SqlDataToTrade converts sql data to glorious trade data
@@ -148,7 +155,7 @@ func SqlDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
 		}
 		result = append(result, Data{
 			ID:           uuid.FromStringOrNil(dbTrades[i].ID),
-			Timestamp:    time.Unix(dbTrades[i].Timestamp, 0),
+			Timestamp:    time.Unix(dbTrades[i].Timestamp, 0).UTC(),
 			Exchange:     dbTrades[i].Exchange,
 			CurrencyPair: cp.Upper(),
 			AssetType:    a,
@@ -192,7 +199,7 @@ func groupTradesToInterval(interval kline.Interval, times ...Data) map[int64][]D
 }
 
 func getNearestInterval(t time.Time, interval kline.Interval) int64 {
-	return t.Truncate(interval.Duration()).Unix()
+	return t.Truncate(interval.Duration()).UTC().Unix()
 }
 
 func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
@@ -216,7 +223,7 @@ func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 		}
 		c.Volume += datas[i].Amount
 	}
-	c.Time = t
+	c.Time = t.UTC()
 	return c
 }
 

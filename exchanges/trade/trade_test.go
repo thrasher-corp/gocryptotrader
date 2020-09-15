@@ -115,8 +115,8 @@ func TestSqlDataToTrade(t *testing.T) {
 
 func TestTradeToSQLData(t *testing.T) {
 	t.Parallel()
-	cp, _ := currency.NewPairFromString("BTC-USD")
-	sqlData := tradeToSQLData(Data{
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	sqlData, err := tradeToSQLData(Data{
 		Timestamp:    time.Now(),
 		Exchange:     "test!",
 		CurrencyPair: cp,
@@ -125,6 +125,9 @@ func TestTradeToSQLData(t *testing.T) {
 		Amount:       1337,
 		Side:         order.Buy,
 	})
+	if err != nil {
+		t.Error(err)
+	}
 	if len(sqlData) != 1 {
 		t.Fatal("unexpected result")
 	}

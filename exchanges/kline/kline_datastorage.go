@@ -29,6 +29,7 @@ func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interva
 		Exchange: exchange,
 		Pair:     pair,
 		Interval: interval,
+		Asset:    a,
 	}
 
 	for x := range retCandle.Candles {
@@ -77,7 +78,7 @@ func StoreInDatabase(in *Item, force bool) (uint64, error) {
 
 	for x := range in.Candles {
 		databaseCandles.Candles = append(databaseCandles.Candles, candle.Candle{
-			Timestamp: in.Candles[x].Time,
+			Timestamp: in.Candles[x].Time.Truncate(in.Interval.Duration()),
 			Open:      in.Candles[x].Open,
 			High:      in.Candles[x].High,
 			Low:       in.Candles[x].Low,

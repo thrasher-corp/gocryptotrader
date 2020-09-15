@@ -784,6 +784,27 @@ message WebsocketSetURLRequest {
     string url = 2;
 }
 
+message FindMissingCandlePeriodsRequest {
+    string exchangeName = 1;
+    string assetType = 2;
+    CurrencyPair pair = 3;
+    int64 interval = 4;
+    int64 start = 5;
+    int64 end = 6;
+}
+
+message FindMissingTradePeriodsRequest {
+    string exchangeName = 1;
+    string assetType = 2;
+    CurrencyPair pair = 3;
+    int64 start = 4;
+    int64 end = 5;
+}
+
+message FindMissingIntervalsResponse {
+    repeated string missingPeriods = 1;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1243,9 +1264,21 @@ service GoCryptoTrader {
         };
     }
 
-    rpc ConvertTradesToCandles(ConvertTradesToCandlesRequest) returns (GetHistoricCandlesResponse) {
+    rpc ConvertTradesToCandles (ConvertTradesToCandlesRequest) returns (GetHistoricCandlesResponse) {
         option (google.api.http) = {
             get: "/v1/converttradestocandles"
+        };
+    }
+
+    rpc FindMissingSavedCandleIntervals (FindMissingCandlePeriodsRequest) returns (FindMissingIntervalsResponse) {
+        option (google.api.http) = {
+            get: "/v1/findmissingsavedcandleintervals"
+        };
+    }
+
+    rpc FindMissingSavedTradeIntervals (FindMissingTradePeriodsRequest) returns (FindMissingIntervalsResponse) {
+        option (google.api.http) = {
+            get: "/v1/findmissingsavedtradeintervals"
         };
     }
 

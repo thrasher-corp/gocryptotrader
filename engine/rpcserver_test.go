@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 )
 
@@ -321,15 +322,15 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Error(err)
 	}
 	var results *gctrpc.GetHistoricCandlesResponse
-	var defaultStart, defaultEnd int64
-	defaultStart = time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix()
-	defaultEnd = time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC).Unix()
+	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix()
+	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC).Unix()
+	cp := currency.NewPair(currency.BTC, currency.USD)
 	// default run
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Base:  currency.BTC.String(),
-			Quote: currency.USD.String(),
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
 		},
 		Start:        defaultStart,
 		End:          defaultEnd,
@@ -347,8 +348,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Base:  currency.BTC.String(),
-			Quote: currency.USD.String(),
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        defaultStart,
@@ -368,8 +369,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Base:  currency.BTC.String(),
-			Quote: currency.USD.String(),
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
 		},
 		AssetType:    asset.Spot.String(),
 		Start:        defaultStart,
@@ -383,16 +384,15 @@ func TestGetHistoricCandles(t *testing.T) {
 	if len(results.Candle) == 0 {
 		t.Error("expected results")
 	}
-	err = sqltrade.Insert(sqltrade.Data{
-		TID:       "test123",
-		Exchange:  testExchange,
-		Base:      currency.BTC.String(),
-		Quote:     currency.USD.String(),
-		AssetType: asset.Spot.String(),
-		Price:     1337,
-		Amount:    1337,
-		Side:      order.Buy.String(),
-		Timestamp: time.Date(2020, 1, 2, 3, 3, 3, 7, time.UTC).Unix(),
+	err = trade.SaveTradesToDatabase(trade.Data{
+		TID:          "test123",
+		Exchange:     testExchange,
+		CurrencyPair: cp,
+		AssetType:    asset.Spot,
+		Price:        1337,
+		Amount:       1337,
+		Side:         order.Buy,
+		Timestamp:    time.Date(2020, 1, 2, 3, 1, 1, 7, time.UTC),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -401,8 +401,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Base:  currency.BTC.String(),
-			Quote: currency.USD.String(),
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
 		},
 		AssetType:             asset.Spot.String(),
 		Start:                 defaultStart,
@@ -416,5 +416,215 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	if results.Candle[len(results.Candle)-1].Close != 1337 {
 		t.Error("expected fancy new candle based off fancy new trade data")
+	}
+}
+
+func TestFindMissingSavedTradeIntervals(t *testing.T) {
+	RPCTestSetup(t)
+	defer CleanRPCTest(t)
+	var s RPCServer
+	// bad request checks
+	_, err := s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "invalid arguments received" {
+		t.Fatal(err)
+	}
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	// no data found response
+	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix()
+	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC).Unix()
+	var resp *gctrpc.FindMissingIntervalsResponse
+	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
+		ExchangeName: testExchange,
+		AssetType:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Start: defaultStart,
+		End:   defaultEnd,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp.MissingPeriods) != 1 {
+		t.Fatal("unexpected response")
+	}
+
+	// one trade response
+	err = trade.SaveTradesToDatabase(trade.Data{
+		TID:          "test1234",
+		Exchange:     testExchange,
+		CurrencyPair: cp,
+		AssetType:    asset.Spot,
+		Price:        1337,
+		Amount:       1337,
+		Side:         order.Buy,
+		Timestamp:    time.Date(2020, 1, 1, 1, 3, 3, 7, time.UTC),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
+		ExchangeName: testExchange,
+		AssetType:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Start: defaultStart,
+		End:   defaultEnd,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp.MissingPeriods) != 24 {
+		t.Errorf("expected 24 missing periods, received: %v", len(resp.MissingPeriods))
+	}
+
+	// two trades response
+	err = trade.SaveTradesToDatabase(trade.Data{
+		TID:          "test1234",
+		Exchange:     testExchange,
+		CurrencyPair: cp,
+		AssetType:    asset.Spot,
+		Price:        1337,
+		Amount:       1337,
+		Side:         order.Buy,
+		Timestamp:    time.Date(2020, 1, 1, 2, 3, 3, 7, time.UTC),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
+		ExchangeName: testExchange,
+		AssetType:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Start: defaultStart,
+		End:   defaultEnd,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp.MissingPeriods) != 23 {
+		t.Errorf("expected 23 missing periods, received: %v", len(resp.MissingPeriods))
+	}
+}
+
+func TestFindMissingSavedCandleIntervals(t *testing.T) {
+	RPCTestSetup(t)
+	defer CleanRPCTest(t)
+	var s RPCServer
+	// bad request checks
+	_, err := s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "invalid arguments received" {
+		t.Fatal(err)
+	}
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	// no data found response
+	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix()
+	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC).Unix()
+	var resp *gctrpc.FindMissingIntervalsResponse
+	resp, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
+		ExchangeName: testExchange,
+		AssetType:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Interval: int64(time.Hour),
+		Start:    defaultStart,
+		End:      defaultEnd,
+	})
+	if err != nil && err.Error() != "no candle data found: Bitstamp BTC USDT 3600 spot" {
+		t.Fatal(err)
+	}
+
+	// one candle missing periods response
+	_, err = kline.StoreInDatabase(&kline.Item{
+		Exchange: testExchange,
+		Pair:     cp,
+		Asset:    asset.Spot,
+		Interval: kline.OneHour,
+		Candles: []kline.Candle{
+			{
+				Time:   time.Date(2020, 1, 1, 2, 1, 1, 1, time.UTC),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			},
+		},
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
+		ExchangeName: testExchange,
+		AssetType:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Interval: int64(time.Hour),
+		Start:    defaultStart,
+		End:      defaultEnd,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp.MissingPeriods) != 24 {
+		t.Errorf("expected 24 missing periods, received: %v", len(resp.MissingPeriods))
+	}
+
+	// two candle missing periods response
+	_, err = kline.StoreInDatabase(&kline.Item{
+		Exchange: testExchange,
+		Pair:     cp,
+		Asset:    asset.Spot,
+		Interval: kline.OneHour,
+		Candles: []kline.Candle{
+			{
+				Time:   time.Date(2020, 1, 1, 3, 1, 1, 1, time.UTC),
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			},
+		},
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
+		ExchangeName: testExchange,
+		AssetType:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Interval: int64(time.Hour),
+		Start:    defaultStart,
+		End:      defaultEnd,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp.MissingPeriods) != 23 {
+		t.Errorf("expected 23 missing periods, received: %v", len(resp.MissingPeriods))
 	}
 }

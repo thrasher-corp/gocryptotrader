@@ -309,12 +309,13 @@ func (k *Item) FormatDates() {
 
 func DetermineAllIntervals(start, end time.Time, interval Interval) []time.Time {
 	var allIntervals []time.Time
-	for i := start.Unix(); i < end.Unix(); i = time.Unix(i, 0).Add(interval.Duration()).Unix() {
-		t := time.Unix(i, 0)
-		trunc := t.Truncate(interval.Duration())
+	intervalTime := start
+	for !intervalTime.After(end) {
+		trunc := intervalTime.Truncate(interval.Duration())
 		if trunc.After(start) && trunc.Before(end) {
-			allIntervals = append(allIntervals, trunc)
+			allIntervals = append(allIntervals, trunc.UTC())
 		}
+		intervalTime = intervalTime.Add(interval.Duration())
 	}
 
 	return allIntervals
@@ -325,8 +326,9 @@ func (k *Item) DetermineMissingIntervals(start, end time.Time) []time.Time {
 	var foundIntervals, missingIntervals []time.Time
 	for j := range allIntervals {
 		for i := range k.Candles {
-			if k.Candles[i].Time.Equal(allIntervals[j]) {
-				foundIntervals = append(foundIntervals, k.Candles[i].Time)
+			truncatedTime := k.Candles[i].Time.Truncate(k.Interval.Duration()).UTC()
+			if truncatedTime.Equal(allIntervals[j]) {
+				foundIntervals = append(foundIntervals, truncatedTime)
 			}
 		}
 	}

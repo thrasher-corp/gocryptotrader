@@ -174,23 +174,23 @@ func getByUUIDPostgres(uuid string) (td Data, err error) {
 }
 
 // GetByExchangeInRange returns all trades by an exchange in a date range
-func GetByExchangeInRange(exchangeName string, startDate, endDate int64) (td []Data, err error) {
+func GetInRange(exchangeName, assetType, base, quote string, startDate, endDate int64) (td []Data, err error) {
 	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
-		td, err = getByExchangeInRangeSQLite(exchangeName, startDate, endDate)
+		td, err = getInRangeSQLite(exchangeName, assetType, base, quote, startDate, endDate)
 		if err != nil {
-			return td, fmt.Errorf("trade.GetByExchangeInRange getByExchangeInRangeSQLite %w", err)
+			return td, fmt.Errorf("trade.GetByExchangeInRange getInRangeSQLite %w", err)
 		}
 	} else {
-		td, err = getByExchangeInRangePostgres(exchangeName, startDate, endDate)
+		td, err = getInRangePostgres(exchangeName, assetType, base, quote, startDate, endDate)
 		if err != nil {
-			return td, fmt.Errorf("trade.GetByExchangeInRange getByExchangeInRangePostgres %w", err)
+			return td, fmt.Errorf("trade.GetByExchangeInRange getInRangePostgres %w", err)
 		}
 	}
 
 	return td, nil
 }
 
-func getByExchangeInRangeSQLite(exchangeName string, startDate, endDate int64) (td []Data, err error) {
+func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, endDate int64) (td []Data, err error) {
 	var exchangeUUID uuid.UUID
 	exchangeUUID, err = exchange.UUIDByName(exchangeName)
 	if err != nil {
@@ -198,6 +198,9 @@ func getByExchangeInRangeSQLite(exchangeName string, startDate, endDate int64) (
 	}
 	wheres := map[string]interface{}{
 		"exchange_name_id": exchangeUUID,
+		"asset":            assetType,
+		"base":             base,
+		"quote":            quote,
 	}
 	q := generateQuery(wheres, startDate, endDate, 50000)
 	query := modelSQLite.Trades(q...)
@@ -222,7 +225,7 @@ func getByExchangeInRangeSQLite(exchangeName string, startDate, endDate int64) (
 	return td, nil
 }
 
-func getByExchangeInRangePostgres(exchangeName string, startDate, endDate int64) (td []Data, err error) {
+func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, endDate int64) (td []Data, err error) {
 	var exchangeUUID uuid.UUID
 	exchangeUUID, err = exchange.UUIDByName(exchangeName)
 	if err != nil {
@@ -230,6 +233,9 @@ func getByExchangeInRangePostgres(exchangeName string, startDate, endDate int64)
 	}
 	wheres := map[string]interface{}{
 		"exchange_name_id": exchangeUUID,
+		"asset":            assetType,
+		"base":             base,
+		"quote":            quote,
 	}
 	q := generateQuery(wheres, startDate, endDate, 50000)
 	query := modelPSQL.Trades(q...)
