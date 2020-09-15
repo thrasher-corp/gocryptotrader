@@ -244,52 +244,52 @@ func (b *BTSE) WalletWithdrawal(currency, address, tag, amount string) (Withdraw
 }
 
 // CreateOrder creates an order
-func (b *BTSE) CreateOrder(clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) (Order, error) {
+func (b *BTSE) CreateOrder(clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
 	req := make(map[string]interface{})
 	if clOrderID != "" {
 		req["clOrderID"] = clOrderID
 	}
 	if deviation > 0.0 {
-		req["deviation"] = strconv.FormatFloat(deviation, 'f', 0, 64)
+		req["deviation"] = deviation
 	}
 	if postOnly {
-		req["postOnly"] = "true"
+		req["postOnly"] = postOnly
 	}
 	if price > 0.0 {
-		req["price"] = strconv.FormatFloat(price, 'f', 0, 64)
+		req["price"] = price
 	}
 	if side != "" {
 		req["side"] = side
 	}
 	if size > 0.0 {
-		req["size"] = strconv.FormatFloat(size, 'f', 0, 64)
+		req["size"] = size
 	}
 	if stealth > 0.0 {
-		req["stealth"] = strconv.FormatFloat(stealth, 'f', 0, 64)
+		req["stealth"] = stealth
 	}
 	if stopPrice > 0.0 {
-		req["stopPrice"] = strconv.FormatFloat(stopPrice, 'f', 0, 64)
+		req["stopPrice"] = stopPrice
 	}
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
 	if timeInForce != "" {
-		req["timeInForce"] = timeInForce
+		req["time_in_force"] = timeInForce
 	}
 	if trailValue > 0.0 {
-		req["trailValue"] = strconv.FormatFloat(trailValue, 'f', 0, 64)
+		req["trailValue"] = trailValue
 	}
 	if triggerPrice > 0.0 {
-		req["triggerPrice"] = strconv.FormatFloat(triggerPrice, 'f', 0, 64)
+		req["triggerPrice"] = triggerPrice
 	}
 	if txType != "" {
 		req["txType"] = txType
 	}
 	if orderType != "" {
-		req["orderType"] = orderType
+		req["type"] = orderType
 	}
 
-	var r Order
+	var r []Order
 	return r, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, true, url.Values{}, req, &r, orderFunc)
 }
 

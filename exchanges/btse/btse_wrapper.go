@@ -440,7 +440,7 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	resp.IsOrderPlaced = true
-	resp.OrderID = r.OrderID
+	resp.OrderID = r[0].OrderID
 
 	if s.Type == order.Market {
 		resp.FullyMatched = true

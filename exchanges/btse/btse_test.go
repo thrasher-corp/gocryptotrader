@@ -319,15 +319,16 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys are unset or canManipulateRealOrders is false")
 	}
 	_, err := b.CreateOrder("", 0.0,
 		false,
-		-1, "BUY", 100, 0, 0,
+		1, "BUY", 100, 0, 0,
 		testPair, "GTC",
 		0.0, 0.0,
-		"", "LIMIT")
+		"LIMIT", "LIMIT")
 	if err != nil {
 		t.Error(err)
 	}
