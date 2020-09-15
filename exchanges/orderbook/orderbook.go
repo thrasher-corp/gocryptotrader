@@ -154,24 +154,26 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 			p.Quote)
 	}
 
-	if _, ok := s.Books[exchange][p.Base.Item][p.Quote.Item][a]; !ok {
+	var liveOrderBook *Book
+	var ok bool
+	if liveOrderBook, ok = s.Books[exchange][p.Base.Item][p.Quote.Item][a]; !ok {
 		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
 			a)
 	}
 
 	localCopyOfAsks := make([]Item, len(s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.Asks))
 	localCopyOfBids := make([]Item, len(s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.Bids))
-	copy(localCopyOfBids, s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.Bids)
-	copy(localCopyOfAsks, s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.Asks)
+	copy(localCopyOfBids, liveOrderBook.b.Bids)
+	copy(localCopyOfAsks, liveOrderBook.b.Asks)
 
 	ob := Base{
-		Pair:         s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.Pair,
+		Pair:         liveOrderBook.b.Pair,
 		Bids:         localCopyOfBids,
 		Asks:         localCopyOfAsks,
-		LastUpdated:  s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.LastUpdated,
-		LastUpdateID: s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.LastUpdateID,
-		AssetType:    s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.AssetType,
-		ExchangeName: s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.ExchangeName,
+		LastUpdated:  liveOrderBook.b.LastUpdated,
+		LastUpdateID: liveOrderBook.b.LastUpdateID,
+		AssetType:    liveOrderBook.b.AssetType,
+		ExchangeName: liveOrderBook.b.ExchangeName,
 	}
 
 	return &ob, nil
