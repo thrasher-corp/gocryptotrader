@@ -340,7 +340,7 @@ type ErrorResponse struct {
 	Status    int    `json:"status"`
 }
 
-// oderSizeLimits
+// oderSizeLimits holds currency minimum, maximum, and size increment
 type orderSizeLimits struct {
 	MinOrderSize     float64
 	MaxOrderSize     float64
