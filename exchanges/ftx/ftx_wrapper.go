@@ -499,6 +499,13 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 		}
 	}
 
+	if f.Features.Enabled.SaveTradeData {
+		err = trade.SaveTradesToDatabase(resp...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 

@@ -38,12 +38,47 @@ err := trade.AddTradesToBuffer(b.Name, trade.Data{
 ```
 _b in this context is an `IBotExchange` implemented struct_
 
-+ If the trade processor hasn't started up, it will automatically start upon being sent trade data.
++ If the trade processor has not started, it will automatically start upon being sent trade data.
 + The processor will add all received trades to a buffer
 + After 15 seconds, the trade processor will parse and save all trades on the buffer to the trade table
   + This is to save on constant writing to the database. Trade data, especially when received via websocket would cause massive issues on the round trip of saving data for every trade
 + If the processor has not received any trades in that 15 second timeframe, it will shut down.
   + Sending trade data to it later will automatically start it up again
+
+
+## Exchange Support Table
+
+| Exchange | REST API | Streaming API | FIX API |
+|----------|------|-----------|-----|
+| Alphapoint | No  | No        | NA  |
+| Binance| Yes  | Yes        | NA  |
+| Bitfinex | Yes  | Yes        | NA  |
+| Bitflyer | Yes  | No      | NA  |
+| Bithumb | Yes  | NA       | NA  |
+| BitMEX | Yes | Yes | NA |
+| Bitstamp | Yes  | Yes       | No  |
+| Bittrex | Yes | No | NA |
+| BTCMarkets | Yes | Yes       | NA  |
+| BTSE | Yes | Yes | NA |
+| Coinbene | Yes | Yes | No |
+| CoinbasePro | Yes | Yes | No|
+| COINUT | Yes | Yes | NA |
+| Exmo | Yes | NA | NA |
+| FTX | Yes | Yes | No |
+| GateIO | Yes | Yes | NA |
+| Gemini | Yes | Yes | No |
+| HitBTC | Yes | Yes | No |
+| Huobi.Pro | Yes | Yes | NA |
+| ItBit | Yes | NA | No |
+| Kraken | Yes | Yes | NA |
+| LakeBTC | Yes | Yes | NA |
+| Lbank | Yes | No | NA |
+| LocalBitcoins | Yes | NA | NA |
+| OKCoin International | Yes | Yes | No |
+| OKEX | Yes | Yes | No |
+| Poloniex | Yes | Yes | NA |
+| Yobit | Yes | NA | NA |
+| ZB.COM | Yes | Yes | NA |
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

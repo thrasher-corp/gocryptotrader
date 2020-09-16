@@ -26,21 +26,21 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | No | NA |
-| BTCMarkets | Yes | No       | NA  |
+| BTCMarkets | Yes | Yes       | NA  |
 | BTSE | Yes | Yes | NA |
+| CoinbasePro | Yes | Yes | No|
+| Coinbene | Yes | Yes | No |
 | COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No |
-| CoinbasePro | Yes | Yes | No|
-| Coinbene | Yes | No | No |
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
+| LakeBTC | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| LakeBTC | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
 | OKEX | Yes | Yes | No |
@@ -144,7 +144,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [thrasher-](https://github.com/thrasher-) | 641 |
 | [shazbert](https://github.com/shazbert) | 195 |
 | [gloriousCode](https://github.com/gloriousCode) | 170 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 64 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 65 |
 | [xtda](https://github.com/xtda) | 46 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
@@ -153,8 +153,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
+| [vazha](https://github.com/vazha) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
-| [vazha](https://github.com/vazha) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
