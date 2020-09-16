@@ -375,7 +375,8 @@ func (e *EXMO) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 	var resp []trade.Data
 	mapData := tradeData[p.String()]
 	for i := range mapData {
-		side, err := order.StringToOrderSide(mapData[i].Type)
+		var side order.Side
+		side, err = order.StringToOrderSide(mapData[i].Type)
 		if err != nil {
 			return nil, err
 		}

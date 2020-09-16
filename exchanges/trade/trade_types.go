@@ -5,16 +5,13 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
 	buffer                  []Data
-	candles                 []kline.Candle
 	processor               Processor
 	bufferProcessorInterval = time.Second * 15
 )
@@ -30,11 +27,6 @@ type Data struct {
 	Price        float64
 	Amount       float64
 	Timestamp    time.Time
-}
-
-type CandleHolder struct {
-	candle kline.Candle
-	trades []Data
 }
 
 // Processor used for processing trade data in batches

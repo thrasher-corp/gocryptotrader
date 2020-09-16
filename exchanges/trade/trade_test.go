@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -85,7 +84,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 func TestSqlDataToTrade(t *testing.T) {
 	t.Parallel()
 	uuiderino, _ := uuid.NewV4()
-	data, err := SqlDataToTrade(sqltrade.Data{
+	data, err := SQLDataToTrade(sqltrade.Data{
 		ID:        uuiderino.String(),
 		Timestamp: time.Time{},
 		Exchange:  "hello",

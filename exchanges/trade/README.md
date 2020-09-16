@@ -48,37 +48,37 @@ _b in this context is an `IBotExchange` implemented struct_
 
 ## Exchange Support Table
 
-| Exchange | REST API | Streaming API | FIX API |
+| Exchange | Recent Trades via REST | Live trade updates via API | Trade history via REST |
 |----------|------|-----------|-----|
-| Alphapoint | No  | No        | NA  |
-| Binance| Yes  | Yes        | NA  |
-| Bitfinex | Yes  | Yes        | NA  |
-| Bitflyer | Yes  | No      | NA  |
-| Bithumb | Yes  | NA       | NA  |
-| BitMEX | Yes | Yes | NA |
+| Alphapoint | No  | No        | No  |
+| Binance| Yes  | Yes        | No  |
+| Bitfinex | Yes  | Yes        | Yes  |
+| Bitflyer | Yes  | No      | No  |
+| Bithumb | Yes  | NA       | No  |
+| BitMEX | Yes | Yes | Yes |
 | Bitstamp | Yes  | Yes       | No  |
-| Bittrex | Yes | No | NA |
-| BTCMarkets | Yes | Yes       | NA  |
-| BTSE | Yes | Yes | NA |
+| Bittrex | Yes | No | No |
+| BTCMarkets | Yes | Yes       | No  |
+| BTSE | Yes | Yes | No |
 | Coinbene | Yes | Yes | No |
 | CoinbasePro | Yes | Yes | No|
-| COINUT | Yes | Yes | NA |
-| Exmo | Yes | NA | NA |
-| FTX | Yes | Yes | No |
-| GateIO | Yes | Yes | NA |
-| Gemini | Yes | Yes | No |
-| HitBTC | Yes | Yes | No |
-| Huobi.Pro | Yes | Yes | NA |
+| COINUT | Yes | Yes | No |
+| Exmo | Yes | NA | No |
+| FTX | Yes | Yes | Yes |
+| GateIO | Yes | Yes | No |
+| Gemini | Yes | Yes | Yes |
+| HitBTC | Yes | Yes | Yes |
+| Huobi.Pro | Yes | Yes | No |
 | ItBit | Yes | NA | No |
-| Kraken | Yes | Yes | NA |
-| LakeBTC | Yes | Yes | NA |
-| Lbank | Yes | No | NA |
-| LocalBitcoins | Yes | NA | NA |
+| Kraken | Yes | Yes | No |
+| LakeBTC | Yes | Yes | Yes |
+| Lbank | Yes | No | Yes |
+| LocalBitcoins | Yes | NA | No |
 | OKCoin International | Yes | Yes | No |
 | OKEX | Yes | Yes | No |
-| Poloniex | Yes | Yes | NA |
-| Yobit | Yes | NA | NA |
-| ZB.COM | Yes | Yes | NA |
+| Poloniex | Yes | Yes | Yes |
+| Yobit | Yes | NA | No |
+| ZB.COM | Yes | Yes | No |
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

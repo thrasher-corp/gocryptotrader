@@ -232,7 +232,7 @@ func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
 // GetTransactions returns transaction information
 // value paramater ["time"] = "minute", "hour", "day" will collate your
 // response into time intervals.
-func (b *Bitstamp) GetTransactions(currencyPair string, timePeriod string) ([]Transactions, error) {
+func (b *Bitstamp) GetTransactions(currencyPair, timePeriod string) ([]Transactions, error) {
 	var transactions []Transactions
 	requestURL := fmt.Sprintf(
 		"%s/v%s/%s/%s/",

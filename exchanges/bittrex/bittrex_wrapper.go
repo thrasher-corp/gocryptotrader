@@ -387,11 +387,13 @@ func (b *Bittrex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 	}
 	var resp []trade.Data
 	for i := range tradeData.Result {
-		side, err := order.StringToOrderSide(tradeData.Result[i].OrderType)
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData.Result[i].OrderType)
 		if err != nil {
 			return nil, err
 		}
-		ts, err := time.Parse("2006-01-02T15:04:05.999999999", tradeData.Result[i].Timestamp)
+		var ts time.Time
+		ts, err = time.Parse("2006-01-02T15:04:05.999999999", tradeData.Result[i].Timestamp)
 		if err != nil {
 			return nil, err
 		}

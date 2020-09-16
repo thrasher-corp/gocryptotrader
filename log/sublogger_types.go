@@ -25,5 +25,5 @@ var (
 
 	Ticker    *subLogger
 	OrderBook *subLogger
-	Trade *subLogger
+	Trade     *subLogger
 )

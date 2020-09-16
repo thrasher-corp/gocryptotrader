@@ -479,7 +479,8 @@ func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 			return nil, err
 		}
 		for i := range tradeData {
-			side, err := order.StringToOrderSide(tradeData[i].Side)
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData[i].Side)
 			if err != nil {
 				return nil, err
 			}

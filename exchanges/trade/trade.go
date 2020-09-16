@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -45,10 +44,10 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 		}
 
 		if data[i].Price < 0 {
-			data[i].Price = data[i].Price * -1
+			data[i].Price *= -1
 		}
 		if data[i].Amount < 0 {
-			data[i].Amount = data[i].Amount * -1
+			data[i].Amount *= -1
 		}
 		if data[i].Side == "" {
 			data[i].Side = order.UnknownSide
@@ -80,21 +79,19 @@ func (p *Processor) Run() {
 	ticker := time.NewTicker(bufferProcessorInterval)
 	p.mutex.Unlock()
 	for {
-		select {
-		case <-ticker.C:
-			p.mutex.Lock()
-			if len(buffer) == 0 {
-				p.mutex.Unlock()
-				log.Infof(log.Trade, "no trade data received in %v, shutting down", bufferProcessorInterval)
-				return
-			}
-			err := SaveTradesToDatabase(buffer...)
-			if err != nil {
-				log.Error(log.Trade, err)
-			}
-			buffer = nil
+		<-ticker.C
+		p.mutex.Lock()
+		if len(buffer) == 0 {
 			p.mutex.Unlock()
+			log.Infof(log.Trade, "no trade data received in %v, shutting down", bufferProcessorInterval)
+			return
 		}
+		err := SaveTradesToDatabase(buffer...)
+		if err != nil {
+			log.Error(log.Trade, err)
+		}
+		buffer = nil
+		p.mutex.Unlock()
 	}
 }
 
@@ -135,8 +132,8 @@ func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
 	return results, nil
 }
 
-// SqlDataToTrade converts sql data to glorious trade data
-func SqlDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
+// SQLDataToTrade converts sql data to glorious trade data
+func SQLDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
 	for i := range dbTrades {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromStrings(dbTrades[i].Base, dbTrades[i].Quote)
@@ -208,10 +205,10 @@ func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 	c.Close = datas[len(datas)-1].Price
 	for i := range datas {
 		if datas[i].Price < 0 {
-			datas[i].Price = datas[i].Price * -1
+			datas[i].Price *= -1
 		}
 		if datas[i].Amount < 0 {
-			datas[i].Amount = datas[i].Amount * -1
+			datas[i].Amount *= -1
 		}
 		if datas[i].Price < c.Low || c.Low == 0 {
 			c.Low = datas[i].Price

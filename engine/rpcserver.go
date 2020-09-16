@@ -1680,8 +1680,8 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 	}
 
 	if r.FillMissingWithTrades {
-		var tradeDataKline kline.Item
-		tradeDataKline, err = fillMissingCandlesWithStoredTrades(tStart, tEnd, klineItem)
+		var tradeDataKline *kline.Item
+		tradeDataKline, err = fillMissingCandlesWithStoredTrades(tStart, tEnd, &klineItem)
 		if err != nil {
 			return nil, err
 		}
@@ -1724,7 +1724,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 	return &resp, nil
 }
 
-func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem kline.Item) (kline.Item, error) {
+func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem *kline.Item) (*kline.Item, error) {
 	var response kline.Item
 	missingIntervals := klineItem.DetermineMissingIntervals(
 		startTime,
@@ -1745,7 +1745,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 			return klineItem, err
 		}
 
-		trades, err := trade.SqlDataToTrade(sqlTrades...)
+		trades, err := trade.SQLDataToTrade(sqlTrades...)
 		if err != nil {
 			return klineItem, err
 		}
@@ -1778,7 +1778,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 		}
 	}
 
-	return response, nil
+	return &response, nil
 }
 
 // GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
@@ -2382,7 +2382,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 		return nil, err
 	}
 	var trades []trade.Data
-	trades, err = trade.SqlDataToTrade(sqlTrades...)
+	trades, err = trade.SQLDataToTrade(sqlTrades...)
 	if err != nil {
 		return nil, err
 	}

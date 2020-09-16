@@ -516,7 +516,8 @@ func (c *COINUT) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 	}
 	var resp []trade.Data
 	for i := range tradeData.Trades {
-		side, err := order.StringToOrderSide(tradeData.Trades[i].Side)
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData.Trades[i].Side)
 		if err != nil {
 			return nil, err
 		}

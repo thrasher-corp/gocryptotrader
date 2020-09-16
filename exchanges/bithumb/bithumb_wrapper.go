@@ -342,11 +342,13 @@ func (b *Bithumb) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 	}
 	var resp []trade.Data
 	for i := range tradeData.Data {
-		side, err := order.StringToOrderSide(tradeData.Data[i].Type)
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData.Data[i].Type)
 		if err != nil {
 			return nil, err
 		}
-		t, err := time.Parse("2006-01-02 15:04:05", tradeData.Data[i].TransactionDate)
+		var t time.Time
+		t, err = time.Parse("2006-01-02 15:04:05", tradeData.Data[i].TransactionDate)
 		if err != nil {
 			return nil, err
 		}

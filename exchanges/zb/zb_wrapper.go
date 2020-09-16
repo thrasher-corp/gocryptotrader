@@ -405,7 +405,8 @@ func (z *ZB) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Dat
 	}
 	var resp []trade.Data
 	for i := range tradeData {
-		side, err := order.StringToOrderSide(tradeData[i].Type)
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData[i].Type)
 		if err != nil {
 			return nil, err
 		}

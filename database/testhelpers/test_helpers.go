@@ -60,8 +60,8 @@ func GetConnectionDetails() *database.Config {
 	}
 
 	return &database.Config{
-		Enabled: true,
-		Driver:  "postgres",
+		Enabled:           true,
+		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
 			// Host:     "",
 			// Port:     5432,

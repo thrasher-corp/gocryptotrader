@@ -122,7 +122,11 @@ func deleteSQLite(ctx context.Context, queries []qm.QueryMod) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	var tx *sql.Tx
+	tx, err = database.DB.SQL.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
 	var totalDeleted int64
 	totalDeleted, err = retCandle.DeleteAll(ctx, tx)
 	if err != nil {
@@ -145,7 +149,8 @@ func deletePostgres(ctx context.Context, queries []qm.QueryMod) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	var tx *sql.Tx
+	tx, err = database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}

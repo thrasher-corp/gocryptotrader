@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -87,7 +86,7 @@ func TestTrades(t *testing.T) {
 				}
 			}
 
-			tradeSqlTester(t)
+			tradeSQLTester(t)
 			err = testhelpers.CloseDatabase(dbConn)
 			if err != nil {
 				t.Error(err)
@@ -96,7 +95,7 @@ func TestTrades(t *testing.T) {
 	}
 }
 
-func tradeSqlTester(t *testing.T) {
+func tradeSQLTester(t *testing.T) {
 	var trades, trades2 []Data
 
 	for i := 0; i < 20; i++ {

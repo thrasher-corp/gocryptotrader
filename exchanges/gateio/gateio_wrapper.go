@@ -428,7 +428,8 @@ func (g *Gateio) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 	}
 	var resp []trade.Data
 	for i := range tradeData.Data {
-		side, err := order.StringToOrderSide(tradeData.Data[i].Type)
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData.Data[i].Type)
 		if err != nil {
 			return nil, err
 		}

@@ -736,7 +736,6 @@ func TestDetermineMissingIntervals(t *testing.T) {
 	intervals := item.DetermineMissingIntervals(startTime, endTime)
 	if len(intervals) != 24 {
 		t.Errorf("expected 24 interval(s), received %v", len(intervals))
-
 	}
 	// valid scenario
 	item = Item{
@@ -750,7 +749,6 @@ func TestDetermineMissingIntervals(t *testing.T) {
 	intervals = item.DetermineMissingIntervals(startTime, endTime)
 	if len(intervals) != 23 {
 		t.Errorf("expected 23 interval(s), received %v", len(intervals))
-
 	}
 	// outside range
 	item = Item{
@@ -764,7 +762,6 @@ func TestDetermineMissingIntervals(t *testing.T) {
 	intervals = item.DetermineMissingIntervals(startTime, endTime)
 	if len(intervals) != 24 {
 		t.Errorf("expected 24 interval(s), received %v", len(intervals))
-
 	}
 }
 
@@ -780,7 +777,6 @@ func TestDetermineIntervalsWithData(t *testing.T) {
 	intervals := item.DetermineIntervalsWithData(startTime, endTime)
 	if len(intervals) != 0 {
 		t.Errorf("expected 0 interval(s), received %v", len(intervals))
-
 	}
 	// valid scenario
 	item = Item{
@@ -794,7 +790,6 @@ func TestDetermineIntervalsWithData(t *testing.T) {
 	intervals = item.DetermineIntervalsWithData(startTime, endTime)
 	if len(intervals) != 1 {
 		t.Errorf("expected 1 interval(s), received %v", len(intervals))
-
 	}
 	// outside range
 	item = Item{
@@ -808,6 +803,5 @@ func TestDetermineIntervalsWithData(t *testing.T) {
 	intervals = item.DetermineIntervalsWithData(startTime, endTime)
 	if len(intervals) != 0 {
 		t.Errorf("expected 0 interval(s), received %v", len(intervals))
-
 	}
 }

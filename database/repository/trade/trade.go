@@ -9,15 +9,14 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/sqlboiler/boil"
-	"github.com/thrasher-corp/sqlboiler/queries/qm"
-
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
 // Insert saves trade data to the database
@@ -39,7 +38,7 @@ func Insert(trades ...Data) error {
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("BeginTx %w", err)
+		return fmt.Errorf("beginTx %w", err)
 	}
 	defer func() {
 		if err != nil {
@@ -98,7 +97,8 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 	var err error
 	for i := range trades {
 		if trades[i].ID == "" {
-			freshUUID, err := uuid.NewV4()
+			var freshUUID uuid.UUID
+			freshUUID, err = uuid.NewV4()
 			if err != nil {
 				return err
 			}
@@ -292,7 +292,7 @@ func DeleteTrades(trades ...Data) error {
 
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("BeginTx %w", err)
+		return fmt.Errorf("beginTx %w", err)
 	}
 	defer func() {
 		if err != nil {

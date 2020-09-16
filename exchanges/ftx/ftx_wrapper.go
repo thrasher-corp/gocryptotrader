@@ -462,7 +462,8 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 			AssetType:    assetType,
 		}
 		if len(trades) > 0 {
-			side, err := order.StringToOrderSide(trades[0].Side)
+			var side order.Side
+			side, err = order.StringToOrderSide(trades[0].Side)
 			if err != nil {
 				return nil, err
 			}
@@ -475,7 +476,8 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 			resp = append(resp, tempResp)
 		}
 		for y := 1; y < len(trades); y++ {
-			side, err := order.StringToOrderSide(trades[y].Side)
+			var side order.Side
+			side, err = order.StringToOrderSide(trades[y].Side)
 			if err != nil {
 				return nil, err
 			}

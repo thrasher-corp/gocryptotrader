@@ -33,7 +33,6 @@
   "intermediaryBankCode": 1337
  },
  "exchanges": {
-  "alphapoint": {},
   "binance": {
    "key": "Key",
    "secret": "Secret",

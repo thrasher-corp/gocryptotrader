@@ -344,7 +344,8 @@ func (l *Lbank) GetHistoricTrades(p currency.Pair, assetType asset.Item, timesta
 	}
 	var resp []trade.Data
 	for i := range tradeData {
-		side, err := order.StringToOrderSide(tradeData[i].Type)
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData[i].Type)
 		if err != nil {
 			return nil, err
 		}

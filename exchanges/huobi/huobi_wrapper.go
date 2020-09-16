@@ -557,7 +557,8 @@ func (h *HUOBI) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 	var resp []trade.Data
 	for i := range tradeData {
 		for j := range tradeData[i].Trades {
-			side, err := order.StringToOrderSide(tradeData[i].Trades[j].Direction)
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData[i].Trades[j].Direction)
 			if err != nil {
 				return nil, err
 			}

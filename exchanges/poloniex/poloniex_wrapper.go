@@ -426,7 +426,8 @@ func (p *Poloniex) GetHistoricTrades(currencyPair currency.Pair, assetType asset
 	}
 	var resp []trade.Data
 	for i := range tradeData {
-		side, err := order.StringToOrderSide(tradeData[i].Type)
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData[i].Type)
 		if err != nil {
 			return nil, err
 		}

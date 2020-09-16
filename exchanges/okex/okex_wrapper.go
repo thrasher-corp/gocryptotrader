@@ -696,6 +696,7 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 	}
 	p = p.Format(o.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, o.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
 	var resp []trade.Data
+	var side order.Side
 	switch assetType {
 	case asset.Spot:
 		tradeData, err := o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
@@ -705,7 +706,7 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 			return nil, err
 		}
 		for i := range tradeData {
-			side, err := order.StringToOrderSide(tradeData[i].Side)
+			side, err = order.StringToOrderSide(tradeData[i].Side)
 			if err != nil {
 				return nil, err
 			}
@@ -728,7 +729,7 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 			return nil, err
 		}
 		for i := range tradeData {
-			side, err := order.StringToOrderSide(tradeData[i].Side)
+			side, err = order.StringToOrderSide(tradeData[i].Side)
 			if err != nil {
 				return nil, err
 			}
@@ -751,7 +752,7 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 			return nil, err
 		}
 		for i := range tradeData {
-			side, err := order.StringToOrderSide(tradeData[i].Side)
+			side, err = order.StringToOrderSide(tradeData[i].Side)
 			if err != nil {
 				return nil, err
 			}

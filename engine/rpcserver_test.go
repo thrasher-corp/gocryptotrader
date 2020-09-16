@@ -234,7 +234,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 	}
 
 	// save generated candle to database
-	candles, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
+	_, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
@@ -252,7 +252,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 	}
 
 	// forcefully remove previous candle and insert a new one
-	candles, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
+	_, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
@@ -542,7 +542,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix()
 	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC).Unix()
 	var resp *gctrpc.FindMissingIntervalsResponse
-	resp, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
+	_, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
 		ExchangeName: testExchange,
 		AssetType:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{

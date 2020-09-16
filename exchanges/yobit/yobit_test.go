@@ -524,7 +524,6 @@ func TestGetRecentTrades(t *testing.T) {
 	if len(resp) == 0 {
 		t.Error("expected trades")
 	}
-
 }
 
 func TestGetExchangeHistory(t *testing.T) {

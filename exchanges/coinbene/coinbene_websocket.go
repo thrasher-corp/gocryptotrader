@@ -160,6 +160,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		return fmt.Errorf("message: %s. code: %v", result["message"], result["code"])
 	}
 	assetType := inferAssetFromTopic(result[topic].(string))
+	var newPair currency.Pair
 	switch {
 	case strings.Contains(result[topic].(string), "ticker"):
 		var wsTicker WsTicker
@@ -167,8 +168,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
-		newP, err := c.getCurrencyFromWsTopic(assetType, wsTicker.Topic)
+		newPair, err = c.getCurrencyFromWsTopic(assetType, wsTicker.Topic)
 		if err != nil {
 			return err
 		}
@@ -181,7 +181,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Low:          wsTicker.Data[x].Low24h,
 				Bid:          wsTicker.Data[x].BestBidPrice,
 				Ask:          wsTicker.Data[x].BestAskPrice,
-				Pair:         newP,
+				Pair:         newPair,
 				ExchangeName: c.Name,
 				AssetType:    assetType,
 				LastUpdated:  time.Unix(wsTicker.Data[x].Timestamp, 0),
@@ -214,7 +214,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				tSide = order.Sell
 			}
 
-			newP, err := c.getCurrencyFromWsTopic(assetType, tradeList.Topic)
+			newPair, err = c.getCurrencyFromWsTopic(assetType, tradeList.Topic)
 			if err != nil {
 				return err
 			}
@@ -222,7 +222,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			trades = append(trades, trade.Data{
 				Timestamp:    t,
 				Exchange:     c.Name,
-				CurrencyPair: newP,
+				CurrencyPair: newPair,
 				AssetType:    assetType,
 				Price:        price,
 				Amount:       amount,
@@ -237,7 +237,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		newP, err := c.getCurrencyFromWsTopic(assetType, orderBook.Topic)
+		newPair, err = c.getCurrencyFromWsTopic(assetType, orderBook.Topic)
 		if err != nil {
 			return err
 		}
@@ -276,7 +276,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			newOB.Asks = asks
 			newOB.Bids = bids
 			newOB.AssetType = assetType
-			newOB.Pair = newP
+			newOB.Pair = newPair
 			newOB.ExchangeName = c.Name
 			newOB.LastUpdated = time.Unix(orderBook.Data[0].Timestamp, 0)
 			err = c.Websocket.Orderbook.LoadSnapshot(&newOB)
@@ -288,7 +288,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Asks:       asks,
 				Bids:       bids,
 				Asset:      assetType,
-				Pair:       newP,
+				Pair:       newPair,
 				UpdateID:   orderBook.Data[0].Version,
 				UpdateTime: time.Unix(orderBook.Data[0].Timestamp, 0),
 			}
@@ -303,14 +303,14 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		newP, err := c.getCurrencyFromWsTopic(assetType, candleData.Topic)
+		newPair, err = c.getCurrencyFromWsTopic(assetType, candleData.Topic)
 		if err != nil {
 			return err
 		}
 
 		for i := range candleData.Data {
 			c.Websocket.DataHandler <- stream.KlineData{
-				Pair:       newP,
+				Pair:       newPair,
 				AssetType:  assetType,
 				Exchange:   c.Name,
 				OpenPrice:  candleData.Data[i].Open,
@@ -370,7 +370,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				}
 			}
 
-			newP, err := currency.NewPairFromFormattedPairs(orders.Data[i].Symbol,
+			newPair, err = currency.NewPairFromFormattedPairs(orders.Data[i].Symbol,
 				pairs,
 				format)
 			if err != nil {
@@ -390,7 +390,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				AssetType:       assetType,
 				Date:            orders.Data[i].OrderTime,
 				Leverage:        strconv.FormatInt(orders.Data[i].Leverage, 10),
-				Pair:            newP,
+				Pair:            newPair,
 			}
 		}
 	default:

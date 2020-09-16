@@ -200,7 +200,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				return errors.New("orderbook interface cast failed")
 			}
 			if len(obSnapBundle) == 0 {
-				return fmt.Errorf("%v - %+v", b.Name, d)
+				return errors.New("no data within orderbook snapshot")
 			}
 			switch id := obSnapBundle[0].(type) {
 			case []interface{}:
