@@ -12,20 +12,23 @@
   + This will enable trade processing to occur for that specific exchange
   + This can also be done via gRPC under the `SetExchangeTradeProcessing` command
 
+### Usage
 + To send trade data to be processed, use the following example:
 ```
 err := trade.AddTradesToBuffer(b.Name, trade.Data{
-    Base:         base,
-    Quote:        quote,
-    Timestamp:    time.Unix(0, t.TimeStamp*int64(time.Millisecond)),
-    Price:        price,
-    Amount:       amount,
     Exchange:     b.Name,
-    AssetType:    asset.Spot,
+    TID:          strconv.FormatInt(tradeData[i].TID, 10),
+    CurrencyPair: p,
+    AssetType:    assetType,
+    Side:         side,
+    Price:        tradeData[i].Price,
+    Amount:       tradeData[i].Amount,
+    Timestamp:    tradeTS,
 })
 ```
 _b in this context is an `IBotExchange` implemented struct_
 
+### Rules
 + If the trade processor has not started, it will automatically start upon being sent trade data.
 + The processor will add all received trades to a buffer
 + After 15 seconds, the trade processor will parse and save all trades on the buffer to the trade table
