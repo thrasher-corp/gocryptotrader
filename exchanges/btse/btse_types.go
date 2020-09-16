@@ -204,7 +204,7 @@ type WalletHistory []struct {
 	Description string  `json:"description"`
 	Fees        float64 `json:"fees"`
 	OrderID     string  `json:"orderId"`
-	Status      int     `json:"status"`
+	Status      string  `json:"status"`
 	Timestamp   int64   `json:"timestamp"`
 	Type        string  `json:"type"`
 	Username    string  `json:"username"`
