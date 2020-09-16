@@ -1,9 +1,7 @@
 package huobi
 
-// Futures
-
-// FWsKlineData stores kline data for futures websocket
-type FWsKlineData struct {
+// WsKlineData stores kline data for futures and swap websocket
+type WsKlineData struct {
 	Channel   string `json:"ch"`
 	Timestamp int64  `json:"ts"`
 	Tick      struct {
@@ -18,6 +16,29 @@ type FWsKlineData struct {
 		Amount float64 `json:"amount"`
 	} `json:"tick"`
 }
+
+// WsMarketDepth stores market depth data for futures and swap websocket
+type WsMarketDepth struct {
+	Channel   string `json:"ch"`
+	Timestamp int64  `json:"ts"`
+	Tick      struct {
+		MRID      int64        `json:"mrid"`
+		ID        int64        `json:"id"`
+		Bids      [][2]float64 `json:"bids"`
+		Asks      [][2]float64 `json:"asks"`
+		Timestamp int64        `json:"ts"`
+		Version   int64        `json:"version"`
+		Channel   string       `json:"ch"`
+	} `json:"tick"`
+}
+
+// WsIncrementalMarketDepth stores incremental market depth data for swap and futures websocket
+type WsIncrementalMarketDepth struct {
+	Channel   string `json:"ch"`
+	Timestamp int64  `json:"ts"`
+}
+
+// Futures
 
 // FWsRequestKline stores requested kline data for futures websocket
 type FWsRequestKline struct {
@@ -36,30 +57,67 @@ type FWsRequestKline struct {
 	} `json:"tick"`
 }
 
-// FWsMarketDepth stores market depth data for futures websocket
-type FWsMarketDepth struct {
-	Channel   string `json:"ch"`
-	Timestamp int64  `json:"ts"`
-	Tick      struct {
-		MRID      int64        `json:"mrid"`
-		ID        int64        `json:"id"`
-		Bids      [][2]float64 `json:"bids"`
-		Asks      [][2]float64 `json:"asks"`
-		Timestamp int64        `json:"ts"`
-		Version   int64        `json:"version"`
-		Channel   string       `json:"ch"`
-	} `json:"tick"`
-}
-
 // FWsMarketBBOData stores BBO data for futures websocket
 type FWsMarketBBOData struct {
 	Channel   string `json:"ch"`
 	Timestamp int64  `json:"ts"`
 	Tick      struct {
-		Channel string `json:"ch"`
-		MRID    int64  `json:"mrid"`
-		ID      int64  `json:"id"`
-	}
+		Channel   string     `json:"ch"`
+		MRID      int64      `json:"mrid"`
+		ID        int64      `json:"id"`
+		Bid       [2]float64 `json:"bid"`
+		Ask       [2]float64 `json:"ask"`
+		Timestamp int64      `json:"ts"`
+		Version   int64      `json:":version"`
+	} `json:"tick"`
+}
+
+// FWsMarketDetail stores market detail data for futures websocket
+type FWsMarketDetail struct {
+	Channel   string `json:"ch"`
+	Timestamp int64  `json:"ts"`
+	Tick      struct {
+		ID     int64   `json:"id"`
+		MRID   int64   `json:"mrid"`
+		Open   float64 `json:"open"`
+		Close  float64 `json:"close"`
+		High   float64 `json:"high"`
+		Low    float64 `json:"low"`
+		Amount float64 `json:"amount"`
+		Volume float64 `json:"vol"`
+		Count  float64 `json:"count"`
+	} `json:"tick"`
+}
+
+// FWsReqTradeDetail stores requested trade detail data for futures websocket
+type FWsReqTradeDetail struct {
+	Rep       string `json:"rep"`
+	ID        string `json:"id"`
+	Timestamp int64  `json:"ts"`
+	Data      []struct {
+		ID        int64   `json:"id"`
+		Price     float64 `json:"price"`
+		Amount    float64 `json:"amount"`
+		Direction string  `json:"direction"`
+		Timestamp int64   `json:"ts"`
+	} `json:"data"`
+}
+
+// FWsSubTradeDetail stores trade detail data for futures websocket
+type FWsSubTradeDetail struct {
+	Channel   string `json:"ch"`
+	Timestamp int64  `json:"ts"`
+	Tick      struct {
+		ID        int64 `json:"id"`
+		Timestamp int64 `json:"ts"`
+		Data      []struct {
+			Amount    float64 `json:"amount"`
+			Timestamp int64   `json:"ts"`
+			ID        int64   `json:"id"`
+			Price     float64 `json:"price"`
+			Direction string  `json:"direction"`
+		} `json:"data"`
+	} `json:"tick"`
 }
 
 // FContractInfoData gets contract info data for futures
@@ -946,6 +1004,23 @@ type FTriggerOrderHistoryData struct {
 //
 
 // Coin Margined Swaps
+
+// WsSwapReqKline stores req kline data for swap websocket
+type WsSwapReqKline struct {
+	Rep  string `json:"rep"`
+	ID   string `json:"id"`
+	WsID int64  `json:"wsid"`
+	Tick []struct {
+		Volume float64 `json:"vol"`
+		Count  float64 `json:"count"`
+		ID     int64   `json:"id"`
+		Open   float64 `json:"open"`
+		Close  float64 `json:"close"`
+		Low    float64 `json:"low"`
+		High   float64 `json:"high"`
+		Amount float64 `json:"amount"`
+	} `json:"tick"`
+}
 
 // SwapIndexPriceData gets price of a perpetual swap
 type SwapIndexPriceData struct {
