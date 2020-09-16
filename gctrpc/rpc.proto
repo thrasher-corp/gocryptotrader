@@ -601,13 +601,14 @@ message SavedTrades {
     double amount = 2;
     string side = 3;
     int64 timestamp = 4;
+    string trade_id = 5;
 }
 
 message SavedTradesResponse {
     string exchange_name = 1;
     string asset = 2;
     CurrencyPair pair = 3;
-    repeated SavedTrades saved_trades = 4;
+    repeated SavedTrades trades = 4;
 }
 
 message ConvertTradesToCandlesRequest {
@@ -1262,6 +1263,18 @@ service GoCryptoTrader {
     rpc WebsocketSetURL(WebsocketSetURLRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/websocketseturl"
+        };
+    }
+
+    rpc GetRecentTrades(GetSavedTradesRequest) returns (SavedTradesResponse) {
+        option (google.api.http) = {
+            get: "/v1/getsavedtrades"
+        };
+    }
+
+    rpc GetHistoricTrades(GetSavedTradesRequest) returns (SavedTradesResponse) {
+        option (google.api.http) = {
+            get: "/v1/getsavedtrades"
         };
     }
 

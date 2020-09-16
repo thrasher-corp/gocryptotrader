@@ -26,9 +26,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 )
 
-var databaseFolder = "database"
-var migrationsFolder = "migrations"
-var databaseName = "rpctestdb"
+const (
+	invalidArguments      = "invalid arguments received"
+	unexpectedLackOfError = "unexpected lack of error"
+	databaseFolder        = "database"
+	migrationsFolder      = "migrations"
+	databaseName          = "rpctestdb"
+)
 
 // Sets up everything required to run any function inside rpcserver
 func RPCTestSetup(t *testing.T) {
@@ -76,9 +80,9 @@ func TestGetSavedTrades(t *testing.T) {
 	var s RPCServer
 	_, err := s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
-		t.Fatal("unexpected lack of error")
+		t.Fatal(unexpectedLackOfError)
 	}
-	if err.Error() != "invalid arguments received" {
+	if err.Error() != invalidArguments {
 		t.Error(err)
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
@@ -93,7 +97,7 @@ func TestGetSavedTrades(t *testing.T) {
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
 	})
 	if err == nil {
-		t.Fatal("unexpected lack of error")
+		t.Fatal(unexpectedLackOfError)
 	}
 	if err != errExchangeNotLoaded {
 		t.Error(err)
@@ -110,7 +114,7 @@ func TestGetSavedTrades(t *testing.T) {
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
 	})
 	if err == nil {
-		t.Fatal("unexpected lack of error")
+		t.Fatal(unexpectedLackOfError)
 	}
 	if err.Error() != "request for Bitstamp spot trade data between 1575072000 and 1577840461 and returned no results" {
 		t.Error(err)
@@ -151,9 +155,9 @@ func TestConvertTradesToCandles(t *testing.T) {
 	// bad param test
 	_, err := s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{})
 	if err == nil {
-		t.Fatal("unexpected lack of error")
+		t.Fatal(unexpectedLackOfError)
 	}
-	if err.Error() != "invalid arguments received" {
+	if err.Error() != invalidArguments {
 		t.Error(err)
 	}
 
@@ -171,7 +175,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if err == nil {
-		t.Fatal("unexpected lack of error")
+		t.Fatal(unexpectedLackOfError)
 	}
 	if err != errExchangeNotLoaded {
 		t.Error(err)
@@ -191,7 +195,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if err == nil {
-		t.Fatal("unexpected lack of error")
+		t.Fatal(unexpectedLackOfError)
 	}
 	if err.Error() != "no trades returned from supplied params" {
 		t.Error(err)
@@ -429,7 +433,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if err.Error() != "invalid arguments received" {
+	if err.Error() != invalidArguments {
 		t.Fatal(err)
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
@@ -534,7 +538,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if err.Error() != "invalid arguments received" {
+	if err.Error() != invalidArguments {
 		t.Fatal(err)
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
@@ -658,5 +662,94 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	base = exch.GetBase()
 	if base.Features.Enabled.SaveTradeData {
 		t.Error("expected false")
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	RPCTestSetup(t)
+	defer CleanRPCTest(t)
+	var s RPCServer
+	_, err := s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
+	if err == nil {
+		t.Fatal(unexpectedLackOfError)
+	}
+	if err.Error() != invalidArguments {
+		t.Error(err)
+	}
+	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
+		Exchange: "fake",
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+		AssetType: asset.Spot.String(),
+		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Unix(),
+		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
+	})
+	if err == nil {
+		t.Fatal(unexpectedLackOfError)
+	}
+	if err != errExchangeNotLoaded {
+		t.Error(err)
+	}
+	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+		AssetType: asset.Spot.String(),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	RPCTestSetup(t)
+	defer CleanRPCTest(t)
+	var s RPCServer
+	_, err := s.GetHistoricTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
+	if err == nil {
+		t.Fatal(unexpectedLackOfError)
+	}
+	if err.Error() != invalidArguments {
+		t.Error(err)
+	}
+	_, err = s.GetHistoricTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
+		Exchange: "fake",
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+		AssetType: asset.Spot.String(),
+		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Unix(),
+		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
+	})
+	if err == nil {
+		t.Fatal(unexpectedLackOfError)
+	}
+	if err != errExchangeNotLoaded {
+		t.Error(err)
+	}
+	_, err = s.GetHistoricTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
+		Exchange: testExchange,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+		AssetType: asset.Spot.String(),
+		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Unix(),
+		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix(),
+	})
+	if err == nil {
+		t.Fatal(unexpectedLackOfError)
+	}
+	if err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

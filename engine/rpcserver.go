@@ -2349,16 +2349,18 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 	resp := &gctrpc.SavedTradesResponse{
 		ExchangeName: r.Exchange,
 		Asset:        r.AssetType,
+		Pair:         r.Pair,
 	}
 	for i := range trades {
-		resp.SavedTrades = append(resp.SavedTrades, &gctrpc.SavedTrades{
+		resp.Trades = append(resp.Trades, &gctrpc.SavedTrades{
 			Price:     trades[i].Price,
 			Amount:    trades[i].Amount,
 			Side:      trades[i].Side,
 			Timestamp: trades[i].Timestamp.Unix(),
+			TradeId:   trades[i].TID,
 		})
 	}
-	if len(resp.SavedTrades) == 0 {
+	if len(resp.Trades) == 0 {
 		return nil, fmt.Errorf("request for %v %v trade data between %v and %v and returned no results", r.Exchange, r.AssetType, r.Start, r.End)
 	}
 	return resp, nil
@@ -2567,4 +2569,82 @@ func (s *RPCServer) SetExchangeTradeProcessing(_ context.Context, r *gctrpc.SetE
 	return &gctrpc.GenericResponse{
 		Status: "success",
 	}, nil
+}
+
+// GetRecentTrades returns trades
+func (s *RPCServer) GetHistoricTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
+	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
+		return nil, errors.New("invalid arguments received")
+	}
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	var trades []trade.Data
+	tStart := time.Unix(r.Start, 0)
+	tEnd := time.Unix(r.End, 0)
+	trades, err = exch.GetHistoricTrades(cp, asset.Item(r.AssetType), tStart, tEnd)
+	if err != nil {
+		return nil, err
+	}
+	resp := &gctrpc.SavedTradesResponse{
+		ExchangeName: r.Exchange,
+		Asset:        r.AssetType,
+		Pair:         r.Pair,
+	}
+	for i := range trades {
+		resp.Trades = append(resp.Trades, &gctrpc.SavedTrades{
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Side:      trades[i].Side.String(),
+			Timestamp: trades[i].Timestamp.Unix(),
+			TradeId:   trades[i].TID,
+		})
+	}
+	if len(resp.Trades) == 0 {
+		return nil, fmt.Errorf("request for %v %v trade data between %v and %v and returned no results", r.Exchange, r.AssetType, r.Start, r.End)
+	}
+	return resp, nil
+}
+
+// GetRecentTrades returns trades
+func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
+	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
+		return nil, errors.New("invalid arguments received")
+	}
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	var trades []trade.Data
+	trades, err = exch.GetRecentTrades(cp, asset.Item(r.AssetType))
+	if err != nil {
+		return nil, err
+	}
+	resp := &gctrpc.SavedTradesResponse{
+		ExchangeName: r.Exchange,
+		Asset:        r.AssetType,
+		Pair:         r.Pair,
+	}
+	for i := range trades {
+		resp.Trades = append(resp.Trades, &gctrpc.SavedTrades{
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Side:      trades[i].Side.String(),
+			Timestamp: trades[i].Timestamp.Unix(),
+			TradeId:   trades[i].TID,
+		})
+	}
+	if len(resp.Trades) == 0 {
+		return nil, fmt.Errorf("request for %v %v trade data and returned no results", r.Exchange, r.AssetType)
+	}
+	return resp, nil
 }

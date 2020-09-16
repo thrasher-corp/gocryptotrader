@@ -4202,6 +4202,230 @@ func getSavedTrades(c *cli.Context) error {
 	return nil
 }
 
+var getRecentTradesCommand = cli.Command{
+	Name:      "getrecenttrades",
+	Usage:     "gets recent trades",
+	ArgsUsage: "<exchange> <pair> <asset>",
+	Action:    getRecentTrades,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange, e",
+			Usage: "the exchange to get the candles from",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to get the candles for",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type of the currency pair",
+		},
+	},
+}
+
+func getRecentTrades(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getrecenttrades")
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	var currencyPair string
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(1)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(2)
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			log.Error(log.GRPCSys, err)
+		}
+	}()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetRecentTrades(context.Background(),
+		&gctrpc.GetSavedTradesRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			AssetType: assetType,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var getHistoricTradesCommand = cli.Command{
+	Name:      "gethistorictrades",
+	Usage:     "gets trades between two periods",
+	ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
+	Action:    getHistoricTrades,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange, e",
+			Usage: "the exchange to get the candles from",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to get the candles for",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type of the currency pair",
+		},
+		cli.StringFlag{
+			Name:        "start",
+			Usage:       "<start>",
+			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		cli.StringFlag{
+			Name:        "end",
+			Usage:       "<end>",
+			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Destination: &endTime,
+		},
+	},
+}
+
+func getHistoricTrades(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "gethistorictrades")
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	var currencyPair string
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(1)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(2)
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if !c.IsSet("start") {
+		if c.Args().Get(4) != "" {
+			startTime = c.Args().Get(4)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(5) != "" {
+			endTime = c.Args().Get(5)
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			log.Error(log.GRPCSys, err)
+		}
+	}()
+
+	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+
+	e, err := time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after before")
+	}
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetHistoricTrades(context.Background(),
+		&gctrpc.GetSavedTradesRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			AssetType: assetType,
+			Start:     s.Unix(),
+			End:       e.Unix(),
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var convertSavedTradesToCandlesCommand = cli.Command{
 	Name:      "convertsavedtradestocandles",
 	Usage:     "explicitly converts stored trade data to candles and saves the result to the database",

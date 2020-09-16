@@ -3788,6 +3788,9 @@
         "timestamp": {
           "type": "string",
           "format": "int64"
+        },
+        "trade_id": {
+          "type": "string"
         }
       }
     },
@@ -3803,7 +3806,7 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "saved_trades": {
+        "trades": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcSavedTrades"
