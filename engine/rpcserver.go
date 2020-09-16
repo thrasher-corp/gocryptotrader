@@ -1681,7 +1681,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 
 	if r.FillMissingWithTrades {
 		var tradeDataKline kline.Item
-		tradeDataKline, err = fillMissingCandlesWithStoredTrades(r.Start, r.End, klineItem)
+		tradeDataKline, err = fillMissingCandlesWithStoredTrades(tStart, tEnd, klineItem)
 		if err != nil {
 			return nil, err
 		}
@@ -1724,11 +1724,11 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 	return &resp, nil
 }
 
-func fillMissingCandlesWithStoredTrades(startTime, endTime int64, klineItem kline.Item) (kline.Item, error) {
+func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem kline.Item) (kline.Item, error) {
 	var response kline.Item
 	missingIntervals := klineItem.DetermineMissingIntervals(
-		time.Unix(startTime, 0),
-		time.Unix(endTime, 0),
+		startTime,
+		endTime,
 	)
 
 	if len(missingIntervals) > 0 {
@@ -2340,8 +2340,9 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
-
-	trades, err := tradesql.GetInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, r.Start, r.End)
+	startTime := time.Unix(r.Start, 0)
+	endTime := time.Unix(r.End, 0)
+	trades, err := tradesql.GetInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
@@ -2354,7 +2355,7 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 			Price:     trades[i].Price,
 			Amount:    trades[i].Amount,
 			Side:      trades[i].Side,
-			Timestamp: trades[i].Timestamp,
+			Timestamp: trades[i].Timestamp.Unix(),
 		})
 	}
 	if len(resp.SavedTrades) == 0 {
@@ -2370,10 +2371,13 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 		return nil, errors.New("invalid arguments received")
 	}
 	exch := GetExchangeByName(r.Exchange)
+	startTime := time.Unix(r.Start, 0)
+	endTime := time.Unix(r.End, 0)
+
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
-	sqlTrades, err := tradesql.GetInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, r.Start, r.End)
+	sqlTrades, err := tradesql.GetInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
@@ -2456,14 +2460,20 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 			r.AssetType,
 			missingIntervals[i].Format(common.SimpleTimeFormat)))
 	}
+	intervalsWithData := klineItem.DetermineIntervalsWithData(startTime, endTime)
+	for i := range intervalsWithData {
+		resp.FoundPeriods = append(resp.FoundPeriods, fmt.Sprintf("Found requested OHLCV data for %v %v %v interval at %v",
+			r.ExchangeName,
+			r.Pair.Base+r.Pair.Delimiter+r.Pair.Quote,
+			r.AssetType,
+			intervalsWithData[i].Format(common.SimpleTimeFormat)))
+	}
 
 	if len(resp.MissingPeriods) == 0 {
-		resp.MissingPeriods = []string{
-			fmt.Sprintf("no missing periods found between %v and %v",
-				r.Start,
-				r.End,
-			),
-		}
+		resp.Status = fmt.Sprintf("no missing periods found between %v and %v",
+			r.Start,
+			r.End,
+		)
 	}
 
 	return resp, nil
@@ -2474,14 +2484,16 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if r.End <= 0 || r.Start <= 0 || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errors.New("invalid arguments received")
 	}
+	iterateDate := time.Unix(r.Start, 0).UTC()
+	endDate := time.Unix(r.End, 0).UTC()
 
 	trades, err := tradesql.GetInRange(
 		r.ExchangeName,
 		r.AssetType,
 		r.Pair.Base,
 		r.Pair.Quote,
-		r.Start,
-		r.End,
+		iterateDate,
+		endDate,
 	)
 	if err != nil {
 		return nil, err
@@ -2490,26 +2502,29 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		MissingPeriods: []string{},
 	}
 	if len(trades) == 0 {
-		resp.MissingPeriods = []string{
-			fmt.Sprintf("no trade data found for %v %v %v between %v and %v",
-				r.ExchangeName,
-				r.AssetType,
-				r.Pair.Base+r.Pair.Delimiter+r.Pair.Quote,
-				time.Unix(r.Start, 0).UTC().Format(common.SimpleTimeFormat),
-				time.Unix(r.End, 0).UTC().Format(common.SimpleTimeFormat),
-			),
-		}
+		resp.Status = fmt.Sprintf("no trade data found for %v %v %v between %v and %v",
+			r.ExchangeName,
+			r.AssetType,
+			r.Pair.Base+r.Pair.Delimiter+r.Pair.Quote,
+			time.Unix(r.Start, 0).UTC().Format(common.SimpleTimeFormat),
+			time.Unix(r.End, 0).UTC().Format(common.SimpleTimeFormat),
+		)
 		return resp, nil
 	}
-	iterateDate := time.Unix(r.Start, 0).UTC()
-	endDate := time.Unix(r.End, 0).UTC()
 
-	for !iterateDate.After(endDate) {
+	for !iterateDate.After(endDate) && !iterateDate.Equal(endDate) {
 		timeWithinHour := false
 		for j := range trades {
-			tradeUnix := time.Unix(trades[j].Timestamp, 0)
-			if tradeUnix.Sub(iterateDate) < time.Hour {
+			sub := iterateDate.Sub(trades[j].Timestamp.UTC())
+			if sub < time.Hour && sub >= 0 {
 				timeWithinHour = true
+				resp.FoundPeriods = append(resp.FoundPeriods, fmt.Sprintf("trade data found for %v %v %v between between %v and %v",
+					r.ExchangeName,
+					r.AssetType,
+					r.Pair.Base+r.Pair.Delimiter+r.Pair.Quote,
+					iterateDate.Add(-time.Hour).Format(common.SimpleTimeFormat),
+					iterateDate.Format(common.SimpleTimeFormat),
+				))
 			}
 		}
 		if !timeWithinHour {
@@ -2519,18 +2534,16 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 				r.Pair.Base+r.Pair.Delimiter+r.Pair.Quote,
 				iterateDate.Add(-time.Hour).Format(common.SimpleTimeFormat),
 				iterateDate.Format(common.SimpleTimeFormat),
-			),
-			)
+			))
 		}
 		iterateDate = iterateDate.Add(time.Hour)
 	}
 	if len(resp.MissingPeriods) == 0 {
-		resp.MissingPeriods = []string{
-			fmt.Sprintf("no missing periods found between %v and %v",
-				r.Start,
-				r.End,
-			),
-		}
+		resp.Status = fmt.Sprintf("no missing periods found between %v and %v",
+			r.Start,
+			r.End,
+		)
 	}
+
 	return resp, nil
 }

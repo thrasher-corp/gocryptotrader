@@ -307,6 +307,8 @@ func (k *Item) FormatDates() {
 	}
 }
 
+// DetermineAllIntervals calculates all interval times
+// within a data range
 func DetermineAllIntervals(start, end time.Time, interval Interval) []time.Time {
 	var allIntervals []time.Time
 	intervalTime := start
@@ -321,6 +323,8 @@ func DetermineAllIntervals(start, end time.Time, interval Interval) []time.Time 
 	return allIntervals
 }
 
+// DetermineMissingIntervals finds any period in a range of time
+// where the kline item does not contain candles
 func (k *Item) DetermineMissingIntervals(start, end time.Time) []time.Time {
 	allIntervals := DetermineAllIntervals(start, end, k.Interval)
 	var foundIntervals, missingIntervals []time.Time
@@ -344,4 +348,20 @@ func (k *Item) DetermineMissingIntervals(start, end time.Time) []time.Time {
 		}
 	}
 	return missingIntervals
+}
+
+// DetermineIntervalsWithData finds any period in a range of time
+// where the kline item does contain candles
+func (k *Item) DetermineIntervalsWithData(start, end time.Time) []time.Time {
+	allIntervals := DetermineAllIntervals(start, end, k.Interval)
+	var foundIntervals []time.Time
+	for j := range allIntervals {
+		for i := range k.Candles {
+			truncatedTime := k.Candles[i].Time.Truncate(k.Interval.Duration()).UTC()
+			if truncatedTime.Equal(allIntervals[j]) {
+				foundIntervals = append(foundIntervals, truncatedTime)
+			}
+		}
+	}
+	return foundIntervals
 }

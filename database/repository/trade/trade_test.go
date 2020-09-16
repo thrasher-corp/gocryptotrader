@@ -103,7 +103,7 @@ func tradeSqlTester(t *testing.T) {
 		uu, _ := uuid.NewV4()
 		trades = append(trades, Data{
 			ID:        uu.String(),
-			Timestamp: time.Now().Unix(),
+			Timestamp: time.Now(),
 			Exchange:  testExchanges[0].Name,
 			Base:      currency.BTC.String(),
 			Quote:     currency.USD.String(),
@@ -123,7 +123,7 @@ func tradeSqlTester(t *testing.T) {
 		uu, _ := uuid.NewV4()
 		trades2 = append(trades2, Data{
 			ID:        uu.String(),
-			Timestamp: time.Now().Unix(),
+			Timestamp: time.Now(),
 			Exchange:  testExchanges[0].Name,
 			Base:      currency.BTC.String(),
 			Quote:     currency.USD.String(),
@@ -138,7 +138,14 @@ func tradeSqlTester(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err := GetInRange(testExchanges[0].Name, asset.Spot.String(), currency.BTC.String(), currency.USD.String(), time.Now().Add(-time.Hour).Unix(), time.Now().Add(time.Hour).Unix())
+	resp, err := GetInRange(
+		testExchanges[0].Name,
+		asset.Spot.String(),
+		currency.BTC.String(),
+		currency.USD.String(),
+		time.Now().Add(-time.Hour),
+		time.Now().Add(time.Hour),
+	)
 	if err != nil {
 		t.Error(err)
 	}
@@ -151,8 +158,8 @@ func tradeSqlTester(t *testing.T) {
 		asset.Spot.String(),
 		currency.BTC.String(),
 		currency.USD.String(),
-		time.Now().Add(-time.Hour).Unix(),
-		time.Now().Add(time.Hour).Unix())
+		time.Now().Add(-time.Hour),
+		time.Now().Add(time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
@@ -175,8 +182,8 @@ func tradeSqlTester(t *testing.T) {
 		asset.Spot.String(),
 		currency.BTC.String(),
 		currency.USD.String(),
-		time.Now().Add(-time.Hour).Unix(),
-		time.Now().Add(time.Hour).Unix())
+		time.Now().Add(-time.Hour),
+		time.Now().Add(time.Hour))
 	if err != nil {
 		t.Error(err)
 	}

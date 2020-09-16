@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS trade
     price REAL NOT NULL,
     amount REAL NOT NULL,
     side TEXT NOT NULL,
-    timestamp INTEGER NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
     CONSTRAINT uniquetradeid
         unique(exchange_name_id, tid) ON CONFLICT IGNORE,
     CONSTRAINT uniquetrade

@@ -42,7 +42,6 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		return out, errS
 	}
 	queries = append(queries, qm.Where("exchange_name_id = ?", exchangeUUID.String()))
-
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
 		if errC != nil {

@@ -87,7 +87,7 @@ func TestSqlDataToTrade(t *testing.T) {
 	uuiderino, _ := uuid.NewV4()
 	data, err := SqlDataToTrade(sqltrade.Data{
 		ID:        uuiderino.String(),
-		Timestamp: 0,
+		Timestamp: time.Time{},
 		Exchange:  "hello",
 		Base:      currency.BTC.String(),
 		Quote:     currency.USD.String(),

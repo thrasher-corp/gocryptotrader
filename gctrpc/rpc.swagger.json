@@ -2850,6 +2850,15 @@
           "items": {
             "type": "string"
           }
+        },
+        "foundPeriods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string"
         }
       }
     },

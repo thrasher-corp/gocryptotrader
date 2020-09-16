@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS trade
     price DOUBLE PRECISION NOT NULL,
     amount DOUBLE PRECISION NOT NULL,
     side varchar NOT NULL,
-    timestamp bigint NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
     CONSTRAINT uniquetradeid
         unique(exchange_name_id, tid),
     CONSTRAINT uniquetrade

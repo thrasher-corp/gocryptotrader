@@ -4632,15 +4632,6 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-	// converting time to unix converts time to UTC, however,
-	// we want the local user's time offset removed from the unix value
-	_, timeOffset := e.Zone()
-	timeOffset64 := int64(timeOffset)
-	sUnix := s.Unix() - timeOffset64
-	eUnix := e.Unix() - timeOffset64
-	if e.Before(s) {
-		return errors.New("start cannot be after before")
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.FindMissingSavedTradeIntervals(context.Background(),
@@ -4652,8 +4643,8 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     sUnix,
-			End:       eUnix,
+			Start:     s.Unix(),
+			End:       e.Unix(),
 		})
 	if err != nil {
 		return err

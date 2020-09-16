@@ -767,3 +767,47 @@ func TestDetermineMissingIntervals(t *testing.T) {
 
 	}
 }
+
+func TestDetermineIntervalsWithData(t *testing.T) {
+	// no candles
+	item := Item{
+		Interval: OneHour,
+	}
+	startTime := time.Now().Add(-time.Hour * 24).UTC()
+	endTime := startTime.Add(time.Hour * 24)
+	candleTime := startTime.Add(time.Hour)
+	outsideTime := startTime.Add(time.Hour * 1337)
+	intervals := item.DetermineIntervalsWithData(startTime, endTime)
+	if len(intervals) != 0 {
+		t.Errorf("expected 0 interval(s), received %v", len(intervals))
+
+	}
+	// valid scenario
+	item = Item{
+		Candles: []Candle{
+			{
+				Time: candleTime,
+			},
+		},
+		Interval: OneHour,
+	}
+	intervals = item.DetermineIntervalsWithData(startTime, endTime)
+	if len(intervals) != 1 {
+		t.Errorf("expected 1 interval(s), received %v", len(intervals))
+
+	}
+	// outside range
+	item = Item{
+		Candles: []Candle{
+			{
+				Time: outsideTime,
+			},
+		},
+		Interval: OneHour,
+	}
+	intervals = item.DetermineIntervalsWithData(startTime, endTime)
+	if len(intervals) != 0 {
+		t.Errorf("expected 0 interval(s), received %v", len(intervals))
+
+	}
+}

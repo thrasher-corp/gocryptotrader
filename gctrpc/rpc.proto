@@ -803,6 +803,8 @@ message FindMissingTradePeriodsRequest {
 
 message FindMissingIntervalsResponse {
     repeated string missingPeriods = 1;
+    repeated string foundPeriods = 2;
+    string status = 3;
 }
 
 service GoCryptoTrader {

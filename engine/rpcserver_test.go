@@ -39,6 +39,7 @@ func RPCTestSetup(t *testing.T) {
 		ConnectionDetails: drivers.ConnectionDetails{
 			Database: databaseName,
 		},
+		Verbose: true,
 	}
 	Bot.Config.Database = dbConf
 	database.DB.Config = &dbConf
@@ -115,7 +116,7 @@ func TestGetSavedTrades(t *testing.T) {
 		t.Error(err)
 	}
 	err = sqltrade.Insert(sqltrade.Data{
-		Timestamp: time.Date(2020, 0, 0, 0, 0, 1, 0, time.UTC).Unix(),
+		Timestamp: time.Date(2020, 0, 0, 0, 0, 1, 0, time.UTC),
 		Exchange:  testExchange,
 		Base:      currency.BTC.String(),
 		Quote:     currency.USD.String(),
@@ -198,7 +199,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 
 	// add a trade
 	err = sqltrade.Insert(sqltrade.Data{
-		Timestamp: time.Date(2020, 1, 1, 1, 1, 2, 1, time.UTC).Unix(),
+		Timestamp: time.Date(2020, 1, 1, 1, 1, 2, 1, time.UTC),
 		Exchange:  testExchange,
 		Base:      currency.BTC.String(),
 		Quote:     currency.USD.String(),
@@ -433,8 +434,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	// no data found response
-	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Unix()
-	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC).Unix()
+	defaultStart := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
+	defaultEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).Unix()
 	var resp *gctrpc.FindMissingIntervalsResponse
 	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
 		ExchangeName: testExchange,
@@ -449,8 +450,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(resp.MissingPeriods) != 1 {
-		t.Fatal("unexpected response")
+	if resp.Status == "" {
+		t.Errorf("expected a status message")
 	}
 
 	// one trade response
@@ -462,39 +463,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 		Price:        1337,
 		Amount:       1337,
 		Side:         order.Buy,
-		Timestamp:    time.Date(2020, 1, 1, 1, 3, 3, 7, time.UTC),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
-		ExchangeName: testExchange,
-		AssetType:    asset.Spot.String(),
-		Pair: &gctrpc.CurrencyPair{
-			Base:  cp.Base.String(),
-			Quote: cp.Quote.String(),
-		},
-		Start: defaultStart,
-		End:   defaultEnd,
-	})
-	if err != nil {
-		t.Error(err)
-	}
-	if len(resp.MissingPeriods) != 24 {
-		t.Errorf("expected 24 missing periods, received: %v", len(resp.MissingPeriods))
-	}
-
-	// two trades response
-	err = trade.SaveTradesToDatabase(trade.Data{
-		TID:          "test1234",
-		Exchange:     testExchange,
-		CurrencyPair: cp,
-		AssetType:    asset.Spot,
-		Price:        1337,
-		Amount:       1337,
-		Side:         order.Buy,
-		Timestamp:    time.Date(2020, 1, 1, 2, 3, 3, 7, time.UTC),
+		Timestamp:    time.Date(2020, 1, 1, 2, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -515,6 +484,44 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	}
 	if len(resp.MissingPeriods) != 23 {
 		t.Errorf("expected 23 missing periods, received: %v", len(resp.MissingPeriods))
+	}
+	if len(resp.FoundPeriods) != 1 {
+		t.Errorf("expected 1 found periods, received: %v", len(resp.FoundPeriods))
+	}
+
+	// two trades response
+	err = trade.SaveTradesToDatabase(trade.Data{
+		TID:          "test123",
+		Exchange:     testExchange,
+		CurrencyPair: cp,
+		AssetType:    asset.Spot,
+		Price:        1337,
+		Amount:       1337,
+		Side:         order.Buy,
+		Timestamp:    time.Date(2020, 1, 1, 4, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
+		ExchangeName: testExchange,
+		AssetType:    asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Start: defaultStart,
+		End:   defaultEnd,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp.MissingPeriods) != 22 {
+		t.Errorf("expected 22 missing periods, received: %v", len(resp.MissingPeriods))
+	}
+	if len(resp.FoundPeriods) != 2 {
+		t.Errorf("expected 2 found periods, received: %v", len(resp.FoundPeriods))
 	}
 }
 
@@ -585,8 +592,8 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(resp.MissingPeriods) != 24 {
-		t.Errorf("expected 24 missing periods, received: %v", len(resp.MissingPeriods))
+	if len(resp.FoundPeriods) != 1 {
+		t.Errorf("expected a candle")
 	}
 
 	// two candle missing periods response

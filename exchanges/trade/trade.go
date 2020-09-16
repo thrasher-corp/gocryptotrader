@@ -121,7 +121,7 @@ func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
 		}
 		results = append(results, tradesql.Data{
 			ID:        tradeID.String(),
-			Timestamp: trades[i].Timestamp.Unix(),
+			Timestamp: trades[i].Timestamp,
 			Exchange:  trades[i].Exchange,
 			Base:      trades[i].CurrencyPair.Base.String(),
 			Quote:     trades[i].CurrencyPair.Quote.String(),
@@ -155,7 +155,7 @@ func SqlDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
 		}
 		result = append(result, Data{
 			ID:           uuid.FromStringOrNil(dbTrades[i].ID),
-			Timestamp:    time.Unix(dbTrades[i].Timestamp, 0).UTC(),
+			Timestamp:    dbTrades[i].Timestamp.UTC(),
 			Exchange:     dbTrades[i].Exchange,
 			CurrencyPair: cp.Upper(),
 			AssetType:    a,

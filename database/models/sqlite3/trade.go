@@ -32,7 +32,7 @@ type Trade struct {
 	Price          float64     `boil:"price" json:"price" toml:"price" yaml:"price"`
 	Amount         float64     `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
 	Side           string      `boil:"side" json:"side" toml:"side" yaml:"side"`
-	Timestamp      float64     `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
+	Timestamp      string      `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
 
 	R *tradeR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L tradeL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -96,7 +96,7 @@ var TradeWhere = struct {
 	Price          whereHelperfloat64
 	Amount         whereHelperfloat64
 	Side           whereHelperstring
-	Timestamp      whereHelperfloat64
+	Timestamp      whereHelperstring
 }{
 	ID:             whereHelperstring{field: "\"trade\".\"id\""},
 	ExchangeNameID: whereHelperstring{field: "\"trade\".\"exchange_name_id\""},
@@ -107,7 +107,7 @@ var TradeWhere = struct {
 	Price:          whereHelperfloat64{field: "\"trade\".\"price\""},
 	Amount:         whereHelperfloat64{field: "\"trade\".\"amount\""},
 	Side:           whereHelperstring{field: "\"trade\".\"side\""},
-	Timestamp:      whereHelperfloat64{field: "\"trade\".\"timestamp\""},
+	Timestamp:      whereHelperstring{field: "\"trade\".\"timestamp\""},
 }
 
 // TradeRels is where relationship names are stored.

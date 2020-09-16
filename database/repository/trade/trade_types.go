@@ -1,5 +1,7 @@
 package trade
 
+import "time"
+
 // Data defines trade data in its simplest
 // db friendly form
 type Data struct {
@@ -13,5 +15,5 @@ type Data struct {
 	Price          float64
 	Amount         float64
 	Side           string
-	Timestamp      int64
+	Timestamp      time.Time
 }
