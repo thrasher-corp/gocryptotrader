@@ -507,6 +507,7 @@ func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAll
 		return resp, nil
 	}
 
+	resp.Status = make(map[string]string)
 	for x := range allOrders {
 		if allOrders[x].Status == orderCancelled {
 			resp.Status[allOrders[x].OrderID] = order.Cancelled.String()
