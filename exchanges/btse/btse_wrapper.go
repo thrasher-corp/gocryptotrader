@@ -3,6 +3,7 @@ package btse
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -163,6 +164,11 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err := b.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	err = b.seedOrderSizeLimits()
 	if err != nil {
 		return err
 	}
@@ -418,6 +424,12 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item, timesta
 	return resp, nil
 }
 
+func (b *BTSE) withinLimits(pair string, amount float64) bool {
+	return (math.Mod(amount, b.OrderSizeLimits[pair].MinSizeIncrement) == 0) ||
+		amount < b.OrderSizeLimits[pair].MinOrderSize ||
+		amount > b.OrderSizeLimits[pair].MaxOrderSize
+}
+
 // SubmitOrder submits a new order
 func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var resp order.SubmitResponse
@@ -429,11 +441,19 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if err != nil {
 		return resp, err
 	}
+	inLimits := b.withinLimits(fpair.String(), s.Amount)
+	if !inLimits {
+		return resp, fmt.Errorf("order outside of limits: min: %v, max: %v, increment %v",
+			b.OrderSizeLimits[fpair.String()].MinOrderSize,
+			b.OrderSizeLimits[fpair.String()].MaxOrderSize,
+			b.OrderSizeLimits[fpair.String()].MinSizeIncrement,
+		)
+	}
 	r, err := b.CreateOrder(s.ClientID, 0.0,
 		false,
 		s.Price, s.Side.String(), s.Amount, 0, 0,
 		fpair.String(), goodTillCancel,
-		0.0, 0.0,
+		0.0, s.TriggerPrice,
 		"", s.Type.String())
 	if err != nil {
 		return resp, err
@@ -902,4 +922,22 @@ func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 	}
 
 	return klineRet, nil
+}
+
+func (b *BTSE) seedOrderSizeLimits() error {
+	pairs, err := b.GetMarketSummary("", true)
+	if err != nil {
+		return err
+	}
+
+	b.OrderSizeLimits = make(map[string]orderSizeLimits, len(pairs))
+	for x := range pairs {
+		tempValues := orderSizeLimits{
+			MinOrderSize:     pairs[x].MinOrderSize,
+			MaxOrderSize:     pairs[x].MaxOrderSize,
+			MinSizeIncrement: pairs[x].MinSizeIncrement,
+		}
+		b.OrderSizeLimits[pairs[x].Symbol] = tempValues
+	}
+	return nil
 }

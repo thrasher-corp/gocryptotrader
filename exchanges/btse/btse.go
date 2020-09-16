@@ -25,6 +25,7 @@ import (
 // BTSE is the overarching type across this package
 type BTSE struct {
 	exchange.Base
+	OrderSizeLimits map[string]orderSizeLimits
 }
 
 const (

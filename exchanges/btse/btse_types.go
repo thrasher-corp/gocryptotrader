@@ -1,6 +1,8 @@
 package btse
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	// Default order type is good till cancel (or filled)
@@ -336,4 +338,11 @@ type ErrorResponse struct {
 	ErrorCode int    `json:"errorCode"`
 	Message   string `json:"message"`
 	Status    int    `json:"status"`
+}
+
+// oderSizeLimits
+type orderSizeLimits struct {
+	MinOrderSize     float64
+	MaxOrderSize     float64
+	MinSizeIncrement float64
 }

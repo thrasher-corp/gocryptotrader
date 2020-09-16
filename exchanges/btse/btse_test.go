@@ -709,3 +709,29 @@ func TestMatchType(t *testing.T) {
 		t.Fatal("expected true match")
 	}
 }
+
+func TestSeedOrderSizeLimits(t *testing.T) {
+	err := b.seedOrderSizeLimits()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWithinLimits(t *testing.T) {
+	v := b.withinLimits("XRP-USDT", 5.0)
+	if !v {
+		t.Fatal("expected valid limits")
+	}
+	v = b.withinLimits("XRP-USDT", 1.5)
+	if v {
+		t.Fatal("expected invalid limits")
+	}
+	v = b.withinLimits("XRP-USDT", 100)
+	if !v {
+		t.Fatal("expected valid limits")
+	}
+	v = b.withinLimits("XRP-USDT", 10.5)
+	if v {
+		t.Fatal("expected valid limits")
+	}
+}
