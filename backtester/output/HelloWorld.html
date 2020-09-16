@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>{{ .PageTitle }}</title>
+        <title>Test</title>
         <script src="https://unpkg.com/lightweight-charts@3.1.5/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         html,
@@ -84,9 +84,43 @@
     });
 
     series.setData([
-    {{range .TickData }}
-        { time: '{{.Timestamp}}', value: {{.Value}} },
-    {{end}}
+    
+        { time: '2019-01-01', value:  10.66456005321849  },
+    
+        { time: '2019-01-02', value:  0.6868230728671094  },
+    
+        { time: '2019-01-03', value:  10.965471913803778  },
+    
+        { time: '2019-01-04', value:  1.0674802621667954  },
+    
+        { time: '2019-01-05', value:  11.258573771140593  },
+    
+        { time: '2019-01-06', value:  1.4283516790237014  },
+    
+        { time: '2019-01-07', value:  11.555656334696884  },
+    
+        { time: '2019-01-08', value:  2.1250708447703364  },
+    
+        { time: '2019-01-09', value:  12.162909774242399  },
+    
+        { time: '2019-01-10', value:  2.1841914960842117  },
+    
+        { time: '2019-01-11', value:  12.704009629251134  },
+    
+        { time: '2019-01-12', value:  2.714777211434917  },
+    
+        { time: '2019-01-13', value:  13.065815109731451  },
+    
+        { time: '2019-01-14', value:  2.8122318298340336  },
+    
+        { time: '2019-01-15', value:  13.746893422124023  },
+    
+        { time: '2019-12-29', value:  101.26572526151998  },
+    
+        { time: '2019-12-30', value:  91.50488259742896  },
+    
+        { time: '2019-12-31', value:  102.16445589443533  },
+    
     ]);
 
     function businessDayToString(businessDay) {
@@ -101,7 +135,7 @@
     toolTip.className = 'floating-tooltip-2';
     container.appendChild(toolTip);
 
-    // update tooltip
+    
     chart.subscribeCrosshairMove(function(param) {
     if (param.point === undefined || !param.time || param.point.x < 0 || param.point.x > container.clientWidth || param.point.y < 0 || param.point.y > container.clientHeight) {
     toolTip.style.display = 'none';
@@ -109,7 +143,7 @@
     const dateStr = businessDayToString(param.time);
     toolTip.style.display = 'block';
     var price = param.seriesPrices.get(series);
-    toolTip.innerHTML = '<div style="color: #009688">{{.direction}}</div><div style="font-size: 24px; margin: 4px 0px; color: #21384d">' + Math.round(100 * price) / 100 + '</div><div style="color: #21384d">' + dateStr + '</div>';
+    toolTip.innerHTML = '<div style="color: #009688"></div><div style="font-size: 24px; margin: 4px 0px; color: #21384d">' + Math.round(100 * price) / 100 + '</div><div style="color: #21384d">' + dateStr + '</div>';
     var coordinate = series.priceToCoordinate(price);
     var shiftedCoordinate = param.point.x - 50;
     if (coordinate === null) {

@@ -3,6 +3,9 @@ package backtest
 import (
 	"html/template"
 	"os"
+	"path/filepath"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 type ChartData struct {
@@ -24,8 +27,12 @@ type tickData struct {
 }
 
 func GenerateOutput(result Results) error {
+	wd, _ := os.Getwd()
+	outputDir := filepath.Join(wd, "output")
+	_ = common.CreateDir(outputDir)
+	outputFile := filepath.Join(outputDir,result.StrategyName+".html")
 	tmpl := template.Must(template.ParseFiles("template.html"))
-	f, err := os.Create("output.html")
+	f, err := os.Create(outputFile)
 	if err != nil {
 		return err
 	}
