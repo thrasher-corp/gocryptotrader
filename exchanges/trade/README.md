@@ -24,6 +24,12 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
   + Its primary purpose is to collect trade data from multiple sources and save it to the database's trade table
   + If you do not have database enabled, then trades will not be processed
 
+### Requirements to save a trade to the database
++ Database has to be enabled
++ Under `config.json`, under your selected exchange, enable the field `saveTradeData`
+  + This will enable trade processing to occur for that specific exchange
+  + This can also be done via gRPC under the `SetExchangeTradeProcessing` command
+
 + To send trade data to be processed, use the following example:
 ```
 err := trade.AddTradesToBuffer(b.Name, trade.Data{

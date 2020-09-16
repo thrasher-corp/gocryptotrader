@@ -4653,3 +4653,65 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	jsonOutput(result)
 	return nil
 }
+
+var setExchangeTradeProcessingCommand = cli.Command{
+	Name:      "setexchangetradeprocessing",
+	Usage:     "sets whether an exchange can process trades",
+	ArgsUsage: "<exchange> <status>",
+	Action:    setExchangeTradeProcessing,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange, e",
+			Usage: "the exchange to get the candles from",
+		},
+		cli.BoolFlag{
+			Name:  "status",
+			Usage: "<true>/<false>",
+		},
+	},
+}
+
+func setExchangeTradeProcessing(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "setexchangetradeprocessing")
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	var status bool
+	if c.IsSet("status") {
+		status = c.Bool("status")
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			log.Error(log.GRPCSys, err)
+		}
+	}()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.SetExchangeTradeProcessing(context.Background(),
+		&gctrpc.SetExchangeTradeProcessingRequest{
+			Exchange: exchangeName,
+			Status:   status,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}

@@ -147,6 +147,7 @@ func main() {
 		convertSavedTradesToCandlesCommand,
 		findMissingSavedCandleIntervalsCommand,
 		findMissingSavedTradeIntervalsCommand,
+		setExchangeTradeProcessingCommand,
 	}
 
 	err := app.Run(os.Args)

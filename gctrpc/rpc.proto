@@ -807,6 +807,11 @@ message FindMissingIntervalsResponse {
     string status = 3;
 }
 
+message SetExchangeTradeProcessingRequest {
+    string exchange = 1;
+    bool status = 2;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1284,4 +1289,9 @@ service GoCryptoTrader {
         };
     }
 
+    rpc SetExchangeTradeProcessing (SetExchangeTradeProcessingRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/setexchangetradeprocessing"
+        };
+    }
 }

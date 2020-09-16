@@ -635,3 +635,28 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		t.Errorf("expected 23 missing periods, received: %v", len(resp.MissingPeriods))
 	}
 }
+
+func TestSetExchangeTradeProcessing(t *testing.T) {
+	RPCTestSetup(t)
+	defer CleanRPCTest(t)
+	var s RPCServer
+	_, err := s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch := GetExchangeByName(testExchange)
+	base := exch.GetBase()
+	if !base.Features.Enabled.SaveTradeData {
+		t.Error("expected true")
+	}
+
+	_, err = s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch = GetExchangeByName(testExchange)
+	base = exch.GetBase()
+	if base.Features.Enabled.SaveTradeData {
+		t.Error("expected false")
+	}
+}
