@@ -53,4 +53,6 @@ const (
 	DBSQLite3 = "sqlite3"
 	// DBPostgreSQL const string for PostgreSQL across code base
 	DBPostgreSQL = "postgres"
+	// DBInvalidDriver const string for invalid driver
+	DBInvalidDriver = "invalid driver"
 )

@@ -70,16 +70,13 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	if settings == nil {
 		return nil, errors.New("engine: settings is nil")
 	}
+	// collect flags
+	flag.Visit(func(f *flag.Flag) { flagSet[f.Name] = true })
 
 	var b Engine
-	b.Config = &config.Cfg
-	filePath, err := config.GetFilePath(settings.ConfigFile)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 
-	log.Printf("Loading config file %s..\n", filePath)
-	err = b.Config.LoadConfig(filePath, settings.EnableDryRun)
+	b.Config, err = loadConfigWithSettings(settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
@@ -95,8 +92,8 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		gctlog.Infoln(gctlog.Global, "Logger initialised.")
 	}
 
-	b.Settings.ConfigFile = filePath
-	b.Settings.DataDir = settings.DataDir
+	b.Settings.ConfigFile = settings.ConfigFile
+	b.Settings.DataDir = b.Config.GetDataPath()
 	b.Settings.CheckParamInteraction = settings.CheckParamInteraction
 
 	err = utils.AdjustGoMaxProcs(settings.GoMaxProcs)
@@ -104,14 +101,38 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
 	}
 
-	ValidateSettings(&b, settings)
+	validateSettings(&b, settings)
 	return &b, nil
 }
 
-// ValidateSettings validates and sets all bot settings
-func ValidateSettings(b *Engine, s *Settings) {
-	flag.Visit(func(f *flag.Flag) { flagSet[f.Name] = true })
+// loadConfigWithSettings creates configuration based on the provided settings
+func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
+	filePath, err := config.GetFilePath(settings.ConfigFile)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Loading config file %s..\n", filePath)
 
+	conf := &config.Cfg
+	err = conf.ReadConfig(filePath, settings.EnableDryRun)
+	if err != nil {
+		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
+	}
+	// Apply overrides from settings
+	if flagSet["datadir"] {
+		// warn if dryrun isn't enabled
+		if !settings.EnableDryRun {
+			log.Println("Command line argument '-datadir' induces dry run mode.")
+		}
+		settings.EnableDryRun = true
+		conf.DataDirectory = settings.DataDir
+	}
+
+	return conf, conf.CheckConfig()
+}
+
+// validateSettings validates and sets all bot settings
+func validateSettings(b *Engine, s *Settings) {
 	b.Settings.Verbose = s.Verbose
 	b.Settings.EnableDryRun = s.EnableDryRun
 	b.Settings.EnableAllExchanges = s.EnableAllExchanges

@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1607,47 +1608,58 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 		return nil, errors.New(errCurrencyPairUnset)
 	}
 
-	exchange := GetExchangeByName(req.Exchange)
-	if exchange == nil {
-		return nil, errors.New("Exchange " + req.Exchange + " not found")
-	}
-
 	var candles kline.Item
 	var err error
-	if req.ExRequest {
-		candles, err = exchange.GetHistoricCandlesExtended(currency.Pair{
-			Delimiter: req.Pair.Delimiter,
-			Base:      currency.NewCode(req.Pair.Base),
-			Quote:     currency.NewCode(req.Pair.Quote),
-		},
-			asset.Item(strings.ToLower(req.AssetType)),
-			time.Unix(req.Start, 0),
-			time.Unix(req.End, 0),
-			kline.Interval(req.TimeInterval))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		candles, err = exchange.GetHistoricCandles(currency.Pair{
-			Delimiter: req.Pair.Delimiter,
-			Base:      currency.NewCode(req.Pair.Base),
-			Quote:     currency.NewCode(req.Pair.Quote),
-		},
-			asset.Item(strings.ToLower(req.AssetType)),
-			time.Unix(req.Start, 0),
-			time.Unix(req.End, 0),
-			kline.Interval(req.TimeInterval))
-		if err != nil {
-			return nil, err
-		}
-	}
 	resp := gctrpc.GetHistoricCandlesResponse{
-		Exchange: exchange.GetName(),
 		Interval: kline.Interval(req.TimeInterval).Short(),
+		Pair:     req.Pair,
 		Start:    req.Start,
 		End:      req.End,
 	}
 
+	if req.UseDb {
+		candles, err = kline.LoadFromDatabase(req.Exchange,
+			currency.Pair{
+				Delimiter: req.Pair.Delimiter,
+				Base:      currency.NewCode(req.Pair.Base),
+				Quote:     currency.NewCode(req.Pair.Quote),
+			},
+			asset.Item(strings.ToLower(req.AssetType)),
+			kline.Interval(req.TimeInterval),
+			time.Unix(req.Start, 0),
+			time.Unix(req.End, 0),
+		)
+	} else {
+		exchangeEngine := GetExchangeByName(req.Exchange)
+		if exchangeEngine == nil {
+			return nil, errors.New("Exchange " + req.Exchange + " not found")
+		}
+		if req.ExRequest {
+			candles, err = exchangeEngine.GetHistoricCandlesExtended(currency.Pair{
+				Delimiter: req.Pair.Delimiter,
+				Base:      currency.NewCode(req.Pair.Base),
+				Quote:     currency.NewCode(req.Pair.Quote),
+			},
+				asset.Item(strings.ToLower(req.AssetType)),
+				time.Unix(req.Start, 0),
+				time.Unix(req.End, 0),
+				kline.Interval(req.TimeInterval))
+		} else {
+			candles, err = exchangeEngine.GetHistoricCandles(currency.Pair{
+				Delimiter: req.Pair.Delimiter,
+				Base:      currency.NewCode(req.Pair.Base),
+				Quote:     currency.NewCode(req.Pair.Quote),
+			},
+				asset.Item(strings.ToLower(req.AssetType)),
+				time.Unix(req.Start, 0),
+				time.Unix(req.End, 0),
+				kline.Interval(req.TimeInterval))
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	resp.Exchange = candles.Exchange
 	for i := range candles.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
 			Time:   candles.Candles[i].Time.Unix(),
@@ -1657,6 +1669,16 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 			Close:  candles.Candles[i].Close,
 			Volume: candles.Candles[i].Volume,
 		})
+	}
+
+	if req.Sync && !req.UseDb {
+		_, err = kline.StoreInDatabase(&candles)
+		if err != nil {
+			if errors.Is(err, exchangeDB.ErrNoExchangeFound) {
+				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new exchange via the dbseed")
+			}
+			return nil, err
+		}
 	}
 	return &resp, nil
 }

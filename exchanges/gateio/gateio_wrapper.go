@@ -733,10 +733,8 @@ func (g *Gateio) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !g.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := g.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	hours := end.Sub(start).Hours()

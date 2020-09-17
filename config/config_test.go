@@ -1,6 +1,8 @@
 package config
 
 import (
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1717,7 +1719,7 @@ func TestGetFilePath(t *testing.T) {
 	if result != expected {
 		t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
 	}
-	testBypass = true
+	TestBypass = true
 }
 
 func TestCheckRemoteControlConfig(t *testing.T) {
@@ -2032,5 +2034,45 @@ func TestRemoveExchange(t *testing.T) {
 	}
 	if success := c.RemoveExchange("1D10TH0RS3"); success {
 		t.Fatal("exchange shouldn't exist")
+	}
+}
+
+func TestGetDataPath(t *testing.T) {
+	tests := []struct {
+		name string
+		dir  string
+		elem []string
+		want string
+	}{
+		{
+			name: "empty",
+			dir:  "",
+			elem: []string{},
+			want: common.GetDefaultDataDir(runtime.GOOS),
+		},
+		{
+			name: "empty a b",
+			dir:  "",
+			elem: []string{"a", "b"},
+			want: filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "a", "b"),
+		},
+		{
+			name: "target",
+			dir:  "target",
+			elem: []string{"a", "b"},
+			want: filepath.Join("target", "a", "b"),
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			c := &Config{
+				DataDirectory: tt.dir,
+			}
+			if got := c.GetDataPath(tt.elem...); got != tt.want {
+				t.Errorf("Config.GetDataPath() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

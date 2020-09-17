@@ -96,5 +96,5 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 }
 
 func convertDBName(in string) string {
-	return filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database", in)
+	return filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "database", in)
 }

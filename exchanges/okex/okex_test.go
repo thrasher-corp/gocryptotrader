@@ -529,7 +529,7 @@ func TestGetSpotMarketData(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("EOS-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +549,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	swapPair, err := currency.NewPairFromString("BTC-USD_SWAP")
+	swapPair, err := currency.NewPairFromString("EOS-USD_SWAP")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -560,7 +560,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("EOS-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}

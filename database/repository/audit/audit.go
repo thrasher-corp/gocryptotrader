@@ -56,10 +56,6 @@ func Event(id, msgtype, message string) {
 	err = tx.Commit()
 	if err != nil {
 		log.Errorf(log.Global, "Event Transaction commit failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.Global, "Event Transaction rollback failed: %v", err)
-		}
 		return
 	}
 }

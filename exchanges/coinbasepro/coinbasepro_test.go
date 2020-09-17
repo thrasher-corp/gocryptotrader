@@ -81,7 +81,7 @@ func TestGetTrades(t *testing.T) {
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour * 2)
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewPairWithDelimiter("BTC", "USD", "-")
 	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +92,7 @@ func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewPairWithDelimiter("BTC", "USD", "-")
 	_, err := c.GetHistoricCandlesExtended(p, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)

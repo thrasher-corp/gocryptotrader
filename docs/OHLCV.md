@@ -58,6 +58,10 @@ type Candle struct {
 }
 ```
 
+### DBSeed helper
+
+A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisting with candle data migration 
+
 ## Exchange status
 | Exchange       | Supported   | 
 |----------------|-------------|

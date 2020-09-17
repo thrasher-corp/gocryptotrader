@@ -40,15 +40,21 @@ const (
 func (e *Base) checkAndInitRequester() {
 	if e.Requester == nil {
 		e.Requester = request.New(e.Name,
-			new(http.Client))
+			&http.Client{Transport: new(http.Transport)})
 	}
 }
 
-// SetHTTPClientTimeout sets the timeout value for the exchanges
-// HTTP Client
-func (e *Base) SetHTTPClientTimeout(t time.Duration) {
+// SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
+// also the underlying transports idle connection timeout
+func (e *Base) SetHTTPClientTimeout(t time.Duration) error {
 	e.checkAndInitRequester()
 	e.Requester.HTTPClient.Timeout = t
+	tr, ok := e.Requester.HTTPClient.Transport.(*http.Transport)
+	if !ok {
+		return errors.New("transport not set, cannot set timeout")
+	}
+	tr.IdleConnTimeout = t
+	return nil
 }
 
 // SetHTTPClient sets exchanges HTTP client
@@ -77,22 +83,24 @@ func (e *Base) GetHTTPClientUserAgent() string {
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
 func (e *Base) SetClientProxyAddress(addr string) error {
-	if addr != "" {
-		proxy, err := url.Parse(addr)
+	if addr == "" {
+		return nil
+	}
+	proxy, err := url.Parse(addr)
+	if err != nil {
+		return fmt.Errorf("exchange.go - setting proxy address error %s",
+			err)
+	}
+
+	err = e.Requester.SetProxy(proxy)
+	if err != nil {
+		return err
+	}
+
+	if e.Websocket != nil {
+		err = e.Websocket.SetProxyAddress(addr)
 		if err != nil {
-			return fmt.Errorf("exchange.go - setting proxy address error %s",
-				err)
-		}
-
-		// No needs to check err here as the only err condition is an empty
-		// string which is already checked above
-		_ = e.Requester.SetProxy(proxy)
-
-		if e.Websocket != nil {
-			err = e.Websocket.SetProxyAddress(addr)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 	}
 	return nil
@@ -545,7 +553,10 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	if exch.HTTPTimeout <= time.Duration(0) {
 		exch.HTTPTimeout = DefaultHTTPTimeout
 	} else {
-		e.SetHTTPClientTimeout(exch.HTTPTimeout)
+		err := e.SetHTTPClientTimeout(exch.HTTPTimeout)
+		if err != nil {
+			return err
+		}
 	}
 
 	if exch.CurrencyPairs == nil {
@@ -1052,7 +1063,7 @@ func (e *Base) AuthenticateWebsocket() error {
 }
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
-func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
+func (e *Base) klineIntervalEnabled(in kline.Interval) bool {
 	return e.Features.Enabled.Kline.Intervals[in.Word()]
 }
 
@@ -1060,4 +1071,29 @@ func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
 // Exchanges can override this if they require custom formatting
 func (e *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
+}
+
+// ValidateKline confirms that the requested pair, asset & interval are supported and/or enabled by the requested exchange
+func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
+	var errorList []string
+	var err kline.ErrorKline
+	if e.CurrencyPairs.IsAssetEnabled(a) != nil {
+		err.Asset = a
+		errorList = append(errorList, "asset not enabled")
+	} else if !e.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
+		err.Pair = pair
+		errorList = append(errorList, "pair not enabled")
+	}
+
+	if !e.klineIntervalEnabled(interval) {
+		err.Interval = interval
+		errorList = append(errorList, "interval not supported")
+	}
+
+	if len(errorList) > 0 {
+		err.Err = errors.New(strings.Join(errorList, ","))
+		return &err
+	}
+
+	return nil
 }

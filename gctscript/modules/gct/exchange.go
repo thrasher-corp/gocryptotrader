@@ -575,7 +575,7 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	var candles objects.Array
 	for x := range ret.Candles {
 		candle := &objects.Array{}
-		candle.Value = append(candle.Value, &objects.Time{Value: ret.Candles[x].Time},
+		candle.Value = append(candle.Value, &objects.Int{Value: ret.Candles[x].Time.Unix()},
 			&objects.Float{Value: ret.Candles[x].Open},
 			&objects.Float{Value: ret.Candles[x].High},
 			&objects.Float{Value: ret.Candles[x].Low},

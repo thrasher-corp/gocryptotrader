@@ -1303,7 +1303,7 @@ func (c *Config) CheckLoggerConfig() error {
 	log.GlobalLogConfig = &c.Logging
 	log.RWM.Unlock()
 
-	logPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
+	logPath := c.GetDataPath("logs")
 	err := common.CreateDir(logPath)
 	if err != nil {
 		return err
@@ -1325,7 +1325,7 @@ func (c *Config) checkGCTScriptConfig() error {
 		c.GCTScript.MaxVirtualMachines = gctscript.DefaultMaxVirtualMachines
 	}
 
-	scriptPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "scripts")
+	scriptPath := c.GetDataPath("scripts")
 	err := common.CreateDir(scriptPath)
 	if err != nil {
 		return err
@@ -1362,7 +1362,7 @@ func (c *Config) checkDatabaseConfig() error {
 	}
 
 	if c.Database.Driver == database.DBSQLite || c.Database.Driver == database.DBSQLite3 {
-		databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")
+		databaseDir := c.GetDataPath("database")
 		err := common.CreateDir(databaseDir)
 		if err != nil {
 			return err
@@ -1484,7 +1484,7 @@ func GetFilePath(configfile string) (string, error) {
 		return configfile, nil
 	}
 
-	if flag.Lookup("test.v") != nil && !testBypass {
+	if flag.Lookup("test.v") != nil && !TestBypass {
 		return TestFile, nil
 	}
 
@@ -1844,4 +1844,15 @@ func (c *Config) AssetTypeEnabled(a asset.Item, exch string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// GetDataPath gets the data path for the given subpath
+func (c *Config) GetDataPath(elem ...string) string {
+	var baseDir string
+	if c.DataDirectory != "" {
+		baseDir = c.DataDirectory
+	} else {
+		baseDir = common.GetDefaultDataDir(runtime.GOOS)
+	}
+	return filepath.Join(append([]string{baseDir}, elem...)...)
 }

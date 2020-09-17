@@ -708,7 +708,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	currencyPairSwap, err := currency.NewPairFromString(swapTestPair)
+	currencyPairSwap, err := currency.NewPairFromString(spotTestPair)
 	if err != nil {
 		t.Fatal(err)
 	}

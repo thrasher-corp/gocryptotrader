@@ -1253,7 +1253,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("TBTCUSD")
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
