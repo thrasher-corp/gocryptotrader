@@ -188,7 +188,7 @@ type TradeHistory []struct {
 	Price        float64 `json:"price"`
 	Quote        string  `json:"quote"`
 	RealizedPnl  float64 `json:"realizedPnl"`
-	SerialID     int     `json:"serialId"`
+	SerialID     int64   `json:"serialId"`
 	Side         string  `json:"side"`
 	Size         float64 `json:"size"`
 	Symbol       string  `json:"symbol"`
@@ -229,7 +229,7 @@ type WithdrawalResponse struct {
 // OpenOrder stores an open order info
 type OpenOrder struct {
 	AverageFillPrice             float64 `json:"averageFillPrice"`
-	CancelDuration               int     `json:"cancelDuration"`
+	CancelDuration               int64   `json:"cancelDuration"`
 	ClOrderID                    string  `json:"clOrderID"`
 	FillSize                     float64 `json:"fillSize"`
 	FilledSize                   float64 `json:"filledSize"`

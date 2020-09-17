@@ -964,6 +964,7 @@ func (b *BTSE) seedOrderSizeLimits() error {
 	return nil
 }
 
+// OrderSizeLimits looks up currency pair in orderSizeLimitMap and returns OrderSizeLimit
 func OrderSizeLimits(pair string) (limits OrderSizeLimit, found bool) {
 	resp, ok := orderSizeLimitMap.Load(pair)
 	if !ok {
