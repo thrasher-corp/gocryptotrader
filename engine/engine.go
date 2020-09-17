@@ -81,11 +81,6 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
 
-	err = common.CreateDir(settings.DataDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open/create data directory: %s. Err: %s", settings.DataDir, err)
-	}
-
 	if *b.Config.Logging.Enabled {
 		gctlog.SetupGlobalLogger()
 		gctlog.SetupSubLoggers(b.Config.Logging.SubLoggers)
