@@ -93,15 +93,14 @@
     return businessDay.year + '-' + businessDay.month + '-' + businessDay.day;
     }
 
-    var toolTipWidth = 80;
-    var toolTipHeight = 80;
-    var toolTipMargin = 15;
+    const toolTipWidth = 80;
+    const toolTipHeight = 80;
+    const toolTipMargin = 15;
 
-    var toolTip = document.createElement('div');
+    const toolTip = document.createElement('div');
     toolTip.className = 'floating-tooltip-2';
     container.appendChild(toolTip);
 
-    // update tooltip
     chart.subscribeCrosshairMove(function(param) {
     if (param.point === undefined || !param.time || param.point.x < 0 || param.point.x > container.clientWidth || param.point.y < 0 || param.point.y > container.clientHeight) {
     toolTip.style.display = 'none';

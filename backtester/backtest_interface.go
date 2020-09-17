@@ -35,27 +35,32 @@ type DataStreamer interface {
 	StreamVol() []float64
 }
 
-// EventHandler interace
+// EventHandler interface implements required GetTime() & Pair() return
 type EventHandler interface {
 	IsEvent() bool
 	GetTime() time.Time
 	Pair() currency.Pair
 }
 
+// DataHandler interface used for loading and interacting with Data
 type DataEventHandler interface {
 	EventHandler
 	DataType() DataType
 	LatestPrice() float64
 }
 
+// CandleEvent for OHLCV tick data
 type CandleEvent interface {
 	DataEventHandler
 }
 
+// TickEvent interface for ticker data (bid/ask)
 type TickEvent interface {
 	DataEventHandler
 }
 
+// SignalEvent handler is used for getting trade signal details
+// Example Amount and Price of current candle tick
 type SignalEvent interface {
 	EventHandler
 	Directioner
