@@ -148,6 +148,7 @@ type WsTradeList struct {
 	Data  [][4]interface{} `json:"data"`
 }
 
+// WsTradeData stores trade data for websocket
 type WsTradeData struct {
 	BestAskPrice float64 `json:"bestAskPrice,string"`
 	BestBidPrice float64 `json:"bestBidPrice,string"`
@@ -214,6 +215,7 @@ type WsPosition struct {
 	Data  []WsPositionData `json:"data"`
 }
 
+// WsOrderbookData stores ws orderbook data
 type WsOrderbookData struct {
 	Topic  string `json:"topic"`
 	Action string `json:"action"`

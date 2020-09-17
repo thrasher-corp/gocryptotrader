@@ -441,6 +441,11 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 		if err != nil {
 			return nil, err
 		}
+		if tradeData[i].Price == 0 {
+			// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
+			// These have a size of 0 and are used only to indicate a changing price.
+			continue
+		}
 		resp = append(resp, trade.Data{
 			Exchange:     b.Name,
 			CurrencyPair: p,

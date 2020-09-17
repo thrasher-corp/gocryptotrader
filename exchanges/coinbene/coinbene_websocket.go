@@ -458,7 +458,17 @@ func (c *Coinbene) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 func (c *Coinbene) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
 	var unsub WsSub
 	unsub.Operation = "unsubscribe"
+	// enabling all currencies can lead to a message too large being sent
+	// and no unsubscribes being made
+	chanLimit := 10
 	for i := range channelToUnsubscribe {
+		if len(unsub.Arguments) > chanLimit {
+			err := c.Websocket.Conn.SendJSONMessage(unsub)
+			if err != nil {
+				return err
+			}
+			unsub.Arguments = []string{}
+		}
 		unsub.Arguments = append(unsub.Arguments, channelToUnsubscribe[i].Channel)
 	}
 	err := c.Websocket.Conn.SendJSONMessage(unsub)

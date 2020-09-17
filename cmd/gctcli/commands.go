@@ -4145,14 +4145,14 @@ func getSavedTrades(c *cli.Context) error {
 	}
 
 	if !c.IsSet("start") {
-		if c.Args().Get(4) != "" {
-			startTime = c.Args().Get(4)
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
 		}
 	}
 
 	if !c.IsSet("end") {
-		if c.Args().Get(5) != "" {
-			endTime = c.Args().Get(5)
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
 		}
 	}
 
@@ -4369,14 +4369,14 @@ func getHistoricTrades(c *cli.Context) error {
 	}
 
 	if !c.IsSet("start") {
-		if c.Args().Get(4) != "" {
-			startTime = c.Args().Get(4)
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
 		}
 	}
 
 	if !c.IsSet("end") {
-		if c.Args().Get(5) != "" {
-			endTime = c.Args().Get(5)
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
 		}
 	}
 
@@ -4825,14 +4825,14 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	}
 
 	if !c.IsSet("start") {
-		if c.Args().Get(4) != "" {
-			startTime = c.Args().Get(4)
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
 		}
 	}
 
 	if !c.IsSet("end") {
-		if c.Args().Get(5) != "" {
-			endTime = c.Args().Get(5)
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
 		}
 	}
 

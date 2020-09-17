@@ -285,21 +285,42 @@ func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 		channelData := getSubscriptionChannelData(channelID)
 		switch channelData.Subscription {
 		case krakenWsTicker:
-			return k.wsProcessTickers(&channelData, response[1].(map[string]interface{}))
+			t, ok := response[1].(map[string]interface{})
+			if !ok {
+				return errors.New("received invalid ticker data")
+			}
+			return k.wsProcessTickers(&channelData, t)
 		case krakenWsOHLC:
-			return k.wsProcessCandles(&channelData, response[1].([]interface{}))
+			o, ok := response[1].([]interface{})
+			if !ok {
+				return errors.New("received invalid OHLCV data")
+			}
+			return k.wsProcessCandles(&channelData, o)
 		case krakenWsOrderbook:
-			return k.wsProcessOrderBook(&channelData, response[1].(map[string]interface{}))
+			ob, ok := response[1].(map[string]interface{})
+			if !ok {
+				return errors.New("received invalid orderbook data")
+			}
+			return k.wsProcessOrderBook(&channelData, ob)
 		case krakenWsSpread:
-			k.wsProcessSpread(&channelData, response[1].([]interface{}))
+			s, ok := response[1].([]interface{})
+			if !ok {
+				return errors.New("received invalid spread data")
+			}
+			k.wsProcessSpread(&channelData, s)
 		case krakenWsTrade:
-			return k.wsProcessTrades(&channelData, response[1].([]interface{}))
+			t, ok := response[1].([]interface{})
+			if !ok {
+				return errors.New("received invalid trade data")
+			}
+			return k.wsProcessTrades(&channelData, t)
 		default:
-			return fmt.Errorf("%s Unidentified websocket data received: %+v",
+			return fmt.Errorf("%s received unidentified data: %+v",
 				k.Name,
 				response)
 		}
 	}
+
 	return nil
 }
 
@@ -566,7 +587,10 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 	}
 	var trades []trade.Data
 	for i := range data {
-		t := data[i].([]interface{})
+		t, ok := data[i].([]interface{})
+		if !ok {
+			return errors.New("unidentified trade data received")
+		}
 		timeData, err := strconv.ParseFloat(t[2].(string), 64)
 		if err != nil {
 			return err

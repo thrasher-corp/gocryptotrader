@@ -225,6 +225,11 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 			var trades []trade.Data
 			for i := range tradeHolder.Data {
+				if tradeHolder.Data[i].Price == 0 {
+					// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
+					// These have a size of 0 and are used only to indicate a changing price.
+					continue
+				}
 				var p currency.Pair
 				p, err = currency.NewPairFromString(tradeHolder.Data[i].Symbol)
 				if err != nil {

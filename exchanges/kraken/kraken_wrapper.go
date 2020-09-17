@@ -492,7 +492,6 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 	})
 
 	err = account.Process(&info)
-
 	if err != nil {
 		return account.Holdings{}, err
 	}

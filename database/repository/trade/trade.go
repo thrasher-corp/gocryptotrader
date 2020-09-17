@@ -42,9 +42,9 @@ func Insert(trades ...Data) error {
 	}
 	defer func() {
 		if err != nil {
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Insert tx.Rollback %v", err)
+			errRB := tx.Rollback()
+			if errRB != nil {
+				log.Errorf(log.DatabaseMgr, "Insert tx.Rollback %v", errRB)
 			}
 		}
 	}()
@@ -194,7 +194,7 @@ func getByUUIDPostgres(uuid string) (td Data, err error) {
 	return td, nil
 }
 
-// GetByExchangeInRange returns all trades by an exchange in a date range
+// GetInRange returns all trades by an exchange in a date range
 func GetInRange(exchangeName, assetType, base, quote string, startDate, endDate time.Time) (td []Data, err error) {
 	if repository.GetSQLDialect() == database.DBSQLite3 || repository.GetSQLDialect() == database.DBSQLite {
 		td, err = getInRangeSQLite(exchangeName, assetType, base, quote, startDate, endDate)
@@ -296,9 +296,9 @@ func DeleteTrades(trades ...Data) error {
 	}
 	defer func() {
 		if err != nil {
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "DeleteTrades tx.Rollback %v", err)
+			errRB := tx.Rollback()
+			if errRB != nil {
+				log.Errorf(log.DatabaseMgr, "DeleteTrades tx.Rollback %v", errRB)
 			}
 		}
 	}()
