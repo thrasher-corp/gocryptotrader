@@ -400,8 +400,8 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 		return nil, err
 	}
 
-	var bids []*gctrpc.OrderbookItem
-	var asks []*gctrpc.OrderbookItem
+	bids := make([]*gctrpc.OrderbookItem, 0, len(ob.Bids))
+	asks := make([]*gctrpc.OrderbookItem, 0, len(ob.Asks))
 	ch := make(chan bool)
 
 	go func() {
