@@ -57,7 +57,7 @@ _b in this context is an `IBotExchange` implemented struct_
 
 ## Exchange Support Table
 
-| Exchange | Recent Trades via REST | Live trade updates via API | Trade history via REST |
+| Exchange | Recent Trades via REST | Live trade updates via Websocket | Trade history via REST |
 |----------|------|-----------|-----|
 | Alphapoint | No  | No        | No  |
 | Binance| Yes  | Yes        | No  |

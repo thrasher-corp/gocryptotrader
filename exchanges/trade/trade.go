@@ -20,6 +20,9 @@ import (
 
 // Setup creates the trade processor if trading is supported
 func (p *Processor) setup() {
+	p.mutex.Lock()
+	p.bufferProcessorInterval = bufferProcessorIntervalTime
+	p.mutex.Unlock()
 	go p.Run()
 }
 
@@ -76,14 +79,14 @@ func (p *Processor) Run() {
 	}()
 	log.Info(log.Trade, "trade processor starting...")
 	p.mutex.Lock()
-	ticker := time.NewTicker(bufferProcessorInterval)
+	ticker := time.NewTicker(p.bufferProcessorInterval)
 	p.mutex.Unlock()
 	for {
 		<-ticker.C
 		p.mutex.Lock()
 		if len(buffer) == 0 {
 			p.mutex.Unlock()
-			log.Infof(log.Trade, "no trade data received in %v, shutting down", bufferProcessorInterval)
+			log.Infof(log.Trade, "no trade data received in %v, shutting down", p.bufferProcessorInterval)
 			return
 		}
 		err := SaveTradesToDatabase(buffer...)

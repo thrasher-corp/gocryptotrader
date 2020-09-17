@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	buffer                  []Data
-	processor               Processor
-	bufferProcessorInterval = time.Second * 15
+	buffer                      []Data
+	processor                   Processor
+	bufferProcessorIntervalTime = time.Second * 15
 )
 
 // Data defines trade data
@@ -32,8 +32,9 @@ type Data struct {
 // Processor used for processing trade data in batches
 // and saving them to the database
 type Processor struct {
-	mutex   sync.Mutex
-	started int32
+	mutex                   sync.Mutex
+	started                 int32
+	bufferProcessorInterval time.Duration
 }
 
 type ByDate []Data

@@ -185,7 +185,7 @@ func TestShutdown(t *testing.T) {
 	var p Processor
 	p.mutex.Lock()
 	buffer = nil
-	bufferProcessorInterval = time.Second
+	p.bufferProcessorInterval = time.Second
 	p.mutex.Unlock()
 	go p.Run()
 	time.Sleep(time.Millisecond)

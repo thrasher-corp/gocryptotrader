@@ -1688,17 +1688,6 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 		klineItem.Candles = append(klineItem.Candles, tradeDataKline.Candles...)
 	}
 
-	missingIntervals := klineItem.DetermineMissingIntervals(tStart, tEnd)
-	for i := range missingIntervals {
-		log.Warnf(log.GRPCSys,
-			"Missing requested OHLCV data for %v %v %v interval at %v",
-			r.Exchange,
-			r.Pair.Base+r.Pair.Delimiter+r.Pair.Quote,
-			r.AssetType,
-			missingIntervals[i].Format(common.SimpleTimeFormat),
-		)
-	}
-
 	resp.Exchange = klineItem.Exchange
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
