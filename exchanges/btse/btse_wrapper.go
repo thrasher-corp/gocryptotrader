@@ -876,7 +876,7 @@ func (b *BTSE) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		return kline.Item{}, fmt.Errorf("asset %v not supported", a.String())
 	}
 
-	klineRet.SortCandlesByTimestamp(true)
+	klineRet.SortCandlesByTimestamp(false)
 	return klineRet, nil
 }
 
@@ -931,7 +931,7 @@ func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 		return kline.Item{}, fmt.Errorf("asset %v not supported", a.String())
 	}
 
-	klineRet.SortCandlesByTimestamp(true)
+	klineRet.SortCandlesByTimestamp(false)
 	return klineRet, nil
 }
 

@@ -382,14 +382,11 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetExchangeHistory(t *testing.T) {
-	b.Verbose = true
 	curr, _ := currency.NewPairFromString(testPair)
-	v, err := b.GetExchangeHistory(curr, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now())
+	_, err := b.GetExchangeHistory(curr, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	t.Log(v)
 
 	_, err = b.GetExchangeHistory(curr, asset.Futures, time.Now().AddDate(0, -6, 0), time.Now())
 	if err != nil {
@@ -679,6 +676,7 @@ func TestStatusToStandardStatus(t *testing.T) {
 }
 
 func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
 	assets := b.GetAssetTypes()
 	for i := range assets {
 		data, err := b.FetchTradablePairs(assets[i])
@@ -692,6 +690,7 @@ func TestFetchTradablePairs(t *testing.T) {
 }
 
 func TestMatchType(t *testing.T) {
+	t.Parallel()
 	ret := matchType(1, order.AnyType)
 	if !ret {
 		t.Fatal("expected true value")
@@ -714,6 +713,7 @@ func TestMatchType(t *testing.T) {
 }
 
 func TestSeedOrderSizeLimits(t *testing.T) {
+	t.Parallel()
 	err := b.seedOrderSizeLimits()
 	if err != nil {
 		t.Fatal(err)
@@ -721,14 +721,11 @@ func TestSeedOrderSizeLimits(t *testing.T) {
 }
 
 func TestOrderSizeLimits(t *testing.T) {
+	t.Parallel()
+	seedOrderSizeLimitMap()
 	_, ok := OrderSizeLimits(testPair)
 	if !ok {
 		t.Fatal("expected BTC-USD to be found in map")
-	}
-
-	_, ok = OrderSizeLimits("BTCPFC")
-	if !ok {
-		t.Fatal("expected XRP-USDT to be found in map")
 	}
 
 	_, ok = OrderSizeLimits("XRP-GARBAGE")
@@ -737,7 +734,50 @@ func TestOrderSizeLimits(t *testing.T) {
 	}
 }
 
+func seedOrderSizeLimitMap() {
+	testOrderSizeLimits := []struct {
+		name string
+		o    OrderSizeLimit
+	}{
+		{
+			name: "XRP-USD",
+			o: OrderSizeLimit{
+				MinSizeIncrement: 1,
+				MinOrderSize:     1,
+				MaxOrderSize:     1000000,
+			},
+		},
+		{
+			name: "LTC-USD",
+			o: OrderSizeLimit{
+				MinSizeIncrement: 0.01,
+				MinOrderSize:     0.01,
+				MaxOrderSize:     5000,
+			},
+		},
+		{
+			name: "BTC-USD",
+			o: OrderSizeLimit{
+				MinSizeIncrement: 0.0001,
+				MinOrderSize:     1,
+				MaxOrderSize:     1000000,
+			},
+		},
+	}
+
+	orderSizeLimitMap.Range(func(key interface{}, _ interface{}) bool {
+		orderSizeLimitMap.Delete(key)
+		return true
+	})
+
+	for x := range testOrderSizeLimits {
+		orderSizeLimitMap.Store(testOrderSizeLimits[x].name, testOrderSizeLimits[x].o)
+	}
+}
+
 func TestWithinLimits(t *testing.T) {
+	t.Parallel()
+	seedOrderSizeLimitMap()
 	p, _ := currency.NewPairDelimiter("XRP-USD", "-")
 	v := b.withinLimits(p, asset.Spot, 1.0)
 	if !v {
