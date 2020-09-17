@@ -1,6 +1,7 @@
 package btse
 
 import (
+	"sync"
 	"time"
 )
 
@@ -33,16 +34,16 @@ type MarketSummary []struct {
 	MinSizeIncrement    float64  `json:"minSizeIncrement"`
 	OpenInterest        float64  `json:"openInterest"`
 	OpenInterestUSD     float64  `json:"openInterestUSD"`
-	ContractStart       int      `json:"contractStart"`
-	ContractEnd         int      `json:"contractEnd"`
+	ContractStart       int64    `json:"contractStart"`
+	ContractEnd         int64    `json:"contractEnd"`
 	TimeBasedContract   bool     `json:"timeBasedContract"`
-	OpenTime            int      `json:"openTime"`
-	CloseTime           int      `json:"closeTime"`
-	StartMatching       int      `json:"startMatching"`
-	InactiveTime        int      `json:"inactiveTime"`
+	OpenTime            int64    `json:"openTime"`
+	CloseTime           int64    `json:"closeTime"`
+	StartMatching       int64    `json:"startMatching"`
+	InactiveTime        int64    `json:"inactiveTime"`
 	FundingRate         float64  `json:"fundingRate"`
 	ContractSize        float64  `json:"contractSize"`
-	MaxPosition         int      `json:"maxPosition"`
+	MaxPosition         int64    `json:"maxPosition"`
 	MinRiskLimit        int      `json:"minRiskLimit"`
 	MaxRiskLimit        int      `json:"maxRiskLimit"`
 	AvailableSettlement []string `json:"availableSettlement"`
@@ -111,12 +112,13 @@ type FuturesMarket struct {
 
 // Trade stores trade data
 type Trade struct {
-	SerialID int       `json:"serialId"`
-	Symbol   string    `json:"symbol"`
-	Price    float64   `json:"price"`
-	Amount   float64   `json:"amount"`
-	Time     time.Time `json:"time"`
-	Type     string    `json:"type"`
+	SerialID int     `json:"serialId"`
+	Symbol   string  `json:"symbol"`
+	Price    float64 `json:"price"`
+	Amount   float64 `json:"size"`
+	Time     int64   `json:"timestamp"`
+	Side     string  `json:"side"`
+	Type     string  `json:"type"`
 }
 
 // QuoteData stores quote data
@@ -156,7 +158,7 @@ type MarketStatistics struct {
 // ServerTime stores the server time data
 type ServerTime struct {
 	ISO   time.Time `json:"iso"`
-	Epoch int       `json:"epoch"`
+	Epoch int64     `json:"epoch"`
 }
 
 // CurrencyBalance stores the account info data
@@ -340,9 +342,12 @@ type ErrorResponse struct {
 	Status    int    `json:"status"`
 }
 
-// orderSizeLimits holds accepted minimum, maximum, and size increment when submitting new orders
-type orderSizeLimits struct {
+// OrderSizeLimit holds accepted minimum, maximum, and size increment when submitting new orders
+type OrderSizeLimit struct {
 	MinOrderSize     float64
 	MaxOrderSize     float64
 	MinSizeIncrement float64
 }
+
+// orderSizeLimitMap map of OrderSizeLimit per currency
+var orderSizeLimitMap sync.Map

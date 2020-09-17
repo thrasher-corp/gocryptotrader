@@ -168,11 +168,6 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.seedOrderSizeLimits()
-	if err != nil {
-		return err
-	}
-
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -188,6 +183,11 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 	})
+	if err != nil {
+		return err
+	}
+
+	err = b.seedOrderSizeLimits()
 	if err != nil {
 		return err
 	}
@@ -412,22 +412,33 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item, timesta
 	var resp []exchange.TradeHistory
 	for x := range trades {
 		tempExch := exchange.TradeHistory{
-			Timestamp: trades[x].Time,
+			Timestamp: time.Unix(0, trades[x].Time*int64(time.Millisecond)),
 			Price:     trades[x].Price,
 			Amount:    trades[x].Amount,
 			Exchange:  b.Name,
+			Side:      trades[x].Side,
 			Type:      trades[x].Type,
 			TID:       strconv.Itoa(trades[x].SerialID),
 		}
+
 		resp = append(resp, tempExch)
 	}
 	return resp, nil
 }
 
-func (b *BTSE) withinLimits(pair string, amount float64) bool {
-	return (math.Mod(amount, b.OrderSizeLimits[pair].MinSizeIncrement) == 0) ||
-		amount < b.OrderSizeLimits[pair].MinOrderSize ||
-		amount > b.OrderSizeLimits[pair].MaxOrderSize
+func (b *BTSE) withinLimits(pair currency.Pair, a asset.Item, amount float64) bool {
+	fPair, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return false
+	}
+
+	val, found := OrderSizeLimits(fPair.String())
+	if !found {
+		return false
+	}
+	return (math.Mod(amount, val.MinSizeIncrement) == 0) ||
+		amount < val.MinOrderSize ||
+		amount > val.MaxOrderSize
 }
 
 // SubmitOrder submits a new order
@@ -437,22 +448,19 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, err
 	}
 
-	fpair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return resp, err
 	}
-	inLimits := b.withinLimits(fpair.String(), s.Amount)
+	inLimits := b.withinLimits(fPair, s.AssetType, s.Amount)
 	if !inLimits {
-		return resp, fmt.Errorf("order outside of limits: min: %v, max: %v, increment %v",
-			b.OrderSizeLimits[fpair.String()].MinOrderSize,
-			b.OrderSizeLimits[fpair.String()].MaxOrderSize,
-			b.OrderSizeLimits[fpair.String()].MinSizeIncrement,
-		)
+		return resp, errors.New("order outside of limits")
 	}
+
 	r, err := b.CreateOrder(s.ClientID, 0.0,
 		false,
 		s.Price, s.Side.String(), s.Amount, 0, 0,
-		fpair.String(), goodTillCancel,
+		fPair.String(), goodTillCancel,
 		0.0, s.TriggerPrice,
 		"", s.Type.String())
 	if err != nil {
@@ -476,13 +484,13 @@ func (b *BTSE) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *BTSE) CancelOrder(order *order.Cancel) error {
-	fpair, err := b.FormatExchangeCurrency(order.Pair,
+	fPair, err := b.FormatExchangeCurrency(order.Pair,
 		order.AssetType)
 	if err != nil {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(order.ID, fpair.String(), order.ClientOrderID)
+	_, err = b.CancelExistingOrder(order.ID, fPair.String(), order.ClientOrderID)
 	if err != nil {
 		return err
 	}
@@ -496,13 +504,13 @@ func (b *BTSE) CancelOrder(order *order.Cancel) error {
 func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 
-	fpair, err := b.FormatExchangeCurrency(orderCancellation.Pair,
+	fPair, err := b.FormatExchangeCurrency(orderCancellation.Pair,
 		orderCancellation.AssetType)
 	if err != nil {
 		return resp, err
 	}
 
-	allOrders, err := b.CancelExistingOrder("", fpair.String(), "")
+	allOrders, err := b.CancelExistingOrder("", fPair.String(), "")
 	if err != nil {
 		return resp, nil
 	}
@@ -827,7 +835,7 @@ func (b *BTSE) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		return kline.Item{}, err
 	}
 
-	fpair, err := b.FormatExchangeCurrency(pair, a)
+	fPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -838,14 +846,14 @@ func (b *BTSE) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 
 	klineRet := kline.Item{
 		Exchange: b.Name,
-		Pair:     pair,
+		Pair:     fPair,
 		Asset:    a,
 		Interval: interval,
 	}
 
 	switch a {
 	case asset.Spot:
-		req, err := b.OHLCV(fpair.String(),
+		req, err := b.OHLCV(fPair.String(),
 			start,
 			end,
 			intervalInt)
@@ -868,6 +876,7 @@ func (b *BTSE) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		return kline.Item{}, fmt.Errorf("asset %v not supported", a.String())
 	}
 
+	klineRet.SortCandlesByTimestamp(true)
 	return klineRet, nil
 }
 
@@ -881,7 +890,7 @@ func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	fpair, err := b.FormatExchangeCurrency(pair, a)
+	fPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -892,14 +901,14 @@ func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 
 	klineRet := kline.Item{
 		Exchange: b.Name,
-		Pair:     pair,
+		Pair:     fPair,
 		Asset:    a,
 		Interval: interval,
 	}
 
 	switch a {
 	case asset.Spot:
-		req, err := b.OHLCV(fpair.String(),
+		req, err := b.OHLCV(fPair.String(),
 			start,
 			end,
 			intervalInt)
@@ -922,6 +931,7 @@ func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 		return kline.Item{}, fmt.Errorf("asset %v not supported", a.String())
 	}
 
+	klineRet.SortCandlesByTimestamp(true)
 	return klineRet, nil
 }
 
@@ -930,15 +940,35 @@ func (b *BTSE) seedOrderSizeLimits() error {
 	if err != nil {
 		return err
 	}
-
-	b.OrderSizeLimits = make(map[string]orderSizeLimits, len(pairs))
 	for x := range pairs {
-		tempValues := orderSizeLimits{
+		tempValues := OrderSizeLimit{
 			MinOrderSize:     pairs[x].MinOrderSize,
 			MaxOrderSize:     pairs[x].MaxOrderSize,
 			MinSizeIncrement: pairs[x].MinSizeIncrement,
 		}
-		b.OrderSizeLimits[pairs[x].Symbol] = tempValues
+		orderSizeLimitMap.Store(pairs[x].Symbol, tempValues)
+	}
+
+	pairs, err = b.GetMarketSummary("", false)
+	if err != nil {
+		return err
+	}
+	for x := range pairs {
+		tempValues := OrderSizeLimit{
+			MinOrderSize:     pairs[x].MinOrderSize,
+			MaxOrderSize:     pairs[x].MaxOrderSize,
+			MinSizeIncrement: pairs[x].MinSizeIncrement,
+		}
+		orderSizeLimitMap.Store(pairs[x].Symbol, tempValues)
 	}
 	return nil
+}
+
+func OrderSizeLimits(pair string) (limits OrderSizeLimit, found bool) {
+	resp, ok := orderSizeLimitMap.Load(pair)
+	if !ok {
+		return
+	}
+	val, ok := resp.(OrderSizeLimit)
+	return val, ok
 }

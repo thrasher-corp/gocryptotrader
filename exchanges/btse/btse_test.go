@@ -382,11 +382,14 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetExchangeHistory(t *testing.T) {
+	b.Verbose = true
 	curr, _ := currency.NewPairFromString(testPair)
-	_, err := b.GetExchangeHistory(curr, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now())
+	v, err := b.GetExchangeHistory(curr, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	t.Log(v)
 
 	_, err = b.GetExchangeHistory(curr, asset.Futures, time.Now().AddDate(0, -6, 0), time.Now())
 	if err != nil {
@@ -717,20 +720,38 @@ func TestSeedOrderSizeLimits(t *testing.T) {
 	}
 }
 
+func TestOrderSizeLimits(t *testing.T) {
+	_, ok := OrderSizeLimits(testPair)
+	if !ok {
+		t.Fatal("expected BTC-USD to be found in map")
+	}
+
+	_, ok = OrderSizeLimits("BTCPFC")
+	if !ok {
+		t.Fatal("expected XRP-USDT to be found in map")
+	}
+
+	_, ok = OrderSizeLimits("XRP-GARBAGE")
+	if ok {
+		t.Fatal("expected false value for XRP-GARBAGE")
+	}
+}
+
 func TestWithinLimits(t *testing.T) {
-	v := b.withinLimits("XRP-USDT", 5.0)
+	p, _ := currency.NewPairDelimiter("XRP-USD", "-")
+	v := b.withinLimits(p, asset.Spot, 5.0)
 	if !v {
 		t.Fatal("expected valid limits")
 	}
-	v = b.withinLimits("XRP-USDT", 1.5)
+	v = b.withinLimits(p, asset.Spot, 5.0000001)
 	if v {
 		t.Fatal("expected invalid limits")
 	}
-	v = b.withinLimits("XRP-USDT", 100)
+	v = b.withinLimits(p, asset.Spot, 100)
 	if !v {
 		t.Fatal("expected valid limits")
 	}
-	v = b.withinLimits("XRP-USDT", 10.5)
+	v = b.withinLimits(p, asset.Spot, 10.1)
 	if v {
 		t.Fatal("expected valid limits")
 	}
