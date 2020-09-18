@@ -439,10 +439,11 @@ func (c *CoinbasePro) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (c *CoinbasePro) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	if _, ok := c.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := c.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	p = p.Format(c.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, c.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	tradeData, err := c.GetTrades(p.String())
 	if err != nil {
 		return nil, err
@@ -466,11 +467,9 @@ func (c *CoinbasePro) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]
 		})
 	}
 
-	if c.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(c.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err = c.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 
 	return resp, nil

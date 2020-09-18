@@ -287,10 +287,11 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	if _, ok := l.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := l.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	p = p.Format(l.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, l.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	tradeData, err := l.GetTrades(p.Base.String(), nil)
 	if err != nil {
 		return nil, err
@@ -308,11 +309,9 @@ func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) (
 		})
 	}
 
-	if l.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(l.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err = l.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 
 	return resp, nil

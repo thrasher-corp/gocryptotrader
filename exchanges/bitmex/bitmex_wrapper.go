@@ -417,10 +417,11 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 	if assetType == asset.Index {
 		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
 	}
-	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := b.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	req := &GenericRequestParams{
 		Symbol: p.String(),
 	}
@@ -458,11 +459,9 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 		})
 	}
 
-	if b.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(b.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil

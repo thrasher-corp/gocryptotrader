@@ -505,11 +505,10 @@ func (b *Bitfinex) GetHistoricTrades(p currency.Pair, assetType asset.Item, time
 			Timestamp:    time.Unix(0, tradeHistory[i].Timestamp*int64(time.Millisecond)),
 		})
 	}
-	if b.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(b.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil

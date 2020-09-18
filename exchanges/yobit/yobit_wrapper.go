@@ -329,10 +329,11 @@ func (y *Yobit) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (y *Yobit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	if _, ok := y.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := y.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	p = p.Format(y.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, y.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	var resp []trade.Data
 	tradeData, err := y.GetTrades(p.String())
 	if err != nil {
@@ -356,11 +357,9 @@ func (y *Yobit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 		})
 	}
 
-	if y.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(y.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err = y.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 
 	return resp, nil

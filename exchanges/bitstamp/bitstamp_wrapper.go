@@ -380,10 +380,11 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitstamp) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	if _, ok := b.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := b.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	p = p.Format(b.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, b.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	tradeData, err := b.GetTransactions(p.String(), "")
 	if err != nil {
 		return nil, err
@@ -406,11 +407,9 @@ func (b *Bitstamp) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]tra
 		})
 	}
 
-	if b.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(b.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 
 	return resp, nil

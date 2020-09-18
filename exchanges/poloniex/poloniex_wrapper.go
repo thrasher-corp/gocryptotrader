@@ -416,10 +416,11 @@ func (p *Poloniex) GetRecentTrades(currencyPair currency.Pair, assetType asset.I
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (p *Poloniex) GetHistoricTrades(currencyPair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if _, ok := p.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := p.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	currencyPair = currencyPair.Format(p.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, p.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	currencyPair = currencyPair.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	tradeData, err := p.GetTradeHistory(currencyPair.String(), timestampStart.Unix(), timestampEnd.Unix())
 	if err != nil {
 		return nil, err
@@ -449,11 +450,9 @@ func (p *Poloniex) GetHistoricTrades(currencyPair currency.Pair, assetType asset
 		})
 	}
 
-	if p.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(p.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err = p.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 	if !timestampStart.IsZero() || !timestampEnd.IsZero() {
 		return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil

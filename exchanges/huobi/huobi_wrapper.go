@@ -546,10 +546,11 @@ func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (h *HUOBI) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	if _, ok := h.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := h.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	p = p.Format(h.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, h.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	tradeData, err := h.GetTradeHistory(p.String(), 2000)
 	if err != nil {
 		return nil, err
@@ -575,11 +576,9 @@ func (h *HUOBI) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 		}
 	}
 
-	if h.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(h.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err = h.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 
 	return resp, nil

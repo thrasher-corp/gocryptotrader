@@ -345,10 +345,11 @@ func (l *LakeBTC) GetHistoricTrades(p currency.Pair, assetType asset.Item, times
 	if timestampEnd.After(time.Now()) {
 		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
 	}
-	if _, ok := l.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := l.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	p = p.Format(l.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, l.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	var resp []trade.Data
 	ts := timestampStart
 allTrades:
@@ -380,11 +381,9 @@ allTrades:
 		}
 	}
 
-	if l.Features.Enabled.SaveTradeData {
-		err := trade.AddTradesToBuffer(l.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err := l.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil

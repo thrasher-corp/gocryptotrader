@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -1102,4 +1103,14 @@ func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 	}
 
 	return nil
+}
+
+// AddTradesToBuffer is a helper function that will only
+// add trades to the buffer if it is allowed
+func (e *Base) AddTradesToBuffer(trades ...trade.Data) error {
+	if !e.Features.Enabled.SaveTradeData {
+		return nil
+	}
+
+	return trade.AddTradesToBuffer(e.Name, trades...)
 }

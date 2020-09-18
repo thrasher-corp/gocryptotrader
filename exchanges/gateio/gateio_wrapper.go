@@ -418,10 +418,11 @@ func (g *Gateio) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (g *Gateio) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	if _, ok := g.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := g.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	p = p.Format(g.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, g.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	tradeData, err := g.GetTrades(p.String())
 	if err != nil {
 		return nil, err
@@ -445,11 +446,9 @@ func (g *Gateio) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 		})
 	}
 
-	if g.Features.Enabled.SaveTradeData {
-		err = trade.AddTradesToBuffer(g.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err = g.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 
 	return resp, nil

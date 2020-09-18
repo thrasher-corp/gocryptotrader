@@ -35,7 +35,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 	if atomic.AddInt32(&processor.started, 0) == 0 {
 		processor.setup()
 	}
-	processor.mutex.Lock()
+	var validDatas []Data
 	for i := range data {
 		if data[i].Price == 0 ||
 			data[i].Amount == 0 ||
@@ -60,8 +60,10 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 			errs = append(errs, fmt.Errorf("%s uuid failed to generate for trade: %+v", exchangeName, data[i]))
 		}
 		data[i].ID = uu
-		buffer = append(buffer, data[i])
+		validDatas = append(validDatas, data[i])
 	}
+	processor.mutex.Lock()
+	buffer = append(buffer, validDatas...)
 	processor.mutex.Unlock()
 	if len(errs) > 0 {
 		return errs
@@ -84,17 +86,19 @@ func (p *Processor) Run() {
 	for {
 		<-ticker.C
 		p.mutex.Lock()
-		if len(buffer) == 0 {
-			p.mutex.Unlock()
+		bufferCopy := append(buffer[:0:0], buffer...)
+		buffer = nil
+		p.mutex.Unlock()
+
+		if len(bufferCopy) == 0 {
 			log.Infof(log.Trade, "no trade data received in %v, shutting down", p.bufferProcessorInterval)
 			return
 		}
-		err := SaveTradesToDatabase(buffer...)
+		err := SaveTradesToDatabase(bufferCopy...)
 		if err != nil {
 			log.Error(log.Trade, err)
 		}
 		buffer = nil
-		p.mutex.Unlock()
 	}
 }
 

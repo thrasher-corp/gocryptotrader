@@ -320,10 +320,11 @@ func (g *Gemini) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 	if timestampEnd.After(time.Now()) {
 		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
 	}
-	if _, ok := g.CurrencyPairs.Pairs[assetType]; !ok {
+	assetPairs, ok := g.CurrencyPairs.Pairs[assetType]
+	if !ok {
 		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
 	}
-	p = p.Format(g.CurrencyPairs.Pairs[assetType].RequestFormat.Delimiter, g.CurrencyPairs.Pairs[assetType].RequestFormat.Uppercase)
+	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	var resp []trade.Data
 	ts := timestampStart
 	limit := 500
@@ -366,11 +367,9 @@ allTrades:
 		}
 	}
 
-	if g.Features.Enabled.SaveTradeData {
-		err := trade.AddTradesToBuffer(g.Name, resp...)
-		if err != nil {
-			return nil, err
-		}
+	err := g.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
 	}
 	if !timestampStart.IsZero() || !timestampEnd.IsZero() {
 		return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil

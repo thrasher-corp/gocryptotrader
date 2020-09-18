@@ -299,6 +299,9 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 			return nil
 		case wsTrades:
+			if !b.Features.Enabled.SaveTradeData {
+				return nil
+			}
 			if chanAsset == asset.MarginFunding {
 				return nil
 			}
@@ -328,9 +331,6 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			case 3:
 				if d[1].(string) != wsFundingTradeUpdate &&
 					d[1].(string) != wsTradeExecutionUpdate {
-					return nil
-				}
-				if !b.Features.Enabled.SaveTradeData {
 					return nil
 				}
 				data := d[2].([]interface{})
