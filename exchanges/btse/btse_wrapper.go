@@ -659,86 +659,88 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		return nil, errors.New("no pair provided")
 	}
 
-	formattedPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := b.GetOrders(formattedPair.String(), "", "")
-	if err != nil {
-		return nil, err
-	}
-
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
 	var orders []order.Detail
-	for i := range resp {
-		var side = order.Buy
-		if strings.EqualFold(resp[i].Side, order.Ask.String()) {
-			side = order.Sell
-		}
-
-		p, err := currency.NewPairDelimiter(resp[i].Symbol,
-			format.Delimiter)
+	for x := range req.Pairs {
+		formattedPair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s GetActiveOrders unable to parse currency pair: %s\n",
-				b.Name,
-				err)
+			return nil, err
 		}
-
-		openOrder := order.Detail{
-			Pair:     p,
-			Exchange: b.Name,
-			Amount:   resp[i].Size,
-			ID:       resp[i].OrderID,
-			Date:     time.Unix(resp[i].Timestamp, 0),
-			Side:     side,
-			Price:    resp[i].Price,
-			Status:   order.Status(resp[i].OrderState),
-		}
-
-		if resp[i].OrderType == 77 {
-			openOrder.Type = order.Market
-		} else if resp[i].OrderType == 76 {
-			openOrder.Type = order.Limit
-		}
-
-		fills, err := b.TradeHistory(
-			"",
-			time.Time{}, time.Time{},
-			0, 0, 0,
-			false,
-			"", resp[i].OrderID)
+		resp, err := b.GetOrders(formattedPair.String(), "", "")
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s: Unable to get order fills for orderID %s",
-				b.Name,
-				resp[i].OrderID)
-			continue
+			return nil, err
 		}
 
-		for i := range fills {
-			createdAt, err := parseOrderTime(fills[i].Timestamp)
+		format, err := b.GetPairFormat(asset.Spot, false)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range resp {
+			var side = order.Buy
+			if strings.EqualFold(resp[i].Side, order.Ask.String()) {
+				side = order.Sell
+			}
+
+			p, err := currency.NewPairDelimiter(resp[i].Symbol,
+				format.Delimiter)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
-					"%s GetActiveOrders unable to parse time: %s\n",
+					"%s GetActiveOrders unable to parse currency pair: %s\n",
 					b.Name,
 					err)
 			}
-			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
-				Timestamp: createdAt,
-				TID:       fills[i].TradeID,
-				Price:     fills[i].Price,
-				Amount:    fills[i].Size,
-				Exchange:  b.Name,
-				Side:      order.Side(fills[i].Side),
-				Fee:       fills[i].FeeAmount,
-			})
+
+			openOrder := order.Detail{
+				Pair:     p,
+				Exchange: b.Name,
+				Amount:   resp[i].Size,
+				ID:       resp[i].OrderID,
+				Date:     time.Unix(resp[i].Timestamp, 0),
+				Side:     side,
+				Price:    resp[i].Price,
+				Status:   order.Status(resp[i].OrderState),
+			}
+
+			if resp[i].OrderType == 77 {
+				openOrder.Type = order.Market
+			} else if resp[i].OrderType == 76 {
+				openOrder.Type = order.Limit
+			}
+
+			fills, err := b.TradeHistory(
+				"",
+				time.Time{}, time.Time{},
+				0, 0, 0,
+				false,
+				"", resp[i].OrderID)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s: Unable to get order fills for orderID %s",
+					b.Name,
+					resp[i].OrderID)
+				continue
+			}
+
+			for i := range fills {
+				createdAt, err := parseOrderTime(fills[i].Timestamp)
+				if err != nil {
+					log.Errorf(log.ExchangeSys,
+						"%s GetActiveOrders unable to parse time: %s\n",
+						b.Name,
+						err)
+				}
+				openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
+					Timestamp: createdAt,
+					TID:       fills[i].TradeID,
+					Price:     fills[i].Price,
+					Amount:    fills[i].Size,
+					Exchange:  b.Name,
+					Side:      order.Side(fills[i].Side),
+					Fee:       fills[i].FeeAmount,
+				})
+			}
+			orders = append(orders, openOrder)
 		}
-		orders = append(orders, openOrder)
 	}
 
 	order.FilterOrdersByType(&orders, req.Type)

@@ -362,6 +362,7 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
@@ -371,7 +372,13 @@ func TestGetActiveOrders(t *testing.T) {
 				Delimiter: "-",
 				Base:      currency.BTC,
 				Quote:     currency.USD,
-			}},
+			},
+			{
+				Delimiter: "-",
+				Base:      currency.XRP,
+				Quote:     currency.USD,
+			},
+		},
 		Type: order.AnyType,
 	}
 
