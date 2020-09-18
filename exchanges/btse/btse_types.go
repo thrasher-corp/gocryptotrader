@@ -1,25 +1,65 @@
 package btse
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 const (
 	// Default order type is good till cancel (or filled)
-	goodTillCancel = "gtc"
+	goodTillCancel = "GTC"
+
+	orderInserted  = 2
+	orderCancelled = 6
 )
 
-// OverviewData stores market overview data
-type OverviewData struct {
-	High24Hr         float64 `json:"high24hr,string"`
-	HighestBid       float64 `json:"highestbid,string"`
-	Last             float64 `json:"last,string"`
-	Low24Hr          float64 `json:"low24hr,string"`
-	LowestAsk        float64 `json:"lowest_ask,string"`
-	PercentageChange float64 `json:"percent_change,string"`
-	Volume           float64 `json:"volume,string"`
+// MarketSummary response data
+type MarketSummary []struct {
+	Symbol              string   `json:"symbol"`
+	Last                float64  `json:"last"`
+	LowestAsk           float64  `json:"lowestAsk"`
+	HighestBid          float64  `json:"highestBid"`
+	PercentageChange    float64  `json:"percentageChange"`
+	Volume              float64  `json:"volume"`
+	High24Hr            float64  `json:"high24Hr"`
+	Low24Hr             float64  `json:"low24Hr"`
+	Base                string   `json:"base"`
+	Quote               string   `json:"quote"`
+	Active              bool     `json:"active"`
+	Size                float64  `json:"size"`
+	MinValidPrice       float64  `json:"minValidPrice"`
+	MinPriceIncrement   float64  `json:"minPriceIncrement"`
+	MinOrderSize        float64  `json:"minOrderSize"`
+	MaxOrderSize        float64  `json:"maxOrderSize"`
+	MinSizeIncrement    float64  `json:"minSizeIncrement"`
+	OpenInterest        float64  `json:"openInterest"`
+	OpenInterestUSD     float64  `json:"openInterestUSD"`
+	ContractStart       int64    `json:"contractStart"`
+	ContractEnd         int64    `json:"contractEnd"`
+	TimeBasedContract   bool     `json:"timeBasedContract"`
+	OpenTime            int64    `json:"openTime"`
+	CloseTime           int64    `json:"closeTime"`
+	StartMatching       int64    `json:"startMatching"`
+	InactiveTime        int64    `json:"inactiveTime"`
+	FundingRate         float64  `json:"fundingRate"`
+	ContractSize        float64  `json:"contractSize"`
+	MaxPosition         int64    `json:"maxPosition"`
+	MinRiskLimit        int      `json:"minRiskLimit"`
+	MaxRiskLimit        int      `json:"maxRiskLimit"`
+	AvailableSettlement []string `json:"availableSettlement"`
+	Futures             bool     `json:"futures"`
 }
 
-// HighLevelMarketData stores market overview data
-type HighLevelMarketData map[string]OverviewData
+// OHLCV holds Open, High Low, Close, Volume data for set symbol
+type OHLCV [][]float64
+
+// Price stores last price for requested symbol
+type Price []struct {
+	IndexPrice float64 `json:"indexPrice"`
+	LastPrice  float64 `json:"lastPrice"`
+	MarkPrice  float64 `json:"markPrice"`
+	Symbol     string  `json:"symbol"`
+}
 
 // SpotMarket stores market data
 type SpotMarket struct {
@@ -72,11 +112,12 @@ type FuturesMarket struct {
 
 // Trade stores trade data
 type Trade struct {
-	SerialID string  `json:"serial_id"`
+	SerialID int     `json:"serialId"`
 	Symbol   string  `json:"symbol"`
 	Price    float64 `json:"price"`
-	Amount   float64 `json:"amount"`
-	Time     string  `json:"time"`
+	Amount   float64 `json:"size"`
+	Time     int64   `json:"timestamp"`
+	Side     string  `json:"side"`
 	Type     string  `json:"type"`
 }
 
@@ -117,52 +158,125 @@ type MarketStatistics struct {
 // ServerTime stores the server time data
 type ServerTime struct {
 	ISO   time.Time `json:"iso"`
-	Epoch string    `json:"epoch"`
+	Epoch int64     `json:"epoch"`
 }
 
 // CurrencyBalance stores the account info data
 type CurrencyBalance struct {
 	Currency  string  `json:"currency"`
-	Total     float64 `json:"total,string"`
-	Available float64 `json:"available,string"`
+	Total     float64 `json:"total"`
+	Available float64 `json:"available"`
 }
 
-// Order stores the order info
-type Order struct {
-	ID        string  `json:"id"`
-	Type      string  `json:"type"`
-	Side      string  `json:"side"`
-	Price     float64 `json:"price"`
-	Amount    float64 `json:"amount"`
-	Tag       string  `json:"tag"`
-	Symbol    string  `json:"symbol"`
-	CreatedAt string  `json:"created_at"`
+// AccountFees stores fee for each currency pair
+type AccountFees struct {
+	MakerFee float64 `json:"makerFee"`
+	Symbol   string  `json:"symbol"`
+	TakerFee float64 `json:"takerFee"`
+}
+
+// TradeHistory stores user trades for exchange
+type TradeHistory []struct {
+	Base         string  `json:"base"`
+	ClOrderID    string  `json:"clOrderID"`
+	FeeAmount    float64 `json:"feeAmount"`
+	FeeCurrency  string  `json:"feeCurrency"`
+	FilledPrice  float64 `json:"filledPrice"`
+	FilledSize   float64 `json:"filledSize"`
+	OrderID      string  `json:"orderId"`
+	OrderType    int     `json:"orderType"`
+	Price        float64 `json:"price"`
+	Quote        string  `json:"quote"`
+	RealizedPnl  float64 `json:"realizedPnl"`
+	SerialID     int64   `json:"serialId"`
+	Side         string  `json:"side"`
+	Size         float64 `json:"size"`
+	Symbol       string  `json:"symbol"`
+	Timestamp    string  `json:"timestamp"`
+	Total        float64 `json:"total"`
+	TradeID      string  `json:"tradeId"`
+	TriggerPrice float64 `json:"triggerPrice"`
+	TriggerType  int     `json:"triggerType"`
+	Username     string  `json:"username"`
+	Wallet       string  `json:"wallet"`
+}
+
+// WalletHistory stores account funding history
+type WalletHistory []struct {
+	Amount      float64 `json:"amount"`
+	Currency    string  `json:"currency"`
+	Description string  `json:"description"`
+	Fees        float64 `json:"fees"`
+	OrderID     string  `json:"orderId"`
+	Status      string  `json:"status"`
+	Timestamp   int64   `json:"timestamp"`
+	Type        string  `json:"type"`
+	Username    string  `json:"username"`
+	Wallet      string  `json:"wallet"`
+}
+
+// WalletAddress stores address for crypto deposit's
+type WalletAddress []struct {
+	Address string `json:"address"`
+	Created int    `json:"created"`
+}
+
+// WithdrawalResponse response received when submitting a crypto withdrawal request
+type WithdrawalResponse struct {
+	WithdrawID string `json:"withdraw_id"`
 }
 
 // OpenOrder stores an open order info
 type OpenOrder struct {
-	Order
-	Status string `json:"status"`
+	AverageFillPrice             float64 `json:"averageFillPrice"`
+	CancelDuration               int64   `json:"cancelDuration"`
+	ClOrderID                    string  `json:"clOrderID"`
+	FillSize                     float64 `json:"fillSize"`
+	FilledSize                   float64 `json:"filledSize"`
+	OrderID                      string  `json:"orderID"`
+	OrderState                   string  `json:"orderState"`
+	OrderType                    int     `json:"orderType"`
+	OrderValue                   float64 `json:"orderValue"`
+	PegPriceDeviation            float64 `json:"pegPriceDeviation"`
+	PegPriceMax                  float64 `json:"pegPriceMax"`
+	PegPriceMin                  float64 `json:"pegPriceMin"`
+	Price                        float64 `json:"price"`
+	Side                         string  `json:"side"`
+	Size                         float64 `json:"size"`
+	Symbol                       string  `json:"symbol"`
+	Timestamp                    int64   `json:"timestamp"`
+	TrailValue                   float64 `json:"trailValue"`
+	TriggerOrder                 bool    `json:"triggerOrder"`
+	TriggerOrderType             int     `json:"triggerOrderType"`
+	TriggerOriginalPrice         float64 `json:"triggerOriginalPrice"`
+	TriggerPrice                 float64 `json:"triggerPrice"`
+	TriggerStopPrice             float64 `json:"triggerStopPrice"`
+	TriggerTrailingStopDeviation float64 `json:"triggerTrailingStopDeviation"`
+	Triggered                    bool    `json:"triggered"`
 }
 
-// CancelOrder stores the cancel order response data
-type CancelOrder struct {
-	Code int   `json:"code"`
-	Time int64 `json:"time"`
-}
+// CancelOrder stores slice of orders
+type CancelOrder []Order
 
-// FilledOrder stores filled order data
-type FilledOrder struct {
-	Price     float64 `json:"price"`
-	Amount    float64 `json:"amount"`
-	Fee       float64 `json:"fee"`
-	Side      string  `json:"side"`
-	Tag       string  `json:"tag"`
-	ID        int64   `json:"id"`
-	TradeID   string  `json:"trade_id"`
-	Symbol    string  `json:"symbol"`
-	OrderID   string  `json:"order_id"`
-	CreatedAt string  `json:"created_at"`
+// Order stores information for a single order
+type Order struct {
+	AverageFillPrice float64 `json:"averageFillPrice"`
+	ClOrderID        string  `json:"clOrderID"`
+	Deviation        float64 `json:"deviation"`
+	FillSize         float64 `json:"fillSize"`
+	Message          string  `json:"message"`
+	OrderID          string  `json:"orderID"`
+	OrderType        int     `json:"orderType"`
+	Price            float64 `json:"price"`
+	Side             string  `json:"side"`
+	Size             float64 `json:"size"`
+	Status           int     `json:"status"`
+	Stealth          float64 `json:"stealth"`
+	StopPrice        float64 `json:"stopPrice"`
+	Symbol           string  `json:"symbol"`
+	Timestamp        int64   `json:"timestamp"`
+	Trigger          bool    `json:"trigger"`
+	TriggerPrice     float64 `json:"triggerPrice"`
 }
 
 type wsSub struct {
@@ -220,3 +334,20 @@ type wsOrderUpdate struct {
 	TriggerPrice      float64 `json:"triggerPrice,string"`
 	Type              string  `json:"type"`
 }
+
+// ErrorResponse contains errors received from API
+type ErrorResponse struct {
+	ErrorCode int    `json:"errorCode"`
+	Message   string `json:"message"`
+	Status    int    `json:"status"`
+}
+
+// OrderSizeLimit holds accepted minimum, maximum, and size increment when submitting new orders
+type OrderSizeLimit struct {
+	MinOrderSize     float64
+	MaxOrderSize     float64
+	MinSizeIncrement float64
+}
+
+// orderSizeLimitMap map of OrderSizeLimit per currency
+var orderSizeLimitMap sync.Map
