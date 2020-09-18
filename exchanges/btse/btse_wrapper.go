@@ -266,17 +266,17 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	t, err := b.GetMarketSummary(fpair.String(), assetType == asset.Spot)
+	t, err := b.GetMarketSummary(fPair.String(), assetType == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	err = ticker.ProcessTicker(&ticker.Price{
-		Pair:         fpair,
+		Pair:         fPair,
 		Ask:          t[0].LowestAsk,
 		Bid:          t[0].HighestBid,
 		Low:          t[0].Low24Hr,
@@ -311,11 +311,11 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	a, err := b.FetchOrderBook(fpair.String(), 0, 0, 0, assetType == asset.Spot)
+	a, err := b.FetchOrderBook(fPair.String(), 0, 0, 0, assetType == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -397,12 +397,12 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item, timesta
 		return nil, common.ErrNotYetImplemented
 	}
 
-	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	trades, err := b.GetTrades(fpair.String(),
+	trades, err := b.GetTrades(fPair.String(),
 		timestampStart, timestampEnd,
 		0, 0, 0,
 		false)
@@ -772,11 +772,11 @@ func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]orde
 	}
 	orderDeref := *getOrdersRequest
 	for x := range orderDeref.Pairs {
-		fpair, err := b.FormatExchangeCurrency(orderDeref.Pairs[x], asset.Spot)
+		fPair, err := b.FormatExchangeCurrency(orderDeref.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		currentOrder, err := b.GetOrders(fpair.String(), "", "")
+		currentOrder, err := b.GetOrders(fPair.String(), "", "")
 		if err != nil {
 			return nil, err
 		}
