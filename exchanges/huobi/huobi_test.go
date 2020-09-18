@@ -769,12 +769,12 @@ func TestGetSwapAssetsAndPositions(t *testing.T) {
 	}
 }
 
-func TestGetSubAccAssetsInfo(t *testing.T) {
+func TestGetSwapAllSubAccAssets(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.GetSubAccAssetsInfo("ETH-USD", 0)
+	_, err := h.GetSwapAllSubAccAssets("ETH-USD")
 	if err != nil {
 		t.Error(err)
 	}

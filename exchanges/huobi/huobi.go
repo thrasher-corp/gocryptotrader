@@ -1488,14 +1488,25 @@ func (h *HUOBI) GetSwapAssetsAndPositions(code string) (SwapAssetsAndPositionsDa
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapAssetsAndPosInfo, nil, req, &resp, false)
 }
 
-// GetSubAccAssetsInfo gets asset info for all subaccounts
-func (h *HUOBI) GetSubAccAssetsInfo(code string, subUID int64) (SubAccountsAssetData, error) {
+// GetSwapAllSubAccAssets gets asset info for all subaccounts
+func (h *HUOBI) GetSwapAllSubAccAssets(code string) (SubAccountsAssetData, error) {
 	var resp SubAccountsAssetData
+	req := make(map[string]interface{})
+	if code != "" {
+		req["contract_code"] = code
+	}
+	h.API.Endpoints.URL = huobiURL
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapSubAccList, nil, req, &resp, false)
+}
+
+// SwapSingleSubAccAssets gets a subaccount's assets info
+func (h *HUOBI) SwapSingleSubAccAssets(code string, subUID int64) (SingleSubAccountAssetsInfo, error) {
+	var resp SingleSubAccountAssetsInfo
 	req := make(map[string]interface{})
 	req["contract_code"] = code
 	req["sub_uid"] = subUID
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapSubAccList, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapSubAccInfo, nil, req, &resp, false)
 }
 
 // GetSubAccPositionInfo gets a subaccount's positions info
@@ -1505,7 +1516,7 @@ func (h *HUOBI) GetSubAccPositionInfo(code string, subUID int64) (SingleSubAccou
 	req["contract_code"] = code
 	req["sub_uid"] = subUID
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapSubAccList, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapSubAccPosInfo, nil, req, &resp, false)
 }
 
 // GetAccountFinancialRecords gets the account's financial records

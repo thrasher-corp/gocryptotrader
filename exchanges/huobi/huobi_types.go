@@ -197,7 +197,7 @@ type FWsReqBasisData struct {
 // FWsSubOrderData stores subscribed order data for futures websocket
 type FWsSubOrderData struct {
 	Operation      string  `json:"op"`
-	Top            string  `json:"topic"`
+	Topic          string  `json:"topic"`
 	UID            string  `json:"uid"`
 	Timestamp      int64   `json:"ts"`
 	Symbol         string  `json:"symbol"`
@@ -345,6 +345,40 @@ type FWsSubContractInfo struct {
 		DeliveryDate   string  `json:"delivery_date"`
 		CreateDate     string  `json:"create_date"`
 		ContractStatus int64   `json:"contract_status"`
+	} `json:"data"`
+}
+
+// FWsSubTriggerOrderUpdates stores subscribed trigger order updates data for futures websocket
+type FWsSubTriggerOrderUpdates struct {
+	Operation string `json:"op"`
+	Topic     string `json:"topic"`
+	UID       string `json:"uid"`
+	Event     string `json:"event"`
+	Data      []struct {
+		Symbol          string  `json:"symbol"`
+		ContractCode    string  `json:"contract_code"`
+		ContractType    string  `json:"contract_type"`
+		TriggerType     string  `json:"trigger_type"`
+		Volume          float64 `json:"volume"`
+		OrderType       int64   `json:"order_type"`
+		Direction       string  `json:"direction"`
+		Offset          string  `json:"offset"`
+		LeverageRate    int64   `json:"lever_rate"`
+		OrderID         int64   `json:"order_id"`
+		OrderIDString   string  `json:"order_id_str"`
+		RelationOrderID string  `json:"relation_order_id"`
+		OrderPriceType  string  `json:"order_price_type"`
+		Status          int64   `json:"status"`
+		OrderSource     string  `json:"order_source"`
+		TriggerPrice    float64 `json:"trigger_price"`
+		TriggeredPrice  float64 `json:"triggered_price"`
+		OrderPrice      float64 `json:"order_price"`
+		CreatedAt       int64   `json:"created_at"`
+		TriggeredAt     int64   `json:"triggered_at"`
+		OrderInsertAt   int64   `json:"order_insert_at"`
+		CancelledAt     int64   `json:"canceled_at"`
+		FailCode        int64   `json:"fail_code"`
+		FailReason      string  `json:"fail_reason"`
 	} `json:"data"`
 }
 
@@ -1358,6 +1392,206 @@ type SwapWsReqBasisData struct {
 		Basis         float64 `json:"basis"`
 		BasisRate     float64 `json:"basis_rate"`
 	}
+}
+
+// SwapWsSubOrderData stores subscribed order data for swap websocket
+type SwapWsSubOrderData struct {
+	Operation      string  `json:"op"`
+	Topic          string  `json:"topic"`
+	UID            string  `json:"uid"`
+	Timestamp      int64   `json:"ts"`
+	Symbol         string  `json:"symbol"`
+	ContractCode   string  `json:"contract_code"`
+	Volume         float64 `json:"volume"`
+	Price          float64 `json:"price"`
+	OrderPriceType string  `json:"order_price_type"`
+	Direction      string  `json:"direction"`
+	Offset         string  `json:"offset"`
+	Status         int64   `json:"status"`
+	LeverateRate   float64 `json:"lever_rate"`
+	OrderID        int64   `json:"order_id"`
+	OrderIDString  string  `json:"order_id_str"`
+	ClientOrderID  int64   `json:"client_order_id"`
+	OrderSource    string  `json:"order_source"`
+	OrderType      int64   `json:"order_type"`
+	CreatedAt      int64   `json:"created_at"`
+	CanceledAt     int64   `json:"canceled_at"`
+	TradeVolume    float64 `json:"trade_volume"`
+	TradeTurnover  float64 `json:"trade_turnover"`
+	Fee            float64 `json:"fee"`
+	FeeAsset       string  `json:"fee_asset"`
+	TradeAvgPrice  float64 `json:"trade_avg_price"`
+	MarginFrozen   float64 `json:"margin_frozen"`
+	Profit         float64 `json:"profit"`
+	Trade          []struct {
+		ID            string  `json:"id"`
+		TradeID       int64   `json:"trade_id"`
+		TradeVolume   float64 `json:"trade_volume"`
+		TradePrice    float64 `json:"trade_price"`
+		TradeFee      float64 `json:"trade_fee"`
+		TradeTurnover float64 `json:"trade_turnover"`
+		CreatedAt     int64   `json:"created_at"`
+		FeeAsset      string  `json:"fee_asset"`
+		Role          string  `json:"role"`
+	} `json:"trade"`
+	LiquidationType string `json:"liquidation_type"`
+}
+
+// SwapWsSubMatchOrderData stores subscribed match order data for swap websocket
+type SwapWsSubMatchOrderData struct {
+	Operation     string  `json:"op"`
+	Topic         string  `json:"topic"`
+	UID           string  `json:"uid"`
+	Timestamp     int64   `json:"ts"`
+	Symbol        string  `json:"symbol"`
+	ContractCode  string  `json:"contract_code"`
+	Status        int64   `json:"status"`
+	OrderID       int64   `json:"order_id"`
+	OrderIDString string  `json:"order_id_str"`
+	ClientOrderID int64   `json:"client_order_id"`
+	OrderType     string  `json:"order_type"`
+	TradeVolume   int64   `json:"trade_volume"`
+	Volume        float64 `json:"volume"`
+	Trade         []struct {
+		ID            string  `json:"id"`
+		TradeID       int64   `json:"trade_id"`
+		TradeVolume   float64 `json:"trade_volume"`
+		TradePrice    float64 `json:"trade_price"`
+		TradeTurnover float64 `json:"trade_turnover"`
+		CreatedAt     int64   `json:"created_at"`
+		Role          string  `json:"role"`
+	} `json:"trade"`
+}
+
+// SwapWsSubEquityData stores subscribed account data for swap account equity updates through websocket
+type SwapWsSubEquityData struct {
+	Operation string `json:"op"`
+	Topic     string `json:"topic"`
+	Timestamp int64  `json:"ts"`
+	UID       string `json:"uid"`
+	Event     string `json:"event"`
+	Data      []struct {
+		Symbol            string  `json:"symbol"`
+		MarginBalance     float64 `json:"margin_balance"`
+		MarginStatic      int64   `json:"margin_static"`
+		MarginPosition    float64 `json:"margin_position"`
+		MarginFrozen      float64 `json:"margin_frozen"`
+		MarginAvailable   float64 `json:"margin_available"`
+		ProfitReal        float64 `json:"profit_real"`
+		ProfitUnreal      float64 `json:"profit_unreal"`
+		WithdrawAvailable float64 `json:"withdraw_available"`
+		RiskRate          float64 `json:"risk_rate"`
+		LiquidationPrice  float64 `json:"liquidation_price"`
+		LeverageRate      float64 `json:"lever_rate"`
+		AdjustFactor      float64 `json:"adjust_factor"`
+	} `json:"data"`
+}
+
+// SwapWsSubPositionUpdates stores subscribed position updates data for swap websocket
+type SwapWsSubPositionUpdates struct {
+	Operation string `json:"op"`
+	Topic     string `json:"topic"`
+	UID       string `json:"uid"`
+	Timestamp int64  `json:"ts"`
+	Event     string `json:"event"`
+	Data      []struct {
+		Symbol         string  `json:"symbol"`
+		ContractCode   string  `json:"contract_code"`
+		Volume         float64 `json:"volume"`
+		Available      float64 `json:"available"`
+		Frozen         float64 `json:"frozen"`
+		CostOpen       float64 `json:"cost_open"`
+		CostHold       float64 `json:"cost_hold"`
+		ProfitUnreal   float64 `json:"profit_unreal"`
+		ProfitRate     float64 `json:"profit_rate"`
+		Profit         float64 `json:"profit"`
+		PositionMargin float64 `json:"position_margin"`
+		LeverageRate   float64 `json:"lever_rate"`
+		Direction      string  `json:"direction"`
+		LastPrice      float64 `json:"last_price"`
+	}
+}
+
+// SwapWsSubLiquidationOrders stores subscribed liquidation orders data for swap futures
+type SwapWsSubLiquidationOrders struct {
+	Operation  string `json:"op"`
+	Topic      string `json:"topic"`
+	Timestamp  int64  `json:"ts"`
+	OrdersData []struct {
+		Symbol       string  `json:"symbol"`
+		ContractCode string  `json:"contract_code"`
+		Direction    string  `json:"direction"`
+		Offset       string  `json:"offset"`
+		Volume       float64 `json:"volume"`
+		Price        float64 `json:"price"`
+		CreatedAt    int64   `json:"created_at"`
+	} `json:"data"`
+}
+
+// SwapWsSubFundingData stores funding rate data for swap websocket
+type SwapWsSubFundingData struct {
+	Operation   string `json:"op"`
+	Topic       string `json:"topic"`
+	Timestamp   int64  `json:"ts"`
+	FundingData []struct {
+		Symbol         string  `json:"symbol"`
+		ContractCode   string  `json:"contract_code"`
+		FeeAsset       string  `json:"fee_asset"`
+		FundingTime    int64   `json:"funding_time,string"`
+		FundingRate    float64 `json:"funding_rate,string"`
+		EstimatedRate  float64 `json:"estimated_rate,string"`
+		SettlementTime int64   `json:"settlement_time,string"`
+	} `json:"data"`
+}
+
+// SwapWsSubContractInfo stores funding rate data for swap websocket
+type SwapWsSubContractInfo struct {
+	Operation    string `json:"op"`
+	Topic        string `json:"topic"`
+	Timestamp    int64  `json:"ts"`
+	Event        string `json:"event"`
+	ContractData []struct {
+		Symbol         string  `json:"symbol"`
+		ContractCode   string  `json:"contract_code"`
+		ContractSize   float64 `json:"contract_size"`
+		PriceTick      float64 `json:"price_tick"`
+		SettlementDate string  `json:"settlement_date"`
+		CreateDate     string  `json:"create_date"`
+		ContractStatus int64   `json:"contract_status"`
+	} `json:"data"`
+}
+
+// SwapWsSubTriggerOrderUpdates stores subscribed trigger order updates data for swap websocket
+type SwapWsSubTriggerOrderUpdates struct {
+	Operation string `json:"op"`
+	Topic     string `json:"topic"`
+	UID       string `json:"uid"`
+	Event     string `json:"event"`
+	Data      []struct {
+		Symbol          string  `json:"symbol"`
+		ContractCode    string  `json:"contract_code"`
+		ContractType    string  `json:"contract_type"`
+		Volume          float64 `json:"volume"`
+		OrderType       int64   `json:"order_type"`
+		Direction       string  `json:"direction"`
+		Offset          string  `json:"offset"`
+		LeverageRate    int64   `json:"lever_rate"`
+		OrderID         int64   `json:"order_id"`
+		OrderIDString   string  `json:"order_id_str"`
+		RelationOrderID string  `json:"relation_order_id"`
+		OrderPriceType  string  `json:"order_price_type"`
+		Status          int64   `json:"status"`
+		OrderSource     string  `json:"order_source"`
+		TriggerPrice    float64 `json:"trigger_price"`
+		TriggeredPrice  float64 `json:"triggered_price"`
+		OrderPrice      float64 `json:"order_price"`
+		CreatedAt       int64   `json:"created_at"`
+		TriggeredAt     int64   `json:"triggered_at"`
+		OrderInsertAt   int64   `json:"order_insert_at"`
+		CancelledAt     int64   `json:"canceled_at"`
+		FailCode        int64   `json:"fail_code"`
+		FailReason      string  `json:"fail_reason"`
+	} `json:"data"`
 }
 
 // SwapIndexPriceData gets price of a perpetual swap

@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	baseWSURL = "wss://api.huobi.pro"
+	baseWSURL    = "wss://api.huobi.pro"
+	futuresWSURL = "wss://api.hbdm.com/"
 
 	wsMarketURL    = baseWSURL + "/ws"
 	wsMarketKline  = "market.%s.kline.1min"
