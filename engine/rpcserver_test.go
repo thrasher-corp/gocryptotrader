@@ -489,9 +489,6 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	if len(resp.MissingPeriods) != 23 {
 		t.Errorf("expected 23 missing periods, received: %v", len(resp.MissingPeriods))
 	}
-	if len(resp.FoundPeriods) != 1 {
-		t.Errorf("expected 1 found periods, received: %v", len(resp.FoundPeriods))
-	}
 
 	// two trades response
 	err = trade.SaveTradesToDatabase(trade.Data{
@@ -523,9 +520,6 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	}
 	if len(resp.MissingPeriods) != 22 {
 		t.Errorf("expected 22 missing periods, received: %v", len(resp.MissingPeriods))
-	}
-	if len(resp.FoundPeriods) != 2 {
-		t.Errorf("expected 2 found periods, received: %v", len(resp.FoundPeriods))
 	}
 }
 
@@ -595,9 +589,6 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp.FoundPeriods) != 1 {
-		t.Errorf("expected a candle")
 	}
 
 	// two candle missing periods response
