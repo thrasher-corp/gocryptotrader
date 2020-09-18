@@ -2,7 +2,6 @@ package yobit
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -329,13 +328,14 @@ func (y *Yobit) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (y *Yobit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	assetPairs, ok := y.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	var err error
+	p, err = y.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
 	}
-	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	var resp []trade.Data
-	tradeData, err := y.GetTrades(p.String())
+	var tradeData []Trade
+	tradeData, err = y.GetTrades(p.String())
 	if err != nil {
 		return nil, err
 	}

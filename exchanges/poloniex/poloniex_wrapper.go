@@ -416,12 +416,16 @@ func (p *Poloniex) GetRecentTrades(currencyPair currency.Pair, assetType asset.I
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (p *Poloniex) GetHistoricTrades(currencyPair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	assetPairs, ok := p.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalied time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
-	currencyPair = currencyPair.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
-	tradeData, err := p.GetTradeHistory(currencyPair.String(), timestampStart.Unix(), timestampEnd.Unix())
+	var err error
+	currencyPair, err = p.FormatExchangeCurrency(currencyPair, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tradeData []TradeHistory
+	tradeData, err = p.GetTradeHistory(currencyPair.String(), timestampStart.Unix(), timestampEnd.Unix())
 	if err != nil {
 		return nil, err
 	}

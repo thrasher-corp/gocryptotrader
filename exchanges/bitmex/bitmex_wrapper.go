@@ -417,11 +417,14 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 	if assetType == asset.Index {
 		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
 	}
-	assetPairs, ok := b.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalied time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
-	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
+	var err error
+	p, err = b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 	req := &GenericRequestParams{
 		Symbol: p.String(),
 	}

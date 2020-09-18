@@ -37,16 +37,16 @@ type Processor struct {
 	bufferProcessorInterval time.Duration
 }
 
-type ByDate []Data
+type byDate []Data
 
-func (b ByDate) Len() int {
+func (b byDate) Len() int {
 	return len(b)
 }
 
-func (b ByDate) Less(i, j int) bool {
+func (b byDate) Less(i, j int) bool {
 	return b[i].Timestamp.Before(b[j].Timestamp)
 }
 
-func (b ByDate) Swap(i, j int) {
+func (b byDate) Swap(i, j int) {
 	b[i], b[j] = b[j], b[i]
 }

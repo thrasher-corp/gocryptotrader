@@ -691,11 +691,11 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	assetPairs, ok := o.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	var err error
+	p, err = o.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
 	}
-	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	var resp []trade.Data
 	var side order.Side
 	switch assetType {

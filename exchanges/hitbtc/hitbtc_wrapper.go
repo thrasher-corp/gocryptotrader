@@ -456,12 +456,16 @@ func (h *HitBTC) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (h *HitBTC) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	assetPairs, ok := h.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalied time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
-	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
-	tradeData, err := h.GetTrades(p.String(), "", "", timestampStart.Unix(), timestampEnd.Unix(), 1000, 0)
+	var err error
+	p, err = h.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tradeData []TradeHistory
+	tradeData, err = h.GetTrades(p.String(), "", "", timestampStart.Unix(), timestampEnd.Unix(), 1000, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -465,11 +465,11 @@ func (o *OKCoin) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	assetPairs, ok := o.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	var err error
+	p, err = o.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
 	}
-	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:

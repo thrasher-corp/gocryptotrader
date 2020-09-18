@@ -342,14 +342,14 @@ func (l *LakeBTC) GetRecentTrades(currencyPair currency.Pair, assetType asset.It
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (l *LakeBTC) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampEnd.After(time.Now()) {
-		return nil, fmt.Errorf("invalid end date supplied '%v'", timestampEnd)
+	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalied time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
-	assetPairs, ok := l.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	var err error
+	p, err = l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
 	}
-	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
 	var resp []trade.Data
 	ts := timestampStart
 allTrades:
@@ -381,7 +381,7 @@ allTrades:
 		}
 	}
 
-	err := l.AddTradesToBuffer(resp...)
+	err = l.AddTradesToBuffer(resp...)
 	if err != nil {
 		return nil, err
 	}

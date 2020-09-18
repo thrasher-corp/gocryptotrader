@@ -287,12 +287,13 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	assetPairs, ok := l.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	var err error
+	p, err = l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
 	}
-	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
-	tradeData, err := l.GetTrades(p.Base.String(), nil)
+	var tradeData []Trade
+	tradeData, err = l.GetTrades(p.Base.String(), nil)
 	if err != nil {
 		return nil, err
 	}

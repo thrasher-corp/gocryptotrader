@@ -479,16 +479,20 @@ func (b *Bitfinex) GetHistoricTrades(p currency.Pair, assetType asset.Item, time
 	if assetType == asset.MarginFunding {
 		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
 	}
-	assetPairs, ok := b.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	if timestampStart.Equal(timestampEnd) || timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalied time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
-	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
-	cf, err := b.fixCasing(p, assetType)
+	var err error
+	p, err = b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	tradeHistory, err := b.GetTrades(cf, -1, timestampStart.Unix()*1000, timestampEnd.Unix()*1000, false)
+	var currString string
+	currString, err = b.fixCasing(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	tradeHistory, err := b.GetTrades(currString, -1, timestampStart.Unix()*1000, timestampEnd.Unix()*1000, false)
 	if err != nil {
 		return nil, err
 	}

@@ -334,12 +334,16 @@ func (l *Lbank) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (l *Lbank) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	assetPairs, ok := l.CurrencyPairs.Pairs[assetType]
-	if !ok {
-		return nil, fmt.Errorf("invalid asset type '%v' supplied", assetType)
+	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalied time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
-	p = p.Format(assetPairs.RequestFormat.Delimiter, assetPairs.RequestFormat.Uppercase)
-	tradeData, err := l.GetTrades(p.String(), 600, timestampStart.UnixNano()/int64(time.Millisecond))
+	var err error
+	p, err = l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tradeData []TradeResponse
+	tradeData, err = l.GetTrades(p.String(), 600, timestampStart.UnixNano()/int64(time.Millisecond))
 	if err != nil {
 		return nil, err
 	}

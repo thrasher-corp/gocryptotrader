@@ -116,7 +116,7 @@ func SaveTradesToDatabase(trades ...Data) error {
 }
 
 func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
-	sort.Sort(ByDate(trades))
+	sort.Sort(byDate(trades))
 	var results []tradesql.Data
 	for i := range trades {
 		tradeID, err := uuid.NewV4()
@@ -207,7 +207,7 @@ func getNearestInterval(t time.Time, interval kline.Interval) int64 {
 }
 
 func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
-	sort.Sort(ByDate(datas))
+	sort.Sort(byDate(datas))
 	c.Open = datas[0].Price
 	c.Close = datas[len(datas)-1].Price
 	for i := range datas {

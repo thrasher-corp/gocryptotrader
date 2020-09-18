@@ -89,11 +89,11 @@ func (y *Yobit) GetTrades(symbol string) ([]Trade, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := dataHolder.Data[symbol]; !ok {
-		return nil, nil
-	}
 
-	return dataHolder.Data[symbol], nil
+	if tr, ok := dataHolder.Data[symbol]; ok {
+		return tr, nil
+	}
+	return nil, nil
 }
 
 // GetAccountInformation returns a users account info
