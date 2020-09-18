@@ -91,6 +91,7 @@ func (b *BTSE) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:      true,
+				TickerBatching:      true,
 				KlineFetching:       true,
 				TradeFetching:       true,
 				OrderbookFetching:   true,
@@ -266,28 +267,36 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	// fPair, err := b.FormatExchangeCurrency(p, assetType)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	tickers, err := b.GetMarketSummary("", assetType == asset.Spot)
 	if err != nil {
 		return nil, err
+	}
+	for x := range tickers {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(tickers[x].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Pair:         pair,
+			Ask:          tickers[x].LowestAsk,
+			Bid:          tickers[x].HighestBid,
+			Low:          tickers[x].Low24Hr,
+			Last:         tickers[x].Last,
+			Volume:       tickers[x].Volume,
+			High:         tickers[x].High24Hr,
+			ExchangeName: b.Name,
+			AssetType:    assetType})
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	t, err := b.GetMarketSummary(fPair.String(), assetType == asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	err = ticker.ProcessTicker(&ticker.Price{
-		Pair:         fPair,
-		Ask:          t[0].LowestAsk,
-		Bid:          t[0].HighestBid,
-		Low:          t[0].Low24Hr,
-		Last:         t[0].Last,
-		Volume:       t[0].Volume,
-		High:         t[0].High24Hr,
-		ExchangeName: b.Name,
-		AssetType:    assetType})
-	if err != nil {
-		return nil, err
-	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
