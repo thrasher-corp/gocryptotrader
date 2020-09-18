@@ -362,7 +362,6 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
