@@ -779,40 +779,40 @@ func TestWithinLimits(t *testing.T) {
 	t.Parallel()
 	seedOrderSizeLimitMap()
 	p, _ := currency.NewPairDelimiter("XRP-USD", "-")
-	v := b.withinLimits(p, asset.Spot, 1.0)
+	v := b.withinLimits(p, 1.0)
 	if !v {
 		t.Fatal("expected valid limits")
 	}
-	v = b.withinLimits(p, asset.Spot, 5.0000001)
+	v = b.withinLimits(p, 5.0000001)
 	if v {
 		t.Fatal("expected invalid limits")
 	}
-	v = b.withinLimits(p, asset.Spot, 100)
+	v = b.withinLimits(p, 100)
 	if !v {
 		t.Fatal("expected valid limits")
 	}
-	v = b.withinLimits(p, asset.Spot, 10.1)
+	v = b.withinLimits(p, 10.1)
 	if v {
 		t.Fatal("expected invalid limits")
 	}
 
 	p.Base = currency.LTC
-	v = b.withinLimits(p, asset.Spot, 10)
+	v = b.withinLimits(p, 10)
 	if v {
 		t.Fatal("expected valid limits")
 	}
 
-	v = b.withinLimits(p, asset.Spot, 0.009)
+	v = b.withinLimits(p, 0.009)
 	if !v {
 		t.Fatal("expected invalid limits")
 	}
 	p.Base = currency.BTC
-	v = b.withinLimits(p, asset.Spot, 10)
+	v = b.withinLimits(p, 10)
 	if v {
 		t.Fatal("expected valid limits")
 	}
 
-	v = b.withinLimits(p, asset.Spot, 0.001)
+	v = b.withinLimits(p, 0.001)
 	if !v {
 		t.Fatal("expected invalid limits")
 	}

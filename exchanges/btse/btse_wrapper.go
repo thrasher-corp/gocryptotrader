@@ -426,13 +426,8 @@ func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item, timesta
 	return resp, nil
 }
 
-func (b *BTSE) withinLimits(pair currency.Pair, a asset.Item, amount float64) bool {
-	fPair, err := b.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return false
-	}
-
-	val, found := OrderSizeLimits(fPair.String())
+func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
+	val, found := OrderSizeLimits(pair.String())
 	if !found {
 		return false
 	}
@@ -452,7 +447,7 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if err != nil {
 		return resp, err
 	}
-	inLimits := b.withinLimits(fPair, s.AssetType, s.Amount)
+	inLimits := b.withinLimits(fPair, s.Amount)
 	if !inLimits {
 		return resp, errors.New("order outside of limits")
 	}
