@@ -330,7 +330,8 @@ func (g *Gemini) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 	limit := 500
 allTrades:
 	for {
-		tradeData, err := g.GetTrades(p.String(), ts.Unix(), int64(limit), false)
+		var tradeData []Trade
+		tradeData, err = g.GetTrades(p.String(), ts.Unix(), int64(limit), false)
 		if err != nil {
 			return nil, err
 		}

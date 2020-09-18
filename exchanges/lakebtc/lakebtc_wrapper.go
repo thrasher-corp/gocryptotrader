@@ -354,7 +354,8 @@ func (l *LakeBTC) GetHistoricTrades(p currency.Pair, assetType asset.Item, times
 	ts := timestampStart
 allTrades:
 	for {
-		tradeData, err := l.GetTradeHistory(p.String(), ts.Unix())
+		var tradeData []TradeHistory
+		tradeData, err = l.GetTradeHistory(p.String(), ts.Unix())
 		if err != nil {
 			return nil, err
 		}

@@ -576,7 +576,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
+	_, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
 		ExchangeName: testExchange,
 		AssetType:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
