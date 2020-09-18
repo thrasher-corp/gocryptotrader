@@ -267,11 +267,6 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// fPair, err := b.FormatExchangeCurrency(p, assetType)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	tickers, err := b.GetMarketSummary("", assetType == asset.Spot)
 	if err != nil {
 		return nil, err
@@ -282,6 +277,7 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 		if err != nil {
 			return nil, err
 		}
+
 		err = ticker.ProcessTicker(&ticker.Price{
 			Pair:         pair,
 			Ask:          tickers[x].LowestAsk,
