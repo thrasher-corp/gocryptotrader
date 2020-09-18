@@ -526,7 +526,7 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
-func TestGetExchangeHistory(t *testing.T) {
+func TestGetHistoricTrades(t *testing.T) {
 	currencyPair, err := currency.NewPairFromString("btc_usd")
 	if err != nil {
 		t.Fatal(err)

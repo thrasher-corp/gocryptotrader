@@ -606,13 +606,13 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
-func TestGetExchangeHistory(t *testing.T) {
+func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("btc_usdt")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = a.GetExchangeHistory(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = a.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrNotYetImplemented {
 		t.Error(err)
 	}

@@ -992,7 +992,7 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
-func TestGetExchangeHistory(t *testing.T) {
+func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTCUSDT")
 	if err != nil {

@@ -803,9 +803,11 @@ message FindMissingTradePeriodsRequest {
 }
 
 message FindMissingIntervalsResponse {
-    repeated string missingPeriods = 1;
-    repeated string foundPeriods = 2;
-    string status = 3;
+    string exchangeName = 1;
+    string assetType = 2;
+    CurrencyPair pair = 3;
+    string status = 5;
+    repeated string missingPeriods = 4;
 }
 
 message SetExchangeTradeProcessingRequest {

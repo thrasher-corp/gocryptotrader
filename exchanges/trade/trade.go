@@ -79,7 +79,6 @@ func (p *Processor) Run() {
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 	}()
-	log.Info(log.Trade, "trade processor starting...")
 	p.mutex.Lock()
 	ticker := time.NewTicker(p.bufferProcessorInterval)
 	p.mutex.Unlock()
@@ -89,16 +88,13 @@ func (p *Processor) Run() {
 		bufferCopy := append(buffer[:0:0], buffer...)
 		buffer = nil
 		p.mutex.Unlock()
-
 		if len(bufferCopy) == 0 {
-			log.Infof(log.Trade, "no trade data received in %v, shutting down", p.bufferProcessorInterval)
 			return
 		}
 		err := SaveTradesToDatabase(bufferCopy...)
 		if err != nil {
 			log.Error(log.Trade, err)
 		}
-		buffer = nil
 	}
 }
 
