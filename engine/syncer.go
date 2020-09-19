@@ -293,7 +293,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 	defer cleanup()
 
 	for atomic.LoadInt32(&e.shutdown) != 1 {
-		exchanges := GetExchanges()
+		exchanges := Bot.GetExchanges()
 		for x := range exchanges {
 			exchangeName := exchanges[x].GetName()
 			assetTypes := exchanges[x].GetAssetTypes()
@@ -502,7 +502,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 // Start starts an exchange currency pair syncer
 func (e *ExchangeCurrencyPairSyncer) Start() {
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-	exchanges := GetExchanges()
+	exchanges := Bot.GetExchanges()
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()

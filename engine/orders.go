@@ -96,7 +96,7 @@ func (o *orderStore) Add(order *order.Detail) error {
 	if order == nil {
 		return errors.New("order store: Order is nil")
 	}
-	exch := GetExchangeByName(order.Exchange)
+	exch := Bot.GetExchangeByName(order.Exchange)
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
@@ -250,7 +250,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 		return errors.New("order id is empty")
 	}
 
-	exch := GetExchangeByName(cancel.Exchange)
+	exch := Bot.GetExchangeByName(cancel.Exchange)
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
@@ -307,7 +307,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		}
 	}
 
-	exch := GetExchangeByName(newOrder.Exchange)
+	exch := Bot.GetExchangeByName(newOrder.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
@@ -387,13 +387,13 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 }
 
 func (o *orderManager) processOrders() {
-	authExchanges := GetAuthAPISupportedExchanges()
+	authExchanges := Bot.GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
 		log.Debugf(log.OrderMgr,
 			"Order manager: Processing orders for exchange %v.",
 			authExchanges[x])
 
-		exch := GetExchangeByName(authExchanges[x])
+		exch := Bot.GetExchangeByName(authExchanges[x])
 		supportedAssets := exch.GetAssetTypes()
 		for y := range supportedAssets {
 			pairs, err := exch.GetEnabledPairs(supportedAssets[y])
