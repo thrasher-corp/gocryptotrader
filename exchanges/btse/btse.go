@@ -94,7 +94,7 @@ func (b *BTSE) FetchOrderBookL2(symbol string, depth int) (*Orderbook, error) {
 }
 
 // GetTrades returns a list of trades for the specified symbol
-func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool) ([]Trade, error) {
+func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld, spot bool) ([]Trade, error) {
 	var t []Trade
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -118,7 +118,7 @@ func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, af
 		urlValues.Add("includeOld", "true")
 	}
 	return t, b.SendHTTPRequest(http.MethodGet,
-		common.EncodeURLValues(btseTrades, urlValues), &t, true, queryFunc)
+		common.EncodeURLValues(btseTrades, urlValues), &t, spot, queryFunc)
 }
 
 // OHLCV retrieve and return OHLCV candle data for requested symbol
