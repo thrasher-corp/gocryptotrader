@@ -3,7 +3,6 @@ package coinbasepro
 import (
 	"log"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -56,7 +55,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("CoinbasePro setup error", err)
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestGetProducts(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -31,7 +30,7 @@ func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
 	log.GlobalLogConfig = &c
 	log.SetupGlobalLogger()
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {

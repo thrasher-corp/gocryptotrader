@@ -6,7 +6,6 @@ package gemini
 
 import (
 	"log"
-	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -36,5 +35,5 @@ func TestMain(m *testing.M) {
 	}
 	g.API.Endpoints.URL = geminiSandboxAPIURL
 	log.Printf(sharedtestvalues.LiveTesting, g.Name, g.API.Endpoints.URL)
-	os.Exit(m.Run())
+	m.Run()
 }

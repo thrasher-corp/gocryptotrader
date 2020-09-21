@@ -2,7 +2,6 @@ package ftx
 
 import (
 	"log"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -56,7 +55,7 @@ func TestMain(m *testing.M) {
 	}
 	f.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	f.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func areTestAPIKeysSet() bool {

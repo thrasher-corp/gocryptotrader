@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -27,7 +28,6 @@ import (
 )
 
 const (
-	invalidArguments      = "invalid arguments received"
 	unexpectedLackOfError = "unexpected lack of error"
 	databaseFolder        = "database"
 	migrationsFolder      = "migrations"
@@ -43,7 +43,6 @@ func RPCTestSetup(t *testing.T) {
 		ConnectionDetails: drivers.ConnectionDetails{
 			Database: databaseName,
 		},
-		Verbose: true,
 	}
 	Bot.Config.Database = dbConf
 	database.DB.Config = &dbConf
@@ -82,7 +81,7 @@ func TestGetSavedTrades(t *testing.T) {
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
 	}
-	if err.Error() != invalidArguments {
+	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
@@ -157,7 +156,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
 	}
-	if err.Error() != invalidArguments {
+	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
 
@@ -433,7 +432,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if err.Error() != invalidArguments {
+	if !errors.Is(err, errInvalidArguments) {
 		t.Fatal(err)
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
@@ -532,7 +531,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if err.Error() != invalidArguments {
+	if !errors.Is(err, errInvalidArguments) {
 		t.Fatal(err)
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
@@ -664,7 +663,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
 	}
-	if err.Error() != invalidArguments {
+	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
 	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
@@ -706,7 +705,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
 	}
-	if err.Error() != invalidArguments {
+	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
 	_, err = s.GetHistoricTrades(context.Background(), &gctrpc.GetSavedTradesRequest{

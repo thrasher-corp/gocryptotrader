@@ -12,7 +12,7 @@ import (
 
 func TestMain(m *testing.M) {
 	setupTestLoggers()
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func setupTestLoggers() {

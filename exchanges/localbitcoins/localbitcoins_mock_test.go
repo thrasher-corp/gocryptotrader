@@ -6,7 +6,6 @@ package localbitcoins
 
 import (
 	"log"
-	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -47,5 +46,5 @@ func TestMain(m *testing.M) {
 	l.API.Endpoints.URL = serverDetails
 
 	log.Printf(sharedtestvalues.MockTesting, l.Name, l.API.Endpoints.URL)
-	os.Exit(m.Run())
+	m.Run()
 }

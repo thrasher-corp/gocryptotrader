@@ -6,7 +6,6 @@ package gemini
 
 import (
 	"log"
-	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -47,5 +46,5 @@ func TestMain(m *testing.M) {
 	g.HTTPClient = newClient
 	g.API.Endpoints.URL = serverDetails
 	log.Printf(sharedtestvalues.MockTesting, g.Name, g.API.Endpoints.URL)
-	os.Exit(m.Run())
+	m.Run()
 }

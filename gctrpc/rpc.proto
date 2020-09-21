@@ -806,8 +806,8 @@ message FindMissingIntervalsResponse {
     string exchangeName = 1;
     string assetType = 2;
     CurrencyPair pair = 3;
-    string status = 5;
     repeated string missingPeriods = 4;
+    string status = 5;
 }
 
 message SetExchangeTradeProcessingRequest {

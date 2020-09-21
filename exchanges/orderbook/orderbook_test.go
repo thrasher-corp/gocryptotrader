@@ -3,7 +3,6 @@ package orderbook
 import (
 	"log"
 	"math/rand"
-	"os"
 	"strconv"
 	"sync"
 	"testing"
@@ -22,7 +21,7 @@ func TestMain(m *testing.M) {
 
 	cpyMux = service.mux
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 var cpyMux *dispatch.Mux

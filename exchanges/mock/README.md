@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 	l.SetDefaults()
 	l.Setup(&your_current_exchange_nameConfig)
 	log.Printf(sharedtestvalues.LiveTesting, l.Name, l.APIUrl)
-	os.Exit(m.Run())
+	m.Run()
 }
 ```
 
@@ -113,7 +113,7 @@ func TestMain(m *testing.M) {
 	g.APIUrl = serverDetails
 
 	log.Printf(sharedtestvalues.MockTesting, l.Name, l.APIUrl)
-	os.Exit(m.Run())
+	m.Run()
 }
 
 ```

@@ -6,7 +6,6 @@ package poloniex
 
 import (
 	"log"
-	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -47,5 +46,5 @@ func TestMain(m *testing.M) {
 	p.HTTPClient = newClient
 	p.API.Endpoints.URL = serverDetails
 	log.Printf(sharedtestvalues.MockTesting, p.Name, p.API.Endpoints.URL)
-	os.Exit(m.Run())
+	m.Run()
 }

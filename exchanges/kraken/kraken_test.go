@@ -3,7 +3,6 @@ package kraken
 import (
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -55,7 +54,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 // TestGetServerTime API endpoint test

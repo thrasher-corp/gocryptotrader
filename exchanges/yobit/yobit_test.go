@@ -3,7 +3,6 @@ package yobit
 import (
 	"log"
 	"math"
-	"os"
 	"testing"
 	"time"
 
@@ -46,7 +45,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Yobit setup error", err)
 	}
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestFetchTradablePairs(t *testing.T) {

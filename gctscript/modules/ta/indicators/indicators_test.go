@@ -3,7 +3,6 @@ package indicators
 import (
 	"errors"
 	"math/rand"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -47,7 +46,7 @@ func TestMain(m *testing.M) {
 		ohlcvDataInvalid.Value = append(ohlcvDataInvalid.Value, candle)
 	}
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestMfi(t *testing.T) {

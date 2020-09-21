@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -75,7 +74,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Okex setup error", err)
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func areTestAPIKeysSet() bool {

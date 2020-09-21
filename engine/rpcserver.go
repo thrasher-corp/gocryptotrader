@@ -55,11 +55,13 @@ const (
 	errStartEndTimesUnset = "invalid start and end times"
 	errAssetTypeUnset     = "asset type unset"
 	errDispatchSystem     = "dispatch system offline"
+	invalidArguments      = "invalid arguments received"
 )
 
 var (
 	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
 	errExchangeBaseNotFound = errors.New("cannot get exchange base")
+	errInvalidArguments     = errors.New(invalidArguments)
 )
 
 // RPCServer struct
@@ -2323,7 +2325,7 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 // GetSavedTrades returns trades from the database
 func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
 	if r.End <= 0 || r.Start <= 0 || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
-		return nil, errors.New("invalid arguments received")
+		return nil, errInvalidArguments
 	}
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
@@ -2359,7 +2361,7 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 // returns the data too for extra fun scrutiny
 func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertTradesToCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
 	if r.End <= 0 || r.Start <= 0 || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.TimeInterval == 0 {
-		return nil, errors.New("invalid arguments received")
+		return nil, errInvalidArguments
 	}
 	exch := GetExchangeByName(r.Exchange)
 	startTime := time.Unix(r.Start, 0)
@@ -2421,8 +2423,13 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 // FindMissingSavedCandleIntervals is used to help determine what candle data is missing
 func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc.FindMissingCandlePeriodsRequest) (*gctrpc.FindMissingIntervalsResponse, error) {
 	if r.End <= 0 || r.Start <= 0 || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.Interval <= 0 {
-		return nil, errors.New("invalid arguments received")
+		return nil, errInvalidArguments
 	}
+	exch := GetExchangeByName(r.ExchangeName)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+
 	startTime := time.Unix(r.Start, 0)
 	endTime := time.Unix(r.End, 0)
 	klineItem, err := kline.LoadFromDatabase(
@@ -2452,7 +2459,9 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	}
 	if len(missingIntervals) == 0 {
 		resp.Status = "No missing periods found"
-		return resp, nil
+	} else {
+		intervals := kline.DetermineAllIntervals(startTime, endTime, klineItem.Interval)
+		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v", len(intervals)-len(missingIntervals), len(missingIntervals), startTime.Format(common.SimpleTimeFormat), endTime.Format(common.SimpleTimeFormat))
 	}
 
 	return resp, nil
@@ -2461,8 +2470,13 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 // FindMissingSavedTradeIntervals is used to help determine what trade data is missing
 func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.FindMissingTradePeriodsRequest) (*gctrpc.FindMissingIntervalsResponse, error) {
 	if r.End <= 0 || r.Start <= 0 || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
-		return nil, errors.New("invalid arguments received")
+		return nil, errInvalidArguments
 	}
+	exch := GetExchangeByName(r.ExchangeName)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+
 	iterateDate := time.Unix(r.Start, 0).UTC()
 	endDate := time.Unix(r.End, 0).UTC()
 
@@ -2487,13 +2501,14 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		resp.Status = "No missing periods found"
 		return resp, nil
 	}
-
+	var foundCount int64
 	for !iterateDate.After(endDate) && !iterateDate.Equal(endDate) {
 		timeWithinHour := false
 		for j := range trades {
 			sub := iterateDate.Sub(trades[j].Timestamp.UTC())
 			if sub < time.Hour && sub >= 0 {
 				timeWithinHour = true
+				foundCount++
 			}
 		}
 		if !timeWithinHour {
@@ -2507,6 +2522,11 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 			r.Start,
 			r.End,
 		)
+	}
+	if len(resp.MissingPeriods) == 0 {
+		resp.Status = "No missing periods found"
+	} else {
+		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v", foundCount, len(resp.MissingPeriods), time.Unix(r.Start, 0).UTC().Format(common.SimpleTimeFormat), endDate.Format(common.SimpleTimeFormat))
 	}
 
 	return resp, nil
@@ -2536,7 +2556,7 @@ func (s *RPCServer) SetExchangeTradeProcessing(_ context.Context, r *gctrpc.SetE
 // GetRecentTrades returns trades
 func (s *RPCServer) GetHistoricTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
-		return nil, errors.New("invalid arguments received")
+		return nil, errInvalidArguments
 	}
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
@@ -2576,7 +2596,7 @@ func (s *RPCServer) GetHistoricTrades(_ context.Context, r *gctrpc.GetSavedTrade
 // GetRecentTrades returns trades
 func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
-		return nil, errors.New("invalid arguments received")
+		return nil, errInvalidArguments
 	}
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {

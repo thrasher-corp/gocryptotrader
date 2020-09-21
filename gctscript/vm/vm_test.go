@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 	c.Enabled = convert.BoolPtr(false)
 	log.GlobalLogConfig = &c
 	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestNewVM(t *testing.T) {

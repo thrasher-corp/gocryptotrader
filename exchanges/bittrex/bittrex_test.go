@@ -2,7 +2,6 @@ package bittrex
 
 import (
 	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -52,7 +51,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bittrex Setup values not set correctly")
 	}
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestGetMarkets(t *testing.T) {

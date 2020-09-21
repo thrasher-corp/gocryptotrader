@@ -410,8 +410,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{nil}),
 			})
 
-			var getExchangeHistoryResponse []trade.Data
-			getExchangeHistoryResponse, err = e.GetHistoricTrades(p, assetTypes[i], time.Now().Add(-time.Hour*24), time.Now())
+			var getHistoricTradesResponse []trade.Data
+			getHistoricTradesResponse, err = e.GetHistoricTrades(p, assetTypes[i], time.Now().Add(-time.Hour*24), time.Now())
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -421,7 +421,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], time.Now().Add(-time.Hour * 24), time.Now()}),
 				Function:   "GetHistoricTrades",
 				Error:      msg,
-				Response:   jsonifyInterface([]interface{}{getExchangeHistoryResponse}),
+				Response:   jsonifyInterface([]interface{}{getHistoricTradesResponse}),
 			})
 
 			var getRecentTradesResponse []trade.Data

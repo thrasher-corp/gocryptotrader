@@ -2,7 +2,6 @@ package lakebtc
 
 import (
 	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -48,7 +47,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("LakeBTC setup error", err)
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestFetchTradablePairs(t *testing.T) {

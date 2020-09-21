@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -40,7 +39,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestTrades(t *testing.T) {

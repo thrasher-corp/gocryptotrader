@@ -242,7 +242,7 @@ func (b *Bitstamp) GetTransactions(currencyPair, timePeriod string) ([]Transacti
 		strings.ToLower(currencyPair),
 	)
 	if timePeriod != "" {
-		requestURL += "?time=" + timePeriod
+		requestURL += "?time=" + url.QueryEscape(timePeriod)
 	}
 
 	return transactions, b.SendHTTPRequest(requestURL, &transactions)

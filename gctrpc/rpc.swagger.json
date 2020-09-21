@@ -2891,14 +2891,14 @@
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
-        "status": {
-          "type": "string"
-        },
         "missingPeriods": {
           "type": "array",
           "items": {
             "type": "string"
           }
+        },
+        "status": {
+          "type": "string"
         }
       }
     },

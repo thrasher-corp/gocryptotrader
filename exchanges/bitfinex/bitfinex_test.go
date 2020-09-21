@@ -3,7 +3,6 @@ package bitfinex
 import (
 	"log"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -59,7 +58,7 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedWebsocketSupport = true
 	}
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestAppendOptionalDelimiter(t *testing.T) {

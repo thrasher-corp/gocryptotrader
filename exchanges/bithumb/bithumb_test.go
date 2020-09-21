@@ -2,7 +2,6 @@ package bithumb
 
 import (
 	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -50,7 +49,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bithumb setup error", err)
 	}
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestGetTradablePairs(t *testing.T) {

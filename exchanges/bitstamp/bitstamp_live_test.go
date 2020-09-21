@@ -6,7 +6,6 @@ package bitstamp
 
 import (
 	"log"
-	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -36,5 +35,5 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bitstamp setup error", err)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, b.Name, b.API.Endpoints.URL)
-	os.Exit(m.Run())
+	m.Run()
 }

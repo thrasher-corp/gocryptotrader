@@ -2655,11 +2655,13 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
+	s = negateLocalOffset(s)
 
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
+	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -3269,11 +3271,13 @@ func getAuditEvent(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
+	s = negateLocalOffset(s)
 
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
+	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -3891,11 +3895,11 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Usage: "the exchange to get the candles from",
 		},
 		cli.StringFlag{
-			Name:  "pair",
+			Name:  "pair, p",
 			Usage: "the currency pair to get the candles for",
 		},
 		cli.StringFlag{
-			Name:  "asset",
+			Name:  "asset, a",
 			Usage: "the asset type of the currency pair",
 		},
 		cli.Int64Flag{
@@ -3929,7 +3933,7 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Usage: "source data from database <true/false>",
 		},
 		cli.BoolFlag{
-			Name:  "fillmissingdatawithtrades",
+			Name:  "fillmissingdatawithtrades, fill",
 			Usage: "will create candles for missing intervals using stored trade data <true/false>",
 		},
 	},
@@ -4029,12 +4033,12 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	s, err := time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
+	fmt.Printf("%v %v %v", s, startTime, s.UTC())
+	e, err := time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -4081,11 +4085,11 @@ var getSavedTradesCommand = cli.Command{
 			Usage: "the exchange to get the candles from",
 		},
 		cli.StringFlag{
-			Name:  "pair",
+			Name:  "pair, p",
 			Usage: "the currency pair to get the candles for",
 		},
 		cli.StringFlag{
-			Name:  "asset",
+			Name:  "asset, a",
 			Usage: "the asset type of the currency pair",
 		},
 		cli.StringFlag{
@@ -4171,11 +4175,13 @@ func getSavedTrades(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
+	s = negateLocalOffset(s)
 
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
+	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -4213,11 +4219,11 @@ var getRecentTradesCommand = cli.Command{
 			Usage: "the exchange to get the candles from",
 		},
 		cli.StringFlag{
-			Name:  "pair",
+			Name:  "pair, p",
 			Usage: "the currency pair to get the candles for",
 		},
 		cli.StringFlag{
-			Name:  "asset",
+			Name:  "asset, a",
 			Usage: "the asset type of the currency pair",
 		},
 	},
@@ -4305,11 +4311,11 @@ var getHistoricTradesCommand = cli.Command{
 			Usage: "the exchange to get the candles from",
 		},
 		cli.StringFlag{
-			Name:  "pair",
+			Name:  "pair, p",
 			Usage: "the currency pair to get the candles for",
 		},
 		cli.StringFlag{
-			Name:  "asset",
+			Name:  "asset, a",
 			Usage: "the asset type of the currency pair",
 		},
 		cli.StringFlag{
@@ -4395,11 +4401,13 @@ func getHistoricTrades(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
+	s = negateLocalOffset(s)
 
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
+	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -4437,11 +4445,11 @@ var convertSavedTradesToCandlesCommand = cli.Command{
 			Usage: "the exchange to get the candles from",
 		},
 		cli.StringFlag{
-			Name:  "pair",
+			Name:  "pair, p",
 			Usage: "the currency pair to get the candles for",
 		},
 		cli.StringFlag{
-			Name:  "asset",
+			Name:  "asset, a",
 			Usage: "the asset type of the currency pair",
 		},
 		cli.Int64Flag{
@@ -4463,11 +4471,11 @@ var convertSavedTradesToCandlesCommand = cli.Command{
 			Destination: &endTime,
 		},
 		cli.BoolFlag{
-			Name:  "sync",
+			Name:  "sync, s",
 			Usage: "will sync the resulting candles to the database <true/false>",
 		},
 		cli.BoolFlag{
-			Name:  "force",
+			Name:  "force, f",
 			Usage: "will overwrite any conflicting candle data on save <true/false>",
 		},
 	},
@@ -4566,11 +4574,13 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
+	s = negateLocalOffset(s)
 
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
+	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -4611,11 +4621,11 @@ var findMissingSavedCandleIntervalsCommand = cli.Command{
 			Usage: "the exchange to get the candles from",
 		},
 		cli.StringFlag{
-			Name:  "pair",
+			Name:  "pair, p",
 			Usage: "the currency pair to get the candles for",
 		},
 		cli.StringFlag{
-			Name:  "asset",
+			Name:  "asset, a",
 			Usage: "the asset type of the currency pair",
 		},
 		cli.Int64Flag{
@@ -4718,11 +4728,13 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
+	s = negateLocalOffset(s)
 
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
+	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -4761,11 +4773,11 @@ var findMissingSavedTradeIntervalsCommand = cli.Command{
 			Usage: "the exchange to get the candles from",
 		},
 		cli.StringFlag{
-			Name:  "pair",
+			Name:  "pair, p",
 			Usage: "the currency pair to get the candles for",
 		},
 		cli.StringFlag{
-			Name:  "asset",
+			Name:  "asset, a",
 			Usage: "the asset type of the currency pair",
 		},
 		cli.StringFlag{
@@ -4851,11 +4863,13 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
+	s = negateLocalOffset(s)
 
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
+	e = negateLocalOffset(e)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.FindMissingSavedTradeIntervals(context.Background(),
@@ -4938,4 +4952,63 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 
 	jsonOutput(result)
 	return nil
+}
+
+var getTimeCommand = cli.Command{
+	Name:      "gettime",
+	Usage:     "gets the time",
+	ArgsUsage: "<start>",
+	Action:    getTime,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:        "start",
+			Usage:       "<start>",
+			Value:       time.Now().Add(-time.Hour * 24).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+	},
+}
+
+func getTime(c *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			log.Error(log.GRPCSys, err)
+		}
+	}()
+
+	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	s = negateLocalOffset(s)
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetTime(context.Background(),
+		&gctrpc.GetTimeRequest{
+			TimeStamp: s.Unix(),
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+// negateLocalOffset helps negate the offset of time generation
+// when the unix time gets to rpcserver, it no longer is the same time
+// that was sent as it handles it as a UTC value, even though when
+// using starttime it is generated as your local time
+// eg 2020-01-01 12:00:00 +10 will convert into
+// 2020-01-01 12:00:00 +00 when at RPCServer
+// so this function will minus the offset from the local sent time
+// to allow for proper use at RPCServer
+func negateLocalOffset(t time.Time) time.Time {
+	_, offset := time.Now().Zone()
+	return t.Add(-time.Duration(offset) * time.Second)
 }

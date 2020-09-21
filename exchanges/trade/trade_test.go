@@ -24,6 +24,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 			Database: "./rpctestdb",
 		},
 	}
+	processor.setup()
 	database.DB.Config = &dbConf
 	cp, _ := currency.NewPairFromString("BTC-USD")
 	err := AddTradesToBuffer("test!", []Data{

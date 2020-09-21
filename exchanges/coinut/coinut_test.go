@@ -3,7 +3,6 @@ package coinut
 import (
 	"log"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -55,7 +54,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Coinut setup error ", err)
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func setupWSTestAuth(t *testing.T) {

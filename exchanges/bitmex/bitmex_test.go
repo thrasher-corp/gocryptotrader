@@ -3,7 +3,6 @@ package bitmex
 import (
 	"log"
 	"net/http"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -53,7 +52,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bitmex setup error", err)
 	}
 	b.UpdateTradablePairs(true)
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestStart(t *testing.T) {

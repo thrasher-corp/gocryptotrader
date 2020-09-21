@@ -2,7 +2,6 @@ package huobi
 
 import (
 	"log"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -53,7 +52,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func setupWsTests(t *testing.T) {

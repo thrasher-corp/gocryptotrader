@@ -137,7 +137,7 @@ func TestMain(m *testing.M) {
 		},
 	)
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestValid(t *testing.T) {

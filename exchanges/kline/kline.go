@@ -330,9 +330,8 @@ func (k *Item) DetermineMissingIntervals(start, end time.Time) []time.Time {
 	var foundIntervals, missingIntervals []time.Time
 	for j := range allIntervals {
 		for i := range k.Candles {
-			truncatedTime := k.Candles[i].Time.Truncate(k.Interval.Duration()).UTC()
-			if truncatedTime.Equal(allIntervals[j]) {
-				foundIntervals = append(foundIntervals, truncatedTime)
+			if k.Candles[i].Time.Equal(allIntervals[j]) {
+				foundIntervals = append(foundIntervals, k.Candles[i].Time)
 			}
 		}
 	}
@@ -347,6 +346,9 @@ func (k *Item) DetermineMissingIntervals(start, end time.Time) []time.Time {
 			missingIntervals = append(missingIntervals, allIntervals[i])
 		}
 	}
+	sort.Slice(missingIntervals, func(i, j int) bool {
+		return missingIntervals[i].Before(missingIntervals[j])
+	})
 	return missingIntervals
 }
 

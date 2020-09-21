@@ -2,7 +2,6 @@ package bitflyer
 
 import (
 	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -45,7 +44,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bitflyer setup error", err)
 	}
 
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestGetLatestBlockCA(t *testing.T) {
