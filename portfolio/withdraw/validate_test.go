@@ -18,7 +18,7 @@ const (
 
 var (
 	validFiatRequest = &Request{
-		Fiat:        &FiatRequest{},
+		Fiat:        FiatRequest{},
 		Exchange:    "test-exchange",
 		Currency:    currency.AUD,
 		Description: "Test Withdrawal",
@@ -31,8 +31,8 @@ var (
 	}
 
 	invalidCurrencyFiatRequest = &Request{
-		Fiat: &FiatRequest{
-			Bank: &banking.Account{},
+		Fiat: FiatRequest{
+			Bank: banking.Account{},
 		},
 		Currency: currency.BTC,
 		Amount:   1,
@@ -40,7 +40,7 @@ var (
 	}
 
 	validCryptoRequest = &Request{
-		Crypto: &CryptoRequest{
+		Crypto: CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 		Currency:    currency.BTC,
@@ -57,7 +57,7 @@ var (
 	}
 
 	invalidCryptoNegativeFeeRequest = &Request{
-		Crypto: &CryptoRequest{
+		Crypto: CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: -0.1,
 		},
@@ -68,7 +68,7 @@ var (
 	}
 
 	invalidCurrencyCryptoRequest = &Request{
-		Crypto: &CryptoRequest{
+		Crypto: CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 		Currency: currency.AUD,
@@ -77,7 +77,7 @@ var (
 	}
 
 	invalidCryptoNoAddressRequest = &Request{
-		Crypto:      &CryptoRequest{},
+		Crypto:      CryptoRequest{},
 		Currency:    currency.BTC,
 		Description: "Test Withdrawal",
 		Amount:      0.1,
@@ -85,7 +85,7 @@ var (
 	}
 
 	invalidCryptoNonWhiteListedAddressRequest = &Request{
-		Crypto: &CryptoRequest{
+		Crypto: CryptoRequest{
 			Address: testBTCAddress,
 		},
 		Currency:    currency.BTC,
@@ -197,7 +197,7 @@ func TestValidateFiat(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				test.request.Fiat.Bank = v
+				test.request.Fiat.Bank = *v
 			}
 			err := Validate(test.request)
 			if err != nil {

@@ -516,7 +516,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 	}
@@ -542,8 +542,8 @@ func TestWithdrawFiat(t *testing.T) {
 	var withdrawFiatRequest = withdraw.Request{
 		Amount:   100,
 		Currency: currency.USD,
-		Fiat: &withdraw.FiatRequest{
-			Bank: &banking.Account{
+		Fiat: withdraw.FiatRequest{
+			Bank: banking.Account{
 				BankName: "Federal Reserve Bank",
 			},
 		},
@@ -566,8 +566,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	var withdrawFiatRequest = withdraw.Request{
 		Amount:   100,
 		Currency: currency.USD,
-		Fiat: &withdraw.FiatRequest{
-			Bank: &banking.Account{
+		Fiat: withdraw.FiatRequest{
+			Bank: banking.Account{
 				BankName: "Federal Reserve Bank",
 			},
 		},

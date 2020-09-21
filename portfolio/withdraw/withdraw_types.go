@@ -65,7 +65,7 @@ type CryptoRequest struct {
 
 // FiatRequest used for fiat withdrawal requests
 type FiatRequest struct {
-	Bank *banking.Account
+	Bank banking.Account
 
 	IsExpressWire bool
 	// Intermediary bank information
@@ -94,16 +94,16 @@ type Request struct {
 	OneTimePassword int64
 	PIN             int64
 
-	Crypto *CryptoRequest `json:",omitempty"`
-	Fiat   *FiatRequest   `json:",omitempty"`
+	Crypto CryptoRequest `json:",omitempty"`
+	Fiat   FiatRequest   `json:",omitempty"`
 }
 
 // Response holds complete details for Response
 type Response struct {
 	ID uuid.UUID `json:"id"`
 
-	Exchange       *ExchangeResponse `json:"exchange"`
-	RequestDetails *Request          `json:"request_details"`
+	Exchange       ExchangeResponse `json:"exchange"`
+	RequestDetails Request          `json:"request_details"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

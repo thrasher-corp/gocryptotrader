@@ -673,7 +673,7 @@ func (f *FTX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string,
 // submitted
 func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	var address, addressTag string
-	if withdrawRequest.Crypto != nil {
+	if withdrawRequest.Crypto != (withdraw.CryptoRequest{}) {
 		address = withdrawRequest.Crypto.Address
 		addressTag = withdrawRequest.Crypto.AddressTag
 	}

@@ -67,8 +67,8 @@ func TestSubmitWithdrawal(t *testing.T) {
 		Description: testExchange,
 		Amount:      1.0,
 		Type:        1,
-		Fiat: &withdraw.FiatRequest{
-			Bank: bank,
+		Fiat: withdraw.FiatRequest{
+			Bank: *bank,
 		},
 	}
 
@@ -135,12 +135,12 @@ func TestParseEvents(t *testing.T) {
 		test := fmt.Sprintf("test-%v", x)
 		resp := &withdraw.Response{
 			ID: withdraw.DryRunID,
-			Exchange: &withdraw.ExchangeResponse{
+			Exchange: withdraw.ExchangeResponse{
 				Name:   test,
 				ID:     test,
 				Status: test,
 			},
-			RequestDetails: &withdraw.Request{
+			RequestDetails: withdraw.Request{
 				Exchange:    test,
 				Description: test,
 				Amount:      1.0,
@@ -149,12 +149,9 @@ func TestParseEvents(t *testing.T) {
 		if x%2 == 0 {
 			resp.RequestDetails.Currency = currency.AUD
 			resp.RequestDetails.Type = 1
-			resp.RequestDetails.Fiat = new(withdraw.FiatRequest)
-			resp.RequestDetails.Fiat.Bank = new(banking.Account)
 		} else {
 			resp.RequestDetails.Currency = currency.BTC
 			resp.RequestDetails.Type = 0
-			resp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
 			resp.RequestDetails.Crypto.Address = test
 			resp.RequestDetails.Crypto.FeeAmount = 0
 			resp.RequestDetails.Crypto.AddressTag = test

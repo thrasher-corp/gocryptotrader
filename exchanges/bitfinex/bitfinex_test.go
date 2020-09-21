@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -868,7 +867,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 	}
@@ -892,8 +891,7 @@ func TestWithdrawFiat(t *testing.T) {
 		Amount:      -1,
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
-		Fiat: &withdraw.FiatRequest{
-			Bank:         &banking.Account{},
+		Fiat: withdraw.FiatRequest{
 			WireCurrency: currency.USD.String(),
 		},
 	}
@@ -917,8 +915,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
-		Fiat: &withdraw.FiatRequest{
-			Bank:                          &banking.Account{},
+		Fiat: withdraw.FiatRequest{
 			WireCurrency:                  currency.USD.String(),
 			RequiresIntermediaryBank:      true,
 			IsExpressWire:                 false,

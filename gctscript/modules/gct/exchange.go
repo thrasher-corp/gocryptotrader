@@ -452,7 +452,7 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	}
 
 	withdrawRequest := &withdraw.Request{
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address:    address,
 			AddressTag: addressTag,
 			FeeAmount:  feeAmount,

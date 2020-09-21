@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -112,12 +111,12 @@ func seedWithdrawData() {
 	for x := 0; x < 20; x++ {
 		test := fmt.Sprintf("test-%v", x)
 		resp := &withdraw.Response{
-			Exchange: &withdraw.ExchangeResponse{
+			Exchange: withdraw.ExchangeResponse{
 				Name:   testExchanges[0].Name,
 				ID:     test,
 				Status: test,
 			},
-			RequestDetails: &withdraw.Request{
+			RequestDetails: withdraw.Request{
 				Exchange:    testExchanges[0].Name,
 				Description: test,
 				Amount:      1.0,
@@ -127,12 +126,9 @@ func seedWithdrawData() {
 		if rnd == 0 {
 			resp.RequestDetails.Currency = currency.AUD
 			resp.RequestDetails.Type = 1
-			resp.RequestDetails.Fiat = new(withdraw.FiatRequest)
-			resp.RequestDetails.Fiat.Bank = new(banking.Account)
 		} else {
 			resp.RequestDetails.Currency = currency.BTC
 			resp.RequestDetails.Type = 0
-			resp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
 			resp.RequestDetails.Crypto.Address = test
 			resp.RequestDetails.Crypto.FeeAmount = 0
 			resp.RequestDetails.Crypto.AddressTag = test

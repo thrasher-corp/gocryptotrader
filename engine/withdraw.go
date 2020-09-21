@@ -44,10 +44,10 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 	}
 
 	resp := &withdraw.Response{
-		Exchange: &withdraw.ExchangeResponse{
+		Exchange: withdraw.ExchangeResponse{
 			Name: exchName,
 		},
-		RequestDetails: req,
+		RequestDetails: *req,
 	}
 
 	if Bot.Settings.EnableDryRun {
@@ -151,7 +151,7 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 				Fee:        ret[x].RequestDetails.Crypto.FeeAmount,
 			}
 		} else if ret[x].RequestDetails.Type == withdraw.Fiat {
-			if ret[x].RequestDetails.Fiat != nil {
+			if ret[x].RequestDetails.Fiat != (withdraw.FiatRequest{}) {
 				tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
 				tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
 					BankName:      ret[x].RequestDetails.Fiat.Bank.BankName,
@@ -203,7 +203,7 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 			Fee:        ret.RequestDetails.Crypto.FeeAmount,
 		}
 	} else if ret.RequestDetails.Type == withdraw.Fiat {
-		if ret.RequestDetails.Fiat != nil {
+		if ret.RequestDetails.Fiat != (withdraw.FiatRequest{}) {
 			tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
 			tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
 				BankName:      ret.RequestDetails.Fiat.Bank.BankName,
