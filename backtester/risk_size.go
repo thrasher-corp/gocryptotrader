@@ -12,6 +12,9 @@ import (
 func (r *Risk) EvaluateOrder(order OrderEvent, _ DataEventHandler, _ map[currency.Pair]Positions) (*Order, error) {
 	retOrder := order.(*Order)
 
+	if order.IsLeveraged() {
+		// handle risk
+	}
 	return retOrder, nil
 }
 

@@ -83,6 +83,7 @@ type OrderEvent interface {
 	SetID(id int)
 	ID() int
 	Limit() float64
+	IsLeveraged() bool
 }
 
 type Directioner interface {

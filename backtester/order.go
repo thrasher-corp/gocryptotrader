@@ -48,3 +48,15 @@ func (o *Order) ID() int {
 func (o *Order) Limit() float64 {
 	return o.limit
 }
+
+func (o *Order) IsLeveraged() bool {
+	return o.leverage > 0.0
+}
+
+func (o *Order) Leverage() float64 {
+	return o.leverage
+}
+
+func (o *Order) SetLeverage(l float64)  {
+	o.leverage = l
+}
