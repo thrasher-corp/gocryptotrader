@@ -4954,52 +4954,6 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 	return nil
 }
 
-var getTimeCommand = cli.Command{
-	Name:      "gettime",
-	Usage:     "gets the time",
-	ArgsUsage: "<start>",
-	Action:    getTime,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:        "start",
-			Usage:       "<start>",
-			Value:       time.Now().Add(-time.Hour * 24).Format(common.SimpleTimeFormat),
-			Destination: &startTime,
-		},
-	},
-}
-
-func getTime(c *cli.Context) error {
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			log.Error(log.GRPCSys, err)
-		}
-	}()
-
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
-	}
-	s = negateLocalOffset(s)
-
-	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetTime(context.Background(),
-		&gctrpc.GetTimeRequest{
-			TimeStamp: s.Unix(),
-		})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(result)
-	return nil
-}
-
 // negateLocalOffset helps negate the offset of time generation
 // when the unix time gets to rpcserver, it no longer is the same time
 // that was sent as it handles it as a UTC value, even though when
