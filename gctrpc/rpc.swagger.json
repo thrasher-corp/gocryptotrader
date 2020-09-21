@@ -191,15 +191,13 @@
             "name": "start",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
             "name": "end",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
             "name": "time_interval",
@@ -411,15 +409,13 @@
             "name": "start",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
             "name": "end",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           }
         ],
         "tags": [
@@ -479,15 +475,13 @@
             "name": "start",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
             "name": "end",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           }
         ],
         "tags": [
@@ -1345,15 +1339,13 @@
             "name": "start",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
             "name": "end",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
             "name": "time_interval",
@@ -1754,15 +1746,13 @@
             "name": "start",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
             "name": "end",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           }
         ],
         "tags": [
@@ -2746,8 +2736,7 @@
       "type": "object",
       "properties": {
         "time": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "low": {
           "type": "number",
@@ -3314,12 +3303,10 @@
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
         "start": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "end": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "interval": {
           "type": "string"
@@ -3789,8 +3776,7 @@
           "type": "string"
         },
         "timestamp": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "trade_id": {
           "type": "string"
