@@ -355,7 +355,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	return nil
 }
 
-// SetupExchanges sets up the exchanges used by the e
+// SetupExchanges sets up the exchanges used by the Bot
 func (bot *Engine) SetupExchanges() {
 	var wg sync.WaitGroup
 	configs := bot.Config.GetAllExchangeConfigs()

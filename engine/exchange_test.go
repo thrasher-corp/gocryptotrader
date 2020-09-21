@@ -116,7 +116,7 @@ func TestUnloadExchange(t *testing.T) {
 	e := SetupTestHelpers(t)
 
 	err := e.UnloadExchange("asdf")
-	if err.Error() != "exchange asdf not found" {
+	if err == nil || err.Error() != "exchange asdf not found" {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
 	}
