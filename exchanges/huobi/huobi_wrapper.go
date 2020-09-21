@@ -719,19 +719,24 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 			if err != nil {
 				return info, err
 			}
-
+			var currencyDetails []account.Balance
 			for x := range subAccsData.Data {
 				a, err := h.SwapSingleSubAccAssets("", subAccsData.Data[x].SubUID)
 				if err != nil {
 					return info, err
 				}
-				for y := range a {
-					var currencyDetails []account.Balance
-
-					acc.AssetType = asset.CoinMarginedFutures
-					acc.Currencies = currencyDetails
+				for y := range a.Data {
+					currencyDetails = append(currencyDetails, account.Balance{
+						CurrencyName: currency.NewCode(a.Data[y].Symbol),
+						TotalValue:   a.Data[y].MarginBalance,
+						Hold:         a.Data[y].MarginFrozen,
+					})
 				}
 			}
+			acc.AssetType = asset.CoinMarginedFutures
+			acc.Currencies = currencyDetails
+
+		case asset.Futures:
 
 		}
 	}

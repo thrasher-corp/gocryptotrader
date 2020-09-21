@@ -563,6 +563,16 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 }
 
+func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
+	h.Verbose = true
+	a, err := h.UpdateAccountInfo()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestQuerySwapIndexPriceInfo(t *testing.T) {
 	t.Parallel()
 	_, err := h.QuerySwapIndexPriceInfo("BTC-USD")
