@@ -150,7 +150,6 @@ func main() {
 		setExchangeTradeProcessingCommand,
 		getHistoricTradesCommand,
 		getRecentTradesCommand,
-		getTimeCommand,
 	}
 
 	err := app.Run(os.Args)
