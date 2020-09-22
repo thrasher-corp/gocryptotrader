@@ -25,17 +25,11 @@ func Validate(request *Request) (err error) {
 
 	switch request.Type {
 	case Fiat:
-		// if request.Fiat == nil {
-		// 	return ErrInvalidRequest
-		// }
 		if (request.Currency != currency.Code{}) && !request.Currency.IsFiatCurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotFiat)
 		}
 		allErrors = append(allErrors, validateFiat(request)...)
 	case Crypto:
-		// if request.Crypto == nil {
-		// 	return ErrInvalidRequest
-		// }
 		if (request.Currency != currency.Code{}) && !request.Currency.IsCryptocurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
 		}

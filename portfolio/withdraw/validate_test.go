@@ -169,7 +169,11 @@ func TestValidateFiat(t *testing.T) {
 			invalidRequest,
 			Fiat,
 			"",
-			errors.New("invalid request type"),
+			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
+				ErrStrNoCurrencySet + ", " +
+				banking.ErrBankAccountDisabled + ", " +
+				banking.ErrAccountCannotBeEmpty + ", " +
+				banking.ErrIBANSwiftNotSet),
 		},
 		{
 			name:        "NoRequest",
@@ -182,7 +186,11 @@ func TestValidateFiat(t *testing.T) {
 			invalidCurrencyFiatRequest,
 			Fiat,
 			"",
-			errors.New(ErrStrCurrencyNotFiat + ", " + banking.ErrBankAccountDisabled + ", " + banking.ErrAccountCannotBeEmpty + ", " + banking.ErrCurrencyNotSupportedByAccount + ", " + banking.ErrIBANSwiftNotSet),
+			errors.New(ErrStrCurrencyNotFiat + ", " +
+				banking.ErrBankAccountDisabled + ", " +
+				banking.ErrAccountCannotBeEmpty + ", " +
+				banking.ErrCurrencyNotSupportedByAccount + ", " +
+				banking.ErrIBANSwiftNotSet),
 		},
 	}
 
@@ -202,7 +210,7 @@ func TestValidateFiat(t *testing.T) {
 			err := Validate(test.request)
 			if err != nil {
 				if test.output.(error).Error() != err.Error() {
-					t.Fatal(err)
+					t.Fatalf("Test Name %s expecting error [%s] but receieved [%s]", test.name, test.output.(error).Error(), err)
 				}
 			}
 		})
