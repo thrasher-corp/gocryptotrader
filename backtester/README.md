@@ -20,9 +20,15 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for backtest package
 
-## How to use
+- Data loading
+  - OHLCV candle data from kline.Item{}
+  - Ticker price data
+- Strategy support
+  - Will execute a OnSignal() on each tick
 
 ##### Prerequisites
+
+#### Backtest setup 
 
 #### Creating a strategy
 
@@ -52,8 +58,6 @@ func (s *Strategy) OnSignal(d backtest.DataHandler, _ backtest.PortfolioHandler)
 }
 
 ```
-
-#### Backtest setup 
 
 #### Complete Example
 

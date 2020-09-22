@@ -12,6 +12,7 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 
+// Update statistic for event
 func (s *Statistic) Update(d DataEventHandler, p PortfolioHandler) {
 	if s.initialBuy == 0 {
 		s.initialBuy = p.InitialFunds() / d.LatestPrice()
@@ -41,22 +42,27 @@ func (s *Statistic) Update(d DataEventHandler, p PortfolioHandler) {
 	s.equity = append(s.equity, e)
 }
 
+// TrackEvent event adds current event to history for statistic calculation
 func (s *Statistic) TrackEvent(e EventHandler) {
 	s.eventHistory = append(s.eventHistory, e)
 }
 
+// Events returns list of events
 func (s *Statistic) Events() []EventHandler {
 	return s.eventHistory
 }
 
+// TrackTransaction add current transaction (trade) to history for statistic
 func (s *Statistic) TrackTransaction(f FillEvent) {
 	s.transactionHistory = append(s.transactionHistory, f)
 }
 
+// Transactions() returns list of transctions
 func (s *Statistic) Transactions() []FillEvent {
 	return s.transactionHistory
 }
 
+// Reset statistics
 func (s *Statistic) Reset() {
 	s.eventHistory = nil
 	s.transactionHistory = nil
@@ -65,6 +71,7 @@ func (s *Statistic) Reset() {
 	s.low = EquityPoint{}
 }
 
+// ReturnResults will return Results for current backtest run
 func (s *Statistic) ReturnResults() Results {
 	results := Results{
 		TotalEvents:       len(s.Events()),
