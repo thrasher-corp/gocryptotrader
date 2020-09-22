@@ -49,7 +49,7 @@ before_test:
 
 test_script:
   # test back-end
-  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
+  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.31.0
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
   - ps: >-
       if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {
