@@ -1,5 +1,7 @@
 package huobi
 
+import "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+
 // WsKlineData stores kline data for futures and swap websocket
 type WsKlineData struct {
 	Channel   string `json:"ch"`
@@ -1080,7 +1082,7 @@ type FOpenOrdersData struct {
 			OrderType      int64   `json:"order_type"`
 			Direction      string  `json:"direction"`
 			Offset         string  `json:"offset"`
-			LeverageRate   int64   `json:"lever_rate"`
+			LeverageRate   float64 `json:"lever_rate"`
 			OrderID        int64   `json:"order_id"`
 			OrderIDString  string  `json:"order_id_string"`
 			ClientOrderID  int64   `json:"client_order_id"`
@@ -2285,9 +2287,9 @@ type SwapOpenOrdersData struct {
 			OrderType      int64   `json:"order_type"`
 			Direction      string  `json:"direction"`
 			Offset         string  `json:"offset"`
-			LeverageRate   int64   `json:"lever_rate"`
+			LeverageRate   float64 `json:"lever_rate"`
 			OrderID        int64   `json:"order_id"`
-			OrderIDString  int64   `json:"order_id_str"`
+			OrderIDString  string  `json:"order_id_str"`
 			OrderSource    string  `json:"order_source"`
 			CreatedAt      int64   `json:"created_at"`
 			TradeVolume    float64 `json:"trade_volume"`
@@ -2310,16 +2312,34 @@ type SwapOpenOrdersData struct {
 type SwapOrderHistory struct {
 	Data struct {
 		Orders []struct {
-			Symbol         string  `json:"symbol"`
-			ContractCode   string  `json:"contract_code"`
-			Volume         float64 `json:"volume"`
-			Price          float64 `json:"price"`
-			OrderPriceType string  `json:"order_price_type"`
-			Direction      string  `json:"direction"`
-			Offset         string  `json:"offset"`
-			LeverageRate   float64 `json:"lever_rate"`
+			Symbol            string  `json:"symbol"`
+			ContractCode      string  `json:"contract_code"`
+			Volume            float64 `json:"volume"`
+			Price             float64 `json:"price"`
+			OrderPriceType    string  `json:"order_price_type"`
+			Direction         string  `json:"direction"`
+			Offset            string  `json:"offset"`
+			LeverageRate      float64 `json:"lever_rate"`
+			OrderID           int64   `json:"order_id"`
+			OrderIDString     string  `json:"order_id_str"`
+			OrderSource       string  `json:"order_source"`
+			CreateDate        int64   `json:"create_date"`
+			TradeVolume       float64 `json:"trade_volume"`
+			TradeTurnover     float64 `json:"trade_turnover"`
+			Fee               float64 `json:"fee"`
+			TradeAveragePrice float64 `json:"trade_avg_price"`
+			MarginFrozen      float64 `json:"margin_frozen"`
+			Profit            float64 `json:"profit"`
+			Status            int64   `json:"status"`
+			OrderType         int64   `json:"order_type"`
+			FeeAsset          string  `json:"fee_asset"`
+			LiquidationType   string  `json:"liquidation_type"`
 		} `json:"orders"`
+		TotalPage   int64 `json:"total_page"`
+		CurrentPage int64 `json:"current_page"`
+		TotalSize   int64 `json:"total_size"`
 	} `json:"data"`
+	Timestamp int64 `json:"ts"`
 }
 
 // AccountTradeHistoryData stores account trade history for swaps
@@ -3075,4 +3095,12 @@ type wsKlineResponse struct {
 type authenticationPing struct {
 	OP string `json:"op"`
 	TS int64  `json:"ts"`
+}
+
+// OrderVars stores side, status and type for any order/trade
+type OrderVars struct {
+	Side      order.Side
+	Status    order.Status
+	OrderType order.Type
+	Fee       float64
 }

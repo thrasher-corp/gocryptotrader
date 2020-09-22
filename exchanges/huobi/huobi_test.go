@@ -178,7 +178,8 @@ func TestFGetAllSubAccountAssets(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetAllSubAccountAssets("")
+	a, err := h.FGetAllSubAccountAssets("")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -189,7 +190,8 @@ func TestFGetSingleSubAccountInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetSingleSubAccountInfo("", "154263566")
+	a, err := h.FGetSingleSubAccountInfo("", "154263566")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

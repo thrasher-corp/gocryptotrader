@@ -70,7 +70,7 @@ type Modify struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
-	Leverage          string
+	Leverage          float64
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64
@@ -110,7 +110,7 @@ type Detail struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
-	Leverage          string
+	Leverage          float64
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64
@@ -188,7 +188,8 @@ type GetOrdersRequest struct {
 	EndTicks   time.Time
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
-	Pairs []currency.Pair
+	Pairs     currency.Pairs
+	AssetType asset.Item
 }
 
 // Status defines order status types

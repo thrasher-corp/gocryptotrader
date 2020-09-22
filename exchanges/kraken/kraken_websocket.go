@@ -425,8 +425,12 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 					if err != nil {
 						return err
 					}
+					floatLev, err := strconv.ParseFloat(val.Description.Leverage, 64)
+					if err != nil {
+						return err
+					}
 					k.Websocket.DataHandler <- &order.Modify{
-						Leverage:        val.Description.Leverage,
+						Leverage:        floatLev,
 						Price:           val.Price,
 						Amount:          val.Volume,
 						LimitPriceUpper: val.LimitPrice,

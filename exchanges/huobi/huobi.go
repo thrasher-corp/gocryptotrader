@@ -217,8 +217,8 @@ var validLightningOrderPriceType = []string{
 var validTradeType = map[string]int64{
 	"all":            0,
 	"openLong":       1,
-	"closeShort":     2,
-	"openShort":      3,
+	"openShort":      2,
+	"closeShort":     3,
 	"closeLong":      4,
 	"liquidateLong":  5,
 	"liquidateShort": 6,
@@ -1751,8 +1751,8 @@ func (h *HUOBI) GetSwapOrderDetails(contractCode, orderID, createdAt, orderType 
 }
 
 // GetSwapOrderInfo gets info on a swap order
-func (h *HUOBI) GetSwapOrderInfo(contractCode, orderID, clientOrderID string) (SwapOpenOrdersData, error) {
-	var resp SwapOpenOrdersData
+func (h *HUOBI) GetSwapOrderInfo(contractCode, orderID, clientOrderID string) (SwapOrderInfo, error) {
+	var resp SwapOrderInfo
 	req := make(map[string]interface{})
 	if contractCode != "" {
 		req["contract_code"] = contractCode
