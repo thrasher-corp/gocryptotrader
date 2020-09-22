@@ -411,11 +411,11 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDeprecatedRPC {
-		go StartRESTServer()
+		go StartRESTServer(bot)
 	}
 
 	if bot.Settings.EnableWebsocketRPC {
-		go StartWebsocketServer()
+		go StartWebsocketServer(bot)
 		StartWebsocketHandler()
 	}
 

@@ -71,3 +71,18 @@ func TestLoadConfigWithSettings(t *testing.T) {
 		})
 	}
 }
+func TestStartStopDoesNotCausePanic(t *testing.T) {
+	botOne, err := NewFromSettings(&Settings{
+		ConfigFile:   config.TestFile,
+		EnableDryRun: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err = botOne.Start(); err != nil {
+		t.Error(err)
+	}
+
+	botOne.Stop()
+}
