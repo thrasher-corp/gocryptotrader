@@ -231,12 +231,18 @@ func TestValidateCrypto(t *testing.T) {
 		{
 			"Invalid",
 			invalidRequest,
-			ErrInvalidRequest,
+			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
+				ErrStrNoCurrencySet + ", " +
+				banking.ErrBankAccountDisabled + ", " +
+				banking.ErrAccountCannotBeEmpty + ", " +
+				banking.ErrIBANSwiftNotSet),
 		},
 		{
 			"Invalid-Nil",
 			invalidCryptoNilRequest,
-			ErrInvalidRequest,
+			errors.New(ErrStrAddressNotWhiteListed + ", " +
+				ErrStrExchangeNotSupportedByAddress + ", " +
+				ErrStrAddressNotSet),
 		},
 		{
 			"NoRequest",
@@ -246,12 +252,15 @@ func TestValidateCrypto(t *testing.T) {
 		{
 			"FiatCurrency",
 			invalidCurrencyCryptoRequest,
-			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " + ErrStrCurrencyNotCrypto),
+			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
+				ErrStrCurrencyNotCrypto),
 		},
 		{
 			"NoAddress",
 			invalidCryptoNoAddressRequest,
-			errors.New(ErrStrAddressNotWhiteListed + ", " + ErrStrExchangeNotSupportedByAddress + ", " + ErrStrAddressNotSet),
+			errors.New(ErrStrAddressNotWhiteListed + ", " +
+				ErrStrExchangeNotSupportedByAddress + ", " +
+				ErrStrAddressNotSet),
 		},
 		{
 			"NonWhiteListed",
@@ -271,7 +280,7 @@ func TestValidateCrypto(t *testing.T) {
 			err := test.request.Validate()
 			if err != nil {
 				if err.Error() != test.output.(error).Error() {
-					t.Fatal(err)
+					t.Fatalf("Test Name %s expecting error [%s] but receieved [%s]", test.name, test.output.(error).Error(), err)
 				}
 			}
 		})
