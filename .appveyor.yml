@@ -26,7 +26,7 @@ environment:
   PSQL_SSLMODE: disable
   PSQL_SKIPSQLCMD: true
   PSQL_TESTDBNAME: gct_dev_ci
-stack: go 1.14.x
+stack: go 1.15.x
 
 services:
   - postgresql96

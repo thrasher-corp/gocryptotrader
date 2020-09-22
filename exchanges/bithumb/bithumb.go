@@ -157,7 +157,7 @@ func (b *Bithumb) GetAccountInformation(currency string) (Account, error) {
 
 	val := url.Values{}
 	if currency != "" {
-		val.Set("currency", currency)
+		val.Set("order_currency", currency)
 	}
 
 	return response,
@@ -477,7 +477,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 
 	params.Set("endpoint", path)
 	payload := params.Encode()
-	hmacPayload := path + string(0) + payload + string(0) + n
+	hmacPayload := path + string('\x00') + payload + string('\x00') + n
 	hmac := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(hmacPayload),
 		[]byte(b.API.Credentials.Secret))

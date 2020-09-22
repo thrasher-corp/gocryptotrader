@@ -338,7 +338,7 @@ type OrderbookResponse struct {
 
 // FillResponse contains fill information from the exchange
 type FillResponse struct {
-	TradeID   int       `json:"trade_id"`
+	TradeID   int64     `json:"trade_id"`
 	ProductID string    `json:"product_id"`
 	Price     float64   `json:"price,string"`
 	Size      float64   `json:"size,string"`

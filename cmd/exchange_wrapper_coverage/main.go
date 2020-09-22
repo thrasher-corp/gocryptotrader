@@ -77,7 +77,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 	if !e.SupportsAsset(assetType) {
 		assets := e.GetAssetTypes()
 		rand.Seed(time.Now().Unix())
-		assetType = assets[rand.Intn(len(assets))]
+		assetType = assets[rand.Intn(len(assets))] // nolint:gosec // basic number generation required, no need for crypo/rand
 	}
 
 	var funcs []string
