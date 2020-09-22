@@ -75,7 +75,13 @@ func TestOrder_Leverage(t *testing.T) {
 		fields fields
 		want   float64
 	}{
-		// TODO: Add test cases.
+		{
+			name: "1.0",
+			fields: fields{
+				leverage: 5.0,
+			},
+			want: 5.0,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
