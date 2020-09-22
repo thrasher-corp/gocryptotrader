@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -54,7 +55,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("ZB setup error", err)
 	}
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func setupWsAuth(t *testing.T) {

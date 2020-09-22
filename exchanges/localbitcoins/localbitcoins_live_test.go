@@ -6,6 +6,7 @@ package localbitcoins
 
 import (
 	"log"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -33,5 +34,5 @@ func TestMain(m *testing.M) {
 		log.Fatal("Localbitcoins setup error", err)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, l.Name, l.API.Endpoints.URL)
-	m.Run()
+	os.Exit(m.Run())
 }

@@ -3,6 +3,7 @@ package btcmarkets
 import (
 	"fmt"
 	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -55,7 +56,7 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedSupport = false
 		b.API.AuthenticatedWebsocketSupport = false
 	}
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func areTestAPIKeysSet() bool {

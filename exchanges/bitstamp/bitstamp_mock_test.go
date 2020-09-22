@@ -6,6 +6,7 @@ package bitstamp
 
 import (
 	"log"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -47,5 +48,5 @@ func TestMain(m *testing.M) {
 	b.HTTPClient = newClient
 	b.API.Endpoints.URL = serverDetails + "/api"
 	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.URL)
-	m.Run()
+	os.Exit(m.Run())
 }

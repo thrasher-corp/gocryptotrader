@@ -311,13 +311,13 @@ func (k *Item) FormatDates() {
 // within a data range
 func DetermineAllIntervals(start, end time.Time, interval Interval) []time.Time {
 	var allIntervals []time.Time
-	intervalTime := start
-	for !intervalTime.After(end) {
+	intervalTime := start.UTC()
+	for !intervalTime.After(end.UTC()) {
 		trunc := intervalTime.Truncate(interval.Duration())
-		if trunc.After(start) && trunc.Before(end) {
+		if trunc.After(start.UTC()) && trunc.Before(end.UTC()) {
 			allIntervals = append(allIntervals, trunc.UTC())
 		}
-		intervalTime = intervalTime.Add(interval.Duration())
+		intervalTime = intervalTime.Add(interval.Duration()).UTC()
 	}
 
 	return allIntervals
@@ -327,18 +327,11 @@ func DetermineAllIntervals(start, end time.Time, interval Interval) []time.Time 
 // where the kline item does not contain candles
 func (k *Item) DetermineMissingIntervals(start, end time.Time) []time.Time {
 	allIntervals := DetermineAllIntervals(start, end, k.Interval)
-	var foundIntervals, missingIntervals []time.Time
-	for j := range allIntervals {
-		for i := range k.Candles {
-			if k.Candles[i].Time.Equal(allIntervals[j]) {
-				foundIntervals = append(foundIntervals, k.Candles[i].Time)
-			}
-		}
-	}
+	var missingIntervals []time.Time
 	for i := range allIntervals {
 		found := false
-		for j := range foundIntervals {
-			if foundIntervals[j] == allIntervals[i] {
+		for j := range k.Candles {
+			if k.Candles[j].Time.Equal(allIntervals[i]) {
 				found = true
 			}
 		}

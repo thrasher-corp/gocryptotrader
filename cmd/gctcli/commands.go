@@ -2655,20 +2655,14 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	s = negateLocalOffset(s)
-
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
 	}
-
-	_, offset := time.Now().Zone()
-	loc := time.FixedZone("", -offset)
 
 	conn, err := setupClient()
 	if err != nil {
@@ -2680,8 +2674,8 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	result, err := client.WithdrawalEventsByDate(context.Background(),
 		&gctrpc.WithdrawalEventsByDateRequest{
 			Exchange: exchange,
-			Start:    s.In(loc).Format(common.SimpleTimeFormat),
-			End:      e.In(loc).Format(common.SimpleTimeFormat),
+			Start:    negateLocalOffset(s),
+			End:      negateLocalOffset(e),
 			Limit:    int32(limit),
 		},
 	)
@@ -3271,13 +3265,11 @@ func getAuditEvent(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	s = negateLocalOffset(s)
 
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -3292,16 +3284,12 @@ func getAuditEvent(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	_, offset := time.Now().Zone()
-	loc := time.FixedZone("", -offset)
-
 	result, err := client.GetAuditEvent(context.Background(),
 		&gctrpc.GetAuditEventRequest{
-			StartDate: s.In(loc).Format(common.SimpleTimeFormat),
-			EndDate:   e.In(loc).Format(common.SimpleTimeFormat),
+			StartDate: negateLocalOffset(s),
+			EndDate:   negateLocalOffset(e),
 			Limit:     int32(limit),
 			OrderBy:   order,
-			Offset:    int32(offset),
 		})
 
 	if err != nil {
@@ -3858,8 +3846,8 @@ func getHistoricCandles(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 
-	end := time.Now().UTC().Truncate(candleInterval)
-	start := end.Add(-candleInterval * time.Duration(candleRangeSize))
+	e := time.Now().Truncate(candleInterval)
+	s := e.Add(-candleInterval * time.Duration(candleRangeSize))
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetHistoricCandles(context.Background(),
@@ -3871,8 +3859,8 @@ func getHistoricCandles(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType:             assetType,
-			Start:                 start.Unix(),
-			End:                   end.Unix(),
+			Start:                 negateLocalOffset(s),
+			End:                   negateLocalOffset(e),
 			TimeInterval:          int64(candleInterval),
 			FillMissingWithTrades: fillMissingData,
 		})
@@ -4033,12 +4021,11 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 
-	s, err := time.ParseInLocation(common.SimpleTimeFormat, startTime, time.Local)
+	s, err := time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	fmt.Printf("%v %v %v", s, startTime, s.UTC())
-	e, err := time.ParseInLocation(common.SimpleTimeFormat, endTime, time.Local)
+	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -4057,8 +4044,8 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType:             assetType,
-			Start:                 s.Unix(),
-			End:                   e.Unix(),
+			Start:                 negateLocalOffset(s),
+			End:                   negateLocalOffset(e),
 			TimeInterval:          int64(candleInterval),
 			ExRequest:             true,
 			Sync:                  sync,
@@ -4175,13 +4162,10 @@ func getSavedTrades(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	s = negateLocalOffset(s)
-
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -4197,8 +4181,8 @@ func getSavedTrades(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     s.Unix(),
-			End:       e.Unix(),
+			Start:     negateLocalOffset(s),
+			End:       negateLocalOffset(e),
 		})
 	if err != nil {
 		return err
@@ -4401,13 +4385,10 @@ func getHistoricTrades(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	s = negateLocalOffset(s)
-
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -4423,8 +4404,8 @@ func getHistoricTrades(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     s.Unix(),
-			End:       e.Unix(),
+			Start:     negateLocalOffset(s),
+			End:       negateLocalOffset(e),
 		})
 	if err != nil {
 		return err
@@ -4574,13 +4555,10 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	s = negateLocalOffset(s)
-
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -4596,8 +4574,8 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType:    assetType,
-			Start:        s.Unix(),
-			End:          e.Unix(),
+			Start:        negateLocalOffset(s),
+			End:          negateLocalOffset(e),
 			TimeInterval: int64(candleInterval),
 			Sync:         sync,
 			Force:        force,
@@ -4728,13 +4706,10 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	s = negateLocalOffset(s)
-
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-	e = negateLocalOffset(e)
 
 	if e.Before(s) {
 		return errors.New("start cannot be after before")
@@ -4750,8 +4725,8 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     s.Unix(),
-			End:       e.Unix(),
+			Start:     negateLocalOffset(s),
+			End:       negateLocalOffset(e),
 			Interval:  int64(candleInterval),
 		})
 	if err != nil {
@@ -4863,13 +4838,10 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	s = negateLocalOffset(s)
-
 	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-	e = negateLocalOffset(e)
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.FindMissingSavedTradeIntervals(context.Background(),
@@ -4881,8 +4853,8 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType: assetType,
-			Start:     s.Unix(),
-			End:       e.Unix(),
+			Start:     negateLocalOffset(s),
+			End:       negateLocalOffset(e),
 		})
 	if err != nil {
 		return err
@@ -4962,7 +4934,9 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 // 2020-01-01 12:00:00 +00 when at RPCServer
 // so this function will minus the offset from the local sent time
 // to allow for proper use at RPCServer
-func negateLocalOffset(t time.Time) time.Time {
+func negateLocalOffset(t time.Time) string {
 	_, offset := time.Now().Zone()
-	return t.Add(-time.Duration(offset) * time.Second)
+	loc := time.FixedZone("", -offset)
+
+	return t.In(loc).Format(common.SimpleTimeFormat)
 }

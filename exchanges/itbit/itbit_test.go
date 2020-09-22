@@ -3,6 +3,7 @@ package itbit
 import (
 	"log"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -48,7 +49,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Itbit setup error", err)
 	}
 
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func TestGetTicker(t *testing.T) {

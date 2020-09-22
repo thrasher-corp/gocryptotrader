@@ -2,6 +2,7 @@ package lbank
 
 import (
 	"log"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -43,7 +44,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func areTestAPIKeysSet() bool {

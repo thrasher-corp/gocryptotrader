@@ -1,6 +1,7 @@
 package banking
 
 import (
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -45,7 +46,7 @@ var (
 
 func TestMain(m *testing.M) {
 	Accounts = append(Accounts, testBankAccounts...)
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func TestGetBankAccountByID(t *testing.T) {

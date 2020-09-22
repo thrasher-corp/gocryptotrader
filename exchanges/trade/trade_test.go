@@ -224,3 +224,11 @@ func TestSaveTradesToDatabase(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetTradesInRange(t *testing.T) {
+	t.Parallel()
+	_, err := GetTradesInRange("", "", "", "", time.Time{}, time.Time{})
+	if err != nil && err.Error() != "invalid arguments received" {
+		t.Error(err)
+	}
+}

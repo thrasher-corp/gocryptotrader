@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -74,7 +75,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("OKCoin setup error", err)
 	}
 	testSetupRan = true
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func areTestAPIKeysSet() bool {

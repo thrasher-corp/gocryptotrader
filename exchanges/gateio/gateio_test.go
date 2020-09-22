@@ -3,6 +3,7 @@ package gateio
 import (
 	"log"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("GateIO setup error", err)
 	}
 
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func TestGetSymbols(t *testing.T) {

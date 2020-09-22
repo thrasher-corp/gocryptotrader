@@ -6,6 +6,7 @@ package poloniex
 
 import (
 	"log"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -36,5 +37,5 @@ func TestMain(m *testing.M) {
 	log.Printf(sharedtestvalues.LiveTesting, p.Name, p.API.Endpoints.URL)
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	m.Run()
+	os.Exit(m.Run())
 }

@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 	cpyDispatch = dispatcher
 	mux = GetNewMux()
 	cpyMux = mux
-	m.Run()
+	os.Exit(m.Run())
 }
 
 var cpyDispatch *Dispatcher

@@ -2,6 +2,7 @@ package gct
 
 import (
 	"errors"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -38,7 +39,7 @@ var (
 
 func TestMain(m *testing.M) {
 	modules.SetModuleWrapper(validator.Wrapper{})
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func TestExchangeOrderbook(t *testing.T) {

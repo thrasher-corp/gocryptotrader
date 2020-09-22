@@ -111,6 +111,19 @@ func SaveTradesToDatabase(trades ...Data) error {
 	return nil
 }
 
+// GetTradesInRange calls db function to return trades in range
+// to minimise tradesql package usage
+func GetTradesInRange(exchangeName, assetType, base, quote string, startDate, endDate time.Time) ([]Data, error) {
+	if exchangeName == "" || assetType == "" || base == "" || quote == "" || startDate.IsZero() || endDate.IsZero() {
+		return nil, errors.New("invalid arguments received")
+	}
+	results, err := tradesql.GetInRange(exchangeName, assetType, base, quote, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	return SQLDataToTrade(results...)
+}
+
 func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
 	sort.Sort(byDate(trades))
 	var results []tradesql.Data

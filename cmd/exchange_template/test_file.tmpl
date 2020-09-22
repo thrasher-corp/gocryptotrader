@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	m.Run()
+	os.Exit(m.Run())
 }
 
 // Ensures that this exchange package is compatible with IBotExchange

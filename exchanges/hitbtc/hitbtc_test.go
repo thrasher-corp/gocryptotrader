@@ -3,6 +3,7 @@ package hitbtc
 import (
 	"log"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -51,7 +52,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("HitBTC setup error", err)
 	}
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func TestGetOrderbook(t *testing.T) {

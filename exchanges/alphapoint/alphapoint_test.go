@@ -3,6 +3,7 @@ package alphapoint
 import (
 	"encoding/json"
 	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ func TestMain(m *testing.M) {
 	if a.API.Endpoints.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
 		log.Fatal("SetDefaults: String Incorrect -", a.API.Endpoints.WebsocketURL)
 	}
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func areTestAPIKeysSet() bool {

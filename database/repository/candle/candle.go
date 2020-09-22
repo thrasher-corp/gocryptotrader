@@ -34,7 +34,6 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		qm.Where("quote = ?", strings.ToUpper(quote)),
 		qm.Where("interval = ?", interval),
 		qm.Where("asset = ?", strings.ToLower(asset)),
-		qm.Where("timestamp between ? and ?", start.UTC(), end.UTC()),
 	}
 
 	exchangeUUID, errS := exchange.UUIDByName(exchangeName)
@@ -43,6 +42,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 	}
 	queries = append(queries, qm.Where("exchange_name_id = ?", exchangeUUID.String()))
 	if repository.GetSQLDialect() == database.DBSQLite3 {
+		queries = append(queries, qm.Where("timestamp between ? and ?", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339)))
 		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
 		if errC != nil {
 			return out, errC
@@ -62,6 +62,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 			})
 		}
 	} else {
+		queries = append(queries, qm.Where("timestamp between ? and ?", start.UTC(), end.UTC()))
 		retCandle, errC := modelPSQL.Candles(queries...).All(context.Background(), database.DB.SQL)
 		if errC != nil {
 			return out, errC

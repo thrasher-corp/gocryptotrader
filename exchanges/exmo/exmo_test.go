@@ -2,6 +2,7 @@ package exmo
 
 import (
 	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ func TestMain(m *testing.M) {
 	e.API.Credentials.Key = APIKey
 	e.API.Credentials.Secret = APISecret
 
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func TestGetTrades(t *testing.T) {

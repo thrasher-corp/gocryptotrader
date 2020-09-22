@@ -6,6 +6,7 @@ package binance
 
 import (
 	"log"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -35,5 +36,5 @@ func TestMain(m *testing.M) {
 	}
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name, b.API.Endpoints.URL)
-	m.Run()
+	os.Exit(m.Run())
 }
