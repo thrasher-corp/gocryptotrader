@@ -307,6 +307,10 @@ func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return err
+	}
+
 	orderID, err := strconv.ParseInt(orderCancellation.ID, 10, 64)
 	if err != nil {
 		return
@@ -333,6 +337,10 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+
 	orderIDs := strings.Split(orderCancellation.ID, ",")
 	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
@@ -410,6 +418,10 @@ func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (string, 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),
@@ -447,6 +459,10 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 
 // GetActiveOrders retrieves any orders that are active/open
 func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	for x := range req.Pairs {
 		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
@@ -480,6 +496,10 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	for x := range req.Pairs {
 		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {

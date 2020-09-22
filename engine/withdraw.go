@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -23,19 +22,14 @@ const (
 
 // SubmitWithdrawal preforms validation and submits a new withdraw request to exchange
 func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Response, error) {
-	if req == nil {
-		return nil, errors.New(ErrRequestCannotbeNil)
+	err := req.Validate()
+	if err != nil {
+		return nil, err
 	}
 
-	var err error
 	var ret *withdraw.ExchangeResponse
 	if req.Exchange == "" {
 		req.Exchange = exchName
-	}
-
-	err = withdraw.Validate(req)
-	if err != nil {
-		return nil, err
 	}
 
 	exch := GetExchangeByName(exchName)

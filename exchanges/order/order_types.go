@@ -11,6 +11,9 @@ import (
 // var error definitions
 var (
 	ErrSubmissionIsNil            = errors.New("order submission is nil")
+	ErrCancelOrderIsNil           = errors.New("cancel order is nil")
+	ErrGetOrdersRequestIsNil      = errors.New("get order request is nil")
+	ErrModifyOrderIsNil           = errors.New("modify order request is nil")
 	ErrPairIsEmpty                = errors.New("order pair is empty")
 	ErrSideIsInvalid              = errors.New("order side is invalid")
 	ErrTypeIsInvalid              = errors.New("order type is invalid")

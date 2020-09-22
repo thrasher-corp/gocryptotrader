@@ -676,3 +676,27 @@ func (o *ClassificationError) Error() string {
 		o.Exchange,
 		o.Err)
 }
+
+// Validate checks internal struct requirements
+func (o *Cancel) Validate() error {
+	if o == nil {
+		return ErrCancelOrderIsNil
+	}
+	return nil
+}
+
+// Validate checks internal struct requirements
+func (o *GetOrdersRequest) Validate() error {
+	if o == nil {
+		return ErrGetOrdersRequestIsNil
+	}
+	return nil
+}
+
+// Validate checks internal struct requirements
+func (o *Modify) Validate() error {
+	if o == nil {
+		return ErrModifyOrderIsNil
+	}
+	return nil
+}

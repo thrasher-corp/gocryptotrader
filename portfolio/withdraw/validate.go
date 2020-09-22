@@ -9,31 +9,31 @@ import (
 )
 
 // Validate takes interface and passes to asset type to check the request meets requirements to submit
-func Validate(request *Request) (err error) {
-	if request == nil {
+func (r *Request) Validate() (err error) {
+	if r == nil {
 		return ErrRequestCannotBeNil
 	}
 
 	var allErrors []string
-	if request.Amount <= 0 {
+	if r.Amount <= 0 {
 		allErrors = append(allErrors, ErrStrAmountMustBeGreaterThanZero)
 	}
 
-	if (request.Currency == currency.Code{}) {
+	if (r.Currency == currency.Code{}) {
 		allErrors = append(allErrors, ErrStrNoCurrencySet)
 	}
 
-	switch request.Type {
+	switch r.Type {
 	case Fiat:
-		if (request.Currency != currency.Code{}) && !request.Currency.IsFiatCurrency() {
+		if (r.Currency != currency.Code{}) && !r.Currency.IsFiatCurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotFiat)
 		}
-		allErrors = append(allErrors, validateFiat(request)...)
+		allErrors = append(allErrors, validateFiat(r)...)
 	case Crypto:
-		if (request.Currency != currency.Code{}) && !request.Currency.IsCryptocurrency() {
+		if (r.Currency != currency.Code{}) && !r.Currency.IsCryptocurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
 		}
-		allErrors = append(allErrors, validateCrypto(request)...)
+		allErrors = append(allErrors, validateCrypto(r)...)
 	default:
 		allErrors = append(allErrors, "invalid request type")
 	}

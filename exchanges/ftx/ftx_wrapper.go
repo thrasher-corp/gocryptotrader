@@ -438,6 +438,10 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+	if timestampStart.Equal(timestampEnd) || timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	}
+
 	marketName, err := f.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -523,6 +527,10 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
+	if err := action.Validate(); err != nil {
+		return "", err
+	}
+
 	if action.TriggerPrice != 0 {
 		a, err := f.ModifyTriggerOrder(action.ID,
 			action.Type.String(),
@@ -553,13 +561,20 @@ func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (f *FTX) CancelOrder(order *order.Cancel) error {
-	_, err := f.DeleteOrder(order.ID)
+func (f *FTX) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(); err != nil {
+		return err
+	}
+	_, err := f.DeleteOrder(o.ID)
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (f *FTX) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+
 	var resp order.CancelAllResponse
 	formattedPair, err := f.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
 	if err != nil {
@@ -672,6 +687,10 @@ func (f *FTX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string,
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	var address, addressTag string
 	if withdrawRequest.Crypto != (withdraw.CryptoRequest{}) {
 		address = withdrawRequest.Crypto.Address
@@ -711,6 +730,10 @@ func (f *FTX) GetWebsocket() (*stream.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	var resp []order.Detail
 	for x := range getOrdersRequest.Pairs {
 		assetType, err := f.GetPairAssetType(getOrdersRequest.Pairs[x])
@@ -805,6 +828,9 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
 	var resp []order.Detail
 	for x := range getOrdersRequest.Pairs {
 		var tempResp order.Detail

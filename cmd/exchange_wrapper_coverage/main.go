@@ -11,8 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (
@@ -33,10 +31,11 @@ func main() {
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
-		name := exchange.Exchanges[x]
-		err := engine.LoadExchange(name, true, &wg)
+		err := engine.LoadExchange(exchange.Exchanges[x], true, &wg)
 		if err != nil {
-			log.Printf("Failed to load exchange %s. Err: %s", name, err)
+			log.Printf("Failed to load exchange %s. Err: %s",
+				exchange.Exchanges[x],
+				err)
 			continue
 		}
 	}
@@ -48,12 +47,12 @@ func main() {
 	wg = sync.WaitGroup{}
 	exchanges := engine.GetExchanges()
 	for x := range exchanges {
+		exch := exchanges[x]
 		wg.Add(1)
-		go func(num int) {
-			name := exchanges[num].GetName()
-			results[name] = testWrappers(exchanges[num])
+		go func(e exchange.IBotExchange) {
+			results[e.GetName()] = testWrappers(e)
 			wg.Done()
-		}(x)
+		}(exch)
 	}
 	wg.Wait()
 	log.Println("Done.")
@@ -127,30 +126,22 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetFundingHistory")
 	}
 
-	s := &order.Submit{
-		Pair:     p,
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Amount:   1000000,
-		Price:    10000000000,
-		ClientID: "meow",
-	}
-	_, err = e.SubmitOrder(s)
+	_, err = e.SubmitOrder(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "SubmitOrder")
 	}
 
-	_, err = e.ModifyOrder(&order.Modify{})
+	_, err = e.ModifyOrder(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "ModifyOrder")
 	}
 
-	err = e.CancelOrder(&order.Cancel{})
+	err = e.CancelOrder(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "CancelOrder")
 	}
 
-	_, err = e.CancelAllOrders(&order.Cancel{})
+	_, err = e.CancelAllOrders(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "CancelAllOrders")
 	}
@@ -160,12 +151,12 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetOrderInfo")
 	}
 
-	_, err = e.GetOrderHistory(&order.GetOrdersRequest{})
+	_, err = e.GetOrderHistory(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetOrderHistory")
 	}
 
-	_, err = e.GetActiveOrders(&order.GetOrdersRequest{})
+	_, err = e.GetActiveOrders(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetActiveOrders")
 	}
@@ -175,16 +166,16 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetDepositAddress")
 	}
 
-	_, err = e.WithdrawCryptocurrencyFunds(&withdraw.Request{})
+	_, err = e.WithdrawCryptocurrencyFunds(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawCryptocurrencyFunds")
 	}
 
-	_, err = e.WithdrawFiatFunds(&withdraw.Request{})
+	_, err = e.WithdrawFiatFunds(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawFiatFunds")
 	}
-	_, err = e.WithdrawFiatFundsToInternationalBank(&withdraw.Request{})
+	_, err = e.WithdrawFiatFundsToInternationalBank(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawFiatFundsToInternationalBank")
 	}

@@ -370,12 +370,18 @@ func (i *ItBit) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (i *ItBit) CancelOrder(order *order.Cancel) error {
-	return i.CancelExistingOrder(order.WalletAddress, order.ID)
+func (i *ItBit) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(); err != nil {
+		return err
+	}
+	return i.CancelExistingOrder(o.WalletAddress, o.ID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (i *ItBit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
@@ -437,6 +443,9 @@ func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return nil, err
@@ -497,6 +506,10 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return nil, err

@@ -141,7 +141,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestValid(t *testing.T) {
-	err := Validate(invalidType)
+	err := invalidType.Validate()
 	if err != nil {
 		if err.Error() != ErrInvalidRequest.Error() {
 			t.Fatal(err)
@@ -207,7 +207,7 @@ func TestValidateFiat(t *testing.T) {
 				}
 				test.request.Fiat.Bank = *v
 			}
-			err := Validate(test.request)
+			err := test.request.Validate()
 			if err != nil {
 				if test.output.(error).Error() != err.Error() {
 					t.Fatalf("Test Name %s expecting error [%s] but receieved [%s]", test.name, test.output.(error).Error(), err)
@@ -268,7 +268,7 @@ func TestValidateCrypto(t *testing.T) {
 	for _, tests := range testCases {
 		test := tests
 		t.Run(test.name, func(t *testing.T) {
-			err := Validate(test.request)
+			err := test.request.Validate()
 			if err != nil {
 				if err.Error() != test.output.(error).Error() {
 					t.Fatal(err)

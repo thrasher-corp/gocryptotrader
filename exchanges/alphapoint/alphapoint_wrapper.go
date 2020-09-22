@@ -214,6 +214,9 @@ func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType asset.Item, t
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
 func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	if err := s.Validate(); err != nil {
+		return order.SubmitResponse{}, err
+	}
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -245,17 +248,23 @@ func (a *Alphapoint) ModifyOrder(_ *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *Alphapoint) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+func (a *Alphapoint) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(); err != nil {
+		return err
+	}
+	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 	if err != nil {
 		return err
 	}
-	_, err = a.CancelExistingOrder(orderIDInt, order.AccountID)
+	_, err = a.CancelExistingOrder(orderIDInt, o.AccountID)
 	return err
 }
 
 // CancelAllOrders cancels all orders for a given account
 func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	return order.CancelAllResponse{},
 		a.CancelAllExistingOrders(orderCancellation.AccountID)
 }
@@ -317,6 +326,9 @@ func (a *Alphapoint) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
 func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	resp, err := a.GetOrders()
 	if err != nil {
 		return nil, err
@@ -359,6 +371,10 @@ func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
 func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	resp, err := a.GetOrders()
 	if err != nil {
 		return nil, err

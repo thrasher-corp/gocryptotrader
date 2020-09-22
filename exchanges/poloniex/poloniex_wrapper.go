@@ -445,6 +445,10 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
+	if err := action.Validate(); err != nil {
+		return "", err
+	}
+
 	oID, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
 		return "", err
@@ -463,8 +467,12 @@ func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (p *Poloniex) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+func (p *Poloniex) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(); err != nil {
+		return err
+	}
+
+	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -520,6 +528,10 @@ func (p *Poloniex) GetDepositAddress(cryptocurrency currency.Code, _ string) (st
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (p *Poloniex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	v, err := p.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
@@ -552,6 +564,10 @@ func (p *Poloniex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 
 // GetActiveOrders retrieves any orders that are active/open
 func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	resp, err := p.GetOpenOrdersForAllCurrencies()
 	if err != nil {
 		return nil, err
@@ -603,6 +619,10 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	resp, err := p.GetAuthenticatedTradeHistory(req.StartTicks.Unix(),
 		req.EndTicks.Unix(),
 		10000)
