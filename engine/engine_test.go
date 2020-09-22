@@ -72,7 +72,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 	}
 }
 func TestStartStopDoesNotCausePanic(t *testing.T) {
-	t.Skip("Due to race condition with global config.Cfg being used from multiple tests and RPC server and REST proxy never propoerly stopped when engine.Stop() is called")
+	t.Skip("Due to race condition with global config.Cfg being used from multiple tests and RPC server and REST proxy never properly stopped when engine.Stop() is called")
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
