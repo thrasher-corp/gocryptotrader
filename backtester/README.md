@@ -20,14 +20,103 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for backtest package
 
-+ put
-+ stuff
-+ here
-
 ## How to use
 
 ##### Prerequisites
 
+#### Creating a strategy
+
+Creation of a strategy is simple and requires an OnSignalEvent method to be implemented
+
+Example:
+```
+type Strategy struct{}
+
+func (s *Strategy) OnSignal(d backtest.DataHandler, _ backtest.PortfolioHandler) (backtest.SignalEvent, error) {
+	signal := backtest.Signal{
+		Event: backtest.Event{Time: d.Latest().GetTime(),
+			CurrencyPair: d.Latest().Pair()},
+	}
+
+	smaFast := indicators.SMA(d.StreamClose(), 10)
+	smaSlow := indicators.SMA(d.StreamClose(), 30)
+
+	ret := indicators.Crossover(smaFast, smaSlow)
+	if ret {
+		signal.SetDirection(order.Buy)
+	} else {
+		signal.SetDirection(order.Sell)
+	}
+
+	return &signal, nil
+}
+
+```
+
+#### Backtest setup 
+
+#### Complete Example
+
+```
+package main
+
+type Strategy struct{}
+
+func (s *Strategy) OnSignal(d backtest.DataHandler, _ backtest.PortfolioHandler) (backtest.SignalEvent, error) {
+	signal := backtest.Signal{
+		Event: backtest.Event{Time: d.Latest().GetTime(),
+			CurrencyPair: d.Latest().Pair()},
+	}
+
+	smaFast := indicators.SMA(d.StreamClose(), 10)
+	smaSlow := indicators.SMA(d.StreamClose(), 30)
+
+	ret := indicators.Crossover(smaFast, smaSlow)
+	if ret {
+		signal.SetDirection(order.Buy)
+	} else {
+		signal.SetDirection(order.Sell)
+	}
+
+	return &signal, nil
+}
+
+func main() {
+	bt := New()
+
+	data := DataFromKline{}
+	err := data.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bt.data = &data
+	bt.portfolio = &Portfolio{
+		initialFunds: 1000,
+		riskManager:  &Risk{},
+		sizeManager: &Size{
+			DefaultSize:  100,
+			DefaultValue: 1000,
+		},
+	}
+        bt.strategy = &Strategy{}
+	bt.exchange = &Exchange{
+		MakerFee: 0.00,
+		TakerFee: 0.00,
+	}
+
+	statistic := Statistic{
+		strategyName: "Example",
+	}
+	bt.statistic = &statistic
+	err = bt.Run()
+	if err != nil {
+	    log.Fatal(err)
+	}
+
+	bt.Reset()
+}
+```
 ## Contribution
 
 Please feel free to submit any pull requests or suggest any desired features to be added.

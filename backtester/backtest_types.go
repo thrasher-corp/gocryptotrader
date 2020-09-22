@@ -2,6 +2,7 @@ package backtest
 
 const DP = 8
 
+// var DP = 8
 type BackTest struct {
 	data       DataHandler
 	strategy   StrategyHandler
