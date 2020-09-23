@@ -445,7 +445,7 @@ func (f *FTX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Da
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if timestampStart.Equal(timestampEnd) || timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalied time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
 	marketName, err := f.FormatExchangeCurrency(p, assetType)
 	if err != nil {

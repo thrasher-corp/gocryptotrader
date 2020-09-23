@@ -418,7 +418,7 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
 	}
 	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalied time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
 	var err error
 	p, err = b.FormatExchangeCurrency(p, assetType)

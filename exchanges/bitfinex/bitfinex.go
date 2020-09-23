@@ -223,10 +223,11 @@ func (b *Bitfinex) GetTrades(currencyPair string, limit, timestampStart, timesta
 	if timestampEnd > 0 {
 		v.Set("end", strconv.FormatInt(timestampEnd, 10))
 	}
-
+	sortVal := "0"
 	if reOrderResp {
-		v.Set("sort", strconv.FormatInt(-1, 10))
+		sortVal = "1"
 	}
+	v.Set("sort", sortVal)
 
 	path := b.API.Endpoints.URL +
 		bitfinexAPIVersion2 +

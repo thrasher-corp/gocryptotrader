@@ -480,7 +480,7 @@ func (b *Bitfinex) GetHistoricTrades(p currency.Pair, assetType asset.Item, time
 		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
 	}
 	if timestampStart.Equal(timestampEnd) || timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalied time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
 	var err error
 	p, err = b.FormatExchangeCurrency(p, assetType)
@@ -492,22 +492,42 @@ func (b *Bitfinex) GetHistoricTrades(p currency.Pair, assetType asset.Item, time
 	if err != nil {
 		return nil, err
 	}
-	tradeHistory, err := b.GetTrades(currString, -1, timestampStart.Unix()*1000, timestampEnd.Unix()*1000, false)
-	if err != nil {
-		return nil, err
-	}
 	var resp []trade.Data
-	for i := range tradeHistory {
-		tID := strconv.FormatInt(tradeHistory[i].TID, 10)
-		resp = append(resp, trade.Data{
-			TID:          tID,
-			Exchange:     b.Name,
-			CurrencyPair: p,
-			AssetType:    assetType,
-			Price:        tradeHistory[i].Price,
-			Amount:       tradeHistory[i].Amount,
-			Timestamp:    time.Unix(0, tradeHistory[i].Timestamp*int64(time.Millisecond)),
-		})
+	ts := timestampEnd
+	limit := 10000
+allTrades:
+	for {
+		var tradeData []Trade
+		tradeData, err = b.GetTrades(currString, int64(limit), 0, ts.Unix()*1000, false)
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			tradeTS := time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond))
+			if tradeTS.Before(timestampStart) && !timestampStart.IsZero() {
+				break allTrades
+			}
+			tID := strconv.FormatInt(tradeData[i].TID, 10)
+			resp = append(resp, trade.Data{
+				TID:          tID,
+				Exchange:     b.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Amount,
+				Timestamp:    time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond)),
+			})
+			if i == len(tradeData)-1 {
+				if ts == tradeTS {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = tradeTS
+			}
+		}
+		if len(tradeData) != limit {
+			break allTrades
+		}
 	}
 
 	err = b.AddTradesToBuffer(resp...)
