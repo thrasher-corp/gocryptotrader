@@ -454,12 +454,12 @@ func TestProcessOrderbook(t *testing.T) {
 
 		wg.Add(1)
 		go func() {
-			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
+			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) // nolint:gosec // no need to import crypo/rand for testing
 			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)),
-				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10)))
+				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) // nolint:gosec // no need to import crypo/rand for testing
 
-			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
-			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}}
+			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} // nolint:gosec // no need to import crypo/rand for testing
+			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} // nolint:gosec // no need to import crypo/rand for testing
 			base := &Base{
 				Pair:         newPairs,
 				Asks:         asks,

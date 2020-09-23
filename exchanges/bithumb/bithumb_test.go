@@ -92,6 +92,25 @@ func TestGetTransactionHistory(t *testing.T) {
 	}
 }
 
+func TestGetAccountInformation(t *testing.T) {
+	t.Parallel()
+
+	// Offline test
+	_, err := b.GetAccountInformation("", "")
+	if err == nil {
+		t.Error("expected error when no order currency is specified")
+	}
+
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+
+	_, err = b.GetAccountInformation(testCurrency, currency.KRW.String())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {

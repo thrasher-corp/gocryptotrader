@@ -151,13 +151,18 @@ func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, erro
 	return response, nil
 }
 
-// GetAccountInformation returns account information by singular currency
-func (b *Bithumb) GetAccountInformation(currency string) (Account, error) {
-	response := Account{}
+// GetAccountInformation returns account information based on the desired
+// order/payment currencies
+func (b *Bithumb) GetAccountInformation(orderCurrency, paymentCurrency string) (Account, error) {
+	var response Account
+	if orderCurrency == "" {
+		return response, errors.New("order currency must be set")
+	}
 
 	val := url.Values{}
-	if currency != "" {
-		val.Set("currency", currency)
+	val.Add("order_currency", orderCurrency)
+	if paymentCurrency != "" { // optional param, default is KRW
+		val.Add("payment_currency", paymentCurrency)
 	}
 
 	return response,
@@ -477,7 +482,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 
 	params.Set("endpoint", path)
 	payload := params.Encode()
-	hmacPayload := path + string(0) + payload + string(0) + n
+	hmacPayload := path + string('\x00') + payload + string('\x00') + n
 	hmac := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(hmacPayload),
 		[]byte(b.API.Credentials.Secret))
