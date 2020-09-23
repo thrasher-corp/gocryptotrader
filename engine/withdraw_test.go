@@ -149,6 +149,18 @@ func TestParseEvents(t *testing.T) {
 		if x%2 == 0 {
 			resp.RequestDetails.Currency = currency.AUD
 			resp.RequestDetails.Type = 1
+			resp.RequestDetails.Fiat = withdraw.FiatRequest{
+				Bank: banking.Account{
+					Enabled:             false,
+					ID:                  fmt.Sprintf("test-%v", x),
+					BankName:            fmt.Sprintf("test-%v-bank", x),
+					AccountName:         "hello",
+					AccountNumber:       fmt.Sprintf("test-%v", x),
+					BSBNumber:           "123456",
+					SupportedCurrencies: "BTC-AUD",
+					SupportedExchanges:  testExchange,
+				},
+			}
 		} else {
 			resp.RequestDetails.Currency = currency.BTC
 			resp.RequestDetails.Type = 0
