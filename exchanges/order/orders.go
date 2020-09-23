@@ -698,5 +698,8 @@ func (o *Modify) Validate() error {
 	if o == nil {
 		return ErrModifyOrderIsNil
 	}
+	if o.ClientOrderID == "" && o.ID == "" {
+		return ErrOrderIDNotSet
+	}
 	return nil
 }

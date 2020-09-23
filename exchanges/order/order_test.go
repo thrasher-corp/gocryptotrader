@@ -949,3 +949,40 @@ func TestClassificationError_Error(t *testing.T) {
 		t.Fatal("unexpected output")
 	}
 }
+
+func TestValidationOnOrderTypes(t *testing.T) {
+	var cancelMe *Cancel
+	if cancelMe.Validate() != ErrCancelOrderIsNil {
+		t.Fatal("unexpected error")
+	}
+
+	cancelMe = new(Cancel)
+	if cancelMe.Validate() != nil {
+		t.Fatal("should not error")
+	}
+
+	var getOrders *GetOrdersRequest
+	if getOrders.Validate() != ErrGetOrdersRequestIsNil {
+		t.Fatal("unexpected error")
+	}
+
+	getOrders = new(GetOrdersRequest)
+	if getOrders.Validate() != nil {
+		t.Fatal("should not error")
+	}
+
+	var modifyOrder *Modify
+	if modifyOrder.Validate() != ErrModifyOrderIsNil {
+		t.Fatal("unexpected error")
+	}
+
+	modifyOrder = new(Modify)
+	if modifyOrder.Validate() != ErrOrderIDNotSet {
+		t.Fatal("unexpected error")
+	}
+
+	modifyOrder.ClientOrderID = "1337"
+	if modifyOrder.Validate() != nil {
+		t.Fatal("should not error")
+	}
+}

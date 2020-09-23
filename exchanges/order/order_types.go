@@ -19,6 +19,7 @@ var (
 	ErrTypeIsInvalid              = errors.New("order type is invalid")
 	ErrAmountIsInvalid            = errors.New("order amount is invalid")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
+	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
 )
 
 // Submit contains all properties of an order that may be required
