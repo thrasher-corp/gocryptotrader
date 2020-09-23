@@ -691,24 +691,20 @@ func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*w
 		return nil, err
 	}
 
-	var address, addressTag string
-	if withdrawRequest.Crypto != (withdraw.CryptoRequest{}) {
-		address = withdrawRequest.Crypto.Address
-		addressTag = withdrawRequest.Crypto.AddressTag
-	}
-	resp := withdraw.ExchangeResponse{}
-	a, err := f.Withdraw(withdrawRequest.Currency.String(),
-		address,
-		addressTag,
+	resp, err := f.Withdraw(withdrawRequest.Currency.String(),
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.TradePassword,
 		strconv.FormatInt(withdrawRequest.OneTimePassword, 10),
 		withdrawRequest.Amount)
 	if err != nil {
-		return &resp, err
+		return nil, err
 	}
-	resp.ID = strconv.FormatInt(a.ID, 10)
-	resp.Status = a.Status
-	return &resp, nil
+
+	return &withdraw.ExchangeResponse{
+		ID:     strconv.FormatInt(resp.ID, 10),
+		Status: resp.Status,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
