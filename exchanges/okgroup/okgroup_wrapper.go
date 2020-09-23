@@ -307,7 +307,7 @@ func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
-	if err = orderCancellation.Validate(); err != nil {
+	if err := orderCancellation.Validate(); err != nil {
 		return err
 	}
 
@@ -459,17 +459,18 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 
 // GetActiveOrders retrieves any orders that are active/open
 func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	if err = req.Validate(); err != nil {
+	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
 	for x := range req.Pairs {
-		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
-			InstrumentID: fpair.String(),
+			InstrumentID: fPair.String(),
 		})
 		if err != nil {
 			return resp, err
@@ -495,18 +496,19 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	if err = req.Validate(); err != nil {
+	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
 	for x := range req.Pairs {
-		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
 			Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
-			InstrumentID: fpair.String(),
+			InstrumentID: fPair.String(),
 		})
 		if err != nil {
 			return resp, err
