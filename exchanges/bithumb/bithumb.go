@@ -151,13 +151,18 @@ func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, erro
 	return response, nil
 }
 
-// GetAccountInformation returns account information by singular currency
-func (b *Bithumb) GetAccountInformation(currency string) (Account, error) {
-	response := Account{}
+// GetAccountInformation returns account information based on the desired
+// order/payment currencies
+func (b *Bithumb) GetAccountInformation(orderCurrency, paymentCurrency string) (Account, error) {
+	var response Account
+	if orderCurrency == "" {
+		return response, errors.New("order currency must be set")
+	}
 
 	val := url.Values{}
-	if currency != "" {
-		val.Set("order_currency", currency)
+	val.Add("order_currency", orderCurrency)
+	if paymentCurrency != "" { // optional param, default is KRW
+		val.Add("payment_currency", paymentCurrency)
 	}
 
 	return response,
