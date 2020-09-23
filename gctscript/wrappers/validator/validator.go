@@ -215,18 +215,18 @@ func (w Wrapper) DepositAddress(exch string, _ currency.Code) (string, error) {
 }
 
 // WithdrawalCryptoFunds validator for test execution/scripts
-func (w Wrapper) WithdrawalCryptoFunds(exch string, _ *withdraw.Request) (out string, err error) {
-	if exch == exchError.String() {
-		return exch, errTestFailed
+func (w Wrapper) WithdrawalCryptoFunds(r *withdraw.Request) (out string, err error) {
+	if r.Exchange == exchError.String() {
+		return r.Exchange, errTestFailed
 	}
 
 	return "", nil
 }
 
 // WithdrawalFiatFunds validator for test execution/scripts
-func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.Request) (out string, err error) {
-	if exch == exchError.String() {
-		return exch, errTestFailed
+func (w Wrapper) WithdrawalFiatFunds(_ string, r *withdraw.Request) (out string, err error) {
+	if r.Exchange == exchError.String() {
+		return r.Exchange, errTestFailed
 	}
 
 	return "123", nil

@@ -20,26 +20,23 @@ const (
 	StatusError = "error"
 )
 
-// SubmitWithdrawal preforms validation and submits a new withdraw request to exchange
-func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Response, error) {
+// SubmitWithdrawal performs validation and submits a new withdraw request to
+// exchange
+func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 	err := req.Validate()
 	if err != nil {
 		return nil, err
 	}
 
 	var ret *withdraw.ExchangeResponse
-	if req.Exchange == "" {
-		req.Exchange = exchName
-	}
-
-	exch := GetExchangeByName(exchName)
+	exch := GetExchangeByName(req.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
 
 	resp := &withdraw.Response{
 		Exchange: withdraw.ExchangeResponse{
-			Name: exchName,
+			Name: req.Exchange,
 		},
 		RequestDetails: *req,
 	}

@@ -152,8 +152,8 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code) (out s
 }
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
-func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withdraw.Request) (string, error) {
-	ex, err := e.GetExchange(exch)
+func (e Exchange) WithdrawalFiatFunds(bankAccountID string, request *withdraw.Request) (string, error) {
+	ex, err := e.GetExchange(request.Exchange)
 	if err != nil {
 		return "", err
 	}
@@ -166,7 +166,7 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withd
 		}
 	}
 
-	otp, err := engine.GetExchangeoOTPByName(exch)
+	otp, err := engine.GetExchangeoOTPByName(request.Exchange)
 	if err == nil {
 		otpValue, errParse := strconv.ParseInt(otp, 10, 64)
 		if errParse != nil {
@@ -174,7 +174,6 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withd
 		}
 		request.OneTimePassword = otpValue
 	}
-	request.Exchange = exch
 	request.Fiat.Bank.AccountName = v.AccountName
 	request.Fiat.Bank.AccountNumber = v.AccountNumber
 	request.Fiat.Bank.BankName = v.BankName
@@ -186,7 +185,7 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withd
 	request.Fiat.Bank.SWIFTCode = v.SWIFTCode
 	request.Fiat.Bank.IBAN = v.IBAN
 
-	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
+	resp, err := engine.SubmitWithdrawal(request)
 	if err != nil {
 		return "", err
 	}
@@ -194,13 +193,8 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withd
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
-func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error) {
-	ex, err := e.GetExchange(exch)
-	if err != nil {
-		return "", err
-	}
-
-	otp, err := engine.GetExchangeoOTPByName(exch)
+func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (out string, err error) {
+	otp, err := engine.GetExchangeoOTPByName(request.Exchange)
 	if err == nil {
 		v, errParse := strconv.ParseInt(otp, 10, 64)
 		if errParse != nil {
@@ -209,7 +203,7 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.Request) 
 		request.OneTimePassword = v
 	}
 
-	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
+	resp, err := engine.SubmitWithdrawal(request)
 	if err != nil {
 		return "", err
 	}

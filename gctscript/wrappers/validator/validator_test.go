@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (
@@ -193,24 +194,24 @@ func TestWrapper_Ticker(t *testing.T) {
 }
 
 func TestWrapper_WithdrawalCryptoFunds(t *testing.T) {
-	_, err := testWrapper.WithdrawalCryptoFunds(exchError.String(), nil)
+	_, err := testWrapper.WithdrawalCryptoFunds(&withdraw.Request{Exchange: exchError.String()})
 	if err == nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
 	}
 
-	_, err = testWrapper.WithdrawalCryptoFunds(exchName, nil)
+	_, err = testWrapper.WithdrawalCryptoFunds(&withdraw.Request{Exchange: exchName})
 	if err != nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
 	}
 }
 
 func TestWrapper_WithdrawalFiatFunds(t *testing.T) {
-	_, err := testWrapper.WithdrawalFiatFunds(exchError.String(), "", nil)
+	_, err := testWrapper.WithdrawalFiatFunds("", &withdraw.Request{Exchange: exchError.String()})
 	if err == nil {
 		t.Fatal("expected WithdrawalFiatFunds to return error with invalid name")
 	}
 
-	_, err = testWrapper.WithdrawalFiatFunds(exchName, "", nil)
+	_, err = testWrapper.WithdrawalFiatFunds("", &withdraw.Request{Exchange: exchName})
 	if err != nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
 	}

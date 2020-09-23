@@ -72,12 +72,12 @@ func TestSubmitWithdrawal(t *testing.T) {
 		},
 	}
 
-	_, err = SubmitWithdrawal(testExchange, req)
+	_, err = SubmitWithdrawal(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = SubmitWithdrawal(testExchange, nil)
+	_, err = SubmitWithdrawal(nil)
 	if err != nil {
 		if err.Error() != withdraw.ErrRequestCannotBeNil.Error() {
 			t.Fatal(err)

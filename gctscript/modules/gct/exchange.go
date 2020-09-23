@@ -452,6 +452,7 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	}
 
 	withdrawRequest := &withdraw.Request{
+		Exchange: exchangeName,
 		Crypto: withdraw.CryptoRequest{
 			Address:    address,
 			AddressTag: addressTag,
@@ -462,7 +463,7 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 		Amount:      amount,
 	}
 
-	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(exchangeName, withdrawRequest)
+	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(withdrawRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -498,12 +499,13 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	}
 
 	withdrawRequest := &withdraw.Request{
+		Exchange:    exchangeName,
 		Currency:    currency.NewCode(cur),
 		Description: description,
 		Amount:      amount,
 	}
 
-	rtn, err := wrappers.GetWrapper().WithdrawalFiatFunds(exchangeName, bankAccountID, withdrawRequest)
+	rtn, err := wrappers.GetWrapper().WithdrawalFiatFunds(bankAccountID, withdrawRequest)
 	if err != nil {
 		return nil, err
 	}

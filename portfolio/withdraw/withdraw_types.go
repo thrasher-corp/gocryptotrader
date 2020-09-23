@@ -46,6 +46,8 @@ const (
 var (
 	// ErrRequestCannotBeNil message to return when a request is nil
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
+	// ErrExchangeNameUnset message to return when an exchange name is unset
+	ErrExchangeNameUnset = errors.New("exchange name unset")
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
 	// CacheSize cache size to use for withdrawal request history

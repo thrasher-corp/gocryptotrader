@@ -14,6 +14,10 @@ func (r *Request) Validate() (err error) {
 		return ErrRequestCannotBeNil
 	}
 
+	if r.Exchange == "" {
+		return ErrExchangeNameUnset
+	}
+
 	var allErrors []string
 	if r.Amount <= 0 {
 		allErrors = append(allErrors, ErrStrAmountMustBeGreaterThanZero)

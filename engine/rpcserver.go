@@ -1043,6 +1043,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.Wit
 	}
 
 	request := &withdraw.Request{
+		Exchange:    r.Exchange,
 		Amount:      r.Amount,
 		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
 		Type:        withdraw.Crypto,
@@ -1054,7 +1055,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.Wit
 		},
 	}
 
-	resp, err := SubmitWithdrawal(r.Exchange, request)
+	resp, err := SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}
@@ -1086,6 +1087,7 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 	}
 
 	request := &withdraw.Request{
+		Exchange:    r.Exchange,
 		Amount:      r.Amount,
 		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
 		Type:        withdraw.Fiat,
@@ -1094,7 +1096,8 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 			Bank: *bankAccount,
 		},
 	}
-	resp, err := SubmitWithdrawal(r.Exchange, request)
+
+	resp, err := SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}
