@@ -307,8 +307,9 @@ func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
-	if err := orderCancellation.Validate(); err != nil {
-		return err
+	err = orderCancellation.Validate()
+	if err != nil {
+		return
 	}
 
 	orderID, err := strconv.ParseInt(orderCancellation.ID, 10, 64)
@@ -459,7 +460,8 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 
 // GetActiveOrders retrieves any orders that are active/open
 func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	if err := req.Validate(); err != nil {
+	err = req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -469,7 +471,8 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 		if err != nil {
 			return nil, err
 		}
-		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
+		var spotOpenOrders []GetSpotOrderResponse
+		spotOpenOrders, err = o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
 			InstrumentID: fPair.String(),
 		})
 		if err != nil {
@@ -496,7 +499,8 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	if err := req.Validate(); err != nil {
+	err = req.Validate()
+	if err != nil {
 		return nil, err
 	}
 
@@ -506,7 +510,8 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 		if err != nil {
 			return nil, err
 		}
-		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
+		var spotOpenOrders []GetSpotOrderResponse
+		spotOpenOrders, err = o.GetSpotOrders(GetSpotOrdersRequest{
 			Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
 			InstrumentID: fPair.String(),
 		})
