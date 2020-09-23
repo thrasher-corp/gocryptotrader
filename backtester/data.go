@@ -6,20 +6,25 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// Load specified data into Candle format
+// this is empty and loader types will have their own implementation
 func (d *Data) Load() error {
 	return nil
 }
 
+// Reset loaded data to blank state
 func (d *Data) Reset() {
 	d.latest = nil
 	d.offset = 0
 	d.stream = nil
 }
 
+// Stream will return entire data list
 func (d *Data) Stream() []DataEventHandler {
 	return d.stream
 }
 
+// Next will return the next event in the list and also shift the offset one
 func (d *Data) Next() (dh DataEventHandler, ok bool) {
 	if len(d.stream) <= d.offset {
 		return nil, false
@@ -31,10 +36,12 @@ func (d *Data) Next() (dh DataEventHandler, ok bool) {
 	return ret, true
 }
 
+// History will return all previous data events that have happened
 func (d *Data) History() []DataEventHandler {
 	return d.stream[:d.offset]
 }
 
+// Latest will return latest data event
 func (d *Data) Latest() DataEventHandler {
 	return d.latest
 }
@@ -54,6 +61,7 @@ func (d *Data) SortStream() {
 		return b1.GetTime().Before(b2.GetTime())
 	})
 }
+
 
 func (d *Data) StreamOpen() []float64 {
 	return []float64{}

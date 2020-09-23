@@ -71,6 +71,7 @@ type SignalEvent interface {
 	IsSignal() bool
 }
 
+// OrderEvent
 type OrderEvent interface {
 	EventHandler
 	Directioner

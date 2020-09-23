@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"gonum.org/v1/gonum/stat"
 )
 
@@ -76,7 +75,7 @@ func (s *Statistic) ReturnResults() Results {
 	results := Results{
 		TotalEvents:       len(s.Events()),
 		TotalTransactions: len(s.Transactions()),
-		SharpieRatio:      s.SharpRatio(0),
+		SharpieRatio:      s.SharpeRatio(0),
 		StrategyName:      s.strategyName,
 		Pair:              s.pair,
 	}
@@ -151,7 +150,8 @@ func (s *Statistic) MaxDrawdownDuration() time.Duration {
 	return ep.timestamp.Sub(maxPoint.timestamp)
 }
 
-func (s *Statistic) SharpRatio(riskfree float64) float64 {
+// SharpeRatio returns sharpe ratio of backtest compared to risk-free
+func (s *Statistic) SharpeRatio(riskfree float64) float64 {
 	var equityReturns = make([]float64, len(s.equity))
 
 	for i := range s.equity {
@@ -180,6 +180,7 @@ func (s *Statistic) SortinoRatio(riskfree float64) float64 {
 	return (mean - riskfree) / stdDev
 }
 
+// ViewEquityHistory returns a equity history list
 func (s *Statistic) ViewEquityHistory() []EquityPoint {
 	return s.equity
 }
@@ -268,7 +269,7 @@ func (s *Statistic) JSON(writeFile bool) ([]byte, error) {
 	}
 
 	if writeFile {
-		f, err := os.Create("out.json")
+		f, err := os.Create(s.strategyName+".json")
 		if err != nil {
 			return []byte{}, nil
 		}
@@ -276,31 +277,12 @@ func (s *Statistic) JSON(writeFile bool) ([]byte, error) {
 		if err != nil {
 			return []byte{}, nil
 		}
-		f.Close()
-	}
-	return output, nil
-}
-
-func (s *Statistic) SaveChart(filename string) error {
-	var sellPoint, buyPoint []time.Time
-	for y := range s.Transactions() {
-		if s.Transactions()[y].GetDirection() == order.Buy {
-			buyPoint = append(buyPoint, s.Transactions()[y].GetTime())
-		} else if s.Transactions()[y].GetDirection() == order.Sell {
-			sellPoint = append(sellPoint, s.Transactions()[y].GetTime())
+		err = f.Close()
+		if err != nil {
+			fmt.Println(err)
 		}
 	}
-
-	fmt.Println(sellPoint)
-	fmt.Println(buyPoint)
-
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	_ = f
-
-	return nil
+	return output, nil
 }
 
 func (s *Statistic) SetStrategyName(name string) {

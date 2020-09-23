@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// Statistic
 type Statistic struct {
 	eventHistory       []EventHandler
 	transactionHistory []FillEvent
