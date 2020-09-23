@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync/atomic"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -21,16 +22,16 @@ func (c *connectionManager) Started() bool {
 }
 
 // Start starts an instance of the connection manager
-func (c *connectionManager) Start() error {
+func (c *connectionManager) Start(conf *config.ConnectionMonitorConfig) error {
 	if atomic.AddInt32(&c.started, 1) != 1 {
 		return errors.New("connection manager already started")
 	}
 
 	log.Debugln(log.ConnectionMgr, "Connection manager starting...")
 	var err error
-	c.conn, err = connchecker.New(Bot.Config.ConnectionMonitor.DNSList,
-		Bot.Config.ConnectionMonitor.PublicDomainList,
-		Bot.Config.ConnectionMonitor.CheckInterval)
+	c.conn, err = connchecker.New(conf.DNSList,
+		conf.PublicDomainList,
+		conf.CheckInterval)
 	if err != nil {
 		atomic.CompareAndSwapInt32(&c.started, 1, 0)
 		return err

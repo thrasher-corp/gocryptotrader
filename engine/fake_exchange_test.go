@@ -30,7 +30,7 @@ type FakePassingExchange struct {
 
 // addPassingFakeExchange adds an exchange to engine tests where all funcs return a positive result
 func addPassingFakeExchange(baseExchangeName string) error {
-	testExch := GetExchangeByName(baseExchangeName)
+	testExch := Bot.GetExchangeByName(baseExchangeName)
 	if testExch == nil {
 		return ErrExchangeNotFound
 	}

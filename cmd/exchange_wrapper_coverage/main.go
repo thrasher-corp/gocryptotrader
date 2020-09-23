@@ -34,7 +34,7 @@ func main() {
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
 		name := exchange.Exchanges[x]
-		err := engine.LoadExchange(name, true, &wg)
+		err := engine.Bot.LoadExchange(name, true, &wg)
 		if err != nil {
 			log.Printf("Failed to load exchange %s. Err: %s", name, err)
 			continue
@@ -46,7 +46,7 @@ func main() {
 	log.Printf("Testing exchange wrappers..")
 	results := make(map[string][]string)
 	wg = sync.WaitGroup{}
-	exchanges := engine.GetExchanges()
+	exchanges := engine.Bot.GetExchanges()
 	for x := range exchanges {
 		wg.Add(1)
 		go func(num int) {

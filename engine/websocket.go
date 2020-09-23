@@ -317,13 +317,13 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	SetupExchanges()
+	Bot.SetupExchanges()
 	wsResp.Data = WebsocketResponseSuccess
 	return client.SendWebsocketMessage(wsResp)
 }
 
 func wsGetAccountInfo(client *WebsocketClient, data interface{}) error {
-	accountInfo := GetAllEnabledExchangeAccountInfo()
+	accountInfo := Bot.GetAllEnabledExchangeAccountInfo()
 	wsResp := WebsocketEventResponse{
 		Event: "GetAccountInfo",
 		Data:  accountInfo,
@@ -335,7 +335,7 @@ func wsGetTickers(client *WebsocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetTickers",
 	}
-	wsResp.Data = GetAllActiveTickers()
+	wsResp.Data = Bot.GetAllActiveTickers()
 	return client.SendWebsocketMessage(wsResp)
 }
 
@@ -356,7 +356,7 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	result, err := GetSpecificTicker(p,
+	result, err := Bot.GetSpecificTicker(p,
 		tickerReq.Exchange,
 		asset.Item(tickerReq.AssetType))
 
@@ -394,7 +394,7 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	result, err := GetSpecificOrderbook(p,
+	result, err := Bot.GetSpecificOrderbook(p,
 		orderbookReq.Exchange, asset.Item(orderbookReq.AssetType))
 
 	if err != nil {
