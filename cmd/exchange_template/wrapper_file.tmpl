@@ -344,7 +344,7 @@ func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(action *order.Modify) (string
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order *order.Cancel) error {
+func ({{.Variable}} *{{.CapitalName}}) CancelOrder(ord *order.Cancel) error {
 	return common.ErrNotYetImplemented
 }
 
