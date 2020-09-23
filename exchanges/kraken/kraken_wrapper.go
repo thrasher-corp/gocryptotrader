@@ -705,7 +705,7 @@ func (k *Kraken) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 }
 
 // GetOrderInfo returns information on a current open order
-func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
+func (k *Kraken) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	var emptyOrderOptions OrderInfoOptions
 	openOrders, err := k.GetOpenOrders(emptyOrderOptions)

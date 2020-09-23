@@ -499,7 +499,7 @@ func (b *Bitmex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bitmex) GetOrderInfo(orderID string) (order.Detail, error) {
+func (b *Bitmex) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

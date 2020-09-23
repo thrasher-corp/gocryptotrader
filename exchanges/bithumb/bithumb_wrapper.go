@@ -429,7 +429,7 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bithumb) GetOrderInfo(orderID string) (order.Detail, error) {
+func (b *Bithumb) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

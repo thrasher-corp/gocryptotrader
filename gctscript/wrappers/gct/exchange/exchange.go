@@ -88,7 +88,7 @@ func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 		return nil, err
 	}
 
-	r, err := ex.GetOrderInfo(orderID)
+	r, err := ex.GetOrderInfo(orderID, asset.Spot)
 	if err != nil {
 		return nil, err
 	}

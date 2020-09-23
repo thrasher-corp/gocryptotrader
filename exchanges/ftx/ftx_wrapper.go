@@ -625,17 +625,13 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 }
 
 // GetOrderInfo returns information on a current open order
-func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
+func (f *FTX) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	orderData, err := f.GetOrderStatus(orderID)
 	if err != nil {
 		return resp, err
 	}
 	p, err := currency.NewPairFromString(orderData.Market)
-	if err != nil {
-		return resp, err
-	}
-	assetType, err := f.GetPairAssetType(p)
 	if err != nil {
 		return resp, err
 	}

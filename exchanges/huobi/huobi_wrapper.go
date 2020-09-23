@@ -897,11 +897,8 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 }
 
 // GetOrderInfo returns information on a current open order
-func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
-	// PLEASE IF I FORGET MENTION THIS IN THE REVIEW!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	// NEED TO ADD ASSET TYPE HERE TO THIS FUNCTION N THEN CHANGE EVERYWHERE ELSE
+func (h *HUOBI) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 
-	var assetType asset.Item
 	var orderDetail order.Detail
 
 	switch assetType {
@@ -1379,7 +1376,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 			for done := false; !done; {
 
-				openOrders, err := h.GetSwapOrderHistory(fPair.String(), currentPage, 50)
+				openOrders, err := h.GetSwapOrderHistory(fPair.String(), "all", "all", "all", "", int64(req.EndTicks.Sub(req.StartTicks).Hours()/24), currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
@@ -1430,7 +1427,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 			for done := false; !done; {
 
-				openOrders, err := h.FGetOrderHistory(fPair.Base.String(), "all", "all", "all", "", fPair.String(), 50, currentPage, 0)
+				openOrders, err := h.FGetOrderHistory(fPair.Base.String(), "all", "all", "all", "", fPair.String(), int64(req.EndTicks.Sub(req.StartTicks).Hours()/24), currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
@@ -1449,7 +1446,8 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 					if req.Type != orderVars.OrderType {
 						continue
 					}
-					timeUnix := time.Unix()
+
+					orderCreateTime := time.Unix(openOrders.Data.Orders[x].CreateDate, 0)
 
 					p, err := currency.NewPairFromString(openOrders.Data.Orders[x].ContractCode)
 					if err != nil {
@@ -1471,11 +1469,12 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
 						Pair:            p,
+						Date:            orderCreateTime,
 					})
 				}
+				currentPage++
 			}
 		}
-
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)

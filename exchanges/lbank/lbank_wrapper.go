@@ -439,7 +439,7 @@ func (l *Lbank) CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, 
 }
 
 // GetOrderInfo returns information on a current open order
-func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
+func (l *Lbank) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {

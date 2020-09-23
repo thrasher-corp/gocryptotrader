@@ -765,7 +765,7 @@ func (b *Binance) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Binance) GetOrderInfo(orderID string) (order.Detail, error) {
+func (b *Binance) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

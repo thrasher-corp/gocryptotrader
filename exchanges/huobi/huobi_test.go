@@ -1014,16 +1014,16 @@ func TestGetSwapOpenOrders(t *testing.T) {
 	}
 }
 
-func TestGetSwapOrderHistory(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set")
-	}
-	_, err := h.GetSwapOrderHistory("ETH-USD", 0, 0)
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestGetSwapOrderHistory(t *testing.T) {
+// 	t.Parallel()
+// 	if !areTestAPIKeysSet() {
+// 		t.Skip("skipping test: api keys not set")
+// 	}
+// 	_, err := h.GetSwapOrderHistory("ETH-USD", , 0, 0)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
 func TestGetSwapTradeHistory(t *testing.T) {
 	t.Parallel()

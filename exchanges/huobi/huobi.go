@@ -224,6 +224,20 @@ var validTradeType = map[string]int64{
 	"liquidateShort": 6,
 }
 
+var validFuturesTradeType = map[string]int64{
+	"all":            0,
+	"openLong":       1,
+	"openShort":      2,
+	"closeShort":     3,
+	"closeLong":      4,
+	"liquidateLong":  5,
+	"liquidateShort": 6,
+	"deliveryLong":   7,
+	"deliveryShort":  8,
+	"reduceLong":     11,
+	"reduceShort":    12,
+}
+
 var validContractTypes = []string{
 	"this_week", "next_week", "quarter", "next_quarter",
 }
@@ -1001,7 +1015,7 @@ func (h *HUOBI) FGetOrderHistory(symbol, tradeType, reqType, status, contractCod
 	var resp FOrderHistoryData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
-	tType, ok := validTradeType[tradeType]
+	tType, ok := validFuturesTradeType[tradeType]
 	if !ok {
 		return resp, fmt.Errorf("invalid tradeType")
 	}
@@ -1783,14 +1797,36 @@ func (h *HUOBI) GetSwapOpenOrders(contractCode string, pageIndex, pageSize int64
 }
 
 // GetSwapOrderHistory gets swap order history
-func (h *HUOBI) GetSwapOrderHistory(contractCode string, pageIndex, pageSize int64) (SwapOrderHistory, error) {
+func (h *HUOBI) GetSwapOrderHistory(contractCode, tradeType, reqType, status, orderType string, createDate, pageIndex, pageSize int64) (SwapOrderHistory, error) {
 	var resp SwapOrderHistory
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
+	tType, ok := validFuturesTradeType[tradeType]
+	if !ok {
+		return resp, fmt.Errorf("invalid tradeType")
+	}
+	req["trade_type"] = tType
+	rType, ok := validFuturesReqType[reqType]
+	if !ok {
+		return resp, fmt.Errorf("invalid reqType")
+	}
+	req["type"] = rType
+	req["status"] = status
+	if createDate < 0 || createDate > 90 {
+		return resp, fmt.Errorf("invalid createDate")
+	}
+	req["create_date"] = createDate
+	if orderType != "" {
+		oType, ok := validFuturesOrderTypes[orderType]
+		if !ok {
+			return resp, fmt.Errorf("invalid orderType")
+		}
+		req["order_type"] = oType
+	}
 	if pageIndex != 0 {
 		req["page_index"] = pageIndex
 	}
-	if pageSize > 0 && pageSize <= 50 {
+	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
 	h.API.Endpoints.URL = huobiURL

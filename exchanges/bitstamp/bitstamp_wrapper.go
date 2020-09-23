@@ -439,7 +439,7 @@ func (b *Bitstamp) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bitstamp) GetOrderInfo(orderID string) (order.Detail, error) {
+func (b *Bitstamp) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

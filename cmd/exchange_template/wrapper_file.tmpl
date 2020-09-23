@@ -354,7 +354,7 @@ func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *order.
 }
 
 // GetOrderInfo returns information on a current open order
-func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID string) (order.Detail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 

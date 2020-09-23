@@ -785,7 +785,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
-	result, err := exch.GetOrderInfo(r.OrderId)
+	result, err := exch.GetOrderInfo(r.OrderId, asset.Spot)
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
 	}

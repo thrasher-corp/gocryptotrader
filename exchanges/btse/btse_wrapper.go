@@ -509,7 +509,7 @@ func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAll
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
+func (b *BTSE) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	o, err := b.GetOrders("")
 	if err != nil {
 		return order.Detail{}, err

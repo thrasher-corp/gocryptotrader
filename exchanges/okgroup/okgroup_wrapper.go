@@ -370,7 +370,7 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 }
 
 // GetOrderInfo returns information on a current open order
-func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
+func (o *OKGroup) GetOrderInfo(orderID string, assetType asset.Item) (resp order.Detail, err error) {
 	mOrder, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return

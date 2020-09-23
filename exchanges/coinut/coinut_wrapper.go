@@ -707,7 +707,7 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 }
 
 // GetOrderInfo returns information on a current open order
-func (c *COINUT) GetOrderInfo(orderID string) (order.Detail, error) {
+func (c *COINUT) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 

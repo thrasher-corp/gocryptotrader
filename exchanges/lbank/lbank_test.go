@@ -351,7 +351,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b")
+	_, err := l.GetOrderInfo("9ead39f5-701a-400b-b635-d7349eb0f6b", asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

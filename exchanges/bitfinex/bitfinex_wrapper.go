@@ -572,7 +572,7 @@ func (b *Bitfinex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Bitfinex) GetOrderInfo(orderID string) (order.Detail, error) {
+func (b *Bitfinex) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
