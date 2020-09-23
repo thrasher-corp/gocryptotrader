@@ -507,6 +507,7 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    b.Name,
 		Amount:      0,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",

@@ -27,10 +27,12 @@ var (
 	}
 
 	invalidRequest = &Request{
-		Type: Fiat,
+		Exchange: "Binance",
+		Type:     Fiat,
 	}
 
 	invalidCurrencyFiatRequest = &Request{
+		Exchange: "Binance",
 		Fiat: FiatRequest{
 			Bank: banking.Account{},
 		},
@@ -40,6 +42,7 @@ var (
 	}
 
 	validCryptoRequest = &Request{
+		Exchange: "Binance",
 		Crypto: CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
@@ -50,6 +53,7 @@ var (
 	}
 
 	invalidCryptoNilRequest = &Request{
+		Exchange:    "test",
 		Currency:    currency.BTC,
 		Description: "Test Withdrawal",
 		Amount:      0.1,
@@ -57,6 +61,7 @@ var (
 	}
 
 	invalidCryptoNegativeFeeRequest = &Request{
+		Exchange: "Binance",
 		Crypto: CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: -0.1,
@@ -68,6 +73,7 @@ var (
 	}
 
 	invalidCurrencyCryptoRequest = &Request{
+		Exchange: "Binance",
 		Crypto: CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
@@ -77,6 +83,7 @@ var (
 	}
 
 	invalidCryptoNoAddressRequest = &Request{
+		Exchange:    "test",
 		Crypto:      CryptoRequest{},
 		Currency:    currency.BTC,
 		Description: "Test Withdrawal",
@@ -85,6 +92,7 @@ var (
 	}
 
 	invalidCryptoNonWhiteListedAddressRequest = &Request{
+		Exchange: "Binance",
 		Crypto: CryptoRequest{
 			Address: testBTCAddress,
 		},
@@ -95,6 +103,7 @@ var (
 	}
 
 	invalidType = &Request{
+		Exchange: "test",
 		Type:     Unknown,
 		Currency: currency.BTC,
 		Amount:   0.1,
@@ -149,6 +158,16 @@ func TestValid(t *testing.T) {
 	}
 }
 
+func TestExchangeNameUnset(t *testing.T) {
+	r := Request{}
+	err := r.Validate()
+	if err != nil {
+		if err != ErrExchangeNameUnset {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestValidateFiat(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -172,6 +191,8 @@ func TestValidateFiat(t *testing.T) {
 			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
 				ErrStrNoCurrencySet + ", " +
 				banking.ErrBankAccountDisabled + ", " +
+				fmt.Sprintf("Exchange %s not supported by bank account",
+					invalidRequest.Exchange) + ", " +
 				banking.ErrAccountCannotBeEmpty + ", " +
 				banking.ErrIBANSwiftNotSet),
 		},
@@ -188,6 +209,8 @@ func TestValidateFiat(t *testing.T) {
 			"",
 			errors.New(ErrStrCurrencyNotFiat + ", " +
 				banking.ErrBankAccountDisabled + ", " +
+				fmt.Sprintf("Exchange %s not supported by bank account",
+					invalidRequest.Exchange) + ", " +
 				banking.ErrAccountCannotBeEmpty + ", " +
 				banking.ErrCurrencyNotSupportedByAccount + ", " +
 				banking.ErrIBANSwiftNotSet),
@@ -234,6 +257,8 @@ func TestValidateCrypto(t *testing.T) {
 			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
 				ErrStrNoCurrencySet + ", " +
 				banking.ErrBankAccountDisabled + ", " +
+				fmt.Sprintf("Exchange %s not supported by bank account",
+					invalidRequest.Exchange) + ", " +
 				banking.ErrAccountCannotBeEmpty + ", " +
 				banking.ErrIBANSwiftNotSet),
 		},
@@ -279,8 +304,12 @@ func TestValidateCrypto(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := test.request.Validate()
 			if err != nil {
-				if err.Error() != test.output.(error).Error() {
-					t.Fatalf("Test Name %s expecting error [%s] but receieved [%s]", test.name, test.output.(error).Error(), err)
+				tErr, _ := test.output.(error)
+				if err.Error() != tErr.Error() {
+					t.Fatalf("Test Name %s expecting error [%v] but received [%s]",
+						test.name,
+						tErr,
+						err)
 				}
 			}
 		})
