@@ -307,7 +307,7 @@ func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
-	if err := orderCancellation.Validate(); err != nil {
+	if err = orderCancellation.Validate(); err != nil {
 		return err
 	}
 
@@ -459,7 +459,7 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 
 // GetActiveOrders retrieves any orders that are active/open
 func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	if err := req.Validate(); err != nil {
+	if err = req.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -489,14 +489,13 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 			})
 		}
 	}
-
-	return
+	return resp, err
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	if err := req.Validate(); err != nil {
+	if err = req.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -527,8 +526,7 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 			})
 		}
 	}
-
-	return
+	return resp, err
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
