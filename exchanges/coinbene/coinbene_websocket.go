@@ -188,7 +188,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			}
 		}
 	case strings.Contains(result[topic].(string), "tradeList"):
-		if !c.Features.Enabled.SaveTradeData {
+		if !c.IsSaveTradeDataEnabled() {
 			return nil
 		}
 		var tradeList WsTradeList

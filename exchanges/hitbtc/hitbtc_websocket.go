@@ -196,7 +196,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case "snapshotTrades", "updateTrades":
-		if !h.Features.Enabled.SaveTradeData {
+		if !h.IsSaveTradeDataEnabled() {
 			return nil
 		}
 		var tradeSnapshot WsTrade

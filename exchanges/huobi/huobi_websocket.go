@@ -345,7 +345,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			Interval:   data[3],
 		}
 	case strings.Contains(init.Channel, "trade.detail"):
-		if !h.Features.Enabled.SaveTradeData {
+		if !h.IsSaveTradeDataEnabled() {
 			return nil
 		}
 		var t WsTrade

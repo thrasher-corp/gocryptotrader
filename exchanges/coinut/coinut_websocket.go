@@ -287,7 +287,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case "inst_trade":
-		if !c.Features.Enabled.SaveTradeData {
+		if !c.IsSaveTradeDataEnabled() {
 			return nil
 		}
 		var tradeSnap WsTradeSnapshot
@@ -330,7 +330,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		}
 		return trade.AddTradesToBuffer(c.Name, trades...)
 	case "inst_trade_update":
-		if !c.Features.Enabled.SaveTradeData {
+		if !c.IsSaveTradeDataEnabled() {
 			return nil
 		}
 		var tradeUpdate WsTradeUpdate

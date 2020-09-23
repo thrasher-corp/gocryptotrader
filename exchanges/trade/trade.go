@@ -31,6 +31,9 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 	if database.DB == nil || database.DB.Config == nil || !database.DB.Config.Enabled {
 		return nil
 	}
+	if len(data) == 0 {
+		return nil
+	}
 	var errs common.Errors
 	if atomic.AddInt32(&processor.started, 0) == 0 {
 		processor.setup()

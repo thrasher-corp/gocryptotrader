@@ -171,7 +171,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		}
 
 	case strings.Contains(result.Method, "trades"):
-		if !g.Features.Enabled.SaveTradeData {
+		if !g.IsSaveTradeDataEnabled() {
 			return nil
 		}
 		var tradeData []WebsocketTrade

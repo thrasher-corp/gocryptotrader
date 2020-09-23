@@ -437,7 +437,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 				g.Websocket.DataHandler <- fmt.Errorf("%s - Unhandled websocket update: %+v", g.Name, result)
 			}
 		}
-		if len(trades) > 0 && g.Features.Enabled.SaveTradeData {
+		if len(trades) > 0 && g.IsSaveTradeDataEnabled() {
 			err := trade.AddTradesToBuffer(g.Name, trades...)
 			if err != nil {
 				g.Websocket.DataHandler <- err

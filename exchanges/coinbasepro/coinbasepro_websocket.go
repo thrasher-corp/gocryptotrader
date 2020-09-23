@@ -237,7 +237,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				},
 			}
 		} else {
-			if !c.Features.Enabled.SaveTradeData {
+			if !c.IsSaveTradeDataEnabled() {
 				return nil
 			}
 			return trade.AddTradesToBuffer(c.Name, trade.Data{

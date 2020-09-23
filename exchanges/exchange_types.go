@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -202,5 +203,6 @@ type Base struct {
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
 	*request.Requester
-	Config *config.ExchangeConfig
+	Config        *config.ExchangeConfig
+	settingsMutex sync.RWMutex
 }

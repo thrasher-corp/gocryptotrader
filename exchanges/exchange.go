@@ -155,8 +155,8 @@ func (e *Base) SetFeatureDefaults() {
 			e.Config.Features.Supports.Websocket = e.Features.Supports.Websocket
 		}
 
-		if e.Features.Enabled.SaveTradeData != e.Config.Features.Enabled.SaveTradeData {
-			e.Features.Enabled.SaveTradeData = e.Config.Features.Enabled.SaveTradeData
+		if e.IsSaveTradeDataEnabled() != e.Config.Features.Enabled.SaveTradeData {
+			e.SetSaveTradeDataStatus(e.Config.Features.Enabled.SaveTradeData)
 		}
 
 		e.Features.Enabled.AutoPairUpdates = e.Config.Features.Enabled.AutoPairUpdates
@@ -1108,9 +1108,30 @@ func (e *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 // AddTradesToBuffer is a helper function that will only
 // add trades to the buffer if it is allowed
 func (e *Base) AddTradesToBuffer(trades ...trade.Data) error {
-	if !e.Features.Enabled.SaveTradeData {
+	if !e.IsSaveTradeDataEnabled() {
 		return nil
 	}
 
 	return trade.AddTradesToBuffer(e.Name, trades...)
+}
+
+// IsSaveTradeDataEnabled checks the state of
+// SaveTradeData in a concurrent-friendly manner
+func (e *Base) IsSaveTradeDataEnabled() bool {
+	e.settingsMutex.RLock()
+	isEnabled := e.Features.Enabled.SaveTradeData
+	e.settingsMutex.RUnlock()
+	return isEnabled
+}
+
+// SetSaveTradeDataStatus locks and sets the status of
+// the config and the exchange's setting for SaveTradeData
+func (e *Base) SetSaveTradeDataStatus(enabled bool) {
+	e.settingsMutex.Lock()
+	defer e.settingsMutex.Unlock()
+	e.Features.Enabled.SaveTradeData = enabled
+	e.Config.Features.Enabled.SaveTradeData = enabled
+	if e.Verbose {
+		log.Debugf(log.Trade, "Set %v 'SaveTradeData' to %v", e.Name, enabled)
+	}
 }

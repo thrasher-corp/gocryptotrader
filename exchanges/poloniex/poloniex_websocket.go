@@ -312,7 +312,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 					case "t":
-						if !p.Features.Enabled.SaveTradeData {
+						if !p.IsSaveTradeDataEnabled() {
 							return nil
 						}
 						currencyPair := currencyIDMap[channelID]
@@ -359,7 +359,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 
-						return trade.AddTradesToBuffer(p.Name, trade.Data{
+						return p.AddTradesToBuffer(trade.Data{
 							TID:          strconv.FormatInt(t.TradeID, 10),
 							Exchange:     p.Name,
 							CurrencyPair: pair,

@@ -517,7 +517,7 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
 		})
 	}
-	if b.Features.Enabled.SaveTradeData {
+	if b.IsSaveTradeDataEnabled() {
 		err := trade.AddTradesToBuffer(b.Name, resp...)
 		if err != nil {
 			return nil, err

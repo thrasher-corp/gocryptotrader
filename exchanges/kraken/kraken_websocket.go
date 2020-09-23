@@ -582,7 +582,7 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []interface{}) error {
-	if !k.Features.Enabled.SaveTradeData {
+	if !k.IsSaveTradeDataEnabled() {
 		return nil
 	}
 	var trades []trade.Data

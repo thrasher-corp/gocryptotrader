@@ -2560,19 +2560,12 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 
 // SetExchangeTradeProcessing allows the setting of exchange trade processing
 func (s *RPCServer) SetExchangeTradeProcessing(_ context.Context, r *gctrpc.SetExchangeTradeProcessingRequest) (*gctrpc.GenericResponse, error) {
-	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
-	if err != nil {
-		return nil, err
-	}
-
-	exchCfg.Features.Enabled.SaveTradeData = r.Status
-
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
 	b := exch.GetBase()
-	b.Features.Enabled.SaveTradeData = r.Status
+	b.SetSaveTradeDataStatus(r.Status)
 
 	return &gctrpc.GenericResponse{
 		Status: "success",

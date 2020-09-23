@@ -2052,3 +2052,56 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestSetSaveTradeDataStatus(t *testing.T) {
+	b := Base{
+		Features: Features{
+			Enabled: FeaturesEnabled{
+				SaveTradeData: false,
+			},
+		},
+		Config: &config.ExchangeConfig{
+			Features: &config.FeaturesConfig{
+				Enabled: config.FeaturesEnabledConfig{},
+			},
+		},
+	}
+
+	if b.IsSaveTradeDataEnabled() {
+		t.Errorf("expected false")
+	}
+	b.SetSaveTradeDataStatus(true)
+	if !b.IsSaveTradeDataEnabled() {
+		t.Errorf("expected true")
+	}
+	b.SetSaveTradeDataStatus(false)
+	if b.IsSaveTradeDataEnabled() {
+		t.Errorf("expected false")
+	}
+	// data race this
+	go b.SetSaveTradeDataStatus(false)
+	go b.SetSaveTradeDataStatus(true)
+}
+
+func TestAddTradesToBuffer(t *testing.T) {
+	b := Base{
+		Features: Features{
+			Enabled: FeaturesEnabled{},
+		},
+		Config: &config.ExchangeConfig{
+			Features: &config.FeaturesConfig{
+				Enabled: config.FeaturesEnabledConfig{},
+			},
+		},
+	}
+	err := b.AddTradesToBuffer()
+	if err != nil {
+		t.Error(err)
+	}
+
+	b.SetSaveTradeDataStatus(true)
+	err = b.AddTradesToBuffer()
+	if err != nil {
+		t.Error(err)
+	}
+}

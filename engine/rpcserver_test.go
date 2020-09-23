@@ -640,7 +640,7 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	}
 	exch := GetExchangeByName(testExchange)
 	base := exch.GetBase()
-	if !base.Features.Enabled.SaveTradeData {
+	if !base.IsSaveTradeDataEnabled() {
 		t.Error("expected true")
 	}
 
@@ -650,7 +650,7 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	}
 	exch = GetExchangeByName(testExchange)
 	base = exch.GetBase()
-	if base.Features.Enabled.SaveTradeData {
+	if base.IsSaveTradeDataEnabled() {
 		t.Error("expected false")
 	}
 }

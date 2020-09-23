@@ -265,7 +265,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 
 				switch streamType[1] {
 				case "trade":
-					if !b.Features.Enabled.SaveTradeData {
+					if !b.IsSaveTradeDataEnabled() {
 						return nil
 					}
 					var t TradeStream
@@ -295,7 +295,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					return trade.AddTradesToBuffer(b.Name, trade.Data{
+					return b.AddTradesToBuffer(trade.Data{
 						CurrencyPair: pair,
 						Timestamp:    time.Unix(0, t.TimeStamp*int64(time.Millisecond)),
 						Price:        price,

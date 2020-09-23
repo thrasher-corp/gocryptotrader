@@ -143,7 +143,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case tradeEndPoint:
-		if !b.Features.Enabled.SaveTradeData {
+		if !b.IsSaveTradeDataEnabled() {
 			return nil
 		}
 		var t WsTrade

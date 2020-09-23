@@ -187,7 +187,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			}
 		}
 	case strings.Contains(result["topic"].(string), "tradeHistory"):
-		if !b.Features.Enabled.SaveTradeData {
+		if !b.IsSaveTradeDataEnabled() {
 			return nil
 		}
 		var tradeHistory wsTradeHistory

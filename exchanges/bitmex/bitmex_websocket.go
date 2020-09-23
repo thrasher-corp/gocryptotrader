@@ -215,7 +215,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 		case bitmexWSTrade:
-			if !b.Features.Enabled.SaveTradeData {
+			if !b.IsSaveTradeDataEnabled() {
 				return nil
 			}
 			var tradeHolder TradeData
@@ -261,7 +261,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					Timestamp:    tradeHolder.Data[i].Timestamp,
 				})
 			}
-			return trade.AddTradesToBuffer(b.Name, trades...)
+			return b.AddTradesToBuffer(trades...)
 		case bitmexWSAnnouncement:
 			var announcement AnnouncementData
 			err = json.Unmarshal(respRaw, &announcement)

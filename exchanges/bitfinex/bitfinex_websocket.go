@@ -299,7 +299,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 			return nil
 		case wsTrades:
-			if !b.Features.Enabled.SaveTradeData {
+			if !b.IsSaveTradeDataEnabled() {
 				return nil
 			}
 			if chanAsset == asset.MarginFunding {
@@ -375,7 +375,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				})
 			}
 
-			return trade.AddTradesToBuffer(b.Name, trades...)
+			return b.AddTradesToBuffer(trades...)
 		}
 
 		if authResp, ok := d[1].(string); ok {

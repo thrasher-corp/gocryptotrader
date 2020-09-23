@@ -293,7 +293,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		case wsTrades:
-			if !f.Features.Enabled.SaveTradeData {
+			if !f.IsSaveTradeDataEnabled() {
 				return nil
 			}
 			var resultData WsTradeDataStore

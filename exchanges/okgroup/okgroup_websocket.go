@@ -446,7 +446,7 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
-	if !o.Features.Enabled.SaveTradeData {
+	if !o.IsSaveTradeDataEnabled() {
 		return nil
 	}
 	var response WebsocketTradeResponse
