@@ -193,7 +193,12 @@ func (e Exchange) WithdrawalFiatFunds(bankAccountID string, request *withdraw.Re
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
-func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (out string, err error) {
+func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (string, error) {
+	// Checks if exchange is enabled or not so we don't call OTP generation
+	_, err := e.GetExchange(request.Exchange)
+	if err != nil {
+		return "", err
+	}
 	otp, err := engine.GetExchangeoOTPByName(request.Exchange)
 	if err == nil {
 		v, errParse := strconv.ParseInt(otp, 10, 64)
