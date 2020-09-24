@@ -7,13 +7,17 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
+
+var errValidationCheckFailed = errors.New("validation check failed")
 
 func TestValidate(t *testing.T) {
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
 		ExpectedErr error
 		Submit      *Submit
+		ValidOpts   validate.Checker
 	}{
 		{
 			ExpectedErr: ErrSubmissionIsNil,
@@ -62,18 +66,33 @@ func TestValidate(t *testing.T) {
 				Amount: 1},
 		}, // valid pair, order side, type, amount but invalid price
 		{
+			ExpectedErr: errValidationCheckFailed,
+			Submit: &Submit{Pair: testPair,
+				Side:   Ask,
+				Type:   Limit,
+				Amount: 1,
+				Price:  1000},
+			ValidOpts: validate.Check(func() error { return errValidationCheckFailed }),
+		}, // custom validation error check
+		{
 			ExpectedErr: nil,
 			Submit: &Submit{Pair: testPair,
 				Side:   Ask,
 				Type:   Limit,
 				Amount: 1,
 				Price:  1000},
+			ValidOpts: validate.Check(func() error { return nil }),
 		}, // valid order!
 	}
 
 	for x := range tester {
-		if err := tester[x].Submit.Validate(); err != tester[x].ExpectedErr {
-			t.Errorf("Unexpected result. Got: %s, want: %s", err, tester[x].ExpectedErr)
+		if err := tester[x].Submit.Validate(tester[x].ValidOpts); err != tester[x].ExpectedErr {
+			if err != nil && tester[x].ExpectedErr != nil {
+				if err.Error() == tester[x].ExpectedErr.Error() {
+					continue
+				}
+			}
+			t.Errorf("Unexpected result. Got: %v, want: %v", err, tester[x].ExpectedErr)
 		}
 	}
 }
@@ -965,7 +984,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 		t.Fatal("expected error")
 	}
 
-	if cancelMe.Validate(Validate(func() error {
+	if cancelMe.Validate(validate.Check(func() error {
 		return nil
 	})) != nil {
 		t.Fatal("should return nil")
@@ -985,13 +1004,13 @@ func TestValidationOnOrderTypes(t *testing.T) {
 		t.Fatal("should not error")
 	}
 
-	if getOrders.Validate(Validate(func() error {
+	if getOrders.Validate(validate.Check(func() error {
 		return errors.New("this should error")
 	})) == nil {
 		t.Fatal("expected error")
 	}
 
-	if getOrders.Validate(Validate(func() error {
+	if getOrders.Validate(validate.Check(func() error {
 		return nil
 	})) != nil {
 		t.Fatal("unexpected error")
@@ -1012,13 +1031,13 @@ func TestValidationOnOrderTypes(t *testing.T) {
 		t.Fatal("should not error")
 	}
 
-	if modifyOrder.Validate(Validate(func() error {
+	if modifyOrder.Validate(validate.Check(func() error {
 		return errors.New("this should error")
 	})) == nil {
 		t.Fatal("expected error")
 	}
 
-	if modifyOrder.Validate(Validate(func() error {
+	if modifyOrder.Validate(validate.Check(func() error {
 		return nil
 	})) != nil {
 		t.Fatal("unexpected error")

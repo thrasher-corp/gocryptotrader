@@ -5,11 +5,12 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 // Validate takes interface and passes to asset type to check the request meets requirements to submit
-func (r *Request) Validate() (err error) {
+func (r *Request) Validate(opt ...validate.Checker) (err error) {
 	if r == nil {
 		return ErrRequestCannotBeNil
 	}
@@ -41,6 +42,17 @@ func (r *Request) Validate() (err error) {
 	default:
 		allErrors = append(allErrors, "invalid request type")
 	}
+
+	for _, o := range opt {
+		if o == nil {
+			continue
+		}
+		err := o.Check()
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
+	}
+
 	if len(allErrors) > 0 {
 		return errors.New(strings.Join(allErrors, ", "))
 	}

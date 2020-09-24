@@ -9,10 +9,11 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
-func (s *Submit) Validate() error {
+func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s == nil {
 		return ErrSubmissionIsNil
 	}
@@ -38,6 +39,18 @@ func (s *Submit) Validate() error {
 
 	if s.Type == Limit && s.Price <= 0 {
 		return ErrPriceMustBeSetIfLimitOrder
+	}
+
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Check()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
 	}
 
 	return nil
@@ -678,25 +691,11 @@ func (o *ClassificationError) Error() string {
 		o.Err)
 }
 
-// Validator defines a validation functionality for all validation checks and
-// options
-type Validator interface {
-	Validate() error
-}
-
-// Validate defines a validation function to close over validation methods
-type Validate func() error
-
-// Validate initiates the validate functionality
-func (v Validate) Validate() error {
-	return v()
-}
-
 // StandardCancel defines an option in the validator to make sure an ID is set
 // for a standard cancel
-func (o *Cancel) StandardCancel() Validator {
-	return Validate(func() error {
-		if o.ID == "" {
+func (c *Cancel) StandardCancel() validate.Checker {
+	return validate.Check(func() error {
+		if c.ID == "" {
 			return errors.New("ID not set")
 		}
 		return nil
@@ -704,13 +703,13 @@ func (o *Cancel) StandardCancel() Validator {
 }
 
 // Validate checks internal struct requirements
-func (o *Cancel) Validate(opt ...Validator) error {
-	if o == nil {
+func (c *Cancel) Validate(opt ...validate.Checker) error {
+	if c == nil {
 		return ErrCancelOrderIsNil
 	}
 	var errs common.Errors
 	for _, o := range opt {
-		err := o.Validate()
+		err := o.Check()
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -723,13 +722,13 @@ func (o *Cancel) Validate(opt ...Validator) error {
 }
 
 // Validate checks internal struct requirements
-func (o *GetOrdersRequest) Validate(opt ...Validator) error {
-	if o == nil {
+func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
+	if g == nil {
 		return ErrGetOrdersRequestIsNil
 	}
 	var errs common.Errors
 	for _, o := range opt {
-		err := o.Validate()
+		err := o.Check()
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -742,13 +741,13 @@ func (o *GetOrdersRequest) Validate(opt ...Validator) error {
 }
 
 // Validate checks internal struct requirements
-func (o *Modify) Validate(opt ...Validator) error {
-	if o == nil {
+func (m *Modify) Validate(opt ...validate.Checker) error {
+	if m == nil {
 		return ErrModifyOrderIsNil
 	}
 	var errs common.Errors
 	for _, o := range opt {
-		err := o.Validate()
+		err := o.Check()
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -757,7 +756,7 @@ func (o *Modify) Validate(opt ...Validator) error {
 	if errs != nil {
 		return errs
 	}
-	if o.ClientOrderID == "" && o.ID == "" {
+	if m.ClientOrderID == "" && m.ID == "" {
 		return ErrOrderIDNotSet
 	}
 	return nil

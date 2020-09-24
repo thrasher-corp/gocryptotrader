@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -175,6 +176,7 @@ func TestValidateFiat(t *testing.T) {
 		requestType   RequestType
 		bankAccountID string
 		output        interface{}
+		validate      validate.Checker
 	}{
 		{
 			"Valid",
@@ -182,6 +184,23 @@ func TestValidateFiat(t *testing.T) {
 			Fiat,
 			"test-bank-01",
 			nil,
+			nil,
+		},
+		{
+			"Valid-With-Good-Exchange-Option",
+			validFiatRequest,
+			Fiat,
+			"test-bank-01",
+			nil,
+			validate.Check(func() error { return nil }),
+		},
+		{
+			"Valid-With-bad-Exchange-Option",
+			validFiatRequest,
+			Fiat,
+			"test-bank-01",
+			errors.New("error"),
+			validate.Check(func() error { return errors.New("error") }),
 		},
 		{
 			"Invalid",
@@ -195,6 +214,7 @@ func TestValidateFiat(t *testing.T) {
 					invalidRequest.Exchange) + ", " +
 				banking.ErrAccountCannotBeEmpty + ", " +
 				banking.ErrIBANSwiftNotSet),
+			nil,
 		},
 		{
 			name:        "NoRequest",
@@ -214,6 +234,7 @@ func TestValidateFiat(t *testing.T) {
 				banking.ErrAccountCannotBeEmpty + ", " +
 				banking.ErrCurrencyNotSupportedByAccount + ", " +
 				banking.ErrIBANSwiftNotSet),
+			nil,
 		},
 	}
 
@@ -230,7 +251,7 @@ func TestValidateFiat(t *testing.T) {
 				}
 				test.request.Fiat.Bank = *v
 			}
-			err := test.request.Validate()
+			err := test.request.Validate(test.validate)
 			if err != nil {
 				if test.output.(error).Error() != err.Error() {
 					t.Fatalf("Test Name %s expecting error [%s] but receieved [%s]", test.name, test.output.(error).Error(), err)
