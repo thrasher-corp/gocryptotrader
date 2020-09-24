@@ -15,7 +15,7 @@ type Order struct {
 	Amount    float64
 	OrderType order.Type
 	limit     float64
-	leverage float64
+	leverage  float64
 }
 
 type OrderBook struct {

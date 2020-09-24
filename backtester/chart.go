@@ -30,7 +30,7 @@ func GenerateOutput(result Results) error {
 	wd, _ := os.Getwd()
 	outputDir := filepath.Join(wd, "output")
 	_ = common.CreateDir(outputDir)
-	outputFile := filepath.Join(outputDir,result.StrategyName+".html")
+	outputFile := filepath.Join(outputDir, result.StrategyName+".html")
 	tmpl := template.Must(template.ParseFiles("template.html"))
 	f, err := os.Create(outputFile)
 	if err != nil {

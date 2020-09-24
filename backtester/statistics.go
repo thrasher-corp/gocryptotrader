@@ -269,7 +269,7 @@ func (s *Statistic) JSON(writeFile bool) ([]byte, error) {
 	}
 
 	if writeFile {
-		f, err := os.Create(s.strategyName+".json")
+		f, err := os.Create(s.strategyName + ".json")
 		if err != nil {
 			return []byte{}, nil
 		}

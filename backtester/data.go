@@ -62,7 +62,6 @@ func (d *Data) SortStream() {
 	})
 }
 
-
 func (d *Data) StreamOpen() []float64 {
 	return []float64{}
 }

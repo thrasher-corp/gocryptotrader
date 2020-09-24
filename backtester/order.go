@@ -57,6 +57,6 @@ func (o *Order) Leverage() float64 {
 	return o.leverage
 }
 
-func (o *Order) SetLeverage(l float64)  {
+func (o *Order) SetLeverage(l float64) {
 	o.leverage = l
 }

@@ -125,7 +125,7 @@ type StatisticHandler interface {
 	MaxDrawdownTime() time.Time
 	MaxDrawdownDuration() time.Duration
 
-	SharpRatio(float64) float64
+	SharpeRatio(float64) float64
 	SortinoRatio(float64) float64
 
 	PrintResult()
@@ -133,7 +133,6 @@ type StatisticHandler interface {
 	Reset()
 
 	SetStrategyName(string)
-	SaveChart(filename string) error
 }
 
 type PortfolioHandler interface {

@@ -2,25 +2,34 @@ package charts
 
 import (
 	"io"
-	"time"
 )
 
 type Chart struct {
-	template string
-	output string
+	template   string
+	output     string
+	outputPath string
 
-	Data data
-	w io.ReadWriter
+	Data      Data
+	w         io.ReadWriter
 	writeFile bool
 }
 
 type Data struct {
-	PageTitle string
-	Pair string
-	data []data
+	PageTitle    string
+	Pair         string
+	Data 	interface{}
 }
 
-type data struct {
-	Timestamp time.Time
+type IntervalData struct {
+	Timestamp string
 	Value     float64
+}
+
+type SeriesData struct {
+	Timestamp string
+	Open   float64
+	High   float64
+	Low    float64
+	Close  float64
+	Volume float64
 }
