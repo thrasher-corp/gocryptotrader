@@ -465,7 +465,7 @@ func (g *Gateio) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (g *Gateio) CancelOrder(o *order.Cancel) error {
-	if err := o.Validate(); err != nil {
+	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
 

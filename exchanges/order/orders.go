@@ -677,16 +677,47 @@ func (o *ClassificationError) Error() string {
 		o.Err)
 }
 
+// Validator defines a validation functionality for all validation checks and
+// options
+type Validator interface {
+	Validate() error
+}
+
+// Validate defines a validation function to close over validation methods
+type Validate func() error
+
+// Validate initiates the validate functionality
+func (v Validate) Validate() error {
+	return v()
+}
+
+// StandardCancel defines an option in the validator to make sure an ID is set
+// for a standard cancel
+func (o *Cancel) StandardCancel() Validator {
+	return Validate(func() error {
+		if o.ID == "" {
+			return errors.New("ID not set")
+		}
+		return nil
+	})
+}
+
 // Validate checks internal struct requirements
-func (o *Cancel) Validate() error {
+func (o *Cancel) Validate(opt ...Validator) error {
 	if o == nil {
 		return ErrCancelOrderIsNil
+	}
+	for _, o := range opt {
+		err := o.Validate()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // Validate checks internal struct requirements
-func (o *GetOrdersRequest) Validate() error {
+func (o *GetOrdersRequest) Validate(opt ...Validator) error {
 	if o == nil {
 		return ErrGetOrdersRequestIsNil
 	}
@@ -694,7 +725,7 @@ func (o *GetOrdersRequest) Validate() error {
 }
 
 // Validate checks internal struct requirements
-func (o *Modify) Validate() error {
+func (o *Modify) Validate(opt ...Validator) error {
 	if o == nil {
 		return ErrModifyOrderIsNil
 	}

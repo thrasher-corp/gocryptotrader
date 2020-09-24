@@ -371,12 +371,11 @@ func (l *LakeBTC) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (l *LakeBTC) CancelOrder(o *order.Cancel) error {
-	if err := o.Validate(); err != nil {
+	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
 
 	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
-
 	if err != nil {
 		return err
 	}

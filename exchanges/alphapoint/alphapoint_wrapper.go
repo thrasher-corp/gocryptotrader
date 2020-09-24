@@ -249,7 +249,7 @@ func (a *Alphapoint) ModifyOrder(_ *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (a *Alphapoint) CancelOrder(o *order.Cancel) error {
-	if err := o.Validate(); err != nil {
+	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
 	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)

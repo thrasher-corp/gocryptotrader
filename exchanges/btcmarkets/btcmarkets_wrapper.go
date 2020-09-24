@@ -465,7 +465,7 @@ func (b *BTCMarkets) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *BTCMarkets) CancelOrder(o *order.Cancel) error {
-	err := o.Validate()
+	err := o.Validate(o.StandardCancel())
 	if err != nil {
 		return err
 	}

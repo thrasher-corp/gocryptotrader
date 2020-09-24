@@ -306,19 +306,19 @@ func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
-	err = orderCancellation.Validate()
+func (o *OKGroup) CancelOrder(cancel *order.Cancel) (err error) {
+	err = cancel.Validate(cancel.StandardCancel())
 	if err != nil {
 		return
 	}
 
-	orderID, err := strconv.ParseInt(orderCancellation.ID, 10, 64)
+	orderID, err := strconv.ParseInt(cancel.ID, 10, 64)
 	if err != nil {
 		return
 	}
 
-	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
-		orderCancellation.AssetType)
+	fpair, err := o.FormatExchangeCurrency(cancel.Pair,
+		cancel.AssetType)
 	if err != nil {
 		return
 	}
