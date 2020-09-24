@@ -447,60 +447,54 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 	if timestampStart.Equal(timestampEnd) || timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
 	}
-	marketName, err := f.FormatExchangeCurrency(p, assetType)
+	var err error
+	p, err = f.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
+
+	ts := timestampStart
 	var resp []trade.Data
-	trades, err := f.GetTrades(marketName.String(),
-		timestampStart.Unix(),
-		timestampEnd.Unix(),
-		100)
-	if err != nil {
-		return nil, err
-	}
+	limit := 100
+allTrades:
 	for {
-		tempResp := trade.Data{
-			CurrencyPair: p,
-			AssetType:    assetType,
-		}
-		if len(trades) > 0 {
-			var side order.Side
-			side, err = order.StringToOrderSide(trades[0].Side)
-			if err != nil {
-				return nil, err
-			}
-			tempResp.Amount = trades[0].Size
-			tempResp.Price = trades[0].Price
-			tempResp.Exchange = f.Name
-			tempResp.Timestamp = trades[0].Time
-			tempResp.TID = strconv.FormatInt(trades[0].ID, 10)
-			tempResp.Side = side
-			resp = append(resp, tempResp)
-		}
-		for y := 1; y < len(trades); y++ {
-			var side order.Side
-			side, err = order.StringToOrderSide(trades[y].Side)
-			if err != nil {
-				return nil, err
-			}
-			tempResp.Amount = trades[y].Size
-			tempResp.Price = trades[y].Price
-			tempResp.Exchange = f.Name
-			tempResp.Timestamp = trades[y].Time
-			tempResp.TID = strconv.FormatInt(trades[y].ID, 10)
-			tempResp.Side = side
-			resp = append(resp, tempResp)
-		}
-		if len(trades) != 100 {
-			break
-		}
-		trades, err = f.GetTrades(marketName.String(),
-			timestampStart.Unix(),
-			trades[len(trades)-1].Time.Unix(),
+		trades, err := f.GetTrades(p.String(),
+			ts.Unix(),
+			timestampEnd.Unix(),
 			100)
 		if err != nil {
-			return resp, err
+			return nil, err
+		}
+
+		for i := 0; i < len(trades); i++ {
+			if trades[i].Time.Before(timestampStart) || trades[i].Time.After(timestampEnd) {
+				break allTrades
+			}
+			var side order.Side
+			side, err = order.StringToOrderSide(trades[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				TID:          strconv.FormatInt(trades[i].ID, 10),
+				Exchange:     f.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        trades[i].Price,
+				Amount:       trades[i].Size,
+				Timestamp:    trades[i].Time,
+			})
+			if i == len(trades)-1 {
+				if ts.Equal(trades[i].Time) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = trades[i].Time
+			}
+		}
+		if len(trades) != limit {
+			break allTrades
 		}
 	}
 

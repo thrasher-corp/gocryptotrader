@@ -425,43 +425,57 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 	if err != nil {
 		return nil, err
 	}
+	limit := 1000
 	req := &GenericRequestParams{
-		Symbol: p.String(),
+		Symbol:  p.String(),
+		Count:   int32(limit),
+		EndTime: timestampEnd.Format(time.RFC3339),
 	}
-	if !timestampStart.IsZero() {
-		req.StartTime = timestampStart.Format(time.RFC3339)
-	}
-	if !timestampEnd.IsZero() {
-		req.EndTime = timestampEnd.Format(time.RFC3339)
-	}
-	tradeData, err := b.GetTrade(req)
-	if err != nil {
-		return nil, err
-	}
+	ts := timestampStart
 	var resp []trade.Data
-	for i := range tradeData {
-		var side order.Side
-		side, err = order.StringToOrderSide(tradeData[i].Side)
+allTrades:
+	for {
+		req.StartTime = ts.Format(time.RFC3339)
+		tradeData, err := b.GetTrade(req)
 		if err != nil {
 			return nil, err
 		}
-		if tradeData[i].Price == 0 {
-			// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
-			// These have a size of 0 and are used only to indicate a changing price.
-			continue
+		for i := range tradeData {
+			if tradeData[i].Timestamp.Before(timestampStart) || tradeData[i].Timestamp.After(timestampEnd) {
+				break allTrades
+			}
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			if tradeData[i].Price == 0 {
+				// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
+				// These have a size of 0 and are used only to indicate a changing price.
+				continue
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     b.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Price,
+				Amount:       float64(tradeData[i].Size),
+				Timestamp:    tradeData[i].Timestamp,
+				TID:          tradeData[i].TrdMatchID,
+			})
+			if i == len(tradeData)-1 {
+				if ts.Equal(tradeData[i].Timestamp) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = tradeData[i].Timestamp
+			}
 		}
-		resp = append(resp, trade.Data{
-			Exchange:     b.Name,
-			CurrencyPair: p,
-			AssetType:    assetType,
-			Side:         side,
-			Price:        tradeData[i].Price,
-			Amount:       float64(tradeData[i].Size),
-			Timestamp:    tradeData[i].Timestamp,
-			TID:          tradeData[i].TrdMatchID,
-		})
+		if len(tradeData) != limit {
+			break allTrades
+		}
 	}
-
 	err = b.AddTradesToBuffer(resp...)
 	if err != nil {
 		return nil, err

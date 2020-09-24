@@ -1017,4 +1017,12 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
+	// longer term
+	trades, err := h.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*60*200), time.Now().Add(-time.Minute*60*199))
+	if err != nil {
+		t.Error(err)
+	}
+	if len(trades) == 0 {
+		t.Error("expected trades")
+	}
 }

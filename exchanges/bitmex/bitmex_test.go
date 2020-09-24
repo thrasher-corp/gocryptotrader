@@ -967,7 +967,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error("expected trades")
 	}
 	// longer term test
-	resp, err = b.GetHistoricTrades(currencyPair, asset.Futures, time.Now().Add(-time.Hour*24*100), time.Now().Add(-time.Hour*24*99))
+	resp, err = b.GetHistoricTrades(currencyPair, asset.Futures, time.Now().Add(-time.Minute*60*2400), time.Now().Add(-time.Minute*60*2399))
 	if err != nil {
 		t.Error(err)
 	}

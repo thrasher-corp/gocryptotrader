@@ -9335,6 +9335,393 @@
      "queryString": "command=returnTradeHistory\u0026currencyPair=BTC_XMR\u0026end=1591405200\u0026start=1591401600",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "amount": "3.21720471",
+       "date": "2020-06-06 00:59:21",
+       "globalTradeID": 469013857,
+       "orderNumber": 475804187646,
+       "rate": "0.00702980",
+       "total": "0.02261630",
+       "tradeID": 20409261,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00095095",
+       "date": "2020-06-06 00:58:46",
+       "globalTradeID": 469013804,
+       "orderNumber": 475804160673,
+       "rate": "0.00702450",
+       "total": "0.00000667",
+       "tradeID": 20409260,
+       "type": "sell"
+      },
+      {
+       "amount": "0.04806103",
+       "date": "2020-06-06 00:56:53",
+       "globalTradeID": 469013609,
+       "orderNumber": 475804081752,
+       "rate": "0.00702981",
+       "total": "0.00033785",
+       "tradeID": 20409259,
+       "type": "buy"
+      },
+      {
+       "amount": "0.14791082",
+       "date": "2020-06-06 00:56:14",
+       "globalTradeID": 469013545,
+       "orderNumber": 475804064769,
+       "rate": "0.00702981",
+       "total": "0.00103978",
+       "tradeID": 20409258,
+       "type": "buy"
+      },
+      {
+       "amount": "0.60514301",
+       "date": "2020-06-06 00:55:54",
+       "globalTradeID": 469013498,
+       "orderNumber": 475804051782,
+       "rate": "0.00702981",
+       "total": "0.00425404",
+       "tradeID": 20409257,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00012547",
+       "date": "2020-06-06 00:51:57",
+       "globalTradeID": 469013113,
+       "orderNumber": 475803828006,
+       "rate": "0.00701340",
+       "total": "0.00000087",
+       "tradeID": 20409256,
+       "type": "sell"
+      },
+      {
+       "amount": "2.93691436",
+       "date": "2020-06-06 00:49:28",
+       "globalTradeID": 469012836,
+       "orderNumber": 475803574260,
+       "rate": "0.00702981",
+       "total": "0.02064594",
+       "tradeID": 20409255,
+       "type": "buy"
+      },
+      {
+       "amount": "2.58959011",
+       "date": "2020-06-06 00:49:14",
+       "globalTradeID": 469012793,
+       "orderNumber": 475803547287,
+       "rate": "0.00702981",
+       "total": "0.01820432",
+       "tradeID": 20409254,
+       "type": "buy"
+      },
+      {
+       "amount": "2.58959011",
+       "date": "2020-06-06 00:49:14",
+       "globalTradeID": 469012792,
+       "orderNumber": 475803544290,
+       "rate": "0.00702981",
+       "total": "0.01820432",
+       "tradeID": 20409253,
+       "type": "buy"
+      },
+      {
+       "amount": "0.12564003",
+       "date": "2020-06-06 00:48:10",
+       "globalTradeID": 469012574,
+       "orderNumber": 475803440394,
+       "rate": "0.00702981",
+       "total": "0.00088322",
+       "tradeID": 20409252,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00029089",
+       "date": "2020-06-06 00:43:33",
+       "globalTradeID": 469011702,
+       "orderNumber": 475802968866,
+       "rate": "0.00701289",
+       "total": "0.00000203",
+       "tradeID": 20409251,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00033785",
+       "date": "2020-06-06 00:41:49",
+       "globalTradeID": 469011340,
+       "orderNumber": 475802691144,
+       "rate": "0.00701475",
+       "total": "0.00000236",
+       "tradeID": 20409250,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00011689",
+       "date": "2020-06-06 00:41:48",
+       "globalTradeID": 469011337,
+       "orderNumber": 475802688147,
+       "rate": "0.00701474",
+       "total": "0.00000081",
+       "tradeID": 20409249,
+       "type": "sell"
+      },
+      {
+       "amount": "0.01809788",
+       "date": "2020-06-06 00:40:06",
+       "globalTradeID": 469011032,
+       "orderNumber": 475802513322,
+       "rate": "0.00700966",
+       "total": "0.00012685",
+       "tradeID": 20409248,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00011984",
+       "date": "2020-06-06 00:36:50",
+       "globalTradeID": 469010291,
+       "orderNumber": 475802093742,
+       "rate": "0.00700877",
+       "total": "0.00000083",
+       "tradeID": 20409247,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00057297",
+       "date": "2020-06-06 00:27:02",
+       "globalTradeID": 469008684,
+       "orderNumber": 475801024812,
+       "rate": "0.00699862",
+       "total": "0.00000400",
+       "tradeID": 20409246,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00020004",
+       "date": "2020-06-06 00:27:00",
+       "globalTradeID": 469008674,
+       "orderNumber": 475801014822,
+       "rate": "0.00699853",
+       "total": "0.00000139",
+       "tradeID": 20409245,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00032580",
+       "date": "2020-06-06 00:25:23",
+       "globalTradeID": 469008435,
+       "orderNumber": 475800824013,
+       "rate": "0.00699804",
+       "total": "0.00000227",
+       "tradeID": 20409244,
+       "type": "sell"
+      },
+      {
+       "amount": "0.06155579",
+       "date": "2020-06-06 00:25:06",
+       "globalTradeID": 469008391,
+       "orderNumber": 475800772065,
+       "rate": "0.00701396",
+       "total": "0.00043174",
+       "tradeID": 20409243,
+       "type": "buy"
+      },
+      {
+       "amount": "0.08703496",
+       "date": "2020-06-06 00:24:58",
+       "globalTradeID": 469008369,
+       "orderNumber": 475800754083,
+       "rate": "0.00701396",
+       "total": "0.00061045",
+       "tradeID": 20409242,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00006857",
+       "date": "2020-06-06 00:20:23",
+       "globalTradeID": 469007636,
+       "orderNumber": 475800234603,
+       "rate": "0.00699981",
+       "total": "0.00000047",
+       "tradeID": 20409241,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00022429",
+       "date": "2020-06-06 00:20:21",
+       "globalTradeID": 469007626,
+       "orderNumber": 475800229608,
+       "rate": "0.00699964",
+       "total": "0.00000156",
+       "tradeID": 20409240,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00030155",
+       "date": "2020-06-06 00:18:44",
+       "globalTradeID": 469007424,
+       "orderNumber": 475800039798,
+       "rate": "0.00699713",
+       "total": "0.00000210",
+       "tradeID": 20409239,
+       "type": "sell"
+      },
+      {
+       "amount": "0.00016573",
+       "date": "2020-06-06 00:15:31",
+       "globalTradeID": 469006942,
+       "orderNumber": 475799680158,
+       "rate": "0.00699921",
+       "total": "0.00000115",
+       "tradeID": 20409238,
+       "type": "sell"
+      },
+      {
+       "amount": "0.03876964",
+       "date": "2020-06-06 00:13:16",
+       "globalTradeID": 469006371,
+       "orderNumber": 475799335503,
+       "rate": "0.00702776",
+       "total": "0.00027246",
+       "tradeID": 20409237,
+       "type": "sell"
+      },
+      {
+       "amount": "0.02573029",
+       "date": "2020-06-06 00:12:08",
+       "globalTradeID": 469006150,
+       "orderNumber": 475799283555,
+       "rate": "0.00702776",
+       "total": "0.00018082",
+       "tradeID": 20409236,
+       "type": "sell"
+      },
+      {
+       "amount": "1.49550007",
+       "date": "2020-06-06 00:11:38",
+       "globalTradeID": 469006063,
+       "orderNumber": 475799249589,
+       "rate": "0.00702776",
+       "total": "0.01051001",
+       "tradeID": 20409235,
+       "type": "buy"
+      },
+      {
+       "amount": "0.01835715",
+       "date": "2020-06-06 00:08:19",
+       "globalTradeID": 469005543,
+       "orderNumber": 475798845993,
+       "rate": "0.00702000",
+       "total": "0.00012886",
+       "tradeID": 20409234,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00000285",
+       "date": "2020-06-06 00:05:46",
+       "globalTradeID": 469005149,
+       "orderNumber": 475798564275,
+       "rate": "0.00700393",
+       "total": "0.00000001",
+       "tradeID": 20409233,
+       "type": "sell"
+      },
+      {
+       "amount": "1.82932923",
+       "date": "2020-06-06 00:04:27",
+       "globalTradeID": 469004901,
+       "orderNumber": 475798401438,
+       "rate": "0.00700160",
+       "total": "0.01280823",
+       "tradeID": 20409232,
+       "type": "sell"
+      },
+      {
+       "amount": "1.06056403",
+       "date": "2020-06-06 00:04:27",
+       "globalTradeID": 469004900,
+       "orderNumber": 475798401438,
+       "rate": "0.00701499",
+       "total": "0.00743984",
+       "tradeID": 20409231,
+       "type": "sell"
+      },
+      {
+       "amount": "0.19919400",
+       "date": "2020-06-06 00:03:54",
+       "globalTradeID": 469004795,
+       "orderNumber": 475798363476,
+       "rate": "0.00701499",
+       "total": "0.00139734",
+       "tradeID": 20409230,
+       "type": "buy"
+      },
+      {
+       "amount": "1.09717879",
+       "date": "2020-06-06 00:02:07",
+       "globalTradeID": 469004439,
+       "orderNumber": 475798123716,
+       "rate": "0.00701999",
+       "total": "0.00770218",
+       "tradeID": 20409229,
+       "type": "sell"
+      },
+      {
+       "amount": "0.04295869",
+       "date": "2020-06-06 00:02:02",
+       "globalTradeID": 469004417,
+       "orderNumber": 475798114725,
+       "rate": "0.00701999",
+       "total": "0.00030156",
+       "tradeID": 20409228,
+       "type": "sell"
+      },
+      {
+       "amount": "0.98890207",
+       "date": "2020-06-06 00:01:55",
+       "globalTradeID": 469004399,
+       "orderNumber": 475798102737,
+       "rate": "0.00701999",
+       "total": "0.00694208",
+       "tradeID": 20409227,
+       "type": "sell"
+      },
+      {
+       "amount": "0.98970300",
+       "date": "2020-06-06 00:01:54",
+       "globalTradeID": 469004393,
+       "orderNumber": 475798101738,
+       "rate": "0.00701999",
+       "total": "0.00694770",
+       "tradeID": 20409226,
+       "type": "sell"
+      },
+      {
+       "amount": "0.02860000",
+       "date": "2020-06-06 00:01:12",
+       "globalTradeID": 469004227,
+       "orderNumber": 475798036803,
+       "rate": "0.00701999",
+       "total": "0.00020077",
+       "tradeID": 20409225,
+       "type": "buy"
+      },
+      {
+       "amount": "0.00002285",
+       "date": "2020-06-06 00:00:43",
+       "globalTradeID": 469004013,
+       "orderNumber": 475797933906,
+       "rate": "0.00700206",
+       "total": "0.00000015",
+       "tradeID": 20409224,
+       "type": "sell"
+      }
+     ],
+     "queryString": "command=returnTradeHistory\u0026currencyPair=BTC_XMR\u0026end=1591405200\u0026start=1591401643",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },

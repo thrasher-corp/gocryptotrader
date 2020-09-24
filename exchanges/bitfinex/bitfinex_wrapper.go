@@ -518,7 +518,7 @@ allTrades:
 				Timestamp:    time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond)),
 			})
 			if i == len(tradeData)-1 {
-				if ts == tradeTS {
+				if ts.Equal(tradeTS) {
 					// reached end of trades to crawl
 					break allTrades
 				}

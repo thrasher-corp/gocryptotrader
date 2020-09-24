@@ -509,7 +509,15 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 	var resp []trade.Data
-	resp, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*15), time.Now())
+	resp, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected trades")
+	}
+	// longer term
+	resp, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*60*200), time.Now().Add(-time.Minute*60*199))
 	if err != nil {
 		t.Error(err)
 	}

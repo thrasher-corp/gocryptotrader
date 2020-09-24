@@ -424,34 +424,48 @@ func (p *Poloniex) GetHistoricTrades(currencyPair currency.Pair, assetType asset
 	if err != nil {
 		return nil, err
 	}
-	var tradeData []TradeHistory
-	tradeData, err = p.GetTradeHistory(currencyPair.String(), timestampStart.Unix(), timestampEnd.Unix())
-	if err != nil {
-		return nil, err
-	}
-	var resp []trade.Data
-	for i := range tradeData {
-		var side order.Side
-		side, err = order.StringToOrderSide(tradeData[i].Type)
-		if err != nil {
-			return nil, err
-		}
-		var tt time.Time
-		tt, err = time.Parse("2006-01-02 15:04:05", tradeData[i].Date)
-		if err != nil {
-			return nil, err
-		}
 
-		resp = append(resp, trade.Data{
-			Exchange:     p.Name,
-			TID:          strconv.FormatInt(tradeData[i].GlobalTradeID, 10),
-			CurrencyPair: currencyPair,
-			AssetType:    assetType,
-			Side:         side,
-			Price:        tradeData[i].Rate,
-			Amount:       tradeData[i].Amount,
-			Timestamp:    tt,
-		})
+	var resp []trade.Data
+	ts := timestampStart
+allTrades:
+	for {
+		var tradeData []TradeHistory
+		tradeData, err = p.GetTradeHistory(currencyPair.String(), ts.Unix(), timestampEnd.Unix())
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			var tt time.Time
+			tt, err = time.Parse(common.SimpleTimeFormat, tradeData[i].Date)
+			if err != nil {
+				return nil, err
+			}
+			if tt.Before(timestampStart) || tt.After(timestampEnd) {
+				break allTrades
+			}
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData[i].Type)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     p.Name,
+				TID:          strconv.FormatInt(tradeData[i].GlobalTradeID, 10),
+				CurrencyPair: currencyPair,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Rate,
+				Amount:       tradeData[i].Amount,
+				Timestamp:    tt,
+			})
+			if i == len(tradeData)-1 {
+				if ts.Equal(tt) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = tt
+			}
+		}
 	}
 
 	err = p.AddTradesToBuffer(resp...)

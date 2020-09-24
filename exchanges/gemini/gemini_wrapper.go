@@ -336,15 +336,15 @@ allTrades:
 			return nil, err
 		}
 		for i := range tradeData {
+			tradeTS := time.Unix(tradeData[i].Timestamp, 0)
+			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
+				break allTrades
+			}
+
 			var side order.Side
 			side, err = order.StringToOrderSide(tradeData[i].Type)
 			if err != nil {
 				return nil, err
-			}
-
-			tradeTS := time.Unix(tradeData[i].Timestamp, 0)
-			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
-				break allTrades
 			}
 			resp = append(resp, trade.Data{
 				Exchange:     g.Name,

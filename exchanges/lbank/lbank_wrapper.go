@@ -342,28 +342,43 @@ func (l *Lbank) GetHistoricTrades(p currency.Pair, assetType asset.Item, timesta
 	if err != nil {
 		return nil, err
 	}
-	var tradeData []TradeResponse
-	tradeData, err = l.GetTrades(p.String(), 600, timestampStart.UnixNano()/int64(time.Millisecond))
-	if err != nil {
-		return nil, err
-	}
 	var resp []trade.Data
-	for i := range tradeData {
-		var side order.Side
-		side, err = order.StringToOrderSide(tradeData[i].Type)
-		if err != nil {
-			return nil, err
+	ts := timestampStart
+	limit := 600
+allTrades:
+	for {
+		var tradeData []TradeResponse
+		tradeData, err = l.GetTrades(p.String(), int64(limit), ts.UnixNano()/int64(time.Millisecond))
+		for i := range tradeData {
+			tradeTime := time.Unix(0, tradeData[i].DateMS*int64(time.Millisecond))
+			if tradeTime.Before(timestampStart) || tradeTime.After(timestampEnd) {
+				break allTrades
+			}
+			side := order.Buy
+			if strings.Contains(tradeData[i].Type, "sell") {
+				side = order.Sell
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     l.Name,
+				TID:          tradeData[i].TID,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Amount,
+				Timestamp:    tradeTime,
+			})
+			if i == len(tradeData)-1 {
+				if ts.Equal(tradeTime) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = tradeTime
+			}
 		}
-		resp = append(resp, trade.Data{
-			Exchange:     l.Name,
-			TID:          tradeData[i].TID,
-			CurrencyPair: p,
-			AssetType:    assetType,
-			Side:         side,
-			Price:        tradeData[i].Price,
-			Amount:       tradeData[i].Amount,
-			Timestamp:    time.Unix(0, tradeData[i].DateMS*int64(time.Millisecond)),
-		})
+		if len(tradeData) != limit {
+			break allTrades
+		}
 	}
 
 	err = l.AddTradesToBuffer(resp...)

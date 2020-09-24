@@ -848,14 +848,13 @@ func TestGetRecentTrades(t *testing.T) {
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	curr, _ := currency.NewPairFromString(testSPOTPair)
-	_, err := b.GetHistoricTrades(curr, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now())
-	if err != nil {
-		t.Fatal(err)
+
+	_, err := b.GetHistoricTrades(curr, asset.Spot, time.Now().Add(-time.Minute), time.Now())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err != common.ErrFunctionNotSupported {
+		t.Error("unexpected error")
 	}
 
-	curr, _ = currency.NewPairFromString(testFUTURESPair)
-	_, err = b.GetHistoricTrades(curr, asset.Futures, time.Now().AddDate(0, -6, 0), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
 }
