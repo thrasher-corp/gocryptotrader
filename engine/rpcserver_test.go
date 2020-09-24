@@ -45,6 +45,12 @@ func RPCTestSetup(t *testing.T) {
 	}
 	Bot.Config.Database = dbConf
 	database.DB.Config = &dbConf
+	if Bot.DatabaseManager.Started() {
+		err := Bot.DatabaseManager.Stop()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	err := Bot.DatabaseManager.Start()
 	if err != nil {
 		log.Fatal(err)
