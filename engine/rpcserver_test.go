@@ -34,10 +34,8 @@ const (
 	databaseName          = "rpctestdb"
 )
 
-var engerino *Engine
-
 // Sets up everything required to run any function inside rpcserver
-func RPCTestSetup(t *testing.T) {
+func RPCTestSetup(t *testing.T) *Engine {
 	dbConf := database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite3,
@@ -45,7 +43,7 @@ func RPCTestSetup(t *testing.T) {
 			Database: databaseName,
 		},
 	}
-	engerino = new(Engine)
+	engerino := new(Engine)
 	engerino.Config = &config.Cfg
 	err := engerino.Config.LoadConfig(config.TestFile, true)
 	if err != nil {
@@ -77,9 +75,10 @@ func RPCTestSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
 	}
+	return engerino
 }
 
-func CleanRPCTest(t *testing.T) {
+func CleanRPCTest(t *testing.T, engerino *Engine) {
 	err := engerino.DatabaseManager.Stop()
 	if err != nil {
 		t.Fatal(err)
@@ -91,8 +90,8 @@ func CleanRPCTest(t *testing.T) {
 }
 
 func TestGetSavedTrades(t *testing.T) {
-	RPCTestSetup(t)
-	defer CleanRPCTest(t)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
 	s := RPCServer{engerino}
 	_, err := s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
@@ -165,8 +164,8 @@ func TestGetSavedTrades(t *testing.T) {
 }
 
 func TestConvertTradesToCandles(t *testing.T) {
-	RPCTestSetup(t)
-	defer CleanRPCTest(t)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
 	s := RPCServer{engerino}
 	// bad param test
 	_, err := s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{})
@@ -314,8 +313,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	RPCTestSetup(t)
-	defer CleanRPCTest(t)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
 	s := RPCServer{engerino}
 	// error checks
 	_, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
@@ -441,8 +440,8 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestFindMissingSavedTradeIntervals(t *testing.T) {
-	RPCTestSetup(t)
-	defer CleanRPCTest(t)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
 	s := RPCServer{engerino}
 	// bad request checks
 	_, err := s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{})
@@ -540,8 +539,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 }
 
 func TestFindMissingSavedCandleIntervals(t *testing.T) {
-	RPCTestSetup(t)
-	defer CleanRPCTest(t)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
 	s := RPCServer{engerino}
 	// bad request checks
 	_, err := s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{})
@@ -648,8 +647,8 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 }
 
 func TestSetExchangeTradeProcessing(t *testing.T) {
-	RPCTestSetup(t)
-	defer CleanRPCTest(t)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
 	s := RPCServer{engerino}
 	_, err := s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
 	if err != nil {
@@ -673,8 +672,8 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
-	RPCTestSetup(t)
-	defer CleanRPCTest(t)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
 	s := RPCServer{engerino}
 	_, err := s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
@@ -715,8 +714,8 @@ func TestGetRecentTrades(t *testing.T) {
 }
 
 func TestGetHistoricTrades(t *testing.T) {
-	RPCTestSetup(t)
-	defer CleanRPCTest(t)
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
 	s := RPCServer{engerino}
 	_, err := s.GetHistoricTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
