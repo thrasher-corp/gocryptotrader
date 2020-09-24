@@ -423,11 +423,13 @@ func TestFGetOpenOrders(t *testing.T) {
 }
 
 func TestFGetOrderHistory(t *testing.T) {
+	h.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetOrderHistory("BTC", "all", "all", "7", "", "limit", 5, 0, 0)
+	a, err := h.FGetOrderHistory("BTC", "all", "all", "7", "", []order.Status{}, 5, 0, 0)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -569,6 +571,55 @@ func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	h.Verbose = true
 	a, err := h.UpdateAccountInfo()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
+	h.Verbose = true
+	var getOrdersRequest order.GetOrdersRequest
+
+	getOrdersRequest = order.GetOrdersRequest{
+		Type:      order.AnyType,
+		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		AssetType: asset.Spot,
+	}
+	_, err := h.GetOrderHistory(&getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cp1, err := currency.NewPairFromString("ADA-USD")
+	if err != nil {
+		t.Error(err)
+	}
+	getOrdersRequest.Pairs = []currency.Pair{cp1}
+	getOrdersRequest.AssetType = asset.CoinMarginedFutures
+	_, err = h.GetOrderHistory(&getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cp2, err := currency.NewPairFromString("BTC200918")
+	getOrdersRequest.Pairs = []currency.Pair{cp2}
+	getOrdersRequest.AssetType = asset.Futures
+	_, err = h.GetOrderHistory(&getOrdersRequest)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.CancelAllOrders(&order.Cancel{AssetType: asset.Futures})
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -1014,16 +1065,18 @@ func TestGetSwapOpenOrders(t *testing.T) {
 	}
 }
 
-// func TestGetSwapOrderHistory(t *testing.T) {
-// 	t.Parallel()
-// 	if !areTestAPIKeysSet() {
-// 		t.Skip("skipping test: api keys not set")
-// 	}
-// 	_, err := h.GetSwapOrderHistory("ETH-USD", , 0, 0)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+func TestGetSwapOrderHistory(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	a, err := h.GetSwapOrderHistory("ETH-USD", "all", "all", []order.Status{order.PartiallyCancelled, order.Active}, 25, 0, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 func TestGetSwapTradeHistory(t *testing.T) {
 	t.Parallel()
@@ -1461,20 +1514,6 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err := h.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-}
-
-func TestGetOrderHistory(t *testing.T) {
-	var getOrdersRequest = order.GetOrdersRequest{
-		Type:  order.AnyType,
-		Pairs: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
-	}
-
-	_, err := h.GetOrderHistory(&getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -303,6 +304,15 @@ var validFuturesOrderTypes = map[string]int64{
 	"optimal_20":   9,
 	"fok":          10,
 	"ioc":          11,
+}
+
+var validOrderStatus = map[order.Status]int64{
+	order.AnyStatus:          0,
+	order.Active:             3,
+	order.PartiallyFilled:    4,
+	order.PartiallyCancelled: 5,
+	order.Filled:             6,
+	order.Cancelled:          7,
 }
 
 var validStatusTypes = map[string]int64{
@@ -915,7 +925,9 @@ func (h *HUOBI) FCancelOrder(symbol, orderID, clientOrderID string) (FCancelOrde
 func (h *HUOBI) FCancelAllOrders(symbol, contractCode, contractType string) (FCancelOrderData, error) {
 	var resp FCancelOrderData
 	req := make(map[string]interface{})
-	req["symbol"] = symbol
+	if symbol != "" {
+		req["symbol"] = symbol
+	}
 	if contractType != "" {
 		if !common.StringDataCompare(validContractTypes, contractType) {
 			return resp, fmt.Errorf("invalid contractType")
@@ -926,7 +938,7 @@ func (h *HUOBI) FCancelAllOrders(symbol, contractCode, contractType string) (FCa
 		req["contract_code"] = contractCode
 	}
 	h.API.Endpoints.URL = huobiURL
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelOrder, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fCancelAllOrders, nil, req, &resp, false)
 }
 
 // FFlashCloseOrder flash closes a futures order
@@ -1011,7 +1023,7 @@ func (h *HUOBI) FGetOpenOrders(symbol string, pageIndex, pageSize int64) (FOpenO
 }
 
 // FGetOrderHistory gets order order history for futures
-func (h *HUOBI) FGetOrderHistory(symbol, tradeType, reqType, status, contractCode, orderType string, createDate, pageIndex, pageSize int64) (FOrderHistoryData, error) {
+func (h *HUOBI) FGetOrderHistory(symbol, tradeType, reqType, contractCode, orderType string, status []order.Status, createDate, pageIndex, pageSize int64) (FOrderHistoryData, error) {
 	var resp FOrderHistoryData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
@@ -1025,7 +1037,23 @@ func (h *HUOBI) FGetOrderHistory(symbol, tradeType, reqType, status, contractCod
 		return resp, fmt.Errorf("invalid reqType")
 	}
 	req["type"] = rType
-	req["status"] = status
+	var reqStatus string = "0"
+	if len(status) > 0 {
+		var firstTime bool = true
+		for x := range status {
+			sType, ok := validOrderStatus[status[x]]
+			if !ok {
+				return resp, fmt.Errorf("invalid status")
+			}
+			if firstTime {
+				firstTime = false
+				reqStatus = strconv.FormatInt(sType, 10)
+				continue
+			}
+			reqStatus = reqStatus + "," + strconv.FormatInt(sType, 10)
+		}
+	}
+	req["status"] = reqStatus
 	if createDate < 0 || createDate > 90 {
 		return resp, fmt.Errorf("invalid createDate")
 	}
@@ -1797,7 +1825,7 @@ func (h *HUOBI) GetSwapOpenOrders(contractCode string, pageIndex, pageSize int64
 }
 
 // GetSwapOrderHistory gets swap order history
-func (h *HUOBI) GetSwapOrderHistory(contractCode, tradeType, reqType, status, orderType string, createDate, pageIndex, pageSize int64) (SwapOrderHistory, error) {
+func (h *HUOBI) GetSwapOrderHistory(contractCode, tradeType, reqType string, status []order.Status, createDate, pageIndex, pageSize int64) (SwapOrderHistory, error) {
 	var resp SwapOrderHistory
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
@@ -1811,18 +1839,27 @@ func (h *HUOBI) GetSwapOrderHistory(contractCode, tradeType, reqType, status, or
 		return resp, fmt.Errorf("invalid reqType")
 	}
 	req["type"] = rType
-	req["status"] = status
+	var reqStatus string = "0"
+	if len(status) > 0 {
+		var firstTime bool = true
+		for x := range status {
+			sType, ok := validOrderStatus[status[x]]
+			if !ok {
+				return resp, fmt.Errorf("invalid status")
+			}
+			if firstTime {
+				firstTime = false
+				reqStatus = strconv.FormatInt(sType, 10)
+				continue
+			}
+			reqStatus = reqStatus + "," + strconv.FormatInt(sType, 10)
+		}
+	}
+	req["status"] = reqStatus
 	if createDate < 0 || createDate > 90 {
 		return resp, fmt.Errorf("invalid createDate")
 	}
 	req["create_date"] = createDate
-	if orderType != "" {
-		oType, ok := validFuturesOrderTypes[orderType]
-		if !ok {
-			return resp, fmt.Errorf("invalid orderType")
-		}
-		req["order_type"] = oType
-	}
 	if pageIndex != 0 {
 		req["page_index"] = pageIndex
 	}

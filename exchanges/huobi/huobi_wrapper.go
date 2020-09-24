@@ -78,7 +78,7 @@ func (h *HUOBI) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: "",
 		},
 	}
 	err := h.StoreAssetPairFormat(asset.Spot, fmt1)
@@ -854,43 +854,173 @@ func (h *HUOBI) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (h *HUOBI) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+
+	p, err := h.FormatExchangeCurrency(order.Pair, order.AssetType)
 	if err != nil {
 		return err
 	}
 
-	_, err = h.CancelExistingOrder(orderIDInt)
-	return err
+	switch order.AssetType {
+
+	case asset.Spot:
+		orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+		if err != nil {
+			return err
+		}
+
+		_, err = h.CancelExistingOrder(orderIDInt)
+		return err
+
+	case asset.CoinMarginedFutures:
+
+		_, err = h.CancelSwapOrder(order.ID, order.ClientID, p.String())
+		if err != nil {
+			return err
+		}
+
+	case asset.Futures:
+
+		_, err = h.FCancelOrder(order.ID, order.ClientID, p.String())
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+
 	var cancelAllOrdersResponse order.CancelAllResponse
-	enabledPairs, err := h.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return cancelAllOrdersResponse, err
-	}
-	for i := range enabledPairs {
-		fpair, err := h.FormatExchangeCurrency(enabledPairs[i], asset.Spot)
+
+	switch orderCancellation.AssetType {
+
+	case asset.Spot:
+		enabledPairs, err := h.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
+		for i := range enabledPairs {
+			fpair, err := h.FormatExchangeCurrency(enabledPairs[i], asset.Spot)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
 
-		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,
-			fpair.String())
-		if err != nil {
-			return cancelAllOrdersResponse, err
+			resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,
+				fpair.String())
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			if resp.Data.FailedCount > 0 {
+				return cancelAllOrdersResponse,
+					fmt.Errorf("%v orders failed to cancel",
+						resp.Data.FailedCount)
+			}
+
+			if resp.Status == "error" {
+				return cancelAllOrdersResponse, errors.New(resp.ErrorMessage)
+			}
+		}
+	case asset.CoinMarginedFutures:
+
+		if orderCancellation.Pair.IsEmpty() {
+
+			enabledPairs, err := h.GetEnabledPairs(asset.Spot)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			for i := range enabledPairs {
+
+				fPair, err := h.FormatExchangeCurrency(enabledPairs[i], asset.CoinMarginedFutures)
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+
+				a, err := h.CancelAllSwapOrders(fPair.String())
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+				split := strings.Split(a.Successes, ",")
+				for x := range split {
+					cancelAllOrdersResponse.Status[split[x]] = "success"
+				}
+				for y := range a.Errors {
+					cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail"
+				}
+			}
+		} else {
+
+			fPair, err := h.FormatExchangeCurrency(orderCancellation.Pair, asset.CoinMarginedFutures)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			a, err := h.CancelAllSwapOrders(fPair.String())
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+			split := strings.Split(a.Successes, ",")
+			for x := range split {
+				cancelAllOrdersResponse.Status[split[x]] = "success"
+			}
+			for y := range a.Errors {
+				cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail"
+			}
+
 		}
 
-		if resp.Data.FailedCount > 0 {
-			return cancelAllOrdersResponse,
-				fmt.Errorf("%v orders failed to cancel",
-					resp.Data.FailedCount)
+	case asset.Futures:
+
+		if orderCancellation.Pair.IsEmpty() {
+
+			enabledPairs, err := h.GetEnabledPairs(asset.Futures)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			for i := range enabledPairs {
+
+				fPair, err := h.FormatExchangeCurrency(enabledPairs[i], asset.Futures)
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+
+				a, err := h.FCancelAllOrders(fPair.Base.String(), fPair.String(), "")
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+				split := strings.Split(a.Data.Successes, ",")
+				for x := range split {
+					cancelAllOrdersResponse.Status[split[x]] = "success"
+				}
+				for y := range a.Data.Errors {
+					cancelAllOrdersResponse.Status[a.Data.Errors[y].OrderID] = "fail"
+				}
+			}
+		} else {
+
+			fPair, err := h.FormatExchangeCurrency(orderCancellation.Pair, asset.CoinMarginedFutures)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			a, err := h.FCancelAllOrders(fPair.Base.String(), fPair.String(), "")
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+			split := strings.Split(a.Data.Successes, ",")
+			for x := range split {
+				cancelAllOrdersResponse.Status[split[x]] = "success"
+			}
+			for y := range a.Data.Errors {
+				cancelAllOrdersResponse.Status[a.Data.Errors[y].OrderID] = "fail"
+			}
+
 		}
 
-		if resp.Status == "error" {
-			return cancelAllOrdersResponse, errors.New(resp.ErrorMessage)
-		}
 	}
 
 	return cancelAllOrdersResponse, nil
@@ -1376,40 +1506,44 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 			for done := false; !done; {
 
-				openOrders, err := h.GetSwapOrderHistory(fPair.String(), "all", "all", "all", "", int64(req.EndTicks.Sub(req.StartTicks).Hours()/24), currentPage, 50)
+				orderHistory, err := h.GetSwapOrderHistory(fPair.String(), "all", "all", []order.Status{order.AnyStatus}, int64(req.EndTicks.Sub(req.StartTicks).Hours()/24), currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
 
 				var orderVars OrderVars
 
-				for x := range openOrders.Data.Orders {
+				for x := range orderHistory.Data.Orders {
 
-					orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
-						openOrders.Data.Orders[x].OrderPriceType,
-						openOrders.Data.Orders[x].Status)
-
-					p, err := currency.NewPairFromString(openOrders.Data.Orders[x].ContractCode)
+					p, err := currency.NewPairFromString(orderHistory.Data.Orders[x].ContractCode)
 					if err != nil {
 						return orders, err
 					}
 
+					orderVars, err = compatibleVars(orderHistory.Data.Orders[x].Direction,
+						orderHistory.Data.Orders[x].OrderPriceType,
+						orderHistory.Data.Orders[x].Status)
+
 					orders = append(orders, order.Detail{
 						PostOnly:        (orderVars.OrderType == order.PostOnly),
-						Leverage:        openOrders.Data.Orders[x].LeverageRate,
-						Price:           openOrders.Data.Orders[x].Price,
-						Amount:          openOrders.Data.Orders[x].Volume,
-						ExecutedAmount:  openOrders.Data.Orders[x].TradeVolume,
-						RemainingAmount: openOrders.Data.Orders[x].Volume - openOrders.Data.Orders[x].TradeVolume,
-						Fee:             openOrders.Data.Orders[x].Fee,
+						Leverage:        orderHistory.Data.Orders[x].LeverageRate,
+						Price:           orderHistory.Data.Orders[x].Price,
+						Amount:          orderHistory.Data.Orders[x].Volume,
+						ExecutedAmount:  orderHistory.Data.Orders[x].TradeVolume,
+						RemainingAmount: orderHistory.Data.Orders[x].Volume - orderHistory.Data.Orders[x].TradeVolume,
+						Fee:             orderHistory.Data.Orders[x].Fee,
 						Exchange:        h.Name,
 						AssetType:       req.AssetType,
-						ID:              openOrders.Data.Orders[x].OrderIDString,
+						ID:              orderHistory.Data.Orders[x].OrderIDString,
 						Side:            orderVars.Side,
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
 						Pair:            p,
 					})
+				}
+				currentPage++
+				if currentPage == orderHistory.Data.TotalPage {
+					done = true
 				}
 			}
 		}
@@ -1427,7 +1561,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 			for done := false; !done; {
 
-				openOrders, err := h.FGetOrderHistory(fPair.Base.String(), "all", "all", "all", "", fPair.String(), int64(req.EndTicks.Sub(req.StartTicks).Hours()/24), currentPage, 50)
+				openOrders, err := h.FGetOrderHistory(fPair.Base.String(), "all", "all", fPair.String(), "limit", []order.Status{order.AnyStatus}, int64(req.EndTicks.Sub(req.StartTicks).Hours()/24), currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
@@ -1473,6 +1607,9 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 					})
 				}
 				currentPage++
+				if currentPage == openOrders.Data.TotalPage {
+					done = true
+				}
 			}
 		}
 	}

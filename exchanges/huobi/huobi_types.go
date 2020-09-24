@@ -972,7 +972,7 @@ type FBatchOrderResponse struct {
 type FCancelOrderData struct {
 	Data struct {
 		Errors []struct {
-			OrderID int64  `json:"order_id,string"`
+			OrderID string `json:"order_id"`
 			ErrCode int64  `json:"err_code,string"`
 			ErrMsg  string `json:"err_msg,string"`
 		} `json:"errors"`
