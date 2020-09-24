@@ -325,7 +325,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDatabaseManager {
-		if err := bot.DatabaseManager.Start(); err != nil {
+		if err := bot.DatabaseManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
 		}
 	}
