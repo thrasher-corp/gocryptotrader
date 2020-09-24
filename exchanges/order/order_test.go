@@ -961,6 +961,20 @@ func TestValidationOnOrderTypes(t *testing.T) {
 		t.Fatal("should not error")
 	}
 
+	if cancelMe.Validate(cancelMe.StandardCancel()) == nil {
+		t.Fatal("expected error")
+	}
+
+	if cancelMe.Validate(Validate(func() error {
+		return nil
+	})) != nil {
+		t.Fatal("should return nil")
+	}
+	cancelMe.ID = "1337"
+	if cancelMe.Validate(cancelMe.StandardCancel()) != nil {
+		t.Fatal("should return nil")
+	}
+
 	var getOrders *GetOrdersRequest
 	if getOrders.Validate() != ErrGetOrdersRequestIsNil {
 		t.Fatal("unexpected error")
@@ -969,6 +983,18 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	getOrders = new(GetOrdersRequest)
 	if getOrders.Validate() != nil {
 		t.Fatal("should not error")
+	}
+
+	if getOrders.Validate(Validate(func() error {
+		return errors.New("this should error")
+	})) == nil {
+		t.Fatal("expected error")
+	}
+
+	if getOrders.Validate(Validate(func() error {
+		return nil
+	})) != nil {
+		t.Fatal("unexpected error")
 	}
 
 	var modifyOrder *Modify
@@ -984,5 +1010,17 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	modifyOrder.ClientOrderID = "1337"
 	if modifyOrder.Validate() != nil {
 		t.Fatal("should not error")
+	}
+
+	if modifyOrder.Validate(Validate(func() error {
+		return errors.New("this should error")
+	})) == nil {
+		t.Fatal("expected error")
+	}
+
+	if modifyOrder.Validate(Validate(func() error {
+		return nil
+	})) != nil {
+		t.Fatal("unexpected error")
 	}
 }

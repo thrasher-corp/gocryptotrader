@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -707,11 +708,16 @@ func (o *Cancel) Validate(opt ...Validator) error {
 	if o == nil {
 		return ErrCancelOrderIsNil
 	}
+	var errs common.Errors
 	for _, o := range opt {
 		err := o.Validate()
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
+	}
+
+	if errs != nil {
+		return errs
 	}
 	return nil
 }
@@ -721,6 +727,17 @@ func (o *GetOrdersRequest) Validate(opt ...Validator) error {
 	if o == nil {
 		return ErrGetOrdersRequestIsNil
 	}
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Validate()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
+	}
 	return nil
 }
 
@@ -728,6 +745,17 @@ func (o *GetOrdersRequest) Validate(opt ...Validator) error {
 func (o *Modify) Validate(opt ...Validator) error {
 	if o == nil {
 		return ErrModifyOrderIsNil
+	}
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Validate()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
 	}
 	if o.ClientOrderID == "" && o.ID == "" {
 		return ErrOrderIDNotSet
