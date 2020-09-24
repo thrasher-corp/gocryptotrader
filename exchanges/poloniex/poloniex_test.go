@@ -372,8 +372,8 @@ func TestWithdraw(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	case !areTestAPIKeysSet() && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock Withdraw() err", err)
+	case mockTests && err == nil:
+		t.Error("Mock Withdraw() err cannot be nil")
 	}
 }
 
