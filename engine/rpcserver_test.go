@@ -56,7 +56,7 @@ func RPCTestSetup(t *testing.T) {
 		t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 	}
 	if engerino.GetExchangeByName(testExchange) == nil {
-		err := engerino.LoadExchange(testExchange, false, nil)
+		err = engerino.LoadExchange(testExchange, false, nil)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
