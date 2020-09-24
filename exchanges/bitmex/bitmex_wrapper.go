@@ -436,7 +436,8 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 allTrades:
 	for {
 		req.StartTime = ts.Format(time.RFC3339)
-		tradeData, err := b.GetTrade(req)
+		var tradeData []Trade
+		tradeData, err = b.GetTrade(req)
 		if err != nil {
 			return nil, err
 		}

@@ -440,7 +440,7 @@ allTrades:
 			if err != nil {
 				return nil, err
 			}
-			if tt.Before(timestampStart) || tt.After(timestampEnd) {
+			if (tt.Before(timestampStart) && !timestampStart.IsZero()) || (tt.After(timestampEnd) && !timestampEnd.IsZero()) {
 				break allTrades
 			}
 			var side order.Side
@@ -461,6 +461,9 @@ allTrades:
 			if i == len(tradeData)-1 {
 				if ts.Equal(tt) {
 					// reached end of trades to crawl
+					break allTrades
+				}
+				if timestampStart.IsZero() {
 					break allTrades
 				}
 				ts = tt

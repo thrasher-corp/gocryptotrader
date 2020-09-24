@@ -349,6 +349,9 @@ allTrades:
 	for {
 		var tradeData []TradeResponse
 		tradeData, err = l.GetTrades(p.String(), int64(limit), ts.UnixNano()/int64(time.Millisecond))
+		if err != nil {
+			return nil, err
+		}
 		for i := range tradeData {
 			tradeTime := time.Unix(0, tradeData[i].DateMS*int64(time.Millisecond))
 			if tradeTime.Before(timestampStart) || tradeTime.After(timestampEnd) {

@@ -427,7 +427,7 @@ func (b *BTSE) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 		return nil, err
 	}
 	for i := range tradeData {
-		tradeTs := time.Unix(tradeData[i].Time/1000, 0)
+		tradeTimestamp := time.Unix(tradeData[i].Time/1000, 0)
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
@@ -441,9 +441,8 @@ func (b *BTSE) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 			Side:         side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
-			Timestamp:    tradeTs,
+			Timestamp:    tradeTimestamp,
 		})
-
 	}
 	err = b.AddTradesToBuffer(resp...)
 	if err != nil {

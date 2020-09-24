@@ -107,6 +107,9 @@ func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, af
 	if !end.IsZero() {
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
+	if !start.IsZero() && !end.IsZero() && start.After(end) {
+		return t, errors.New("start cannot be after end time")
+	}
 	if beforeSerialID > 0 {
 		urlValues.Add("beforeSerialId", strconv.Itoa(beforeSerialID))
 	}

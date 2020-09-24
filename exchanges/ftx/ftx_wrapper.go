@@ -458,7 +458,8 @@ func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestamp
 	limit := 100
 allTrades:
 	for {
-		trades, err := f.GetTrades(p.String(),
+		var trades []TradeData
+		trades, err = f.GetTrades(p.String(),
 			ts.Unix(),
 			timestampEnd.Unix(),
 			100)

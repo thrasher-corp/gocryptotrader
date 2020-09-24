@@ -2325,7 +2325,7 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
-	exch := GetExchangeByName(r.Exchange)
+	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
@@ -2370,7 +2370,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.TimeInterval == 0 {
 		return nil, errInvalidArguments
 	}
-	exch := GetExchangeByName(r.Exchange)
+	exch := s.GetExchangeByName(r.Exchange)
 	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
 		return nil, err
@@ -2435,7 +2435,7 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	if r.End == "" || r.Start == "" || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.Interval <= 0 {
 		return nil, errInvalidArguments
 	}
-	exch := GetExchangeByName(r.ExchangeName)
+	exch := s.GetExchangeByName(r.ExchangeName)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
@@ -2493,7 +2493,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if r.End == "" || r.Start == "" || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
-	exch := GetExchangeByName(r.ExchangeName)
+	exch := s.GetExchangeByName(r.ExchangeName)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
@@ -2562,7 +2562,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 
 // SetExchangeTradeProcessing allows the setting of exchange trade processing
 func (s *RPCServer) SetExchangeTradeProcessing(_ context.Context, r *gctrpc.SetExchangeTradeProcessingRequest) (*gctrpc.GenericResponse, error) {
-	exch := GetExchangeByName(r.Exchange)
+	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
@@ -2579,7 +2579,7 @@ func (s *RPCServer) GetHistoricTrades(_ context.Context, r *gctrpc.GetSavedTrade
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
-	exch := GetExchangeByName(r.Exchange)
+	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
@@ -2627,7 +2627,7 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
-	exch := GetExchangeByName(r.Exchange)
+	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}

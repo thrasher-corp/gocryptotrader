@@ -856,5 +856,4 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != common.ErrFunctionNotSupported {
 		t.Error("unexpected error")
 	}
-
 }

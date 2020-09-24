@@ -1117,7 +1117,6 @@ func TestGetHistoricTrades(t *testing.T) {
 		if len(trades) == 0 {
 			t.Error("expected trades")
 		}
-
 	}
 }
 

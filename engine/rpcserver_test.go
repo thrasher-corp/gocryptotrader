@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/goose"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -25,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
+	"github.com/thrasher-corp/goose"
 )
 
 const (
@@ -76,7 +75,7 @@ func CleanRPCTest(t *testing.T) {
 func TestGetSavedTrades(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
-	var s RPCServer
+	s := RPCServer{Bot}
 	_, err := s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
@@ -150,7 +149,7 @@ func TestGetSavedTrades(t *testing.T) {
 func TestConvertTradesToCandles(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
-	var s RPCServer
+	s := RPCServer{Bot}
 	// bad param test
 	_, err := s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{})
 	if err == nil {
@@ -299,7 +298,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
-	var s RPCServer
+	s := RPCServer{Bot}
 	// error checks
 	_, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "",
@@ -426,7 +425,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
-	var s RPCServer
+	s := RPCServer{Bot}
 	// bad request checks
 	_, err := s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{})
 	if err == nil {
@@ -525,7 +524,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
-	var s RPCServer
+	s := RPCServer{Bot}
 	// bad request checks
 	_, err := s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{})
 	if err == nil {
@@ -633,12 +632,12 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 func TestSetExchangeTradeProcessing(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
-	var s RPCServer
+	s := RPCServer{Bot}
 	_, err := s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	exch := GetExchangeByName(testExchange)
+	exch := s.GetExchangeByName(testExchange)
 	base := exch.GetBase()
 	if !base.IsSaveTradeDataEnabled() {
 		t.Error("expected true")
@@ -648,7 +647,7 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exch = GetExchangeByName(testExchange)
+	exch = s.GetExchangeByName(testExchange)
 	base = exch.GetBase()
 	if base.IsSaveTradeDataEnabled() {
 		t.Error("expected false")
@@ -658,7 +657,7 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 func TestGetRecentTrades(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
-	var s RPCServer
+	s := RPCServer{Bot}
 	_, err := s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
@@ -700,7 +699,7 @@ func TestGetRecentTrades(t *testing.T) {
 func TestGetHistoricTrades(t *testing.T) {
 	RPCTestSetup(t)
 	defer CleanRPCTest(t)
-	var s RPCServer
+	s := RPCServer{Bot}
 	_, err := s.GetHistoricTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)

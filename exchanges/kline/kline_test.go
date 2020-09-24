@@ -731,8 +731,8 @@ func TestDetermineMissingIntervals(t *testing.T) {
 	}
 	startTime := time.Now().Add(-time.Hour * 24).UTC()
 	endTime := startTime.Add(time.Hour * 24)
-	candleTime := startTime.Add(time.Hour)
-	outsideTime := startTime.Add(time.Hour * 1337)
+	candleTime := startTime.Add(time.Hour).Truncate(OneHour.Duration())
+	outsideTime := startTime.Add(time.Hour * 1337).Truncate(OneHour.Duration())
 	intervals := item.DetermineMissingIntervals(startTime, endTime)
 	if len(intervals) != 24 {
 		t.Errorf("expected 24 interval(s), received %v", len(intervals))
