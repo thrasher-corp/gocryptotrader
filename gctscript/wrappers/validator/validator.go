@@ -249,7 +249,7 @@ func (w Wrapper) OHLCV(exch string, p currency.Pair, a asset.Item, start, end ti
 	})
 
 	for x := 1; x < 200; x++ {
-		r := validatorLow + rand.Float64()*(validatorHigh-validatorLow)
+		r := validatorLow + rand.Float64()*(validatorHigh-validatorLow) // nolint:gosec // no need to import crypo/rand
 		candle := kline.Candle{
 			Time:   candles[x-1].Time.Add(-i.Duration()),
 			Open:   r,

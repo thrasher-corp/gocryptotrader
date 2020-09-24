@@ -18,7 +18,7 @@ matrix:
       dist: xenial
       name: 'GoCryptoTrader [back-end] [linux] [64-bit]'
       go:
-        - 1.14.x
+        - 1.15.x
       env:
         - GO111MODULE=on
         - PSQL_USER=postgres
@@ -43,7 +43,7 @@ matrix:
       dist: xenial
       name: 'GoCryptoTrader [back-end] [linux] [32-bit]'
       go:
-        - 1.14.x
+        - 1.15.x
       env:
         - GO111MODULE=on
         - NO_RACE_TEST=1
@@ -72,7 +72,7 @@ matrix:
       os: osx
       name: 'GoCryptoTrader [back-end] [darwin]'
       go:
-        - 1.14.x
+        - 1.15.x
       env:
         - GO111MODULE=on
         - PSQL_USER=postgres

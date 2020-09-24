@@ -23,7 +23,7 @@ var (
 
 func TestMain(m *testing.M) {
 	for x := 0; x < 100; x++ {
-		v := rand.Float64()
+		v := rand.Float64() // nolint:gosec // no need to import crypo/rand for testing
 		candle := &objects.Array{}
 		candle.Value = append(candle.Value, &objects.Time{Value: time.Now()},
 			&objects.Float{Value: v},

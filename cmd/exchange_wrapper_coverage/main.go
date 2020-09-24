@@ -35,7 +35,7 @@ func main() {
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
 		name := exchange.Exchanges[x]
-		err := engine.LoadExchange(name, true, &wg)
+		err := engine.Bot.LoadExchange(name, true, &wg)
 		if err != nil {
 			log.Printf("Failed to load exchange %s. Err: %s", name, err)
 			continue
@@ -47,7 +47,7 @@ func main() {
 	log.Printf("Testing exchange wrappers..")
 	results := make(map[string][]string)
 	wg = sync.WaitGroup{}
-	exchanges := engine.GetExchanges()
+	exchanges := engine.Bot.GetExchanges()
 	for x := range exchanges {
 		wg.Add(1)
 		go func(num int) {
@@ -78,7 +78,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 	if !e.SupportsAsset(assetType) {
 		assets := e.GetAssetTypes()
 		rand.Seed(time.Now().Unix())
-		assetType = assets[rand.Intn(len(assets))]
+		assetType = assets[rand.Intn(len(assets))] // nolint:gosec // basic number generation required, no need for crypo/rand
 	}
 
 	var funcs []string

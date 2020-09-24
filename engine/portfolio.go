@@ -89,5 +89,5 @@ func (p *portfolioManager) processPortfolio() {
 			key,
 			value)
 	}
-	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
+	SeedExchangeAccountInfo(Bot.GetAllEnabledExchangeAccountInfo().Data)
 }

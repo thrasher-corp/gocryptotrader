@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/d5/tengo/v2 v2.6.1
+	github.com/d5/tengo/v2 v2.6.2
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gofrs/uuid v3.3.0+incompatible
@@ -13,7 +13,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
-	github.com/grpc-ecosystem/grpc-gateway v1.14.8
+	github.com/grpc-ecosystem/grpc-gateway v1.15.0
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.8.0

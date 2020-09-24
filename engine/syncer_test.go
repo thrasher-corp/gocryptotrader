@@ -23,7 +23,7 @@ func TestNewCurrencyPairSyncer(t *testing.T) {
 	Bot.Settings.Verbose = true
 	Bot.Settings.EnableExchangeWebsocketSupport = true
 
-	SetupExchanges()
+	Bot.SetupExchanges()
 
 	if err != nil {
 		t.Log("failed to start exchange syncer")

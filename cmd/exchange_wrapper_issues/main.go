@@ -33,14 +33,14 @@ import (
 func main() {
 	log.Println("Loading flags...")
 	parseCLFlags()
-	var err error
 	log.Println("Loading engine...")
-	engine.Bot, err = engine.New()
+	bot, err := engine.New()
 	if err != nil {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
 	}
+	engine.Bot = bot
 
-	engine.Bot.Settings = engine.Settings{
+	bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,
 		Verbose:                        verboseOverride,
 		EnableExchangeHTTPRateLimiter:  true,
@@ -64,7 +64,7 @@ func main() {
 			wrapperConfig.Exchanges[strings.ToLower(name)] = &config.APICredentialsConfig{}
 		}
 		if shouldLoadExchange(name) {
-			err = engine.LoadExchange(name, true, &wg)
+			err = bot.LoadExchange(name, true, &wg)
 			if err != nil {
 				log.Printf("Failed to load exchange %s. Err: %s", name, err)
 				continue
@@ -93,7 +93,7 @@ func main() {
 	log.Println("Testing exchange wrappers..")
 	var exchangeResponses []ExchangeResponses
 
-	exchs := engine.GetExchanges()
+	exchs := bot.GetExchanges()
 	for x := range exchs {
 		base := exchs[x].GetBase()
 		if !base.Config.Enabled {

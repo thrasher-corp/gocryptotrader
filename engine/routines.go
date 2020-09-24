@@ -205,7 +205,7 @@ func WebsocketRoutine() {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
 
-	exchanges := GetExchanges()
+	exchanges := Bot.GetExchanges()
 	for i := range exchanges {
 		go func(i int) {
 			if exchanges[i].SupportsWebsocket() {
