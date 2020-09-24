@@ -23,22 +23,31 @@ linters:
 #   - varcheck
 
 # disabled by default linters
+    - asciicheck
     - bodyclose
     - depguard
     - dogsled
 #   - dupl
+#   - exhaustive
+    - exportloopref
 #   - funlen
+    - gci
 #   - gochecknoglobals
 #   - gochecknoinits
 #   - gocognit
     - goconst
     - gocritic
 #   - gocyclo
+#   - godot
 #   - godox
+#   - goerr113
     - gofmt
+#   - gofumpt
+    - goheader
     - goimports
     - golint
 #   - gomnd
+    - gomodguard
     - goprintffuncname
     - gosec
 #   - interfacer
@@ -46,10 +55,16 @@ linters:
 #   - maligned
     - misspell
     - nakedret
+#   - nestif
+#   - nlreturn
+#   - noctx
+    - nolintlint
 #   - prealloc
     - rowserrcheck
     - scopelint
+    - sqlclosecheck
     - stylecheck
+#   - testpackage
     - unconvert
     - unparam
     - whitespace
@@ -82,9 +97,6 @@ issues:
   max-same-issues: 0
 
   exclude-rules:
-    - text: "weak cryptographic primitive"
-      linters:
-        - gosec
     - text: "Expect WriteFile permissions to be 0600 or less"
       linters:
         - gosec

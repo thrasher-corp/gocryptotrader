@@ -743,6 +743,8 @@ func (s *Storage) IsVerbose() bool {
 
 // Shutdown shuts down the currency storage system and saves to currency.json
 func (s *Storage) Shutdown() error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	close(s.shutdown)
 	s.wg.Wait()
 	return s.WriteCurrencyDataToFile(s.path, true)

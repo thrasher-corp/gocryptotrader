@@ -567,7 +567,7 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		}
 		response.Trades = append(response.Trades, order.TradeHistory{
 			Timestamp: fillResponse[i].CreatedAt,
-			TID:       string(fillResponse[i].TradeID),
+			TID:       strconv.FormatInt(fillResponse[i].TradeID, 10),
 			Price:     fillResponse[i].Price,
 			Amount:    fillResponse[i].Size,
 			Exchange:  c.GetName(),

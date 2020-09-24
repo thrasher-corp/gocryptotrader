@@ -319,153 +319,153 @@ func PrintSettings(s *Settings) {
 }
 
 // Start starts the engine
-func (e *Engine) Start() error {
-	if e == nil {
+func (bot *Engine) Start() error {
+	if bot == nil {
 		return errors.New("engine instance is nil")
 	}
 
-	if e.Settings.EnableDatabaseManager {
-		if err := e.DatabaseManager.Start(); err != nil {
+	if bot.Settings.EnableDatabaseManager {
+		if err := bot.DatabaseManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
 		}
 	}
 
-	if e.Settings.EnableDispatcher {
-		if err := dispatch.Start(e.Settings.DispatchMaxWorkerAmount, e.Settings.DispatchJobsLimit); err != nil {
+	if bot.Settings.EnableDispatcher {
+		if err := dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit); err != nil {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatcher unable to start: %v", err)
 		}
 	}
 
 	// Sets up internet connectivity monitor
-	if e.Settings.EnableConnectivityMonitor {
-		if err := e.ConnectionManager.Start(); err != nil {
+	if bot.Settings.EnableConnectivityMonitor {
+		if err := bot.ConnectionManager.Start(&bot.Config.ConnectionMonitor); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to start: %v", err)
 		}
 	}
 
-	if e.Settings.EnableNTPClient {
-		if err := e.NTPManager.Start(); err != nil {
+	if bot.Settings.EnableNTPClient {
+		if err := bot.NTPManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %v", err)
 		}
 	}
 
-	e.Uptime = time.Now()
-	gctlog.Debugf(gctlog.Global, "Bot '%s' started.\n", e.Config.Name)
-	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", e.Settings.DataDir)
-	if *e.Config.Logging.Enabled && strings.Contains(e.Config.Logging.Output, "file") {
+	bot.Uptime = time.Now()
+	gctlog.Debugf(gctlog.Global, "Bot '%s' started.\n", bot.Config.Name)
+	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", bot.Settings.DataDir)
+	if *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
 		gctlog.Debugf(gctlog.Global, "Using log file: %s\n",
-			filepath.Join(gctlog.LogPath, e.Config.Logging.LoggerFileConfig.FileName))
+			filepath.Join(gctlog.LogPath, bot.Config.Logging.LoggerFileConfig.FileName))
 	}
 	gctlog.Debugf(gctlog.Global,
 		"Using %d out of %d logical processors for runtime performance\n",
 		runtime.GOMAXPROCS(-1), runtime.NumCPU())
 
-	enabledExchanges := e.Config.CountEnabledExchanges()
-	if e.Settings.EnableAllExchanges {
-		enabledExchanges = len(e.Config.Exchanges)
+	enabledExchanges := bot.Config.CountEnabledExchanges()
+	if bot.Settings.EnableAllExchanges {
+		enabledExchanges = len(bot.Config.Exchanges)
 	}
 
 	gctlog.Debugln(gctlog.Global, "EXCHANGE COVERAGE")
 	gctlog.Debugf(gctlog.Global, "\t Available Exchanges: %d. Enabled Exchanges: %d.\n",
-		len(e.Config.Exchanges), enabledExchanges)
+		len(bot.Config.Exchanges), enabledExchanges)
 
-	if e.Settings.ExchangePurgeCredentials {
+	if bot.Settings.ExchangePurgeCredentials {
 		gctlog.Debugln(gctlog.Global, "Purging exchange API credentials.")
-		e.Config.PurgeExchangeAPICredentials()
+		bot.Config.PurgeExchangeAPICredentials()
 	}
 
 	gctlog.Debugln(gctlog.Global, "Setting up exchanges..")
-	SetupExchanges()
-	if Bot.exchangeManager.Len() == 0 {
+	bot.SetupExchanges()
+	if bot.exchangeManager.Len() == 0 {
 		return errors.New("no exchanges are loaded")
 	}
 
-	if e.Settings.EnableCommsRelayer {
-		if err := e.CommsManager.Start(); err != nil {
+	if bot.Settings.EnableCommsRelayer {
+		if err := bot.CommsManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}
 
 	err := currency.RunStorageUpdater(currency.BotOverrides{
-		Coinmarketcap:       e.Settings.EnableCoinmarketcapAnalysis,
-		FxCurrencyConverter: e.Settings.EnableCurrencyConverter,
-		FxCurrencyLayer:     e.Settings.EnableCurrencyLayer,
-		FxFixer:             e.Settings.EnableFixer,
-		FxOpenExchangeRates: e.Settings.EnableOpenExchangeRates,
+		Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
+		FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,
+		FxCurrencyLayer:     bot.Settings.EnableCurrencyLayer,
+		FxFixer:             bot.Settings.EnableFixer,
+		FxOpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
 	},
 		&currency.MainConfiguration{
-			ForexProviders:         e.Config.GetForexProviders(),
-			CryptocurrencyProvider: coinmarketcap.Settings(e.Config.Currency.CryptocurrencyProvider),
-			Cryptocurrencies:       e.Config.Currency.Cryptocurrencies,
-			FiatDisplayCurrency:    e.Config.Currency.FiatDisplayCurrency,
-			CurrencyDelay:          e.Config.Currency.CurrencyFileUpdateDuration,
-			FxRateDelay:            e.Config.Currency.ForeignExchangeUpdateDuration,
+			ForexProviders:         bot.Config.GetForexProviders(),
+			CryptocurrencyProvider: coinmarketcap.Settings(bot.Config.Currency.CryptocurrencyProvider),
+			Cryptocurrencies:       bot.Config.Currency.Cryptocurrencies,
+			FiatDisplayCurrency:    bot.Config.Currency.FiatDisplayCurrency,
+			CurrencyDelay:          bot.Config.Currency.CurrencyFileUpdateDuration,
+			FxRateDelay:            bot.Config.Currency.ForeignExchangeUpdateDuration,
 		},
-		e.Settings.DataDir)
+		bot.Settings.DataDir)
 	if err != nil {
 		gctlog.Errorf(gctlog.Global, "Currency updater system failed to start %v", err)
 	}
 
-	if e.Settings.EnableGRPC {
-		go StartRPCServer()
+	if bot.Settings.EnableGRPC {
+		go StartRPCServer(bot)
 	}
 
-	if e.Settings.EnableDeprecatedRPC {
-		go StartRESTServer()
+	if bot.Settings.EnableDeprecatedRPC {
+		go StartRESTServer(bot)
 	}
 
-	if e.Settings.EnableWebsocketRPC {
-		go StartWebsocketServer()
+	if bot.Settings.EnableWebsocketRPC {
+		go StartWebsocketServer(bot)
 		StartWebsocketHandler()
 	}
 
-	if e.Settings.EnablePortfolioManager {
-		if err = e.PortfolioManager.Start(); err != nil {
+	if bot.Settings.EnablePortfolioManager {
+		if err = bot.PortfolioManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to start: %v", err)
 		}
 	}
 
-	if e.Settings.EnableDepositAddressManager {
-		e.DepositAddressManager = new(DepositAddressManager)
-		go e.DepositAddressManager.Sync()
+	if bot.Settings.EnableDepositAddressManager {
+		bot.DepositAddressManager = new(DepositAddressManager)
+		go bot.DepositAddressManager.Sync()
 	}
 
-	if e.Settings.EnableOrderManager {
-		if err = e.OrderManager.Start(); err != nil {
+	if bot.Settings.EnableOrderManager {
+		if err = bot.OrderManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
 		}
 	}
 
-	if e.Settings.EnableExchangeSyncManager {
+	if bot.Settings.EnableExchangeSyncManager {
 		exchangeSyncCfg := CurrencyPairSyncerConfig{
-			SyncTicker:       e.Settings.EnableTickerSyncing,
-			SyncOrderbook:    e.Settings.EnableOrderbookSyncing,
-			SyncTrades:       e.Settings.EnableTradeSyncing,
-			SyncContinuously: e.Settings.SyncContinuously,
-			NumWorkers:       e.Settings.SyncWorkers,
-			Verbose:          e.Settings.Verbose,
-			SyncTimeout:      e.Settings.SyncTimeout,
+			SyncTicker:       bot.Settings.EnableTickerSyncing,
+			SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
+			SyncTrades:       bot.Settings.EnableTradeSyncing,
+			SyncContinuously: bot.Settings.SyncContinuously,
+			NumWorkers:       bot.Settings.SyncWorkers,
+			Verbose:          bot.Settings.Verbose,
+			SyncTimeout:      bot.Settings.SyncTimeout,
 		}
 
-		e.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)
+		bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)
 		if err != nil {
 			gctlog.Warnf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
-			go e.ExchangeCurrencyPairManager.Start()
+			go bot.ExchangeCurrencyPairManager.Start()
 		}
 	}
 
-	if e.Settings.EnableEventManager {
+	if bot.Settings.EnableEventManager {
 		go EventManger()
 	}
 
-	if e.Settings.EnableWebsocketRoutine {
+	if bot.Settings.EnableWebsocketRoutine {
 		go WebsocketRoutine()
 	}
 
-	if e.Settings.EnableGCTScriptManager {
-		if e.Config.GCTScript.Enabled {
-			if err := e.GctScriptManager.Start(); err != nil {
+	if bot.Settings.EnableGCTScriptManager {
+		if bot.Config.GCTScript.Enabled {
+			if err := bot.GctScriptManager.Start(); err != nil {
 				gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %v", err)
 			}
 		}
@@ -475,50 +475,50 @@ func (e *Engine) Start() error {
 }
 
 // Stop correctly shuts down engine saving configuration files
-func (e *Engine) Stop() {
+func (bot *Engine) Stop() {
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
 	if len(portfolio.Portfolio.Addresses) != 0 {
-		e.Config.Portfolio = portfolio.Portfolio
+		bot.Config.Portfolio = portfolio.Portfolio
 	}
 
-	if e.GctScriptManager.Started() {
-		if err := e.GctScriptManager.Stop(); err != nil {
+	if bot.GctScriptManager.Started() {
+		if err := bot.GctScriptManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to stop. Error: %v", err)
 		}
 	}
-	if e.OrderManager.Started() {
-		if err := e.OrderManager.Stop(); err != nil {
+	if bot.OrderManager.Started() {
+		if err := bot.OrderManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to stop. Error: %v", err)
 		}
 	}
 
-	if e.NTPManager.Started() {
-		if err := e.NTPManager.Stop(); err != nil {
+	if bot.NTPManager.Started() {
+		if err := bot.NTPManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to stop. Error: %v", err)
 		}
 	}
 
-	if e.CommsManager.Started() {
-		if err := e.CommsManager.Stop(); err != nil {
+	if bot.CommsManager.Started() {
+		if err := bot.CommsManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communication manager unable to stop. Error: %v", err)
 		}
 	}
 
-	if e.PortfolioManager.Started() {
-		if err := e.PortfolioManager.Stop(); err != nil {
+	if bot.PortfolioManager.Started() {
+		if err := bot.PortfolioManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to stop. Error: %v", err)
 		}
 	}
 
-	if e.ConnectionManager.Started() {
-		if err := e.ConnectionManager.Stop(); err != nil {
+	if bot.ConnectionManager.Started() {
+		if err := bot.ConnectionManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to stop. Error: %v", err)
 		}
 	}
 
-	if e.DatabaseManager.Started() {
-		if err := e.DatabaseManager.Stop(); err != nil {
+	if bot.DatabaseManager.Started() {
+		if err := bot.DatabaseManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to stop. Error: %v", err)
 		}
 	}
@@ -533,8 +533,8 @@ func (e *Engine) Stop() {
 		gctlog.Errorf(gctlog.Global, "Currency storage system. Error: %v", err)
 	}
 
-	if !e.Settings.EnableDryRun {
-		err := e.Config.SaveConfig(e.Settings.ConfigFile, false)
+	if !bot.Settings.EnableDryRun {
+		err := bot.Config.SaveConfig(bot.Settings.ConfigFile, false)
 		if err != nil {
 			gctlog.Errorln(gctlog.Global, "Unable to save config.")
 		} else {
@@ -543,7 +543,7 @@ func (e *Engine) Stop() {
 	}
 
 	// Wait for services to gracefully shutdown
-	e.ServicesWG.Wait()
+	bot.ServicesWG.Wait()
 	err := gctlog.CloseLogger()
 	if err != nil {
 		log.Printf("Failed to close logger. Error: %v\n", err)

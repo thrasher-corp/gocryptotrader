@@ -28,8 +28,7 @@ func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 		return nil, err
 	}
 
-	var ret *withdraw.ExchangeResponse
-	exch := GetExchangeByName(req.Exchange)
+	exch := Bot.GetExchangeByName(req.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
@@ -47,6 +46,7 @@ func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 		resp.Exchange.Status = "dryrun"
 		resp.Exchange.ID = withdraw.DryRunID.String()
 	} else {
+		var ret *withdraw.ExchangeResponse
 		if req.Type == withdraw.Fiat {
 			ret, err = exch.WithdrawFiatFunds(req)
 			if err != nil {
