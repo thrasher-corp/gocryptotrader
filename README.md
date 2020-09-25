@@ -141,21 +141,23 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 641 |
-| [shazbert](https://github.com/shazbert) | 191 |
-| [gloriousCode](https://github.com/gloriousCode) | 169 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 51 |
-| [xtda](https://github.com/xtda) | 45 |
+| [thrasher-](https://github.com/thrasher-) | 643 |
+| [shazbert](https://github.com/shazbert) | 195 |
+| [gloriousCode](https://github.com/gloriousCode) | 170 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 68 |
+| [xtda](https://github.com/xtda) | 47 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 9 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
+| [vazha](https://github.com/vazha) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
+| [Rots](https://github.com/Rots) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
-| [vazha](https://github.com/vazha) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
+| [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
@@ -165,7 +167,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
-| [azhang](https://github.com/azhang) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
