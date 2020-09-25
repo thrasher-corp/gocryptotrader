@@ -24,7 +24,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
   - Checking for ID in an order cancellation struct.
   - Determining the correct withdrawal bank details for a specific exchange.
 
-+ Excample Usage below:
++ Example Usage below:
 
 ```go 
 // import package
