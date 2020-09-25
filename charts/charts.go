@@ -75,7 +75,6 @@ func KlineItemToSeriesData(item kline.Item) ([]SeriesData, error) {
 			Low: item.Candles[x].Low,
 			Close: item.Candles[x].Close,
 			Volume: item.Candles[x].Volume,
-			// Value:
 		}
 	}
 	return out, nil

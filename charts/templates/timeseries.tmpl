@@ -1,10 +1,10 @@
 {{template "base" .}}
 
-{{define "title"}}Basic Chart{{end}}
+{{define "title"}}Chart{{end}}
 {{define "content"}}
     <script> var chart = LightweightCharts.createChart(document.body, {
-               width: 600,
-               height: 300,
+               width: 1920,
+               height: 1080,
              	timeScale: {
              			timeVisible: true,
                    borderColor: '#D1D4DC',
@@ -24,6 +24,14 @@
                    color: '#F0F3FA',
                  },
                },
+               watermark: {
+                visible: true,
+                fontSize: 24,
+                horzAlign: 'center',
+                vertAlign: 'center',
+                color: 'rgba(0, 0, 0, 0.5)',
+                text: 'GoCryptoTrader',
+               },
              });
 
 
@@ -36,7 +44,7 @@ var series = chart.addCandlestickSeries({
   });
 series.setData([
                  {{range .Data }}
-                    { time: '{{.Timestamp}}', value: {{.Value}} },
+                    { time:  '{{.Timestamp}}' , open: {{.Open}}, high: {{.High}} , low: {{.Low}} , close: {{.Close}}},
                 {{end}}
 ]);
 

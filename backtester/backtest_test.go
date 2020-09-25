@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
+	"github.com/thrasher-corp/gocryptotrader/charts"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -93,10 +94,17 @@ func TestBackTest(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 	r := statistic.ReturnResults()
-	err = GenerateOutput(r)
+
+	chart := charts.New("backtester", "timeseries")
+	chart.Data.Data = r
+	err = chart.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
+	// err = GenerateOutput(r)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 	// fmt.Println(string(r))
 	// for x := range bt.orderbook.Orders() {
 	// 	fmt.Println(bt.orderbook.Orders()[x])

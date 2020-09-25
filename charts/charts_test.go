@@ -13,6 +13,7 @@ import (
 )
 
 func TestChart_Generate(t *testing.T) {
+	ohlcvKline, _  := KlineItemToSeriesData(genOHCLVData())
 	type fields struct {
 		template   string
 		output     string
@@ -29,12 +30,25 @@ func TestChart_Generate(t *testing.T) {
 		{
 			"basic",
 			fields{
-				output:     "test.html",
+				output:     "basic.html",
 				outputPath: "output",
 				template:   "basic.tmpl",
 				writeFile:  true,
 				Data: Data{
 					Data: genIntervalData(),
+				},
+			},
+			false,
+		},
+		{
+			"timeseries",
+			fields{
+				output:     "timeseries.html",
+				outputPath: "output",
+				template:   "timeseries.tmpl",
+				writeFile:  true,
+				Data: Data{
+					Data: ohlcvKline,
 				},
 			},
 			false,
