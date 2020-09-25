@@ -54,3 +54,4 @@ ifeq ($(DRIVER), psql)
 else
 	sqlboiler -o database/models/sqlite3 -p sqlite3 --no-auto-timestamps --wipe $(DRIVER)
 endif
+
