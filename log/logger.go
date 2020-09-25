@@ -8,8 +8,7 @@ import (
 )
 
 func newLogger(c *Config) *Logger {
-	RWM.Lock()
-	l := &Logger{
+	return &Logger{
 		Timestamp:         c.AdvancedSettings.TimeStampFormat,
 		Spacer:            c.AdvancedSettings.Spacer,
 		ErrorHeader:       c.AdvancedSettings.Headers.Error,
@@ -18,8 +17,6 @@ func newLogger(c *Config) *Logger {
 		DebugHeader:       c.AdvancedSettings.Headers.Debug,
 		ShowLogSystemName: *c.AdvancedSettings.ShowLogSystemName,
 	}
-	RWM.Unlock()
-	return l
 }
 
 func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
