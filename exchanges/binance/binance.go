@@ -2645,7 +2645,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 	}
 
 	var resp response
-
+	b.API.Endpoints.URL = apiURL
 	path := b.API.Endpoints.URL + accountInfo
 	params := url.Values{}
 

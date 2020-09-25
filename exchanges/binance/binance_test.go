@@ -1495,11 +1495,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	b.API.Endpoints.URL = "https://sapi.binance.com"
-	_, err := b.UpdateAccountInfo()
+	a, err := b.UpdateAccountInfo()
+	t.Log(a)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetAccountInfo() error", err)

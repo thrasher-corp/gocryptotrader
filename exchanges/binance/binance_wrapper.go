@@ -611,40 +611,85 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 // Binance exchange
 func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
-	raw, err := b.GetAccount()
-	if err != nil {
-		return info, err
-	}
-
-	var currencyBalance []account.Balance
-	for i := range raw.Balances {
-		freeCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Free, 64)
-		if parseErr != nil {
-			return info, parseErr
-		}
-
-		lockedCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Locked, 64)
-		if parseErr != nil {
-			return info, parseErr
-		}
-
-		currencyBalance = append(currencyBalance, account.Balance{
-			CurrencyName: currency.NewCode(raw.Balances[i].Asset),
-			TotalValue:   freeCurrency + lockedCurrency,
-			Hold:         freeCurrency,
-		})
-	}
-
+	var acc account.SubAccount
 	info.Exchange = b.Name
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currencies: currencyBalance,
-	})
+	for x := range b.GetAssetTypes() {
+		switch b.GetAssetTypes()[x] {
+		case asset.Spot:
 
-	err = account.Process(&info)
+			raw, err := b.GetAccount()
+			if err != nil {
+				return info, err
+			}
+
+			var currencyBalance []account.Balance
+			for i := range raw.Balances {
+				freeCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Free, 64)
+				if parseErr != nil {
+					return info, parseErr
+				}
+
+				lockedCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Locked, 64)
+				if parseErr != nil {
+					return info, parseErr
+				}
+
+				currencyBalance = append(currencyBalance, account.Balance{
+					CurrencyName: currency.NewCode(raw.Balances[i].Asset),
+					TotalValue:   freeCurrency + lockedCurrency,
+					Hold:         freeCurrency,
+				})
+			}
+
+			acc.AssetType = asset.Spot
+			acc.Currencies = currencyBalance
+			fmt.Println(currencyBalance)
+			info.Accounts = append(info.Accounts, acc)
+
+		case asset.CoinMarginedFutures:
+
+			accData, err := b.GetFuturesAccountInfo()
+			if err != nil {
+				return info, err
+			}
+			var currencyDetails []account.Balance
+			for x := range accData.Assets {
+				currencyDetails = append(currencyDetails, account.Balance{
+					CurrencyName: currency.NewCode(accData.Assets[x].Asset),
+					TotalValue:   accData.Assets[x].WalletBalance,
+					Hold:         accData.Assets[x].WalletBalance - accData.Assets[x].MarginBalance,
+				})
+			}
+
+			acc.AssetType = asset.CoinMarginedFutures
+			acc.Currencies = currencyDetails
+			info.Accounts = append(info.Accounts, acc)
+
+		case asset.USDTMarginedFutures:
+
+			accData, err := b.UAccountBalanceV2()
+			if err != nil {
+				return info, err
+			}
+			var currencyDetails []account.Balance
+			for x := range accData {
+				currencyDetails = append(currencyDetails, account.Balance{
+					CurrencyName: currency.NewCode(accData[x].Asset),
+					TotalValue:   accData[x].Balance,
+					Hold:         accData[x].Balance - accData[x].AvailableBalance,
+				})
+			}
+
+			acc.AssetType = asset.USDTMarginedFutures
+			acc.Currencies = currencyDetails
+			info.Accounts = append(info.Accounts, acc)
+
+		}
+	}
+	err := account.Process(&info)
 	if err != nil {
 		return account.Holdings{}, err
 	}
-
 	return info, nil
 }
 

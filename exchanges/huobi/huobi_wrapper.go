@@ -655,7 +655,6 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 					}
 					currencyDetails = append(currencyDetails, currData)
 				}
-				var acc account.SubAccount
 				acc.Currencies = currencyDetails
 				info.Accounts = append(info.Accounts, acc)
 			} else {
