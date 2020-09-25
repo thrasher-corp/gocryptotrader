@@ -1494,10 +1494,6 @@ func GetFilePath(configfile string) (string, error) {
 	}
 
 	newDir := common.GetDefaultDataDir(runtime.GOOS)
-	err = common.CreateDir(newDir)
-	if err != nil {
-		return "", err
-	}
 	newDirs := []string{
 		filepath.Join(newDir, File),
 		filepath.Join(newDir, EncryptedFile),

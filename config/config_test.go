@@ -28,6 +28,17 @@ const (
 	testString              = "test"
 )
 
+func TestGetNonExistentDefaultFilePathDoesNotCreateDefaultDir(t *testing.T) {
+	dir := common.GetDefaultDataDir(runtime.GOOS)
+	if file.Exists(dir) {
+		t.Skip("The default directory already exists before running the test")
+	}
+	GetFilePath("")
+	if file.Exists(dir) {
+		t.Fatalf("The target directory was created in %s", dir)
+	}
+}
+
 func TestGetCurrencyConfig(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(TestFile, true)
