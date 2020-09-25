@@ -2484,7 +2484,7 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v",
 			len(intervals)-len(missingIntervals),
 			len(missingIntervals),
-			UTCStartTime.In(time.Local).Format(common.SimpleTimeFormatWithTimezone),
+			UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 	}
 
@@ -2544,7 +2544,9 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		}
 		if !timeWithinHour {
 			resp.MissingPeriods = append(resp.MissingPeriods,
-				UTCStartTime.Add(-time.Hour).In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+" - "+UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+				UTCStartTime.Add(-time.Hour).In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+
+					" - "+
+					UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 		}
 		UTCStartTime = UTCStartTime.Add(time.Hour)
 	}
