@@ -3769,7 +3769,7 @@ var getHistoricCandlesCommand = cli.Command{
 			Destination: &candleGranularity,
 		},
 		cli.BoolFlag{
-			Name:  "fillmissingdatawithtrades",
+			Name:  "fillmissingdatawithtrades, fill",
 			Usage: "will create candles for missing intervals using stored trade data <true/false>",
 		},
 	},
@@ -3836,6 +3836,8 @@ func getHistoricCandles(c *cli.Context) error {
 	var fillMissingData bool
 	if c.IsSet("fillmissingdatawithtrades") {
 		fillMissingData = c.Bool("fillmissingdatawithtrades")
+	} else if c.IsSet("fill") {
+		fillMissingData = c.Bool("fill")
 	}
 
 	conn, err := setupClient()
@@ -4002,6 +4004,8 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	var fillMissingData bool
 	if c.IsSet("fillmissingdatawithtrades") {
 		fillMissingData = c.Bool("fillmissingdatawithtrades")
+	} else if c.IsSet("fill") {
+		fillMissingData = c.Bool("fill")
 	}
 
 	var force bool

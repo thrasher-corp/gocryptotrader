@@ -106,9 +106,8 @@ func DeleteCandles(in *Item) (int64, error) {
 		qm.Where("quote = ?", strings.ToUpper(in.Quote)),
 		qm.Where("interval = ?", in.Interval),
 		qm.Where("asset = ?", strings.ToLower(in.Asset)),
+		qm.Where("exchange_name_id = ?", in.ExchangeID),
 	}
-	queries = append(queries, qm.Where("exchange_name_id = ?", in.ExchangeID))
-
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		queries = append(queries, qm.Where("timestamp between ? and ?", in.Candles[0].Timestamp.UTC().Format(time.RFC3339), in.Candles[len(in.Candles)-1].Timestamp.UTC().Format(time.RFC3339)))
 		return deleteSQLite(ctx, queries)

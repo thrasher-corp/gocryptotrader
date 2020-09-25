@@ -1586,7 +1586,7 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 				Type:       v[x].Type,
 				Identifier: v[x].Identifier,
 				Message:    v[x].Message,
-				Timestamp:  v[x].CreatedAt.In(time.Local).Format(common.SimpleTimeFormat),
+				Timestamp:  v[x].CreatedAt.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			}
 
 			resp.Events = append(resp.Events, tempEvent)
@@ -1696,7 +1696,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 	resp.Exchange = klineItem.Exchange
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   klineItem.Candles[i].Time.Format(common.SimpleTimeFormat),
+			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			Low:    klineItem.Candles[i].Low,
 			High:   klineItem.Candles[i].High,
 			Open:   klineItem.Candles[i].Open,
@@ -1762,7 +1762,7 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 				klineItem.Exchange,
 				klineItem.Pair.String(),
 				klineItem.Asset,
-				response.Candles[i].Time.Format(common.SimpleTimeFormat),
+				response.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			)
 		}
 	}
@@ -2354,7 +2354,7 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 			Price:     trades[i].Price,
 			Amount:    trades[i].Amount,
 			Side:      trades[i].Side.String(),
-			Timestamp: trades[i].Timestamp.In(time.Local).Format(common.SimpleTimeFormat),
+			Timestamp: trades[i].Timestamp.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			TradeId:   trades[i].TID,
 		})
 	}
@@ -2411,7 +2411,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	}
 	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   klineItem.Candles[i].Time.Format(common.SimpleTimeFormat),
+			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			Low:    klineItem.Candles[i].Low,
 			High:   klineItem.Candles[i].High,
 			Open:   klineItem.Candles[i].Open,
@@ -2472,7 +2472,10 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	}
 	missingIntervals := klineItem.DetermineMissingIntervals(UTCStartTime, UTCEndTime)
 	for i := range missingIntervals {
-		resp.MissingPeriods = append(resp.MissingPeriods, fmt.Sprintf("Local: %s, UTC: %s", missingIntervals[i].In(time.Local).Format(common.SimpleTimeFormat), missingIntervals[i].Format(common.SimpleTimeFormat)))
+		resp.MissingPeriods = append(resp.MissingPeriods, fmt.Sprintf(
+			"Local: %s, UTC: %s",
+			missingIntervals[i].In(time.Local).Format(common.SimpleTimeFormatWithTimezone),
+			missingIntervals[i].In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)))
 	}
 	if len(missingIntervals) == 0 {
 		resp.Status = "No missing periods found"
@@ -2481,8 +2484,8 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v",
 			len(intervals)-len(missingIntervals),
 			len(missingIntervals),
-			UTCStartTime.In(time.Local).Format(common.SimpleTimeFormat),
-			UTCEndTime.In(time.Local).Format(common.SimpleTimeFormat))
+			UTCStartTime.In(time.Local).Format(common.SimpleTimeFormatWithTimezone),
+			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 	}
 
 	return resp, nil
@@ -2541,7 +2544,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		}
 		if !timeWithinHour {
 			resp.MissingPeriods = append(resp.MissingPeriods,
-				UTCStartTime.Add(-time.Hour).Format(common.SimpleTimeFormat)+" - "+UTCStartTime.Format(common.SimpleTimeFormat))
+				UTCStartTime.Add(-time.Hour).In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+" - "+UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 		}
 		UTCStartTime = UTCStartTime.Add(time.Hour)
 	}
@@ -2554,7 +2557,11 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if len(resp.MissingPeriods) == 0 {
 		resp.Status = "No missing periods found"
 	} else {
-		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v", foundCount, len(resp.MissingPeriods), UTCStartTime.Format(common.SimpleTimeFormat), UTCEndTime.Format(common.SimpleTimeFormat))
+		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v",
+			foundCount,
+			len(resp.MissingPeriods),
+			UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 	}
 
 	return resp, nil
@@ -2612,7 +2619,7 @@ func (s *RPCServer) GetHistoricTrades(_ context.Context, r *gctrpc.GetSavedTrade
 			Price:     trades[i].Price,
 			Amount:    trades[i].Amount,
 			Side:      trades[i].Side.String(),
-			Timestamp: trades[i].Timestamp.In(time.Local).Format(common.SimpleTimeFormat),
+			Timestamp: trades[i].Timestamp.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			TradeId:   trades[i].TID,
 		})
 	}
@@ -2650,7 +2657,7 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 			Price:     trades[i].Price,
 			Amount:    trades[i].Amount,
 			Side:      trades[i].Side.String(),
-			Timestamp: trades[i].Timestamp.In(time.Local).Format(common.SimpleTimeFormat),
+			Timestamp: trades[i].Timestamp.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			TradeId:   trades[i].TID,
 		})
 	}

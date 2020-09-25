@@ -26,7 +26,7 @@ const (
 	wsContractURL     = "wss://ws.coinbene.com/stream/ws"
 	event             = "event"
 	topic             = "topic"
-	swapChannelPreix  = "btc/"
+	swapChannelPrefix = "btc/"
 	spotChannelPrefix = "spot/"
 )
 
@@ -73,7 +73,7 @@ func (c *Coinbene) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		for y := range perpetualPairs {
 			perpetualPairs[y].Delimiter = ""
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  swapChannelPreix + fmt.Sprintf(channels[x], perpetualPairs[y]),
+				Channel:  swapChannelPrefix + fmt.Sprintf(channels[x], perpetualPairs[y]),
 				Currency: perpetualPairs[y],
 				Asset:    asset.PerpetualSwap,
 			})
