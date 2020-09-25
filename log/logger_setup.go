@@ -87,6 +87,7 @@ func SetupSubLoggers(s []SubLoggerConfig) {
 
 // SetupGlobalLogger setup the global loggers with the default global config values
 func SetupGlobalLogger() {
+	RWM.Lock()
 	if FileLoggingConfiguredCorrectly {
 		GlobalLogFile = &Rotate{
 			FileName: GlobalLogConfig.LoggerFileConfig.FileName,
@@ -101,6 +102,7 @@ func SetupGlobalLogger() {
 	}
 
 	logger = newLogger(GlobalLogConfig)
+	RWM.Unlock()
 }
 
 func splitLevel(level string) (l Levels) {

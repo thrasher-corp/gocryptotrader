@@ -29,7 +29,9 @@ const (
 
 func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
+	log.RWM.Lock()
 	log.GlobalLogConfig = &c
+	log.RWM.Unlock()
 	log.SetupGlobalLogger()
 	os.Exit(m.Run())
 }

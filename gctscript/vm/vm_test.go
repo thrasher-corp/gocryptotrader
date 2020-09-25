@@ -32,7 +32,9 @@ var (
 func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(false)
+	log.RWM.Lock()
 	log.GlobalLogConfig = &c
+	log.RWM.Unlock()
 	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
 	os.Exit(m.Run())
 }

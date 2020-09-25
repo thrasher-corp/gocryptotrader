@@ -101,7 +101,9 @@ func main() {
 	flag.Parse()
 	var err error
 	c := log.GenDefaultSettings()
+	log.RWM.Lock()
 	log.GlobalLogConfig = &c
+	log.RWM.Unlock()
 	log.SetupGlobalLogger()
 	configData, err = readFileData(jsonFile)
 	if err != nil {
