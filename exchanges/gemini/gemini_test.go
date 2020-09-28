@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -426,7 +427,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		ID: "266029865",
+		ID:        "266029865",
+		AssetType: asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	}
 
 	err := g.CancelOrder(orderCancellation)

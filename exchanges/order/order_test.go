@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
@@ -976,6 +977,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	}
 
 	cancelMe = new(Cancel)
+	cancelMe.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	cancelMe.AssetType = asset.Spot
 	if cancelMe.Validate() != nil {
 		t.Fatal("should not error")
 	}
