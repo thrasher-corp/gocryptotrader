@@ -803,7 +803,7 @@ allKlines:
 			})
 			if x == len(candles.Data)-1 {
 				if startTime.Equal(candles.Data[x].KlineTime) {
-					// reached end of trades to crawl
+					// no new data has been sent
 					break allKlines
 				}
 				startTime = candles.Data[x].KlineTime
