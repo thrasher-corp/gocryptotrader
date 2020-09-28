@@ -12,13 +12,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-func New(name, template string) (chart Chart) {
+func New(name, template, outputpath string) (chart Chart) {
 	switch template {
 	case "basic":
 		chart.template = "basic.tmpl"
-		chart.outputPath = "output"
+
 	}
 	chart.output = name
+	if outputpath != "" {
+		chart.OutputPath = "output"
+	} else {
+		chart.OutputPath = outputpath
+	}
 	return chart
 }
 
@@ -35,7 +40,7 @@ func (c *Chart) Generate() error {
 
 	if c.writeFile {
 		wd, _ := os.Getwd()
-		outPath := filepath.Join(wd, c.outputPath)
+		outPath := filepath.Join(wd, c.OutputPath)
 		err := common.CreateDir(outPath)
 		if err != nil {
 			return err

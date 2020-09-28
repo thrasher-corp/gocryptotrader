@@ -7,9 +7,9 @@ import (
 type Chart struct {
 	template   string
 	output     string
-	outputPath string
+	OutputPath string
 
-	Data      Data
+	Data
 	w         io.ReadWriter
 	writeFile bool
 }

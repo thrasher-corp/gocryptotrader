@@ -60,7 +60,7 @@ func TestChart_Generate(t *testing.T) {
 			c := &Chart{
 				template:   tt.fields.template,
 				output:     tt.fields.output,
-				outputPath: tt.fields.outputPath,
+				OutputPath: tt.fields.outputPath,
 				Data:       tt.fields.Data,
 				w:          tt.fields.w,
 				writeFile:  tt.fields.writeFile,
@@ -129,7 +129,7 @@ func TestNewBasic(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := New(tt.name, tt.name); !reflect.DeepEqual(got, tt.want) {
+			if got := New(tt.name, tt.name, ""); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBasic() = %v, want %v", got, tt.want)
 			}
 		})

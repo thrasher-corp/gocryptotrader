@@ -3,6 +3,8 @@ package backtest
 import (
 	"fmt"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -94,8 +96,9 @@ func TestBackTest(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 	r := statistic.ReturnResults()
-
-	chart := charts.New("backtester", "timeseries")
+	wd, _ := os.Getwd()
+	path := filepath.Join(wd, "output")
+	chart := charts.New("backtester", "timeseries", path)
 	chart.Data.Data = r
 	err = chart.Generate()
 	if err != nil {
