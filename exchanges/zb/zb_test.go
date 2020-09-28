@@ -936,3 +936,40 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCandlesRequest(t *testing.T) {
+	_, err := z.validateCandlesRequest(currency.Pair{}, "", time.Time{}, time.Time{}, kline.Interval(-1))
+	if err != nil && err.Error() != "invalid time range supplied. Start: 0001-01-01 00:00:00 +0000 UTC End 0001-01-01 00:00:00 +0000 UTC" {
+		t.Error(err)
+	}
+	_, err = z.validateCandlesRequest(currency.Pair{}, "", time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Time{}, kline.Interval(-1))
+	if err != nil && err.Error() != "invalid time range supplied. Start: 2020-01-01 01:01:01.000000001 +0000 UTC End 0001-01-01 00:00:00 +0000 UTC" {
+		t.Error(err)
+	}
+	_, err = z.validateCandlesRequest(currency.Pair{}, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
+	if err != nil && err.Error() != "pair not enabled" {
+		t.Error(err)
+	}
+	var p currency.Pair
+	p, err = currency.NewPairFromString(testCurrency)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var item kline.Item
+	item, err = z.validateCandlesRequest(p, asset.Spot, time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC), time.Date(2020, 1, 1, 1, 1, 1, 3, time.UTC), kline.OneHour)
+	if err != nil {
+		t.Error(err)
+	}
+	if !item.Pair.Equal(p) {
+		t.Errorf("unexpected result, expected %v, received %v", p, item.Pair)
+	}
+	if item.Asset != asset.Spot {
+		t.Errorf("unexpected result, expected %v, received %v", asset.Spot, item.Asset)
+	}
+	if item.Interval != kline.OneHour {
+		t.Errorf("unexpected result, expected %v, received %v", kline.OneHour, item.Interval)
+	}
+	if item.Exchange != z.Name {
+		t.Errorf("unexpected result, expected %v, received %v", z.Name, item.Exchange)
+	}
+}
