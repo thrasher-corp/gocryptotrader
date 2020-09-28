@@ -403,11 +403,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    10,
-		Amount:   1,
-		ClientID: "1234234",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     10,
+		Amount:    1,
+		ClientID:  "1234234",
+		AssetType: asset.Spot,
 	}
 
 	response, err := g.SubmitOrder(orderSubmission)

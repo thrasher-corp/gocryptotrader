@@ -263,11 +263,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.BTC,
 			Quote:     currency.LTC,
 		},
-		Side:     order.Buy,
-		Type:     order.Market,
-		Price:    10,
-		Amount:   10000000,
-		ClientID: "hi",
+		Side:      order.Buy,
+		Type:      order.Market,
+		Price:     10,
+		Amount:    10000000,
+		ClientID:  "hi",
+		AssetType: asset.Spot,
 	}
 
 	response, err := p.SubmitOrder(orderSubmission)
@@ -339,7 +340,7 @@ func TestModifyOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := p.ModifyOrder(&order.Modify{ID: "1337", Price: 1337})
+	_, err := p.ModifyOrder(&order.Modify{ID: "1337", Price: 1337, AssetType: asset.Spot})
 	switch {
 	case areTestAPIKeysSet() && err != nil && mockTests:
 		t.Error("ModifyOrder() error", err)
