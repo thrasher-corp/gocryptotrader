@@ -22,6 +22,10 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrPairIsEmpty
 	}
 
+	if s.AssetType == "" {
+		return ErrAssetNotSet
+	}
+
 	if s.Side != Buy &&
 		s.Side != Sell &&
 		s.Side != Bid &&
@@ -709,11 +713,11 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 	}
 
 	if c.Pair.IsEmpty() {
-		return errors.New("currency pair not set")
+		return ErrPairIsEmpty
 	}
 
-	if c.AssetType.String() == "" {
-		return errors.New("asset type not set")
+	if c.AssetType == "" {
+		return ErrAssetNotSet
 	}
 
 	var errs common.Errors
@@ -754,6 +758,15 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 	if m == nil {
 		return ErrModifyOrderIsNil
 	}
+
+	if m.Pair.IsEmpty() {
+		return ErrPairIsEmpty
+	}
+
+	if m.AssetType.String() == "" {
+		return ErrAssetNotSet
+	}
+
 	var errs common.Errors
 	for _, o := range opt {
 		err := o.Check()

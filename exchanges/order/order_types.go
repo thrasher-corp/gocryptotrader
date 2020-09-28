@@ -15,6 +15,7 @@ var (
 	ErrGetOrdersRequestIsNil      = errors.New("get order request is nil")
 	ErrModifyOrderIsNil           = errors.New("modify order request is nil")
 	ErrPairIsEmpty                = errors.New("order pair is empty")
+	ErrAssetNotSet                = errors.New("order asset type is not set")
 	ErrSideIsInvalid              = errors.New("order side is invalid")
 	ErrTypeIsInvalid              = errors.New("order type is invalid")
 	ErrAmountIsInvalid            = errors.New("order amount is invalid")
