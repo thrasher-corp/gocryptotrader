@@ -152,9 +152,9 @@ Binaries will be published once the codebase reaches a stable condition.
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
+| [Rots](https://github.com/Rots) | 5 |
 | [vazha](https://github.com/vazha) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
-| [Rots](https://github.com/Rots) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [azhang](https://github.com/azhang) | 2 |

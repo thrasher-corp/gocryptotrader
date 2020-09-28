@@ -339,6 +339,7 @@ func TestCancelOrder(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	var a order.Cancel
 	a.Pair = cp
+	a.AssetType = asset.Spot
 	a.ID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(&a)
 	if err != nil {

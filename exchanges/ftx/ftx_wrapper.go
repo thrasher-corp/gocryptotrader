@@ -438,8 +438,13 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	if timestampStart.Equal(timestampEnd) || timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	if timestampStart.Equal(timestampEnd) ||
+		timestampEnd.After(time.Now()) ||
+		timestampEnd.Before(timestampStart) ||
+		(timestampStart.IsZero() && !timestampEnd.IsZero()) {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v",
+			timestampStart,
+			timestampEnd)
 	}
 
 	marketName, err := f.FormatExchangeCurrency(p, assetType)

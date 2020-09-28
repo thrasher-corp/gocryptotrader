@@ -1111,6 +1111,10 @@ func TestGetExchangeHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = f.GetExchangeHistory(p, a, time.Time{}, time.Now())
+	if err == nil {
+		t.Error("error cannot be nil ")
+	}
 }
 
 func TestTimestampFromFloat64(t *testing.T) {

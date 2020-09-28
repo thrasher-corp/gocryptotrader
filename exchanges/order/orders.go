@@ -707,6 +707,15 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 	if c == nil {
 		return ErrCancelOrderIsNil
 	}
+
+	if c.Pair.IsEmpty() {
+		return errors.New("currency pair not set")
+	}
+
+	if c.AssetType.String() == "" {
+		return errors.New("asset type not set")
+	}
+
 	var errs common.Errors
 	for _, o := range opt {
 		err := o.Check()
