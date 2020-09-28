@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -576,7 +577,7 @@ func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Requ
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if !z.AllowAuthenticatedRequest() && // Todo check connection status
+	if (!z.AllowAuthenticatedRequest() || z.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -758,16 +759,7 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 		return kline.Item{}, err
 	}
 
-	klineParams := KlinesRequestParams{
-		Type:   z.FormatExchangeKlineInterval(interval),
-		Symbol: formattedPair.String(),
-	}
-
-	candles, err := z.GetSpotKline(klineParams)
-	if err != nil {
-		return kline.Item{}, err
-	}
-
+	startTime := start
 	ret := kline.Item{
 		Exchange: z.Name,
 		Pair:     pair,
@@ -775,18 +767,43 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 		Interval: interval,
 	}
 
-	for x := range candles.Data {
-		if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
-			continue
+allKlines:
+	for {
+		klineParams := KlinesRequestParams{
+			Type:   z.FormatExchangeKlineInterval(interval),
+			Symbol: formattedPair.String(),
+			Since:  convert.UnixMillis(startTime),
+			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 		}
-		ret.Candles = append(ret.Candles, kline.Candle{
-			Time:   candles.Data[x].KlineTime,
-			Open:   candles.Data[x].Open,
-			High:   candles.Data[x].Close,
-			Low:    candles.Data[x].Low,
-			Close:  candles.Data[x].Close,
-			Volume: candles.Data[x].Volume,
-		})
+
+		candles, err := z.GetSpotKline(klineParams)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for x := range candles.Data {
+			if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
+				continue
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   candles.Data[x].KlineTime,
+				Open:   candles.Data[x].Open,
+				High:   candles.Data[x].Close,
+				Low:    candles.Data[x].Low,
+				Close:  candles.Data[x].Close,
+				Volume: candles.Data[x].Volume,
+			})
+			if x == len(candles.Data)-1 {
+				if startTime.Equal(candles.Data[x].KlineTime) {
+					// reached end of trades to crawl
+					break allKlines
+				}
+				startTime = candles.Data[x].KlineTime
+			}
+		}
+		if len(candles.Data) != int(z.Features.Enabled.Kline.ResultLimit) {
+			break allKlines
+		}
 	}
 
 	ret.SortCandlesByTimestamp(false)
