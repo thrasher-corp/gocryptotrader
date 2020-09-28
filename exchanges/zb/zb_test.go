@@ -237,6 +237,9 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type: order.AnyType,
 		Pairs: []currency.Pair{currency.NewPair(currency.XRP,
@@ -245,13 +248,16 @@ func TestGetActiveOrders(t *testing.T) {
 
 	_, err := z.GetActiveOrders(&getOrdersRequest)
 	if z.ValidateAPICredentials() && err != nil {
-		t.Errorf("Could not get open orders: %s", err)
+		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
-		t.Error("Expecting an error when no keys are set")
+		t.Error("expecting an error when no keys are set")
 	}
 }
 
 func TestGetOrderHistory(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type: order.AnyType,
 		Side: order.Buy,
@@ -261,9 +267,9 @@ func TestGetOrderHistory(t *testing.T) {
 
 	_, err := z.GetOrderHistory(&getOrdersRequest)
 	if z.ValidateAPICredentials() && err != nil {
-		t.Errorf("Could not get order history: %s", err)
+		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
-		t.Error("Expecting an error when no keys are set")
+		t.Error("expecting an error when no keys are set")
 	}
 }
 
@@ -272,9 +278,11 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	if z.ValidateAPICredentials() && !canManipulateRealOrders {
-		t.Skip(fmt.Sprintf("ApiKey: %s. Can place orders: %v",
-			z.API.Credentials.Key,
+		t.Skip(fmt.Sprintf("Can place orders: %v",
 			canManipulateRealOrders))
+	}
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
 	}
 
 	var orderSubmission = &order.Submit{
@@ -290,16 +298,22 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID: "meowOrder",
 	}
 	response, err := z.SubmitOrder(orderSubmission)
-	if z.ValidateAPICredentials() && (err != nil || !response.IsOrderPlaced) {
-		t.Errorf("Order failed to be placed: %v", err)
+	if z.ValidateAPICredentials() && err != nil {
+		t.Error(err)
 	} else if !z.ValidateAPICredentials() && err == nil {
-		t.Error("Expecting an error when no keys are set")
+		t.Error("expecting an error when no keys are set")
+	}
+	if z.ValidateAPICredentials() && response.OrderID == "" {
+		t.Error("expected order id")
 	}
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
 	if z.ValidateAPICredentials() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
 	}
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
@@ -311,17 +325,19 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := z.CancelOrder(orderCancellation)
-	if !z.ValidateAPICredentials() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
 	if z.ValidateAPICredentials() && err != nil {
-		t.Errorf("Could not cancel orders: %v", err)
+		t.Error(err)
+	} else if !z.ValidateAPICredentials() && err == nil {
+		t.Error("expecting an error when no keys are set")
 	}
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	if z.ValidateAPICredentials() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
 	}
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
@@ -334,19 +350,20 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	resp, err := z.CancelAllOrders(orderCancellation)
 
-	if !z.ValidateAPICredentials() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
 	if z.ValidateAPICredentials() && err != nil {
-		t.Errorf("Could not cancel orders: %v", err)
+		t.Error(err)
+	} else if !z.ValidateAPICredentials() && err == nil {
+		t.Error("expecting an error when no keys are set")
 	}
-
 	if len(resp.Status) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
 	if z.ValidateAPICredentials() {
 		_, err := z.UpdateAccountInfo()
 		if err != nil {
@@ -361,6 +378,9 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
 	if z.ValidateAPICredentials() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -371,6 +391,13 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
+	if z.ValidateAPICredentials() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
 	withdrawCryptoRequest := withdraw.Request{
 		Crypto: &withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
@@ -381,20 +408,18 @@ func TestWithdraw(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 	}
 
-	if z.ValidateAPICredentials() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
 	_, err := z.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
-	if !z.ValidateAPICredentials() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
 	if z.ValidateAPICredentials() && err != nil {
-		t.Errorf("Withdraw failed to be placed: %v", err)
+		t.Error(err)
+	} else if !z.ValidateAPICredentials() && err == nil {
+		t.Error("expecting an error when no keys are set")
 	}
 }
 
 func TestWithdrawFiat(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
 	if z.ValidateAPICredentials() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -407,6 +432,9 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
 	if z.ValidateAPICredentials() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -419,6 +447,9 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
 	if z.ValidateAPICredentials() {
 		_, err := z.GetDepositAddress(currency.BTC, "")
 		if err != nil {
