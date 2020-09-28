@@ -4073,11 +4073,11 @@ var getSavedTradesCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+			Usage: "the exchange to get the trades from",
 		},
 		cli.StringFlag{
 			Name:  "pair, p",
-			Usage: "the currency pair to get the candles for",
+			Usage: "the currency pair to get the trades for",
 		},
 		cli.StringFlag{
 			Name:  "asset, a",
@@ -4204,11 +4204,11 @@ var getRecentTradesCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+			Usage: "the exchange to get the trades from",
 		},
 		cli.StringFlag{
 			Name:  "pair, p",
-			Usage: "the currency pair to get the candles for",
+			Usage: "the currency pair to get the trades for",
 		},
 		cli.StringFlag{
 			Name:  "asset, a",
@@ -4296,11 +4296,11 @@ var getHistoricTradesCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+			Usage: "the exchange to get the trades from",
 		},
 		cli.StringFlag{
 			Name:  "pair, p",
-			Usage: "the currency pair to get the candles for",
+			Usage: "the currency pair to get the trades for",
 		},
 		cli.StringFlag{
 			Name:  "asset, a",
@@ -4427,11 +4427,11 @@ var convertSavedTradesToCandlesCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+			Usage: "the exchange",
 		},
 		cli.StringFlag{
 			Name:  "pair, p",
-			Usage: "the currency pair to get the candles for",
+			Usage: "the currency pair to get the trades for",
 		},
 		cli.StringFlag{
 			Name:  "asset, a",
@@ -4600,11 +4600,11 @@ var findMissingSavedCandleIntervalsCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+			Usage: "the exchange to find the missing candles",
 		},
 		cli.StringFlag{
 			Name:  "pair, p",
-			Usage: "the currency pair to get the candles for",
+			Usage: "the currency pair",
 		},
 		cli.StringFlag{
 			Name:  "asset, a",
@@ -4749,11 +4749,11 @@ var findMissingSavedTradeIntervalsCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+			Usage: "the exchange to find the missing trades",
 		},
 		cli.StringFlag{
 			Name:  "pair, p",
-			Usage: "the currency pair to get the candles for",
+			Usage: "the currency pair",
 		},
 		cli.StringFlag{
 			Name:  "asset, a",
@@ -4876,7 +4876,7 @@ var setExchangeTradeProcessingCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange, e",
-			Usage: "the exchange to get the candles from",
+			Usage: "the exchange to change the status of",
 		},
 		cli.BoolFlag{
 			Name:  "status",

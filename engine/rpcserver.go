@@ -2533,22 +2533,59 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		return resp, nil
 	}
 	var foundCount int64
-	for !UTCStartTime.After(UTCEndTime) && !UTCStartTime.Equal(UTCEndTime) {
+	iterateDate := UTCStartTime
+	var missingTimes []time.Time
+	for !iterateDate.After(UTCEndTime) && !iterateDate.Equal(UTCEndTime) {
 		timeWithinHour := false
 		for j := range trades {
-			sub := UTCStartTime.Sub(trades[j].Timestamp.UTC())
+			sub := iterateDate.Sub(trades[j].Timestamp.UTC())
 			if sub < time.Hour && sub >= 0 {
 				timeWithinHour = true
 				foundCount++
 			}
 		}
 		if !timeWithinHour {
-			resp.MissingPeriods = append(resp.MissingPeriods,
-				UTCStartTime.Add(-time.Hour).In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+
-					" - "+
-					UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+			missingTimes = append(missingTimes, iterateDate.Add(-time.Hour))
+			//resp.MissingPeriods = append(resp.MissingPeriods,
+			//	iterateDate.Add(-time.Hour).In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+
+			//		" - "+
+			//		iterateDate.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 		}
-		UTCStartTime = UTCStartTime.Add(time.Hour)
+		iterateDate = iterateDate.Add(time.Hour)
+	}
+
+	var consecutive = false
+	var startRange, endRange time.Time
+	for i := range missingTimes {
+		if i == 0 {
+			continue
+		}
+		previous := i - 1
+		sub := missingTimes[i].Sub(missingTimes[previous])
+		if sub <= time.Hour && sub > 0 {
+			consecutive = true
+			if startRange.IsZero() {
+				startRange = missingTimes[previous]
+			}
+		} else {
+			consecutive = false
+		}
+		if consecutive && !startRange.IsZero() {
+			endRange = missingTimes[i]
+		} else if !startRange.IsZero() && !consecutive {
+			endRange = missingTimes[i]
+			resp.MissingPeriods = append(resp.MissingPeriods,
+				startRange.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+
+					" - "+
+					endRange.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+			startRange = time.Time{}
+			endRange = time.Time{}
+		} else if !consecutive {
+			resp.MissingPeriods = append(resp.MissingPeriods,
+				missingTimes[previous].In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+
+					" - "+
+					missingTimes[i].In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+		}
 	}
 	if len(resp.MissingPeriods) == 0 {
 		resp.Status = fmt.Sprintf("no missing periods found between %v and %v",
