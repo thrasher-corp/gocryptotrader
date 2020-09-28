@@ -107,8 +107,8 @@ var s SomeExchange
 func TestDummyTest(t *testing.T) {
     s.Verbose = true // This will show you some fancy debug output
     s.HTTPRecording = true // This will record the request and response payloads
-    s.API.Endpoints.URL = zbTradeURL // This will overwrite the current mock url at localhost
-    s.API.Endpoints.URLSecondary = zbMarketURL // This is only if your API has multiple endpoints
+    s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
+    s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
     s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
     err := s.SomeExchangeEndpointFunction()
     // check error

@@ -51,11 +51,6 @@ func TestMain(m *testing.M) {
 	log.Printf(sharedtestvalues.MockTesting,
 		z.Name,
 		z.API.Endpoints.URL)
-	//z.API.Endpoints.URL = zbTradeURL
-	//z.API.Endpoints.URLSecondary = zbMarketURL
-	//z.HTTPRecording = true
-	//z.Verbose = true
-	//z.HTTPClient = http.DefaultClient
 
 	os.Exit(m.Run())
 }
