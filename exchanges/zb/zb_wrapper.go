@@ -793,6 +793,10 @@ allKlines:
 			if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
 				continue
 			}
+			if startTime.Equal(candles.Data[x].KlineTime) {
+				// no new data has been sent
+				break allKlines
+			}
 			ret.Candles = append(ret.Candles, kline.Candle{
 				Time:   candles.Data[x].KlineTime,
 				Open:   candles.Data[x].Open,
@@ -802,10 +806,6 @@ allKlines:
 				Volume: candles.Data[x].Volume,
 			})
 			if x == len(candles.Data)-1 {
-				if startTime.Equal(candles.Data[x].KlineTime) {
-					// no new data has been sent
-					break allKlines
-				}
 				startTime = candles.Data[x].KlineTime
 			}
 		}
