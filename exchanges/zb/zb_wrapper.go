@@ -750,6 +750,14 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if start.Equal(end) ||
+		end.After(time.Now()) ||
+		end.Before(start) ||
+		(start.IsZero() && !end.IsZero()) {
+		return kline.Item{}, fmt.Errorf("invalid time range supplied. Start: %v End %v",
+			start,
+			end)
+	}
 	if err := z.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
