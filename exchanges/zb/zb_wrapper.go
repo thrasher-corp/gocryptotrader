@@ -846,7 +846,7 @@ allKlines:
 	return ret, nil
 }
 
-func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start time.Time, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if start.Equal(end) ||
 		end.After(time.Now()) ||
 		end.Before(start) ||
