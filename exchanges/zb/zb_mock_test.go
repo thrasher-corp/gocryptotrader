@@ -45,7 +45,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Mock server error %s", err)
 	}
-
 	z.HTTPClient = newClient
 	z.API.Endpoints.URL = serverDetails
 	log.Printf(sharedtestvalues.MockTesting,
