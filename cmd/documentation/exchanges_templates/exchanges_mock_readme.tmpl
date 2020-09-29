@@ -41,13 +41,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("your_current_exchange_name Setup() init error", err)
 	}
-	your_current_exchange_nameConfig.AuthenticatedAPISupport = true
-	your_current_exchange_nameConfig.APIKey = apiKey
-	your_current_exchange_nameConfig.APISecret = apiSecret
-	s.SetDefaults()
-	s.Setup(&your_current_exchange_nameConfig)
-	log.Printf(sharedtestvalues.LiveTesting, s.Name, s.APIUrl)
-	os.Exit(m.Run())
+    your_current_exchange_nameConfig.API.AuthenticatedSupport = true
+    your_current_exchange_nameConfig.API.Credentials.Key = apiKey
+    your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
+    s.SetDefaults()
+    s.Setup(&your_current_exchange_nameConfig)
+    log.Printf(sharedtestvalues.LiveTesting, s.Name, s.API.Endpoints.URL)
+    os.Exit(m.Run())
 }
 ```
 
@@ -81,9 +81,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("your_current_exchange_name Setup() init error", err)
 	}
-	your_current_exchange_nameConfig.AuthenticatedAPISupport = true
-	your_current_exchange_nameConfig.APIKey = apiKey
-	your_current_exchange_nameConfig.APISecret = apiSecret
+	your_current_exchange_nameConfig.API.AuthenticatedSupport = true
+    your_current_exchange_nameConfig.API.Credentials.Key = apiKey
+    your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
 	s.SetDefaults()
 	s.Setup(&your_current_exchange_nameConfig)
 
@@ -93,9 +93,9 @@ func TestMain(m *testing.M) {
 	}
 
 	s.HTTPClient = newClient
-	s.APIUrl = serverDetails
+	s.API.Endpoints.URL = serverDetails
 
-	log.Printf(sharedtestvalues.MockTesting, s.Name, s.APIUrl)
+    log.Printf(sharedtestvalues.MockTesting, s.Name, s.API.Endpoints.URL)
 	os.Exit(m.Run())
 }
 
