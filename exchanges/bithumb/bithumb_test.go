@@ -474,11 +474,13 @@ func TestModifyOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = b.ModifyOrder(&order.Modify{
-		ID:     "1337",
-		Price:  100,
-		Amount: 1000,
-		Side:   order.Sell,
-		Pair:   curr})
+		ID:        "1337",
+		Price:     100,
+		Amount:    1000,
+		Side:      order.Sell,
+		Pair:      curr,
+		AssetType: asset.Spot,
+	})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}

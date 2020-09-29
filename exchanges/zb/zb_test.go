@@ -398,7 +398,7 @@ func TestModifyOrder(t *testing.T) {
 	if z.ValidateAPICredentials() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := z.ModifyOrder(&order.Modify{})
+	_, err := z.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}

@@ -1023,7 +1023,7 @@ func TestGetAccountInfo(t *testing.T) {
 // TestModifyOrder Wrapper test
 func TestModifyOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	_, err := o.ModifyOrder(&order.Modify{})
+	_, err := o.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}

@@ -607,7 +607,7 @@ func TestModifyOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.ModifyOrder(&order.Modify{ID: "1337"})
+	_, err := b.ModifyOrder(&order.Modify{ID: "1337", AssetType: asset.Futures})
 	if err == nil {
 		t.Error("ModifyOrder() error")
 	}

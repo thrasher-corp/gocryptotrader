@@ -327,7 +327,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := l.ModifyOrder(&order.Modify{})
+	_, err := l.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err != common.ErrFunctionNotSupported {
 		t.Error("ModifyOrder() error", err)
 	}
