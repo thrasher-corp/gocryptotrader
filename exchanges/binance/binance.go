@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -61,6 +62,12 @@ const (
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
+
+	pipe         map[string]chan *WebsocketDepthStream
+	mtx          sync.Mutex
+	fetchingbook map[string]bool
+	initialSync  map[string]bool
+	syncMe       chan currency.Pair
 
 	// Valid string list that is required by the exchange
 	validLimits []int

@@ -71,16 +71,17 @@ func (b *Binance) WsConnect() error {
 		Delay:             pingDelay,
 	})
 
+	b.pipe = make(map[string]chan *WebsocketDepthStream)
+	b.fetchingbook = make(map[string]bool)
+	b.initialSync = make(map[string]bool)
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
 	}
-
-	for i := range enabledPairs {
-		err = b.SeedLocalCache(enabledPairs[i])
-		if err != nil {
-			return err
-		}
+	b.syncMe = make(chan currency.Pair, len(enabledPairs))
+	for i := 0; i < 10; i++ {
+		// 10 workers for synchronising book
+		b.BookSynchro()
 	}
 
 	go b.wsReadData()
@@ -443,7 +444,7 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) error {
+func (b *Binance) UpdateLocalBuffer(u *WebsocketDepthStream) error {
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
@@ -454,64 +455,139 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) error {
 		return err
 	}
 
-	currencyPair, err := currency.NewPairFromFormattedPairs(wsdp.Pair,
+	currencyPair, err := currency.NewPairFromFormattedPairs(u.Pair,
 		enabledPairs,
 		format)
 	if err != nil {
 		return err
 	}
 
-	currentBook := b.Websocket.Orderbook.GetOrderbook(currencyPair, asset.Spot)
-	if currentBook == nil {
-		// Used when a pair/s is enabled while connected
-		err = b.SeedLocalCache(currencyPair)
-		if err != nil {
-			return err
-		}
-		currentBook = b.Websocket.Orderbook.GetOrderbook(currencyPair, asset.Spot)
+	return b.CheckAndLoadBook(currencyPair, asset.Spot, u)
+}
+
+// CheckAndLoadBook buffers updates, spawns workers for http book request and
+// lets slip routine, validates buffer contents and returns required work when
+// needed
+func (b *Binance) CheckAndLoadBook(c currency.Pair, ass asset.Item, u *WebsocketDepthStream) error {
+	b.mtx.Lock() // protects fetching book
+	defer b.mtx.Unlock()
+
+	ch, ok := b.pipe[c.String()]
+	if !ok {
+		ch = make(chan *WebsocketDepthStream, 1000)
+		b.pipe[c.String()] = ch
+	}
+	select {
+	case ch <- u:
+	default:
+		return fmt.Errorf("channel blockage %s", c)
 	}
 
-	// Drop any event where u is <= lastUpdateId in the snapshot.
-	// The first processed event should have U <= lastUpdateId+1 AND u >= lastUpdateId+1.
-	// While listening to the stream, each new event's U should be equal to the previous event's u+1.
-	if wsdp.LastUpdateID <= currentBook.LastUpdateID {
+	if b.fetchingbook[c.String()] {
 		return nil
 	}
 
-	var updateBid, updateAsk []orderbook.Item
-	for i := range wsdp.UpdateBids {
-		p, err := strconv.ParseFloat(wsdp.UpdateBids[i][0].(string), 64)
-		if err != nil {
-			return err
+	currentBook := b.Websocket.Orderbook.GetOrderbook(c, ass)
+	if currentBook == nil {
+		b.initialSync[c.String()] = true
+		b.fetchingbook[c.String()] = true
+		select {
+		case b.syncMe <- c:
+		default:
+			return errors.New("book synchronisation channel blocked up")
 		}
-		a, err := strconv.ParseFloat(wsdp.UpdateBids[i][1].(string), 64)
-		if err != nil {
-			return err
-		}
+		return nil
+	}
 
+loop:
+	for {
+		select {
+		case d := <-b.pipe[c.String()]:
+			if d.LastUpdateID <= currentBook.LastUpdateID {
+				// Drop any event where u is <= lastUpdateId in the snapshot.
+				continue
+			}
+			id := currentBook.LastUpdateID + 1
+			if b.initialSync[c.String()] {
+				// The first processed event should have U <= lastUpdateId+1 AND
+				// u >= lastUpdateId+1.
+				if d.FirstUpdateID > id && d.LastUpdateID < id {
+					return errors.New("initial sync failure")
+				}
+				b.initialSync[c.String()] = false
+			} else {
+				// While listening to the stream, each new event's U should be
+				// equal to the previous event's u+1.
+				if d.FirstUpdateID != id {
+					return errors.New("synchronisation failure")
+				}
+			}
+			err := b.ProcessUpdate(c, d)
+			if err != nil {
+				return err
+			}
+		default:
+			break loop
+		}
+	}
+	return nil
+}
+
+// ProcessUpdate processes the websocket orderbook update
+func (b *Binance) ProcessUpdate(cp currency.Pair, ws *WebsocketDepthStream) error {
+	var updateBid []orderbook.Item
+	for i := range ws.UpdateBids {
+		p, err := strconv.ParseFloat(ws.UpdateBids[i][0].(string), 64)
+		if err != nil {
+			return err
+		}
+		a, err := strconv.ParseFloat(ws.UpdateBids[i][1].(string), 64)
+		if err != nil {
+			return err
+		}
 		updateBid = append(updateBid, orderbook.Item{Price: p, Amount: a})
 	}
 
-	for i := range wsdp.UpdateAsks {
-		p, err := strconv.ParseFloat(wsdp.UpdateAsks[i][0].(string), 64)
+	var updateAsk []orderbook.Item
+	for i := range ws.UpdateAsks {
+		p, err := strconv.ParseFloat(ws.UpdateAsks[i][0].(string), 64)
 		if err != nil {
 			return err
 		}
-		a, err := strconv.ParseFloat(wsdp.UpdateAsks[i][1].(string), 64)
+		a, err := strconv.ParseFloat(ws.UpdateAsks[i][1].(string), 64)
 		if err != nil {
 			return err
 		}
-
 		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
 
 	return b.Websocket.Orderbook.Update(&buffer.Update{
 		Bids:     updateBid,
 		Asks:     updateAsk,
-		Pair:     currencyPair,
-		UpdateID: wsdp.LastUpdateID,
+		Pair:     cp,
+		UpdateID: ws.LastUpdateID,
 		Asset:    asset.Spot,
 	})
+}
+
+// BookSynchro synchronises full orderbook for currency pair
+func (b *Binance) BookSynchro() {
+	b.Websocket.Wg.Add(1)
+	go func() {
+		defer b.Websocket.Wg.Done()
+		for {
+			select {
+			case job := <-b.syncMe:
+				err := b.SeedLocalCache(job)
+				b.fetchingbook[job.String()] = false
+				if err != nil {
+					log.Errorln(log.Global, "seeding local cache for orderbook error", err)
+				}
+			case <-b.Websocket.ShutdownC:
+				return
+			}
+		}
+	}()
 }
 
 // GenerateSubscriptions generates the default subscription set
@@ -536,6 +612,11 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 				})
 			}
 		}
+	}
+	if len(subscriptions) > 1024 {
+		return nil,
+			fmt.Errorf("subscriptions: %d exceed maximum single connection streams of 1024",
+				len(subscriptions))
 	}
 	return subscriptions, nil
 }
