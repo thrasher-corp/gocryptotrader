@@ -1274,7 +1274,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc GetHistoricTrades(GetSavedTradesRequest) returns (SavedTradesResponse) {
+    rpc GetHistoricTrades(GetSavedTradesRequest) returns (stream SavedTradesResponse) {
         option (google.api.http) = {
             get: "/v1/getsavedtrades"
         };

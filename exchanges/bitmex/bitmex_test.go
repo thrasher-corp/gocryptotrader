@@ -938,10 +938,11 @@ func TestWsTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("XBTU20")
+	err := b.UpdateTradablePairs(false)
 	if err != nil {
 		t.Fatal(err)
 	}
+	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	var resp []trade.Data
 	resp, err = b.GetRecentTrades(currencyPair, asset.Futures)
 	if err != nil {
@@ -954,10 +955,11 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("XBTU20")
+	err := b.UpdateTradablePairs(false)
 	if err != nil {
 		t.Fatal(err)
 	}
+	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	var resp []trade.Data
 	resp, err = b.GetHistoricTrades(currencyPair, asset.Futures, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil {
@@ -966,13 +968,4 @@ func TestGetHistoricTrades(t *testing.T) {
 	if len(resp) == 0 {
 		t.Error("expected trades")
 	}
-	// longer term test
-	resp, err = b.GetHistoricTrades(currencyPair, asset.Futures, time.Now().Add(-time.Minute*60*2400), time.Now().Add(-time.Minute*60*2399))
-	if err != nil {
-		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
-	}
-	t.Log(resp)
 }

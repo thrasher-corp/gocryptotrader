@@ -4309,12 +4309,12 @@ var getHistoricTradesCommand = cli.Command{
 		cli.StringFlag{
 			Name:        "start",
 			Usage:       "<start>",
-			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Value:       time.Now().Add(-time.Hour * 6).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
 			Name:        "end",
-			Usage:       "<end>",
+			Usage:       "<end> WARNING: large date ranges may take considerable time",
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
@@ -4398,6 +4398,7 @@ func getHistoricTrades(c *cli.Context) error {
 		return errors.New("start cannot be after before")
 	}
 
+	streamStartTime := time.Now()
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetHistoricTrades(context.Background(),
 		&gctrpc.GetSavedTradesRequest{
@@ -4414,8 +4415,31 @@ func getHistoricTrades(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("%v\t| Beginning stream retrieving trades in 1 hour batches from %v to %v\n",
+		time.Now().Format(time.Kitchen),
+		s.UTC().Format(common.SimpleTimeFormatWithTimezone),
+		e.UTC().Format(common.SimpleTimeFormatWithTimezone))
+	fmt.Printf("%v\t| If you have provided a large time range, please be patient\n\n",
+		time.Now().Format(time.Kitchen))
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+		if len(resp.Trades) == 0 {
+			break
+		}
+		fmt.Printf("%v\t| Processed %v trades between %v and %v\n",
+			time.Now().Format(time.Kitchen),
+			len(resp.Trades),
+			resp.Trades[0].Timestamp,
+			resp.Trades[len(resp.Trades)-1].Timestamp)
+	}
 
-	jsonOutput(result)
+	fmt.Printf("%v\t| Trade retrieval complete! Process took %v\n",
+		time.Now().Format(time.Kitchen),
+		time.Now().Sub(streamStartTime))
+
 	return nil
 }
 
@@ -4618,14 +4642,14 @@ var findMissingSavedCandleIntervalsCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:        "start",
-			Usage:       "<start>",
-			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Usage:       "<start> rounded down to the nearest hour",
+			Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
 			Name:        "end",
-			Usage:       "<end>",
-			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Usage:       "<end> rounded down to the nearest hour",
+			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
 	},

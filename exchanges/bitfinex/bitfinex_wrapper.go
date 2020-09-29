@@ -471,7 +471,7 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitfinex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour*24), time.Now())
+	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided

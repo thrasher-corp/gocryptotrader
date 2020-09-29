@@ -2506,10 +2506,21 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if err != nil {
 		return nil, err
 	}
+	UTCStartTime = UTCStartTime.Truncate(time.Hour)
+
 	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
 	if err != nil {
 		return nil, err
 	}
+	UTCEndTime = UTCEndTime.Truncate(time.Hour)
+
+	intervalMap := make(map[time.Time]bool)
+	iterationTime := UTCStartTime
+	for iterationTime.Before(UTCEndTime) {
+		intervalMap[iterationTime] = false
+		iterationTime = iterationTime.Add(time.Hour)
+	}
+
 	var trades []trade.Data
 	trades, err = trade.GetTradesInRange(
 		r.ExchangeName,
@@ -2528,73 +2539,51 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		Pair:           r.Pair,
 		MissingPeriods: []string{},
 	}
-	if len(trades) == 0 {
-		resp.Status = "No missing periods found"
-		return resp, nil
-	}
-	var foundCount int64
-	iterateDate := UTCStartTime
-	var missingTimes []time.Time
-	for !iterateDate.After(UTCEndTime) && !iterateDate.Equal(UTCEndTime) {
-		timeWithinHour := false
-		for j := range trades {
-			sub := iterateDate.Sub(trades[j].Timestamp.UTC())
-			if sub < time.Hour && sub >= 0 {
-				timeWithinHour = true
-				foundCount++
-			}
-		}
-		if !timeWithinHour {
-			missingTimes = append(missingTimes, iterateDate.Add(-time.Hour))
-			//resp.MissingPeriods = append(resp.MissingPeriods,
-			//	iterateDate.Add(-time.Hour).In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+
-			//		" - "+
-			//		iterateDate.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
-		}
-		iterateDate = iterateDate.Add(time.Hour)
+	foundCount := 0
+	for i := range trades {
+		truncTradeTime := trades[i].Timestamp.Truncate(time.Hour)
+		intervalMap[truncTradeTime] = true
+		foundCount++
 	}
 
-	var consecutive = false
-	var startRange, endRange time.Time
-	for i := range missingTimes {
-		if i == 0 {
+	var startRange, endRange, previous time.Time
+	first := true
+	for k, v := range intervalMap {
+		if first {
+			first = false
 			continue
 		}
-		previous := i - 1
-		sub := missingTimes[i].Sub(missingTimes[previous])
-		if sub <= time.Hour && sub > 0 {
+		consecutive := false
+		if !v && !intervalMap[previous] {
 			consecutive = true
 			if startRange.IsZero() {
-				startRange = missingTimes[previous]
+				startRange = previous
 			}
-		} else {
-			consecutive = false
 		}
+
 		if consecutive && !startRange.IsZero() {
-			endRange = missingTimes[i]
+			endRange = k
+
 		} else if !startRange.IsZero() && !consecutive {
-			endRange = missingTimes[i]
 			resp.MissingPeriods = append(resp.MissingPeriods,
-				startRange.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+
+				startRange.UTC().Format(common.SimpleTimeFormatWithTimezone)+
 					" - "+
-					endRange.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+					endRange.UTC().Format(common.SimpleTimeFormatWithTimezone))
+
 			startRange = time.Time{}
 			endRange = time.Time{}
+
 		} else if !consecutive {
-			resp.MissingPeriods = append(resp.MissingPeriods,
-				missingTimes[previous].In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)+
-					" - "+
-					missingTimes[i].In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+			resp.MissingPeriods = append(resp.MissingPeriods, k.UTC().Format(common.SimpleTimeFormatWithTimezone))
 		}
+		previous = k
 	}
+
 	if len(resp.MissingPeriods) == 0 {
 		resp.Status = fmt.Sprintf("no missing periods found between %v and %v",
 			r.Start,
 			r.End,
 		)
-	}
-	if len(resp.MissingPeriods) == 0 {
-		resp.Status = "No missing periods found"
 	} else {
 		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v",
 			foundCount,
@@ -2620,52 +2609,75 @@ func (s *RPCServer) SetExchangeTradeProcessing(_ context.Context, r *gctrpc.SetE
 	}, nil
 }
 
-// GetRecentTrades returns trades
-func (s *RPCServer) GetHistoricTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
+// GetHistoricTrades returns trades between a set of dates
+func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gctrpc.GoCryptoTrader_GetHistoricTradesServer) error {
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
-		return nil, errInvalidArguments
+		return errInvalidArguments
 	}
 	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errExchangeNotLoaded
+		return errExchangeNotLoaded
 	}
 	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	var trades []trade.Data
 	var UTCStartTime, UTCEndTime time.Time
 	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	trades, err = exch.GetHistoricTrades(cp, asset.Item(r.AssetType), UTCStartTime, UTCEndTime)
-	if err != nil {
-		return nil, err
-	}
+
 	resp := &gctrpc.SavedTradesResponse{
 		ExchangeName: r.Exchange,
 		Asset:        r.AssetType,
 		Pair:         r.Pair,
 	}
-	for i := range trades {
-		resp.Trades = append(resp.Trades, &gctrpc.SavedTrades{
-			Price:     trades[i].Price,
-			Amount:    trades[i].Amount,
-			Side:      trades[i].Side.String(),
-			Timestamp: trades[i].Timestamp.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			TradeId:   trades[i].TID,
-		})
+	iterateStartTime := UTCStartTime
+	iterateEndTime := iterateStartTime.Add(time.Hour)
+	for iterateStartTime.Before(UTCEndTime) {
+		trades, err = exch.GetHistoricTrades(cp, asset.Item(r.AssetType), iterateStartTime, iterateEndTime)
+		if err != nil {
+			return err
+		}
+		grpcTrades := &gctrpc.SavedTradesResponse{
+			ExchangeName: r.Exchange,
+			Asset:        r.AssetType,
+			Pair:         r.Pair,
+		}
+		for i := range trades {
+			tradeTS := trades[i].Timestamp.In(time.UTC)
+			if tradeTS.After(UTCEndTime) {
+				break
+			}
+			grpcTrades.Trades = append(grpcTrades.Trades, &gctrpc.SavedTrades{
+				Price:     trades[i].Price,
+				Amount:    trades[i].Amount,
+				Side:      trades[i].Side.String(),
+				Timestamp: tradeTS.Format(common.SimpleTimeFormatWithTimezone),
+				TradeId:   trades[i].TID,
+			})
+		}
+		if len(grpcTrades.Trades) == 0 && iterateStartTime.Equal(UTCStartTime) {
+			return fmt.Errorf("request for %v %v trade data between %v and %v and returned no results",
+				r.Exchange,
+				r.AssetType, iterateStartTime.Format(common.SimpleTimeFormatWithTimezone),
+				iterateEndTime.Format(common.SimpleTimeFormatWithTimezone))
+		}
+		stream.Send(grpcTrades)
+		//resp.Trades = append(resp.Trades, grpcTrades...)
+		iterateStartTime = iterateStartTime.Add(time.Hour)
+		iterateEndTime = iterateEndTime.Add(time.Hour)
 	}
-	if len(resp.Trades) == 0 {
-		return nil, fmt.Errorf("request for %v %v trade data between %v and %v and returned no results", r.Exchange, r.AssetType, r.Start, r.End)
-	}
-	return resp, nil
+	stream.Send(resp)
+
+	return nil
 }
 
 // GetRecentTrades returns trades
@@ -2700,8 +2712,18 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 			TradeId:   trades[i].TID,
 		})
 	}
+	for i := range trades {
+		resp.Trades = append(resp.Trades, &gctrpc.SavedTrades{
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Side:      trades[i].Side.String(),
+			Timestamp: trades[i].Timestamp.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			TradeId:   trades[i].TID,
+		})
+	}
 	if len(resp.Trades) == 0 {
 		return nil, fmt.Errorf("request for %v %v trade data and returned no results", r.Exchange, r.AssetType)
 	}
+
 	return resp, nil
 }

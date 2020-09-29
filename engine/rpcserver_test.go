@@ -1,7 +1,10 @@
 package engine
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
+	"encoding/gob"
 	"errors"
 	"log"
 	"os"
@@ -11,6 +14,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/goose"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -24,7 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	"github.com/thrasher-corp/goose"
 )
 
 const (
@@ -32,6 +36,7 @@ const (
 	databaseFolder        = "database"
 	migrationsFolder      = "migrations"
 	databaseName          = "rpctestdb"
+	grpcMaxResponseSize   = 4194304
 )
 
 // Sets up everything required to run any function inside rpcserver
@@ -463,8 +468,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start: defaultStart.Format(common.SimpleTimeFormat),
-		End:   defaultEnd.Format(common.SimpleTimeFormat),
+		Start: defaultStart.In(time.UTC).Format(common.SimpleTimeFormat),
+		End:   defaultEnd.In(time.UTC).Format(common.SimpleTimeFormat),
 	})
 	if err != nil {
 		t.Error(err)
@@ -472,7 +477,6 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	if resp.Status == "" {
 		t.Errorf("expected a status message")
 	}
-
 	// one trade response
 	err = trade.SaveTradesToDatabase(trade.Data{
 		TID:          "test1234",
@@ -482,7 +486,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 		Price:        1337,
 		Amount:       1337,
 		Side:         order.Buy,
-		Timestamp:    time.Date(2020, 1, 1, 2, 0, 0, 0, time.UTC),
+		Timestamp:    time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -495,14 +499,14 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start: defaultStart.Format(common.SimpleTimeFormat),
-		End:   defaultEnd.Format(common.SimpleTimeFormat),
+		Start: defaultStart.In(time.UTC).Format(common.SimpleTimeFormat),
+		End:   defaultEnd.In(time.UTC).Format(common.SimpleTimeFormat),
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	if len(resp.MissingPeriods) != 23 {
-		t.Errorf("expected 23 missing periods, received: %v", len(resp.MissingPeriods))
+	if len(resp.MissingPeriods) != 2 {
+		t.Errorf("expected 2 missing period, received: %v", len(resp.MissingPeriods))
 	}
 	t.Log(resp.MissingPeriods)
 
@@ -515,7 +519,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 		Price:        1337,
 		Amount:       1337,
 		Side:         order.Buy,
-		Timestamp:    time.Date(2020, 1, 1, 4, 0, 0, 0, time.UTC),
+		Timestamp:    time.Date(2020, 1, 1, 13, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -528,14 +532,14 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start: defaultStart.Format(common.SimpleTimeFormat),
-		End:   defaultEnd.Format(common.SimpleTimeFormat),
+		Start: defaultStart.In(time.UTC).Format(common.SimpleTimeFormat),
+		End:   defaultEnd.In(time.UTC).Format(common.SimpleTimeFormat),
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	if len(resp.MissingPeriods) != 22 {
-		t.Errorf("expected 22 missing periods, received: %v", len(resp.MissingPeriods))
+	if len(resp.MissingPeriods) != 2 {
+		t.Errorf("expected 2 missing periods, received: %v", len(resp.MissingPeriods))
 	}
 	t.Log(resp.MissingPeriods)
 
@@ -720,14 +724,14 @@ func TestGetHistoricTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{engerino}
-	_, err := s.GetHistoricTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
+	err := s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{}, nil)
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
 	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
 	}
-	_, err = s.GetHistoricTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
+	err = s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{
 		Exchange: "fake",
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
@@ -737,14 +741,14 @@ func TestGetHistoricTrades(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
 	}
 	if err != errExchangeNotLoaded {
 		t.Error(err)
 	}
-	_, err = s.GetHistoricTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
+	err = s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
@@ -754,11 +758,50 @@ func TestGetHistoricTrades(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Start:     time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC).Format(common.SimpleTimeFormat),
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
 	}
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
+}
+
+func TestTheLimitsOfTrades(t *testing.T) {
+	traderinos := &gctrpc.SavedTradesResponse{
+		ExchangeName: "r.Exchange",
+		Asset:        "r.AssetType",
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+	}
+	size := 0
+	for size < grpcMaxResponseSize {
+		traderinos.Trades = append(traderinos.Trades, &gctrpc.SavedTrades{
+			Price:     1337,
+			Amount:    1337,
+			Side:      order.Buy.String(),
+			Timestamp: time.Now().UTC().Format(common.SimpleTimeFormatWithTimezone),
+			TradeId:   "1337",
+		})
+		size, _ = calculateGRPCResponseSize(traderinos)
+	}
+	t.Log(len(traderinos.Trades))
+}
+
+// calculateGRPCResponseSize is a helper function for testing purposes
+// it is important to be mindful of the size of the object you are returning to the user
+// it may take many HTTP calls to fulfil a gRPC request's requirements.
+// knowing the limits of your response data can allow you to exit earlier
+// saving resources, HTTP calls and time
+func calculateGRPCResponseSize(resp interface{}) (int, error) {
+	var buff bytes.Buffer
+	enc := gob.NewEncoder(&buff)
+	err := enc.Encode(resp)
+	if err != nil {
+		return 0, err
+	}
+	return binary.Size(buff.Bytes()), nil
 }

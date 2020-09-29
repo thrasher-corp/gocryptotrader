@@ -409,7 +409,7 @@ func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitmex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour*24), time.Now())
+	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -429,13 +429,13 @@ func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timest
 	req := &GenericRequestParams{
 		Symbol:  p.String(),
 		Count:   int32(limit),
-		EndTime: timestampEnd.Format(time.RFC3339),
+		EndTime: timestampEnd.UTC().Format("2006-01-02T15:04:05.000Z"),
 	}
 	ts := timestampStart
 	var resp []trade.Data
 allTrades:
 	for {
-		req.StartTime = ts.Format(time.RFC3339)
+		req.StartTime = ts.UTC().Format("2006-01-02T15:04:05.000Z")
 		var tradeData []Trade
 		tradeData, err = b.GetTrade(req)
 		if err != nil {
