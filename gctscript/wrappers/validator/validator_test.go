@@ -164,6 +164,7 @@ func TestWrapper_SubmitOrder(t *testing.T) {
 		Amount:       orderAmount,
 		ClientID:     orderClientID,
 		Exchange:     "true",
+		AssetType:    asset.Spot,
 	}
 	_, err = testWrapper.SubmitOrder(tempOrder)
 	if err != nil {

@@ -471,12 +471,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		s := &order.Submit{
-			Pair:     p,
-			Side:     testOrderSide,
-			Type:     testOrderType,
-			Amount:   config.OrderSubmission.Amount,
-			Price:    config.OrderSubmission.Price,
-			ClientID: config.OrderSubmission.OrderID,
+			Pair:      p,
+			Side:      testOrderSide,
+			Type:      testOrderType,
+			Amount:    config.OrderSubmission.Amount,
+			Price:     config.OrderSubmission.Price,
+			ClientID:  config.OrderSubmission.OrderID,
+			AssetType: assetTypes[i],
 		}
 		var r11 order.SubmitResponse
 		r11, err = e.SubmitOrder(s)

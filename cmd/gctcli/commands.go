@@ -1323,6 +1323,10 @@ var submitOrderCommand = cli.Command{
 			Name:  "client_id",
 			Usage: "the optional client order ID",
 		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "required asset type",
+		},
 	},
 }
 
@@ -1339,6 +1343,7 @@ func submitOrder(c *cli.Context) error {
 	var amount float64
 	var price float64
 	var clientID string
+	var assetType string
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -1411,6 +1416,12 @@ func submitOrder(c *cli.Context) error {
 		clientID = c.Args().Get(6)
 	}
 
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(7)
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -1435,6 +1446,7 @@ func submitOrder(c *cli.Context) error {
 		Amount:    amount,
 		Price:     price,
 		ClientId:  clientID,
+		AssetType: assetType,
 	})
 	if err != nil {
 		return err

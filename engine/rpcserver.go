@@ -842,14 +842,20 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		return nil, err
 	}
 
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return nil, fmt.Errorf("asset type: %s is invalid", a)
+	}
+
 	submission := &order.Submit{
-		Pair:     p,
-		Side:     order.Side(r.Side),
-		Type:     order.Type(r.OrderType),
-		Amount:   r.Amount,
-		Price:    r.Price,
-		ClientID: r.ClientId,
-		Exchange: r.Exchange,
+		Pair:      p,
+		Side:      order.Side(r.Side),
+		Type:      order.Type(r.OrderType),
+		Amount:    r.Amount,
+		Price:     r.Price,
+		ClientID:  r.ClientId,
+		Exchange:  r.Exchange,
+		AssetType: a,
 	}
 
 	resp, err := exch.SubmitOrder(submission)

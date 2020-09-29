@@ -63,6 +63,7 @@ supplied meet the requirements to make an authenticated request.
         OrderType: order.Limit,
         Price:     1000000,
         Amount:    0.1,
+        AssetType: asset.Spot,
     }
     resp, err := b.SubmitOrder(o)
     if err != nil {

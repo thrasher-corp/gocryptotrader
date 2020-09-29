@@ -316,11 +316,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.XRP,
 			Quote:     currency.USDT,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
 	}
 	response, err := z.SubmitOrder(orderSubmission)
 	if z.ValidateAPICredentials() && (err != nil || !response.IsOrderPlaced) {
