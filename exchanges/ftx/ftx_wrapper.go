@@ -591,6 +591,8 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 		resp.Side = order.Buy
 	case order.Sell.Lower():
 		resp.Side = order.Sell
+	default:
+		resp.Side = order.UnknownSide
 	}
 	switch s.Status {
 	case strings.ToLower(order.New.String()):
@@ -607,6 +609,8 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 		if s.FilledSize == s.Size {
 			resp.Status = order.Filled
 		}
+	default:
+		resp.Status = order.AnyStatus
 	}
 	var feeBuilder exchange.FeeBuilder
 	feeBuilder.PurchasePrice = s.AvgFillPrice

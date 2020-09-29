@@ -212,6 +212,7 @@ const (
 	Hidden              Status = "HIDDEN"
 	UnknownStatus       Status = "UNKNOWN"
 	Open                Status = "OPEN"
+	AutoDeleverage      Status = "ADL"
 )
 
 // Type enforces a standard for order types across the code base
@@ -226,10 +227,12 @@ const (
 	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
 	Stop              Type = "STOP"
 	StopLimit         Type = "STOP LIMIT"
+	TakeProfit        Type = "TAKE PROFIT"
 	TrailingStop      Type = "TRAILING_STOP"
 	FillOrKill        Type = "FOK"
 	IOS               Type = "IOS"
 	UnknownType       Type = "UNKNOWN"
+	Liquidation       Type = "LIQUIDATION"
 )
 
 // Side enforces a standard for order sides across the code base

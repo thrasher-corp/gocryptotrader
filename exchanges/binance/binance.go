@@ -900,8 +900,8 @@ func (b *Binance) UAllAccountOpenOrders(symbol string) ([]UOrderData, error) {
 }
 
 // UAllAccountOrders gets all account's orders for ufutures
-func (b *Binance) UAllAccountOrders(symbol string, limit int64, startTime, endTime time.Time) ([]UOrderData, error) {
-	var resp []UOrderData
+func (b *Binance) UAllAccountOrders(symbol string, orderID, limit int64, startTime, endTime time.Time) ([]UFuturesOrderData, error) {
+	var resp []UFuturesOrderData
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -1974,8 +1974,8 @@ func (b *Binance) GetFuturesAllOpenOrders(symbol, pair string) ([]FuturesOrderGe
 }
 
 // GetAllFuturesOrders gets all orders active cancelled or filled
-func (b *Binance) GetAllFuturesOrders(symbol, pair string, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderGetData, error) {
-	var resp []FuturesOrderGetData
+func (b *Binance) GetAllFuturesOrders(symbol, pair string, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderData, error) {
+	var resp []FuturesOrderData
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)

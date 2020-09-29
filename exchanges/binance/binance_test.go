@@ -366,7 +366,7 @@ func TestUAllAccountOrders(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
-	_, err := b.UAllAccountOrders("", 0, time.Time{}, time.Time{})
+	_, err := b.UAllAccountOrders("", 0, 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1508,6 +1508,45 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Error("GetAccountInfo() expecting an error when no keys are set")
 	case mockTests && err != nil:
 		t.Error("Mock GetAccountInfo() error", err)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	p, err := currency.NewPairFromString("EOS-USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	fpair, err := b.FormatExchangeCurrency(p, asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.CancelOrder(&order.Cancel{
+		AssetType: asset.USDTMarginedFutures,
+		Pair:      fpair,
+		ID:        "1234",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://dapi.binance.com"
+	a, err := b.GetOrderInfo("123", asset.CoinMarginedFutures)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

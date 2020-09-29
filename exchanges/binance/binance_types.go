@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // USDT Margined Futures
@@ -164,6 +165,32 @@ type UOrderData struct {
 	WorkingType   string  `json:"workingType"`
 	Code          int64   `json:"code"`
 	Msg           string  `json:"msg"`
+}
+
+// UFuturesOrderData stores order data for ufutures
+type UFuturesOrderData struct {
+	AvgPrice      float64 `json:"avgPrice,string"`
+	ClientOrderID string  `json:"clientOrderId"`
+	CumQuote      string  `json:"cumQuote"`
+	ExecutedQty   float64 `json:"executedQty,string"`
+	OrderID       int64   `json:"orderId"`
+	OrigQty       float64 `json:"origQty,string"`
+	OrigType      string  `json:"origType"`
+	Price         float64 `json:"price,string"`
+	ReduceOnly    bool    `json:"reduceOnly"`
+	Side          string  `json:"side"`
+	PositionSide  string  `json:"positionSide"`
+	Status        string  `json:"status"`
+	StopPrice     float64 `json:"stopPrice,string"`
+	ClosePosition bool    `json:"closePosition"`
+	Symbol        string  `json:"symbol"`
+	Time          int64   `json:"time"`
+	TimeInForce   string  `json:"timeInForce"`
+	OrderType     string  `json:"type"`
+	ActivatePrice float64 `json:"activatePrice,string"`
+	PriceRate     float64 `json:"priceRate,string"`
+	UpdateTime    int64   `json:"updateTime"`
+	WorkingType   string  `json:"workingType"`
 }
 
 // UAccountBalanceV2Data stores account balance data for ufutures
@@ -609,6 +636,42 @@ type FuturesOrderGetData struct {
 	UpdateTime    int64   `json:"updateTime"`
 	WorkingType   string  `json:"workingType"`
 	PriceProtect  bool    `json:"priceProtect"`
+}
+
+// FuturesOrderData stores order data for futures
+type FuturesOrderData struct {
+	AvgPrice      float64 `json:"avgPrice,string"`
+	ClientOrderID string  `json:"clientOrderId"`
+	CumBase       string  `json:"cumBase"`
+	ExecutedQty   float64 `json:"executedQty,string"`
+	OrderID       int64   `json:"orderId"`
+	OrigQty       float64 `json:"origQty,string"`
+	OrigType      string  `json:"origType"`
+	Price         float64 `json:"price,string"`
+	ReduceOnly    bool    `json:"reduceOnly"`
+	Side          string  `json:"side"`
+	PositionSide  string  `json:"positionSide"`
+	Status        string  `json:"status"`
+	StopPrice     float64 `json:"stopPrice,string"`
+	ClosePosition bool    `json:"closePosition"`
+	Symbol        string  `json:"symbol"`
+	Pair          string  `json:"pair"`
+	Time          int64   `json:"time"`
+	TimeInForce   string  `json:"timeInForce"`
+	OrderType     string  `json:"type"`
+	ActivatePrice float64 `json:"activatePrice,string"`
+	PriceRate     float64 `json:"priceRate,string"`
+	UpdateTime    int64   `json:"updateTime"`
+	WorkingType   string  `json:"workingType"`
+	PriceProtect  bool    `json:"priceProtect"`
+}
+
+// OrderVars stores side, status and type for any order/trade
+type OrderVars struct {
+	Side      order.Side
+	Status    order.Status
+	OrderType order.Type
+	Fee       float64
 }
 
 // AutoCancelAllOrdersData gives data of auto cancelling all open orders

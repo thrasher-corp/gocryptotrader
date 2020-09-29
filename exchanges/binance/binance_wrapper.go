@@ -613,8 +613,9 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = b.Name
-	for x := range b.GetAssetTypes() {
-		switch b.GetAssetTypes()[x] {
+	assetTypes := b.GetAssetTypes()
+	for x := range assetTypes {
+		switch assetTypes[x] {
 		case asset.Spot:
 
 			raw, err := b.GetAccount()
@@ -643,7 +644,6 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 
 			acc.AssetType = asset.Spot
 			acc.Currencies = currencyBalance
-			fmt.Println(currencyBalance)
 			info.Accounts = append(info.Accounts, acc)
 
 		case asset.CoinMarginedFutures:
@@ -653,11 +653,11 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 				return info, err
 			}
 			var currencyDetails []account.Balance
-			for x := range accData.Assets {
+			for i := range accData.Assets {
 				currencyDetails = append(currencyDetails, account.Balance{
-					CurrencyName: currency.NewCode(accData.Assets[x].Asset),
-					TotalValue:   accData.Assets[x].WalletBalance,
-					Hold:         accData.Assets[x].WalletBalance - accData.Assets[x].MarginBalance,
+					CurrencyName: currency.NewCode(accData.Assets[i].Asset),
+					TotalValue:   accData.Assets[i].WalletBalance,
+					Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].MarginBalance,
 				})
 			}
 
@@ -667,16 +667,18 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 
 		case asset.USDTMarginedFutures:
 
+			fmt.Printf("HI\n\n\n")
+
 			accData, err := b.UAccountBalanceV2()
 			if err != nil {
 				return info, err
 			}
 			var currencyDetails []account.Balance
-			for x := range accData {
+			for i := range accData {
 				currencyDetails = append(currencyDetails, account.Balance{
-					CurrencyName: currency.NewCode(accData[x].Asset),
-					TotalValue:   accData[x].Balance,
-					Hold:         accData[x].Balance - accData[x].AvailableBalance,
+					CurrencyName: currency.NewCode(accData[i].Asset),
+					TotalValue:   accData[i].Balance,
+					Hold:         accData[i].Balance - accData[i].AvailableBalance,
 				})
 			}
 
@@ -684,6 +686,8 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 			acc.Currencies = currencyDetails
 			info.Accounts = append(info.Accounts, acc)
 
+		default:
+			continue
 		}
 	}
 	err := account.Process(&info)
@@ -771,20 +775,43 @@ func (b *Binance) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Binance) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
-	if err != nil {
-		return err
-	}
 
 	fpair, err := b.FormatExchangeCurrency(order.Pair, order.AssetType)
 	if err != nil {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(fpair.String(),
-		orderIDInt,
-		order.AccountID)
-	return err
+	switch order.AssetType {
+	case asset.Spot:
+
+		orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+		if err != nil {
+			return err
+		}
+
+		_, err = b.CancelExistingOrder(fpair.String(),
+			orderIDInt,
+			order.AccountID)
+		if err != nil {
+			return err
+		}
+
+	case asset.CoinMarginedFutures:
+
+		_, err := b.FuturesCancelOrder(fpair.String(), order.ID, "")
+		if err != nil {
+			return err
+		}
+
+	case asset.USDTMarginedFutures:
+
+		_, err := b.UCancelOrder(fpair.String(), order.ID, "")
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -811,8 +838,112 @@ func (b *Binance) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 
 // GetOrderInfo returns information on a current open order
 func (b *Binance) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	var resp order.Detail
+
+	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
+	if err != nil {
+		return resp, err
+	}
+
+	switch assetType {
+
+	case asset.Spot:
+
+	case asset.CoinMarginedFutures:
+
+		orderData, err := b.GetAllFuturesOrders("", "", time.Time{}, time.Time{}, orderIDInt, 0)
+		if err != nil {
+			return resp, err
+		}
+		fmt.Println(orderData)
+
+		if len(orderData) != 1 {
+			return resp, fmt.Errorf("invalid data recieved")
+		}
+
+		p, err := currency.NewPairFromString(orderData[0].Pair)
+		if err != nil {
+			return resp, err
+		}
+
+		var feeBuilder exchange.FeeBuilder
+		feeBuilder.Amount = orderData[0].ExecutedQty
+		feeBuilder.PurchasePrice = orderData[0].AvgPrice
+		feeBuilder.Pair = p
+
+		fee, err := b.GetFee(&feeBuilder)
+		if err != nil {
+			return resp, err
+		}
+
+		orderVars, err := compatibleOrderVars(orderData[0].Side, orderData[0].Status, orderData[0].OrderType)
+		if err != nil {
+			return resp, err
+		}
+
+		resp.Amount = orderData[0].OrigQty
+		resp.AssetType = assetType
+		resp.ClientOrderID = orderData[0].ClientOrderID
+		resp.Exchange = b.Name
+		resp.ExecutedAmount = orderData[0].ExecutedQty
+		resp.Fee = fee
+		resp.ID = orderID
+		resp.Pair = p
+		resp.Price = orderData[0].Price
+		resp.RemainingAmount = orderData[0].OrigQty - orderData[0].ExecutedQty
+		resp.Side = orderVars.Side
+		resp.Status = orderVars.Status
+		resp.Type = orderVars.OrderType
+
+	case asset.USDTMarginedFutures:
+
+		orderData, err := b.UAllAccountOrders("", 0, 0, time.Time{}, time.Time{})
+		if err != nil {
+			return resp, err
+		}
+		fmt.Println(orderData)
+
+		if len(orderData) != 1 {
+			return resp, fmt.Errorf("invalid data recieved")
+		}
+
+		p, err := currency.NewPairFromString(orderData[0].Symbol)
+		if err != nil {
+			return resp, err
+		}
+
+		var feeBuilder exchange.FeeBuilder
+		feeBuilder.Amount = orderData[0].ExecutedQty
+		feeBuilder.PurchasePrice = orderData[0].AvgPrice
+		feeBuilder.Pair = p
+
+		fee, err := b.GetFee(&feeBuilder)
+		if err != nil {
+			return resp, err
+		}
+
+		orderVars, err := compatibleOrderVars(orderData[0].Side, orderData[0].Status, orderData[0].OrderType)
+		if err != nil {
+			return resp, err
+		}
+
+		resp.Amount = orderData[0].OrigQty
+		resp.AssetType = assetType
+		resp.ClientOrderID = orderData[0].ClientOrderID
+		resp.Exchange = b.Name
+		resp.ExecutedAmount = orderData[0].ExecutedQty
+		resp.Fee = fee
+		resp.ID = orderID
+		resp.Pair = p
+		resp.Price = orderData[0].Price
+		resp.RemainingAmount = orderData[0].OrigQty - orderData[0].ExecutedQty
+		resp.Side = orderVars.Side
+		resp.Status = orderVars.Status
+		resp.Type = orderVars.OrderType
+
+	}
+
+	return resp, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -1078,4 +1209,51 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+func compatibleOrderVars(side, status, orderType string) (OrderVars, error) {
+	var resp OrderVars
+
+	switch side {
+	case "BUY":
+		resp.Side = order.Buy
+	case "SELL":
+		resp.Side = order.Sell
+	default:
+		resp.Side = order.UnknownSide
+	}
+
+	switch status {
+	case "NEW":
+		resp.Status = order.New
+	case "PARTIALLY_FILLED":
+		resp.Status = order.PartiallyFilled
+	case "FILLED":
+		resp.Status = order.Filled
+	case "CANCELED":
+		resp.Status = order.Cancelled
+	case "EXPIRED":
+		resp.Status = order.Expired
+	case "NEW_ADL":
+		resp.Status = order.AutoDeleverage
+	default:
+		resp.Status = order.UnknownStatus
+	}
+
+	switch orderType {
+	case "MARKET":
+		resp.OrderType = order.Market
+	case "LIMIT":
+		resp.OrderType = order.Limit
+	case "STOP":
+		resp.OrderType = order.Stop
+	case "TAKE_PROFIT":
+		resp.OrderType = order.TakeProfit
+	case "LIQUIDATION":
+		resp.OrderType = order.Liquidation
+	default:
+		resp.OrderType = order.UnknownType
+	}
+
+	return resp, nil
 }
