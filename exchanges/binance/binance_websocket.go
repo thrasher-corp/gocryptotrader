@@ -487,12 +487,17 @@ func (b *Binance) CheckAndLoadBook(c currency.Pair, ass asset.Item, u *Websocket
 		return nil
 	}
 
-	currentBook := b.Websocket.Orderbook.GetOrderbook(c, ass)
+	return b.BleedPipe(c, ass)
+}
+
+// BleedPipe applies the buffer to the orderbook
+func (b *Binance) BleedPipe(cp currency.Pair, a asset.Item) error {
+	currentBook := b.Websocket.Orderbook.GetOrderbook(cp, a)
 	if currentBook == nil {
-		b.initialSync[c.String()] = true
-		b.fetchingbook[c.String()] = true
+		b.initialSync[cp.String()] = true
+		b.fetchingbook[cp.String()] = true
 		select {
-		case b.syncMe <- c:
+		case b.syncMe <- cp:
 		default:
 			return errors.New("book synchronisation channel blocked up")
 		}
@@ -502,19 +507,19 @@ func (b *Binance) CheckAndLoadBook(c currency.Pair, ass asset.Item, u *Websocket
 loop:
 	for {
 		select {
-		case d := <-b.pipe[c.String()]:
+		case d := <-b.pipe[cp.String()]:
 			if d.LastUpdateID <= currentBook.LastUpdateID {
 				// Drop any event where u is <= lastUpdateId in the snapshot.
 				continue
 			}
 			id := currentBook.LastUpdateID + 1
-			if b.initialSync[c.String()] {
+			if b.initialSync[cp.String()] {
 				// The first processed event should have U <= lastUpdateId+1 AND
 				// u >= lastUpdateId+1.
 				if d.FirstUpdateID > id && d.LastUpdateID < id {
 					return errors.New("initial sync failure")
 				}
-				b.initialSync[c.String()] = false
+				b.initialSync[cp.String()] = false
 			} else {
 				// While listening to the stream, each new event's U should be
 				// equal to the previous event's u+1.
@@ -522,7 +527,7 @@ loop:
 					return errors.New("synchronisation failure")
 				}
 			}
-			err := b.ProcessUpdate(c, d)
+			err := b.ProcessUpdate(cp, d)
 			if err != nil {
 				return err
 			}
@@ -579,10 +584,22 @@ func (b *Binance) BookSynchro() {
 			select {
 			case job := <-b.syncMe:
 				err := b.SeedLocalCache(job)
-				b.fetchingbook[job.String()] = false
+
 				if err != nil {
 					log.Errorln(log.Global, "seeding local cache for orderbook error", err)
+					continue
 				}
+
+				b.mtx.Lock()
+				err = b.BleedPipe(job, asset.Spot)
+				if err != nil {
+					log.Errorln(log.Global, "applying orderbook updates error", err)
+					continue
+				}
+
+				b.fetchingbook[job.String()] = false
+				b.mtx.Unlock()
+
 			case <-b.Websocket.ShutdownC:
 				return
 			}
