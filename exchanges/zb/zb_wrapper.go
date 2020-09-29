@@ -527,8 +527,9 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 		}
 
 		err = z.CancelOrder(&order.Cancel{
-			ID:   strconv.FormatInt(allOpenOrders[i].ID, 10),
-			Pair: p,
+			ID:        strconv.FormatInt(allOpenOrders[i].ID, 10),
+			Pair:      p,
+			AssetType: asset.Spot,
 		})
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()

@@ -524,7 +524,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	var orderCancellation = &order.Cancel{
-		ID: "OGEX6P-B5Q74-IGZ72R",
+		ID:        "OGEX6P-B5Q74-IGZ72R",
+		AssetType: asset.Spot,
 	}
 
 	err := k.CancelOrder(orderCancellation)
@@ -542,7 +543,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	resp, err := k.CancelAllOrders(&order.Cancel{})
+	resp, err := k.CancelAllOrders(&order.Cancel{AssetType: asset.Spot})
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}

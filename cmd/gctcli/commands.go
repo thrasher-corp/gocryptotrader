@@ -1422,6 +1422,11 @@ func submitOrder(c *cli.Context) error {
 		assetType = c.Args().Get(7)
 	}
 
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err

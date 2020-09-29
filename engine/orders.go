@@ -214,6 +214,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 				Type:          v[y].Type,
 				Side:          v[y].Side,
 				Pair:          v[y].Pair,
+				AssetType:     v[y].AssetType,
 			})
 			if err != nil {
 				log.Error(log.OrderMgr, err)

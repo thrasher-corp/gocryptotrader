@@ -551,6 +551,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Futures,
 	}
 
 	err := b.CancelOrder(orderCancellation)
@@ -573,6 +574,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Futures,
 	}
 
 	resp, err := b.CancelAllOrders(orderCancellation)

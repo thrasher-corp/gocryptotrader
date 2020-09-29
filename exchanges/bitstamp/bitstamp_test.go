@@ -410,7 +410,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	orderCancellation := &order.Cancel{
-		ID: "1234",
+		ID:        "1234",
+		AssetType: asset.Spot,
 	}
 	err := b.CancelOrder(orderCancellation)
 	switch {
@@ -430,7 +431,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	resp, err := b.CancelAllOrders(&order.Cancel{})
+	resp, err := b.CancelAllOrders(&order.Cancel{AssetType: asset.Spot})
 	switch {
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")

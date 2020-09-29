@@ -964,12 +964,18 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 		return nil, err
 	}
 
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return nil, fmt.Errorf("asset type: %s is invalid", a)
+	}
+
 	err = exch.CancelOrder(&order.Cancel{
 		AccountID:     r.AccountId,
 		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
 		WalletAddress: r.WalletAddress,
 		Pair:          p,
+		AssetType:     a,
 	})
 	if err != nil {
 		return nil, err
