@@ -3,8 +3,8 @@
 {{define "title"}}Basic Chart{{end}}
 {{define "content"}}
     <script> let chart = LightweightCharts.createChart(document.body, {
-               width: 1920,
-               height: 1080,
+               width: {{.Width}},
+               height: {{.Height}},
              	rightPriceScale: {
              		scaleMargins: {
              			top: 0.1,

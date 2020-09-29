@@ -95,15 +95,16 @@ func TestBackTest(t *testing.T) {
 	// if err != nil {
 	// 	t.Fatal(err)
 	// }
-	r := statistic.ReturnResults()
 	wd, _ := os.Getwd()
 	path := filepath.Join(wd, "output")
-	chart := charts.New("backtester", "timeseries", path)
-	chart.Data.Data = r
-	err = chart.Generate()
+	chart := charts.New("backtester", "basic", path)
+	chart.Data.Data = statistic.ToChartData()
+	chart.TemplatePath = filepath.Join("..","charts","templates")
+	err = chart.ToFile().Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	// err = GenerateOutput(r)
 	// if err != nil {
 	// 	t.Fatal(err)

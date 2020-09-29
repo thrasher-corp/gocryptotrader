@@ -1,6 +1,7 @@
 package charts
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"html/template"
@@ -12,11 +13,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+// New returns a new chart instance
 func New(name, template, outputpath string) (chart Chart) {
 	switch template {
 	case "basic":
 		chart.template = "basic.tmpl"
-
+	case "timeseries":
+		chart.template = "timeseries.tmpl"
 	}
 	chart.output = name
 	if outputpath != "" {
@@ -27,15 +30,19 @@ func New(name, template, outputpath string) (chart Chart) {
 	return chart
 }
 
+// Generate chart output
 func (c *Chart) Generate() error {
-	list := []string{
-		filepath.Join("templates", c.template),
-		filepath.Join("templates", "base.tmpl"),
+	if c.TemplatePath == "" {
+		c.TemplatePath = "templates"
 	}
-
+	list := []string{
+		filepath.Join(c.TemplatePath, c.template),
+		filepath.Join(c.TemplatePath, "base.tmpl"),
+	}
+	fmt.Println(list)
 	tmpl, err := template.ParseFiles(list...)
 	if err != nil {
-	return err
+		return err
 	}
 
 	if c.writeFile {
@@ -45,6 +52,9 @@ func (c *Chart) Generate() error {
 		if err != nil {
 			return err
 		}
+		if filepath.Ext(c.output) != ".html" {
+			c.output += ".html"
+		}
 		f, err := os.Create(filepath.Join(outPath, c.output))
 		defer func() {
 			err = f.Close()
@@ -53,7 +63,17 @@ func (c *Chart) Generate() error {
 			}
 		}()
 		c.w = f
+	} else {
+		c.w = bytes.NewBuffer(tempByte)
 	}
+
+	if c.Data.Height == 0 {
+		c.Data.Height = 1024
+	}
+	if c.Data.Width == 0 {
+		c.Data.Width = 768
+	}
+
 	err = tmpl.Execute(c.w, c.Data)
 	if err != nil {
 		return err
@@ -62,10 +82,20 @@ func (c *Chart) Generate() error {
 	return nil
 }
 
+func (c *Chart) ToFile() *Chart {
+	c.writeFile = true
+	return c
+}
+
+// Result returns byte array copy of chart
 func (c *Chart) Result() ([]byte, error) {
+	if c.writeFile {
+		return []byte{}, errors.New("")
+	}
 	return ioutil.ReadAll(c.w)
 }
 
+// KlineItemToSeriesData converts from a kline.Item to SeriesData slice
 func KlineItemToSeriesData(item kline.Item) ([]SeriesData, error) {
 	if len(item.Candles) == 0 {
 		return nil, errors.New("no candle data found")
@@ -75,11 +105,11 @@ func KlineItemToSeriesData(item kline.Item) ([]SeriesData, error) {
 	for x := range item.Candles {
 		out[x] = SeriesData{
 			Timestamp: item.Candles[x].Time.Format("2006-01-02"),
-			Open: item.Candles[x].Open,
-			High: item.Candles[x].High,
-			Low: item.Candles[x].Low,
-			Close: item.Candles[x].Close,
-			Volume: item.Candles[x].Volume,
+			Open:      item.Candles[x].Open,
+			High:      item.Candles[x].High,
+			Low:       item.Candles[x].Low,
+			Close:     item.Candles[x].Close,
+			Volume:    item.Candles[x].Volume,
 		}
 	}
 	return out, nil
