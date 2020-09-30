@@ -4785,14 +4785,14 @@ var findMissingSavedTradeIntervalsCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:        "start",
-			Usage:       "<start>",
-			Value:       time.Now().Add(-time.Hour * 24).Format(common.SimpleTimeFormat),
+			Usage:       "<start> rounded down to the nearest hour",
+			Value:       time.Now().Add(-time.Hour * 24).Truncate(time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
 			Name:        "end",
-			Usage:       "<end>",
-			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Usage:       "<end> rounded down to the nearest hour",
+			Value:       time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
 	},

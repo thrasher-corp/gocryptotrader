@@ -1,10 +1,7 @@
 package engine
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
-	"encoding/gob"
 	"errors"
 	"log"
 	"os"
@@ -458,8 +455,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	// no data found response
-	defaultStart := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	defaultEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	defaultStart := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UTC()
+	defaultEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UTC()
 	var resp *gctrpc.FindMissingIntervalsResponse
 	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
 		ExchangeName: testExchange,
@@ -468,8 +465,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
 		},
-		Start: defaultStart.In(time.UTC).Format(common.SimpleTimeFormat),
-		End:   defaultEnd.In(time.UTC).Format(common.SimpleTimeFormat),
+		Start: defaultStart.UTC().Format(common.SimpleTimeFormat),
+		End:   defaultEnd.UTC().Format(common.SimpleTimeFormat),
 	})
 	if err != nil {
 		t.Error(err)
@@ -648,9 +645,10 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(resp.MissingPeriods) != 23 {
-		t.Errorf("expected 23 missing periods, received: %v", len(resp.MissingPeriods))
+	if len(resp.MissingPeriods) != 2 {
+		t.Errorf("expected 2 missing periods, received: %v", len(resp.MissingPeriods))
 	}
+	t.Log(resp.MissingPeriods)
 }
 
 func TestSetExchangeTradeProcessing(t *testing.T) {
@@ -765,43 +763,4 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
-}
-
-func TestTheLimitsOfTrades(t *testing.T) {
-	traderinos := &gctrpc.SavedTradesResponse{
-		ExchangeName: "r.Exchange",
-		Asset:        "r.AssetType",
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: currency.DashDelimiter,
-			Base:      currency.BTC.String(),
-			Quote:     currency.USD.String(),
-		},
-	}
-	size := 0
-	for size < grpcMaxResponseSize {
-		traderinos.Trades = append(traderinos.Trades, &gctrpc.SavedTrades{
-			Price:     1337,
-			Amount:    1337,
-			Side:      order.Buy.String(),
-			Timestamp: time.Now().UTC().Format(common.SimpleTimeFormatWithTimezone),
-			TradeId:   "1337",
-		})
-		size, _ = calculateGRPCResponseSize(traderinos)
-	}
-	t.Log(len(traderinos.Trades))
-}
-
-// calculateGRPCResponseSize is a helper function for testing purposes
-// it is important to be mindful of the size of the object you are returning to the user
-// it may take many HTTP calls to fulfil a gRPC request's requirements.
-// knowing the limits of your response data can allow you to exit earlier
-// saving resources, HTTP calls and time
-func calculateGRPCResponseSize(resp interface{}) (int, error) {
-	var buff bytes.Buffer
-	enc := gob.NewEncoder(&buff)
-	err := enc.Encode(resp)
-	if err != nil {
-		return 0, err
-	}
-	return binary.Size(buff.Bytes()), nil
 }

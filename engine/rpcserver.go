@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
+	"github.com/thrasher-corp/gocryptotrader/common/timeperiods"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
@@ -1720,50 +1721,53 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 
 func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem *kline.Item) (*kline.Item, error) {
 	var response kline.Item
-	missingIntervals := klineItem.DetermineMissingIntervals(
-		startTime,
-		endTime,
-	)
+	var candleTimes []time.Time
+	for i := range klineItem.Candles {
+		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
+	}
+	ranges, err := timeperiods.CalculateDataTimeRanges(startTime, endTime, klineItem.Interval.Duration(), candleTimes)
+	if err != nil {
+		return nil, err
+	}
 
-	if len(missingIntervals) > 0 {
-		var tradeCandles kline.Item
-		trades, err := trade.GetTradesInRange(
-			klineItem.Exchange,
-			klineItem.Asset.String(),
-			klineItem.Pair.Base.String(),
-			klineItem.Pair.Quote.String(),
-			startTime,
-			endTime,
-		)
-		if err != nil {
-			return klineItem, err
-		}
-		if len(trades) == 0 {
-			return klineItem, nil
-		}
-		tradeCandles, err = trade.ConvertTradesToCandles(klineItem.Interval, trades...)
-		if err != nil {
-			return klineItem, err
-		}
-		if len(tradeCandles.Candles) == 0 {
-			return klineItem, nil
-		}
-
-		for i := range tradeCandles.Candles {
-			for j := range missingIntervals {
-				if tradeCandles.Candles[i].Time.Equal(missingIntervals[j]) {
-					response.Candles = append(response.Candles, tradeCandles.Candles[i])
-				}
-			}
-		}
-		for i := range response.Candles {
-			log.Infof(log.GRPCSys,
-				"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
+	for i := range ranges {
+		if !ranges[i].HasDataInRange {
+			var tradeCandles kline.Item
+			trades, err := trade.GetTradesInRange(
 				klineItem.Exchange,
-				klineItem.Pair.String(),
-				klineItem.Asset,
-				response.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+				klineItem.Asset.String(),
+				klineItem.Pair.Base.String(),
+				klineItem.Pair.Quote.String(),
+				ranges[i].StartOfRange,
+				ranges[i].EndOfRange,
 			)
+			if err != nil {
+				return klineItem, err
+			}
+			if len(trades) == 0 {
+				continue
+			}
+			tradeCandles, err = trade.ConvertTradesToCandles(klineItem.Interval, trades...)
+			if err != nil {
+				return klineItem, err
+			}
+			if len(tradeCandles.Candles) == 0 {
+				continue
+			}
+
+			for i := range tradeCandles.Candles {
+				response.Candles = append(response.Candles, tradeCandles.Candles[i])
+			}
+
+			for i := range response.Candles {
+				log.Infof(log.GRPCSys,
+					"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
+					klineItem.Exchange,
+					klineItem.Pair.String(),
+					klineItem.Asset,
+					response.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+				)
+			}
 		}
 	}
 
@@ -2470,20 +2474,36 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		Pair:           r.Pair,
 		MissingPeriods: []string{},
 	}
-	missingIntervals := klineItem.DetermineMissingIntervals(UTCStartTime, UTCEndTime)
-	for i := range missingIntervals {
-		resp.MissingPeriods = append(resp.MissingPeriods, fmt.Sprintf(
-			"Local: %s, UTC: %s",
-			missingIntervals[i].In(time.Local).Format(common.SimpleTimeFormatWithTimezone),
-			missingIntervals[i].In(time.UTC).Format(common.SimpleTimeFormatWithTimezone)))
+	var candleTimes []time.Time
+	for i := range klineItem.Candles {
+		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
 	}
-	if len(missingIntervals) == 0 {
-		resp.Status = "No missing periods found"
+	var ranges []timeperiods.TimeRange
+	ranges, err = timeperiods.CalculateDataTimeRanges(UTCStartTime, UTCEndTime, klineItem.Interval.Duration(), candleTimes)
+	if err != nil {
+		return nil, err
+	}
+	foundCount := 0
+	for i := range ranges {
+		if !ranges[i].HasDataInRange {
+			resp.MissingPeriods = append(resp.MissingPeriods,
+				ranges[i].StartOfRange.UTC().Format(common.SimpleTimeFormatWithTimezone)+
+					" - "+
+					ranges[i].EndOfRange.UTC().Format(common.SimpleTimeFormatWithTimezone))
+		} else {
+			foundCount++
+		}
+	}
+
+	if len(resp.MissingPeriods) == 0 {
+		resp.Status = fmt.Sprintf("no missing candles found between %v and %v",
+			r.Start,
+			r.End,
+		)
 	} else {
-		intervals := kline.DetermineAllIntervals(UTCStartTime, UTCEndTime, klineItem.Interval)
-		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v",
-			len(intervals)-len(missingIntervals),
-			len(missingIntervals),
+		resp.Status = fmt.Sprintf("Found %v candles. Missing %v candles in requested timeframe starting %v ending %v",
+			foundCount,
+			len(resp.MissingPeriods),
 			UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
 	}
@@ -2539,44 +2559,25 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		Pair:           r.Pair,
 		MissingPeriods: []string{},
 	}
-	foundCount := 0
+	var tradeTimes []time.Time
 	for i := range trades {
-		truncTradeTime := trades[i].Timestamp.Truncate(time.Hour)
-		intervalMap[truncTradeTime] = true
-		foundCount++
+		tradeTimes = append(tradeTimes, trades[i].Timestamp)
 	}
-
-	var startRange, endRange, previous time.Time
-	first := true
-	for k, v := range intervalMap {
-		if first {
-			first = false
-			continue
-		}
-		consecutive := false
-		if !v && !intervalMap[previous] {
-			consecutive = true
-			if startRange.IsZero() {
-				startRange = previous
-			}
-		}
-
-		if consecutive && !startRange.IsZero() {
-			endRange = k
-
-		} else if !startRange.IsZero() && !consecutive {
+	var ranges []timeperiods.TimeRange
+	ranges, err = timeperiods.CalculateDataTimeRanges(UTCStartTime, UTCEndTime, time.Hour, tradeTimes)
+	if err != nil {
+		return nil, err
+	}
+	foundCount := 0
+	for i := range ranges {
+		if !ranges[i].HasDataInRange {
 			resp.MissingPeriods = append(resp.MissingPeriods,
-				startRange.UTC().Format(common.SimpleTimeFormatWithTimezone)+
+				ranges[i].StartOfRange.UTC().Format(common.SimpleTimeFormatWithTimezone)+
 					" - "+
-					endRange.UTC().Format(common.SimpleTimeFormatWithTimezone))
-
-			startRange = time.Time{}
-			endRange = time.Time{}
-
-		} else if !consecutive {
-			resp.MissingPeriods = append(resp.MissingPeriods, k.UTC().Format(common.SimpleTimeFormatWithTimezone))
+					ranges[i].EndOfRange.UTC().Format(common.SimpleTimeFormatWithTimezone))
+		} else {
+			foundCount++
 		}
-		previous = k
 	}
 
 	if len(resp.MissingPeriods) == 0 {
