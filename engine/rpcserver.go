@@ -1725,49 +1725,50 @@ func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem 
 	for i := range klineItem.Candles {
 		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
 	}
-	ranges, err := timeperiods.CalculateDataTimeRanges(startTime, endTime, klineItem.Interval.Duration(), candleTimes)
+	ranges, err := timeperiods.FindTimeRangesContainingData(startTime, endTime, klineItem.Interval.Duration(), candleTimes)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := range ranges {
-		if !ranges[i].HasDataInRange {
-			var tradeCandles kline.Item
-			trades, err := trade.GetTradesInRange(
+		if ranges[i].HasDataInRange {
+			continue
+		}
+		var tradeCandles kline.Item
+		trades, err := trade.GetTradesInRange(
+			klineItem.Exchange,
+			klineItem.Asset.String(),
+			klineItem.Pair.Base.String(),
+			klineItem.Pair.Quote.String(),
+			ranges[i].StartOfRange,
+			ranges[i].EndOfRange,
+		)
+		if err != nil {
+			return klineItem, err
+		}
+		if len(trades) == 0 {
+			continue
+		}
+		tradeCandles, err = trade.ConvertTradesToCandles(klineItem.Interval, trades...)
+		if err != nil {
+			return klineItem, err
+		}
+		if len(tradeCandles.Candles) == 0 {
+			continue
+		}
+
+		for i := range tradeCandles.Candles {
+			response.Candles = append(response.Candles, tradeCandles.Candles[i])
+		}
+
+		for i := range response.Candles {
+			log.Infof(log.GRPCSys,
+				"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
 				klineItem.Exchange,
-				klineItem.Asset.String(),
-				klineItem.Pair.Base.String(),
-				klineItem.Pair.Quote.String(),
-				ranges[i].StartOfRange,
-				ranges[i].EndOfRange,
+				klineItem.Pair.String(),
+				klineItem.Asset,
+				response.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			)
-			if err != nil {
-				return klineItem, err
-			}
-			if len(trades) == 0 {
-				continue
-			}
-			tradeCandles, err = trade.ConvertTradesToCandles(klineItem.Interval, trades...)
-			if err != nil {
-				return klineItem, err
-			}
-			if len(tradeCandles.Candles) == 0 {
-				continue
-			}
-
-			for i := range tradeCandles.Candles {
-				response.Candles = append(response.Candles, tradeCandles.Candles[i])
-			}
-
-			for i := range response.Candles {
-				log.Infof(log.GRPCSys,
-					"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
-					klineItem.Exchange,
-					klineItem.Pair.String(),
-					klineItem.Asset,
-					response.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-				)
-			}
 		}
 	}
 
@@ -2479,7 +2480,7 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
 	}
 	var ranges []timeperiods.TimeRange
-	ranges, err = timeperiods.CalculateDataTimeRanges(UTCStartTime, UTCEndTime, klineItem.Interval.Duration(), candleTimes)
+	ranges, err = timeperiods.FindTimeRangesContainingData(UTCStartTime, UTCEndTime, klineItem.Interval.Duration(), candleTimes)
 	if err != nil {
 		return nil, err
 	}
@@ -2564,7 +2565,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		tradeTimes = append(tradeTimes, trades[i].Timestamp)
 	}
 	var ranges []timeperiods.TimeRange
-	ranges, err = timeperiods.CalculateDataTimeRanges(UTCStartTime, UTCEndTime, time.Hour, tradeTimes)
+	ranges, err = timeperiods.FindTimeRangesContainingData(UTCStartTime, UTCEndTime, time.Hour, tradeTimes)
 	if err != nil {
 		return nil, err
 	}
@@ -2672,7 +2673,6 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 				iterateEndTime.Format(common.SimpleTimeFormatWithTimezone))
 		}
 		stream.Send(grpcTrades)
-		//resp.Trades = append(resp.Trades, grpcTrades...)
 		iterateStartTime = iterateStartTime.Add(time.Hour)
 		iterateEndTime = iterateEndTime.Add(time.Hour)
 	}

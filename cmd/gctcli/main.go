@@ -141,15 +141,10 @@ func main() {
 		getAuditEventCommand,
 		getHistoricCandlesCommand,
 		getHistoricCandlesExtendedCommand,
+		findMissingSavedCandleIntervalsCommand,
 		gctScriptCommand,
 		websocketManagerCommand,
-		getSavedTradesCommand,
-		convertSavedTradesToCandlesCommand,
-		findMissingSavedCandleIntervalsCommand,
-		findMissingSavedTradeIntervalsCommand,
-		setExchangeTradeProcessingCommand,
-		getHistoricTradesCommand,
-		getRecentTradesCommand,
+		tradeCommand,
 	}
 
 	err := app.Run(os.Args)

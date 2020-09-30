@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/goose"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -26,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
+	"github.com/thrasher-corp/goose"
 )
 
 const (
@@ -33,7 +32,6 @@ const (
 	databaseFolder        = "database"
 	migrationsFolder      = "migrations"
 	databaseName          = "rpctestdb"
-	grpcMaxResponseSize   = 4194304
 )
 
 // Sets up everything required to run any function inside rpcserver
@@ -538,8 +536,6 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	if len(resp.MissingPeriods) != 2 {
 		t.Errorf("expected 2 missing periods, received: %v", len(resp.MissingPeriods))
 	}
-	t.Log(resp.MissingPeriods)
-
 }
 
 func TestFindMissingSavedCandleIntervals(t *testing.T) {

@@ -192,7 +192,6 @@ func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
 // TotalAsksAmount returns the total amount of asks and the total orderbook
 // asks value
 func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
-
 	for y := range b.Asks {
 		amountCollated += b.Asks[y].Amount
 		total += b.Asks[y].Amount * b.Asks[y].Price

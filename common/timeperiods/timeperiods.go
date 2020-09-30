@@ -7,11 +7,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
-// CalculateDataTimeRanges will break the start and end into time periods using the provided period
+// FindTimeRangesContainingData will break the start and end into time periods using the provided period
 // it will then check whether any comparisonTimes are within those periods and concatinate them
 // eg if no comparisonTimes match, you will receive 1 TimeRange of Start End with dataInRange = false
 // eg2 if 1 comparisonTime matches in the middle of start and end, you will receive three ranges
-func CalculateDataTimeRanges(start, end time.Time, period time.Duration, comparisonTimes []time.Time) ([]TimeRange, error) {
+func FindTimeRangesContainingData(start, end time.Time, period time.Duration, comparisonTimes []time.Time) ([]TimeRange, error) {
 	var errs common.Errors
 	if start.IsZero() {
 		errs = append(errs, errors.New("invalid start time"))
@@ -115,8 +115,8 @@ func (t *TimePeriodCalculator) calculatePeriods() {
 	if t.start.After(t.end) {
 		return
 	}
-	iterateDateMate := t.start.Truncate(t.periodDuration)
-	for !iterateDateMate.Equal(t.end.Truncate(t.periodDuration)) {
+	iterateDateMate := t.start
+	for !iterateDateMate.Equal(t.end) {
 		tp := TimePeriod{
 			Time:        iterateDateMate,
 			dataInRange: false,

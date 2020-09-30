@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-func TestTDDTimeRangeCombiner(t *testing.T) {
+func TestFindTimeRangesContainingData(t *testing.T) {
 	// validation issues
-	ranges, err := CalculateDataTimeRanges(
+	_, err := FindTimeRangesContainingData(
 		time.Time{},
 		time.Time{},
 		0,
@@ -20,7 +20,8 @@ func TestTDDTimeRangeCombiner(t *testing.T) {
 	searchStartTime := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
 	searchEndTime := time.Date(2020, 1, 1, 10, 0, 0, 0, time.UTC)
 	var tradeTimes []time.Time
-	ranges, err = CalculateDataTimeRanges(
+	var ranges []TimeRange
+	ranges, err = FindTimeRangesContainingData(
 		searchStartTime,
 		searchEndTime,
 		time.Hour,
@@ -34,7 +35,7 @@ func TestTDDTimeRangeCombiner(t *testing.T) {
 	}
 	// 1 trade with 3 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 2, 0, 0, 0, time.UTC))
-	ranges, err = CalculateDataTimeRanges(
+	ranges, err = FindTimeRangesContainingData(
 		searchStartTime,
 		searchEndTime,
 		time.Hour,
@@ -48,7 +49,7 @@ func TestTDDTimeRangeCombiner(t *testing.T) {
 	}
 	// 2 trades with 3 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 3, 0, 0, 0, time.UTC))
-	ranges, err = CalculateDataTimeRanges(
+	ranges, err = FindTimeRangesContainingData(
 		searchStartTime,
 		searchEndTime,
 		time.Hour,
@@ -62,7 +63,7 @@ func TestTDDTimeRangeCombiner(t *testing.T) {
 	}
 	// 3 trades with 5 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 5, 0, 0, 0, time.UTC))
-	ranges, err = CalculateDataTimeRanges(
+	ranges, err = FindTimeRangesContainingData(
 		searchStartTime,
 		searchEndTime,
 		time.Hour,
@@ -76,7 +77,7 @@ func TestTDDTimeRangeCombiner(t *testing.T) {
 	}
 	// 4 trades with 5 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 6, 0, 0, 0, time.UTC))
-	ranges, err = CalculateDataTimeRanges(
+	ranges, err = FindTimeRangesContainingData(
 		searchStartTime,
 		searchEndTime,
 		time.Hour,
@@ -90,7 +91,7 @@ func TestTDDTimeRangeCombiner(t *testing.T) {
 	}
 	// 5 trades with 7 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 9, 0, 0, 0, time.UTC))
-	ranges, err = CalculateDataTimeRanges(
+	ranges, err = FindTimeRangesContainingData(
 		searchStartTime,
 		searchEndTime,
 		time.Hour,
@@ -106,11 +107,12 @@ func TestTDDTimeRangeCombiner(t *testing.T) {
 
 func TestCalculateTimePeriodsInRange(t *testing.T) {
 	// validation issues
-	intervals, err := CalculateTimePeriodsInRange(time.Time{}, time.Time{}, 0)
+	_, err := CalculateTimePeriodsInRange(time.Time{}, time.Time{}, 0)
 	if err != nil && err.Error() != "invalid start time, invalid end time, invalid period" {
 		t.Fatal(err)
 	}
 	// start after end
+	var intervals []TimePeriod
 	intervals, err = CalculateTimePeriodsInRange(time.Now(), time.Now().Add(-time.Hour), time.Hour)
 	if err != nil {
 		t.Error(err)
@@ -134,8 +136,8 @@ func TestCalculateTimePeriodsInRange(t *testing.T) {
 	if len(intervals) != 24 {
 		t.Errorf("expected 24 interval(s), received %v", len(intervals))
 	}
-	// odd times
-	intervals, err = CalculateTimePeriodsInRange(time.Now().Add(-(time.Hour*24)-(time.Minute*16)), time.Now(), time.Hour)
+	// odd time
+	intervals, err = CalculateTimePeriodsInRange(time.Now().Add(-time.Minute*1480), time.Now(), time.Hour)
 	if err != nil {
 		t.Error(err)
 	}
