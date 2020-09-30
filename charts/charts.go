@@ -20,6 +20,8 @@ func New(name, template, outputpath string) (chart Chart) {
 		chart.template = "basic.tmpl"
 	case "timeseries":
 		chart.template = "timeseries.tmpl"
+	case "timeseries-markets":
+		chart.template = "timeseries-markers.tmpl"
 	}
 	chart.output = name
 	if outputpath != "" {
@@ -39,13 +41,12 @@ func (c *Chart) Generate() error {
 		filepath.Join(c.TemplatePath, c.template),
 		filepath.Join(c.TemplatePath, "base.tmpl"),
 	}
-	fmt.Println(list)
 	tmpl, err := template.ParseFiles(list...)
 	if err != nil {
 		return err
 	}
 
-	if c.writeFile {
+	if c.WriteFile {
 		wd, _ := os.Getwd()
 		outPath := filepath.Join(wd, c.OutputPath)
 		err := common.CreateDir(outPath)
@@ -83,13 +84,13 @@ func (c *Chart) Generate() error {
 }
 
 func (c *Chart) ToFile() *Chart {
-	c.writeFile = true
+	c.WriteFile = true
 	return c
 }
 
 // Result returns byte array copy of chart
 func (c *Chart) Result() ([]byte, error) {
-	if c.writeFile {
+	if c.WriteFile {
 		return []byte{}, errors.New("")
 	}
 	return ioutil.ReadAll(c.w)

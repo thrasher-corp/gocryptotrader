@@ -1,0 +1,15 @@
+exch := import("exchange")
+t := import("times")
+common := import("common")
+
+load := func() {
+    // define your start and end within reason.
+    start := t.date(2017, 8 , 17, 0 , 0 , 0, 0)
+    end := t.add_date(start, 0, 6 , 0)
+
+    // This fetches the ohlcv
+    ohlcvData := exch.ohlcv("binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
+
+}
+
+load()

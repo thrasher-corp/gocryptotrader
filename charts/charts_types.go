@@ -13,7 +13,7 @@ type Chart struct {
 
 	Data
 	w         io.ReadWriter
-	writeFile bool
+	WriteFile bool
 }
 
 // Data holds page related configuration data that is passed to template generation
@@ -31,7 +31,8 @@ type size struct {
 
 // IntervalData is used to store basic chart data
 type IntervalData struct {
-
+	Timestamp string
+	Value     float64
 }
 
 // AdvancedIntervalData is used to store basic chart data

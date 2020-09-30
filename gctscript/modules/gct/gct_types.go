@@ -18,4 +18,5 @@ var supportedDurations = []string{"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4
 var Modules = map[string]map[string]tengo.Object{
 	"exchange": exchangeModule,
 	"common":   commonModule,
+	"charts": chartsModule,
 }

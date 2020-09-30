@@ -63,7 +63,7 @@ func TestChart_Generate(t *testing.T) {
 				OutputPath: tt.fields.outputPath,
 				Data:       tt.fields.Data,
 				w:          tt.fields.w,
-				writeFile:  tt.fields.writeFile,
+				WriteFile:  tt.fields.writeFile,
 			}
 			if err := c.Generate(); (err != nil) != tt.wantErr {
 				t.Errorf("Generate() error = %v, wantErr %v", err, tt.wantErr)
@@ -111,13 +111,13 @@ func TestChart_Result(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Chart{
-				template:  tt.fields.template,
+				template:     tt.fields.template,
 				TemplatePath: tt.fields.TemplatePath,
-				output:    tt.fields.output,
-				OutputPath: tt.fields.outputPath,
-				Data:      tt.fields.Data,
-				w:         tt.fields.w,
-				writeFile: tt.fields.writeFile,
+				output:       tt.fields.output,
+				OutputPath:   tt.fields.outputPath,
+				Data:         tt.fields.Data,
+				w:            tt.fields.w,
+				WriteFile:    tt.fields.writeFile,
 			}
 			err := c.Generate()
 			if err != nil {
@@ -177,7 +177,6 @@ func genIntervalData(totalCandles int) []IntervalData {
 
 	return out
 }
-
 
 func genOHCLVData(totalCandles int) kline.Item {
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
