@@ -59,6 +59,18 @@ func (w *Orderbook) Update(u *Update) error {
 		w.buffer[u.Pair][u.Asset] = nil
 	}
 
+	if u.OtherAsset != "" { // Used when we can utilise the same book but differentiate asset type
+		w.dataHandler <- &orderbook.Base{
+			Pair:         obLookup.Pair,
+			Bids:         append(obLookup.Bids[:0:0], obLookup.Bids...),
+			Asks:         append(obLookup.Asks[:0:0], obLookup.Asks...),
+			LastUpdateID: obLookup.LastUpdateID,
+			LastUpdated:  obLookup.LastUpdated,
+			ExchangeName: obLookup.ExchangeName,
+			AssetType:    u.OtherAsset,
+		}
+	}
+
 	// Process in data handler
 	w.dataHandler <- obLookup
 	return nil
@@ -284,4 +296,16 @@ func (w *Orderbook) FlushBuffer() {
 	w.ob = nil
 	w.buffer = nil
 	w.m.Unlock()
+}
+
+// FlushOrderbook flushes independant orderbook
+func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
+	w.m.Lock()
+	defer w.m.Unlock()
+	_, ok := w.ob[p][a]
+	if !ok {
+		return fmt.Errorf("orderbook not associated with pair: [%s] and asset [%s]", p, a)
+	}
+	w.ob[p][a] = nil
+	return nil
 }

@@ -63,11 +63,11 @@ const (
 type Binance struct {
 	exchange.Base
 
-	pipe         map[string]chan *WebsocketDepthStream
+	buffer       map[string]chan *WebsocketDepthStream
 	mtx          sync.Mutex
 	fetchingbook map[string]bool
 	initialSync  map[string]bool
-	syncMe       chan currency.Pair
+	jobs         chan Job
 
 	// Valid string list that is required by the exchange
 	validLimits []int

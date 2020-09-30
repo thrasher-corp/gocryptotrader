@@ -33,4 +33,5 @@ type Update struct {
 	Bids       []orderbook.Item
 	Asks       []orderbook.Item
 	Pair       currency.Pair
+	OtherAsset asset.Item // Used when same subscription is used we can broadcast to multiple asset types
 }

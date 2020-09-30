@@ -130,3 +130,7 @@ type WebsocketConnection struct {
 	Traffic           chan struct{}
 	readMessageErrors chan error
 }
+
+// type Synchronisation struct {
+
+// }
