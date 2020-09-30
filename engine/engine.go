@@ -534,7 +534,7 @@ func (bot *Engine) Stop() {
 	}
 
 	if !bot.Settings.EnableDryRun {
-		err := bot.Config.SaveConfig(bot.Settings.ConfigFile, false)
+		err := bot.Config.SaveConfig(bot.Settings.ConfigFile)
 		if err != nil {
 			gctlog.Errorln(gctlog.Global, "Unable to save config.")
 		} else {

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -1657,6 +1659,25 @@ func TestReadConfig(t *testing.T) {
 	}
 }
 
+func TestReadConfigFromReader(t *testing.T) {
+	confString := `{"name":"test"}`
+	conf, encrypted, err := ReadConfig(strings.NewReader(confString), Unencrypted)
+	if err != nil {
+		t.Errorf("TestReadConfig %s", err)
+	}
+	if encrypted {
+		t.Errorf("Expected unencrypted config %s", err)
+	}
+	if conf.Name != "test" {
+		t.Errorf("Conf not properly loaded %s", err)
+	}
+
+	_, _, err = ReadConfig(strings.NewReader("{}"), Unencrypted)
+	if err == nil {
+		t.Error("TestReadConfig error cannot be nil")
+	}
+}
+
 func TestLoadConfig(t *testing.T) {
 	loadConfig := GetConfig()
 	err := loadConfig.LoadConfig(TestFile, true)
@@ -1676,7 +1697,13 @@ func TestSaveConfig(t *testing.T) {
 	if err != nil {
 		t.Errorf("TestSaveConfig.LoadConfig: %s", err.Error())
 	}
-	err2 := saveConfig.SaveConfig(TestFile, true)
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Errorf("TestSaveConfig create file: %s", err)
+	}
+	f.Close()
+	defer os.Remove(f.Name())
+	err2 := saveConfig.SaveConfig(f.Name())
 	if err2 != nil {
 		t.Errorf("TestSaveConfig.SaveConfig, %s", err2.Error())
 	}
@@ -1798,7 +1825,7 @@ func TestUpdateConfig(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	err = c.UpdateConfig("//non-existantpath\\", &newCfg, true)
+	err = c.UpdateConfig("//non-existantpath\\", &newCfg, false)
 	if err == nil {
 		t.Fatalf("Error should have been thrown for invalid path")
 	}

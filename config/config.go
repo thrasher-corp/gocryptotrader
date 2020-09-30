@@ -2,11 +2,13 @@ package config
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -1573,92 +1575,123 @@ func GetFilePath(configfile string) (string, error) {
 
 // ReadConfig verifies and checks for encryption and verifies the unencrypted
 // file contains JSON.
-// Prompts for decryption key, if target file is encrypted
+// Prompts for encryption key, if target file is encrypted or is requested to be
+// and stores the file encrypted if not dryrun
 func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 	defaultPath, err := GetFilePath(configPath)
 	if err != nil {
 		return err
 	}
-
-	fileData, err := ioutil.ReadFile(defaultPath)
+	confFile, err := os.Open(defaultPath)
 	if err != nil {
 		return err
 	}
+	defer confFile.Close()
+	result, wasEncrypted, err := ReadConfig(confFile, func() ([]byte, error) { return PromptForConfigKey(false) })
+	if err != nil {
+		return fmt.Errorf("error reading config %w", err)
+	}
+	// Override values in the current config
+	*c = *result
 
-	if !ConfirmECS(fileData) {
-		err = json.Unmarshal(fileData, c)
-		if err != nil {
-			return err
-		}
-
-		if c.EncryptConfig == fileEncryptionDisabled {
-			return nil
-		}
-
-		if c.EncryptConfig == fileEncryptionPrompt {
-			confirm, err := promptForConfigEncryption()
-			if err == nil {
-				if confirm {
-					c.EncryptConfig = fileEncryptionEnabled
-					return c.SaveConfig(defaultPath, dryrun)
-				}
-
-				c.EncryptConfig = fileEncryptionDisabled
-				err := c.SaveConfig(configPath, dryrun)
-				if err != nil {
-					log.Errorf(log.ConfigMgr, "Cannot save config. Error: %s\n", err)
-				}
-			}
-		}
+	if dryrun || wasEncrypted || (!wasEncrypted && c.EncryptConfig == fileEncryptionDisabled) {
 		return nil
 	}
 
-	errCounter := 0
-	for {
-		if errCounter >= maxAuthFailures {
-			return errors.New("failed to decrypt config after 3 attempts")
-		}
-		key, err := PromptForConfigKey(false)
-		if err != nil {
-			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
-			errCounter++
-			continue
-		}
-
-		var f []byte
-		f = append(f, fileData...)
-		data, err := c.decryptConfigData(f, key)
-		if err != nil {
-			log.Errorf(log.ConfigMgr, "decryptConfigData err: %s", err)
-			errCounter++
-			continue
-		}
-
-		err = json.Unmarshal(data, c)
-		if err != nil {
-			if errCounter < maxAuthFailures {
-				log.Error(log.ConfigMgr, "Invalid password.")
+	if c.EncryptConfig == fileEncryptionPrompt {
+		confirm, err := promptForConfigEncryption()
+		if err == nil {
+			if confirm {
+				c.EncryptConfig = fileEncryptionEnabled
+				return c.SaveConfig(defaultPath)
 			}
-			errCounter++
-			continue
+
+			c.EncryptConfig = fileEncryptionDisabled
+			err := c.SaveConfig(defaultPath)
+			if err != nil {
+				log.Errorf(log.ConfigMgr, "Cannot save config. Error: %s\n", err)
+			}
 		}
-		break
 	}
 	return nil
 }
 
-// SaveConfig saves your configuration to your desired path
-// prompts for encryption key, if necessary
-func (c *Config) SaveConfig(configPath string, dryrun bool) error {
-	if dryrun {
-		return nil
+// ReadConfig verifies and checks for encryption and loads the config.
+// Prompts for decryption key, if target data is encrypted.
+// Returns the loaded configuration and whether it was encrypted.
+func ReadConfig(configReader io.Reader, keyProvider func() ([]byte, error)) (*Config, bool, error) {
+	reader := bufio.NewReader(configReader)
+
+	pref, err := reader.Peek(len(EncryptConfirmString))
+	if err != nil {
+		return nil, false, err
 	}
 
+	if !ConfirmECS(pref) {
+		// Read unencrypted configuration
+		decoder := json.NewDecoder(reader)
+		c := &Config{}
+		err = decoder.Decode(c)
+		return c, false, err
+	}
+
+	conf, err := readEncryptedConfWithKey(reader, keyProvider)
+	return conf, true, err
+}
+
+// readEncryptedConf reads encrypted configuration and requests key from provider
+func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, error)) (*Config, error) {
+	fileData, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	for errCounter := 0; errCounter < maxAuthFailures; errCounter++ {
+		key, err := keyProvider()
+		if err != nil {
+			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
+			continue
+		}
+
+		var c *Config
+		c, err = readEncryptedConf(bytes.NewReader(fileData), key)
+		if err != nil {
+			log.Error(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
+			continue
+		}
+		return c, nil
+	}
+	return nil, errors.New("failed to decrypt config after 3 attempts")
+}
+
+func readEncryptedConf(reader io.Reader, key []byte) (*Config, error) {
+	c := &Config{}
+	data, err := c.decryptConfigData(reader, key)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, c)
+	return c, err
+}
+
+// SaveConfig saves your configuration to your desired path
+// prompts for encryption key, if necessary
+func (c *Config) SaveConfig(configPath string) error {
 	defaultPath, err := GetFilePath(configPath)
 	if err != nil {
 		return err
 	}
+	writer, err := file.Writer(defaultPath)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	return c.Save(writer, func() ([]byte, error) { return PromptForConfigKey(true) })
+}
 
+// Save saves your configuration to the writer
+// with encryption, if configured
+func (c *Config) Save(configWriter io.Writer, keyProvider func() ([]byte, error)) error {
 	payload, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
 		return err
@@ -1668,7 +1701,7 @@ func (c *Config) SaveConfig(configPath string, dryrun bool) error {
 		// Ensure we have the key from session or from user
 		if len(c.sessionDK) == 0 {
 			var key []byte
-			key, err = PromptForConfigKey(true)
+			key, err = keyProvider()
 			if err != nil {
 				return err
 			}
@@ -1684,7 +1717,8 @@ func (c *Config) SaveConfig(configPath string, dryrun bool) error {
 			return err
 		}
 	}
-	return file.Write(defaultPath, payload)
+	_, err = io.Copy(configWriter, bytes.NewReader(payload))
+	return err
 }
 
 // CheckRemoteControlConfig checks to see if the old c.Webserver field is used
@@ -1809,9 +1843,11 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 	c.Webserver = newCfg.Webserver
 	c.Exchanges = newCfg.Exchanges
 
-	err = c.SaveConfig(configPath, dryrun)
-	if err != nil {
-		return err
+	if !dryrun {
+		err = c.SaveConfig(configPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	return c.LoadConfig(configPath, dryrun)
