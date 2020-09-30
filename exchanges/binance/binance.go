@@ -1960,8 +1960,8 @@ func (b *Binance) FuturesOpenOrderData(symbol, orderID, origClientOrderID string
 }
 
 // GetFuturesAllOpenOrders gets all open orders data for futures
-func (b *Binance) GetFuturesAllOpenOrders(symbol, pair string) ([]FuturesOrderGetData, error) {
-	var resp []FuturesOrderGetData
+func (b *Binance) GetFuturesAllOpenOrders(symbol, pair string) ([]FuturesOrderData, error) {
+	var resp []FuturesOrderData
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)

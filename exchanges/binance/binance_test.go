@@ -1511,6 +1511,79 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 }
 
+func TestWrapperGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	p, err := currency.NewPairFromString("EOS-USDT")
+	a, err := b.GetActiveOrders(&order.GetOrdersRequest{
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		Pairs:     currency.Pairs{p},
+		AssetType: asset.CoinMarginedFutures,
+	})
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p2, err := currency.NewPairFromString("BTCUSDT")
+	resp, err := b.GetActiveOrders(&order.GetOrdersRequest{
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		Pairs:     currency.Pairs{p2},
+		AssetType: asset.CoinMarginedFutures,
+	})
+	t.Log(resp)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWrapperGetOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	p, err := currency.NewPairFromString("EOS-USDT")
+	a, err := b.GetOrderHistory(&order.GetOrdersRequest{
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		Pairs:     currency.Pairs{p},
+		AssetType: asset.CoinMarginedFutures,
+	})
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p2, err := currency.NewPairFromString("BTCUSDT")
+	resp, err := b.GetOrderHistory(&order.GetOrdersRequest{
+		Type:      order.AnyType,
+		Side:      order.AnySide,
+		Pairs:     currency.Pairs{p2},
+		AssetType: asset.USDTMarginedFutures,
+	})
+	t.Log(resp)
+	if err != nil {
+		t.Error(err)
+	}
+
+	resp2, err := b.GetOrderHistory(&order.GetOrdersRequest{
+		AssetType: asset.USDTMarginedFutures,
+	})
+	t.Log(resp2)
+	if err != nil {
+		t.Error(err)
+	}
+
+}
+
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
@@ -1527,8 +1600,25 @@ func TestCancelOrder(t *testing.T) {
 		t.Error(err)
 	}
 	err = b.CancelOrder(&order.Cancel{
-		AssetType: asset.USDTMarginedFutures,
+		AssetType: asset.CoinMarginedFutures,
 		Pair:      fpair,
+		ID:        "1234",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	p2, err := currency.NewPairFromString("BTC-USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	fpair2, err := b.FormatExchangeCurrency(p2, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.CancelOrder(&order.Cancel{
+		AssetType: asset.USDTMarginedFutures,
+		Pair:      fpair2,
 		ID:        "1234",
 	})
 	if err != nil {

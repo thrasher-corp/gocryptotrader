@@ -815,24 +815,100 @@ func (b *Binance) CancelOrder(order *order.Cancel) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Binance) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
-	}
-	openOrders, err := b.OpenOrders("")
-	if err != nil {
-		return cancelAllOrdersResponse, err
-	}
+func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
 
-	for i := range openOrders {
-		_, err = b.CancelExistingOrder(openOrders[i].Symbol,
-			openOrders[i].OrderID,
-			"")
+	var cancelAllOrdersResponse order.CancelAllResponse
+
+	switch req.AssetType {
+
+	case asset.Spot:
+		openOrders, err := b.OpenOrders("")
 		if err != nil {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
+			return cancelAllOrdersResponse, err
 		}
-	}
 
+		for i := range openOrders {
+			_, err = b.CancelExistingOrder(openOrders[i].Symbol,
+				openOrders[i].OrderID,
+				"")
+			if err != nil {
+				cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
+			}
+		}
+
+	case asset.CoinMarginedFutures:
+
+		if req.Pair.IsEmpty() {
+
+			enabledPairs, err := b.GetEnabledPairs(asset.CoinMarginedFutures)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			for i := range enabledPairs {
+
+				fPair, err := b.FormatExchangeCurrency(enabledPairs[i], asset.CoinMarginedFutures)
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+
+				_, err = b.CancelAllOpenOrders(fPair.String())
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+
+			}
+
+		} else {
+
+			fPair, err := b.FormatExchangeCurrency(req.Pair, asset.CoinMarginedFutures)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			_, err = b.CancelAllOpenOrders(fPair.String())
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+		}
+
+	case asset.USDTMarginedFutures:
+
+		if req.Pair.IsEmpty() {
+
+			enabledPairs, err := b.GetEnabledPairs(asset.USDTMarginedFutures)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			for i := range enabledPairs {
+
+				fPair, err := b.FormatExchangeCurrency(enabledPairs[i], asset.CoinMarginedFutures)
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+
+				_, err = b.UCancelAllOpenOrders(fPair.String())
+				if err != nil {
+					return cancelAllOrdersResponse, err
+				}
+
+			}
+
+		} else {
+
+			fPair, err := b.FormatExchangeCurrency(req.Pair, asset.USDTMarginedFutures)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+
+			_, err = b.UCancelAllOpenOrders(fPair.String())
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+		}
+
+	}
 	return cancelAllOrdersResponse, nil
 }
 
@@ -995,42 +1071,185 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	}
 
 	var orders []order.Detail
-	for x := range req.Pairs {
-		fpair, err := b.FormatExchangeCurrency(req.Pairs[x],
-			asset.Spot)
-		if err != nil {
-			return nil, err
-		}
 
-		resp, err := b.OpenOrders(fpair.String())
-		if err != nil {
-			return nil, err
-		}
+	switch req.AssetType {
 
-		for i := range resp {
-			orderSide := order.Side(strings.ToUpper(resp[i].Side))
-			orderType := order.Type(strings.ToUpper(resp[i].Type))
-			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
+	case asset.Spot:
 
-			pair, err := currency.NewPairFromString(resp[i].Symbol)
+		for x := range req.Pairs {
+			fpair, err := b.FormatExchangeCurrency(req.Pairs[x],
+				asset.Spot)
+
 			if err != nil {
 				return nil, err
 			}
 
-			orders = append(orders, order.Detail{
-				Amount:   resp[i].OrigQty,
-				Date:     orderDate,
-				Exchange: b.Name,
-				ID:       strconv.FormatInt(resp[i].OrderID, 10),
-				Side:     orderSide,
-				Type:     orderType,
-				Price:    resp[i].Price,
-				Status:   order.Status(resp[i].Status),
-				Pair:     pair,
-			})
-		}
-	}
+			resp, err := b.OpenOrders(fpair.String())
+			if err != nil {
+				return nil, err
+			}
 
+			for i := range resp {
+				orderSide := order.Side(strings.ToUpper(resp[i].Side))
+				orderType := order.Type(strings.ToUpper(resp[i].Type))
+				orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
+
+				pair, err := currency.NewPairFromString(resp[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+
+				orders = append(orders, order.Detail{
+					Amount:   resp[i].OrigQty,
+					Date:     orderDate,
+					Exchange: b.Name,
+					ID:       strconv.FormatInt(resp[i].OrderID, 10),
+					Side:     orderSide,
+					Type:     orderType,
+					Price:    resp[i].Price,
+					Status:   order.Status(resp[i].Status),
+					Pair:     pair,
+				})
+			}
+		}
+
+	case asset.CoinMarginedFutures:
+
+		var openOrders []FuturesOrderData
+		var err error
+
+		var pairs currency.Pairs
+
+		if len(req.Pairs) > 0 {
+			pairs = req.Pairs
+		} else {
+			pairs, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
+			if err != nil {
+				return orders, err
+			}
+		}
+
+		for i := range pairs {
+
+			fPair, err := b.FormatExchangeCurrency(pairs[i], req.AssetType)
+			if err != nil {
+				return orders, err
+			}
+
+			openOrders, err = b.GetFuturesAllOpenOrders(fPair.String(), "")
+			if err != nil {
+				return orders, err
+			}
+
+			for y := range openOrders {
+
+				var feeBuilder exchange.FeeBuilder
+				feeBuilder.Amount = openOrders[y].ExecutedQty
+				feeBuilder.PurchasePrice = openOrders[y].AvgPrice
+				feeBuilder.Pair = fPair
+
+				fee, err := b.GetFee(&feeBuilder)
+				if err != nil {
+					return orders, err
+				}
+
+				var orderVars OrderVars
+				orderVars, err = compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+				if err != nil {
+					return orders, err
+				}
+
+				orders = append(orders, order.Detail{
+					Price:           openOrders[y].Price,
+					Amount:          openOrders[y].OrigQty,
+					ExecutedAmount:  openOrders[y].ExecutedQty,
+					RemainingAmount: openOrders[y].OrigQty - openOrders[y].ExecutedQty,
+					Fee:             fee,
+					Exchange:        b.Name,
+					ID:              strconv.FormatInt(openOrders[y].OrderID, 10),
+					ClientOrderID:   openOrders[y].ClientOrderID,
+					Type:            orderVars.OrderType,
+					Side:            orderVars.Side,
+					Status:          orderVars.Status,
+					Pair:            fPair,
+					AssetType:       asset.CoinMarginedFutures,
+				})
+			}
+		}
+
+	case asset.USDTMarginedFutures:
+
+		var openOrders []UOrderData
+		var err error
+
+		var pairs currency.Pairs
+
+		if len(req.Pairs) > 0 {
+			pairs = req.Pairs
+		} else {
+			pairs, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
+			if err != nil {
+				return orders, err
+			}
+		}
+
+		for i := range pairs {
+
+			fPair, err := b.FormatExchangeCurrency(pairs[i], req.AssetType)
+			if err != nil {
+				return orders, err
+			}
+
+			var complete bool
+
+			for !complete {
+				openOrders, err = b.UAllAccountOpenOrders(fPair.String())
+				if err != nil {
+					return orders, err
+				}
+
+				for y := range openOrders {
+
+					var feeBuilder exchange.FeeBuilder
+					feeBuilder.Amount = openOrders[y].ExecutedQty
+					feeBuilder.PurchasePrice = openOrders[y].AvgPrice
+					feeBuilder.Pair = fPair
+
+					fee, err := b.GetFee(&feeBuilder)
+					if err != nil {
+						return orders, err
+					}
+
+					var orderVars OrderVars
+					orderVars, err = compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+					if err != nil {
+						return orders, err
+					}
+
+					orders = append(orders, order.Detail{
+						Price:           openOrders[y].Price,
+						Amount:          openOrders[y].OrigQty,
+						ExecutedAmount:  openOrders[y].ExecutedQty,
+						RemainingAmount: openOrders[y].OrigQty - openOrders[y].ExecutedQty,
+						Fee:             fee,
+						Exchange:        b.Name,
+						ID:              strconv.FormatInt(openOrders[y].OrderID, 10),
+						ClientOrderID:   openOrders[y].ClientOrderID,
+						Type:            orderVars.OrderType,
+						Side:            orderVars.Side,
+						Status:          orderVars.Status,
+						Pair:            fPair,
+						AssetType:       asset.CoinMarginedFutures,
+					})
+				}
+				if len(openOrders) < 100 {
+					complete = true
+				}
+			}
+		}
+	default:
+		return orders, fmt.Errorf("assetType not supported")
+	}
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
@@ -1045,46 +1264,195 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	}
 
 	var orders []order.Detail
-	for x := range req.Pairs {
-		fpair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := b.AllOrders(fpair.String(),
-			"",
-			"1000")
-		if err != nil {
-			return nil, err
-		}
 
-		for i := range resp {
-			orderSide := order.Side(strings.ToUpper(resp[i].Side))
-			orderType := order.Type(strings.ToUpper(resp[i].Type))
-			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
-			// New orders are covered in GetOpenOrders
-			if resp[i].Status == "NEW" {
-				continue
+	switch req.AssetType {
+
+	case asset.Spot:
+
+		for x := range req.Pairs {
+			fpair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+			if err != nil {
+				return nil, err
 			}
-
-			pair, err := currency.NewPairFromString(resp[i].Symbol)
+			resp, err := b.AllOrders(fpair.String(),
+				"",
+				"1000")
 			if err != nil {
 				return nil, err
 			}
 
-			orders = append(orders, order.Detail{
-				Amount:   resp[i].OrigQty,
-				Date:     orderDate,
-				Exchange: b.Name,
-				ID:       strconv.FormatInt(resp[i].OrderID, 10),
-				Side:     orderSide,
-				Type:     orderType,
-				Price:    resp[i].Price,
-				Pair:     pair,
-				Status:   order.Status(resp[i].Status),
-			})
-		}
-	}
+			for i := range resp {
+				orderSide := order.Side(strings.ToUpper(resp[i].Side))
+				orderType := order.Type(strings.ToUpper(resp[i].Type))
+				orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
+				// New orders are covered in GetOpenOrders
+				if resp[i].Status == "NEW" {
+					continue
+				}
 
+				pair, err := currency.NewPairFromString(resp[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+
+				orders = append(orders, order.Detail{
+					Amount:   resp[i].OrigQty,
+					Date:     orderDate,
+					Exchange: b.Name,
+					ID:       strconv.FormatInt(resp[i].OrderID, 10),
+					Side:     orderSide,
+					Type:     orderType,
+					Price:    resp[i].Price,
+					Pair:     pair,
+					Status:   order.Status(resp[i].Status),
+				})
+			}
+		}
+
+	case asset.CoinMarginedFutures:
+
+		var orderHistory []FuturesOrderData
+		var err error
+
+		var pairs currency.Pairs
+
+		if len(req.Pairs) > 0 {
+			pairs = req.Pairs
+		} else {
+			pairs, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
+			if err != nil {
+				return orders, err
+			}
+		}
+
+		for i := range pairs {
+
+			fPair, err := b.FormatExchangeCurrency(pairs[i], req.AssetType)
+			if err != nil {
+				return orders, err
+			}
+
+			var complete bool
+
+			for !complete {
+				orderHistory, err = b.GetAllFuturesOrders(fPair.String(), "", req.StartTicks, req.EndTicks, 0, 100)
+				if err != nil {
+					return orders, err
+				}
+
+				for y := range orderHistory {
+
+					var feeBuilder exchange.FeeBuilder
+					feeBuilder.Amount = orderHistory[y].ExecutedQty
+					feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
+					feeBuilder.Pair = fPair
+
+					fee, err := b.GetFee(&feeBuilder)
+					if err != nil {
+						return orders, err
+					}
+
+					var orderVars OrderVars
+					orderVars, err = compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+					if err != nil {
+						return orders, err
+					}
+
+					orders = append(orders, order.Detail{
+						Price:           orderHistory[y].Price,
+						Amount:          orderHistory[y].OrigQty,
+						ExecutedAmount:  orderHistory[y].ExecutedQty,
+						RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
+						Fee:             fee,
+						Exchange:        b.Name,
+						ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
+						ClientOrderID:   orderHistory[y].ClientOrderID,
+						Type:            orderVars.OrderType,
+						Side:            orderVars.Side,
+						Status:          orderVars.Status,
+						Pair:            fPair,
+						AssetType:       asset.CoinMarginedFutures,
+					})
+				}
+				if len(orderHistory) < 100 {
+					complete = true
+				}
+			}
+		}
+
+	case asset.USDTMarginedFutures:
+
+		var orderHistory []UFuturesOrderData
+		var err error
+
+		var pairs currency.Pairs
+
+		if len(req.Pairs) > 0 {
+			pairs = req.Pairs
+		} else {
+			pairs, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
+			if err != nil {
+				return orders, err
+			}
+		}
+
+		for i := range pairs {
+
+			fPair, err := b.FormatExchangeCurrency(pairs[i], req.AssetType)
+			if err != nil {
+				return orders, err
+			}
+
+			var complete bool
+
+			for !complete {
+				orderHistory, err = b.UAllAccountOrders(fPair.String(), 0, 100, req.StartTicks, req.EndTicks)
+				if err != nil {
+					return orders, err
+				}
+
+				for y := range openOrders {
+
+					var feeBuilder exchange.FeeBuilder
+					feeBuilder.Amount = orderHistory[y].ExecutedQty
+					feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
+					feeBuilder.Pair = fPair
+
+					fee, err := b.GetFee(&feeBuilder)
+					if err != nil {
+						return orders, err
+					}
+
+					var orderVars OrderVars
+					orderVars, err = compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+					if err != nil {
+						return orders, err
+					}
+
+					orders = append(orders, order.Detail{
+						Price:           orderHistory[y].Price,
+						Amount:          orderHistory[y].OrigQty,
+						ExecutedAmount:  orderHistory[y].ExecutedQty,
+						RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
+						Fee:             fee,
+						Exchange:        b.Name,
+						ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
+						ClientOrderID:   orderHistory[y].ClientOrderID,
+						Type:            orderVars.OrderType,
+						Side:            orderVars.Side,
+						Status:          orderVars.Status,
+						Pair:            fPair,
+						AssetType:       asset.CoinMarginedFutures,
+					})
+				}
+				if len(orderHistory) < 100 {
+					complete = true
+				}
+			}
+		}
+	default:
+		return orders, fmt.Errorf("assetType not supported")
+	}
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)

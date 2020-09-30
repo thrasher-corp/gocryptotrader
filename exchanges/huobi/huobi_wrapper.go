@@ -926,7 +926,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 
 		if orderCancellation.Pair.IsEmpty() {
 
-			enabledPairs, err := h.GetEnabledPairs(asset.Spot)
+			enabledPairs, err := h.GetEnabledPairs(asset.CoinMarginedFutures)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1436,6 +1436,8 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 	}
 
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
