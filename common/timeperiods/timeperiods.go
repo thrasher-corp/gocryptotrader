@@ -27,8 +27,8 @@ func FindTimeRangesContainingData(start, end time.Time, period time.Duration, co
 	}
 	var t TimePeriodCalculator
 	t.periodDuration = period
-	t.start = start
-	t.end = end
+	t.start = start.Truncate(period)
+	t.end = end.Truncate(period)
 	t.comparisonTimes = comparisonTimes
 	t.TimeRanges = nil
 
@@ -84,9 +84,7 @@ func (t *TimePeriodCalculator) calculateRanges() {
 				(!t.TimePeriods[i].dataInRange && t.TimePeriods[i-1].dataInRange) {
 				// the status has changed and therefore a range has ended
 				tr.HasDataInRange = t.TimePeriods[i-1].dataInRange
-				if tr.EndOfRange.IsZero() {
-					tr.EndOfRange = t.TimePeriods[i].Time
-				}
+				tr.EndOfRange = t.TimePeriods[i].Time
 				t.TimeRanges = append(t.TimeRanges, tr)
 				tr = TimeRange{}
 			}
@@ -94,15 +92,13 @@ func (t *TimePeriodCalculator) calculateRanges() {
 		if tr.StartOfRange.IsZero() {
 			// start of new time range
 			tr.StartOfRange = t.TimePeriods[i].Time
-		} else {
-			// continuation of time range
-			tr.EndOfRange = t.TimePeriods[i].Time
 		}
 	}
 	if !tr.StartOfRange.IsZero() {
 		if tr.EndOfRange.IsZero() {
 			tr.EndOfRange = t.end
 		}
+		tr.HasDataInRange = t.TimePeriods[len(t.TimePeriods)-1].dataInRange
 		t.TimeRanges = append(t.TimeRanges, tr)
 		tr = TimeRange{}
 	}
@@ -116,7 +112,7 @@ func (t *TimePeriodCalculator) calculatePeriods() {
 		return
 	}
 	iterateDateMate := t.start
-	for !iterateDateMate.Equal(t.end) {
+	for !iterateDateMate.Equal(t.end) && !iterateDateMate.After(t.end) {
 		tp := TimePeriod{
 			Time:        iterateDateMate,
 			dataInRange: false,

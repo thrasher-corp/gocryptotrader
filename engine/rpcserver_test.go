@@ -451,7 +451,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	if !errors.Is(err, errInvalidArguments) {
 		t.Fatal(err)
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewPair(currency.BTC, currency.USD)
 	// no data found response
 	defaultStart := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UTC()
 	defaultEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UTC()
@@ -503,7 +503,6 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	if len(resp.MissingPeriods) != 2 {
 		t.Errorf("expected 2 missing period, received: %v", len(resp.MissingPeriods))
 	}
-	t.Log(resp.MissingPeriods)
 
 	// two trades response
 	err = trade.SaveTradesToDatabase(trade.Data{
@@ -550,7 +549,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	if !errors.Is(err, errInvalidArguments) {
 		t.Fatal(err)
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewPair(currency.BTC, currency.USD)
 	// no data found response
 	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)
 	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC)
@@ -566,7 +565,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		Start:    defaultStart.Format(common.SimpleTimeFormat),
 		End:      defaultEnd.Format(common.SimpleTimeFormat),
 	})
-	if err != nil && err.Error() != "no candle data found: Bitstamp BTC USDT 3600 spot" {
+	if err != nil && err.Error() != "no candle data found: Bitstamp BTC USD 3600 spot" {
 		t.Fatal(err)
 	}
 
@@ -644,7 +643,6 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	if len(resp.MissingPeriods) != 2 {
 		t.Errorf("expected 2 missing periods, received: %v", len(resp.MissingPeriods))
 	}
-	t.Log(resp.MissingPeriods)
 }
 
 func TestSetExchangeTradeProcessing(t *testing.T) {

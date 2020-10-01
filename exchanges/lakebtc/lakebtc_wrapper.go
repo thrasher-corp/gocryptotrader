@@ -336,50 +336,29 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (l *LakeBTC) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return l.GetHistoricTrades(currencyPair, assetType, time.Now().Add(-time.Hour), time.Now())
-}
-
-// GetHistoricTrades returns historic trade data within the timeframe provided
-func (l *LakeBTC) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
-	}
+func (l *LakeBTC) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	var resp []trade.Data
-	ts := timestampStart
-allTrades:
-	for {
-		var tradeData []TradeHistory
-		tradeData, err = l.GetTradeHistory(p.String(), ts.Unix())
-		if err != nil {
-			return nil, err
-		}
-		for i := range tradeData {
-			tradeTS := time.Unix(tradeData[i].Date, 0)
-			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
-				break allTrades
-			}
-			resp = append(resp, trade.Data{
-				TID:          strconv.FormatInt(tradeData[i].TID, 10),
-				Exchange:     l.Name,
-				CurrencyPair: p,
-				AssetType:    assetType,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Amount,
-				Timestamp:    tradeTS,
-			})
-			if i == len(tradeData)-1 {
-				if ts == tradeTS {
-					break allTrades
-				}
-				ts = tradeTS
-			}
-		}
+	var tradeData []TradeHistory
+	tradeData, err = l.GetTradeHistory(p.String())
+	if err != nil {
+		return nil, err
+	}
+	for i := range tradeData {
+		tradeTS := time.Unix(tradeData[i].Date, 0)
+		resp = append(resp, trade.Data{
+			TID:          strconv.FormatInt(tradeData[i].TID, 10),
+			Exchange:     l.Name,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    tradeTS,
+		})
 	}
 
 	err = l.AddTradesToBuffer(resp...)
@@ -387,7 +366,12 @@ allTrades:
 		return nil, err
 	}
 
-	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (l *LakeBTC) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

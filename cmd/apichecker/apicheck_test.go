@@ -160,7 +160,7 @@ func TestAdd(t *testing.T) {
 	}
 	err := addExch("FalseName", htmlScrape, data2, false)
 	if err == nil {
-		t.Log("expected an error due to invalid path being parsed in")
+		t.Error("expected an error due to invalid path being parsed in")
 	}
 }
 
@@ -637,7 +637,7 @@ func TestWriteAuthVars(t *testing.T) {
 		trelloCardID = "jdsfl"
 		err := writeAuthVars(testMode)
 		if err != nil {
-			t.Log(err)
+			t.Error(err)
 		}
 	}
 }

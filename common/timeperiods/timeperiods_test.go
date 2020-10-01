@@ -89,7 +89,7 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 	if len(ranges) != 5 {
 		t.Errorf("expected 5 time ranges, received %v", len(ranges))
 	}
-	// 5 trades with 7 periods
+	// 5 trades with 6 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 9, 0, 0, 0, time.UTC))
 	ranges, err = FindTimeRangesContainingData(
 		searchStartTime,
@@ -100,8 +100,8 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(ranges) != 7 {
-		t.Errorf("expected 7 time ranges, received %v", len(ranges))
+	if len(ranges) != 6 {
+		t.Errorf("expected 6 time ranges, received %v", len(ranges))
 	}
 }
 
@@ -113,7 +113,9 @@ func TestCalculateTimePeriodsInRange(t *testing.T) {
 	}
 	// start after end
 	var intervals []TimePeriod
-	intervals, err = CalculateTimePeriodsInRange(time.Now(), time.Now().Add(-time.Hour), time.Hour)
+	timeStart := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
+	timeEnd := time.Date(2020, 1, 2, 1, 0, 0, 0, time.UTC)
+	intervals, err = CalculateTimePeriodsInRange(timeEnd, timeStart, time.Hour)
 	if err != nil {
 		t.Error(err)
 	}
@@ -121,7 +123,7 @@ func TestCalculateTimePeriodsInRange(t *testing.T) {
 		t.Errorf("expected 0 interval(s), received %v", len(intervals))
 	}
 	// 1 interval
-	intervals, err = CalculateTimePeriodsInRange(time.Now().Add(-time.Hour), time.Now(), time.Hour)
+	intervals, err = CalculateTimePeriodsInRange(timeStart, timeStart.Add(time.Hour), time.Hour)
 	if err != nil {
 		t.Error(err)
 	}
@@ -129,7 +131,7 @@ func TestCalculateTimePeriodsInRange(t *testing.T) {
 		t.Errorf("expected 1 interval(s), received %v", len(intervals))
 	}
 	// multiple intervals
-	intervals, err = CalculateTimePeriodsInRange(time.Now().Add(-time.Hour*24), time.Now(), time.Hour)
+	intervals, err = CalculateTimePeriodsInRange(timeStart, timeEnd, time.Hour)
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,7 +139,7 @@ func TestCalculateTimePeriodsInRange(t *testing.T) {
 		t.Errorf("expected 24 interval(s), received %v", len(intervals))
 	}
 	// odd time
-	intervals, err = CalculateTimePeriodsInRange(time.Now().Add(-time.Minute*1480), time.Now(), time.Hour)
+	intervals, err = CalculateTimePeriodsInRange(timeStart.Add(-time.Minute*30), timeEnd, time.Hour)
 	if err != nil {
 		t.Error(err)
 	}
@@ -145,20 +147,12 @@ func TestCalculateTimePeriodsInRange(t *testing.T) {
 		t.Errorf("expected 25 interval(s), received %v", len(intervals))
 	}
 	// truncate always goes to zero, no mid rounding
-	intervals, err = CalculateTimePeriodsInRange(time.Now().Add(-time.Minute*46), time.Now(), time.Hour)
+	intervals, err = CalculateTimePeriodsInRange(timeStart, timeStart.Add(time.Minute), time.Hour)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(intervals) != 1 {
-		t.Errorf("expected 1 interval(s), received %v", len(intervals))
-	}
-	// interval too large
-	intervals, err = CalculateTimePeriodsInRange(time.Now().Add(-time.Hour), time.Now(), time.Hour)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(intervals) != 1 {
-		t.Errorf("expected 1 interval(s), received %v", len(intervals))
+	if len(intervals) != 0 {
+		t.Errorf("expected 0 interval(s), received %v", len(intervals))
 	}
 }
 

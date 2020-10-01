@@ -2335,11 +2335,28 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 		return nil, errExchangeNotLoaded
 	}
 
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}
-	var UTCEndTime time.Time
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
+	}
+
+	var UTCStartTime, UTCEndTime time.Time
+	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, err
+	}
 	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
 	if err != nil {
 		return nil, err
@@ -2387,6 +2404,23 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	}
 	if exch == nil {
 		return nil, errExchangeNotLoaded
+	}
+	var cp currency.Pair
+	cp, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
 	}
 
 	var trades []trade.Data
@@ -2445,11 +2479,28 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		return nil, errExchangeNotLoaded
 	}
 
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}
-	var UTCEndTime time.Time
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
+	}
+
+	var UTCStartTime, UTCEndTime time.Time
+	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, err
+	}
 	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
 	if err != nil {
 		return nil, err
@@ -2541,6 +2592,23 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		intervalMap[iterationTime] = false
 		iterationTime = iterationTime.Add(time.Hour)
 	}
+	var cp currency.Pair
+	cp, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
+	}
 
 	var trades []trade.Data
 	trades, err = trade.GetTradesInRange(
@@ -2624,6 +2692,18 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 	if err != nil {
 		return err
 	}
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+	if !pairs.Contains(cp, false) {
+		return errors.New("currency not enabled")
+	}
 	var trades []trade.Data
 	var UTCStartTime, UTCEndTime time.Time
 	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
@@ -2666,12 +2746,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 				TradeId:   trades[i].TID,
 			})
 		}
-		if len(grpcTrades.Trades) == 0 && iterateStartTime.Equal(UTCStartTime) {
-			return fmt.Errorf("request for %v %v trade data between %v and %v and returned no results",
-				r.Exchange,
-				r.AssetType, iterateStartTime.Format(common.SimpleTimeFormatWithTimezone),
-				iterateEndTime.Format(common.SimpleTimeFormatWithTimezone))
-		}
+
 		stream.Send(grpcTrades)
 		iterateStartTime = iterateStartTime.Add(time.Hour)
 		iterateEndTime = iterateEndTime.Add(time.Hour)
@@ -2693,6 +2768,18 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
 		return nil, err
+	}
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
 	}
 	var trades []trade.Data
 	trades, err = exch.GetRecentTrades(cp, asset.Item(r.AssetType))

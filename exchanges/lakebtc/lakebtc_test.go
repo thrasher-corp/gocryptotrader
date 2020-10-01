@@ -77,7 +77,7 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetTradeHistory("BTCUSD", time.Now().Unix())
+	_, err := l.GetTradeHistory("BTCUSD")
 	if err != nil {
 		t.Error("GetTradeHistory() error", err)
 	}
@@ -512,12 +512,11 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var resp []trade.Data
-	resp, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*24), time.Now())
-	if err != nil {
+	_, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*24), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
+	if err == nil {
+		t.Error("expected error")
 	}
 }
