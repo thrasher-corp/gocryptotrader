@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -24,7 +23,7 @@ func New(name, template, outputpath string) (chart Chart) {
 		chart.template = "timeseries-markers.tmpl"
 	}
 	chart.output = name
-	if outputpath != "" {
+	if outputpath == "" {
 		chart.OutputPath = "output"
 	} else {
 		chart.OutputPath = outputpath
@@ -33,30 +32,43 @@ func New(name, template, outputpath string) (chart Chart) {
 }
 
 // Generate chart output
-func (c *Chart) Generate() error {
+func (c *Chart) Generate() (out *os.File, err error) {
+	var list []string
 	if c.TemplatePath == "" {
-		c.TemplatePath = "templates"
+		baseTemplate, err := writeTemplate(templateList["base.tmpl"])
+		if err != nil {
+			return nil, err
+		}
+
+		data, ok := templateList[c.template]
+		if !ok {
+			return nil, errors.New("template: " + c.template + " not found")
+		}
+		templateFile, err := writeTemplate(data)
+		if err != nil {
+			return nil, err
+		}
+		list = []string{
+			filepath.Join(templateFile.Name()),
+			filepath.Join(baseTemplate.Name()),
+		}
+	} else {
+		list = []string{
+			filepath.Join(c.TemplatePath, c.template),
+			filepath.Join(c.TemplatePath, "base.tmpl"),
+		}
 	}
-	list := []string{
-		filepath.Join(c.TemplatePath, c.template),
-		filepath.Join(c.TemplatePath, "base.tmpl"),
-	}
+
 	tmpl, err := template.ParseFiles(list...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if c.WriteFile {
-		wd, _ := os.Getwd()
-		outPath := filepath.Join(wd, c.OutputPath)
-		err := common.CreateDir(outPath)
-		if err != nil {
-			return err
-		}
 		if filepath.Ext(c.output) != ".html" {
 			c.output += ".html"
 		}
-		f, err := os.Create(filepath.Join(outPath, c.output))
+		f, err := os.Create(filepath.Join(c.OutputPath, c.output))
 		defer func() {
 			err = f.Close()
 			if err != nil {
@@ -64,6 +76,7 @@ func (c *Chart) Generate() error {
 			}
 		}()
 		c.w = f
+		out = f
 	} else {
 		c.w = bytes.NewBuffer(tempByte)
 	}
@@ -77,10 +90,10 @@ func (c *Chart) Generate() error {
 
 	err = tmpl.Execute(c.w, c.Data)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return out, err
 }
 
 func (c *Chart) ToFile() *Chart {
@@ -90,9 +103,6 @@ func (c *Chart) ToFile() *Chart {
 
 // Result returns byte array copy of chart
 func (c *Chart) Result() ([]byte, error) {
-	if c.WriteFile {
-		return []byte{}, errors.New("")
-	}
 	return ioutil.ReadAll(c.w)
 }
 

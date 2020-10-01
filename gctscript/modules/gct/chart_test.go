@@ -17,7 +17,13 @@ func Test_generateChart(t *testing.T) {
 		want    tengo.Object
 		wantErr bool
 	}{
-
+		{
+			name: "valid",
+			args: args{
+				[]tengo.Object{},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -42,9 +48,7 @@ func Test_toFloat64(t *testing.T) {
 		args    args
 		want    float64
 		wantErr bool
-	}{
-
-	}
+	}{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := toFloat64(tt.args.data)

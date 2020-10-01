@@ -1,6 +1,6 @@
 exch := import("exchange")
 t := import("times")
-common := import("common")
+charts := import("charts")
 
 load := func() {
     // define your start and end within reason.
@@ -8,8 +8,8 @@ load := func() {
     end := t.add_date(start, 0, 6 , 0)
 
     // This fetches the ohlcv
-    ohlcvData := exch.ohlcv("binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
-
+    ohlcvData := exch.ohlcv("binance", "BTC-USDT", "-", "spot", start, end, "1d")
+    charts.gen("hello", true, ohlcvData.candles)
 }
 
 load()

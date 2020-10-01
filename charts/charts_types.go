@@ -6,10 +6,10 @@ import (
 
 // Chart configuration options
 type Chart struct {
-	template   string
+	template     string
 	TemplatePath string
-	output     string
-	OutputPath string
+	output       string
+	OutputPath   string
 
 	Data
 	w         io.ReadWriter
@@ -20,8 +20,8 @@ type Chart struct {
 type Data struct {
 	PageTitle string
 	size
-	Pair      string
-	Data      interface{}
+	Pair string
+	Data interface{}
 }
 
 type size struct {
@@ -39,9 +39,8 @@ type IntervalData struct {
 type AdvancedIntervalData struct {
 	Timestamp string
 	Value     float64
-	Amount 	  float64
+	Amount    float64
 	Direction string
-
 }
 
 // SeriesData is used to store timeseries (OHLC) data
