@@ -312,8 +312,8 @@ func (k *Kraken) SeedAssets() error {
 	if err != nil {
 		return err
 	}
-	for k := range assets {
-		assetTranslator.Seed(k, assets[k].Altname)
+	for orig, val := range assets {
+		assetTranslator.Seed(orig, val.Altname)
 	}
 
 	assetPairs, err := k.GetAssetPairs([]string{}, "")

@@ -274,6 +274,9 @@ func TestUTakerBuySellVol(t *testing.T) {
 }
 
 func TestUPlaceBatchOrders(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -293,6 +296,10 @@ func TestUPlaceBatchOrders(t *testing.T) {
 }
 
 func TestUGetOrderData(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -303,6 +310,10 @@ func TestUGetOrderData(t *testing.T) {
 }
 
 func TestUCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -313,6 +324,10 @@ func TestUCancelOrder(t *testing.T) {
 }
 
 func TestUCancelAllOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -323,6 +338,10 @@ func TestUCancelAllOpenOrders(t *testing.T) {
 }
 
 func TestUCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -333,6 +352,10 @@ func TestUCancelBatchOrders(t *testing.T) {
 }
 
 func TestUAutoCancelAllOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -343,6 +366,10 @@ func TestUAutoCancelAllOpenOrders(t *testing.T) {
 }
 
 func TestUFetchOpenOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -353,6 +380,10 @@ func TestUFetchOpenOrder(t *testing.T) {
 }
 
 func TestUAllAccountOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -363,6 +394,10 @@ func TestUAllAccountOpenOrders(t *testing.T) {
 }
 
 func TestUAllAccountOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -373,6 +408,10 @@ func TestUAllAccountOrders(t *testing.T) {
 }
 
 func TestUAccountBalanceV2(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -383,6 +422,10 @@ func TestUAccountBalanceV2(t *testing.T) {
 }
 
 func TestUAccountInformationV2(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -393,6 +436,10 @@ func TestUAccountInformationV2(t *testing.T) {
 }
 
 func TestUChangeInitialLeverageRequest(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -403,6 +450,10 @@ func TestUChangeInitialLeverageRequest(t *testing.T) {
 }
 
 func TestUChangeInitialMarginType(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -413,6 +464,10 @@ func TestUChangeInitialMarginType(t *testing.T) {
 }
 
 func TestUModifyIsolatedPositionMarginReq(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -423,6 +478,10 @@ func TestUModifyIsolatedPositionMarginReq(t *testing.T) {
 }
 
 func TestUPositionMarginChangeHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -433,6 +492,10 @@ func TestUPositionMarginChangeHistory(t *testing.T) {
 }
 
 func TestUPositionsInfoV2(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -443,6 +506,10 @@ func TestUPositionsInfoV2(t *testing.T) {
 }
 
 func TestUAccountTradesHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -453,6 +520,10 @@ func TestUAccountTradesHistory(t *testing.T) {
 }
 
 func TestUAccountIncomeHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -463,6 +534,10 @@ func TestUAccountIncomeHistory(t *testing.T) {
 }
 
 func TestUGetNotionalAndLeverageBrackets(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -473,6 +548,10 @@ func TestUGetNotionalAndLeverageBrackets(t *testing.T) {
 }
 
 func TestUPositionsADLEstimate(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -483,6 +562,10 @@ func TestUPositionsADLEstimate(t *testing.T) {
 }
 
 func TestUAccountForcedOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
@@ -773,6 +856,10 @@ func TestFuturesBatchOrder(t *testing.T) {
 }
 
 func TestFuturesBatchCancelOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://dapi.binance.com"

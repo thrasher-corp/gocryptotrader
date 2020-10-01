@@ -233,6 +233,7 @@ const (
 	IOS               Type = "IOS"
 	UnknownType       Type = "UNKNOWN"
 	Liquidation       Type = "LIQUIDATION"
+	Trigger           Type = "TRIGGER"
 )
 
 // Side enforces a standard for order sides across the code base

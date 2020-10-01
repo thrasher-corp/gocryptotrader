@@ -1181,7 +1181,6 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 		var openOrders []UOrderData
 		var err error
-
 		var pairs currency.Pairs
 
 		if len(req.Pairs) > 0 {

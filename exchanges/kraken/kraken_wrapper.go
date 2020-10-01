@@ -562,37 +562,74 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 // Kraken exchange - to-do
 func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
+	var balances []account.Balance
 	info.Exchange = k.Name
 
-	bal, err := k.GetBalance()
-	if err != nil {
-		return info, err
-	}
+	for x := range k.GetAssetTypes() {
+		switch k.GetAssetTypes()[x] {
+		case asset.Spot:
+			bal, err := k.GetBalance()
+			if err != nil {
+				return info, err
+			}
 
-	var balances []account.Balance
-	for key := range bal {
-		translatedCurrency := assetTranslator.LookupAltname(key)
-		if translatedCurrency == "" {
-			log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
-				k.Name,
-				key)
-			continue
+			for key := range bal {
+				translatedCurrency := assetTranslator.LookupAltname(key)
+				if translatedCurrency == "" {
+					log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
+						k.Name,
+						key)
+					continue
+				}
+				balances = append(balances, account.Balance{
+					CurrencyName: currency.NewCode(translatedCurrency),
+					TotalValue:   bal[key],
+				})
+			}
+
+			info.Accounts = append(info.Accounts, account.SubAccount{
+				Currencies: balances,
+			})
+
+		case asset.Futures:
+
+			bal, err := k.GetFuturesAccountData()
+			if err != nil {
+				return info, err
+			}
+			fmt.Println("SUP BRO:", bal)
+			fmt.Printf("%+v\n", assetTranslator.Assets)
+			for name, j := range bal.Accounts {
+				for code, value := range j.Balances {
+
+					translatedCurrency := assetTranslator.LookupAltname(strings.ToUpper(code))
+					if translatedCurrency == "" {
+						log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
+							k.Name,
+							code)
+						continue
+					}
+
+					balances = append(balances, account.Balance{
+						CurrencyName: currency.NewCode(translatedCurrency),
+						TotalValue:   value,
+					})
+				}
+				info.Accounts = append(info.Accounts, account.SubAccount{
+					ID:         name,
+					AssetType:  asset.Futures,
+					Currencies: balances,
+				})
+			}
+
 		}
-		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(translatedCurrency),
-			TotalValue:   bal[key],
-		})
+
+		err := account.Process(&info)
+		if err != nil {
+			return account.Holdings{}, err
+		}
+
 	}
-
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currencies: balances,
-	})
-
-	err = account.Process(&info)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
 	return info, nil
 }
 
@@ -671,12 +708,17 @@ func (k *Kraken) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (k *Kraken) CancelOrder(order *order.Cancel) error {
-	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return k.wsCancelOrders([]string{order.ID})
-	}
-	_, err := k.CancelExistingOrder(order.ID)
+	switch order.AssetType {
 
-	return err
+	case asset.Spot:
+		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			return k.wsCancelOrders([]string{order.ID})
+		}
+		_, err := k.CancelExistingOrder(order.ID)
+		return err
+	}
+
+	return nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -707,64 +749,107 @@ func (k *Kraken) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 // GetOrderInfo returns information on a current open order
 func (k *Kraken) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
-	var emptyOrderOptions OrderInfoOptions
-	openOrders, err := k.GetOpenOrders(emptyOrderOptions)
-	if err != nil {
-		return orderDetail, err
-	}
-	if orderInfo, ok := openOrders.Open[orderID]; ok {
-		avail, err := k.GetAvailablePairs(asset.Spot)
+
+	switch assetType {
+
+	case asset.Spot:
+		var emptyOrderOptions OrderInfoOptions
+		openOrders, err := k.GetOpenOrders(emptyOrderOptions)
+		if err != nil {
+			return orderDetail, err
+		}
+		if orderInfo, ok := openOrders.Open[orderID]; ok {
+			avail, err := k.GetAvailablePairs(asset.Spot)
+			if err != nil {
+				return orderDetail, err
+			}
+
+			fmt, err := k.GetPairFormat(asset.Spot, false)
+			if err != nil {
+				return orderDetail, err
+			}
+
+			var trades []order.TradeHistory
+			for i := range orderInfo.Trades {
+				trades = append(trades, order.TradeHistory{
+					TID: orderInfo.Trades[i],
+				})
+			}
+			side, err := order.StringToOrderSide(orderInfo.Description.Type)
+			if err != nil {
+				return orderDetail, err
+			}
+			status, err := order.StringToOrderStatus(orderInfo.Status)
+			if err != nil {
+				return orderDetail, err
+			}
+			oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
+			if err != nil {
+				return orderDetail, err
+			}
+
+			p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
+				avail,
+				fmt)
+			if err != nil {
+				return orderDetail, err
+			}
+			orderDetail = order.Detail{
+				Exchange:        k.Name,
+				ID:              orderID,
+				Pair:            p,
+				Side:            side,
+				Type:            oType,
+				Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
+				Status:          status,
+				Price:           orderInfo.Price,
+				Amount:          orderInfo.Volume,
+				ExecutedAmount:  orderInfo.VolumeExecuted,
+				RemainingAmount: orderInfo.Volume - orderInfo.VolumeExecuted,
+				Fee:             orderInfo.Fee,
+				Trades:          trades,
+			}
+		} else {
+			return orderDetail, errors.New(k.Name + " - Order ID not found: " + orderID)
+		}
+
+	case asset.Futures:
+
+		orderInfo, err := k.FuturesGetFills(time.Time{})
 		if err != nil {
 			return orderDetail, err
 		}
 
-		fmt, err := k.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			return orderDetail, err
-		}
+		for y := range orderInfo.Fills {
 
-		var trades []order.TradeHistory
-		for i := range orderInfo.Trades {
-			trades = append(trades, order.TradeHistory{
-				TID: orderInfo.Trades[i],
-			})
-		}
-		side, err := order.StringToOrderSide(orderInfo.Description.Type)
-		if err != nil {
-			return orderDetail, err
-		}
-		status, err := order.StringToOrderStatus(orderInfo.Status)
-		if err != nil {
-			return orderDetail, err
-		}
-		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
-		if err != nil {
-			return orderDetail, err
-		}
+			if orderInfo.Fills[y].OrderID == orderID {
 
-		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
-			avail,
-			fmt)
-		if err != nil {
-			return orderDetail, err
+				pair, err := currency.NewPairFromString(orderInfo.Fills[y].Symbol)
+				if err != nil {
+					return orderDetail, err
+				}
+
+				vars, err := compatibleVars(orderInfo.Fills[y].Side, orderInfo.Fills[y].FillType)
+				if err != nil {
+					return orderDetail, err
+				}
+
+				timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderInfo.Fills[y].FillTime)
+				if err != nil {
+					return orderDetail, err
+				}
+
+				orderDetail = order.Detail{
+					ID:     orderID,
+					Price:  orderInfo.Fills[y].Price,
+					Amount: orderInfo.Fills[y].Size,
+					Side:   vars.Side,
+					Type:   vars.OrderType,
+					Date:   timeVar,
+					Pair:   pair,
+				}
+			}
 		}
-		orderDetail = order.Detail{
-			Exchange:        k.Name,
-			ID:              orderID,
-			Pair:            p,
-			Side:            side,
-			Type:            oType,
-			Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
-			Status:          status,
-			Price:           orderInfo.Price,
-			Amount:          orderInfo.Volume,
-			ExecutedAmount:  orderInfo.VolumeExecuted,
-			RemainingAmount: orderInfo.Volume - orderInfo.VolumeExecuted,
-			Fee:             orderInfo.Fee,
-			Trades:          trades,
-		}
-	} else {
-		return orderDetail, errors.New(k.Name + " - Order ID not found: " + orderID)
 	}
 
 	return orderDetail, nil
@@ -836,44 +921,71 @@ func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 
 // GetActiveOrders retrieves any orders that are active/open
 func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	resp, err := k.GetOpenOrders(OrderInfoOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	avail, err := k.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt, err := k.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return nil, err
-	}
-
 	var orders []order.Detail
-	for i := range resp.Open {
-		p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
-			avail,
-			fmt)
+
+	switch req.AssetType {
+
+	case asset.Spot:
+		resp, err := k.GetOpenOrders(OrderInfoOptions{})
 		if err != nil {
 			return nil, err
 		}
 
-		side := order.Side(strings.ToUpper(resp.Open[i].Description.Type))
-		orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
-		orders = append(orders, order.Detail{
-			ID:              i,
-			Amount:          resp.Open[i].Volume,
-			RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
-			ExecutedAmount:  resp.Open[i].VolumeExecuted,
-			Exchange:        k.Name,
-			Date:            convert.TimeFromUnixTimestampDecimal(resp.Open[i].OpenTime),
-			Price:           resp.Open[i].Description.Price,
-			Side:            side,
-			Type:            orderType,
-			Pair:            p,
-		})
+		avail, err := k.GetAvailablePairs(asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt, err := k.GetPairFormat(asset.Spot, true)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range resp.Open {
+			p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
+				avail,
+				fmt)
+			if err != nil {
+				return nil, err
+			}
+
+			side := order.Side(strings.ToUpper(resp.Open[i].Description.Type))
+			orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
+			orders = append(orders, order.Detail{
+				ID:              i,
+				Amount:          resp.Open[i].Volume,
+				RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
+				ExecutedAmount:  resp.Open[i].VolumeExecuted,
+				Exchange:        k.Name,
+				Date:            convert.TimeFromUnixTimestampDecimal(resp.Open[i].OpenTime),
+				Price:           resp.Open[i].Description.Price,
+				Side:            side,
+				Type:            orderType,
+				Pair:            p,
+			})
+		}
+
+	case asset.Futures:
+
+		var openOrders FuturesOpenOrdersData
+		var err error
+		var pairs currency.Pairs
+
+		if len(req.Pairs) > 0 {
+			pairs = req.Pairs
+		} else {
+			pairs, err = k.GetEnabledPairs(asset.Futures)
+		}
+
+		for i := range pairs {
+
+			fPair, err := k.FormatExchangeCurrency(pairs[i], asset.Futures)
+			if err != nil {
+				return orders, err
+			}
+
+		}
+
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
@@ -1050,4 +1162,31 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// compatibleVars gets compatible variables for order vars
+func compatibleVars(side, fillType string) (OrderVars, error) {
+	var resp OrderVars
+
+	switch side {
+	case "buy":
+		resp.Side = order.Buy
+	case "sell":
+		resp.Side = order.Sell
+	default:
+		return resp, fmt.Errorf("invalid orderSide")
+	}
+
+	switch fillType {
+	case "maker":
+		resp.OrderType = order.Limit
+	case "taker":
+		resp.OrderType = order.Market
+	case "liquidation":
+		resp.OrderType = order.Liquidation
+	default:
+		return resp, fmt.Errorf("invalid orderPriceType")
+	}
+
+	return resp, nil
 }

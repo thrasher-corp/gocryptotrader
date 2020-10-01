@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -1147,4 +1148,12 @@ type WsCancelOrderResponse struct {
 	Event        string `json:"event"`
 	Status       string `json:"status"`
 	ErrorMessage string `json:"errorMessage"`
+}
+
+// OrderVars stores side, status and type for any order/trade
+type OrderVars struct {
+	Side      order.Side
+	Status    order.Status
+	OrderType order.Type
+	Fee       float64
 }

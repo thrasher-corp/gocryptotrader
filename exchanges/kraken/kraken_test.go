@@ -117,6 +117,28 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 }
 
+func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+
+	a, err := k.UpdateAccountInfo()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWrapperGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+
+	a, err := k.GetOrderInfo("123", asset.Futures)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestFuturesBatchOrder(t *testing.T) {
 	var data []PlaceBatchOrderData
 	var tempData PlaceBatchOrderData

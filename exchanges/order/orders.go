@@ -615,6 +615,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return PostOnly, nil
 	case strings.EqualFold(oType, AnyType.String()):
 		return AnyType, nil
+	case strings.EqualFold(oType, Trigger.String()):
+		return Trigger, nil
 	default:
 		return UnknownType, errors.New(oType + " not recognised as order type")
 	}
