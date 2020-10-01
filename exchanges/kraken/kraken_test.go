@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1480,13 +1479,9 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var resp []trade.Data
-	resp, err = k.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = k.GetRecentTrades(currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
 	}
 }
 

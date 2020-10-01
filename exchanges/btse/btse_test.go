@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 // Please supply your own keys here to do better tests
@@ -824,24 +823,17 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var resp []trade.Data
-	resp, err = b.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = b.GetRecentTrades(currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
 	}
 	currencyPair, err = currency.NewPairFromString(testFUTURESPair)
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err = b.GetRecentTrades(currencyPair, asset.Futures)
+	_, err = b.GetRecentTrades(currencyPair, asset.Futures)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
 	}
 }
 

@@ -517,12 +517,9 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err := y.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = y.GetRecentTrades(currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
 	}
 }
 

@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1410,25 +1409,18 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var resp []trade.Data
-	resp, err = b.GetRecentTrades(currencyPair, asset.Spot)
+	_, err = b.GetRecentTrades(currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
 	}
 
 	currencyPair, err = currency.NewPairFromString("USD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err = b.GetRecentTrades(currencyPair, asset.Margin)
+	_, err = b.GetRecentTrades(currencyPair, asset.Margin)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
 	}
 }
 
@@ -1438,20 +1430,14 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var resp []trade.Data
-	resp, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
-	}
+
 	// longer term test
-	resp, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*24*100), time.Now().Add(-time.Hour*24*99))
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*24*100), time.Now().Add(-time.Hour*24*99))
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
 	}
 }

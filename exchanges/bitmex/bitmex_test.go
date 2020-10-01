@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -943,13 +942,9 @@ func TestGetRecentTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
-	var resp []trade.Data
-	resp, err = b.GetRecentTrades(currencyPair, asset.Futures)
+	_, err = b.GetRecentTrades(currencyPair, asset.Futures)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
 	}
 }
 
@@ -960,12 +955,8 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
-	var resp []trade.Data
-	resp, err = b.GetHistoricTrades(currencyPair, asset.Futures, time.Now().Add(-time.Minute*15), time.Now())
+	_, err = b.GetHistoricTrades(currencyPair, asset.Futures, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil {
 		t.Error(err)
-	}
-	if len(resp) == 0 {
-		t.Error("expected trades")
 	}
 }
