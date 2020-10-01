@@ -65,7 +65,7 @@ const (
 )
 
 // WsConnect initiates a new websocket connection
-func (b *Bitmex) WsConnect() error {
+func (b *Bitmex) WsConnect(conn stream.Connection) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -94,7 +94,7 @@ func (b *Bitmex) WsConnect() error {
 	}
 
 	go b.wsReadData()
-	subs, err := b.GenerateDefaultSubscriptions()
+	subs, err := b.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (b *Bitmex) WsConnect() error {
 			b.Name,
 			err)
 	} else {
-		authsubs, err := b.GenerateAuthenticatedSubscriptions()
+		authsubs, err := b.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
 		if err != nil {
 			return err
 		}
@@ -546,7 +546,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Bitmex) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	assets := b.GetAssetTypes()
 	var allPairs currency.Pairs
 	var associatedAssets []asset.Item
@@ -581,11 +581,11 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Bitmex) GenerateAuthenticatedSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	if !b.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
@@ -625,40 +625,40 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var subscriber WebsocketRequest
-	subscriber.Command = "subscribe"
+func (b *Bitmex) Subscribe(sub stream.SubscriptionParamaters) error {
+	// var subscriber WebsocketRequest
+	// subscriber.Command = "subscribe"
 
-	for i := range channelsToSubscribe {
-		subscriber.Arguments = append(subscriber.Arguments,
-			channelsToSubscribe[i].Channel)
-	}
-	err := b.Websocket.Conn.SendJSONMessage(subscriber)
-	if err != nil {
-		return err
-	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	// for i := range channelsToSubscribe {
+	// 	subscriber.Arguments = append(subscriber.Arguments,
+	// 		channelsToSubscribe[i].Channel)
+	// }
+	// err := b.Websocket.Conn.SendJSONMessage(subscriber)
+	// if err != nil {
+	// 	return err
+	// }
+	// b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var unsubscriber WebsocketRequest
-	unsubscriber.Command = "unsubscribe"
+func (b *Bitmex) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+	// var unsubscriber WebsocketRequest
+	// unsubscriber.Command = "unsubscribe"
 
-	for i := range channelsToUnsubscribe {
-		unsubscriber.Arguments = append(unsubscriber.Arguments,
-			channelsToUnsubscribe[i].Channel)
-	}
-	err := b.Websocket.Conn.SendJSONMessage(unsubscriber)
-	if err != nil {
-		return err
-	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	// for i := range channelsToUnsubscribe {
+	// 	unsubscriber.Arguments = append(unsubscriber.Arguments,
+	// 		channelsToUnsubscribe[i].Channel)
+	// }
+	// err := b.Websocket.Conn.SendJSONMessage(unsubscriber)
+	// if err != nil {
+	// 	return err
+	// }
+	// b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 

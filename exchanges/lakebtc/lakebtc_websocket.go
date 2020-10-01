@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -32,7 +31,7 @@ const (
 )
 
 // WsConnect initiates a new websocket connection
-func (l *LakeBTC) WsConnect() error {
+func (l *LakeBTC) WsConnect(conn stream.Connection) error {
 	if !l.Websocket.IsEnabled() || !l.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -55,7 +54,7 @@ func (l *LakeBTC) WsConnect() error {
 		return err
 	}
 	go l.wsHandleIncomingData()
-	subs, err := l.GenerateDefaultSubscriptions()
+	subs, err := l.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -80,7 +79,7 @@ func (l *LakeBTC) listenToEndpoints() error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (l *LakeBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (l *LakeBTC) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := l.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -99,40 +98,40 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			Asset:    asset.Spot,
 		})
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (l *LakeBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-	for i := range channelsToSubscribe {
-		err := l.WebsocketConn.Client.Subscribe(channelsToSubscribe[i].Channel)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		l.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+func (l *LakeBTC) Subscribe(sub stream.SubscriptionParamaters) error {
+	// var errs common.Errors
+	// for i := range channelsToSubscribe {
+	// 	err := l.WebsocketConn.Client.Subscribe(channelsToSubscribe[i].Channel)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	l.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 
 // Unsubscribe sends a websocket message to unsubscribe from the channel
-func (l *LakeBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-	for i := range channelsToUnsubscribe {
-		err := l.WebsocketConn.Client.Unsubscribe(channelsToUnsubscribe[i].Channel)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		l.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+func (l *LakeBTC) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+	// var errs common.Errors
+	// for i := range channelsToUnsubscribe {
+	// 	err := l.WebsocketConn.Client.Unsubscribe(channelsToUnsubscribe[i].Channel)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	l.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 

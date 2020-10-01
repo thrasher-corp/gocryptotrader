@@ -28,7 +28,7 @@ const (
 )
 
 // WsConnect connects to websocket
-func (c *Coinbene) WsConnect() error {
+func (c *Coinbene) WsConnect(conn stream.Connection) error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -46,7 +46,7 @@ func (c *Coinbene) WsConnect() error {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	subs, err := c.GenerateDefaultSubscriptions()
+	subs, err := c.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (c *Coinbene) WsConnect() error {
 }
 
 // GenerateDefaultSubscriptions generates stuff
-func (c *Coinbene) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (c *Coinbene) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var channels = []string{"orderBook.%s.100", "tradeList.%s", "ticker.%s", "kline.%s"}
 	var subscriptions []stream.ChannelSubscription
 	pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
@@ -71,11 +71,11 @@ func (c *Coinbene) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // GenerateAuthSubs generates auth subs
-func (c *Coinbene) GenerateAuthSubs() ([]stream.ChannelSubscription, error) {
+func (c *Coinbene) GenerateAuthSubs(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var subscriptions []stream.ChannelSubscription
 	var sub stream.ChannelSubscription
 	var userChannels = []string{"user.account", "user.position", "user.order"}
@@ -83,7 +83,7 @@ func (c *Coinbene) GenerateAuthSubs() ([]stream.ChannelSubscription, error) {
 		sub.Channel = userChannels[z]
 		subscriptions = append(subscriptions, sub)
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -125,8 +125,8 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 	if ok && strings.Contains(result[event].(string), "login") {
 		if result["success"].(bool) {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			var authsubs []stream.ChannelSubscription
-			authsubs, err = c.GenerateAuthSubs()
+			var authsubs []stream.SubscriptionParamaters
+			authsubs, err = c.GenerateAuthSubs(stream.SubscriptionOptions{})
 			if err != nil {
 				return err
 			}
@@ -452,32 +452,32 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var sub WsSub
-	sub.Operation = "subscribe"
-	for i := range channelsToSubscribe {
-		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
-	}
-	err := c.Websocket.Conn.SendJSONMessage(sub)
-	if err != nil {
-		return err
-	}
-	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+func (c *Coinbene) Subscribe(sub stream.SubscriptionParamaters) error {
+	// var sub WsSub
+	// sub.Operation = "subscribe"
+	// for i := range channelsToSubscribe {
+	// 	sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
+	// }
+	// err := c.Websocket.Conn.SendJSONMessage(sub)
+	// if err != nil {
+	// 	return err
+	// }
+	// c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
-	var unsub WsSub
-	unsub.Operation = "unsubscribe"
-	for i := range channelToUnsubscribe {
-		unsub.Arguments = append(unsub.Arguments, channelToUnsubscribe[i].Channel)
-	}
-	err := c.Websocket.Conn.SendJSONMessage(unsub)
-	if err != nil {
-		return err
-	}
-	c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe...)
+func (c *Coinbene) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+	// var unsub WsSub
+	// unsub.Operation = "unsubscribe"
+	// for i := range channelToUnsubscribe {
+	// 	unsub.Arguments = append(unsub.Arguments, channelToUnsubscribe[i].Channel)
+	// }
+	// err := c.Websocket.Conn.SendJSONMessage(unsub)
+	// if err != nil {
+	// 	return err
+	// }
+	// c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe...)
 	return nil
 }
 

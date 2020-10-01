@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -38,7 +37,7 @@ var (
 // wss://wsapi-eu.coinut.com
 
 // WsConnect intiates a websocket connection
-func (c *COINUT) WsConnect() error {
+func (c *COINUT) WsConnect(conn stream.Connection) error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -60,7 +59,7 @@ func (c *COINUT) WsConnect() error {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Error(log.WebsocketMgr, err)
 	}
-	subs, err := c.GenerateDefaultSubscriptions()
+	subs, err := c.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -554,7 +553,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (c *COINUT) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var channels = []string{"inst_tick", "inst_order_book"}
 	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
@@ -570,77 +569,77 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-	for i := range channelsToSubscribe {
-		fpair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
+func (c *COINUT) Subscribe(sub stream.SubscriptionParamaters) error {
+	// var errs common.Errors
+	// for i := range channelsToSubscribe {
+	// 	fpair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
 
-		subscribe := wsRequest{
-			Request:      channelsToSubscribe[i].Channel,
-			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
-			Subscribe:    true,
-			Nonce:        getNonce(),
-		}
-		err = c.Websocket.Conn.SendJSONMessage(subscribe)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+	// 	subscribe := wsRequest{
+	// 		Request:      channelsToSubscribe[i].Channel,
+	// 		InstrumentID: c.instrumentMap.LookupID(fpair.String()),
+	// 		Subscribe:    true,
+	// 		Nonce:        getNonce(),
+	// 	}
+	// 	err = c.Websocket.Conn.SendJSONMessage(subscribe)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-	for i := range channelToUnsubscribe {
-		fpair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
+func (c *COINUT) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+	// var errs common.Errors
+	// for i := range channelToUnsubscribe {
+	// 	fpair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
 
-		subscribe := wsRequest{
-			Request:      channelToUnsubscribe[i].Channel,
-			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
-			Subscribe:    false,
-			Nonce:        getNonce(),
-		}
-		resp, err := c.Websocket.Conn.SendMessageReturnResponse(subscribe.Nonce,
-			subscribe)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		var response map[string]interface{}
-		err = json.Unmarshal(resp, &response)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		if response["status"].([]interface{})[0] != "OK" {
-			errs = append(errs, fmt.Errorf("%v unsubscribe failed for channel %v",
-				c.Name,
-				channelToUnsubscribe[i].Channel))
-			continue
-		}
-		c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+	// 	subscribe := wsRequest{
+	// 		Request:      channelToUnsubscribe[i].Channel,
+	// 		InstrumentID: c.instrumentMap.LookupID(fpair.String()),
+	// 		Subscribe:    false,
+	// 		Nonce:        getNonce(),
+	// 	}
+	// 	resp, err := c.Websocket.Conn.SendMessageReturnResponse(subscribe.Nonce,
+	// 		subscribe)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	var response map[string]interface{}
+	// 	err = json.Unmarshal(resp, &response)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	if response["status"].([]interface{})[0] != "OK" {
+	// 		errs = append(errs, fmt.Errorf("%v unsubscribe failed for channel %v",
+	// 			c.Name,
+	// 			channelToUnsubscribe[i].Channel))
+	// 		continue
+	// 	}
+	// 	c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 

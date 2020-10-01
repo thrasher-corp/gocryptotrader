@@ -26,7 +26,7 @@ import (
 var comms = make(chan stream.Response)
 
 // WsConnect starts a new websocket connection
-func (b *Bitfinex) WsConnect() error {
+func (b *Bitfinex) WsConnect(conn stream.Connection) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -60,7 +60,7 @@ func (b *Bitfinex) WsConnect() error {
 		}
 	}
 
-	subs, err := b.GenerateDefaultSubscriptions()
+	subs, err := b.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -915,7 +915,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Bitfinex) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var channels = []string{
 		wsBook,
 		wsTrades,
@@ -962,18 +962,18 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		}
 	}
 
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Bitfinex) Subscribe(sub stream.SubscriptionParamaters) error {
 	var errs common.Errors
-	for i := range channelsToSubscribe {
+	for i := range sub.Items {
 		req := make(map[string]interface{})
 		req["event"] = "subscribe"
-		req["channel"] = channelsToSubscribe[i].Channel
+		req["channel"] = sub.Items[i].Channel
 
-		for k, v := range channelsToSubscribe[i].Params {
+		for k, v := range sub.Items[i].Params {
 			req[k] = v
 		}
 
@@ -982,7 +982,7 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 			errs = append(errs, err)
 			continue
 		}
-		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		b.Websocket.AddSuccessfulSubscriptions(sub.Items[i])
 	}
 	if errs != nil {
 		return errs
@@ -991,14 +991,14 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Bitfinex) Unsubscribe(unsub stream.SubscriptionParamaters) error {
 	var errs common.Errors
-	for i := range channelsToUnsubscribe {
+	for i := range unsub.Items {
 		req := make(map[string]interface{})
 		req["event"] = "unsubscribe"
-		req["channel"] = channelsToUnsubscribe[i].Channel
+		req["channel"] = unsub.Items[i].Channel
 
-		for k, v := range channelsToUnsubscribe[i].Params {
+		for k, v := range unsub.Items[i].Params {
 			req[k] = v
 		}
 
@@ -1007,7 +1007,7 @@ func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 			errs = append(errs, err)
 			continue
 		}
-		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		b.Websocket.RemoveSuccessfulUnsubscriptions(unsub.Items[i])
 	}
 	if errs != nil {
 		return errs

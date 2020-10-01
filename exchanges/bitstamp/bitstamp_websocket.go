@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -23,7 +22,7 @@ const (
 )
 
 // WsConnect connects to a websocket feed
-func (b *Bitstamp) WsConnect() error {
+func (b *Bitstamp) WsConnect(conn stream.Connection) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -39,7 +38,7 @@ func (b *Bitstamp) WsConnect() error {
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
-	subs, err := b.generateDefaultSubscriptions()
+	subs, err := b.generateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -142,7 +141,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Bitstamp) generateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var channels = []string{"live_trades_", "order_book_"}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -157,52 +156,52 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription,
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-	for i := range channelsToSubscribe {
-		req := websocketEventRequest{
-			Event: "bts:subscribe",
-			Data: websocketData{
-				Channel: channelsToSubscribe[i].Channel,
-			},
-		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+func (b *Bitstamp) Subscribe(sub stream.SubscriptionParamaters) error {
+	// var errs common.Errors
+	// for i := range channelsToSubscribe {
+	// 	req := websocketEventRequest{
+	// 		Event: "bts:subscribe",
+	// 		Data: websocketData{
+	// 			Channel: channelsToSubscribe[i].Channel,
+	// 		},
+	// 	}
+	// 	err := b.Websocket.Conn.SendJSONMessage(req)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-	for i := range channelsToUnsubscribe {
-		req := websocketEventRequest{
-			Event: "bts:unsubscribe",
-			Data: websocketData{
-				Channel: channelsToUnsubscribe[i].Channel,
-			},
-		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+func (b *Bitstamp) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+	// var errs common.Errors
+	// for i := range channelsToUnsubscribe {
+	// 	req := websocketEventRequest{
+	// 		Event: "bts:unsubscribe",
+	// 		Data: websocketData{
+	// 			Channel: channelsToUnsubscribe[i].Channel,
+	// 		},
+	// 	}
+	// 	err := b.Websocket.Conn.SendJSONMessage(req)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 

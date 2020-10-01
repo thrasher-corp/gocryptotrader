@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -29,7 +28,7 @@ const (
 )
 
 // WsConnect initiates a websocket connection
-func (g *Gateio) WsConnect() error {
+func (g *Gateio) WsConnect(conn stream.Connection) error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -46,8 +45,8 @@ func (g *Gateio) WsConnect() error {
 			g.Websocket.DataHandler <- err
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		} else {
-			var authsubs []stream.ChannelSubscription
-			authsubs, err = g.GenerateAuthenticatedSubscriptions()
+			var authsubs []stream.SubscriptionParamaters
+			authsubs, err = g.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
 			if err != nil {
 				g.Websocket.DataHandler <- err
 				g.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -61,7 +60,7 @@ func (g *Gateio) WsConnect() error {
 		}
 	}
 
-	subs, err := g.GenerateDefaultSubscriptions()
+	subs, err := g.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -441,7 +440,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 }
 
 // GenerateAuthenticatedSubscriptions returns authenticated subscriptions
-func (g *Gateio) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
+func (g *Gateio) GenerateAuthenticatedSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	if !g.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
@@ -460,11 +459,11 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // GenerateDefaultSubscriptions returns default subscriptions
-func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (g *Gateio) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var channels = []string{"ticker.subscribe",
 		"trades.subscribe",
 		"depth.subscribe",
@@ -498,40 +497,40 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gateio) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	payloads, err := g.generatePayload(channelsToSubscribe)
-	if err != nil {
-		return err
-	}
+func (g *Gateio) Subscribe(sub stream.SubscriptionParamaters) error {
+	// payloads, err := g.generatePayload(channelsToSubscribe)
+	// if err != nil {
+	// 	return err
+	// }
 
-	var errs common.Errors
-	for k := range payloads {
-		resp, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		var response WebsocketAuthenticationResponse
-		err = json.Unmarshal(resp, &response)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		if response.Result.Status != "success" {
-			errs = append(errs, fmt.Errorf("%v could not subscribe to %v",
-				g.Name,
-				payloads[k].Method))
-			continue
-		}
-		g.Websocket.AddSuccessfulSubscriptions(payloads[k].Channels...)
-	}
-	if errs != nil {
-		return errs
-	}
+	// var errs common.Errors
+	// for k := range payloads {
+	// 	resp, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	var response WebsocketAuthenticationResponse
+	// 	err = json.Unmarshal(resp, &response)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	if response.Result.Status != "success" {
+	// 		errs = append(errs, fmt.Errorf("%v could not subscribe to %v",
+	// 			g.Name,
+	// 			payloads[k].Method))
+	// 		continue
+	// 	}
+	// 	g.Websocket.AddSuccessfulSubscriptions(payloads[k].Channels...)
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 
@@ -592,49 +591,49 @@ channels:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) Unsubscribe(unsub stream.SubscriptionParamaters) error {
 	// NOTE: This function does not take in parameters, it cannot unsubscribe a
 	// single item but a full channel. i.e. if you subscribe to ticker BTC_USDT
 	// & LTC_USDT this function will unsubscribe both. This function will be
 	// kept unlinked to the websocket subsystem and a full connection flush will
 	// occur when currency items are disabled.
-	var channelsThusFar []string
-	for i := range channelsToUnsubscribe {
-		if common.StringDataCompare(channelsThusFar,
-			channelsToUnsubscribe[i].Channel) {
-			continue
-		}
+	// var channelsThusFar []string
+	// for i := range channelsToUnsubscribe {
+	// 	if common.StringDataCompare(channelsThusFar,
+	// 		channelsToUnsubscribe[i].Channel) {
+	// 		continue
+	// 	}
 
-		channelsThusFar = append(channelsThusFar,
-			channelsToUnsubscribe[i].Channel)
+	// 	channelsThusFar = append(channelsThusFar,
+	// 		channelsToUnsubscribe[i].Channel)
 
-		unsubscribeText := strings.Replace(channelsToUnsubscribe[i].Channel,
-			"subscribe",
-			"unsubscribe",
-			1)
+	// 	unsubscribeText := strings.Replace(channelsToUnsubscribe[i].Channel,
+	// 		"subscribe",
+	// 		"unsubscribe",
+	// 		1)
 
-		unsubscribe := WebsocketRequest{
-			ID:     g.Websocket.Conn.GenerateMessageID(false),
-			Method: unsubscribeText,
-			Params: []interface{}{channelsToUnsubscribe[i].Currency.String()},
-		}
+	// 	unsubscribe := WebsocketRequest{
+	// 		ID:     g.Websocket.Conn.GenerateMessageID(false),
+	// 		Method: unsubscribeText,
+	// 		Params: []interface{}{channelsToUnsubscribe[i].Currency.String()},
+	// 	}
 
-		resp, err := g.Websocket.Conn.SendMessageReturnResponse(unsubscribe.ID,
-			unsubscribe)
-		if err != nil {
-			return err
-		}
-		var response WebsocketAuthenticationResponse
-		err = json.Unmarshal(resp, &response)
-		if err != nil {
-			return err
-		}
-		if response.Result.Status != "success" {
-			return fmt.Errorf("%v could not subscribe to %v",
-				g.Name,
-				channelsToUnsubscribe[i].Channel)
-		}
-	}
+	// 	resp, err := g.Websocket.Conn.SendMessageReturnResponse(unsubscribe.ID,
+	// 		unsubscribe)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	var response WebsocketAuthenticationResponse
+	// 	err = json.Unmarshal(resp, &response)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	if response.Result.Status != "success" {
+	// 		return fmt.Errorf("%v could not subscribe to %v",
+	// 			g.Name,
+	// 			channelsToUnsubscribe[i].Channel)
+	// 	}
+	// }
 	return nil
 }
 

@@ -905,17 +905,17 @@ func (f *FTX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return f.GetFee(feeBuilder)
 }
 
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (f *FTX) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return f.Websocket.SubscribeToChannels(channels)
-}
+// // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// // which lets websocket.manageSubscriptions handle subscribing
+// func (f *FTX) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+// 	return f.Websocket.SubscribeToChannels(channels)
+// }
 
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (f *FTX) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return f.Websocket.UnsubscribeChannels(channels)
-}
+// // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// // which lets websocket.manageSubscriptions handle unsubscribing
+// func (f *FTX) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+// 	return f.Websocket.UnsubscribeChannels(channels)
+// }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (f *FTX) AuthenticateWebsocket() error {

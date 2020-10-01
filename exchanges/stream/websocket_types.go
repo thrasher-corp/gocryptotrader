@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 )
@@ -42,7 +43,9 @@ type Websocket struct {
 	exchangeName                 string
 	m                            sync.Mutex
 	connectionMutex              sync.RWMutex
-	connector                    func() error
+	connector                    func(conn Connection) error
+
+	Connections *ConnectionManager
 
 	subscriptionMutex sync.Mutex
 	subscriptions     []ChannelSubscription
@@ -51,13 +54,13 @@ type Websocket struct {
 
 	// Subscriber function for package defined websocket subscriber
 	// functionality
-	Subscriber func([]ChannelSubscription) error
+	Subscriber func(SubscriptionParamaters) error
 	// Unsubscriber function for packaged defined websocket unsubscriber
 	// functionality
-	Unsubscriber func([]ChannelSubscription) error
+	Unsubscriber func(SubscriptionParamaters) error
 	// GenerateSubs function for package defined websocket generate
 	// subscriptions functionality
-	GenerateSubs func() ([]ChannelSubscription, error)
+	GenerateSubs func(SubscriptionOptions) ([]SubscriptionParamaters, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -94,10 +97,10 @@ type WebsocketSetup struct {
 	ExchangeName                     string
 	RunningURL                       string
 	RunningURLAuth                   string
-	Connector                        func() error
-	Subscriber                       func([]ChannelSubscription) error
-	UnSubscriber                     func([]ChannelSubscription) error
-	GenerateSubscriptions            func() ([]ChannelSubscription, error)
+	Connector                        func(conn Connection) error
+	Subscriber                       func(SubscriptionParamaters) error
+	UnSubscriber                     func(SubscriptionParamaters) error
+	GenerateSubscriptions            func(SubscriptionOptions) ([]SubscriptionParamaters, error)
 	Features                         *protocol.Features
 	// Local orderbook buffer config values
 	OrderbookBufferLimit  int
@@ -129,6 +132,8 @@ type WebsocketConnection struct {
 	ResponseMaxLimit  time.Duration
 	Traffic           chan struct{}
 	readMessageErrors chan error
+
+	Assets asset.Items
 }
 
 // type Synchronisation struct {

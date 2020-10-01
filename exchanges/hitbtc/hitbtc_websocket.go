@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -34,7 +33,7 @@ const (
 var requestID nonce.Nonce
 
 // WsConnect starts a new connection with the websocket API
-func (h *HitBTC) WsConnect() error {
+func (h *HitBTC) WsConnect(conn stream.Connection) error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -49,7 +48,7 @@ func (h *HitBTC) WsConnect() error {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
 	}
 
-	subs, err := h.GenerateDefaultSubscriptions()
+	subs, err := h.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -433,7 +432,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (h *HitBTC) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var channels = []string{"subscribeTicker",
 		"subscribeOrderbook",
 		"subscribeTrades",
@@ -464,73 +463,73 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-	for i := range channelsToSubscribe {
-		subscribe := WsRequest{
-			Method: channelsToSubscribe[i].Channel,
-			ID:     h.Websocket.Conn.GenerateMessageID(false),
-		}
+func (h *HitBTC) Subscribe(sub stream.SubscriptionParamaters) error {
+	// var errs common.Errors
+	// for i := range channelsToSubscribe {
+	// 	subscribe := WsRequest{
+	// 		Method: channelsToSubscribe[i].Channel,
+	// 		ID:     h.Websocket.Conn.GenerateMessageID(false),
+	// 	}
 
-		if channelsToSubscribe[i].Currency.String() != "" {
-			subscribe.Params.Symbol = channelsToSubscribe[i].Currency.String()
-		}
-		if strings.EqualFold(channelsToSubscribe[i].Channel, "subscribeTrades") {
-			subscribe.Params.Limit = 100
-		} else if strings.EqualFold(channelsToSubscribe[i].Channel, "subscribeCandles") {
-			subscribe.Params.Period = "M30"
-			subscribe.Params.Limit = 100
-		}
+	// 	if channelsToSubscribe[i].Currency.String() != "" {
+	// 		subscribe.Params.Symbol = channelsToSubscribe[i].Currency.String()
+	// 	}
+	// 	if strings.EqualFold(channelsToSubscribe[i].Channel, "subscribeTrades") {
+	// 		subscribe.Params.Limit = 100
+	// 	} else if strings.EqualFold(channelsToSubscribe[i].Channel, "subscribeCandles") {
+	// 		subscribe.Params.Period = "M30"
+	// 		subscribe.Params.Limit = 100
+	// 	}
 
-		err := h.Websocket.Conn.SendJSONMessage(subscribe)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+	// 	err := h.Websocket.Conn.SendJSONMessage(subscribe)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-	for i := range channelsToUnsubscribe {
-		unsubscribeChannel := strings.Replace(channelsToUnsubscribe[i].Channel,
-			"subscribe",
-			"unsubscribe",
-			1)
+func (h *HitBTC) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+	// var errs common.Errors
+	// for i := range channelsToUnsubscribe {
+	// 	unsubscribeChannel := strings.Replace(channelsToUnsubscribe[i].Channel,
+	// 		"subscribe",
+	// 		"unsubscribe",
+	// 		1)
 
-		unsubscribe := WsNotification{
-			JSONRPCVersion: rpcVersion,
-			Method:         unsubscribeChannel,
-		}
+	// 	unsubscribe := WsNotification{
+	// 		JSONRPCVersion: rpcVersion,
+	// 		Method:         unsubscribeChannel,
+	// 	}
 
-		unsubscribe.Params.Symbol = channelsToUnsubscribe[i].Currency.String()
-		if strings.EqualFold(unsubscribeChannel, "unsubscribeTrades") {
-			unsubscribe.Params.Limit = 100
-		} else if strings.EqualFold(unsubscribeChannel, "unsubscribeCandles") {
-			unsubscribe.Params.Period = "M30"
-			unsubscribe.Params.Limit = 100
-		}
+	// 	unsubscribe.Params.Symbol = channelsToUnsubscribe[i].Currency.String()
+	// 	if strings.EqualFold(unsubscribeChannel, "unsubscribeTrades") {
+	// 		unsubscribe.Params.Limit = 100
+	// 	} else if strings.EqualFold(unsubscribeChannel, "unsubscribeCandles") {
+	// 		unsubscribe.Params.Period = "M30"
+	// 		unsubscribe.Params.Limit = 100
+	// 	}
 
-		err := h.Websocket.Conn.SendJSONMessage(unsubscribe)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		h.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+	// 	err := h.Websocket.Conn.SendJSONMessage(unsubscribe)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	h.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 

@@ -6,11 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -26,7 +23,7 @@ const (
 )
 
 // WsConnect connects to a websocket feed
-func (b *BTCMarkets) WsConnect() error {
+func (b *BTCMarkets) WsConnect(conn stream.Connection) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -39,7 +36,7 @@ func (b *BTCMarkets) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
 	go b.wsReadData()
-	subs, err := b.generateDefaultSubscriptions()
+	subs, err := b.generateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -288,7 +285,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *BTCMarkets) generateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var channels = []string{wsOB, tick, tradeEndPoint}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -313,49 +310,49 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var authChannels = []string{fundChange, heartbeat, orderChange}
+func (b *BTCMarkets) Subscribe(sub stream.SubscriptionParamaters) error {
+	// var authChannels = []string{fundChange, heartbeat, orderChange}
 
-	var payload WsSubscribe
-	payload.MessageType = subscribe
+	// var payload WsSubscribe
+	// payload.MessageType = subscribe
 
-	for i := range channelsToSubscribe {
-		payload.Channels = append(payload.Channels,
-			channelsToSubscribe[i].Channel)
+	// for i := range channelsToSubscribe {
+	// 	payload.Channels = append(payload.Channels,
+	// 		channelsToSubscribe[i].Channel)
 
-		if channelsToSubscribe[i].Currency.String() != "" {
-			if !common.StringDataCompare(payload.MarketIDs,
-				channelsToSubscribe[i].Currency.String()) {
-				payload.MarketIDs = append(payload.MarketIDs,
-					channelsToSubscribe[i].Currency.String())
-			}
-		}
-	}
+	// 	if channelsToSubscribe[i].Currency.String() != "" {
+	// 		if !common.StringDataCompare(payload.MarketIDs,
+	// 			channelsToSubscribe[i].Currency.String()) {
+	// 			payload.MarketIDs = append(payload.MarketIDs,
+	// 				channelsToSubscribe[i].Currency.String())
+	// 		}
+	// 	}
+	// }
 
-	for i := range authChannels {
-		if !common.StringDataCompare(payload.Channels, authChannels[i]) {
-			continue
-		}
-		signTime := strconv.FormatInt(time.Now().UTC().UnixNano()/1000000, 10)
-		strToSign := "/users/self/subscribe" + "\n" + signTime
-		tempSign := crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(strToSign),
-			[]byte(b.API.Credentials.Secret))
-		sign := crypto.Base64Encode(tempSign)
-		payload.Key = b.API.Credentials.Key
-		payload.Signature = sign
-		payload.Timestamp = signTime
-		break
-	}
+	// for i := range authChannels {
+	// 	if !common.StringDataCompare(payload.Channels, authChannels[i]) {
+	// 		continue
+	// 	}
+	// 	signTime := strconv.FormatInt(time.Now().UTC().UnixNano()/1000000, 10)
+	// 	strToSign := "/users/self/subscribe" + "\n" + signTime
+	// 	tempSign := crypto.GetHMAC(crypto.HashSHA512,
+	// 		[]byte(strToSign),
+	// 		[]byte(b.API.Credentials.Secret))
+	// 	sign := crypto.Base64Encode(tempSign)
+	// 	payload.Key = b.API.Credentials.Key
+	// 	payload.Signature = sign
+	// 	payload.Timestamp = signTime
+	// 	break
+	// }
 
-	err := b.Websocket.Conn.SendJSONMessage(payload)
-	if err != nil {
-		return err
-	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	// err := b.Websocket.Conn.SendJSONMessage(payload)
+	// if err != nil {
+	// 	return err
+	// }
+	// b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }

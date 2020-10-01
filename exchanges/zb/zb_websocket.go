@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -30,7 +29,7 @@ const (
 )
 
 // WsConnect initiates a websocket connection
-func (z *ZB) WsConnect() error {
+func (z *ZB) WsConnect(conn stream.Connection) error {
 	if !z.Websocket.IsEnabled() || !z.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -40,10 +39,11 @@ func (z *ZB) WsConnect() error {
 		return err
 	}
 
-	subs, err := z.GenerateDefaultSubscriptions()
+	subs, err := z.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
+	z.Websocket.Wg.Add(1)
 	go z.wsReadData()
 	return z.Websocket.SubscribeToChannels(subs)
 }
@@ -51,7 +51,6 @@ func (z *ZB) WsConnect() error {
 // wsReadData handles all the websocket data coming from the websocket
 // connection
 func (z *ZB) wsReadData() {
-	z.Websocket.Wg.Add(1)
 	defer z.Websocket.Wg.Done()
 
 	for {
@@ -255,7 +254,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (z *ZB) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (z *ZB) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var subscriptions []stream.ChannelSubscription
 	// market configuration is its own channel
 	subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -277,27 +276,27 @@ func (z *ZB) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error
 			})
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (z *ZB) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-	for i := range channelsToSubscribe {
-		subscriptionRequest := Subscription{
-			Event:   zWebsocketAddChannel,
-			Channel: channelsToSubscribe[i].Channel,
-		}
-		err := z.Websocket.Conn.SendJSONMessage(subscriptionRequest)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		z.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+func (z *ZB) Subscribe(channelsToSubscribe stream.SubscriptionParamaters) error {
+	// var errs common.Errors
+	// for i := range channelsToSubscribe {
+	// 	subscriptionRequest := Subscription{
+	// 		Event:   zWebsocketAddChannel,
+	// 		Channel: channelsToSubscribe[i].Channel,
+	// 	}
+	// 	err := z.Websocket.Conn.SendJSONMessage(subscriptionRequest)
+	// 	if err != nil {
+	// 		errs = append(errs, err)
+	// 		continue
+	// 	}
+	// 	z.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	// }
+	// if errs != nil {
+	// 	return errs
+	// }
 	return nil
 }
 

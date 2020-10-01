@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -311,4 +312,14 @@ func (w *WebsocketConnection) SetProxy(proxy string) {
 // GetURL returns the connection URL
 func (w *WebsocketConnection) GetURL() string {
 	return w.URL
+}
+
+// IsAssetAssociatedWithConnection returns if this connection handles this asset
+func (w *WebsocketConnection) IsAssetAssociatedWithConnection(a asset.Item) bool {
+	return w.Assets.Contains(a)
+}
+
+// SetControllingAssets sets assets associated with this connection
+func (w *WebsocketConnection) SetControllingAssets(assets asset.Items) {
+	w.Assets = assets
 }

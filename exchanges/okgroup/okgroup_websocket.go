@@ -176,7 +176,7 @@ var defaultSwapSubscribedChannels = []string{okGroupWsSwapDepth,
 	okGroupWsSwapMarkPrice}
 
 // WsConnect initiates a websocket connection
-func (o *OKGroup) WsConnect() error {
+func (o *OKGroup) WsConnect(conn stream.Connection) error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -203,7 +203,7 @@ func (o *OKGroup) WsConnect() error {
 		}
 	}
 
-	subs, err := o.GenerateDefaultSubscriptions()
+	subs, err := o.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -776,7 +776,7 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
 // handled by ManageSubscriptions()
-func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (o *OKGroup) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
 	var subscriptions []stream.ChannelSubscription
 	assets := o.GetAssetTypes()
 	for x := range assets {
@@ -911,83 +911,83 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			o.Websocket.DataHandler <- errors.New("unhandled asset type")
 		}
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *OKGroup) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	return o.handleSubscriptions("subscribe", channelsToSubscribe)
+func (o *OKGroup) Subscribe(sub stream.SubscriptionParamaters) error {
+	return o.handleSubscriptions("subscribe", sub)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *OKGroup) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	return o.handleSubscriptions("unsubscribe", channelsToUnsubscribe)
+func (o *OKGroup) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+	return o.handleSubscriptions("unsubscribe", unsub)
 }
 
-func (o *OKGroup) handleSubscriptions(operation string, subs []stream.ChannelSubscription) error {
-	request := WebsocketEventRequest{
-		Operation: operation,
-	}
+func (o *OKGroup) handleSubscriptions(operation string, subs stream.SubscriptionParamaters) error {
+	// request := WebsocketEventRequest{
+	// 	Operation: operation,
+	// }
 
-	var channels []stream.ChannelSubscription
-	for i := 0; i < len(subs); i++ {
-		// Temp type to evaluate max byte len after a marshal on batched unsubs
-		temp := WebsocketEventRequest{
-			Operation: operation,
-		}
-		temp.Arguments = make([]string, len(request.Arguments))
-		copy(temp.Arguments, request.Arguments)
+	// var channels []stream.ChannelSubscription
+	// for i := 0; i < len(subs); i++ {
+	// 	// Temp type to evaluate max byte len after a marshal on batched unsubs
+	// 	temp := WebsocketEventRequest{
+	// 		Operation: operation,
+	// 	}
+	// 	temp.Arguments = make([]string, len(request.Arguments))
+	// 	copy(temp.Arguments, request.Arguments)
 
-		arg := subs[i].Channel + delimiterColon
-		if strings.EqualFold(subs[i].Channel, okGroupWsSpotAccount) {
-			arg += subs[i].Currency.Base.String()
-		} else {
-			arg += subs[i].Currency.String()
-		}
+	// 	arg := subs[i].Channel + delimiterColon
+	// 	if strings.EqualFold(subs[i].Channel, okGroupWsSpotAccount) {
+	// 		arg += subs[i].Currency.Base.String()
+	// 	} else {
+	// 		arg += subs[i].Currency.String()
+	// 	}
 
-		temp.Arguments = append(temp.Arguments, arg)
-		chunk, err := json.Marshal(request)
-		if err != nil {
-			return err
-		}
+	// 	temp.Arguments = append(temp.Arguments, arg)
+	// 	chunk, err := json.Marshal(request)
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		if len(chunk) > maxConnByteLen {
-			// If temp chunk exceeds max byte length determined by the exchange,
-			// commit last payload.
-			i-- // reverse position in range to reuse channel unsubscription on
-			// next iteration
-			err = o.Websocket.Conn.SendJSONMessage(request)
-			if err != nil {
-				return err
-			}
+	// 	if len(chunk) > maxConnByteLen {
+	// 		// If temp chunk exceeds max byte length determined by the exchange,
+	// 		// commit last payload.
+	// 		i-- // reverse position in range to reuse channel unsubscription on
+	// 		// next iteration
+	// 		err = o.Websocket.Conn.SendJSONMessage(request)
+	// 		if err != nil {
+	// 			return err
+	// 		}
 
-			if operation == "unsubscribe" {
-				o.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
-			} else {
-				o.Websocket.AddSuccessfulSubscriptions(channels...)
-			}
+	// 		if operation == "unsubscribe" {
+	// 			o.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+	// 		} else {
+	// 			o.Websocket.AddSuccessfulSubscriptions(channels...)
+	// 		}
 
-			// Drop prior unsubs and chunked payload args on successful unsubscription
-			channels = nil
-			request.Arguments = nil
-			continue
-		}
-		// Add pending chained items
-		channels = append(channels, subs[i])
-		request.Arguments = temp.Arguments
-	}
+	// 		// Drop prior unsubs and chunked payload args on successful unsubscription
+	// 		channels = nil
+	// 		request.Arguments = nil
+	// 		continue
+	// 	}
+	// 	// Add pending chained items
+	// 	channels = append(channels, subs[i])
+	// 	request.Arguments = temp.Arguments
+	// }
 
-	// Commit left overs to payload
-	err := o.Websocket.Conn.SendJSONMessage(request)
-	if err != nil {
-		return err
-	}
+	// // Commit left overs to payload
+	// err := o.Websocket.Conn.SendJSONMessage(request)
+	// if err != nil {
+	// 	return err
+	// }
 
-	if operation == "unsubscribe" {
-		o.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
-	} else {
-		o.Websocket.AddSuccessfulSubscriptions(channels...)
-	}
+	// if operation == "unsubscribe" {
+	// 	o.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+	// } else {
+	// 	o.Websocket.AddSuccessfulSubscriptions(channels...)
+	// }
 	return nil
 }
 

@@ -372,7 +372,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	resp, err := g.CancelAllOrders(orderCancellation)
-
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}

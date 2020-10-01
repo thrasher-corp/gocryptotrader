@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -42,7 +41,7 @@ const (
 var obSuccess = make(map[currency.Pair]bool)
 
 // WsConnect connects to a websocket feed
-func (f *FTX) WsConnect() error {
+func (f *FTX) WsConnect(conn stream.Connection) error {
 	if !f.Websocket.IsEnabled() || !f.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -68,7 +67,7 @@ func (f *FTX) WsConnect() error {
 		}
 	}
 
-	subs, err := f.GenerateDefaultSubscriptions()
+	subs, err := f.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
 	if err != nil {
 		return err
 	}
@@ -96,116 +95,116 @@ func (f *FTX) WsAuth() error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (f *FTX) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-channels:
-	for i := range channelsToSubscribe {
-		var sub WsSub
-		sub.Channel = channelsToSubscribe[i].Channel
-		sub.Operation = subscribe
+func (f *FTX) Subscribe(sub stream.SubscriptionParamaters) error {
+	// 	var errs common.Errors
+	// channels:
+	// 	for i := range channelsToSubscribe {
+	// 		var sub WsSub
+	// 		sub.Channel = channelsToSubscribe[i].Channel
+	// 		sub.Operation = subscribe
 
-		switch channelsToSubscribe[i].Channel {
-		case wsFills, wsOrders, wsMarkets:
-		default:
-			a, err := f.GetPairAssetType(channelsToSubscribe[i].Currency)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
+	// 		switch channelsToSubscribe[i].Channel {
+	// 		case wsFills, wsOrders, wsMarkets:
+	// 		default:
+	// 			a, err := f.GetPairAssetType(channelsToSubscribe[i].Currency)
+	// 			if err != nil {
+	// 				errs = append(errs, err)
+	// 				continue channels
+	// 			}
 
-			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
-			sub.Market = formattedPair.String()
-		}
-		err := f.Websocket.Conn.SendJSONMessage(sub)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		f.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+	// 			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
+	// 			if err != nil {
+	// 				errs = append(errs, err)
+	// 				continue channels
+	// 			}
+	// 			sub.Market = formattedPair.String()
+	// 		}
+	// 		err := f.Websocket.Conn.SendJSONMessage(sub)
+	// 		if err != nil {
+	// 			errs = append(errs, err)
+	// 			continue
+	// 		}
+	// 		f.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	// 	}
+	// 	if errs != nil {
+	// 		return errs
+	// 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	var errs common.Errors
-channels:
-	for i := range channelsToUnsubscribe {
-		var unSub WsSub
-		unSub.Operation = unsubscribe
-		unSub.Channel = channelsToUnsubscribe[i].Channel
-		switch channelsToUnsubscribe[i].Channel {
-		case wsFills, wsOrders, wsMarkets:
-		default:
-			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Currency)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
+func (f *FTX) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+	// 	var errs common.Errors
+	// channels:
+	// 	for i := range channelsToUnsubscribe {
+	// 		var unSub WsSub
+	// 		unSub.Operation = unsubscribe
+	// 		unSub.Channel = channelsToUnsubscribe[i].Channel
+	// 		switch channelsToUnsubscribe[i].Channel {
+	// 		case wsFills, wsOrders, wsMarkets:
+	// 		default:
+	// 			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Currency)
+	// 			if err != nil {
+	// 				errs = append(errs, err)
+	// 				continue channels
+	// 			}
 
-			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
-			if err != nil {
-				errs = append(errs, err)
-				continue channels
-			}
-			unSub.Market = formattedPair.String()
-		}
-		err := f.Websocket.Conn.SendJSONMessage(unSub)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		f.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
-	}
-	if errs != nil {
-		return errs
-	}
+	// 			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+	// 			if err != nil {
+	// 				errs = append(errs, err)
+	// 				continue channels
+	// 			}
+	// 			unSub.Market = formattedPair.String()
+	// 		}
+	// 		err := f.Websocket.Conn.SendJSONMessage(unSub)
+	// 		if err != nil {
+	// 			errs = append(errs, err)
+	// 			continue
+	// 		}
+	// 		f.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	// 	}
+	// 	if errs != nil {
+	// 		return errs
+	// 	}
 	return nil
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
-	subscriptions = append(subscriptions, stream.ChannelSubscription{
-		Channel: wsMarkets,
-	})
-	var channels = []string{wsTicker, wsTrades, wsOrderbook}
-	assets := f.GetAssetTypes()
-	for a := range assets {
-		pairs, err := f.GetEnabledPairs(assets[a])
-		if err != nil {
-			return nil, err
-		}
-		for z := range pairs {
-			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(),
-				pairs[z].Quote.String(),
-				"-")
-			for x := range channels {
-				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
-						Channel:  channels[x],
-						Currency: newPair,
-						Asset:    assets[a],
-					})
-			}
-		}
-	}
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		var authchan = []string{wsOrders, wsFills}
-		for x := range authchan {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: authchan[x],
-			})
-		}
-	}
-	return subscriptions, nil
+func (f *FTX) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+	// 	var subscriptions []stream.ChannelSubscription
+	// 	subscriptions = append(subscriptions, stream.ChannelSubscription{
+	// 		Channel: wsMarkets,
+	// 	})
+	// 	var channels = []string{wsTicker, wsTrades, wsOrderbook}
+	// 	assets := f.GetAssetTypes()
+	// 	for a := range assets {
+	// 		pairs, err := f.GetEnabledPairs(assets[a])
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		for z := range pairs {
+	// 			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(),
+	// 				pairs[z].Quote.String(),
+	// 				"-")
+	// 			for x := range channels {
+	// 				subscriptions = append(subscriptions,
+	// 					stream.ChannelSubscription{
+	// 						Channel:  channels[x],
+	// 						Currency: newPair,
+	// 						Asset:    assets[a],
+	// 					})
+	// 			}
+	// 		}
+	// 	}
+	// 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	// 		var authchan = []string{wsOrders, wsFills}
+	// 		for x := range authchan {
+	// 			subscriptions = append(subscriptions, stream.ChannelSubscription{
+	// 				Channel: authchan[x],
+	// 			})
+	// 		}
+	// 	}
+	return nil, nil
 }
 
 // wsReadData gets and passes on websocket messages for processing

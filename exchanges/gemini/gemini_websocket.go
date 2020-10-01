@@ -37,7 +37,7 @@ var responseMaxLimit time.Duration
 var responseCheckTimeout time.Duration
 
 // WsConnect initiates a websocket connection
-func (g *Gemini) WsConnect() error {
+func (g *Gemini) WsConnect(conn stream.Connection) error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}

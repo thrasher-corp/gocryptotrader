@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -35,7 +34,7 @@ type Job struct {
 }
 
 // WsConnect initiates a websocket connection
-func (b *Binance) WsConnect() error {
+func (b *Binance) WsConnect(conn stream.Connection) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -61,7 +60,7 @@ func (b *Binance) WsConnect() error {
 		}
 	}
 
-	err = b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			b.Name,
@@ -69,10 +68,11 @@ func (b *Binance) WsConnect() error {
 	}
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		b.Websocket.Wg.Add(1)
 		go b.KeepAuthKeyAlive()
 	}
 
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -86,20 +86,20 @@ func (b *Binance) WsConnect() error {
 		// 10 workers for synchronising book
 		b.SynchroniseWebsocketOrderbook()
 	}
+	b.Websocket.Wg.Add(1)
+	go b.wsReadData(conn)
 
-	go b.wsReadData()
-
-	subs, err := b.GenerateSubscriptions()
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
+	// subs, err := b.GenerateSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
 func (b *Binance) KeepAuthKeyAlive() {
-	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	ticks := time.NewTicker(time.Minute * 30)
 	for {
@@ -119,23 +119,22 @@ func (b *Binance) KeepAuthKeyAlive() {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Binance) wsReadData() {
-	b.Websocket.Wg.Add(1)
+func (b *Binance) wsReadData(conn stream.Connection) {
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp := b.Websocket.Conn.ReadMessage()
+		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw)
+		err := b.wsHandleData(resp.Raw, conn)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (b *Binance) wsHandleData(respRaw []byte) error {
+func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -627,7 +626,9 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+	var connections []stream.SubscriptionParamaters
+	//
 	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes()
@@ -638,16 +639,16 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 		}
 
 		for y := range pairs {
-		channels:
+			// channels:
 			for z := range channels {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
 				channel := lp.String() + channels[z]
-				for i := range subscriptions {
-					if subscriptions[i].Channel == channel {
-						continue channels
-					}
-				}
+				// for i := range subscriptions {
+				// 	// if subscriptions[i].Channel == channel {
+				// 	// 	continue channels
+				// 	// }
+				// }
 				subscriptions = append(subscriptions,
 					stream.ChannelSubscription{
 						Channel:  channel,
@@ -657,90 +658,105 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 			}
 		}
 	}
-	if len(subscriptions) > 1024 {
-		return nil,
-			fmt.Errorf("subscriptions: %d exceed maximum single connection streams of 1024",
-				len(subscriptions))
-	}
-	return subscriptions, nil
+	// if len(subscriptions) > 1024 {
+	// 	return nil,
+	// 		fmt.Errorf("subscriptions: %d exceed maximum single connection streams of 1024",
+	// 			len(subscriptions))
+	// }
+	connections = append(connections, stream.SubscriptionParamaters{
+		Items: subscriptions,
+		Conn: &stream.WebsocketConnection{
+			ExchangeName: b.Name,
+			URL:          binanceDefaultWebsocketURL,
+			// ProxyURL:          w.GetProxyAddress(),
+			// Verbose:           w.verbose,
+			// ResponseMaxLimit:  c.ResponseMaxLimit,
+			Traffic: b.Websocket.TrafficAlert,
+			// readMessageErrors: w.ReadMessageErrors,
+			ShutdownC: b.Websocket.ShutdownC,
+			Wg:        b.Websocket.Wg,
+			Match:     b.Websocket.Match,
+			// RateLimit:         c.RateLimit,
+		},
+		Manager: options.Manager,
+	})
+	return connections, nil
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Subscribe(sub stream.SubscriptionParamaters) error {
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
 
-	for i := range channelsToSubscribe {
-		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
+	for i := range sub.Items {
+		payload.Params = append(payload.Params, sub.Items[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(payload)
+	err := sub.Conn.SendJSONMessage(payload)
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return sub.Manager.AddSuccessfulSubscriptions(sub.Conn, sub.Items)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Unsubscribe(unsub stream.SubscriptionParamaters) error {
 	payload := WsPayload{
 		Method: "UNSUBSCRIBE",
 	}
-	for i := range channelsToUnsubscribe {
-		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
+	for i := range unsub.Items {
+		payload.Params = append(payload.Params, unsub.Items[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(payload)
+	err := unsub.Conn.SendJSONMessage(payload)
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
-	return nil
+	return unsub.Manager.RemoveSuccessfulUnsubscriptions(unsub.Conn, unsub.Items)
 }
 
-// NewProtocolSync sets up a new protocol syncrhonisation system for buffering,
-// syncing and deploying currency pairs
-func NewProtocolSync(jobCap int) (*ProtocolSync, error) {
-	return &ProtocolSync{
-		buffer: make(map[string]Buffer),
-		job:    make(chan currency.Pair, jobCap),
-	}, nil
-}
+// // NewProtocolSync sets up a new protocol syncrhonisation system for buffering,
+// // syncing and deploying currency pairs
+// func NewProtocolSync(jobCap int) (*ProtocolSync, error) {
+// 	return &ProtocolSync{
+// 		buffer: make(map[string]Buffer),
+// 		job:    make(chan currency.Pair, jobCap),
+// 	}, nil
+// }
 
-// ProtocolSync provides a sychronisation method for different currency pair
-// assets
-type ProtocolSync struct {
-	sync.Mutex
-	buffer map[string]Buffer
-	job    chan currency.Pair
-}
+// // ProtocolSync provides a sychronisation method for different currency pair
+// // assets
+// type ProtocolSync struct {
+// 	sync.Mutex
+// 	buffer map[string]Buffer
+// 	job    chan currency.Pair
+// }
 
-// Buffer defines a buffered channel of potential updates and sync mechanism
-// to determine actionable through put
-type Buffer struct {
-	b     chan *WebsocketDepthStream
-	fetch int32
-}
+// // Buffer defines a buffered channel of potential updates and sync mechanism
+// // to determine actionable through put
+// type Buffer struct {
+// 	b     chan *WebsocketDepthStream
+// 	fetch int32
+// }
 
-// GetEnabledPairsCombineAsset returns the full list with the combination of
-// assets as margin and spot are the same currency pair and use the same book
-func (b *Binance) GetEnabledPairsCombineAsset() (currency.Pairs, error) {
-	var pairs currency.Pairs
-	spot, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	pairs = append(pairs, spot...)
+// // GetEnabledPairsCombineAsset returns the full list with the combination of
+// // assets as margin and spot are the same currency pair and use the same book
+// func (b *Binance) GetEnabledPairsCombineAsset() (currency.Pairs, error) {
+// 	var pairs currency.Pairs
+// 	spot, err := b.GetEnabledPairs(asset.Spot)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	pairs = append(pairs, spot...)
 
-	margin, err := b.GetEnabledPairs(asset.Margin)
-	if err != nil {
-		return nil, err
-	}
+// 	margin, err := b.GetEnabledPairs(asset.Margin)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	for i := range margin {
-		if !pairs.Contains(margin[i], true) {
-			pairs = append(pairs, margin[i])
-		}
-	}
-	return pairs, nil
-}
+// 	for i := range margin {
+// 		if !pairs.Contains(margin[i], true) {
+// 			pairs = append(pairs, margin[i])
+// 		}
+// 	}
+// 	return pairs, nil
+// }
