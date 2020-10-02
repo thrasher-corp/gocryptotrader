@@ -447,17 +447,35 @@ type CancelOrdersAfterData struct {
 
 // RecentOrderData stores order data of a recent order
 type RecentOrderData struct {
-	UID        string `json:"uid"`
-	AccountID  string `json:"accountId"`
-	Tradeable  string `json:"tradeable"`
-	Direction  string `json:"direction"`
-	Quantity   string `json:"quantity"`
-	Filled     string `json:"filled"`
-	Timestamp  string `json:"timestamp"`
-	LimitPrice string `json:"limitPrice"`
-	OrderType  string `json:"orderType"`
-	ClientID   string `json:"clientId"`
-	StopPrice  string `json:"stopPrice"`
+	UID        string  `json:"uid"`
+	AccountID  string  `json:"accountId"`
+	Tradeable  string  `json:"tradeable"`
+	Direction  string  `json:"direction"`
+	Quantity   float64 `json:"quantity,string"`
+	Filled     float64 `json:"filled,string"`
+	Timestamp  string  `json:"timestamp"`
+	LimitPrice float64 `json:"limitPrice,string"`
+	OrderType  string  `json:"orderType"`
+	ClientID   string  `json:"clientId"`
+	StopPrice  float64 `json:"stopPrice,string"`
+}
+
+// FOpenOrdersData stores open orders data for futures
+type FOpenOrdersData struct {
+	OrderID        string  `json:"order_id"`
+	ClientOrderID  string  `json:"cliOrdId"`
+	Symbol         string  `json:"symbol"`
+	Side           string  `json:"side"`
+	OrderType      string  `json:"orderType"`
+	LimitPrice     float64 `json:"limitPrice"`
+	StopPrice      float64 `json:"stopPrice"`
+	UnfilledSize   float64 `json:"unfilledSize"`
+	ReceivedTime   string  `json:"receivedTime"`
+	Status         string  `json:"status"`
+	FilledSize     float64 `json:"filledSize"`
+	ReduceOnly     bool    `json:"reduceOnly"`
+	TriggerSignal  string  `json:"triggerSignal"`
+	LastUpdateTime string  `json:"lastUpdateTime"`
 }
 
 // FuturesRecentOrdersData stores recent orders data
@@ -536,7 +554,7 @@ type ExecutionData struct {
 // FuturesOpenOrdersData stores open orders data for futures
 type FuturesOpenOrdersData struct {
 	Result     string            `json:"result"`
-	OpenOrders []RecentOrderData `json:"openOrders"`
+	OpenOrders []FOpenOrdersData `json:"openOrders"`
 	ServerTime string            `json:"serverTime"`
 }
 
