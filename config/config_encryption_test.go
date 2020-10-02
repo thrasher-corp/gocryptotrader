@@ -200,14 +200,8 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 	passFile.Close()
 
 	// Temporarily replace Stdin with a custom input
-	oldIn := os.Stdin
-	defer func() { os.Stdin = oldIn }()
-	passFile, err = os.Open(passFile.Name())
-	if err != nil {
-		t.Fatalf("Problem opening temp file at %s: %s\n", passFile.Name(), err)
-	}
-	defer passFile.Close()
-	os.Stdin = passFile
+	cleanup := setAnswersFile(t, passFile.Name())
+	defer cleanup()
 
 	// Save encrypted config
 	enc := filepath.Join(tempDir, "encrypted.dat")
@@ -236,5 +230,70 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 
 	if c.Name != readConf.Name || c.EncryptConfig != readConf.EncryptConfig {
 		t.Error("Loaded conf not the same as original")
+	}
+}
+
+// setAnswersFile sets the given file as the current stdin
+// returns the close function to defer for reverting the stdin
+func setAnswersFile(t *testing.T, answerFile string) func() {
+	oldIn := os.Stdin
+
+	inputFile, err := os.Open(answerFile)
+	if err != nil {
+		t.Fatalf("Problem opening temp file at %s: %s\n", inputFile.Name(), err)
+	}
+	os.Stdin = inputFile
+	return func() {
+		inputFile.Close()
+		os.Stdin = oldIn
+	}
+}
+
+func TestReadConfigWithPrompt(t *testing.T) {
+	// Prepare temp dir
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Ensure we'll get the prompt when loading
+	c := &Config{
+		EncryptConfig: 0,
+	}
+
+	// Save config
+	testConfigFile := filepath.Join(tempDir, "config.json")
+	err = c.SaveConfig(testConfigFile, false)
+	if err != nil {
+		t.Fatalf("Problem saving config file in %s: %s\n", tempDir, err)
+	}
+
+	// Answers to the prompt
+	responseFile, err := ioutil.TempFile(tempDir, "*.in")
+	if err != nil {
+		t.Fatalf("Problem creating temp file at %s: %s\n", tempDir, err)
+	}
+	responseFile.WriteString("y\npass\npass\n")
+	responseFile.Close()
+
+	// Temporarily replace Stdin with a custom input
+	cleanup := setAnswersFile(t, responseFile.Name())
+	defer cleanup()
+
+	// Run the test
+	c = &Config{}
+	c.ReadConfig(testConfigFile, false)
+
+	// Verify results
+	data, err := ioutil.ReadFile(testConfigFile)
+	if err != nil {
+		t.Fatalf("Problem reading saved file at %s: %s\n", testConfigFile, err)
+	}
+	if c.EncryptConfig != fileEncryptionEnabled {
+		t.Error("Config encryption flag should be set after prompts")
+	}
+	if !ConfirmECS(data) {
+		t.Error("Config file should be encrypted after prompts")
 	}
 }

@@ -38,7 +38,7 @@ func promptForConfigEncryption() (bool, error) {
 		return false, err
 	}
 
-	return !common.YesOrNo(input), nil
+	return common.YesOrNo(input), nil
 }
 
 // PromptForConfigKey asks for configuration key
