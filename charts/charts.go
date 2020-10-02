@@ -12,6 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+//go:generate go run generate/generate.go
+
 // New returns a new chart instance
 func New(name, template, outputpath string) (chart Chart) {
 	switch template {
@@ -96,6 +98,8 @@ func (c *Chart) Generate() (out *os.File, err error) {
 	return out, err
 }
 
+// ToFile sets WriteFile to true
+// this allows chaining a Generate() call if you wish to write a file after creation of instance
 func (c *Chart) ToFile() *Chart {
 	c.WriteFile = true
 	return c
