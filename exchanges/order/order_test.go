@@ -7,13 +7,18 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
+
+var errValidationCheckFailed = errors.New("validation check failed")
 
 func TestValidate(t *testing.T) {
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
 		ExpectedErr error
 		Submit      *Submit
+		ValidOpts   validate.Checker
 	}{
 		{
 			ExpectedErr: ErrSubmissionIsNil,
@@ -25,55 +30,83 @@ func TestValidate(t *testing.T) {
 		}, // empty pair
 		{
 
-			ExpectedErr: ErrSideIsInvalid,
+			ExpectedErr: ErrAssetNotSet,
 			Submit:      &Submit{Pair: testPair},
+		}, // valid pair but invalid asset
+		{
+
+			ExpectedErr: ErrSideIsInvalid,
+			Submit:      &Submit{Pair: testPair, AssetType: asset.Spot},
 		}, // valid pair but invalid order side
 		{
 			ExpectedErr: ErrTypeIsInvalid,
 			Submit: &Submit{Pair: testPair,
-				Side: Buy},
+				Side:      Buy,
+				AssetType: asset.Spot},
 		}, // valid pair and order side but invalid order type
 		{
 			ExpectedErr: ErrTypeIsInvalid,
 			Submit: &Submit{Pair: testPair,
-				Side: Sell},
+				Side:      Sell,
+				AssetType: asset.Spot},
 		}, // valid pair and order side but invalid order type
 		{
 			ExpectedErr: ErrTypeIsInvalid,
 			Submit: &Submit{Pair: testPair,
-				Side: Bid},
+				Side:      Bid,
+				AssetType: asset.Spot},
 		}, // valid pair and order side but invalid order type
 		{
 			ExpectedErr: ErrTypeIsInvalid,
 			Submit: &Submit{Pair: testPair,
-				Side: Ask},
+				Side:      Ask,
+				AssetType: asset.Spot},
 		}, // valid pair and order side but invalid order type
 		{
 			ExpectedErr: ErrAmountIsInvalid,
 			Submit: &Submit{Pair: testPair,
-				Side: Ask,
-				Type: Market},
+				Side:      Ask,
+				Type:      Market,
+				AssetType: asset.Spot},
 		}, // valid pair, order side, type but invalid amount
 		{
 			ExpectedErr: ErrPriceMustBeSetIfLimitOrder,
 			Submit: &Submit{Pair: testPair,
-				Side:   Ask,
-				Type:   Limit,
-				Amount: 1},
+				Side:      Ask,
+				Type:      Limit,
+				Amount:    1,
+				AssetType: asset.Spot},
 		}, // valid pair, order side, type, amount but invalid price
+		{
+			ExpectedErr: errValidationCheckFailed,
+			Submit: &Submit{Pair: testPair,
+				Side:      Ask,
+				Type:      Limit,
+				Amount:    1,
+				Price:     1000,
+				AssetType: asset.Spot},
+			ValidOpts: validate.Check(func() error { return errValidationCheckFailed }),
+		}, // custom validation error check
 		{
 			ExpectedErr: nil,
 			Submit: &Submit{Pair: testPair,
-				Side:   Ask,
-				Type:   Limit,
-				Amount: 1,
-				Price:  1000},
+				Side:      Ask,
+				Type:      Limit,
+				Amount:    1,
+				Price:     1000,
+				AssetType: asset.Spot},
+			ValidOpts: validate.Check(func() error { return nil }),
 		}, // valid order!
 	}
 
 	for x := range tester {
-		if err := tester[x].Submit.Validate(); err != tester[x].ExpectedErr {
-			t.Errorf("Unexpected result. Got: %s, want: %s", err, tester[x].ExpectedErr)
+		if err := tester[x].Submit.Validate(tester[x].ValidOpts); err != tester[x].ExpectedErr {
+			if err != nil && tester[x].ExpectedErr != nil {
+				if err.Error() == tester[x].ExpectedErr.Error() {
+					continue
+				}
+			}
+			t.Errorf("Unexpected result. Got: %v, want: %v", err, tester[x].ExpectedErr)
 		}
 	}
 }
@@ -947,5 +980,105 @@ func TestClassificationError_Error(t *testing.T) {
 	class.OrderID = ""
 	if class.Error() != "test - classification error: test error" {
 		t.Fatal("unexpected output")
+	}
+}
+
+func TestValidationOnOrderTypes(t *testing.T) {
+	var cancelMe *Cancel
+	if cancelMe.Validate() != ErrCancelOrderIsNil {
+		t.Fatal("unexpected error")
+	}
+
+	cancelMe = new(Cancel)
+	if cancelMe.Validate() != ErrPairIsEmpty {
+		t.Fatal("unexpected error")
+	}
+
+	cancelMe.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	if cancelMe.Validate() != ErrAssetNotSet {
+		t.Fatal("unexpected error")
+	}
+
+	cancelMe.AssetType = asset.Spot
+	if cancelMe.Validate() != nil {
+		t.Fatal("should not error")
+	}
+
+	if cancelMe.Validate(cancelMe.StandardCancel()) == nil {
+		t.Fatal("expected error")
+	}
+
+	if cancelMe.Validate(validate.Check(func() error {
+		return nil
+	})) != nil {
+		t.Fatal("should return nil")
+	}
+	cancelMe.ID = "1337"
+	if cancelMe.Validate(cancelMe.StandardCancel()) != nil {
+		t.Fatal("should return nil")
+	}
+
+	var getOrders *GetOrdersRequest
+	if getOrders.Validate() != ErrGetOrdersRequestIsNil {
+		t.Fatal("unexpected error")
+	}
+
+	getOrders = new(GetOrdersRequest)
+	if getOrders.Validate() != nil {
+		t.Fatal("should not error")
+	}
+
+	if getOrders.Validate(validate.Check(func() error {
+		return errors.New("this should error")
+	})) == nil {
+		t.Fatal("expected error")
+	}
+
+	if getOrders.Validate(validate.Check(func() error {
+		return nil
+	})) != nil {
+		t.Fatal("unexpected error")
+	}
+
+	var modifyOrder *Modify
+	if modifyOrder.Validate() != ErrModifyOrderIsNil {
+		t.Fatal("unexpected error")
+	}
+
+	modifyOrder = new(Modify)
+	if modifyOrder.Validate() != ErrPairIsEmpty {
+		t.Fatal("unexpected error")
+	}
+
+	p, err := currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	modifyOrder.Pair = p
+	if modifyOrder.Validate() != ErrAssetNotSet {
+		t.Fatal("unexpected error")
+	}
+
+	modifyOrder.AssetType = asset.Spot
+	if modifyOrder.Validate() != ErrOrderIDNotSet {
+		t.Fatal("unexpected error")
+	}
+
+	modifyOrder.ClientOrderID = "1337"
+	if modifyOrder.Validate() != nil {
+		t.Fatal("should not error")
+	}
+
+	if modifyOrder.Validate(validate.Check(func() error {
+		return errors.New("this should error")
+	})) == nil {
+		t.Fatal("expected error")
+	}
+
+	if modifyOrder.Validate(validate.Check(func() error {
+		return nil
+	})) != nil {
+		t.Fatal("unexpected error")
 	}
 }

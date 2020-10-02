@@ -331,6 +331,7 @@ message SubmitOrderRequest {
     double amount = 5;
     double price = 6;
     string client_id = 7;
+    string asset_type = 8;
 }
 
 message SubmitOrderResponse {

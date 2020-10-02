@@ -5,44 +5,54 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 // Validate takes interface and passes to asset type to check the request meets requirements to submit
-func Validate(request *Request) (err error) {
-	if request == nil {
+func (r *Request) Validate(opt ...validate.Checker) (err error) {
+	if r == nil {
 		return ErrRequestCannotBeNil
 	}
 
+	if r.Exchange == "" {
+		return ErrExchangeNameUnset
+	}
+
 	var allErrors []string
-	if request.Amount <= 0 {
+	if r.Amount <= 0 {
 		allErrors = append(allErrors, ErrStrAmountMustBeGreaterThanZero)
 	}
 
-	if (request.Currency == currency.Code{}) {
+	if (r.Currency == currency.Code{}) {
 		allErrors = append(allErrors, ErrStrNoCurrencySet)
 	}
 
-	switch request.Type {
+	switch r.Type {
 	case Fiat:
-		if request.Fiat == nil {
-			return ErrInvalidRequest
-		}
-		if (request.Currency != currency.Code{}) && !request.Currency.IsFiatCurrency() {
+		if (r.Currency != currency.Code{}) && !r.Currency.IsFiatCurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotFiat)
 		}
-		allErrors = append(allErrors, validateFiat(request)...)
+		allErrors = append(allErrors, validateFiat(r)...)
 	case Crypto:
-		if request.Crypto == nil {
-			return ErrInvalidRequest
-		}
-		if (request.Currency != currency.Code{}) && !request.Currency.IsCryptocurrency() {
+		if (r.Currency != currency.Code{}) && !r.Currency.IsCryptocurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
 		}
-		allErrors = append(allErrors, validateCrypto(request)...)
+		allErrors = append(allErrors, validateCrypto(r)...)
 	default:
 		allErrors = append(allErrors, "invalid request type")
 	}
+
+	for _, o := range opt {
+		if o == nil {
+			continue
+		}
+		err := o.Check()
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
+	}
+
 	if len(allErrors) > 0 {
 		return errors.New(strings.Join(allErrors, ", "))
 	}

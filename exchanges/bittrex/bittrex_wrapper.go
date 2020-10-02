@@ -420,9 +420,11 @@ func (b *Bittrex) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bittrex) CancelOrder(order *order.Cancel) error {
-	_, err := b.CancelExistingOrder(order.ID)
-
+func (b *Bittrex) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	_, err := b.CancelExistingOrder(o.ID)
 	return err
 }
 
@@ -465,7 +467,14 @@ func (b *Bittrex) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bittrex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	uuid, err := b.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Crypto.AddressTag, withdrawRequest.Crypto.Address, withdrawRequest.Amount)
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
+	uuid, err := b.Withdraw(withdrawRequest.Currency.String(),
+		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -497,6 +506,10 @@ func (b *Bittrex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	var currPair string
 	if len(req.Pairs) == 1 {
 		currPair = req.Pairs[0].String()
@@ -557,6 +570,10 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	var currPair string
 	if len(req.Pairs) == 1 {
 		currPair = req.Pairs[0].String()
