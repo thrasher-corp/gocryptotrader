@@ -142,4 +142,3 @@ func generateMap() ([]templateData, error) {
 	}
 	return resp, nil
 }
-

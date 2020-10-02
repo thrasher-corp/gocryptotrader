@@ -5,15 +5,6 @@ import (
 	"testing"
 )
 
-//
-// func TestReadTemplate(t *testing.T) {
-// 	v, err := ReadTemplate("templates/timeseries.tmpl")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	t.Log(v)
-// }
-
 func TestWriteTemplate(t *testing.T) {
 	v, err := writeTemplate(templateList["base.tmpl"])
 	if err != nil {
