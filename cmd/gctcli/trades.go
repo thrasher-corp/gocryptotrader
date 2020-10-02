@@ -341,7 +341,7 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 
 func getSavedTrades(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getsavedtrades")
+		return cli.ShowCommandHelp(c, "getsaved")
 	}
 
 	var exchangeName string
@@ -413,7 +413,7 @@ func getSavedTrades(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after before")
+		return errors.New("start cannot be after end")
 	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
@@ -582,7 +582,7 @@ func getHistoricTrades(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after before")
+		return errors.New("start cannot be after end")
 	}
 
 	streamStartTime := time.Now()
@@ -729,7 +729,7 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after before")
+		return errors.New("start cannot be after end")
 	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)

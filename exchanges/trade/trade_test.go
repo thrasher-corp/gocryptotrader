@@ -142,9 +142,10 @@ func TestTradeToSQLData(t *testing.T) {
 func TestConvertTradesToCandles(t *testing.T) {
 	t.Parallel()
 	cp, _ := currency.NewPairFromString("BTC-USD")
+	startDate := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
 	candles, err := ConvertTradesToCandles(kline.FifteenSecond, []Data{
 		{
-			Timestamp:    time.Now(),
+			Timestamp:    startDate,
 			Exchange:     "test!",
 			CurrencyPair: cp,
 			AssetType:    asset.Spot,
@@ -153,7 +154,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Side:         order.Buy,
 		},
 		{
-			Timestamp:    time.Now().Add(time.Second),
+			Timestamp:    startDate.Add(time.Second),
 			Exchange:     "test!",
 			CurrencyPair: cp,
 			AssetType:    asset.Spot,
@@ -162,7 +163,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 			Side:         order.Buy,
 		},
 		{
-			Timestamp:    time.Now().Add(time.Minute),
+			Timestamp:    startDate.Add(time.Minute),
 			Exchange:     "test!",
 			CurrencyPair: cp,
 			AssetType:    asset.Spot,

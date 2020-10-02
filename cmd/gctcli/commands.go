@@ -2661,7 +2661,7 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after before")
+		return errors.New("start cannot be after end")
 	}
 
 	conn, err := setupClient()
@@ -3272,7 +3272,7 @@ func getAuditEvent(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after before")
+		return errors.New("start cannot be after end")
 	}
 
 	conn, err := setupClient()
@@ -4035,7 +4035,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after before")
+		return errors.New("start cannot be after end")
 	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
@@ -4189,7 +4189,7 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after before")
+		return errors.New("start cannot be after end")
 	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)

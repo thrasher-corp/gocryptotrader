@@ -157,9 +157,9 @@ func TestCalculateTimePeriodsInRange(t *testing.T) {
 }
 
 func TestValidateCalculatePeriods(t *testing.T) {
-	var lol TimePeriodCalculator
-	lol.calculatePeriods()
-	if len(lol.TimePeriods) > 0 {
+	var tpc TimePeriodCalculator
+	tpc.calculatePeriods()
+	if len(tpc.TimePeriods) > 0 {
 		t.Error("validation has been removed")
 	}
 }
