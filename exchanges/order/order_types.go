@@ -64,6 +64,9 @@ type SubmitResponse struct {
 	IsOrderPlaced bool
 	FullyMatched  bool
 	OrderID       string
+	Rate          float64
+	Fee           float64
+	Cost          float64
 }
 
 // Modify contains all properties of an order
@@ -124,6 +127,7 @@ type Detail struct {
 	TargetAmount      float64
 	ExecutedAmount    float64
 	RemainingAmount   float64
+	Cost              float64
 	Fee               float64
 	Exchange          string
 	InternalOrderID   string
@@ -191,6 +195,7 @@ type GetOrdersRequest struct {
 	Side       Side
 	StartTicks time.Time
 	EndTicks   time.Time
+	OrderId    string
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
 	Pairs []currency.Pair

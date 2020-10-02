@@ -542,6 +542,11 @@ func (h *HitBTC) GetOrderInfo(orderID string) (order.Detail, error) {
 	return orderDetail, common.ErrNotYetImplemented
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *HitBTC) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (h *HitBTC) GetDepositAddress(currency currency.Code, _ string) (string, error) {
 	resp, err := h.GetDepositAddresses(currency.String())

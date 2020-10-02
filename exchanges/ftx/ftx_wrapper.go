@@ -680,6 +680,11 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	return resp, nil
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *FTX) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (f *FTX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	a, err := f.FetchDepositAddress(cryptocurrency.String())

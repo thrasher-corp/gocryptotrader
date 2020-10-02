@@ -407,6 +407,11 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
 	return
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (o *OKGroup) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (string, error) {
 	wallet, err := o.GetAccountDepositAddressForCurrency(p.Lower().String())

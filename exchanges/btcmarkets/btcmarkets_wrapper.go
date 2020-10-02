@@ -561,6 +561,11 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	return resp, nil
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *BTCMarkets) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	temp, err := b.FetchDepositAddress(strings.ToUpper(cryptocurrency.String()), -1, -1, -1)

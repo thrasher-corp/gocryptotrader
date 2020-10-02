@@ -509,6 +509,11 @@ func (p *Poloniex) GetOrderInfo(orderID string) (order.Detail, error) {
 	return orderDetail, common.ErrNotYetImplemented
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *Poloniex) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (p *Poloniex) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	a, err := p.GetDepositAddresses()

@@ -45,6 +45,7 @@ const (
 	queryOrder   = "/api/v3/order"
 	openOrders   = "/api/v3/openOrders"
 	allOrders    = "/api/v3/allOrders"
+	myTrades     = "/api/v3/myTrades"
 
 	// Withdraw API endpoints
 	withdrawEndpoint  = "/wapi/v3/withdraw.html"
@@ -429,6 +430,22 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 	if limit != "" {
 		params.Set("limit", limit)
 	}
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitOrdersAll, &resp); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+// GetClosedOrder Get specified closed order
+// orderId and pair are a mandatory params
+func (b *Binance) GetClosedOrder(symbol, orderID string) (QueryOrderData, error) {
+	path := b.API.Endpoints.URL + queryOrder
+	params := url.Values{}
+	params.Set("symbol", strings.ToUpper(symbol))
+	params.Set("orderId", orderID)
+
+	var resp QueryOrderData
 	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitOrdersAll, &resp); err != nil {
 		return resp, err
 	}

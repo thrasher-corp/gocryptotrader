@@ -513,13 +513,16 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		sideType = order.Sell.String()
 	}
 
+	var timeInForce RequestParamsTimeForceType
 	var requestParamsOrderType RequestParamsOrderType
 	switch s.Type {
 	case order.Market:
 		requestParamsOrderType = BinanceRequestParamsOrderMarket
 	case order.Limit:
+		timeInForce = BinanceRequestParamsTimeGTC
 		requestParamsOrderType = BinanceRequestParamsOrderLimit
 	default:
+		timeInForce = BinanceRequestParamsTimeGTC
 		submitOrderResponse.IsOrderPlaced = false
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
@@ -530,7 +533,7 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		Price:       s.Price,
 		Quantity:    s.Amount,
 		TradeType:   requestParamsOrderType,
-		TimeInForce: BinanceRequestParamsTimeGTC,
+		TimeInForce: timeInForce,
 	}
 
 	response, err := b.NewOrder(&orderRequest)
@@ -544,6 +547,20 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.FullyMatched = true
 	}
 	submitOrderResponse.IsOrderPlaced = true
+
+	// create fee, cost and rate to fill response
+	var fee, cost, priceTemp float64
+	if len(response.Fills) > 0 {
+		for _, tr := range response.Fills {
+			fee += tr.Commission
+			cost += tr.Qty * tr.Price
+			priceTemp += tr.Price
+		}
+
+		submitOrderResponse.Rate = priceTemp / float64(len(response.Fills)) // average rate
+		submitOrderResponse.Fee = fee
+		submitOrderResponse.Cost = cost
+	}
 
 	return submitOrderResponse, nil
 }
@@ -602,6 +619,53 @@ func (b *Binance) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 func (b *Binance) GetOrderInfo(orderID string) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
+}
+
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *Binance) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if getOrdersRequest.OrderId == "" {
+		return nil, errors.New("param order_id is required to fetch closed order")
+	}
+
+	if len(getOrdersRequest.Pairs) == 0 {
+		return nil, errors.New("param pair is required to fetch closed order")
+	}
+
+	var orders []order.Detail
+	fpair, err := b.FormatExchangeCurrency(getOrdersRequest.Pairs[0], asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := b.GetClosedOrder(fpair.String(), getOrdersRequest.OrderId)
+	if err != nil {
+		return nil, err
+	}
+
+	orderSide := order.Side(resp.Side)
+	orderDate := time.Unix(0, int64(resp.Time)*int64(time.Millisecond))
+	pair, err := currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	OrderType := order.Limit
+	if resp.Type == "MARKET" {
+		OrderType = order.Market
+	}
+
+	orders = append(orders, order.Detail{
+		Amount:   resp.ExecutedQty,
+		Date:     orderDate,
+		Exchange: b.Name,
+		ID:       strconv.FormatInt(resp.OrderID, 10),
+		Side:     orderSide,
+		Type:     OrderType,
+		Pair:     pair,
+		Cost:     resp.CummulativeQuoteQty,
+	})
+
+	return orders, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

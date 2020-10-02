@@ -548,6 +548,11 @@ func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
 	return orderDetail, fmt.Errorf("no order found with id %v", orderID)
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *Gateio) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (g *Gateio) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	addr, err := g.GetCryptoDepositAddress(cryptocurrency.String())

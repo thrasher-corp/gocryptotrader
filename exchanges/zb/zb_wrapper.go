@@ -546,6 +546,11 @@ func (z *ZB) GetOrderInfo(orderID string) (order.Detail, error) {
 	return orderDetail, common.ErrNotYetImplemented
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *ZB) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (z *ZB) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	address, err := z.GetCryptoAddress(cryptocurrency)
