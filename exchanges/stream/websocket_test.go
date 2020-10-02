@@ -54,13 +54,13 @@ type testResponse struct {
 var defaultSetup = &WebsocketSetup{
 	Enabled:                          true,
 	AuthenticatedWebsocketAPISupport: true,
-	WebsocketTimeout:                 time.Second * 5,
+	ConnectionTimeout:                time.Second * 5,
 	DefaultURL:                       "testDefaultURL",
 	ExchangeName:                     "exchangeName",
 	RunningURL:                       "wss://testRunningURL",
 	Connector:                        func() error { return nil },
 	Subscriber:                       func(_ []ChannelSubscription) error { return nil },
-	UnSubscriber:                     func(_ []ChannelSubscription) error { return nil },
+	Unsubscriber:                     func(_ []ChannelSubscription) error { return nil },
 	GenerateSubscriptions: func() ([]ChannelSubscription, error) {
 		return []ChannelSubscription{
 			{Channel: "TestSub"},

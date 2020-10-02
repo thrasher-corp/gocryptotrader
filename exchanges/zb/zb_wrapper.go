@@ -155,7 +155,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
 		DefaultURL:                       zbWebsocketAPI,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
@@ -164,16 +164,16 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       z.Subscribe,
 		Features:                         &z.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		RateLimit:                        zbWebsocketRateLimit,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
 	}
 
 	return z.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  z.Websocket.GetWebsocketURL(),
-		RateLimit:            zbWebsocketRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: z.Websocket.GetWebsocketURL(),
 	})
 }
 

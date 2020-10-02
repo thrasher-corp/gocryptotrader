@@ -1152,13 +1152,13 @@ func TestSetupDefaults(t *testing.T) {
 	b.Features.Supports.Websocket = true
 	b.SetupDefaults(&cfg)
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:          false,
-		WebsocketTimeout: time.Second * 30,
-		Features:         &protocol.Features{},
-		DefaultURL:       "ws://something.com",
-		RunningURL:       "ws://something.com",
-		ExchangeName:     "test",
-		Connector:        func() error { return nil },
+		Enabled:           false,
+		ConnectionTimeout: time.Second * 30,
+		Features:          &protocol.Features{},
+		DefaultURL:        "ws://something.com",
+		RunningURL:        "ws://something.com",
+		ExchangeName:      "test",
+		Connector:         func() error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1566,13 +1566,13 @@ func TestIsWebsocketEnabled(t *testing.T) {
 
 	b.Websocket = stream.New()
 	err := b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:          true,
-		WebsocketTimeout: time.Second * 30,
-		Features:         &protocol.Features{},
-		DefaultURL:       "ws://something.com",
-		RunningURL:       "ws://something.com",
-		ExchangeName:     "test",
-		Connector:        func() error { return nil },
+		Enabled:           true,
+		ConnectionTimeout: time.Second * 30,
+		Features:          &protocol.Features{},
+		DefaultURL:        "ws://something.com",
+		RunningURL:        "ws://something.com",
+		ExchangeName:      "test",
+		Connector:         func() error { return nil },
 	})
 	if err != nil {
 		t.Error(err)

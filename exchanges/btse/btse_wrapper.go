@@ -173,16 +173,18 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
 		DefaultURL:                       btseWebsocket,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
-		UnSubscriber:                     b.Unsubscribe,
+		Unsubscriber:                     b.Unsubscribe,
 		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
@@ -194,8 +196,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: exch.API.Endpoints.WebsocketURL,
 	})
 }
 

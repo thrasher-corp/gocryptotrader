@@ -51,12 +51,13 @@ func (p *Poloniex) WsConnect(conn stream.Connection) error {
 	}
 
 	go p.wsReadData()
-	subs, err := p.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
+	// subs, err := p.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
 
-	return p.Websocket.SubscribeToChannels(subs)
+	// return p.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (p *Poloniex) getCurrencyIDMap() error {
@@ -540,7 +541,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (p *Poloniex) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (p *Poloniex) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	subscriptions = append(subscriptions, stream.ChannelSubscription{
 		Channel: strconv.FormatInt(wsTickerDataID, 10),

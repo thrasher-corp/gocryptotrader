@@ -94,15 +94,15 @@ func (b *Bitmex) WsConnect(conn stream.Connection) error {
 	}
 
 	go b.wsReadData()
-	subs, err := b.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
+	// subs, err := b.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = b.Websocket.SubscribeToChannels(subs)
-	if err != nil {
-		return err
-	}
+	// // err = b.Websocket.SubscribeToChannels(subs)
+	// // if err != nil {
+	// // 	return err
+	// // }
 
 	err = b.websocketSendAuth()
 	if err != nil {
@@ -111,11 +111,11 @@ func (b *Bitmex) WsConnect(conn stream.Connection) error {
 			b.Name,
 			err)
 	} else {
-		authsubs, err := b.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
-		if err != nil {
-			return err
-		}
-		return b.Websocket.SubscribeToChannels(authsubs)
+		// authsubs, err := b.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
+		// if err != nil {
+		// 	return err
+		// }
+		// return b.Websocket.SubscribeToChannels(authsubs)
 	}
 	return nil
 }
@@ -546,7 +546,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (b *Bitmex) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	assets := b.GetAssetTypes()
 	var allPairs currency.Pairs
 	var associatedAssets []asset.Item
@@ -585,7 +585,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions(options stream.SubscriptionOptions
 }
 
 // GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateAuthenticatedSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (b *Bitmex) GenerateAuthenticatedSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	if !b.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}

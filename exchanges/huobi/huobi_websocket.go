@@ -81,11 +81,12 @@ func (h *HUOBI) WsConnect(conn stream.Connection) error {
 	}
 
 	go h.wsReadData()
-	subs, err := h.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return h.Websocket.SubscribeToChannels(subs)
+	// subs, err := h.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return h.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
@@ -467,7 +468,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (h *HUOBI) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (h *HUOBI) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{wsMarketKline,
 		wsMarketDepth,
 		wsMarketTrade,

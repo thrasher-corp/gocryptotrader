@@ -46,15 +46,16 @@ func (c *Coinbene) WsConnect(conn stream.Connection) error {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	subs, err := c.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return c.Websocket.SubscribeToChannels(subs)
+	// subs, err := c.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return c.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // GenerateDefaultSubscriptions generates stuff
-func (c *Coinbene) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (c *Coinbene) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{"orderBook.%s.100", "tradeList.%s", "ticker.%s", "kline.%s"}
 	var subscriptions []stream.ChannelSubscription
 	pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
@@ -75,7 +76,7 @@ func (c *Coinbene) GenerateDefaultSubscriptions(options stream.SubscriptionOptio
 }
 
 // GenerateAuthSubs generates auth subs
-func (c *Coinbene) GenerateAuthSubs(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (c *Coinbene) GenerateAuthSubs(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var sub stream.ChannelSubscription
 	var userChannels = []string{"user.account", "user.position", "user.order"}
@@ -125,12 +126,12 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 	if ok && strings.Contains(result[event].(string), "login") {
 		if result["success"].(bool) {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			var authsubs []stream.SubscriptionParamaters
-			authsubs, err = c.GenerateAuthSubs(stream.SubscriptionOptions{})
-			if err != nil {
-				return err
-			}
-			return c.Websocket.SubscribeToChannels(authsubs)
+			// var authsubs []stream.SubscriptionParamaters
+			// authsubs, err = c.GenerateAuthSubs(stream.SubscriptionOptions{})
+			// if err != nil {
+			// 	return err
+			// }
+			// return c.Websocket.SubscribeToChannels(authsubs)
 		}
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return fmt.Errorf("message: %s. code: %v", result["message"], result["code"])

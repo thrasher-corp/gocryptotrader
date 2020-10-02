@@ -35,42 +35,70 @@ type Job struct {
 
 // WsConnect initiates a websocket connection
 func (b *Binance) WsConnect(conn stream.Connection) error {
+	fmt.Println("WOWOWOWOWOWOWO")
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
 	var err error
-	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = b.GetWsAuthStreamKey()
-		if err != nil {
-			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
-				"%v unable to connect to authenticated Websocket. Error: %s",
-				b.Name,
-				err)
-		} else {
-			// cleans on failed connection
-			clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
-			authPayload := clean[0] + "?streams=" + listenKey
-			err = b.Websocket.SetWebsocketURL(authPayload, false, false)
+	if conn.IsAuthenticated() {
+		fmt.Println("Auth WEBSOCKET")
+		if b.Websocket.CanUseAuthenticatedEndpoints() {
+			listenKey, err = b.GetWsAuthStreamKey()
 			if err != nil {
-				return err
+				b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+				log.Errorf(log.ExchangeSys,
+					"%v unable to connect to authenticated Websocket. Error: %s",
+					b.Name,
+					err)
+			} else {
+				// cleans on failed connection
+				clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
+				authPayload := clean[0] + "?streams=" + listenKey
+				err = b.Websocket.SetWebsocketURL(authPayload, false, false)
+				if err != nil {
+					return err
+				}
 			}
+
+			err = conn.Dial(&dialer, http.Header{})
+			if err != nil {
+				return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
+					b.Name,
+					err)
+			}
+
+			if b.Websocket.CanUseAuthenticatedEndpoints() {
+				b.Websocket.Wg.Add(1)
+				go b.KeepAuthKeyAlive()
+			}
+
+			conn.SetupPingHandler(stream.PingHandler{
+				UseGorillaHandler: true,
+				MessageType:       websocket.PongMessage,
+				Delay:             pingDelay,
+			})
+
+			b.Websocket.Wg.Add(1)
+			go b.wsReadData(conn)
+
+			return nil
 		}
 	}
 
+	fmt.Println("UNAUTH WEBSOCKET")
+
 	err = conn.Dial(&dialer, http.Header{})
+	fmt.Println("WOOOOOOOOOOOOOOOOOW")
 	if err != nil {
+		fmt.Println("ERRROR")
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			b.Name,
 			err)
 	}
 
-	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		b.Websocket.Wg.Add(1)
-		go b.KeepAuthKeyAlive()
-	}
+	fmt.Println("UNAUTH CONNECTED")
 
 	conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
@@ -78,14 +106,8 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 		Delay:             pingDelay,
 	})
 
-	b.buffer = make(map[string]chan *WebsocketDepthStream)
-	b.fetchingbook = make(map[string]bool)
-	b.initialSync = make(map[string]bool)
-	b.jobs = make(chan Job, 100)
-	for i := 0; i < 10; i++ {
-		// 10 workers for synchronising book
-		b.SynchroniseWebsocketOrderbook()
-	}
+	b.preConnectionSetup()
+
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData(conn)
 
@@ -95,6 +117,30 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 	// }
 	// return b.Websocket.SubscribeToChannels(subs)
 	return nil
+}
+
+func (b *Binance) spawnConnection(setup stream.ConnectionSetup) (stream.Connection, error) {
+	return &stream.WebsocketConnection{
+		Verbose:       b.Verbose,
+		ExchangeName:  b.Name,
+		URL:           setup.URL,
+		ProxyURL:      b.Websocket.GetProxyAddress(),
+		Authenticated: setup.DedicatedAuthenticatedConn,
+		Match:         b.Websocket.Match,
+		Wg:            b.Websocket.Wg,
+		Traffic:       b.Websocket.TrafficAlert,
+	}, nil
+}
+
+func (b *Binance) preConnectionSetup() {
+	b.buffer = make(map[string]chan *WebsocketDepthStream)
+	b.fetchingbook = make(map[string]bool)
+	b.initialSync = make(map[string]bool)
+	b.jobs = make(chan Job, 100)
+	for i := 0; i < 10; i++ {
+		// 10 workers for synchronising book
+		b.SynchroniseWebsocketOrderbook()
+	}
 }
 
 // KeepAuthKeyAlive will continuously send messages to
@@ -316,20 +362,27 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 						return err
 					}
 
-					b.Websocket.DataHandler <- &ticker.Price{
-						ExchangeName: b.Name,
-						Open:         t.OpenPrice,
-						Close:        t.ClosePrice,
-						Volume:       t.TotalTradedVolume,
-						QuoteVolume:  t.TotalTradedQuoteVolume,
-						High:         t.HighPrice,
-						Low:          t.LowPrice,
-						Bid:          t.BestBidPrice,
-						Ask:          t.BestAskPrice,
-						Last:         t.LastPrice,
-						LastUpdated:  time.Unix(0, t.EventTime*int64(time.Millisecond)),
-						AssetType:    asset.Spot,
-						Pair:         pair,
+					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Ticker)
+					if err != nil {
+						return err
+					}
+
+					for i := range assets {
+						b.Websocket.DataHandler <- &ticker.Price{
+							ExchangeName: b.Name,
+							Open:         t.OpenPrice,
+							Close:        t.ClosePrice,
+							Volume:       t.TotalTradedVolume,
+							QuoteVolume:  t.TotalTradedQuoteVolume,
+							High:         t.HighPrice,
+							Low:          t.LowPrice,
+							Bid:          t.BestBidPrice,
+							Ask:          t.BestAskPrice,
+							Last:         t.LastPrice,
+							LastUpdated:  time.Unix(0, t.EventTime*int64(time.Millisecond)),
+							AssetType:    assets[i],
+							Pair:         pair,
+						}
 					}
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
@@ -346,19 +399,26 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 						return err
 					}
 
-					b.Websocket.DataHandler <- stream.KlineData{
-						Timestamp:  time.Unix(0, kline.EventTime*int64(time.Millisecond)),
-						Pair:       pair,
-						AssetType:  asset.Spot,
-						Exchange:   b.Name,
-						StartTime:  time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond)),
-						CloseTime:  time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond)),
-						Interval:   kline.Kline.Interval,
-						OpenPrice:  kline.Kline.OpenPrice,
-						ClosePrice: kline.Kline.ClosePrice,
-						HighPrice:  kline.Kline.HighPrice,
-						LowPrice:   kline.Kline.LowPrice,
-						Volume:     kline.Kline.Volume,
+					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Kline)
+					if err != nil {
+						return err
+					}
+
+					for i := range assets {
+						b.Websocket.DataHandler <- stream.KlineData{
+							Timestamp:  time.Unix(0, kline.EventTime*int64(time.Millisecond)),
+							Pair:       pair,
+							AssetType:  assets[i],
+							Exchange:   b.Name,
+							StartTime:  time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond)),
+							CloseTime:  time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond)),
+							Interval:   kline.Kline.Interval,
+							OpenPrice:  kline.Kline.OpenPrice,
+							ClosePrice: kline.Kline.ClosePrice,
+							HighPrice:  kline.Kline.HighPrice,
+							LowPrice:   kline.Kline.LowPrice,
+							Volume:     kline.Kline.Volume,
+						}
 					}
 				case "depth":
 					var depth WebsocketDepthStream
@@ -369,13 +429,18 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 							err)
 					}
 
-					err = b.UpdateLocalBuffer(asset.Spot, &depth) // Get asset
-					// type via connection in future i.e. usdt futures, coin
-					// futures have their own stream endpoints.
+					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Orderbook)
 					if err != nil {
-						return fmt.Errorf("%v - UpdateLocalCache error: %s",
-							b.Name,
-							err)
+						return err
+					}
+
+					for i := range assets {
+						err = b.UpdateLocalBuffer(assets[i], &depth)
+						if err != nil {
+							return fmt.Errorf("%v - UpdateLocalCache error: %s",
+								b.Name,
+								err)
+						}
 					}
 				default:
 					b.Websocket.DataHandler <- stream.UnhandledMessageWarning{
@@ -580,12 +645,11 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 	}
 
 	return b.Websocket.Orderbook.Update(&buffer.Update{
-		Bids:       updateBid,
-		Asks:       updateAsk,
-		Pair:       cp,
-		UpdateID:   ws.LastUpdateID,
-		Asset:      a,
-		OtherAsset: asset.Margin,
+		Bids:     updateBid,
+		Asks:     updateAsk,
+		Pair:     cp,
+		UpdateID: ws.LastUpdateID,
+		Asset:    a,
 	})
 }
 
@@ -625,11 +689,43 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 	}()
 }
 
+// Channel adds an application of a subscription type
+type Channel struct {
+	Definition string
+	Type       stream.Subscription
+}
+
 // GenerateSubscriptions generates the default subscription set
-func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
-	var connections []stream.SubscriptionParamaters
-	//
-	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
+func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
+	var channels []Channel
+	if options.Features.TickerFetching {
+		channels = append(channels, Channel{
+			Definition: "@ticker",
+			Type:       stream.Ticker,
+		})
+	}
+
+	if options.Features.TradeFetching {
+		channels = append(channels, Channel{
+			Definition: "@trade",
+			Type:       stream.Trade,
+		})
+	}
+
+	if options.Features.KlineFetching {
+		channels = append(channels, Channel{
+			Definition: "@kline_1m",
+			Type:       stream.Kline,
+		})
+	}
+
+	if options.Features.OrderbookFetching {
+		channels = append(channels, Channel{
+			Definition: "@depth@100ms",
+			Type:       stream.Orderbook,
+		})
+	}
+
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes()
 	for x := range assets {
@@ -639,56 +735,29 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 		}
 
 		for y := range pairs {
-			// channels:
 			for z := range channels {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				channel := lp.String() + channels[z]
-				// for i := range subscriptions {
-				// 	// if subscriptions[i].Channel == channel {
-				// 	// 	continue channels
-				// 	// }
-				// }
+				channel := lp.String() + channels[z].Definition
 				subscriptions = append(subscriptions,
 					stream.ChannelSubscription{
-						Channel:  channel,
-						Currency: pairs[y],
-						Asset:    assets[x],
+						Channel:          channel,
+						Currency:         pairs[y],
+						Asset:            assets[x],
+						SubscriptionType: channels[z].Type,
 					})
 			}
 		}
 	}
-	// if len(subscriptions) > 1024 {
-	// 	return nil,
-	// 		fmt.Errorf("subscriptions: %d exceed maximum single connection streams of 1024",
-	// 			len(subscriptions))
-	// }
-	connections = append(connections, stream.SubscriptionParamaters{
-		Items: subscriptions,
-		Conn: &stream.WebsocketConnection{
-			ExchangeName: b.Name,
-			URL:          binanceDefaultWebsocketURL,
-			// ProxyURL:          w.GetProxyAddress(),
-			// Verbose:           w.verbose,
-			// ResponseMaxLimit:  c.ResponseMaxLimit,
-			Traffic: b.Websocket.TrafficAlert,
-			// readMessageErrors: w.ReadMessageErrors,
-			ShutdownC: b.Websocket.ShutdownC,
-			Wg:        b.Websocket.Wg,
-			Match:     b.Websocket.Match,
-			// RateLimit:         c.RateLimit,
-		},
-		Manager: options.Manager,
-	})
-	return connections, nil
+	return subscriptions, nil
 }
 
 // Subscribe subscribes to a set of channels
 func (b *Binance) Subscribe(sub stream.SubscriptionParamaters) error {
+	fmt.Println(sub)
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
-
 	for i := range sub.Items {
 		payload.Params = append(payload.Params, sub.Items[i].Channel)
 	}

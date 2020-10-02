@@ -39,25 +39,26 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
 		DefaultURL:                       o.API.Endpoints.WebsocketURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        o.WsConnect,
 		Subscriber:                       o.Subscribe,
-		UnSubscriber:                     o.Unsubscribe,
+		Unsubscriber:                     o.Unsubscribe,
 		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
 		Features:                         &o.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		RateLimit:                        okGroupWsRateLimit,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
 	}
 
 	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            okGroupWsRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: o.API.Endpoints.WebsocketURL,
 	})
 }
 

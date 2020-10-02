@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -314,12 +313,18 @@ func (w *WebsocketConnection) GetURL() string {
 	return w.URL
 }
 
-// IsAssetAssociatedWithConnection returns if this connection handles this asset
-func (w *WebsocketConnection) IsAssetAssociatedWithConnection(a asset.Item) bool {
-	return w.Assets.Contains(a)
+// IsAuthenticated returns if the connection is dedicated to an authenticated
+// streaming feed
+func (w *WebsocketConnection) IsAuthenticated() bool {
+	return w.Authenticated
 }
 
-// SetControllingAssets sets assets associated with this connection
-func (w *WebsocketConnection) SetControllingAssets(assets asset.Items) {
-	w.Assets = assets
-}
+// // IsAssetAssociatedWithConnection returns if this connection handles this asset
+// func (w *WebsocketConnection) IsAssetAssociatedWithConnection(a asset.Item) bool {
+// 	return w.Assets.Contains(a)
+// }
+
+// // SetControllingAssets sets assets associated with this connection
+// func (w *WebsocketConnection) SetControllingAssets(assets asset.Items) {
+// 	w.Assets = assets
+// }

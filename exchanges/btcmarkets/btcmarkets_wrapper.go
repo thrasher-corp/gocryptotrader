@@ -145,7 +145,7 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
 		DefaultURL:                       btcMarketsWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
@@ -156,14 +156,15 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
 	}
 
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: exch.API.Endpoints.WebsocketURL,
 	})
 }
 

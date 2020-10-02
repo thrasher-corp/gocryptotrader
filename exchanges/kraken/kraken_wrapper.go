@@ -174,39 +174,37 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
 		DefaultURL:                       krakenWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        k.WsConnect,
 		Subscriber:                       k.Subscribe,
-		UnSubscriber:                     k.Unsubscribe,
+		Unsubscriber:                     k.Unsubscribe,
 		GenerateSubscriptions:            k.GenerateDefaultSubscriptions,
 		Features:                         &k.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
+		RateLimit:                        krakenWsRateLimit,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
 	}
 
 	err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            krakenWsRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  krakenWSURL,
+
+		URL: krakenWSURL,
 	})
 	if err != nil {
 		return err
 	}
 
 	return k.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            krakenWsRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  krakenAuthWSURL,
-		Authenticated:        true,
+		URL:                        krakenAuthWSURL,
+		DedicatedAuthenticatedConn: true,
 	})
 }
 

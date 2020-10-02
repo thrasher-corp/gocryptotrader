@@ -136,13 +136,13 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 			Enabled:                          exch.Features.Enabled.Websocket,
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			ConnectionTimeout:                 exch.WebsocketTrafficTimeout,
 			DefaultURL:                       {{.Name}}WSURL,
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        {{.Variable}}.WsConnect,
 			Subscriber:                       {{.Variable}}.Subscribe,
-			UnSubscriber:                     {{.Variable}}.Unsubscribe,
+			Unsubscriber:                     {{.Variable}}.Unsubscribe,
 			Features:                         &{{.Variable}}.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {

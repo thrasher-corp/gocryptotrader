@@ -203,11 +203,12 @@ func (o *OKGroup) WsConnect(conn stream.Connection) error {
 		}
 	}
 
-	subs, err := o.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return o.Websocket.SubscribeToChannels(subs)
+	// subs, err := o.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return o.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
@@ -776,7 +777,7 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
 // handled by ManageSubscriptions()
-func (o *OKGroup) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (o *OKGroup) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	assets := o.GetAssetTypes()
 	for x := range assets {

@@ -1084,13 +1084,13 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       ftxWSURL, // Default ws endpoint so we can roll back via CLI if needed.
 		ExchangeName:                     exch.Name, // Sets websocket name to the exchange name.
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        f.WsConnect, // Connector function outlined above.
 		Subscriber:                       f.Subscribe, // Subscriber function outlined above.
-		UnSubscriber:                     f.Unsubscribe, // Unsubscriber function outlined above.
+		Unsubscriber:                     f.Unsubscribe, // Unsubscriber function outlined above.
 		GenerateSubscriptions:            f.GenerateDefaultSubscriptions, // GenerateDefaultSubscriptions function outlined above.
 		Features:                         &f.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
 

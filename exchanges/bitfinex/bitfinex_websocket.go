@@ -60,12 +60,13 @@ func (b *Bitfinex) WsConnect(conn stream.Connection) error {
 		}
 	}
 
-	subs, err := b.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
+	// subs, err := b.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
 	go b.WsDataHandler()
-	return b.Websocket.SubscribeToChannels(subs)
+	// return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -915,7 +916,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitfinex) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (b *Bitfinex) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{
 		wsBook,
 		wsTrades,

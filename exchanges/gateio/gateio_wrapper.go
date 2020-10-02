@@ -153,7 +153,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
 		DefaultURL:                       gateioWebsocketEndpoint,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
@@ -163,15 +163,16 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		Features:                         &g.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
+		RateLimit:                        gateioWebsocketRateLimit,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
 	}
 
 	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: exch.API.Endpoints.WebsocketURL,
 	})
 }
 

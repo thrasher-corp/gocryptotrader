@@ -59,18 +59,6 @@ func (w *Orderbook) Update(u *Update) error {
 		w.buffer[u.Pair][u.Asset] = nil
 	}
 
-	if u.OtherAsset != "" { // Used when we can utilise the same book but differentiate asset type
-		w.dataHandler <- &orderbook.Base{
-			Pair:         obLookup.Pair,
-			Bids:         append(obLookup.Bids[:0:0], obLookup.Bids...),
-			Asks:         append(obLookup.Asks[:0:0], obLookup.Asks...),
-			LastUpdateID: obLookup.LastUpdateID,
-			LastUpdated:  obLookup.LastUpdated,
-			ExchangeName: obLookup.ExchangeName,
-			AssetType:    u.OtherAsset,
-		}
-	}
-
 	// Process in data handler
 	w.dataHandler <- obLookup
 	return nil

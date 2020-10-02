@@ -155,26 +155,27 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
 		DefaultURL:                       coinbaseproWebsocketURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        c.WsConnect,
 		Subscriber:                       c.Subscribe,
-		UnSubscriber:                     c.Unsubscribe,
+		Unsubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
 		Features:                         &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
 	}
 
 	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: exch.API.Endpoints.WebsocketURL,
 	})
 }
 

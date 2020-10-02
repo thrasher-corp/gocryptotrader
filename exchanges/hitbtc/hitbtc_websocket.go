@@ -48,11 +48,12 @@ func (h *HitBTC) WsConnect(conn stream.Connection) error {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
 	}
 
-	subs, err := h.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return h.Websocket.SubscribeToChannels(subs)
+	// subs, err := h.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return h.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -432,7 +433,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (h *HitBTC) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (h *HitBTC) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{"subscribeTicker",
 		"subscribeOrderbook",
 		"subscribeTrades",

@@ -38,12 +38,13 @@ func (b *Bitstamp) WsConnect(conn stream.Connection) error {
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
-	subs, err := b.generateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
+	// subs, err := b.generateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
 	go b.wsReadData()
-	return b.Websocket.SubscribeToChannels(subs)
+	// return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -141,7 +142,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) generateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (b *Bitstamp) generateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{"live_trades_", "order_book_"}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {

@@ -98,15 +98,15 @@ func (k *Kraken) WsConnect(conn stream.Connection) error {
 					err)
 			} else {
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
-				var authsubs []stream.SubscriptionParamaters
-				authsubs, err = k.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
-				if err != nil {
-					return err
-				}
-				err = k.Websocket.SubscribeToChannels(authsubs)
-				if err != nil {
-					return err
-				}
+				// var authsubs []stream.SubscriptionParamaters
+				// authsubs, err = k.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
+				// if err != nil {
+				// 	return err
+				// }
+				// err = k.Websocket.SubscribeToChannels(authsubs)
+				// if err != nil {
+				// 	return err
+				// }
 			}
 		}
 	}
@@ -118,11 +118,12 @@ func (k *Kraken) WsConnect(conn stream.Connection) error {
 			k.Name,
 			err)
 	}
-	gensubs, err := k.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return k.Websocket.SubscribeToChannels(gensubs)
+	// gensubs, err := k.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return k.Websocket.SubscribeToChannels(gensubs)
+	return nil
 }
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place
@@ -817,7 +818,7 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (k *Kraken) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (k *Kraken) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	enabledCurrencies, err := k.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -837,7 +838,7 @@ func (k *Kraken) GenerateDefaultSubscriptions(options stream.SubscriptionOptions
 }
 
 // GenerateAuthenticatedSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (k *Kraken) GenerateAuthenticatedSubscriptions(option stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (k *Kraken) GenerateAuthenticatedSubscriptions(option stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	for i := range authenticatedChannels {
 		params := make(map[string]interface{})

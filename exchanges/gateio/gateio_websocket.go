@@ -45,26 +45,27 @@ func (g *Gateio) WsConnect(conn stream.Connection) error {
 			g.Websocket.DataHandler <- err
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		} else {
-			var authsubs []stream.SubscriptionParamaters
-			authsubs, err = g.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
-			if err != nil {
-				g.Websocket.DataHandler <- err
-				g.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			} else {
-				err = g.Websocket.SubscribeToChannels(authsubs)
-				if err != nil {
-					g.Websocket.DataHandler <- err
-					g.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				}
-			}
+			// var authsubs []stream.SubscriptionParamaters
+			// authsubs, err = g.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
+			// if err != nil {
+			// 	g.Websocket.DataHandler <- err
+			// 	g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			// } else {
+			// 	err = g.Websocket.SubscribeToChannels(authsubs)
+			// 	if err != nil {
+			// 		g.Websocket.DataHandler <- err
+			// 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			// 	}
+			// }
 		}
 	}
 
-	subs, err := g.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return g.Websocket.SubscribeToChannels(subs)
+	// subs, err := g.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return g.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (g *Gateio) wsServerSignIn() error {
@@ -440,7 +441,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 }
 
 // GenerateAuthenticatedSubscriptions returns authenticated subscriptions
-func (g *Gateio) GenerateAuthenticatedSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (g *Gateio) GenerateAuthenticatedSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	if !g.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
@@ -463,7 +464,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions(options stream.SubscriptionO
 }
 
 // GenerateDefaultSubscriptions returns default subscriptions
-func (g *Gateio) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (g *Gateio) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{"ticker.subscribe",
 		"trades.subscribe",
 		"depth.subscribe",

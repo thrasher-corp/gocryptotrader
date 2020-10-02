@@ -48,11 +48,12 @@ func (b *BTSE) WsConnect(conn stream.Connection) error {
 		}
 	}
 
-	subs, err := b.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
+	// subs, err := b.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // WsAuthenticate Send an authentication message to receive auth data
@@ -285,7 +286,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *BTSE) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (b *BTSE) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{"orderBookApi:%s_0", "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {

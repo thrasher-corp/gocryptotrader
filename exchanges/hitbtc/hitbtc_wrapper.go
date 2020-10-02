@@ -154,28 +154,29 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
 		DefaultURL:                       hitbtcWebsocketAddress,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        h.WsConnect,
 		Subscriber:                       h.Subscribe,
-		UnSubscriber:                     h.Unsubscribe,
+		Unsubscriber:                     h.Unsubscribe,
 		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
 		Features:                         &h.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
 		SortBufferByUpdateIDs:            true,
+		RateLimit:                        rateLimit,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
 	}
 
 	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: exch.API.Endpoints.WebsocketURL,
 	})
 }
 

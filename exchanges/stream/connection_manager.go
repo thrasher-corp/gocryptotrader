@@ -2,29 +2,47 @@ package stream
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
 
+// Subscription defines a subscription type
+type Subscription int
+
+// Consts here define difference subscription types
+const (
+	Orderbook Subscription = iota + 1
+	Kline
+	Trade
+	Ticker
+)
+
 // ConnectionManager manages connections
 type ConnectionManager struct {
 	sync.RWMutex
-	conn         map[Connection]*[]ChannelSubscription
-	features     *protocol.Features
-	connector    func(conn Connection) error
-	generator    func(options SubscriptionOptions) ([]SubscriptionParamaters, error)
-	subscriber   func(sub SubscriptionParamaters) error
-	unsubscriber func(unsub SubscriptionParamaters) error
+	conn               map[Connection]*[]ChannelSubscription
+	features           *protocol.Features
+	connector          func(conn Connection) error
+	generator          func(options SubscriptionOptions) ([]ChannelSubscription, error)
+	subscriber         func(sub SubscriptionParamaters) error
+	unsubscriber       func(unsub SubscriptionParamaters) error
+	generateConnection func(ConnectionSetup) (Connection, error)
+
+	generalConfigurations      []ConnectionSetup
+	dedicatedAuthConfiguration ConnectionSetup
 }
 
 // ConnectionManagerConfig defines the needed variables for stream connections
 type ConnectionManagerConfig struct {
 	ExchangeConnector             func(conn Connection) error
-	ExchangeGenerateSubscriptions func(options SubscriptionOptions) ([]SubscriptionParamaters, error)
+	ExchangeGenerateSubscriptions func(options SubscriptionOptions) ([]ChannelSubscription, error)
 	ExchangeSubscriber            func(sub SubscriptionParamaters) error
 	ExchangeUnsubscriber          func(unsub SubscriptionParamaters) error
+	ExchangeGenerateConnection    func(ConnectionSetup) (Connection, error)
+	Features                      *protocol.Features
 }
 
 // SubscriptionParamaters defines payload for subscribing and unsibscribing
@@ -36,9 +54,9 @@ type SubscriptionParamaters struct {
 
 // SubscriptionOptions defines subscriber options and updates
 type SubscriptionOptions struct {
-	Connections []Connection
-	Features    *protocol.Features
-	Manager     *ConnectionManager
+	// Connections []Connection
+	Features *protocol.Features
+	// Manager     *ConnectionManager
 }
 
 // NewConnectionManager returns a new connection manager
@@ -49,20 +67,78 @@ func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, err
 	if cfg.ExchangeConnector == nil {
 		return nil, errors.New("exchange connector function cannot be nil")
 	}
+	if cfg.ExchangeGenerateConnection == nil {
+		return nil, errors.New("exchange generator function cannot be nil")
+	}
+	if cfg.ExchangeGenerateConnection == nil {
+		return nil, errors.New("exchange generate connection function cannot be nil")
+	}
+	if cfg.Features == nil {
+		return nil, errors.New("exchange features cannot be nil")
+	}
+
 	return &ConnectionManager{
-		conn:         make(map[Connection]*[]ChannelSubscription),
-		connector:    cfg.ExchangeConnector,
-		generator:    cfg.ExchangeGenerateSubscriptions,
-		subscriber:   cfg.ExchangeSubscriber,
-		unsubscriber: cfg.ExchangeUnsubscriber,
+		conn:               make(map[Connection]*[]ChannelSubscription),
+		connector:          cfg.ExchangeConnector,
+		generator:          cfg.ExchangeGenerateSubscriptions,
+		subscriber:         cfg.ExchangeSubscriber,
+		unsubscriber:       cfg.ExchangeUnsubscriber,
+		generateConnection: cfg.ExchangeGenerateConnection,
+		features:           cfg.Features,
 	}, nil
 }
 
+// SubscriptionConnections defines a type that has a connection and relative
+// subscriptions ready to go
+type SubscriptionConnections struct {
+	Subs []ChannelSubscription
+	conn Connection
+}
+
+// GenerateConnections returns generated connections from the service
+func (c *ConnectionManager) GenerateConnections() ([]Connection, error) {
+	var conns []Connection
+	for i := range c.generalConfigurations {
+		conn, err := c.generateConnection(c.generalConfigurations[i])
+		if err != nil {
+			return nil, err
+		}
+		conns = append(conns, conn)
+	}
+
+	if c.dedicatedAuthConfiguration.URL != "" {
+		conn, err := c.generateConnection(c.dedicatedAuthConfiguration)
+		if err != nil {
+			return nil, err
+		}
+		conns = append(conns, conn)
+	}
+
+	return conns, nil
+}
+
+// LoadConfiguration loads a connection configuration defining limitting
+// paramaters for scalable streaming connections
+func (c *ConnectionManager) LoadConfiguration(cfg ConnectionSetup) error {
+	if cfg.DedicatedAuthenticatedConn {
+		c.dedicatedAuthConfiguration = cfg
+		return nil
+	}
+	c.generalConfigurations = append(c.generalConfigurations, cfg)
+	return nil
+}
+
 // GenerateSubscriptions generates new connection profiles
-func (c *ConnectionManager) GenerateSubscriptions() ([]SubscriptionParamaters, error) {
+func (c *ConnectionManager) GenerateSubscriptions() ([]ChannelSubscription, error) {
 	c.Lock()
 	defer c.Unlock()
-	return c.generator(SubscriptionOptions{Features: c.features, Manager: c})
+	return c.generator(SubscriptionOptions{Features: c.features})
+}
+
+// CreateConnectionsBySubscriptions create new connections by subscription
+// params
+func (c *ConnectionManager) CreateConnectionsBySubscriptions() error {
+	return nil
 }
 
 // LoadNewConnection loads a newly established connection
@@ -78,19 +154,22 @@ func (c *ConnectionManager) LoadNewConnection(newConn Connection) error {
 }
 
 // Connect connects all loaded connections
-func (c *ConnectionManager) Connect(conn Connection) error {
+func (c *ConnectionManager) Connect() error {
+	fmt.Println("CONNECT")
 	c.Lock()
 	defer c.Unlock()
 
-	err := c.connector(conn)
-	if err != nil {
-		return nil
+	for conn := range c.conn {
+		err := c.connector(conn)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // Subscribe subscribes and sets subscription by stream connection
-func (c *ConnectionManager) Subscribe(subs []SubscriptionParamaters) error {
+func (c *ConnectionManager) Subscribe(subs []ChannelSubscription) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -102,8 +181,15 @@ func (c *ConnectionManager) Subscribe(subs []SubscriptionParamaters) error {
 		return errors.New("no subscription data cannot subscribe")
 	}
 
-	for i := range subs {
-		err := c.subscriber(subs[i])
+	for conn := range c.conn {
+		if conn.IsAuthenticated() {
+			continue
+		}
+
+		err := c.subscriber(SubscriptionParamaters{
+			Items:   subs,
+			Conn:    conn,
+			Manager: c})
 		if err != nil {
 			return err
 		}
@@ -138,14 +224,37 @@ func (c *ConnectionManager) Unsubscribe(unsubs []SubscriptionParamaters) error {
 func (c *ConnectionManager) GetAllSubscriptions() ([]ChannelSubscription, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return nil, errors.New("life is complicated")
+	var subscriptions []ChannelSubscription
+	for _, connSubs := range c.conn {
+		subscriptions = append(subscriptions, *connSubs...)
+	}
+	return subscriptions, nil
 }
 
-// GetAssetByConnectionSubscription returns connection channel asset
-func (c *ConnectionManager) GetAssetByConnectionSubscription(conn Connection, channel string) (asset.Items, error) {
+// GetAssetsBySubscriptionType returns assets associated with the same channel
+// subscription type. This is used for when margin and spot which collectively
+// are the same thing but have different functionality levels and that needs to
+// be expressed at a higher level
+func (c *ConnectionManager) GetAssetsBySubscriptionType(conn Connection, subType Subscription) (asset.Items, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return nil, errors.New("life is uber complicated")
+	val, ok := c.conn[conn]
+	if !ok {
+		return nil, errors.New("cannot find connection")
+	}
+
+	var assets asset.Items
+	for i := range *val {
+		if ([]ChannelSubscription)(*val)[i].SubscriptionType == subType {
+			assets = append(assets, ([]ChannelSubscription)(*val)[i].Asset)
+		}
+	}
+
+	if len(assets) == 0 {
+		return nil, errors.New("no asset associations found")
+	}
+
+	return assets, nil
 }
 
 // AddSuccessfulSubscriptions adds subs mate

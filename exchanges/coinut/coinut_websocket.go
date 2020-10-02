@@ -59,15 +59,15 @@ func (c *COINUT) WsConnect(conn stream.Connection) error {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Error(log.WebsocketMgr, err)
 	}
-	subs, err := c.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
+	// subs, err := c.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = c.Websocket.SubscribeToChannels(subs)
-	if err != nil {
-		return err
-	}
+	// err = c.Websocket.SubscribeToChannels(subs)
+	// if err != nil {
+	// 	return err
+	// }
 
 	// define bi-directional communication
 	channels = make(map[string]chan []byte)
@@ -553,7 +553,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *COINUT) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (c *COINUT) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{"inst_tick", "inst_order_book"}
 	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)

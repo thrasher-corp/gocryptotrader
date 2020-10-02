@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 )
@@ -43,7 +42,7 @@ type Websocket struct {
 	exchangeName                 string
 	m                            sync.Mutex
 	connectionMutex              sync.RWMutex
-	connector                    func(conn Connection) error
+	// connector                    func(conn Connection) error
 
 	Connections *ConnectionManager
 
@@ -52,15 +51,15 @@ type Websocket struct {
 	Subscribe         chan []ChannelSubscription
 	Unsubscribe       chan []ChannelSubscription
 
-	// Subscriber function for package defined websocket subscriber
-	// functionality
-	Subscriber func(SubscriptionParamaters) error
-	// Unsubscriber function for packaged defined websocket unsubscriber
-	// functionality
-	Unsubscriber func(SubscriptionParamaters) error
-	// GenerateSubs function for package defined websocket generate
-	// subscriptions functionality
-	GenerateSubs func(SubscriptionOptions) ([]SubscriptionParamaters, error)
+	// // Subscriber function for package defined websocket subscriber
+	// // functionality
+	// Subscriber func(SubscriptionParamaters) error
+	// // Unsubscriber function for packaged defined websocket unsubscriber
+	// // functionality
+	// Unsubscriber func(SubscriptionParamaters) error
+	// // GenerateSubs function for package defined websocket generate
+	// // subscriptions functionality
+	// GenerateSubs func(SubscriptionOptions) ([]SubscriptionParamaters, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -92,22 +91,30 @@ type WebsocketSetup struct {
 	Enabled                          bool
 	Verbose                          bool
 	AuthenticatedWebsocketAPISupport bool
-	WebsocketTimeout                 time.Duration
-	DefaultURL                       string
-	ExchangeName                     string
-	RunningURL                       string
-	RunningURLAuth                   string
-	Connector                        func(conn Connection) error
-	Subscriber                       func(SubscriptionParamaters) error
-	UnSubscriber                     func(SubscriptionParamaters) error
-	GenerateSubscriptions            func(SubscriptionOptions) ([]SubscriptionParamaters, error)
-	Features                         *protocol.Features
+
 	// Local orderbook buffer config values
 	OrderbookBufferLimit  int
 	BufferEnabled         bool
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool
 	UpdateEntriesByID     bool
+
+	// Connection manager fields
+	ConnectionTimeout                  time.Duration
+	DefaultURL                         string
+	ExchangeName                       string
+	RunningURL                         string
+	RunningURLAuth                     string
+	Connector                          func(conn Connection) error
+	Subscriber                         func(SubscriptionParamaters) error
+	Unsubscriber                       func(SubscriptionParamaters) error
+	GenerateSubscriptions              func(SubscriptionOptions) ([]ChannelSubscription, error)
+	GenerateConnection                 func(ConnectionSetup) (Connection, error)
+	Features                           *protocol.Features
+	ResponseCheckTimeout               time.Duration
+	ResponseMaxLimit                   time.Duration
+	RateLimit                          int64
+	MaxTotalSubscriptionsPerConnection int
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
@@ -133,9 +140,5 @@ type WebsocketConnection struct {
 	Traffic           chan struct{}
 	readMessageErrors chan error
 
-	Assets asset.Items
+	Authenticated bool
 }
-
-// type Synchronisation struct {
-
-// }

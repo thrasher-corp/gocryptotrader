@@ -35,12 +35,13 @@ func (c *CoinbasePro) WsConnect(conn stream.Connection) error {
 		return err
 	}
 
-	subs, err := c.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
+	// subs, err := c.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
 	go c.wsReadData()
-	return c.Websocket.SubscribeToChannels(subs)
+	// return c.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -339,7 +340,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *CoinbasePro) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (c *CoinbasePro) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{"heartbeat", "level2", "ticker", "user"}
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {

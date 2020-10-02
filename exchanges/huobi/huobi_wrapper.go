@@ -152,36 +152,34 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
 		DefaultURL:                       wsMarketURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        h.WsConnect,
 		Subscriber:                       h.Subscribe,
-		UnSubscriber:                     h.Unsubscribe,
+		Unsubscriber:                     h.Unsubscribe,
 		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
 		Features:                         &h.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		RateLimit:                        rateLimit,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
 	}
 
 	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: exch.API.Endpoints.WebsocketURL,
 	})
 	if err != nil {
 		return err
 	}
 
 	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  wsAccountsOrdersURL,
-		Authenticated:        true,
+		URL:                        wsAccountsOrdersURL,
+		DedicatedAuthenticatedConn: true,
 	})
 }
 

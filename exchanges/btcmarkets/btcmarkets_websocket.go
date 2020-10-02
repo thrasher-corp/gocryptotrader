@@ -36,11 +36,12 @@ func (b *BTCMarkets) WsConnect(conn stream.Connection) error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
 	go b.wsReadData()
-	subs, err := b.generateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
+	// subs, err := b.generateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -285,7 +286,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *BTCMarkets) generateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (b *BTCMarkets) generateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels = []string{wsOB, tick, tradeEndPoint}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {

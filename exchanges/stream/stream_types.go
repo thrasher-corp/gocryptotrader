@@ -25,6 +25,7 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	IsAuthenticated() bool
 }
 
 // Response defines generalised data from the stream connection
@@ -35,19 +36,11 @@ type Response struct {
 
 // ChannelSubscription container for streaming subscriptions
 type ChannelSubscription struct {
-	Channel  string
-	Currency currency.Pair
-	Asset    asset.Item
-	Params   map[string]interface{}
-}
-
-// ConnectionSetup defines variables for an individual stream connection
-type ConnectionSetup struct {
-	ResponseCheckTimeout time.Duration
-	ResponseMaxLimit     time.Duration
-	RateLimit            int64
-	URL                  string
-	Authenticated        bool
+	Channel          string
+	SubscriptionType Subscription
+	Currency         currency.Pair
+	Asset            asset.Item
+	Params           map[string]interface{}
 }
 
 // PingHandler container for ping handler settings

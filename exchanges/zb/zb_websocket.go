@@ -39,13 +39,14 @@ func (z *ZB) WsConnect(conn stream.Connection) error {
 		return err
 	}
 
-	subs, err := z.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	z.Websocket.Wg.Add(1)
-	go z.wsReadData()
-	return z.Websocket.SubscribeToChannels(subs)
+	// subs, err := z.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// z.Websocket.Wg.Add(1)
+	// go z.wsReadData()
+	// return z.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData handles all the websocket data coming from the websocket
@@ -254,7 +255,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (z *ZB) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (z *ZB) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	// market configuration is its own channel
 	subscriptions = append(subscriptions, stream.ChannelSubscription{

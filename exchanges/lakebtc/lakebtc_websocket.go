@@ -54,11 +54,12 @@ func (l *LakeBTC) WsConnect(conn stream.Connection) error {
 		return err
 	}
 	go l.wsHandleIncomingData()
-	subs, err := l.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return l.Websocket.SubscribeToChannels(subs)
+	// subs, err := l.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return l.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (l *LakeBTC) listenToEndpoints() error {
@@ -79,7 +80,7 @@ func (l *LakeBTC) listenToEndpoints() error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (l *LakeBTC) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (l *LakeBTC) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := l.GetEnabledPairs(asset.Spot)
 	if err != nil {

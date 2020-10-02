@@ -67,11 +67,12 @@ func (f *FTX) WsConnect(conn stream.Connection) error {
 		}
 	}
 
-	subs, err := f.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
-	if err != nil {
-		return err
-	}
-	return f.Websocket.SubscribeToChannels(subs)
+	// subs, err := f.GenerateDefaultSubscriptions(stream.SubscriptionOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+	// return f.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // WsAuth sends an authentication message to receive auth data
@@ -170,7 +171,7 @@ func (f *FTX) Unsubscribe(unsub stream.SubscriptionParamaters) error {
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (f *FTX) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.SubscriptionParamaters, error) {
+func (f *FTX) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	// 	var subscriptions []stream.ChannelSubscription
 	// 	subscriptions = append(subscriptions, stream.ChannelSubscription{
 	// 		Channel: wsMarkets,
