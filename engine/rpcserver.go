@@ -829,6 +829,52 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	}, err
 }
 
+// GetOrderHistory returns order information based on exchange and order ID
+func (s *RPCServer) GetClosedOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	var pairs []currency.Pair
+	pairs = append(pairs, currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	})
+
+	req := order.GetOrdersRequest{
+		OrderId: r.OrderId,
+		Pairs:   pairs,
+	}
+	result, err := exch.GetClosedOrderInfo(&req)
+	if err != nil {
+		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
+	}
+
+	if len(result) > 0 {
+		return &gctrpc.OrderDetails{
+			Exchange:      result[0].Exchange,
+			Id:            result[0].ID,
+			BaseCurrency:  result[0].Pair.Base.String(),
+			QuoteCurrency: result[0].Pair.Quote.String(),
+			AssetType:     result[0].AssetType.String(),
+			OrderSide:     result[0].Side.String(),
+			OrderType:     result[0].Type.String(),
+			CreationTime:  result[0].Date.Unix(),
+			Status:        result[0].Status.String(),
+			Price:         result[0].Price,
+			Amount:        result[0].Amount,
+			OpenVolume:    result[0].RemainingAmount,
+			Fee:           result[0].Fee,
+			Cost:          result[0].Cost,
+			//Trades:        trades,
+		}, nil
+	}
+
+	return &gctrpc.OrderDetails{}, fmt.Errorf("order not found")
+}
+
 // SubmitOrder submits an order specified by exchange, currency pair and asset
 // type
 func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest) (*gctrpc.SubmitOrderResponse, error) {
@@ -866,6 +912,9 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
+		Rate:        resp.Rate,
+		Fee:         resp.Fee,
+		Cost:        resp.Cost,
 	}, err
 }
 

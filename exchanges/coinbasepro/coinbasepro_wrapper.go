@@ -579,6 +579,11 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 	return response, nil
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *CoinbasePro) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (c *CoinbasePro) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported

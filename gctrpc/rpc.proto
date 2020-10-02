@@ -295,6 +295,7 @@ message OrderDetails {
     double open_volume = 12;
     double fee = 13;
     repeated TradeHistory trades = 14;
+    double cost = 15;
 }
 
 message TradeHistory {
@@ -321,6 +322,7 @@ message GetOrdersResponse {
 message GetOrderRequest {
     string exchange = 1;
     string order_id = 2;
+    CurrencyPair pair = 3;
 }
 
 message SubmitOrderRequest {
@@ -337,6 +339,9 @@ message SubmitOrderRequest {
 message SubmitOrderResponse {
     bool order_placed = 1;
     string order_id = 2;
+    double rate = 3;
+    double fee = 4;
+    double cost = 5;
 }
 
 message SimulateOrderRequest {
@@ -918,6 +923,13 @@ service GoCryptoTrader {
     rpc GetOrder (GetOrderRequest) returns (OrderDetails) {
         option (google.api.http) = {
             post: "/v1/getorder"
+            body: "*"
+        };
+    }
+
+    rpc GetClosedOrder (GetOrderRequest) returns (OrderDetails) {
+        option (google.api.http) = {
+            post: "/v1/getclosedorder"
             body: "*"
         };
     }

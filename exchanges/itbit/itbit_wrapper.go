@@ -406,6 +406,11 @@ func (i *ItBit) GetOrderInfo(orderID string) (order.Detail, error) {
 	return orderDetail, common.ErrNotYetImplemented
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *ItBit) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 // NOTE: This has not been implemented due to the fact you need to generate a
 // a specific wallet ID and they restrict the amount of deposit address you can

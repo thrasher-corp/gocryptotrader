@@ -723,6 +723,11 @@ func (c *COINUT) GetOrderInfo(orderID string) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *COINUT) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (c *COINUT) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported

@@ -618,6 +618,11 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 	return od, nil
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *BTSE) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *BTSE) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	address, err := b.GetWalletAddress(cryptocurrency.String())

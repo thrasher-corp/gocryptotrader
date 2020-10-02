@@ -748,6 +748,11 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	return orderDetail, nil
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *HUOBI) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (h *HUOBI) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	resp, err := h.QueryDepositAddress(cryptocurrency.Lower().String())

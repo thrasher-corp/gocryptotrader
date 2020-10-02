@@ -511,6 +511,11 @@ func (b *Bitmex) GetOrderInfo(orderID string) (order.Detail, error) {
 	return orderDetail, common.ErrNotYetImplemented
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *Bitmex) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *Bitmex) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	return b.GetCryptoDepositAddress(cryptocurrency.String())

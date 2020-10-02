@@ -454,6 +454,11 @@ func (b *Bittrex) GetOrderInfo(orderID string) (order.Detail, error) {
 	return orderDetail, common.ErrNotYetImplemented
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *Bittrex) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *Bittrex) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	depositAddr, err := b.GetCryptoDepositAddress(cryptocurrency.String())

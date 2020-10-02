@@ -608,6 +608,11 @@ func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
 	return resp, nil
 }
 
+// GetClosedOrderInfo retrieves specified closed order information
+func (b *Coinbene) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetDepositAddress returns a deposit address for a specified currency
 func (c *Coinbene) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrFunctionNotSupported
