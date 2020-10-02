@@ -45,7 +45,7 @@ func GenerateChart(args ...objects.Object) (objects.Object, error) {
 		t := inputData[x].([]interface{})
 
 		tz, ok := t[0].(int64)
-		if ! ok {
+		if !ok {
 			allErrors = append(allErrors, "failed to convert time")
 		}
 		tempCandleData.Time = time.Unix(tz, 0)

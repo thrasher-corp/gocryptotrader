@@ -100,7 +100,7 @@ func TestBackTest(t *testing.T) {
 	chart := charts.New("backtester", "basic", path)
 	chart.Data.Data = statistic.ToChartData()
 	chart.TemplatePath = filepath.Join("..", "charts", "templates")
-	err = chart.ToFile().Generate()
+	_, err = chart.ToFile().Generate()
 	if err != nil {
 		t.Fatal(err)
 	}

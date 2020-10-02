@@ -7,7 +7,7 @@ import (
 	"github.com/d5/tengo/v2"
 )
 
-func Test_generateChart(t *testing.T) {
+func TestGenerateChart(t *testing.T) {
 	type args struct {
 		args []tengo.Object
 	}
@@ -27,7 +27,7 @@ func Test_generateChart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := generateChart(tt.args.args...)
+			got, err := GenerateChart(tt.args.args...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("generateChart() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -39,7 +39,7 @@ func Test_generateChart(t *testing.T) {
 	}
 }
 
-func Test_toFloat64(t *testing.T) {
+func TestToFloat64(t *testing.T) {
 	type args struct {
 		data interface{}
 	}
@@ -48,7 +48,11 @@ func Test_toFloat64(t *testing.T) {
 		args    args
 		want    float64
 		wantErr bool
-	}{}
+	}{
+		{
+			name: "valid",
+		},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := toFloat64(tt.args.data)

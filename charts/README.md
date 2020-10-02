@@ -1,16 +1,16 @@
-# GoCryptoTrader package Backtester
+# GoCryptoTrader package Charts
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/backtester)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/charts)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This backtester package is part of the GoCryptoTrader codebase.
+This charts package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,110 +18,14 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for backtester package
+## Current Features for charts
 
 #### This package collates basic broad functions that are used throughout this codebase.
 
-- Data loading
-  - OHLCV candle data from kline.Item{}
-  - Ticker price data
-- Strategy support
-  - Will execute a OnSignal() on each tick
++ Coding example
 
-##### Prerequisites
-
-#### Backtest setup
-
-#### Creating a strategy
-
-Creation of a strategy is simple and requires an OnSignalEvent method to be implemented
-
-Example:
-```
-type Strategy struct{}
-
-func (s *Strategy) OnSignal(d backtest.DataHandler, _ backtest.PortfolioHandler) (backtest.SignalEvent, error) {
-	signal := backtest.Signal{
-		Event: backtest.Event{Time: d.Latest().GetTime(),
-			CurrencyPair: d.Latest().Pair()},
-	}
-
-	smaFast := indicators.SMA(d.StreamClose(), 10)
-	smaSlow := indicators.SMA(d.StreamClose(), 30)
-
-	ret := indicators.Crossover(smaFast, smaSlow)
-	if ret {
-		signal.SetDirection(order.Buy)
-	} else {
-		signal.SetDirection(order.Sell)
-	}
-
-	return &signal, nil
-}
-
-```
-
-#### Complete Example
-
-```
-package main
-
-type Strategy struct{}
-
-func (s *Strategy) OnSignal(d backtest.DataHandler, _ backtest.PortfolioHandler) (backtest.SignalEvent, error) {
-	signal := backtest.Signal{
-		Event: backtest.Event{Time: d.Latest().GetTime(),
-			CurrencyPair: d.Latest().Pair()},
-	}
-
-	smaFast := indicators.SMA(d.StreamClose(), 10)
-	smaSlow := indicators.SMA(d.StreamClose(), 30)
-
-	ret := indicators.Crossover(smaFast, smaSlow)
-	if ret {
-		signal.SetDirection(order.Buy)
-	} else {
-		signal.SetDirection(order.Sell)
-	}
-
-	return &signal, nil
-}
-
-func main() {
-	bt := New()
-
-	data := DataFromKline{}
-	err := data.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bt.data = &data
-	bt.portfolio = &Portfolio{
-		initialFunds: 1000,
-		riskManager:  &Risk{},
-		sizeManager: &Size{
-			DefaultSize:  100,
-			DefaultValue: 1000,
-		},
-	}
-        bt.strategy = &Strategy{}
-	bt.exchange = &Exchange{
-		MakerFee: 0.00,
-		TakerFee: 0.00,
-	}
-
-	statistic := Statistic{
-		strategyName: "Example",
-	}
-	bt.statistic = &statistic
-	err = bt.Run()
-	if err != nil {
-	    log.Fatal(err)
-	}
-
-	bt.Reset()
-}
+```go
+import "github.com/thrasher-corp/gocryptotrader/charts"
 ```
 
 
