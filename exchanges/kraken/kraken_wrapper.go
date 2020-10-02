@@ -711,37 +711,69 @@ func (k *Kraken) CancelOrder(order *order.Cancel) error {
 	switch order.AssetType {
 
 	case asset.Spot:
+
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			return k.wsCancelOrders([]string{order.ID})
 		}
 		_, err := k.CancelExistingOrder(order.ID)
 		return err
+
+	case asset.Futures:
+
+		_, err := k.FuturesCancelOrder(order.ID, "")
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (k *Kraken) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
+func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
+
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
 
-	var emptyOrderOptions OrderInfoOptions
-	openOrders, err := k.GetOpenOrders(emptyOrderOptions)
-	if err != nil {
-		return cancelAllOrdersResponse, err
-	}
-	for orderID := range openOrders.Open {
-		var err error
-		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			err = k.wsCancelOrders([]string{orderID})
-		} else {
-			_, err = k.CancelExistingOrder(orderID)
-		}
+	switch req.AssetType {
+
+	case asset.Spot:
+
+		var emptyOrderOptions OrderInfoOptions
+		openOrders, err := k.GetOpenOrders(emptyOrderOptions)
 		if err != nil {
-			cancelAllOrdersResponse.Status[orderID] = err.Error()
+			return cancelAllOrdersResponse, err
 		}
+		for orderID := range openOrders.Open {
+			var err error
+			if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				err = k.wsCancelOrders([]string{orderID})
+			} else {
+				_, err = k.CancelExistingOrder(orderID)
+			}
+			if err != nil {
+				cancelAllOrdersResponse.Status[orderID] = err.Error()
+			}
+		}
+
+	case asset.Futures:
+
+		fPair, err := k.FormatExchangeCurrency(req.Pair, asset.Futures)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
+		cancelData, err := k.FuturesCancelAllOrders(fPair.String())
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
+		for x := range cancelData.CancelStatus.CancelledOrders {
+			cancelAllOrdersResponse.Status[cancelData.CancelStatus.CancelledOrders[x].OrderID] = "cancelled"
+		}
+
 	}
 	return cancelAllOrdersResponse, nil
 }
