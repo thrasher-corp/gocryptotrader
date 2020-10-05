@@ -59,13 +59,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("your_current_exchange_name Setup() init error", err)
 	}
-    your_current_exchange_nameConfig.API.AuthenticatedSupport = true
-    your_current_exchange_nameConfig.API.Credentials.Key = apiKey
-    your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
-    s.SetDefaults()
-    s.Setup(&your_current_exchange_nameConfig)
-    log.Printf(sharedtestvalues.LiveTesting, s.Name, s.API.Endpoints.URL)
-    os.Exit(m.Run())
+	your_current_exchange_nameConfig.API.AuthenticatedSupport = true
+	your_current_exchange_nameConfig.API.Credentials.Key = apiKey
+	your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
+	s.SetDefaults()
+	s.Setup(&your_current_exchange_nameConfig)
+	log.Printf(sharedtestvalues.LiveTesting, s.Name, s.API.Endpoints.URL)
+	os.Exit(m.Run())
 }
 ```
 
@@ -100,8 +100,8 @@ func TestMain(m *testing.M) {
 		log.Fatal("your_current_exchange_name Setup() init error", err)
 	}
 	your_current_exchange_nameConfig.API.AuthenticatedSupport = true
-    your_current_exchange_nameConfig.API.Credentials.Key = apiKey
-    your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
+	your_current_exchange_nameConfig.API.Credentials.Key = apiKey
+	your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
 	s.SetDefaults()
 	s.Setup(&your_current_exchange_nameConfig)
 
@@ -113,7 +113,7 @@ func TestMain(m *testing.M) {
 	s.HTTPClient = newClient
 	s.API.Endpoints.URL = serverDetails
 
-    log.Printf(sharedtestvalues.MockTesting, s.Name, s.API.Endpoints.URL)
+	log.Printf(sharedtestvalues.MockTesting, s.Name, s.API.Endpoints.URL)
 	os.Exit(m.Run())
 }
 
@@ -124,8 +124,8 @@ func TestMain(m *testing.M) {
 + Under `testdata/http_mock` create a folder matching the name of your exchange. Then create a JSON file matching the name of your exchange with the following formatting:
 ```
 {
-    "routes": {
-    }
+	"routes": {
+	}
 }
 ```
 
@@ -138,13 +138,13 @@ func TestMain(m *testing.M) {
 var s SomeExchange
 
 func TestDummyTest(t *testing.T) {
-    s.Verbose = true // This will show you some fancy debug output
-    s.HTTPRecording = true // This will record the request and response payloads
-    s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
-    s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
-    s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
-    err := s.SomeExchangeEndpointFunction()
-    // check error
+	s.Verbose = true // This will show you some fancy debug output
+	s.HTTPRecording = true // This will record the request and response payloads
+	s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
+	s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
+	s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
+	err := s.SomeExchangeEndpointFunction()
+	// check error
 }
 ```
 
@@ -158,13 +158,13 @@ func TestDummyTest(t *testing.T) {
 var s SomeExchange
 
 func TestDummyTest(t *testing.T) {
-    s.Verbose = true // This will show you some fancy debug output
-    // s.HTTPRecording = true // This will record the request and response payloads
-    // s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
-    // s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
-    // s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
-    err := s.SomeExchangeEndpointFunction()
-    // check error
+	s.Verbose = true // This will show you some fancy debug output
+	// s.HTTPRecording = true // This will record the request and response payloads
+	// s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
+	// s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
+	// s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
+	err := s.SomeExchangeEndpointFunction()
+	// check error
 }
 ```
 
@@ -175,16 +175,16 @@ func TestDummyTest(t *testing.T) {
 + Some functions require timestamps. Mock tests _must_ match the same request structure, so `time.Now()` will cause problems for mock testing.
   + To address this, use the boolean variable `mockTests` to create a consistent date. An example is below.
 ```
-    startTime := time.Now().Add(-time.Hour * 1)
-    endTime := time.Now()
-    if mockTests {
-        startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
-        endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
-    }
+	startTime := time.Now().Add(-time.Hour * 1)
+	endTime := time.Now()
+	if mockTests {
+		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
+		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
+	}
 ```
 + Authenticated endpoints will typically require valid API keys and a signature to run successfully. Authenticated endpoints should be skipped. See an example below
 ```
-    if mockTests {
+	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 ```
