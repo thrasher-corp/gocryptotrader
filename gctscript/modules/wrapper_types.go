@@ -40,8 +40,8 @@ type Exchange interface {
 	CancelOrder(exch, orderid string) (bool, error)
 	AccountInformation(exch string) (account.Holdings, error)
 	DepositAddress(exch string, currencyCode currency.Code) (string, error)
-	WithdrawalFiatFunds(exch, bankAccountID string, request *withdraw.Request) (out string, err error)
-	WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error)
+	WithdrawalFiatFunds(bankAccountID string, request *withdraw.Request) (out string, err error)
+	WithdrawalCryptoFunds(request *withdraw.Request) (out string, err error)
 	OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error)
 }
 

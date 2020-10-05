@@ -822,7 +822,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	var cryptoData withdraw.CryptoRequest
 	cryptoData.Address = "testaddress123"
 	cryptoData.AddressTag = "testtag123"
-	request.Crypto = &cryptoData
+	request.Crypto = cryptoData
 	request.OneTimePassword = 123456
 	request.TradePassword = "incorrectTradePassword"
 	_, err := f.WithdrawCryptocurrencyFunds(request)
@@ -1129,6 +1129,10 @@ func TestGetRecentTrades(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+	}
+	_, err = f.GetExchangeHistory(p, a, time.Time{}, time.Now())
+	if err == nil {
+		t.Error("error cannot be nil ")
 	}
 }
 

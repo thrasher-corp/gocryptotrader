@@ -69,7 +69,6 @@ const (
 var (
 	Cfg            Config
 	IsInitialSetup bool
-	TestBypass     bool
 	m              sync.Mutex
 )
 

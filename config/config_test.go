@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -1643,11 +1644,6 @@ func TestReadConfig(t *testing.T) {
 	if err == nil {
 		t.Error("TestReadConfig error cannot be nil")
 	}
-
-	err = readConfig.ReadConfig("", true)
-	if err != nil {
-		t.Error("TestReadConfig error")
-	}
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -1714,12 +1710,17 @@ func TestGetFilePath(t *testing.T) {
 		t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
 	}
 
-	expected = TestFile
-	result, _ = GetFilePath("")
-	if result != expected {
-		t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
+	expected = DefaultFilePath()
+	result, err := GetFilePath("")
+	if file.Exists(expected) {
+		if err != nil || result != expected {
+			t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
+		}
+	} else {
+		if err == nil {
+			t.Error("Expected error when default config file does not exist")
+		}
 	}
-	TestBypass = true
 }
 
 func TestCheckRemoteControlConfig(t *testing.T) {

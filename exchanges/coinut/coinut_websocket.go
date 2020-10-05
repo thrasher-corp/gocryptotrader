@@ -203,6 +203,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			ID:          strconv.FormatInt(cancel.OrderID, 10),
 			Status:      order.Cancelled,
 			LastUpdated: time.Now(),
+			AssetType:   asset.Spot,
 		}
 	case "cancel_orders":
 		var cancels WsCancelOrdersResponse
@@ -216,6 +217,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 				ID:          strconv.FormatInt(cancels.Results[i].OrderID, 10),
 				Status:      order.Cancelled,
 				LastUpdated: time.Now(),
+				AssetType:   asset.Spot,
 			}
 		}
 	case "trade_history":

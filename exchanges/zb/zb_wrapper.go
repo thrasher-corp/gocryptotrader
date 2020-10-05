@@ -496,6 +496,10 @@ func (z *ZB) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (z *ZB) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+
 	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 	if err != nil {
 		return err
@@ -564,8 +568,9 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 		}
 
 		err = z.CancelOrder(&order.Cancel{
-			ID:   strconv.FormatInt(allOpenOrders[i].ID, 10),
-			Pair: p,
+			ID:        strconv.FormatInt(allOpenOrders[i].ID, 10),
+			Pair:      p,
+			AssetType: asset.Spot,
 		})
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
@@ -594,7 +599,16 @@ func (z *ZB) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	v, err := z.Withdraw(withdrawRequest.Currency.Lower().String(), withdrawRequest.Crypto.Address, withdrawRequest.TradePassword, withdrawRequest.Amount, withdrawRequest.Crypto.FeeAmount, false)
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
+	v, err := z.Withdraw(withdrawRequest.Currency.Lower().String(),
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.TradePassword,
+		withdrawRequest.Amount,
+		withdrawRequest.Crypto.FeeAmount,
+		false)
 	if err != nil {
 		return nil, err
 	}
@@ -627,6 +641,10 @@ func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	var allOrders []Order
 	for x := range req.Pairs {
 		for i := int64(1); ; i++ {
@@ -689,6 +707,10 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	if req.Side == order.AnySide || req.Side == "" {
 		return nil, errors.New("specific order side is required")
 	}

@@ -550,6 +550,10 @@ func (c *COINUT) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time
 
 // SubmitOrder submits a new order
 func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
+	if err := o.Validate(); err != nil {
+		return order.SubmitResponse{}, err
+	}
+
 	var submitOrderResponse order.SubmitResponse
 	var err error
 	if _, err = strconv.Atoi(o.ClientID); err != nil {
@@ -631,6 +635,10 @@ func (c *COINUT) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (c *COINUT) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return err
@@ -674,6 +682,10 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse, error) {
+	if err := details.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+
 	var cancelAllOrdersResponse order.CancelAllResponse
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
@@ -790,6 +802,10 @@ func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return nil, err
@@ -902,6 +918,10 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return nil, err

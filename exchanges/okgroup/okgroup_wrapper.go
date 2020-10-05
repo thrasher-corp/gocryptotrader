@@ -302,14 +302,19 @@ func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
-	orderID, err := strconv.ParseInt(orderCancellation.ID, 10, 64)
+func (o *OKGroup) CancelOrder(cancel *order.Cancel) (err error) {
+	err = cancel.Validate(cancel.StandardCancel())
 	if err != nil {
 		return
 	}
 
-	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
-		orderCancellation.AssetType)
+	orderID, err := strconv.ParseInt(cancel.ID, 10, 64)
+	if err != nil {
+		return
+	}
+
+	fpair, err := o.FormatExchangeCurrency(cancel.Pair,
+		cancel.AssetType)
 	if err != nil {
 		return
 	}
@@ -329,6 +334,10 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+
 	orderIDs := strings.Split(orderCancellation.ID, ",")
 	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
@@ -406,6 +415,10 @@ func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (string, 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),
@@ -443,13 +456,20 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 
 // GetActiveOrders retrieves any orders that are active/open
 func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+	err = req.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	for x := range req.Pairs {
-		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
-			InstrumentID: fpair.String(),
+		var spotOpenOrders []GetSpotOrderResponse
+		spotOpenOrders, err = o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
+			InstrumentID: fPair.String(),
 		})
 		if err != nil {
 			return resp, err
@@ -469,21 +489,27 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 			})
 		}
 	}
-
-	return
+	return resp, err
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
+	err = req.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	for x := range req.Pairs {
-		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		var fPair currency.Pair
+		fPair, err = o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
+		var spotOpenOrders []GetSpotOrderResponse
+		spotOpenOrders, err = o.GetSpotOrders(GetSpotOrdersRequest{
 			Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
-			InstrumentID: fpair.String(),
+			InstrumentID: fPair.String(),
 		})
 		if err != nil {
 			return resp, err
@@ -503,8 +529,7 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 			})
 		}
 	}
-
-	return
+	return resp, err
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

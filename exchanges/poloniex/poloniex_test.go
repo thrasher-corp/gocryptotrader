@@ -263,11 +263,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.BTC,
 			Quote:     currency.LTC,
 		},
-		Side:     order.Buy,
-		Type:     order.Market,
-		Price:    10,
-		Amount:   10000000,
-		ClientID: "hi",
+		Side:      order.Buy,
+		Type:      order.Market,
+		Price:     10,
+		Amount:    10000000,
+		ClientID:  "hi",
+		AssetType: asset.Spot,
 	}
 
 	response, err := p.SubmitOrder(orderSubmission)
@@ -291,6 +292,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
+		AssetType:     asset.Spot,
 	}
 
 	err := p.CancelOrder(orderCancellation)
@@ -316,6 +318,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	resp, err := p.CancelAllOrders(orderCancellation)
@@ -338,7 +341,10 @@ func TestModifyOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := p.ModifyOrder(&order.Modify{ID: "1337", Price: 1337})
+	_, err := p.ModifyOrder(&order.Modify{ID: "1337",
+		Price:     1337,
+		AssetType: asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT)})
 	switch {
 	case areTestAPIKeysSet() && err != nil && mockTests:
 		t.Error("ModifyOrder() error", err)
@@ -352,7 +358,8 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	withdrawCryptoRequest := withdraw.Request{
-		Crypto: &withdraw.CryptoRequest{
+		Exchange: p.Name,
+		Crypto: withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 1,
 		},
@@ -371,8 +378,8 @@ func TestWithdraw(t *testing.T) {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	case !areTestAPIKeysSet() && !mockTests && err == nil:
 		t.Error("Expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock Withdraw() err", err)
+	case mockTests && err == nil:
+		t.Error("Mock Withdraw() err cannot be nil")
 	}
 }
 

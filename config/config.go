@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1482,10 +1481,6 @@ func DefaultFilePath() string {
 func GetFilePath(configfile string) (string, error) {
 	if configfile != "" {
 		return configfile, nil
-	}
-
-	if flag.Lookup("test.v") != nil && !TestBypass {
-		return TestFile, nil
 	}
 
 	exePath, err := common.GetExecutablePath()

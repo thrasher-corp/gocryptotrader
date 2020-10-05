@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/urfave/cli/v2"
 )
@@ -36,7 +35,6 @@ var (
 )
 
 func TestLoad(t *testing.T) {
-	config.TestBypass = true
 	fs := &flag.FlagSet{}
 	fs.String("config", testConfig, "")
 	newCtx := cli.NewContext(testApp, fs, &cli.Context{})

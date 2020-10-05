@@ -400,8 +400,11 @@ func (l *LocalBitcoins) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LocalBitcoins) CancelOrder(order *order.Cancel) error {
-	return l.DeleteAd(order.ID)
+func (l *LocalBitcoins) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	return l.DeleteAd(o.ID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -444,6 +447,10 @@ func (l *LocalBitcoins) GetDepositAddress(cryptocurrency currency.Code, _ string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	err := l.WalletSend(withdrawRequest.Crypto.Address,
 		withdrawRequest.Amount,
 		withdrawRequest.PIN)
@@ -476,6 +483,10 @@ func (l *LocalBitcoins) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, 
 
 // GetActiveOrders retrieves any orders that are active/open
 func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	resp, err := l.GetDashboardInfo()
 	if err != nil {
 		return nil, err
@@ -528,6 +539,10 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	var allTrades []DashBoardInfo
 	resp, err := l.GetDashboardCancelledTrades()
 	if err != nil {

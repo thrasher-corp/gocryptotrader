@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -387,11 +386,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.LTC,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
 	}
 	response, err := b.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -413,6 +413,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	err := b.CancelOrder(orderCancellation)
@@ -436,6 +437,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	resp, err := b.CancelAllOrders(orderCancellation)
@@ -474,11 +476,13 @@ func TestModifyOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = b.ModifyOrder(&order.Modify{
-		ID:     "1337",
-		Price:  100,
-		Amount: 1000,
-		Side:   order.Sell,
-		Pair:   curr})
+		ID:        "1337",
+		Price:     100,
+		Amount:    1000,
+		Side:      order.Sell,
+		Pair:      curr,
+		AssetType: asset.Spot,
+	})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -494,7 +498,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 	}
@@ -515,8 +519,7 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.Request{
-		Fiat: &withdraw.FiatRequest{
-			Bank:                     &banking.Account{},
+		Fiat: withdraw.FiatRequest{
 			WireCurrency:             currency.KRW.String(),
 			RequiresIntermediaryBank: false,
 			IsExpressWire:            false,

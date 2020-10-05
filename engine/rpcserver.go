@@ -847,14 +847,20 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		return nil, err
 	}
 
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return nil, fmt.Errorf("asset type: %s is invalid", a)
+	}
+
 	submission := &order.Submit{
-		Pair:     p,
-		Side:     order.Side(r.Side),
-		Type:     order.Type(r.OrderType),
-		Amount:   r.Amount,
-		Price:    r.Price,
-		ClientID: r.ClientId,
-		Exchange: r.Exchange,
+		Pair:      p,
+		Side:      order.Side(r.Side),
+		Type:      order.Type(r.OrderType),
+		Amount:    r.Amount,
+		Price:     r.Price,
+		ClientID:  r.ClientId,
+		Exchange:  r.Exchange,
+		AssetType: a,
 	}
 
 	resp, err := exch.SubmitOrder(submission)
@@ -963,12 +969,18 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 		return nil, err
 	}
 
+	a := asset.Item(r.AssetType)
+	if !asset.IsValid(a) {
+		return nil, fmt.Errorf("asset type: %s is invalid", a)
+	}
+
 	err = exch.CancelOrder(&order.Cancel{
 		AccountID:     r.AccountId,
 		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
 		WalletAddress: r.WalletAddress,
 		Pair:          p,
+		AssetType:     a,
 	})
 	if err != nil {
 		return nil, err
@@ -1050,18 +1062,19 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.Wit
 	}
 
 	request := &withdraw.Request{
+		Exchange:    r.Exchange,
 		Amount:      r.Amount,
 		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
 		Type:        withdraw.Crypto,
 		Description: r.Description,
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address:    r.Address,
 			AddressTag: r.AddressTag,
 			FeeAmount:  r.Fee,
 		},
 	}
 
-	resp, err := SubmitWithdrawal(r.Exchange, request)
+	resp, err := SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}
@@ -1093,15 +1106,17 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 	}
 
 	request := &withdraw.Request{
+		Exchange:    r.Exchange,
 		Amount:      r.Amount,
 		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
 		Type:        withdraw.Fiat,
 		Description: r.Description,
-		Fiat: &withdraw.FiatRequest{
-			Bank: bankAccount,
+		Fiat: withdraw.FiatRequest{
+			Bank: *bankAccount,
 		},
 	}
-	resp, err := SubmitWithdrawal(r.Exchange, request)
+
+	resp, err := SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}
@@ -1158,7 +1173,7 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 			Fee:        v.RequestDetails.Crypto.FeeAmount,
 		}
 	} else if v.RequestDetails.Type == withdraw.Fiat {
-		if v.RequestDetails.Fiat != nil {
+		if v.RequestDetails.Fiat != (withdraw.FiatRequest{}) {
 			resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
 			resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
 				BankName:      v.RequestDetails.Fiat.Bank.BankName,
