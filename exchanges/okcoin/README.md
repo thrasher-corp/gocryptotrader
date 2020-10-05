@@ -50,7 +50,7 @@ var o exchange.IBotExchange
 
 for i := range bot.Exchanges {
   if bot.Exchanges[i].GetName() == "OKCoin" {
-    y = bot.Exchanges[i]
+	y = bot.Exchanges[i]
   }
 }
 

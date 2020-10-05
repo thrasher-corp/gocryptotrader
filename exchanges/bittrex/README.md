@@ -49,7 +49,7 @@ var b exchange.IBotExchange
 
 for i := range bot.Exchanges {
   if bot.Exchanges[i].GetName() == "Bittrex" {
-    b = bot.Exchanges[i]
+	b = bot.Exchanges[i]
   }
 }
 
