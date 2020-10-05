@@ -144,7 +144,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [thrasher-](https://github.com/thrasher-) | 643 |
 | [shazbert](https://github.com/shazbert) | 196 |
 | [gloriousCode](https://github.com/gloriousCode) | 170 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 68 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 69 |
 | [xtda](https://github.com/xtda) | 47 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
@@ -171,6 +171,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |
+| [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |
 | [idoall](https://github.com/idoall) | 1 |

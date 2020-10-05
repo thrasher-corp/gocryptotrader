@@ -11,7 +11,7 @@ app and share different types of data
 ### Current Features
 
 + Basic communication to your slack channel information includes:
-  - Working status of bot
+	- Working status of bot
 
 ### How to enable
 
@@ -28,10 +28,10 @@ s := new(slack.Slack)
 
 // Define slack configuration
 commsConfig := config.CommunicationsConfig{SlackConfig: config.SlackConfig{
-  Name: "Slack",
-	Enabled: true,
-	Verbose: false,
-	TargetChannel: "targetChan",
+	Name:              "Slack",
+	Enabled:           true,
+	Verbose:           false,
+	TargetChannel:     "targetChan",
 	VerificationToken: "slackGeneratedToken",
 }}
 

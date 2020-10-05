@@ -101,13 +101,13 @@ have multiple deposit accounts for different FIAT deposit currencies.
   },
   "BankAccounts": [
    {
-	"BankName": "",
-	"BankAddress": "",
-	"AccountName": "",
-	"AccountNumber": "",
-	"SWIFTCode": "",
-	"IBAN": "",
-	"SupportedCurrencies": "AUD,USD,EUR"
+    "BankName": "",
+    "BankAddress": "",
+    "AccountName": "",
+    "AccountNumber": "",
+    "SWIFTCode": "",
+    "IBAN": "",
+    "SupportedCurrencies": "AUD,USD,EUR"
    }
   ]
  },

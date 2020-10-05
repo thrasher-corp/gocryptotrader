@@ -173,7 +173,7 @@ func TestDummyTest(t *testing.T) {
 ## Considerations
 
 + Some functions require timestamps. Mock tests _must_ match the same request structure, so `time.Now()` will cause problems for mock testing.
-  + To address this, use the boolean variable `mockTests` to create a consistent date. An example is below.
+	+ To address this, use the boolean variable `mockTests` to create a consistent date. An example is below.
 ```
 	startTime := time.Now().Add(-time.Hour * 1)
 	endTime := time.Now()

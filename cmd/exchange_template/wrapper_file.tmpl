@@ -133,29 +133,29 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 	/*
 	err = {{.Variable}}.Websocket.Setup(
 		&stream.WebsocketSetup{
-			Enabled:						  exch.Features.Enabled.Websocket,
-			Verbose:						  exch.Verbose,
+			Enabled:                          exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:				 exch.WebsocketTrafficTimeout,
-			DefaultURL:					   {{.Name}}WSURL,
-			ExchangeName:					 exch.Name,
-			RunningURL:					   exch.API.Endpoints.WebsocketURL,
-			Connector:						{{.Variable}}.WsConnect,
-			Subscriber:					   {{.Variable}}.Subscribe,
-			UnSubscriber:					 {{.Variable}}.Unsubscribe,
-			Features:						 &{{.Variable}}.Features.Supports.WebsocketCapabilities,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			DefaultURL:                       {{.Name}}WSURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        {{.Variable}}.WsConnect,
+			Subscriber:                       {{.Variable}}.Subscribe,
+			UnSubscriber:                     {{.Variable}}.Unsubscribe,
+			Features:                         &{{.Variable}}.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
 	}
 
 	{{.Variable}}.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:		 {{.Variable}}.Name,
-		URL:				  {{.Variable}}.Websocket.GetWebsocketURL(),
-		ProxyURL:			 {{.Variable}}.Websocket.GetProxyAddress(),
-		Verbose:			  {{.Variable}}.Verbose,
+		ExchangeName:         {{.Variable}}.Name,
+		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
+		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
+		Verbose:              {{.Variable}}.Verbose,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:	 exch.WebsocketResponseMaxLimit,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
 
 	// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
@@ -227,7 +227,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(forceUpdate bool) err
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-  	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
+		// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
 	tickerPrice := new(ticker.Price)
 	tick, err := {{.Variable}}.GetTicker(p.String())
@@ -235,13 +235,13 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType a
 		return tickerPrice, err
 	}
 	tickerPrice = &ticker.Price{
-		High:  tick.High,
-		Low:   tick.Low,
-		Bid:   tick.Bid,
-		Ask:   tick.Ask,
-		Open:  tick.Open,
-		Close: tick.Close,
-		Pair:  p,
+		High:    tick.High,
+		Low:     tick.Low,
+		Bid:     tick.Bid,
+		Ask:     tick.Ask,
+		Open:    tick.Open,
+		Close:   tick.Close,
+		Pair:    p,
 	}
 	err = ticker.ProcessTicker({{.Variable}}.Name, tickerPrice, assetType)
 	if err != nil {
