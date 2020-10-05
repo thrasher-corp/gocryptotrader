@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
@@ -299,13 +298,15 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 		}
 		for x := range v {
 			var tempResp = &withdraw.Response{}
-			newUUID, _ := uuid.FromString(v[x].ID)
+			var newUUID uuid.UUID
+			newUUID, err = uuid.FromString(v[x].ID)
+			if err != nil {
+				return nil, err
+			}
 			tempResp.ID = newUUID
-			tempResp.Exchange = new(withdraw.ExchangeResponse)
 			tempResp.Exchange.ID = v[x].ExchangeID
 			tempResp.Exchange.Status = v[x].Status
-			tempResp.RequestDetails = new(withdraw.Request)
-			tempResp.RequestDetails = &withdraw.Request{
+			tempResp.RequestDetails = withdraw.Request{
 				Currency:    currency.NewCode(v[x].Currency),
 				Description: v[x].Description.String,
 				Amount:      v[x].Amount,
@@ -346,7 +347,6 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				if err != nil {
 					return nil, err
 				}
-				tempResp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
 				tempResp.RequestDetails.Crypto.Address = x.Address
 				tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
 				tempResp.RequestDetails.Crypto.FeeAmount = x.Fee
@@ -355,8 +355,6 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				if err != nil {
 					return nil, err
 				}
-				tempResp.RequestDetails.Fiat = new(withdraw.FiatRequest)
-				tempResp.RequestDetails.Fiat.Bank = new(banking.Account)
 				tempResp.RequestDetails.Fiat.Bank.AccountName = x.BankAccountName
 				tempResp.RequestDetails.Fiat.Bank.AccountNumber = x.BankAccountNumber
 				tempResp.RequestDetails.Fiat.Bank.IBAN = x.Iban
@@ -375,11 +373,9 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			var tempResp = &withdraw.Response{}
 			newUUID, _ := uuid.FromString(v[x].ID)
 			tempResp.ID = newUUID
-			tempResp.Exchange = new(withdraw.ExchangeResponse)
 			tempResp.Exchange.ID = v[x].ExchangeID
 			tempResp.Exchange.Status = v[x].Status
-			tempResp.RequestDetails = new(withdraw.Request)
-			tempResp.RequestDetails = &withdraw.Request{
+			tempResp.RequestDetails = withdraw.Request{
 				Currency:    currency.NewCode(v[x].Currency),
 				Description: v[x].Description.String,
 				Amount:      v[x].Amount,
@@ -402,7 +398,6 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			}
 
 			if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
-				tempResp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
 				x, err := v[x].WithdrawalCryptoWithdrawalCryptos().One(ctx, database.DB.SQL)
 				if err != nil {
 					return nil, err
@@ -411,12 +406,10 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
 				tempResp.RequestDetails.Crypto.FeeAmount = x.Fee
 			} else if withdraw.RequestType(v[x].WithdrawType) == withdraw.Fiat {
-				tempResp.RequestDetails.Fiat = new(withdraw.FiatRequest)
 				x, err := v[x].WithdrawalFiatWithdrawalFiats().One(ctx, database.DB.SQL)
 				if err != nil {
 					return nil, err
 				}
-				tempResp.RequestDetails.Fiat.Bank = new(banking.Account)
 				tempResp.RequestDetails.Fiat.Bank.AccountName = x.BankAccountName
 				tempResp.RequestDetails.Fiat.Bank.AccountNumber = x.BankAccountNumber
 				tempResp.RequestDetails.Fiat.Bank.IBAN = x.Iban

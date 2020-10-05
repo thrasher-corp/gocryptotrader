@@ -162,6 +162,7 @@ func TestExchange_SubmitOrder(t *testing.T) {
 		Amount:       orderAmount,
 		ClientID:     orderClientID,
 		Exchange:     exchName,
+		AssetType:    asset.Spot,
 	}
 	_, err = exchangeTest.SubmitOrder(tempOrder)
 	if err != nil {

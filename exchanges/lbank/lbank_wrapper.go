@@ -372,17 +372,24 @@ func (l *Lbank) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *Lbank) CancelOrder(order *order.Cancel) error {
-	fpair, err := l.FormatExchangeCurrency(order.Pair, order.AssetType)
+func (l *Lbank) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	fpair, err := l.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
-	_, err = l.RemoveOrder(fpair.String(), order.ID)
+	_, err = l.RemoveOrder(fpair.String(), o.ID)
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *Lbank) CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error) {
+func (l *Lbank) CancelAllOrders(o *order.Cancel) (order.CancelAllResponse, error) {
+	if err := o.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+
 	var resp order.CancelAllResponse
 	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {
@@ -390,7 +397,7 @@ func (l *Lbank) CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, 
 	}
 
 	for key := range orderIDs {
-		if key != orders.Pair.String() {
+		if key != o.Pair.String() {
 			continue
 		}
 		var x, y = 0, 0
@@ -505,6 +512,10 @@ func (l *Lbank) GetDepositAddress(cryptocurrency currency.Code, accountID string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *Lbank) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	resp, err := l.Withdraw(withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(),
 		strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64), "",
 		withdrawRequest.Description, "")
@@ -530,6 +541,10 @@ func (l *Lbank) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.R
 
 // GetActiveOrders retrieves any orders that are active/open
 func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	var finalResp []order.Detail
 	var resp order.Detail
 	tempData, err := l.getAllOpenOrderID()
@@ -602,6 +617,10 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 // GetOrderHistory retrieves account order information *
 // Can Limit response to specific order status
 func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	var finalResp []order.Detail
 	var resp order.Detail
 	var tempCurr currency.Pairs

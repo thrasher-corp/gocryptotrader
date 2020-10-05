@@ -169,8 +169,11 @@ func main() {
 
 		// Github API missing contributors
 		contributors = append(contributors, []Contributor{
-			// idoall's contributors were forked and merged, so his contributions
-			// aren't automatically retrievable
+			{
+				Login:         "daniel-cohen",
+				URL:           "https://github.com/daniel-cohen",
+				Contributions: 1,
+			},
 			{
 				Login:         "DirectX",
 				URL:           "https://github.com/DirectX",
@@ -181,6 +184,8 @@ func main() {
 				URL:           "https://github.com/frankzougc",
 				Contributions: 1,
 			},
+			// idoall's contributors were forked and merged, so his contributions
+			// aren't automatically retrievable
 			{
 				Login:         "idoall",
 				URL:           "https://github.com/idoall",

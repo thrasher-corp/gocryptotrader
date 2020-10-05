@@ -112,27 +112,36 @@ func seedWithdrawData() {
 	for x := 0; x < 20; x++ {
 		test := fmt.Sprintf("test-%v", x)
 		resp := &withdraw.Response{
-			Exchange: &withdraw.ExchangeResponse{
+			Exchange: withdraw.ExchangeResponse{
 				Name:   testExchanges[0].Name,
 				ID:     test,
 				Status: test,
 			},
-			RequestDetails: &withdraw.Request{
+			RequestDetails: withdraw.Request{
 				Exchange:    testExchanges[0].Name,
 				Description: test,
 				Amount:      1.0,
+				Fiat: withdraw.FiatRequest{
+					Bank: banking.Account{
+						Enabled:             false,
+						ID:                  fmt.Sprintf("test-%v", x),
+						BankName:            fmt.Sprintf("test-%v-bank", x),
+						AccountName:         "hello",
+						AccountNumber:       fmt.Sprintf("test-%v", x),
+						BSBNumber:           "123456",
+						SupportedCurrencies: "BTC-AUD",
+						SupportedExchanges:  testExchanges[0].Name,
+					},
+				},
 			},
 		}
 		rnd := rand.Intn(2) // nolint:gosec // used for generating test data, no need to import crypo/rand
 		if rnd == 0 {
 			resp.RequestDetails.Currency = currency.AUD
 			resp.RequestDetails.Type = 1
-			resp.RequestDetails.Fiat = new(withdraw.FiatRequest)
-			resp.RequestDetails.Fiat.Bank = new(banking.Account)
 		} else {
 			resp.RequestDetails.Currency = currency.BTC
 			resp.RequestDetails.Type = 0
-			resp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
 			resp.RequestDetails.Crypto.Address = test
 			resp.RequestDetails.Crypto.FeeAmount = 0
 			resp.RequestDetails.Crypto.AddressTag = test

@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -18,7 +19,7 @@ const (
 
 var (
 	validFiatRequest = &Request{
-		Fiat:        &FiatRequest{},
+		Fiat:        FiatRequest{},
 		Exchange:    "test-exchange",
 		Currency:    currency.AUD,
 		Description: "Test Withdrawal",
@@ -27,12 +28,14 @@ var (
 	}
 
 	invalidRequest = &Request{
-		Type: Fiat,
+		Exchange: "Binance",
+		Type:     Fiat,
 	}
 
 	invalidCurrencyFiatRequest = &Request{
-		Fiat: &FiatRequest{
-			Bank: &banking.Account{},
+		Exchange: "Binance",
+		Fiat: FiatRequest{
+			Bank: banking.Account{},
 		},
 		Currency: currency.BTC,
 		Amount:   1,
@@ -40,7 +43,8 @@ var (
 	}
 
 	validCryptoRequest = &Request{
-		Crypto: &CryptoRequest{
+		Exchange: "Binance",
+		Crypto: CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 		Currency:    currency.BTC,
@@ -50,6 +54,7 @@ var (
 	}
 
 	invalidCryptoNilRequest = &Request{
+		Exchange:    "test",
 		Currency:    currency.BTC,
 		Description: "Test Withdrawal",
 		Amount:      0.1,
@@ -57,7 +62,8 @@ var (
 	}
 
 	invalidCryptoNegativeFeeRequest = &Request{
-		Crypto: &CryptoRequest{
+		Exchange: "Binance",
+		Crypto: CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: -0.1,
 		},
@@ -68,7 +74,8 @@ var (
 	}
 
 	invalidCurrencyCryptoRequest = &Request{
-		Crypto: &CryptoRequest{
+		Exchange: "Binance",
+		Crypto: CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 		Currency: currency.AUD,
@@ -77,7 +84,8 @@ var (
 	}
 
 	invalidCryptoNoAddressRequest = &Request{
-		Crypto:      &CryptoRequest{},
+		Exchange:    "test",
+		Crypto:      CryptoRequest{},
 		Currency:    currency.BTC,
 		Description: "Test Withdrawal",
 		Amount:      0.1,
@@ -85,7 +93,8 @@ var (
 	}
 
 	invalidCryptoNonWhiteListedAddressRequest = &Request{
-		Crypto: &CryptoRequest{
+		Exchange: "Binance",
+		Crypto: CryptoRequest{
 			Address: testBTCAddress,
 		},
 		Currency:    currency.BTC,
@@ -95,6 +104,7 @@ var (
 	}
 
 	invalidType = &Request{
+		Exchange: "test",
 		Type:     Unknown,
 		Currency: currency.BTC,
 		Amount:   0.1,
@@ -141,9 +151,19 @@ func TestMain(m *testing.M) {
 }
 
 func TestValid(t *testing.T) {
-	err := Validate(invalidType)
+	err := invalidType.Validate()
 	if err != nil {
 		if err.Error() != ErrInvalidRequest.Error() {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestExchangeNameUnset(t *testing.T) {
+	r := Request{}
+	err := r.Validate()
+	if err != nil {
+		if err != ErrExchangeNameUnset {
 			t.Fatal(err)
 		}
 	}
@@ -156,6 +176,7 @@ func TestValidateFiat(t *testing.T) {
 		requestType   RequestType
 		bankAccountID string
 		output        interface{}
+		validate      validate.Checker
 	}{
 		{
 			"Valid",
@@ -163,13 +184,37 @@ func TestValidateFiat(t *testing.T) {
 			Fiat,
 			"test-bank-01",
 			nil,
+			nil,
+		},
+		{
+			"Valid-With-Good-Exchange-Option",
+			validFiatRequest,
+			Fiat,
+			"test-bank-01",
+			nil,
+			validate.Check(func() error { return nil }),
+		},
+		{
+			"Valid-With-bad-Exchange-Option",
+			validFiatRequest,
+			Fiat,
+			"test-bank-01",
+			errors.New("error"),
+			validate.Check(func() error { return errors.New("error") }),
 		},
 		{
 			"Invalid",
 			invalidRequest,
 			Fiat,
 			"",
-			errors.New("invalid request type"),
+			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
+				ErrStrNoCurrencySet + ", " +
+				banking.ErrBankAccountDisabled + ", " +
+				fmt.Sprintf("Exchange %s not supported by bank account",
+					invalidRequest.Exchange) + ", " +
+				banking.ErrAccountCannotBeEmpty + ", " +
+				banking.ErrIBANSwiftNotSet),
+			nil,
 		},
 		{
 			name:        "NoRequest",
@@ -182,7 +227,14 @@ func TestValidateFiat(t *testing.T) {
 			invalidCurrencyFiatRequest,
 			Fiat,
 			"",
-			errors.New(ErrStrCurrencyNotFiat + ", " + banking.ErrBankAccountDisabled + ", " + banking.ErrAccountCannotBeEmpty + ", " + banking.ErrCurrencyNotSupportedByAccount + ", " + banking.ErrIBANSwiftNotSet),
+			errors.New(ErrStrCurrencyNotFiat + ", " +
+				banking.ErrBankAccountDisabled + ", " +
+				fmt.Sprintf("Exchange %s not supported by bank account",
+					invalidRequest.Exchange) + ", " +
+				banking.ErrAccountCannotBeEmpty + ", " +
+				banking.ErrCurrencyNotSupportedByAccount + ", " +
+				banking.ErrIBANSwiftNotSet),
+			nil,
 		},
 	}
 
@@ -197,12 +249,12 @@ func TestValidateFiat(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				test.request.Fiat.Bank = v
+				test.request.Fiat.Bank = *v
 			}
-			err := Validate(test.request)
+			err := test.request.Validate(test.validate)
 			if err != nil {
 				if test.output.(error).Error() != err.Error() {
-					t.Fatal(err)
+					t.Fatalf("Test Name %s expecting error [%s] but receieved [%s]", test.name, test.output.(error).Error(), err)
 				}
 			}
 		})
@@ -223,12 +275,20 @@ func TestValidateCrypto(t *testing.T) {
 		{
 			"Invalid",
 			invalidRequest,
-			ErrInvalidRequest,
+			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
+				ErrStrNoCurrencySet + ", " +
+				banking.ErrBankAccountDisabled + ", " +
+				fmt.Sprintf("Exchange %s not supported by bank account",
+					invalidRequest.Exchange) + ", " +
+				banking.ErrAccountCannotBeEmpty + ", " +
+				banking.ErrIBANSwiftNotSet),
 		},
 		{
 			"Invalid-Nil",
 			invalidCryptoNilRequest,
-			ErrInvalidRequest,
+			errors.New(ErrStrAddressNotWhiteListed + ", " +
+				ErrStrExchangeNotSupportedByAddress + ", " +
+				ErrStrAddressNotSet),
 		},
 		{
 			"NoRequest",
@@ -238,12 +298,15 @@ func TestValidateCrypto(t *testing.T) {
 		{
 			"FiatCurrency",
 			invalidCurrencyCryptoRequest,
-			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " + ErrStrCurrencyNotCrypto),
+			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " +
+				ErrStrCurrencyNotCrypto),
 		},
 		{
 			"NoAddress",
 			invalidCryptoNoAddressRequest,
-			errors.New(ErrStrAddressNotWhiteListed + ", " + ErrStrExchangeNotSupportedByAddress + ", " + ErrStrAddressNotSet),
+			errors.New(ErrStrAddressNotWhiteListed + ", " +
+				ErrStrExchangeNotSupportedByAddress + ", " +
+				ErrStrAddressNotSet),
 		},
 		{
 			"NonWhiteListed",
@@ -260,10 +323,14 @@ func TestValidateCrypto(t *testing.T) {
 	for _, tests := range testCases {
 		test := tests
 		t.Run(test.name, func(t *testing.T) {
-			err := Validate(test.request)
+			err := test.request.Validate()
 			if err != nil {
-				if err.Error() != test.output.(error).Error() {
-					t.Fatal(err)
+				tErr, _ := test.output.(error)
+				if err.Error() != tErr.Error() {
+					t.Fatalf("Test Name %s expecting error [%v] but received [%s]",
+						test.name,
+						tErr,
+						err)
 				}
 			}
 		})
