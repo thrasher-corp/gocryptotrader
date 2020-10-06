@@ -27,9 +27,10 @@ type Submit struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
-	Leverage          string
+	Leverage          float64
 	Price             float64
 	Amount            float64
+	StopPrice         float64
 	LimitPriceUpper   float64
 	LimitPriceLower   float64
 	TriggerPrice      float64
@@ -44,6 +45,7 @@ type Submit struct {
 	ClientID          string
 	ClientOrderID     string
 	WalletAddress     string
+	Offset            string
 	Type              Type
 	Side              Side
 	Status            Status
@@ -227,7 +229,9 @@ const (
 	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
 	Stop              Type = "STOP"
 	StopLimit         Type = "STOP LIMIT"
+	StopMarket        Type = "STOP MARKET"
 	TakeProfit        Type = "TAKE PROFIT"
+	TakeProfitMarket  Type = "TAKE PROFIT MARKET"
 	TrailingStop      Type = "TRAILING_STOP"
 	FillOrKill        Type = "FOK"
 	IOS               Type = "IOS"

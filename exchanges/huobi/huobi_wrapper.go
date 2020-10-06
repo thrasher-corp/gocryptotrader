@@ -793,55 +793,126 @@ func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item, timest
 
 // SubmitOrder submits a new order
 func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+
 	var submitOrderResponse order.SubmitResponse
+
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	accountID, err := strconv.ParseInt(s.ClientID, 10, 64)
-	if err != nil {
-		return submitOrderResponse, err
+	switch s.AssetType {
+
+	case asset.Spot:
+
+		accountID, err := strconv.ParseInt(s.ClientID, 10, 64)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		p, err := h.FormatExchangeCurrency(s.Pair, s.AssetType)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		var formattedType SpotNewOrderRequestParamsType
+		var params = SpotNewOrderRequestParams{
+			Amount:    s.Amount,
+			Source:    "api",
+			Symbol:    p.String(),
+			AccountID: int(accountID),
+		}
+
+		switch {
+		case s.Side == order.Buy && s.Type == order.Market:
+			formattedType = SpotNewOrderRequestTypeBuyMarket
+		case s.Side == order.Sell && s.Type == order.Market:
+			formattedType = SpotNewOrderRequestTypeSellMarket
+		case s.Side == order.Buy && s.Type == order.Limit:
+			formattedType = SpotNewOrderRequestTypeBuyLimit
+			params.Price = s.Price
+		case s.Side == order.Sell && s.Type == order.Limit:
+			formattedType = SpotNewOrderRequestTypeSellLimit
+			params.Price = s.Price
+		}
+
+		params.Type = formattedType
+		response, err := h.SpotNewOrder(params)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		if response > 0 {
+			submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+		}
+
+		submitOrderResponse.IsOrderPlaced = true
+		if s.Type == order.Market {
+			submitOrderResponse.FullyMatched = true
+		}
+
+	case asset.CoinMarginedFutures:
+
+		fPair, err := h.FormatExchangeCurrency(s.Pair, asset.CoinMarginedFutures)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		var oDirection string
+		switch s.Side {
+		case order.Buy:
+			oDirection = "BUY"
+		case order.Sell:
+			oDirection = "SELL"
+		}
+
+		var oType string
+		switch s.Type {
+		case order.Limit:
+			oType = "limit"
+		case order.PostOnly:
+			oType = "post_only"
+		}
+
+		order, err := h.PlaceSwapOrders(fPair.String(), s.ClientOrderID, oDirection, s.Offset, oType, s.Price, s.Amount, s.Leverage)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		submitOrderResponse.OrderID = order.Data.OrderIDString
+		submitOrderResponse.IsOrderPlaced = true
+
+	case asset.Futures:
+
+		fPair, err := h.FormatExchangeCurrency(s.Pair, asset.Futures)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		var oDirection string
+		switch s.Side {
+		case order.Buy:
+			oDirection = "BUY"
+		case order.Sell:
+			oDirection = "SELL"
+		}
+
+		var oType string
+		switch s.Type {
+		case order.Limit:
+			oType = "limit"
+		case order.PostOnly:
+			oType = "post_only"
+		}
+
+		order, err := h.FOrder(fPair.Base.Upper().String(), "", fPair.String(), s.ClientOrderID, oDirection, s.Offset, oType, s.Price, s.Amount, s.Leverage)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		submitOrderResponse.OrderID = order.Data.OrderIDStr
+		submitOrderResponse.IsOrderPlaced = true
+
 	}
 
-	p, err := h.FormatExchangeCurrency(s.Pair, s.AssetType)
-	if err != nil {
-		return submitOrderResponse, err
-	}
-
-	var formattedType SpotNewOrderRequestParamsType
-	var params = SpotNewOrderRequestParams{
-		Amount:    s.Amount,
-		Source:    "api",
-		Symbol:    p.String(),
-		AccountID: int(accountID),
-	}
-
-	switch {
-	case s.Side == order.Buy && s.Type == order.Market:
-		formattedType = SpotNewOrderRequestTypeBuyMarket
-	case s.Side == order.Sell && s.Type == order.Market:
-		formattedType = SpotNewOrderRequestTypeSellMarket
-	case s.Side == order.Buy && s.Type == order.Limit:
-		formattedType = SpotNewOrderRequestTypeBuyLimit
-		params.Price = s.Price
-	case s.Side == order.Sell && s.Type == order.Limit:
-		formattedType = SpotNewOrderRequestTypeSellLimit
-		params.Price = s.Price
-	}
-
-	params.Type = formattedType
-	response, err := h.SpotNewOrder(params)
-	if err != nil {
-		return submitOrderResponse, err
-	}
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
-	}
-
-	submitOrderResponse.IsOrderPlaced = true
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
 	return submitOrderResponse, nil
 }
 

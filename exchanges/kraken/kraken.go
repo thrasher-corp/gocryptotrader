@@ -88,7 +88,13 @@ var (
 	assetTranslator assetTranslatorStore
 )
 
-var validOrderType = []string{"lmt", "post", "stp", "take_profit", "ioc"}
+var validOrderTypes = map[order.Type]string{
+	order.ImmediateOrCancel: "ioc",
+	order.Limit:             "lmt",
+	order.Stop:              "stp",
+	order.PostOnly:          "post",
+	order.TakeProfit:        "take_profit",
+}
 
 var validSide = []string{"buy", "sell"}
 
@@ -133,14 +139,15 @@ func (k *Kraken) FuturesEditOrder(orderID, clientOrderID string, size, limitPric
 }
 
 // FuturesSendOrder sends a futures order
-func (k *Kraken) FuturesSendOrder(orderType, symbol, side, triggerSignal, clientOrderID, reduceOnly string,
+func (k *Kraken) FuturesSendOrder(orderType order.Type, symbol, side, triggerSignal, clientOrderID, reduceOnly string,
 	size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
 	var resp FuturesSendOrderData
-	if !common.StringDataCompare(validOrderType, orderType) {
+	oType, ok := validOrderTypes[orderType]
+	if !ok {
 		return resp, fmt.Errorf("invalid orderType")
 	}
 	params := url.Values{}
-	params.Set("orderType", orderType)
+	params.Set("orderType", oType)
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(validSide, side) {
 		return resp, fmt.Errorf("invalid side")

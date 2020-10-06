@@ -721,48 +721,147 @@ func (b *Binance) GetExchangeHistory(p currency.Pair, assetType asset.Item, time
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
+
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	var sideType string
-	if s.Side == order.Buy {
-		sideType = order.Buy.String()
-	} else {
-		sideType = order.Sell.String()
-	}
+	switch s.AssetType {
 
-	var requestParamsOrderType RequestParamsOrderType
-	switch s.Type {
-	case order.Market:
-		requestParamsOrderType = BinanceRequestParamsOrderMarket
-	case order.Limit:
-		requestParamsOrderType = BinanceRequestParamsOrderLimit
-	default:
-		submitOrderResponse.IsOrderPlaced = false
-		return submitOrderResponse, errors.New("unsupported order type")
-	}
+	case asset.Spot:
 
-	var orderRequest = NewOrderRequest{
-		Symbol:      s.Pair.Base.String() + s.Pair.Quote.String(),
-		Side:        sideType,
-		Price:       s.Price,
-		Quantity:    s.Amount,
-		TradeType:   requestParamsOrderType,
-		TimeInForce: BinanceRequestParamsTimeGTC,
-	}
+		var sideType string
+		if s.Side == order.Buy {
+			sideType = order.Buy.String()
+		} else {
+			sideType = order.Sell.String()
+		}
 
-	response, err := b.NewOrder(&orderRequest)
-	if err != nil {
-		return submitOrderResponse, err
+		var requestParamsOrderType RequestParamsOrderType
+		switch s.Type {
+		case order.Market:
+			requestParamsOrderType = BinanceRequestParamsOrderMarket
+		case order.Limit:
+			requestParamsOrderType = BinanceRequestParamsOrderLimit
+		default:
+			submitOrderResponse.IsOrderPlaced = false
+			return submitOrderResponse, errors.New("unsupported order type")
+		}
+
+		var orderRequest = NewOrderRequest{
+			Symbol:      s.Pair.Base.String() + s.Pair.Quote.String(),
+			Side:        sideType,
+			Price:       s.Price,
+			Quantity:    s.Amount,
+			TradeType:   requestParamsOrderType,
+			TimeInForce: BinanceRequestParamsTimeGTC,
+		}
+
+		response, err := b.NewOrder(&orderRequest)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		if response.OrderID > 0 {
+			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
+		}
+		if response.ExecutedQty == response.OrigQty {
+			submitOrderResponse.FullyMatched = true
+		}
+		submitOrderResponse.IsOrderPlaced = true
+
+	case asset.CoinMarginedFutures:
+
+		fPair, err := b.FormatExchangeCurrency(s.Pair, asset.CoinMarginedFutures)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		var reqSide string
+		switch s.Side {
+		case order.Buy:
+			reqSide = "BUY"
+		case order.Sell:
+			reqSide = "SELL"
+		default:
+			return submitOrderResponse, fmt.Errorf("invalid side")
+		}
+
+		var oType string
+		switch s.Type {
+		case order.Limit:
+			oType = "LIMIT"
+		case order.Market:
+			oType = "MARKET"
+		case order.Stop:
+			oType = "STOP"
+		case order.TakeProfit:
+			oType = "TAKE_PROFIT"
+		case order.StopMarket:
+			oType = "STOP_MARKET"
+		case order.TakeProfitMarket:
+			oType = "TAKE_PROFIT_MARKET"
+		case order.TrailingStop:
+			oType = "TRAILING_STOP_MARKET"
+		}
+
+		order, err := b.FuturesNewOrder(fPair.String(), reqSide,
+			"", oType, "GTC", "",
+			s.ClientOrderID, "", "", "",
+			s.Amount, s.Price, 0, 0, 0)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		submitOrderResponse.OrderID = strconv.FormatInt(order.OrderID, 10)
+		submitOrderResponse.IsOrderPlaced = true
+
+	case asset.USDTMarginedFutures:
+
+		fPair, err := b.FormatExchangeCurrency(s.Pair, asset.USDTMarginedFutures)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		var reqSide string
+		switch s.Side {
+		case order.Buy:
+			reqSide = "BUY"
+		case order.Sell:
+			reqSide = "SELL"
+		default:
+			return submitOrderResponse, fmt.Errorf("invalid side")
+		}
+
+		var oType string
+		switch s.Type {
+		case order.Limit:
+			oType = "LIMIT"
+		case order.Market:
+			oType = "MARKET"
+		case order.Stop:
+			oType = "STOP"
+		case order.TakeProfit:
+			oType = "TAKE_PROFIT"
+		case order.StopMarket:
+			oType = "STOP_MARKET"
+		case order.TakeProfitMarket:
+			oType = "TAKE_PROFIT_MARKET"
+		case order.TrailingStop:
+			oType = "TRAILING_STOP_MARKET"
+		}
+
+		order, err := b.UFuturesNewOrder(fPair.String(), reqSide,
+			"", oType, "GTC", "",
+			s.ClientOrderID, "", "", "",
+			s.Amount, s.Price, 0, 0, 0)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		submitOrderResponse.OrderID = strconv.FormatInt(order.OrderID, 10)
+		submitOrderResponse.IsOrderPlaced = true
+
 	}
-	if response.OrderID > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
-	}
-	if response.ExecutedQty == response.OrigQty {
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
 
 	return submitOrderResponse, nil
 }

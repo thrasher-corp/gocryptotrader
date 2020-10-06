@@ -938,16 +938,12 @@ type FAvailableLeverageData struct {
 
 // FOrderData stores order data for futures
 type FOrderData struct {
-	ClientOrderID  int64   `json:"client_order_id"`
-	ContractCode   string  `json:"contract_code"`
-	ContractType   string  `json:"contract_type"`
-	Direction      string  `json:"direction"`
-	LeverageRate   int64   `json:"lever_rate"`
-	Offset         string  `json:"offset"`
-	OrderPriceType string  `json:"order_price_type"`
-	Price          float64 `json:"price"`
-	Symbol         string  `json:"symbol"`
-	Volume         float64 `json:"volume"`
+	Data struct {
+		OrderID       int64  `json:"order_id"`
+		OrderIDStr    string `json:"order_id_str"`
+		ClientOrderID int64  `json:"client_order_id"`
+	} `json:"data"`
+	Timestamp int64 `json:"ts"`
 }
 
 type fBatchOrderData struct {
@@ -2140,9 +2136,9 @@ type InternalAccountTransferRecords struct {
 // SwapOrderData stores swap order data
 type SwapOrderData struct {
 	Data struct {
-		OrderID       int64 `json:"order_id"`
-		OrderIDString int64 `json:"order_id_string"`
-		ClientOrderID int64 `json:"client_order_id"`
+		OrderID       int64  `json:"order_id"`
+		OrderIDString string `json:"order_id_string"`
+		ClientOrderID int64  `json:"client_order_id"`
 	} `json:"data"`
 	Timestamp string `json:"ts"`
 }

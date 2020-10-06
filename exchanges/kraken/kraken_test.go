@@ -153,7 +153,7 @@ func TestFuturesBatchOrder(t *testing.T) {
 
 func TestFuturesEditOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
 	t.Parallel()
 	_, err := k.FuturesEditOrder("test123", "123test", 5.2, 1, 0.9)
@@ -164,10 +164,10 @@ func TestFuturesEditOrder(t *testing.T) {
 
 func TestFuturesSendOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
 	t.Parallel()
-	_, err := k.FuturesSendOrder("lmt", "PI_XBTUSD", "buy", "", "", "", 1, 1, 0.9)
+	_, err := k.FuturesSendOrder(order.Limit, "PI_XBTUSD", "buy", "", "", "", 1, 1, 0.9)
 	if err != nil {
 		t.Error(err)
 	}
@@ -175,7 +175,7 @@ func TestFuturesSendOrder(t *testing.T) {
 
 func TestFuturesCancelOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
 	t.Parallel()
 	_, err := k.FuturesCancelOrder("test123", "")
@@ -230,7 +230,7 @@ func TestFuturesNotifications(t *testing.T) {
 
 func TestFuturesCancelAllOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
 	t.Parallel()
 	_, err := k.FuturesCancelAllOrders("PI_XBTUSD")
@@ -252,7 +252,7 @@ func TestGetFuturesAccountData(t *testing.T) {
 
 func TestFuturesCancelAllOrdersAfter(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
 	t.Parallel()
 	_, err := k.FuturesCancelAllOrdersAfter(50)
@@ -285,7 +285,7 @@ func TestFuturesRecentOrders(t *testing.T) {
 
 func TestFuturesWithdrawToSpotWallet(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders ")
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
 	t.Parallel()
 	_, err := k.FuturesWithdrawToSpotWallet("xbt", 5)

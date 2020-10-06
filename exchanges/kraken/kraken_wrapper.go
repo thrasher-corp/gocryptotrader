@@ -657,46 +657,84 @@ func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType asset.Item, times
 // SubmitOrder submits a new order
 func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
+
 	err := s.Validate()
 	if err != nil {
 		return submitOrderResponse, err
 	}
 
-	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		var resp string
-		resp, err = k.wsAddOrder(&WsAddOrderRequest{
-			OrderType: s.Type.String(),
-			OrderSide: s.Side.String(),
-			Pair:      s.Pair.String(),
-			Price:     s.Price,
-			Volume:    s.Amount,
-		})
+	switch s.AssetType {
+
+	case asset.Spot:
+
+		fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Spot)
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		submitOrderResponse.OrderID = resp
+
+		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			var resp string
+			resp, err = k.wsAddOrder(&WsAddOrderRequest{
+				OrderType: s.Type.String(),
+				OrderSide: s.Side.String(),
+				Pair:      fPair.String(),
+				Price:     s.Price,
+				Volume:    s.Amount,
+			})
+			if err != nil {
+				return submitOrderResponse, err
+			}
+			submitOrderResponse.OrderID = resp
+			submitOrderResponse.IsOrderPlaced = true
+		} else {
+			var response AddOrderResponse
+			response, err = k.AddOrder(s.Pair.String(),
+				s.Side.String(),
+				s.Type.String(),
+				s.Amount,
+				s.Price,
+				0,
+				0,
+				&AddOrderOptions{})
+			if err != nil {
+				return submitOrderResponse, err
+			}
+			if len(response.TransactionIds) > 0 {
+				submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
+			}
+		}
+		if s.Type == order.Market {
+			submitOrderResponse.FullyMatched = true
+		}
 		submitOrderResponse.IsOrderPlaced = true
-	} else {
-		var response AddOrderResponse
-		response, err = k.AddOrder(s.Pair.String(),
-			s.Side.String(),
-			s.Type.String(),
+
+	case asset.Futures:
+
+		fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Futures)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		order, err := k.FuturesSendOrder(
+			s.Type,
+			fPair.String(),
+			s.Side.Lower(),
+			"",
+			s.ClientOrderID,
+			"",
 			s.Amount,
 			s.Price,
 			0,
-			0,
-			&AddOrderOptions{})
+		)
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		if len(response.TransactionIds) > 0 {
-			submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
-		}
+
+		submitOrderResponse.OrderID = order.SendStatus.OrderID
+		submitOrderResponse.IsOrderPlaced = true
+
 	}
-	if s.Type == order.Market {
-		submitOrderResponse.FullyMatched = true
-	}
-	submitOrderResponse.IsOrderPlaced = true
+
 	return submitOrderResponse, nil
 }
 
