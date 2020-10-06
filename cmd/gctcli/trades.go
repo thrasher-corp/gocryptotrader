@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/urfave/cli"
 )
 
@@ -260,7 +259,7 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Error(log.GRPCSys, err)
+			fmt.Print(err)
 		}
 	}()
 
@@ -321,7 +320,7 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Error(log.GRPCSys, err)
+			fmt.Print(err)
 		}
 	}()
 
@@ -399,7 +398,7 @@ func getSavedTrades(c *cli.Context) error {
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Error(log.GRPCSys, err)
+			fmt.Print(err)
 		}
 	}()
 
@@ -485,7 +484,7 @@ func getRecentTrades(c *cli.Context) error {
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Error(log.GRPCSys, err)
+			fmt.Print(err)
 		}
 	}()
 
@@ -568,7 +567,7 @@ func getHistoricTrades(c *cli.Context) error {
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Error(log.GRPCSys, err)
+			fmt.Print(err)
 		}
 	}()
 
@@ -713,7 +712,7 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Error(log.GRPCSys, err)
+			fmt.Print(err)
 		}
 	}()
 

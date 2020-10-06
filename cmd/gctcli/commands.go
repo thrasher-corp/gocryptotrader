@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/urfave/cli"
 )
 
@@ -4190,7 +4189,7 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Error(log.GRPCSys, err)
+			fmt.Print(err)
 		}
 	}()
 
