@@ -1,0 +1,50 @@
+{{template "base" .}}
+
+{{define "title"}}Basic Chart{{end}}
+{{define "content"}}
+    <script> let chart = LightweightCharts.createChart(document.body, {
+               width: {{.Width}},
+               height: {{.Height}},
+             	rightPriceScale: {
+             		scaleMargins: {
+             			top: 0.1,
+             			bottom: 0.2,
+             		},
+             	},
+             	watermark: {
+             		visible: true,
+             		fontSize: 24,
+             		horzAlign: 'center',
+             		vertAlign: 'center',
+             		color: 'rgba(171, 71, 188, 0.5)',
+             		text: 'GoCryptoTrader',
+             	},
+             	layout: {
+             		backgroundColor: '#ffffff',
+             		textColor: '#333',
+             	},
+             	grid: {
+             		horzLines: {
+             			color: '#eee',
+             		},
+             		vertLines: {
+             			color: '#ffffff',
+             		},
+             	},
+             });
+
+             let areaSeries = chart.addAreaSeries({
+               topColor: 'rgba(171, 71, 188, 0.56)',
+               bottomColor: 'rgba(171, 71, 188, 0.04)',
+               lineColor: 'rgba(171, 71, 188, 1)',
+               lineWidth: 2,
+             	symbol: '{{.Pair}}',
+             });
+
+             areaSeries.setData([
+                 {{range .Data }}
+                    { time: '{{.Timestamp}}', value: {{.Value}} },
+                {{end}}
+             ]);
+       </script>
+{{end}}
