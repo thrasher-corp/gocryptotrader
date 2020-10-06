@@ -240,7 +240,7 @@ func setAnswersFile(t *testing.T, answerFile string) func() {
 
 	inputFile, err := os.Open(answerFile)
 	if err != nil {
-		t.Fatalf("Problem opening temp file at %s: %s\n", inputFile.Name(), err)
+		t.Fatalf("Problem opening temp file at %s: %s\n", answerFile, err)
 	}
 	os.Stdin = inputFile
 	return func() {
