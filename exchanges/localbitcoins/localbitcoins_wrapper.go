@@ -405,7 +405,6 @@ func (b *LocalBitcoins) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequ
 	return nil, common.ErrNotYetImplemented
 }
 
-
 // GetDepositAddress returns a deposit address for a specified currency
 func (l *LocalBitcoins) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	if !strings.EqualFold(currency.BTC.String(), cryptocurrency.String()) {

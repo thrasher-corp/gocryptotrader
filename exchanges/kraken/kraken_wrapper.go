@@ -677,23 +677,28 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 
 // GetClosedOrderInfo retrieves specified closed order information
 func (k *Kraken) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if getOrdersRequest.OrderId == "" {
-		return []order.Detail{}, fmt.Errorf("no order id passed")
+	if err := getOrdersRequest.Validate(getOrdersRequest.CheckId()); err != nil {
+		return nil, err
 	}
 
+	orderId := getOrdersRequest.OrderId
 	var orders []order.Detail
 	resp, err := k.QueryOrdersInfo(OrderInfoOptions{
 		Trades: true,
-	}, getOrdersRequest.OrderId)
+	}, orderId)
 	if err != nil {
 		return nil, err
 	}
 
-	a := int64(resp[getOrdersRequest.OrderId].OpenTime)
-	aa := time.Unix(a, 0)
+	response, ok := resp[orderId]
+	if !ok {
+		return nil, fmt.Errorf("order %s not found in response", orderId)
+	}
+
+	closeDate := convert.TimeFromUnixTimestampDecimal(response.CloseTime)
 
 	side := order.Buy
-	if resp[getOrdersRequest.OrderId].Description.Type == "sell" {
+	if strings.ToUpper(response.Description.Type) == order.Sell.String() {
 		side = order.Sell
 	}
 
@@ -707,29 +712,29 @@ func (k *Kraken) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([
 		return nil, err
 	}
 
-	p, err := currency.NewPairFromFormattedPairs(resp[getOrdersRequest.OrderId].Description.Pair,
+	p, err := currency.NewPairFromFormattedPairs(response.Description.Pair,
 		avail,
 		f)
 	if err != nil {
 		return nil, err
 	}
 
-	oType, err := order.StringToOrderType(resp[getOrdersRequest.OrderId].Description.OrderType)
+	oType, err := order.StringToOrderType(response.Description.OrderType)
 	if err != nil {
 		return nil, err
 	}
 
 	orders = append(orders, order.Detail{
-		ID:       resp[getOrdersRequest.OrderId].RefID,
-		Amount:   resp[getOrdersRequest.OrderId].Volume,
+		ID:       response.RefID,
+		Amount:   response.Volume,
 		Exchange: k.Name,
-		Price:    resp[getOrdersRequest.OrderId].Price,
+		Price:    response.Price,
 		Side:     side,
 		Type:     oType, // limit, market ...
 		Pair:     p,
-		Fee:      resp[getOrdersRequest.OrderId].Fee,
-		Cost:     resp[getOrdersRequest.OrderId].Cost,
-		Date:     aa,
+		Fee:      response.Fee,
+		Cost:     response.Cost,
+		Date:     closeDate,
 	})
 
 	return orders, nil

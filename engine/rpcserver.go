@@ -878,7 +878,6 @@ func (s *RPCServer) GetClosedOrder(ctx context.Context, r *gctrpc.GetOrderReques
 			OpenVolume:    result[0].RemainingAmount,
 			Fee:           result[0].Fee,
 			Cost:          result[0].Cost,
-			//Trades:        trades,
 		}, nil
 	}
 
@@ -919,12 +918,23 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		return &gctrpc.SubmitOrderResponse{}, err
 	}
 
+	var trades []*gctrpc.Trades
+	for _, tr := range resp.Trades {
+		trades = append(trades, &gctrpc.Trades{
+			Amount:   tr.Amount,
+			Price:    tr.Price,
+			Fee:      tr.Fee,
+			FeeAsset: tr.FeeAsset,
+		})
+	}
+
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
 		Rate:        resp.Rate,
 		Fee:         resp.Fee,
 		Cost:        resp.Cost,
+		Trades:      trades,
 	}, err
 }
 

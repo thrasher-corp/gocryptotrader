@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -552,6 +553,12 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var fee, cost, priceTemp float64
 	if len(response.Fills) > 0 {
 		for _, tr := range response.Fills {
+			submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
+				Price:    tr.Price,
+				Amount:   tr.Qty,
+				Fee:      tr.Commission,
+				FeeAsset: tr.CommissionAsset,
+			})
 			fee += tr.Commission
 			cost += tr.Qty * tr.Price
 			priceTemp += tr.Price
@@ -623,27 +630,30 @@ func (b *Binance) GetOrderInfo(orderID string) (order.Detail, error) {
 
 // GetClosedOrderInfo retrieves specified closed order information
 func (b *Binance) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if getOrdersRequest.OrderId == "" {
-		return nil, errors.New("param order_id is required to fetch closed order")
+	if err := getOrdersRequest.Validate(getOrdersRequest.CheckId(), getOrdersRequest.CheckPairs()); err != nil {
+		return nil, err
 	}
 
-	if len(getOrdersRequest.Pairs) == 0 {
-		return nil, errors.New("param pair is required to fetch closed order")
+	if getOrdersRequest.AssetType == "" {
+		getOrdersRequest.AssetType = asset.Spot
 	}
 
 	var orders []order.Detail
-	fpair, err := b.FormatExchangeCurrency(getOrdersRequest.Pairs[0], asset.Spot)
+	formattedPair, err := b.FormatExchangeCurrency(getOrdersRequest.Pairs[0], getOrdersRequest.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := b.GetClosedOrder(fpair.String(), getOrdersRequest.OrderId)
+	resp, err := b.GetClosedOrder(formattedPair.String(), getOrdersRequest.OrderId)
 	if err != nil {
 		return nil, err
 	}
 
 	orderSide := order.Side(resp.Side)
-	orderDate := time.Unix(0, int64(resp.Time)*int64(time.Millisecond))
+	orderDate, err := convert.TimeFromUnixTimestampFloat(resp.Time)
+	if err != nil {
+		return nil, err
+	}
 	pair, err := currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return nil, err
@@ -740,7 +750,10 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		for i := range resp {
 			orderSide := order.Side(strings.ToUpper(resp[i].Side))
 			orderType := order.Type(strings.ToUpper(resp[i].Type))
-			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
+			orderDate, err := convert.TimeFromUnixTimestampFloat(resp[i].Time)
+			if err != nil {
+				return nil, err
+			}
 
 			pair, err := currency.NewPairFromString(resp[i].Symbol)
 			if err != nil {
@@ -794,7 +807,10 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		for i := range resp {
 			orderSide := order.Side(strings.ToUpper(resp[i].Side))
 			orderType := order.Type(strings.ToUpper(resp[i].Type))
-			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
+			orderDate, err := convert.TimeFromUnixTimestampFloat(resp[i].Time)
+			if err != nil {
+				return nil, err
+			}
 			// New orders are covered in GetOpenOrders
 			if resp[i].Status == "NEW" {
 				continue
