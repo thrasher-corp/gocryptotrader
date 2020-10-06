@@ -163,3 +163,26 @@ func TestValidateCalculatePeriods(t *testing.T) {
 		t.Error("validation has been removed")
 	}
 }
+
+func TestSort(t *testing.T) {
+	var tpc TimePeriodCalculator
+	date1 := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)
+	date2 := time.Date(1901, 1, 1, 1, 1, 1, 1, time.UTC)
+	tpc.TimePeriods = append(tpc.TimePeriods,
+		TimePeriod{
+			Time: date1,
+		},
+		TimePeriod{
+			Time: date2,
+		},
+	)
+	tpc.Sort(false)
+	if !tpc.TimePeriods[0].Time.Equal(date2) {
+		t.Errorf("expected %v, received  %v", date2, tpc.TimePeriods[0].Time)
+	}
+
+	tpc.Sort(true)
+	if !tpc.TimePeriods[0].Time.Equal(date1) {
+		t.Errorf("expected %v, received  %v", date1, tpc.TimePeriods[0].Time)
+	}
+}

@@ -2,13 +2,14 @@ package timeperiods
 
 import (
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // FindTimeRangesContainingData will break the start and end into time periods using the provided period
-// it will then check whether any comparisonTimes are within those periods and concatinate them
+// it will then check whether any comparisonTimes are within those periods and concatenate them
 // eg if no comparisonTimes match, you will receive 1 TimeRange of Start End with dataInRange = false
 // eg2 if 1 comparisonTime matches in the middle of start and end, you will receive three ranges
 func FindTimeRangesContainingData(start, end time.Time, period time.Duration, comparisonTimes []time.Time) ([]TimeRange, error) {
@@ -134,4 +135,14 @@ func (t *TimePeriodCalculator) setTimePeriodExists() {
 			}
 		}
 	}
+}
+
+// Sort will sort the time period asc or desc
+func (t *TimePeriodCalculator) Sort(desc bool) {
+	sort.Slice(t.TimePeriods, func(i, j int) bool {
+		if desc {
+			return t.TimePeriods[i].Time.After(t.TimePeriods[j].Time)
+		}
+		return t.TimePeriods[i].Time.Before(t.TimePeriods[j].Time)
+	})
 }
