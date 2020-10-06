@@ -734,6 +734,32 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 	return nil
 }
 
+// CheckId defines an option in the validator to make sure an OrderId is set
+// for a GetOrdersRequest
+func (g *GetOrdersRequest) CheckId() validate.Checker {
+	return validate.Check(func() error {
+		if g.OrderId == "" {
+			return errors.New("param OrderId is not set")
+		}
+		return nil
+	})
+}
+
+// CheckPairs defines an option in the validator to make sure at least one element in Pairs is set
+// for a GetOrdersRequest
+func (g *GetOrdersRequest) CheckPairs() validate.Checker {
+	return validate.Check(func() error {
+		if len(g.Pairs) == 0 {
+			return errors.New("param Pairs is not set")
+		}
+
+		if g.Pairs[0].String() == "" {
+			return errors.New("element Pairs[0] is empty")
+		}
+		return nil
+	})
+}
+
 // Validate checks internal struct requirements
 func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 	if g == nil {

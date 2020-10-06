@@ -67,6 +67,7 @@ type SubmitResponse struct {
 	Rate          float64
 	Fee           float64
 	Cost          float64
+	Trades        []TradeHistory
 }
 
 // Modify contains all properties of an order
@@ -187,9 +188,10 @@ type TradeHistory struct {
 	Side        Side
 	Timestamp   time.Time
 	IsMaker     bool
+	FeeAsset    string
 }
 
-// GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
+// GetOrdersRequest used for GetOrderHistory, GetOpenOrders and GetClosedOrderInfo wrapper functions
 type GetOrdersRequest struct {
 	Type       Type
 	Side       Side
@@ -198,7 +200,8 @@ type GetOrdersRequest struct {
 	OrderId    string
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
-	Pairs []currency.Pair
+	Pairs     []currency.Pair
+	AssetType asset.Item
 }
 
 // Status defines order status types

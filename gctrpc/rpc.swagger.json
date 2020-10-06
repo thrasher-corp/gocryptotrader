@@ -3571,6 +3571,12 @@
         "cost": {
           "type": "number",
           "format": "double"
+        },
+        "trades": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcTrades"
+          }
         }
       }
     },
@@ -3661,6 +3667,26 @@
         "fee": {
           "type": "number",
           "format": "double"
+        }
+      }
+    },
+    "gctrpcTrades": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "fee": {
+          "type": "number",
+          "format": "double"
+        },
+        "fee_asset": {
+          "type": "string"
         }
       }
     },

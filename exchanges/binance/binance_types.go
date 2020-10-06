@@ -351,23 +351,6 @@ type QueryOrderData struct {
 	UpdateTime          int64   `json:"updateTime"`
 }
 
-// QueryOrderData holds query order data
-type ClosedOrderData struct {
-	Symbol          string  `json:"symbol"`
-	Id              int64   `json:"id"`
-	OrderID         int64   `json:"orderId"`
-	OrderListId     int64   `json:"orderListId"`
-	Price           float64 `json:"price,string"`
-	Qty             float64 `json:"qty,string"`
-	QuoteQty        float64 `json:"quoteQty,string"`
-	Commission      float64 `json:"commission,string"`
-	CommissionAsset string  `json:"commissionAsset"`
-	Time            float64 `json:"time"`
-	IsBuyer         bool    `json:"isBuyer"`
-	IsMaker         bool    `json:"isMaker"`
-	IsBestMatch     bool    `json:"isBestMatch"`
-}
-
 // Balance holds query order data
 type Balance struct {
 	Asset  string `json:"asset"`
