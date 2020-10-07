@@ -437,22 +437,6 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 	return resp, nil
 }
 
-// GetClosedOrder Get specified closed order
-// orderId and pair are a mandatory params
-func (b *Binance) GetClosedOrder(symbol, orderID string) (QueryOrderData, error) {
-	path := b.API.Endpoints.URL + queryOrder
-	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(symbol))
-	params.Set("orderId", orderID)
-
-	var resp QueryOrderData
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitOrdersAll, &resp); err != nil {
-		return resp, err
-	}
-
-	return resp, nil
-}
-
 // QueryOrder returns information on a past order
 func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (QueryOrderData, error) {
 	var resp QueryOrderData
