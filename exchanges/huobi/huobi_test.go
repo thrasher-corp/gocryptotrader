@@ -715,8 +715,10 @@ func TestGetOpenInterestInfo(t *testing.T) {
 }
 
 func TestGetTraderSentimentIndexAccount(t *testing.T) {
+	h.Verbose = true
 	t.Parallel()
-	_, err := h.GetTraderSentimentIndexAccount("BTC-USD", "5min")
+	a, err := h.GetTraderSentimentIndexAccount("BTC-USD", "5min")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1134,8 +1136,10 @@ func TestGetSwapTriggerOrderHistory(t *testing.T) {
 }
 
 func TestGetSwapMarkets(t *testing.T) {
+	h.Verbose = true
 	t.Parallel()
-	_, err := h.GetSwapMarkets("")
+	a, err := h.GetSwapMarkets("")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

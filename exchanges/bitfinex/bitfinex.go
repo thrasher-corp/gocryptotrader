@@ -66,7 +66,6 @@ const (
 	bitfinexV2MarginFunding = "calc/trade/avg?"
 	bitfinexV2Balances      = "auth/r/wallets"
 	bitfinexV2AccountInfo   = "auth/r/info/user"
-	bitfinexFundingOffers   = "auth/r/funding/offers"
 	bitfinexV2FundingInfo   = "auth/r/info/funding/%s"
 	bitfinexDerivativeData  = "status/deriv?"
 	bitfinexPlatformStatus  = "platform/status"
@@ -144,8 +143,8 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 		return response, fmt.Errorf("failed rate")
 	}
 	response.Symbol = symbol
-	response.RateAvg = avgRate
-	response.AmountAvg = avgAmount
+	response.RateAverage = avgRate
+	response.AmountAverage = avgAmount
 	return response, nil
 }
 
@@ -172,8 +171,8 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 	if !ok {
 		return response, fmt.Errorf("failed rate")
 	}
-	response.RateAvg = avgRate
-	response.AmountAvg = avgAmount
+	response.RateAverage = avgRate
+	response.AmountAverage = avgAmount
 	return response, nil
 }
 
@@ -1348,7 +1347,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest2(method, path string, params map
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	headers["Accept"] = "application/json"
-	headers["bfx-apikey"] = "U4UcLJEpdcepygBUwwvza6qzUvhzwMXcU5HIGqSlmbG"
+	headers["bfx-apikey"] = b.API.Credentials.Key
 	headers["bfx-nonce"] = n
 	strPath := "/api" + bitfinexAPIVersion2 + path + string(payload)
 	signStr := strPath + n

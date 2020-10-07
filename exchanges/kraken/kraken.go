@@ -381,7 +381,7 @@ func (k *Kraken) GetAssets() (map[string]*Asset, error) {
 }
 
 // GetAssetPairs returns a full asset pair list
-// Parameter 'info' only supports 3 strings: "fees", "leverage", "margin"
+// Parameter 'info' only supports 4 strings: "fees", "leverage", "margin", "info" <- (default)
 func (k *Kraken) GetAssetPairs(assetPairs []string, info string) (map[string]AssetPairs, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.API.Endpoints.URL, krakenAPIVersion, krakenAssetPairs)
 	params := url.Values{}
@@ -395,7 +395,7 @@ func (k *Kraken) GetAssetPairs(assetPairs []string, info string) (map[string]Ass
 		Result map[string]AssetPairs `json:"result"`
 	}
 	if info != "" {
-		if (info != "margin") && (info != "leverage") && (info != "fees") {
+		if (info != "margin") && (info != "leverage") && (info != "fees") && (info != "info") {
 			return response.Result, fmt.Errorf("parameter info can only be 'asset', 'margin' or 'fees'")
 		}
 		params.Set("info", info)

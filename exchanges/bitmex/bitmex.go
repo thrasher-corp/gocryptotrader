@@ -236,8 +236,8 @@ func (b *Bitmex) GetFullFundingHistory(symbol, count, filter, columns, start str
 		if startTime.After(endTime) {
 			return nil, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("startTime", startTime.Format(time.RFC3339))
+		params.Set("endTime", endTime.Format(time.RFC3339))
 	}
 	return fundingHistory, b.SendHTTPRequest(bitmexEndpointFundingHistory+params.Encode(),
 		nil,

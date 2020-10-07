@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
-// WSFuturesTickerData stores ws ticker data for futures
+// WSFuturesTickerData stores ws ticker data for futures websocket
 type WSFuturesTickerData struct {
 	Time                          int64   `json:"time"`
 	Feed                          string  `json:"feed"`

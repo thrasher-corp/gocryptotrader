@@ -80,7 +80,7 @@ const (
 	fTriggerOrderHistory       = "api/v1/contract_trigger_hisorders"
 
 	// Coin Margined Swap (perpetual futures) endpoints
-	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info?"
+	huobiSwapMarkets                     = "swap-api/v1/swap_contract_info?"
 	huobiSwapFunding                     = "swap-api/v1/swap_funding_rate?"
 	huobiSwapIndexPriceInfo              = "swap-api/v1/swap_index?"
 	huobiSwapPriceLimitation             = "swap-api/v1/swap_price_limit?"
@@ -1962,8 +1962,6 @@ func (h *HUOBI) GetSwapTriggerOrderHistory(contractCode, status, tradeType strin
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapTriggerOrderHistory, nil, req, &resp, false)
 }
 
-// ************************************************************************
-
 // GetSwapMarkets gets data of swap markets
 func (h *HUOBI) GetSwapMarkets(contract string) ([]SwapMarketsData, error) {
 	vals := url.Values{}
@@ -1973,7 +1971,7 @@ func (h *HUOBI) GetSwapMarkets(contract string) ([]SwapMarketsData, error) {
 		Data []SwapMarketsData `json:"data"`
 	}
 	var result response
-	err := h.SendHTTPRequest(common.EncodeURLValues(huobiURL+huobiSwapMarkets, vals), &result)
+	err := h.SendHTTPRequest(huobiURL+huobiSwapMarkets+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}

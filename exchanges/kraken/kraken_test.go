@@ -407,7 +407,15 @@ func TestLookupCurrency(t *testing.T) {
 // TestGetAssetPairs API endpoint test
 func TestGetAssetPairs(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetAssetPairs([]string{}, "")
+	_, err := k.GetAssetPairs([]string{}, "fees")
+	if err != nil {
+		t.Error("GetAssetPairs() error", err)
+	}
+	_, err = k.GetAssetPairs([]string{}, "leverage")
+	if err != nil {
+		t.Error("GetAssetPairs() error", err)
+	}
+	_, err = k.GetAssetPairs([]string{}, "margin")
 	if err != nil {
 		t.Error("GetAssetPairs() error", err)
 	}

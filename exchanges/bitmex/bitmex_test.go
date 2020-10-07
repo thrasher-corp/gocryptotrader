@@ -61,8 +61,13 @@ func TestStart(t *testing.T) {
 }
 
 func TestGetFullFundingHistory(t *testing.T) {
+	b.Verbose = true
 	_, err := b.GetFullFundingHistory("", "", "", "", "", true, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
 
+	_, err = b.GetFullFundingHistory("LTCUSD", "1", "", "", "", true, time.Now().Add(time.Hour*-24), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

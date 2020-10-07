@@ -21,9 +21,9 @@ var AcceptableMethods = make(map[string]string)
 
 // MarginV2FundingData stores margin funding data
 type MarginV2FundingData struct {
-	Symbol    string
-	RateAvg   float64
-	AmountAvg float64
+	Symbol        string
+	RateAverage   float64
+	AmountAverage float64
 }
 
 // MarginFundingData stores data for margin funding

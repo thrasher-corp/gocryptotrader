@@ -28,6 +28,7 @@ const (
 	krakenWSURL              = "wss://ws.kraken.com"
 	krakenAuthWSURL          = "wss://ws-auth.kraken.com"
 	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
+	krakenFuturesWsURL       = "wss://futures.kraken.com/ws/v1"
 	krakenWSSupportedVersion = "1.0.0"
 	// WS endpoints
 	krakenWsHeartbeat          = "heartbeat"
