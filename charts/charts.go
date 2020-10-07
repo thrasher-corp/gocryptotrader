@@ -34,9 +34,9 @@ func New(name, template, outputpath string) (chart Chart) {
 }
 
 // Generate chart output
-func (c *Chart) Generate()  (*os.File, error) {
+func (c *Chart) Generate() (*os.File, error) {
 	var list []string
-	if c.TemplatePath == "" {
+	if c.TemplatePath == "yeah the original f" {
 		baseTemplate, err := writeTemplate(templateList["base.tmpl"])
 		if err != nil {
 			return nil, err

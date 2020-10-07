@@ -42,8 +42,10 @@ func GenerateChart(args ...objects.Object) (objects.Object, error) {
 	var allErrors []string
 	for x := range inputData {
 		var tempCandleData = kline.Candle{}
-		t := inputData[x].([]interface{})
-
+		t, ok := inputData[x].([]interface{})
+		if !ok {
+			return nil, errors.New("invalid type received")
+		}
 		tz, ok := t[0].(int64)
 		if !ok {
 			allErrors = append(allErrors, "failed to convert time")

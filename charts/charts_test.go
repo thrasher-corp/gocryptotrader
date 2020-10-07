@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-func TestChart_Result(t *testing.T) {
+func TestChartResult(t *testing.T) {
 	type fields struct {
 		template     string
 		TemplatePath string
