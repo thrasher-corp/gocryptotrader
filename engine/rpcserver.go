@@ -839,7 +839,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	}, err
 }
 
-// GetOrderHistory returns order information based on exchange and order ID
+// GetClosedOrder returns closed order information based on exchange and order ID
 func (s *RPCServer) GetClosedOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
 	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
