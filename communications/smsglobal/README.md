@@ -44,12 +44,12 @@ s := new(smsglobal.SMSGlobal)
 
 // Define SMSGlobal configuration
 commsConfig := config.CommunicationsConfig{SMSGlobalConfig: config.SMSGlobalConfig{
-  Name: "SMSGlobal",
-	Enabled: true,
-	Verbose: false,
+	Name:     "SMSGlobal",
+	Enabled:  true,
+	Verbose:  false,
 	Username: "username",
 	Password: "password",
-  Contacts: []config.SMSContact{}
+	Contacts: []config.SMSContact{}
 }}
 
 s.Setup(commsConfig)

@@ -24,7 +24,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + This package facilitates ticker generation.
 + Attaches methods to an ticker
-  - Returns a string of a value
+	- Returns a string of a value
 
 + Gets a loaded ticker by exchange, asset type and currency pair.
 
@@ -37,7 +37,7 @@ Examples below:
 ```go
 tick, err := yobitExchange.FetchTicker()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Converts ticker value to string
@@ -50,7 +50,7 @@ the package itself.
 ```go
 tick, err := ticker.GetTicker(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 
