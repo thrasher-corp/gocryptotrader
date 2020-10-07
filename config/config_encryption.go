@@ -192,12 +192,12 @@ func getScryptDK(key, salt []byte) ([]byte, error) {
 func makeNewSessionDK(key []byte) (dk, storedSalt []byte, err error) {
 	storedSalt, err = crypto.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
 	if err != nil {
-		return nil, storedSalt, err
+		return nil, nil, err
 	}
 
 	dk, err = getScryptDK(key, storedSalt)
 	if err != nil {
-		return nil, storedSalt, err
+		return nil, nil, err
 	}
 
 	return dk, storedSalt, nil
