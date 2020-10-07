@@ -978,6 +978,8 @@ func TestValidateCandlesRequest(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
+	t.Parallel()
+
 	trades, err := z.GetTrades("btc_usdt")
 	if err != nil {
 		t.Error(err)
@@ -989,6 +991,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
+
 	currencyPair, err := currency.NewPairFromString("btc_usdt")
 	if err != nil {
 		t.Fatal(err)

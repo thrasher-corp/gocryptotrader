@@ -172,7 +172,7 @@ func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
 
 // GetTicker returns a ticker for a given symbol
 func (z *ZB) GetTrades(symbol string) (TradeHistory, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.API.Endpoints.URL, zbAPIVersion, zbTrades, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s/%s?market=%s", z.API.Endpoints.URL, zbData, zbAPIVersion, zbTrades, symbol)
 	var res TradeHistory
 	err := z.SendHTTPRequest(urlPath, &res, request.UnAuth)
 	return res, err

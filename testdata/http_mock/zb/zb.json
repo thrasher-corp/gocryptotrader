@@ -3206,6 +3206,417 @@
      "headers": {}
     }
    ]
+  },
+  "/data/v1/trades": {
+   "GET": [
+    {
+     "data": [
+      {
+       "amount": "0.0003",
+       "date": 1602036046,
+       "price": "10584.44",
+       "tid": 1244927815,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.2423",
+       "date": 1602036047,
+       "price": "10579.58",
+       "tid": 1244927846,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.9465",
+       "date": 1602036048,
+       "price": "10583.02",
+       "tid": 1244927866,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "1.8656",
+       "date": 1602036049,
+       "price": "10585.42",
+       "tid": 1244927886,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "1.8584",
+       "date": 1602036050,
+       "price": "10580.21",
+       "tid": 1244927898,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "1.7062",
+       "date": 1602036051,
+       "price": "10579.72",
+       "tid": 1244927918,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.4845",
+       "date": 1602036052,
+       "price": "10581.22",
+       "tid": 1244927935,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0059",
+       "date": 1602036053,
+       "price": "10582.3",
+       "tid": 1244927955,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0008",
+       "date": 1602036054,
+       "price": "10582.8",
+       "tid": 1244927977,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0001",
+       "date": 1602036056,
+       "price": "10583.11",
+       "tid": 1244928012,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "1.0592",
+       "date": 1602036057,
+       "price": "10584.91",
+       "tid": 1244928040,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.4548",
+       "date": 1602036058,
+       "price": "10584.5",
+       "tid": 1244928062,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0002",
+       "date": 1602036058,
+       "price": "10584.5",
+       "tid": 1244928063,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0025",
+       "date": 1602036061,
+       "price": "10583.39",
+       "tid": 1244928127,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0031",
+       "date": 1602036063,
+       "price": "10581.32",
+       "tid": 1244928176,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0003",
+       "date": 1602036063,
+       "price": "10581.32",
+       "tid": 1244928177,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0006",
+       "date": 1602036064,
+       "price": "10584.79",
+       "tid": 1244928196,
+       "trade_type": "ask",
+       "type": "sell"
+      },
+      {
+       "amount": "0.0014",
+       "date": 1602036064,
+       "price": "10581.16",
+       "tid": 1244928197,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.2517",
+       "date": 1602036066,
+       "price": "10583.52",
+       "tid": 1244928235,
+       "trade_type": "ask",
+       "type": "sell"
+      },
+      {
+       "amount": "0.0052",
+       "date": 1602036066,
+       "price": "10583.52",
+       "tid": 1244928236,
+       "trade_type": "ask",
+       "type": "sell"
+      },
+      {
+       "amount": "0.0003",
+       "date": 1602036066,
+       "price": "10583.52",
+       "tid": 1244928237,
+       "trade_type": "ask",
+       "type": "sell"
+      },
+      {
+       "amount": "0.2190",
+       "date": 1602036068,
+       "price": "10582.11",
+       "tid": 1244928278,
+       "trade_type": "ask",
+       "type": "sell"
+      },
+      {
+       "amount": "0.0023",
+       "date": 1602036068,
+       "price": "10584.01",
+       "tid": 1244928279,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0008",
+       "date": 1602036069,
+       "price": "10584.74",
+       "tid": 1244928314,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0001",
+       "date": 1602036071,
+       "price": "10580.5",
+       "tid": 1244928365,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0042",
+       "date": 1602036072,
+       "price": "10582.35",
+       "tid": 1244928376,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0090",
+       "date": 1602036073,
+       "price": "10582.71",
+       "tid": 1244928409,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0017",
+       "date": 1602036078,
+       "price": "10581.94",
+       "tid": 1244928511,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0006",
+       "date": 1602036078,
+       "price": "10581.94",
+       "tid": 1244928512,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0013",
+       "date": 1602036078,
+       "price": "10581.94",
+       "tid": 1244928513,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0002",
+       "date": 1602036078,
+       "price": "10581.94",
+       "tid": 1244928514,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0014",
+       "date": 1602036080,
+       "price": "10582.32",
+       "tid": 1244928557,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0003",
+       "date": 1602036080,
+       "price": "10582.32",
+       "tid": 1244928558,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0014",
+       "date": 1602036082,
+       "price": "10584.06",
+       "tid": 1244928593,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0002",
+       "date": 1602036082,
+       "price": "10584.06",
+       "tid": 1244928594,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0068",
+       "date": 1602036083,
+       "price": "10585.31",
+       "tid": 1244928613,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0593",
+       "date": 1602036085,
+       "price": "10585.0",
+       "tid": 1244928647,
+       "trade_type": "ask",
+       "type": "sell"
+      },
+      {
+       "amount": "0.0032",
+       "date": 1602036085,
+       "price": "10584.6",
+       "tid": 1244928648,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0002",
+       "date": 1602036085,
+       "price": "10584.6",
+       "tid": 1244928649,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0434",
+       "date": 1602036087,
+       "price": "10583.39",
+       "tid": 1244928726,
+       "trade_type": "ask",
+       "type": "sell"
+      },
+      {
+       "amount": "0.0097",
+       "date": 1602036087,
+       "price": "10583.39",
+       "tid": 1244928727,
+       "trade_type": "ask",
+       "type": "sell"
+      },
+      {
+       "amount": "0.0006",
+       "date": 1602036092,
+       "price": "10582.6",
+       "tid": 1244928841,
+       "trade_type": "ask",
+       "type": "sell"
+      },
+      {
+       "amount": "0.0026",
+       "date": 1602036093,
+       "price": "10584.47",
+       "tid": 1244928870,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0008",
+       "date": 1602036094,
+       "price": "10585.68",
+       "tid": 1244928899,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0026",
+       "date": 1602036094,
+       "price": "10585.68",
+       "tid": 1244928900,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0025",
+       "date": 1602036095,
+       "price": "10584.05",
+       "tid": 1244928912,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0022",
+       "date": 1602036096,
+       "price": "10582.94",
+       "tid": 1244928940,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0170",
+       "date": 1602036097,
+       "price": "10582.52",
+       "tid": 1244928956,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "1.1725",
+       "date": 1602036098,
+       "price": "10582.83",
+       "tid": 1244928977,
+       "trade_type": "bid",
+       "type": "buy"
+      },
+      {
+       "amount": "0.0018",
+       "date": 1602036101,
+       "price": "10584.75",
+       "tid": 1244929028,
+       "trade_type": "bid",
+       "type": "buy"
+      }
+     ],
+     "queryString": "market=btc_usdt",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
   }
  }
 }
