@@ -114,7 +114,7 @@ func stripPath(in string) string {
 }
 
 func byteJoin(b []byte) string {
-	s := make([]string, 0, len(b))
+	s := make([]string, len(b))
 	for i := range b {
 		s = append(s, strconv.Itoa(int(b[i])))
 	}

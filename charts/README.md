@@ -20,12 +20,27 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for charts
 
-#### <add stuff here>
+#### Current Features for chart package
+
++ Generate Timeseries Chat from OHLCV Data
++ Generate Standard chart from time/value Data
++ Output to HTML
++ Serve over HTTP
++ GCTScript links
 
 + Coding example
 
 ```go
 import "github.com/thrasher-corp/gocryptotrader/charts"
+
+func TestCharts(t *testing.T) {
+	c := &Chart{
+		template:     "timeseries.tmpl",
+	}
+
+	c.Data.Data = genIntervalData(365)
+	_,_ = c.ToFile().Generate()
+}
 ```
 
 

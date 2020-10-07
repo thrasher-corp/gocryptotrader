@@ -235,3 +235,13 @@ func TestChartGenerate(t *testing.T) {
 		})
 	}
 }
+
+
+func TestCharts(t *testing.T) {
+	c := &Chart{
+		template:     "timeseries.tmpl",
+	}
+
+	c.Data.Data = genIntervalData(365)
+	_,_ = c.ToFile().Generate()
+}
