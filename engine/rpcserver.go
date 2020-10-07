@@ -854,7 +854,7 @@ func (s *RPCServer) GetClosedOrder(ctx context.Context, r *gctrpc.GetOrderReques
 	})
 
 	req := order.GetOrdersRequest{
-		OrderId: r.OrderId,
+		OrderID: r.OrderId,
 		Pairs:   pairs,
 	}
 	result, err := exch.GetClosedOrderInfo(&req)

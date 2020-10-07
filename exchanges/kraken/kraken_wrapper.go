@@ -681,11 +681,9 @@ func (k *Kraken) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([
 		return nil, err
 	}
 
-	orderId := getOrdersRequest.OrderId
+	orderId := getOrdersRequest.OrderID
 	var orders []order.Detail
-	resp, err := k.QueryOrdersInfo(OrderInfoOptions{
-		Trades: true,
-	}, orderId)
+	resp, err := k.QueryOrdersInfo(OrderInfoOptions{}, orderId)
 	if err != nil {
 		return nil, err
 	}
@@ -696,18 +694,21 @@ func (k *Kraken) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([
 	}
 
 	closeDate := convert.TimeFromUnixTimestampDecimal(response.CloseTime)
-
 	side := order.Buy
 	if strings.ToUpper(response.Description.Type) == order.Sell.String() {
 		side = order.Sell
 	}
 
-	avail, err := k.GetAvailablePairs(asset.Spot)
+	if getOrdersRequest.AssetType == "" {
+		getOrdersRequest.AssetType = asset.Spot
+	}
+
+	avail, err := k.GetAvailablePairs(getOrdersRequest.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := k.GetPairFormat(asset.Spot, true)
+	f, err := k.GetPairFormat(getOrdersRequest.AssetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -725,16 +726,17 @@ func (k *Kraken) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([
 	}
 
 	orders = append(orders, order.Detail{
-		ID:       response.RefID,
-		Amount:   response.Volume,
-		Exchange: k.Name,
-		Price:    response.Price,
-		Side:     side,
-		Type:     oType, // limit, market ...
-		Pair:     p,
-		Fee:      response.Fee,
-		Cost:     response.Cost,
-		Date:     closeDate,
+		ID:        response.RefID,
+		Amount:    response.Volume,
+		Exchange:  k.Name,
+		Price:     response.Price,
+		Side:      side,
+		Type:      oType, // limit, market ...
+		Pair:      p,
+		Fee:       response.Fee,
+		Cost:      response.Cost,
+		Date:      closeDate,
+		AssetType: getOrdersRequest.AssetType,
 	})
 
 	return orders, nil

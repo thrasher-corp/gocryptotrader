@@ -197,7 +197,7 @@ type GetOrdersRequest struct {
 	Side       Side
 	StartTicks time.Time
 	EndTicks   time.Time
-	OrderId    string
+	OrderID    string
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
 	Pairs     []currency.Pair

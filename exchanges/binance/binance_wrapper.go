@@ -644,7 +644,12 @@ func (b *Binance) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) (
 		return nil, err
 	}
 
-	resp, err := b.GetClosedOrder(formattedPair.String(), getOrdersRequest.OrderId)
+	orderId, err := convert.Int64FromString(getOrdersRequest.OrderID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := b.QueryOrder(formattedPair.String(), "", orderId)
 	if err != nil {
 		return nil, err
 	}
@@ -665,14 +670,15 @@ func (b *Binance) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) (
 	}
 
 	orders = append(orders, order.Detail{
-		Amount:   resp.ExecutedQty,
-		Date:     orderDate,
-		Exchange: b.Name,
-		ID:       strconv.FormatInt(resp.OrderID, 10),
-		Side:     orderSide,
-		Type:     OrderType,
-		Pair:     pair,
-		Cost:     resp.CummulativeQuoteQty,
+		Amount:    resp.ExecutedQty,
+		Date:      orderDate,
+		Exchange:  b.Name,
+		ID:        strconv.FormatInt(resp.OrderID, 10),
+		Side:      orderSide,
+		Type:      OrderType,
+		Pair:      pair,
+		Cost:      resp.CummulativeQuoteQty,
+		AssetType: getOrdersRequest.AssetType,
 	})
 
 	return orders, nil

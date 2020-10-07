@@ -738,7 +738,7 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 // for a GetOrdersRequest
 func (g *GetOrdersRequest) CheckId() validate.Checker {
 	return validate.Check(func() error {
-		if g.OrderId == "" {
+		if g.OrderID == "" {
 			return errors.New("param OrderId is not set")
 		}
 		return nil
