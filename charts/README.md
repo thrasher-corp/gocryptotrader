@@ -33,13 +33,32 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ```go
 import "github.com/thrasher-corp/gocryptotrader/charts"
 
+func genIntervalData(totalCandles int) []IntervalData {
+	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+	out := make([]IntervalData, totalCandles)
+	out[0] = IntervalData{Timestamp: start.Format("2006-01-02"), Value: 0}
+	for x := 1; x &lt; totalCandles; x++ {
+		out[x] = IntervalData{
+			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)).Format("2006-01-02"),
+			Value:     out[x-1].Value + rand.Float64(),
+		}
+	}
+
+	return out
+}
+
+
 func TestCharts(t *testing.T) {
 	c := &Chart{
 		template:     "timeseries.tmpl",
 	}
 
 	c.Data.Data = genIntervalData(365)
-	_,_ = c.ToFile().Generate()
+	_,err := c.ToFile().Generate()
+
+	if err != nil {
+	    t.Fatal(err)
+	}
 }
 ```
 
