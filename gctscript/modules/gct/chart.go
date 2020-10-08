@@ -18,10 +18,9 @@ var chartsModule = map[string]objects.Object{
 }
 
 func GenerateChart(args ...objects.Object) (objects.Object, error) {
-	if len(args) == 0 {
+	if len(args) < 3 {
 		return nil, objects.ErrWrongNumArguments
 	}
-
 	chartName, ok := objects.ToString(args[0])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, chartName)

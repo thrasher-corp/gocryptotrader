@@ -37,13 +37,13 @@ c := currencyconverter.CurrencyConverter{}
 
 // Define configuration
 newSettings := base.Settings{
- 	Name: "CurrencyConverter",
-	Enabled: true,
-	Verbose: false,
+	Name:             "CurrencyConverter",
+	Enabled:          true,
+	Verbose:          false,
 	RESTPollingDelay: time.Duration,
-	APIKey: "key",
-	APIKeyLvl: "keylvl",
-	PrimaryProvider: true,
+	APIKey:           "key",
+	APIKeyLvl:        "keylvl",
+	PrimaryProvider:  true,
 }
 
 c.Setup(newSettings)

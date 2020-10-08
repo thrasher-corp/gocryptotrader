@@ -21,8 +21,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Current Features for validate
 
 + This package allows for validation options to occur exchange side e.g.
-  - Checking for ID in an order cancellation struct.
-  - Determining the correct withdrawal bank details for a specific exchange.
+	- Checking for ID in an order cancellation struct.
+	- Determining the correct withdrawal bank details for a specific exchange.
 
 + Example Usage below:
 
@@ -32,21 +32,21 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 // define your data structure across potential exchanges
 type Critical struct {
-    ID string
-    Person string
-    Banks string
-    MoneysUSD float64
+	ID string
+	Person string
+	Banks string
+	MoneysUSD float64
 }
 
 // define validation and add a variadic param
 func (supercritcalinfo *Critical) Validate(opt ...validate.Checker) error {
-    // define base level validation
-    if supercritcalinfo != nil {
-        // oh no this is nil, could panic program!
-    }
+	// define base level validation
+	if supercritcalinfo != nil {
+			// oh no this is nil, could panic program!
+	}
 
-    // range over potential checks coming from individual packages
-    var errs common.Errors
+	// range over potential checks coming from individual packages
+	var errs common.Errors
 	for _, o := range opt {
 		err := o.Check()
 		if err != nil {
@@ -57,18 +57,18 @@ func (supercritcalinfo *Critical) Validate(opt ...validate.Checker) error {
 	if errs != nil {
 		return errs
 	}
-    return nil
+	return nil
 }
 
 // define an exchange or package level check that returns a validate.Checker 
 // interface
 func (supercritcalinfo *Critical) PleaseDontSendMoneyToParents() validate.Checker {
-    return validate.Check(func() error {
+	return validate.Check(func() error {
 		if supercritcalinfo.Person == "Mother Dearest" ||
-        supercritcalinfo.Person == "Father Dearest" {
-        return errors.New("nope")
-    }
-    return nil
+			supercritcalinfo.Person == "Father Dearest" {
+			return errors.New("nope")
+		}
+	return nil
 	})
 }
 
@@ -79,13 +79,13 @@ d := Critical{Person: "Mother Dearest", MoneysUSD: 1337.30}
 // This should not error 
 err := d.Validate()
 if err != nil {
-    return err
+	return err
 }
 
 // This should error 
 err := d.Validate(d.PleaseDontSendMoneyToParents())
 if err != nil {
-    return err
+	return err
 }
 
 ```

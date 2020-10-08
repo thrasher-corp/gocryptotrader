@@ -21,10 +21,10 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Current Features for currency
 
 + Currency package contains a full suite of packages that provide:
-  - Foreign exchange data fetching for FIAT currencies
-  - Currency Pair generation
-  - Symbol mapping
-  - Translation between currencies that have similar strings e.g. XBT, BTC
+	- Foreign exchange data fetching for FIAT currencies
+	- Currency Pair generation
+	- Symbol mapping
+	- Translation between currencies that have similar strings e.g. XBT, BTC
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

@@ -22,9 +22,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + This package facilitates orderbook generation.
 + Attaches methods to an orderbook
-  - To Return total Bids
-  - To Return total Asks
-  - Update orderbooks
+	- To Return total Bids
+	- To Return total Asks
+	- Update orderbooks
 + Gets a loaded orderbook by exchange, asset type and currency pair.
 
 + This package is primarily used in conjunction with but not limited to the
@@ -36,7 +36,7 @@ Examples below:
 ```go
 ob, err := yobitExchange.FetchOrderbook()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Find total asks which also returns total orderbook value
@@ -49,7 +49,7 @@ the package itself.
 ```go
 ob, err := orderbook.Get(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 

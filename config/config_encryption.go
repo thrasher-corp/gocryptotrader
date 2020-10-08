@@ -27,33 +27,22 @@ const (
 	errAESBlockSize = "config file data is too small for the AES required block size"
 )
 
-var (
-	storedSalt []byte
-	sessionDK  []byte
-)
-
-// PromptForConfigEncryption asks for encryption key
-func (c *Config) PromptForConfigEncryption(configPath string, dryrun bool) bool {
+// promptForConfigEncryption asks for encryption confirmation
+// returns true if encryption was desired, false otherwise
+func promptForConfigEncryption() (bool, error) {
 	log.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
 	_, err := fmt.Scanln(&input)
 	if err != nil {
-		return false
+		return false, err
 	}
 
-	if !common.YesOrNo(input) {
-		c.EncryptConfig = fileEncryptionDisabled
-		err := c.SaveConfig(configPath, dryrun)
-		if err != nil {
-			log.Printf("Cannot save config. Error: %s\n", err)
-		}
-		return false
-	}
-	return true
+	return common.YesOrNo(input), nil
 }
 
 // PromptForConfigKey asks for configuration key
+// if initialSetup is true, the password needs to be repeated
 func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 	var cryptoKey []byte
 
@@ -94,16 +83,21 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 // EncryptConfigFile encrypts configuration data that is parsed in with a key
 // and returns it as a byte array with an error
 func EncryptConfigFile(configData, key []byte) ([]byte, error) {
-	var err error
-
-	if len(sessionDK) == 0 {
-		sessionDK, err = makeNewSessionDK(key)
-		if err != nil {
-			return nil, err
-		}
+	sessionDK, salt, err := makeNewSessionDK(key)
+	if err != nil {
+		return nil, err
 	}
+	c := &Config{
+		sessionDK:  sessionDK,
+		storedSalt: salt,
+	}
+	return c.encryptConfigFile(configData)
+}
 
-	block, err := aes.NewCipher(sessionDK)
+// EncryptConfigFile encrypts configuration data that is parsed in with a key
+// and returns it as a byte array with an error
+func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
+	block, err := aes.NewCipher(c.sessionDK)
 	if err != nil {
 		return nil, err
 	}
@@ -118,15 +112,21 @@ func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], configData)
 
 	appendedFile := []byte(EncryptConfirmString)
-	appendedFile = append(appendedFile, storedSalt...)
+	appendedFile = append(appendedFile, c.storedSalt...)
 	appendedFile = append(appendedFile, ciphertext...)
 	return appendedFile, nil
 }
 
 // DecryptConfigFile decrypts configuration data with the supplied key and
-// returns the un-encrypted file as a byte array with an error
+// returns the un-encrypted data as a byte array with an error
 func DecryptConfigFile(configData, key []byte) ([]byte, error) {
-	configData = RemoveECS(configData)
+	return (&Config{}).decryptConfigData(configData, key)
+}
+
+// decryptConfigData decrypts configuration data with the supplied key and
+// returns the un-encrypted data as a byte array with an error
+func (c *Config) decryptConfigData(configData, key []byte) ([]byte, error) {
+	configData = removeECS(configData)
 	origKey := key
 
 	if ConfirmSalt(configData) {
@@ -158,10 +158,11 @@ func DecryptConfigFile(configData, key []byte) ([]byte, error) {
 	stream.XORKeyStream(configData, configData)
 	result := configData
 
-	sessionDK, err = makeNewSessionDK(origKey)
+	sessionDK, storedSalt, err := makeNewSessionDK(origKey)
 	if err != nil {
 		return nil, err
 	}
+	c.sessionDK, c.storedSalt = sessionDK, storedSalt
 
 	return result, nil
 }
@@ -176,8 +177,8 @@ func ConfirmECS(file []byte) bool {
 	return bytes.Contains(file, []byte(EncryptConfirmString))
 }
 
-// RemoveECS removes encryption confirmation string
-func RemoveECS(file []byte) []byte {
+// removeECS removes encryption confirmation string
+func removeECS(file []byte) []byte {
 	return bytes.Trim(file, EncryptConfirmString)
 }
 
@@ -188,17 +189,16 @@ func getScryptDK(key, salt []byte) ([]byte, error) {
 	return scrypt.Key(key, salt, 32768, 8, 1, 32)
 }
 
-func makeNewSessionDK(key []byte) ([]byte, error) {
-	var err error
+func makeNewSessionDK(key []byte) (dk, storedSalt []byte, err error) {
 	storedSalt, err = crypto.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	dk, err := getScryptDK(key, storedSalt)
+	dk, err = getScryptDK(key, storedSalt)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return dk, nil
+	return dk, storedSalt, nil
 }

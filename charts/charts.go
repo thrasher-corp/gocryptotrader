@@ -21,7 +21,7 @@ func New(name, template, outputpath string) (chart Chart) {
 		chart.template = "basic.tmpl"
 	case "timeseries":
 		chart.template = "timeseries.tmpl"
-	case "timeseries-markets":
+	case "timeseries-markers":
 		chart.template = "timeseries-markers.tmpl"
 	}
 	chart.output = name
@@ -36,7 +36,7 @@ func New(name, template, outputpath string) (chart Chart) {
 // Generate chart output
 func (c *Chart) Generate() (*os.File, error) {
 	var list []string
-	if c.TemplatePath == "yeah the original f" {
+	if c.TemplatePath == "" {
 		baseTemplate, err := writeTemplate(templateList["base.tmpl"])
 		if err != nil {
 			return nil, err
@@ -59,6 +59,9 @@ func (c *Chart) Generate() (*os.File, error) {
 			filepath.Join(c.TemplatePath, c.template),
 			filepath.Join(c.TemplatePath, "base.tmpl"),
 		}
+	}
+	if len(list) == 0 {
+		return nil, errors.New("no templates found")
 	}
 	var out *os.File
 	tmpl, err := template.ParseFiles(list...)

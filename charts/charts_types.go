@@ -4,6 +4,8 @@ import (
 	"io"
 )
 
+var tempByte []byte
+
 // Chart configuration options
 type Chart struct {
 	template     string
@@ -43,7 +45,7 @@ type AdvancedIntervalData struct {
 	Direction string
 }
 
-// SeriesData is used to store timeseries (OHLC) data
+// SeriesData is used to store time series (OHLC) data
 type SeriesData struct {
 	Timestamp string
 	Open      float64
@@ -52,5 +54,3 @@ type SeriesData struct {
 	Close     float64
 	Volume    float64
 }
-
-var tempByte []byte
