@@ -931,9 +931,6 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
-		Rate:        resp.Rate,
-		Fee:         resp.Fee,
-		Cost:        resp.Cost,
 		Trades:      trades,
 	}, err
 }

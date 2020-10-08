@@ -346,10 +346,7 @@ message Trades {
 message SubmitOrderResponse {
     bool order_placed = 1;
     string order_id = 2;
-    double rate = 3;
-    double fee = 4;
-    double cost = 5;
-    repeated Trades trades= 6;
+    repeated Trades trades= 3;
 }
 
 message SimulateOrderRequest {
