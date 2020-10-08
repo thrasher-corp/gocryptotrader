@@ -27,7 +27,6 @@ type BTSE struct {
 
 const (
 	btseAPIURL         = "https://api.btse.com"
-	btseAPIPath        = "/spot/v2/"
 	btseFuturesAPIURL  = "https://api.btse.com/futures"
 	btseSPOTAPIPath    = "/spot/v2/"
 	btseFuturesAPIPath = "/futures/api/v2.1/"

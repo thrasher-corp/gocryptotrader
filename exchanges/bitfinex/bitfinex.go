@@ -177,32 +177,93 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 }
 
 // GetAccountInfoV2 gets borrowing rates for margin trading
-func (b *Bitfinex) GetAccountInfoV2() (interface{}, error) {
-	var resp interface{}
-	return resp, b.SendAuthenticatedHTTPRequest2(http.MethodPost,
+func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
+	var resp AccountV2Data
+	var data []interface{}
+	err := b.SendAuthenticatedHTTPRequest2(http.MethodPost,
 		bitfinexV2AccountInfo,
 		nil,
-		&resp,
+		&data,
 		getAccountFees)
+	if err != nil {
+		return resp, err
+	}
+	if _, ok := data[0].(float64); !ok {
+		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	resp.ID = int64(data[0].(float64))
+	if _, ok := data[1].(string); !ok {
+		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	resp.Email = data[1].(string)
+	if _, ok := data[2].(string); !ok {
+		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	resp.Username = data[2].(string)
+	if _, ok := data[3].(float64); !ok {
+		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	resp.MTSAccountCreate = int64(data[3].(float64))
+	if _, ok := data[4].(float64); !ok {
+		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	resp.Verified = int64(data[4].(float64))
+	if _, ok := data[7].(string); !ok {
+		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	resp.Timezone = data[7].(string)
+	return resp, nil
 }
 
 // GetV2Balances gets borrowing rates for margin trading
-func (b *Bitfinex) GetV2Balances() (interface{}, error) {
-	var resp interface{}
-	return resp, b.SendAuthenticatedHTTPRequest2(http.MethodPost,
+func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
+	var resp []WalletDataV2
+	var data [][]interface{}
+	err := b.SendAuthenticatedHTTPRequest2(http.MethodPost,
 		bitfinexV2Balances,
 		nil,
-		&resp,
+		&data,
 		getAccountFees)
+	if err != nil {
+		return resp, err
+	}
+	for x := range data {
+		if _, ok := data[x][0].(string); !ok {
+			return resp, fmt.Errorf("type conversion failed, check for api updates")
+		}
+		if _, ok := data[x][1].(string); !ok {
+			return resp, fmt.Errorf("type conversion failed, check for api updates")
+		}
+		if _, ok := data[x][2].(string); !ok {
+			return resp, fmt.Errorf("type conversion failed, check for api updates")
+		}
+		if _, ok := data[x][3].(string); !ok {
+			return resp, fmt.Errorf("type conversion failed, check for api updates")
+		}
+		resp = append(resp, WalletDataV2{
+			WalletType:        data[x][0].(string),
+			Currency:          data[x][1].(string),
+			Balance:           data[x][2].(float64),
+			UnsettledInterest: data[x][3].(float64),
+		})
+	}
+	return resp, nil
 }
 
 // GetMarginPairs gets pairs that allow margin trading
-func (b *Bitfinex) GetMarginPairs() ([][]string, error) {
+func (b *Bitfinex) GetMarginPairs() ([]string, error) {
 	var resp [][]string
-	path := "https://api-pub.bitfinex.com" +
+	path := b.API.Endpoints.URL +
 		bitfinexAPIVersion2 +
 		bitfinexMarginPairs
-	return resp, b.SendHTTPRequest(path, &resp, status)
+	err := b.SendHTTPRequest(path, &resp, status)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) != 1 {
+		return nil, fmt.Errorf("invalid response")
+	}
+	return resp[0], nil
 }
 
 // GetDerivativeData gets data for the queried derivative
@@ -1360,7 +1421,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest2(method, path string, params map
 
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          "https://api.bitfinex.com" + bitfinexAPIVersion2 + path,
+		Path:          b.API.Endpoints.URL + bitfinexAPIVersion2 + path,
 		Headers:       headers,
 		Body:          body,
 		Result:        result,

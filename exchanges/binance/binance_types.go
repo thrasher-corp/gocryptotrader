@@ -680,25 +680,24 @@ type AutoCancelAllOrdersData struct {
 	CountdownTime int64  `json:"countdownTime,string"`
 }
 
+// LevelDetail stores level detail data
+type LevelDetail struct {
+	Level         string  `json:"level"`
+	MaxBorrowable float64 `json:"maxBorrowable,string"`
+	InterestRate  float64 `json:"interestRate,string"`
+}
+
 // MarginInfoData stores margin info data
 type MarginInfoData struct {
 	Data []struct {
 		MarginRatio string `json:"marginRatio"`
 		Base        struct {
-			AssetName    string `json:"assetName"`
-			LevelDetails []struct {
-				Level         string  `json:"level"`
-				MaxBorrowable float64 `json:"maxBorrowable,string"`
-				InterestRate  float64 `json:"interestRate,string"`
-			} `json:"levelDetails"`
+			AssetName    string        `json:"assetName"`
+			LevelDetails []LevelDetail `json:"levelDetails"`
 		} `json:"base"`
 		Quote struct {
-			AssetName    string `json:"assetName"`
-			LevelDetails []struct {
-				Level         string  `json:"level"`
-				MaxBorrowable float64 `json:"maxBorrowable,string"`
-				InterestRate  float64 `json:"interestRate,string"`
-			} `json:"levelDetails"`
+			AssetName    string        `json:"assetName"`
+			LevelDetails []LevelDetail `json:"levelDetails"`
 		} `json:"quote"`
 	} `json:"data"`
 }

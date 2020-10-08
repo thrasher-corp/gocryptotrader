@@ -6,6 +6,24 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// AccountV2Data stores account v2 data
+type AccountV2Data struct {
+	ID               int64
+	Email            string
+	Username         string
+	MTSAccountCreate int64
+	Verified         int64
+	Timezone         string
+}
+
+// WalletDataV2 stores wallet data for v2
+type WalletDataV2 struct {
+	WalletType        string
+	Currency          string
+	Balance           float64
+	UnsettledInterest float64
+}
+
 // AcceptedOrderType defines the accepted market types, exchange strings denote
 // non-contract order types.
 var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",

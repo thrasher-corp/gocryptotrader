@@ -98,7 +98,8 @@ func TestGetV2Balances(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, err := b.GetV2Balances()
+	a, err := b.GetV2Balances()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

@@ -1,7 +1,6 @@
 package bitmex
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -160,10 +159,7 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func TestGetInstruments(t *testing.T) {
-	a, err := b.GetInstruments(&GenericRequestParams{})
-	for x := range a {
-		fmt.Println(a[x].Symbol, a[x].Typ)
-	}
+	_, err := b.GetInstruments(&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetInstruments() error", err)
 	}
