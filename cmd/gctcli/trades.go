@@ -252,6 +252,16 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 		}
 	}
 
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -262,15 +272,6 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 			fmt.Print(err)
 		}
 	}()
-
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
-	}
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.FindMissingSavedTradeIntervals(context.Background(),
@@ -391,6 +392,20 @@ func getSavedTrades(c *cli.Context) error {
 		}
 	}
 
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after end")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -401,19 +416,6 @@ func getSavedTrades(c *cli.Context) error {
 			fmt.Print(err)
 		}
 	}()
-
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
-	}
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
-	}
-
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetSavedTrades(context.Background(),
@@ -559,6 +561,19 @@ func getHistoricTrades(c *cli.Context) error {
 			endTime = c.Args().Get(4)
 		}
 	}
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after end")
+	}
 
 	conn, err := setupClient()
 	if err != nil {
@@ -570,19 +585,6 @@ func getHistoricTrades(c *cli.Context) error {
 			fmt.Print(err)
 		}
 	}()
-
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
-	}
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
-	}
-
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
-	}
 
 	streamStartTime := time.Now()
 	client := gctrpc.NewGoCryptoTraderClient(conn)
@@ -705,6 +707,21 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 		return errors.New("cannot forcefully overwrite without sync")
 	}
 
+	candleInterval := time.Duration(candleGranularity) * time.Second
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after end")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -715,21 +732,6 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 			fmt.Print(err)
 		}
 	}()
-
-	candleInterval := time.Duration(candleGranularity) * time.Second
-
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
-	}
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
-	}
-
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.ConvertTradesToCandles(context.Background(),

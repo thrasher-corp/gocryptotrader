@@ -558,16 +558,16 @@ func getTicker(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetTicker(context.Background(),
@@ -675,16 +675,16 @@ func getOrderbook(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrderbook(context.Background(),
@@ -949,12 +949,6 @@ func addPortfolioAddress(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var address string
 	var coinType string
 	var description string
@@ -979,7 +973,7 @@ func addPortfolioAddress(c *cli.Context) error {
 	} else {
 		description = c.Args().Get(2)
 	}
-
+	var err error
 	if c.IsSet("balance") {
 		balance = c.Float64("balance")
 	} else if c.Args().Get(3) != "" {
@@ -1003,6 +997,12 @@ func addPortfolioAddress(c *cli.Context) error {
 	} else {
 		supportedExchanges = c.Args().Get(5)
 	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.AddPortfolioAddress(context.Background(),
@@ -1051,12 +1051,6 @@ func removePortfolioAddress(c *cli.Context) error {
 		return nil
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	var address string
 	var coinType string
 	var description string
@@ -1078,6 +1072,12 @@ func removePortfolioAddress(c *cli.Context) error {
 	} else {
 		description = c.Args().Get(2)
 	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.RemovePortfolioAddress(context.Background(),
@@ -1199,16 +1199,16 @@ func getOrders(c *cli.Context) error {
 		return errInvalidPair
 	}
 
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -1427,16 +1427,16 @@ func submitOrder(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SubmitOrder(context.Background(), &gctrpc.SubmitOrderRequest{
@@ -1541,16 +1541,16 @@ func simulateOrder(c *cli.Context) error {
 		return errors.New("amount must be set")
 	}
 
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SimulateOrder(context.Background(), &gctrpc.SimulateOrderRequest{
@@ -1647,16 +1647,16 @@ func whaleBomb(c *cli.Context) error {
 		}
 	}
 
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.WhaleBomb(context.Background(), &gctrpc.WhaleBombRequest{
@@ -2022,16 +2022,16 @@ func addEvent(c *cli.Context) error {
 		return fmt.Errorf("action is required")
 	}
 
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.AddEvent(context.Background(), &gctrpc.AddEventRequest{
@@ -2882,16 +2882,16 @@ func getOrderbookStream(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
+	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
-	if err != nil {
-		return err
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrderbookStream(context.Background(),
@@ -3093,16 +3093,16 @@ func getTickerStream(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
+	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-
-	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
-	if err != nil {
-		return err
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetTickerStream(context.Background(),
@@ -4033,19 +4033,13 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		return errors.New("cannot forcefully overwrite without sync")
 	}
 
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
 	candleInterval := time.Duration(candleGranularity) * time.Second
-
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -4053,6 +4047,12 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	if e.Before(s) {
 		return errors.New("start cannot be after end")
 	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetHistoricCandles(context.Background(),
@@ -4182,6 +4182,21 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 		}
 	}
 
+	candleInterval := time.Duration(candleGranularity) * time.Second
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after end")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -4192,21 +4207,6 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 			fmt.Print(err)
 		}
 	}()
-
-	candleInterval := time.Duration(candleGranularity) * time.Second
-
-	s, err := time.Parse(common.SimpleTimeFormat, startTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
-	}
-	e, err := time.Parse(common.SimpleTimeFormat, endTime)
-	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
-	}
-
-	if e.Before(s) {
-		return errors.New("start cannot be after end")
-	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.FindMissingSavedCandleIntervals(context.Background(),
