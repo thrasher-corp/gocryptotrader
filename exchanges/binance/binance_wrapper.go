@@ -541,6 +541,7 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if err != nil {
 		return submitOrderResponse, err
 	}
+
 	if response.OrderID > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
 	}
@@ -550,7 +551,6 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	submitOrderResponse.IsOrderPlaced = true
 
 	// create fee, cost and rate to fill response
-	var fee, cost, priceTemp float64
 	if len(response.Fills) > 0 {
 		for _, tr := range response.Fills {
 			submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
@@ -559,14 +559,7 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 				Fee:      tr.Commission,
 				FeeAsset: tr.CommissionAsset,
 			})
-			fee += tr.Commission
-			cost += tr.Qty * tr.Price
-			priceTemp += tr.Price
 		}
-
-		submitOrderResponse.Rate = priceTemp / float64(len(response.Fills)) // average rate
-		submitOrderResponse.Fee = fee
-		submitOrderResponse.Cost = cost
 	}
 
 	return submitOrderResponse, nil

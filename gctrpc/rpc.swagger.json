@@ -3560,18 +3560,6 @@
         "order_id": {
           "type": "string"
         },
-        "rate": {
-          "type": "number",
-          "format": "double"
-        },
-        "fee": {
-          "type": "number",
-          "format": "double"
-        },
-        "cost": {
-          "type": "number",
-          "format": "double"
-        },
         "trades": {
           "type": "array",
           "items": {
