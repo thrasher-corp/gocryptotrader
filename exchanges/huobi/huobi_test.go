@@ -178,8 +178,7 @@ func TestFGetAllSubAccountAssets(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	a, err := h.FGetAllSubAccountAssets("")
-	t.Log(a)
+	_, err := h.FGetAllSubAccountAssets("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -190,8 +189,7 @@ func TestFGetSingleSubAccountInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	a, err := h.FGetSingleSubAccountInfo("", "154263566")
-	t.Log(a)
+	_, err := h.FGetSingleSubAccountInfo("", "154263566")
 	if err != nil {
 		t.Error(err)
 	}
@@ -309,7 +307,6 @@ func TestFGetAvailableLeverage(t *testing.T) {
 
 func TestFOrder(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
@@ -321,7 +318,6 @@ func TestFOrder(t *testing.T) {
 
 func TestFPlaceBatchOrder(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
@@ -423,13 +419,11 @@ func TestFGetOpenOrders(t *testing.T) {
 }
 
 func TestFGetOrderHistory(t *testing.T) {
-	h.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	a, err := h.FGetOrderHistory("BTC", "all", "all", "7", "", []order.Status{}, 5, 0, 0)
-	t.Log(a)
+	_, err := h.FGetOrderHistory("BTC", "all", "all", "7", "", []order.Status{}, 5, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -569,9 +563,7 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
-	h.Verbose = true
-	a, err := h.UpdateAccountInfo()
-	t.Log(a)
+	_, err := h.UpdateAccountInfo()
 	if err != nil {
 		t.Error(err)
 	}
@@ -583,7 +575,6 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 
-	h.Verbose = true
 	var getOrdersRequest order.GetOrdersRequest
 
 	getOrdersRequest = order.GetOrdersRequest{
@@ -617,10 +608,8 @@ func TestGetOrderHistory(t *testing.T) {
 }
 
 func TestCancelAllOrders(t *testing.T) {
-	h.Verbose = true
 	t.Parallel()
-	a, err := h.CancelAllOrders(&order.Cancel{AssetType: asset.Futures})
-	t.Log(a)
+	_, err := h.CancelAllOrders(&order.Cancel{AssetType: asset.Futures})
 	if err != nil {
 		t.Error(err)
 	}
@@ -715,10 +704,8 @@ func TestGetOpenInterestInfo(t *testing.T) {
 }
 
 func TestGetTraderSentimentIndexAccount(t *testing.T) {
-	h.Verbose = true
 	t.Parallel()
-	a, err := h.GetTraderSentimentIndexAccount("BTC-USD", "5min")
-	t.Log(a)
+	_, err := h.GetTraderSentimentIndexAccount("BTC-USD", "5min")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1068,13 +1055,11 @@ func TestGetSwapOpenOrders(t *testing.T) {
 }
 
 func TestGetSwapOrderHistory(t *testing.T) {
-	h.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	a, err := h.GetSwapOrderHistory("ETH-USD", "all", "all", []order.Status{order.PartiallyCancelled, order.Active}, 25, 0, 0)
-	t.Log(a)
+	_, err := h.GetSwapOrderHistory("ETH-USD", "all", "all", []order.Status{order.PartiallyCancelled, order.Active}, 25, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1136,10 +1121,8 @@ func TestGetSwapTriggerOrderHistory(t *testing.T) {
 }
 
 func TestGetSwapMarkets(t *testing.T) {
-	h.Verbose = true
 	t.Parallel()
-	a, err := h.GetSwapMarkets("")
-	t.Log(a)
+	_, err := h.GetSwapMarkets("")
 	if err != nil {
 		t.Error(err)
 	}

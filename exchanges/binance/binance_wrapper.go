@@ -329,9 +329,7 @@ func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 			}
 		}
 	case asset.CoinMarginedFutures:
-		fmt.Printf("HILOOOOOOOOOOO\n\n\n")
 		cInfo, err := b.FuturesExchangeInfo()
-		fmt.Println(cInfo)
 		if err != nil {
 			return pairs, nil
 		}
@@ -1030,7 +1028,6 @@ func (b *Binance) GetOrderInfo(orderID string, assetType asset.Item) (order.Deta
 		if err != nil {
 			return resp, err
 		}
-		fmt.Println(orderData)
 
 		if len(orderData) != 1 {
 			return resp, fmt.Errorf("invalid data recieved")
@@ -1076,7 +1073,6 @@ func (b *Binance) GetOrderInfo(orderID string, assetType asset.Item) (order.Deta
 		if err != nil {
 			return resp, err
 		}
-		fmt.Println(orderData)
 
 		if len(orderData) != 1 {
 			return resp, fmt.Errorf("invalid data recieved")

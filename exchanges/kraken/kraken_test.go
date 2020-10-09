@@ -119,10 +119,8 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
 
-	a, err := k.UpdateAccountInfo()
-	t.Log(a)
+	_, err := k.UpdateAccountInfo()
 	if err != nil {
 		t.Error(err)
 	}
@@ -130,10 +128,8 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 func TestWrapperGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
 
-	a, err := k.GetOrderInfo("123", asset.Futures)
-	t.Log(a)
+	_, err := k.GetOrderInfo("123", asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}

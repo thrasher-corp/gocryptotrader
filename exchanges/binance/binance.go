@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -1111,14 +1112,6 @@ func (b *Binance) UAccountForcedOrders(symbol, autoCloseType string, limit int64
 	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+ufuturesUsersForceOrders, params, limitDefault, &resp)
 }
 
-//
-
-//
-
-//
-
-//
-
 // Coin Margined Futures
 
 // FuturesExchangeInfo stores futures data
@@ -2187,8 +2180,6 @@ func (b *Binance) FuturesPositionsADLEstimate(symbol string) ([]ADLEstimateData,
 	return resp, b.SendAuthHTTPRequest(http.MethodGet, b.API.Endpoints.URL+cfuturesADLQuantile, params, limitDefault, &resp)
 }
 
-// *************************************************************************************
-
 // GetInterestHistory gets interest history for currency/currencies provided
 func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 	var resp MarginInfoData
@@ -2237,7 +2228,8 @@ func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
-
+	USDTWS              stream.WebsocketConnection
+	CoinMarginFuturesWS stream.WebsocketConnection
 	// Valid string list that is required by the exchange
 	validLimits []int
 }

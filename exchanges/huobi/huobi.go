@@ -1217,18 +1217,6 @@ func (h *HUOBI) FQueryTriggerOrderHistory(symbol, contractCode, tradeType, statu
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fTriggerOrderHistory, nil, req, &resp, false)
 }
 
-//
-
-//
-
-//
-
-//
-
-//
-
-//
-
 // Coin Margined Swaps
 
 // QuerySwapIndexPriceInfo gets perpetual swap index's price info
@@ -1994,7 +1982,7 @@ func (h *HUOBI) GetSwapFundingRates(contract string) (FundingRatesData, error) {
 	return result.Data, err
 }
 
-// SPOT section below ***************************************************************************************
+// SPOT section below
 
 // GetMarginRates gets margin rates
 func (h *HUOBI) GetMarginRates(symbol string) (MarginRatesData, error) {

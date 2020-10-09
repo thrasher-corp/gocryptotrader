@@ -60,7 +60,6 @@ func TestStart(t *testing.T) {
 }
 
 func TestGetFullFundingHistory(t *testing.T) {
-	b.Verbose = true
 	_, err := b.GetFullFundingHistory("", "", "", "", "", true, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)

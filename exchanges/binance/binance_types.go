@@ -367,14 +367,6 @@ type UForceOrdersData struct {
 	UpdateTime    int64   `json:"updateTime"`
 }
 
-//
-
-//
-
-//
-
-//
-
 // Coin Margined Futures
 
 // Response holds basic binance api response data

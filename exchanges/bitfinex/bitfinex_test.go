@@ -72,12 +72,11 @@ func TestGetV2MarginFunding(t *testing.T) {
 }
 
 func TestGetAccountInfoV2(t *testing.T) {
-	b.Verbose = true
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	a, err := b.GetAccountInfoV2()
-	t.Log(a)
+	_, err := b.GetAccountInfoV2()
 	if err != nil {
 		t.Error(err)
 	}
@@ -94,12 +93,11 @@ func TestGetV2FundingInfo(t *testing.T) {
 }
 
 func TestGetV2Balances(t *testing.T) {
-	b.Verbose = true
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	a, err := b.GetV2Balances()
-	t.Log(a)
+	_, err := b.GetV2Balances()
 	if err != nil {
 		t.Error(err)
 	}
@@ -114,8 +112,8 @@ func TestGetDerivativeData(t *testing.T) {
 }
 
 func TestGetMarginPairs(t *testing.T) {
-	a, err := b.GetMarginPairs()
-	t.Log(a)
+	t.Parallel()
+	_, err := b.GetMarginPairs()
 	if err != nil {
 		t.Error(err)
 	}
@@ -293,7 +291,6 @@ func TestGetWithdrawalFee(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.GetWithdrawalFees()
 	if err != nil {
 		t.Error("GetAccountInfo error", err)

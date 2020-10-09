@@ -148,7 +148,7 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	return response, nil
 }
 
-// GetV2FundingInfo gets borrowing rates for margin trading
+// GetV2FundingInfo gets funding info for margin pairs
 func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 	var resp []interface{}
 	var response MarginV2FundingData
@@ -176,7 +176,7 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 	return response, nil
 }
 
-// GetAccountInfoV2 gets borrowing rates for margin trading
+// GetAccountInfoV2 gets V2 account data
 func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 	var resp AccountV2Data
 	var data []interface{}
@@ -215,7 +215,7 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 	return resp, nil
 }
 
-// GetV2Balances gets borrowing rates for margin trading
+// GetV2Balances gets v2 balances
 func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	var resp []WalletDataV2
 	var data [][]interface{}

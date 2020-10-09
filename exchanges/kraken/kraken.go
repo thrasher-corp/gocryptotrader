@@ -294,8 +294,6 @@ func (k *Kraken) GetFuturesAccountData() (FuturesAccountsData, error) {
 	return resp, k.SendFuturesAuthRequest(http.MethodGet, futuresAccountData, nil, nil, &resp)
 }
 
-//******************************************************************************
-
 // GetServerTime returns current server time
 func (k *Kraken) GetServerTime() (TimeResponse, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.API.Endpoints.URL, krakenAPIVersion, krakenServerTime)

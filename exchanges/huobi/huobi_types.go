@@ -509,7 +509,7 @@ type FLastTradeData struct {
 			Amount    float64 `json:"amount,string"`
 			Direction string  `json:"direction"`
 			ID        int64   `json:"id"`
-			Price     float64 `json:"price"`
+			Price     float64 `json:"price,string"`
 			Timestamp int64   `json:"ts"`
 		} `json:"data"`
 		ID        int64 `json:"id"`
@@ -1251,18 +1251,6 @@ type FTriggerOrderHistoryData struct {
 	Timestamp int64 `json:"ts"`
 }
 
-//
-
-//
-
-//
-
-//
-
-//
-
-//
-
 // Coin Margined Swaps
 
 // WsSwapReqKline stores req kline data for swap websocket
@@ -1847,14 +1835,14 @@ type HistoricalRateData struct {
 type PremiumIndexKlineData struct {
 	Channel string `json:"ch"`
 	Data    []struct {
-		Volume float64 `json:"vol"`
-		Close  float64 `json:"close"`
-		Count  float64 `json:"count"`
-		High   float64 `json:"high"`
+		Volume float64 `json:"vol,string"`
+		Close  float64 `json:"close,string"`
+		Count  float64 `json:"count,string"`
+		High   float64 `json:"high,string"`
 		ID     int64   `json:"id"`
-		Low    float64 `json:"low"`
-		Open   float64 `json:"open"`
-		Amount float64 `json:"amount"`
+		Low    float64 `json:"low,string"`
+		Open   float64 `json:"open,string"`
+		Amount float64 `json:"amount,string"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
 }
@@ -2459,7 +2447,7 @@ type TransferMarginBetweenAccountsData struct {
 	Success bool   `json:"success"`
 }
 
-// *******************************************************
+// --------------------------------Spot-----------------------------------------
 
 // Response stores the Huobi response information
 type Response struct {
