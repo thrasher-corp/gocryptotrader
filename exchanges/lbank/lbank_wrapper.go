@@ -445,8 +445,8 @@ func (l *Lbank) CancelAllOrders(o *order.Cancel) (order.CancelAllResponse, error
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (l *Lbank) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
 	var resp order.Detail
 	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {
@@ -455,10 +455,10 @@ func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
 
 	for key, val := range orderIDs {
 		for i := range val {
-			if val[i] != orderID {
+			if val[i] != getOrdersRequest.OrderID {
 				continue
 			}
-			tempResp, err := l.QueryOrder(key, orderID)
+			tempResp, err := l.QueryOrder(key, getOrdersRequest.OrderID)
 			if err != nil {
 				return resp, err
 			}
@@ -502,11 +502,6 @@ func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
 		}
 	}
 	return resp, nil
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *Lbank) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

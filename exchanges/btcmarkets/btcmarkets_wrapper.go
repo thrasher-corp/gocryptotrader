@@ -502,10 +502,10 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (b *BTCMarkets) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
 	var resp order.Detail
-	o, err := b.FetchOrder(orderID)
+	o, err := b.FetchOrder(getOrdersRequest.OrderID)
 	if err != nil {
 		return resp, err
 	}
@@ -516,7 +516,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 
 	resp.Exchange = b.Name
-	resp.ID = orderID
+	resp.ID = getOrdersRequest.OrderID
 	resp.Pair = p
 	resp.Price = o.Price
 	resp.Date = o.CreationTime
@@ -559,11 +559,6 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 		resp.Status = order.UnknownStatus
 	}
 	return resp, nil
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *BTCMarkets) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

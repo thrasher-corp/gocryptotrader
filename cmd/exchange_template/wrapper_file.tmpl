@@ -362,8 +362,8 @@ func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *order.
 	return order.CancelAllResponse{}, common.ErrNotYetImplemented
 }
 
-// GetOrderInfo returns information on a current open order
-func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 

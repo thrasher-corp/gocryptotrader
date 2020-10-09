@@ -191,7 +191,7 @@ type TradeHistory struct {
 	FeeAsset    string
 }
 
-// GetOrdersRequest used for GetOrderHistory, GetOpenOrders and GetClosedOrderInfo wrapper functions
+// GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
 type GetOrdersRequest struct {
 	Type       Type
 	Side       Side
@@ -216,6 +216,7 @@ const (
 	PartiallyFilled     Status = "PARTIALLY_FILLED"
 	Filled              Status = "FILLED"
 	Cancelled           Status = "CANCELLED"
+	Canceled            Status = "CANCELED" // Kraken case
 	PendingCancel       Status = "PENDING_CANCEL"
 	InsufficientBalance Status = "INSUFFICIENT_BALANCE"
 	MarketUnavailable   Status = "MARKET_UNAVAILABLE"
@@ -224,6 +225,7 @@ const (
 	Hidden              Status = "HIDDEN"
 	UnknownStatus       Status = "UNKNOWN"
 	Open                Status = "OPEN"
+	Closed              Status = "CLOSED"
 )
 
 // Type enforces a standard for order types across the code base

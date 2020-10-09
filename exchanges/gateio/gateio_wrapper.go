@@ -508,21 +508,25 @@ func (g *Gateio) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (g *Gateio) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
 	var orderDetail order.Detail
 	orders, err := g.GetOpenOrders("")
 	if err != nil {
 		return orderDetail, errors.New("failed to get open orders")
 	}
 
-	format, err := g.GetPairFormat(asset.Spot, false)
+	if getOrdersRequest.AssetType == "" {
+		getOrdersRequest.AssetType = asset.Spot
+	}
+
+	format, err := g.GetPairFormat(getOrdersRequest.AssetType, false)
 	if err != nil {
 		return orderDetail, err
 	}
 
 	for x := range orders.Orders {
-		if orders.Orders[x].OrderNumber != orderID {
+		if orders.Orders[x].OrderNumber != getOrdersRequest.OrderID {
 			continue
 		}
 		orderDetail.Exchange = g.Name
@@ -545,12 +549,7 @@ func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
 		}
 		return orderDetail, nil
 	}
-	return orderDetail, fmt.Errorf("no order found with id %v", orderID)
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *Gateio) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
+	return orderDetail, fmt.Errorf("no order found with id %v", getOrdersRequest.OrderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

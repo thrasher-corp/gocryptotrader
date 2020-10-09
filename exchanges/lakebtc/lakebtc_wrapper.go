@@ -399,15 +399,10 @@ func (l *LakeBTC) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 	return cancelAllOrdersResponse, l.CancelExistingOrders(ordersToCancel)
 }
 
-// GetOrderInfo returns information on a current open order
-func (l *LakeBTC) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (l *LakeBTC) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *LakeBTC) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

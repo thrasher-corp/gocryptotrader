@@ -550,7 +550,6 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 	submitOrderResponse.IsOrderPlaced = true
 
-	// create fee, cost and rate to fill response
 	if len(response.Fills) > 0 {
 		for _, tr := range response.Fills {
 			submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
@@ -561,7 +560,7 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			})
 		}
 	}
-
+	//submitOrderResponse.
 	return submitOrderResponse, nil
 }
 
@@ -615,46 +614,50 @@ func (b *Binance) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (b *Binance) GetOrderInfo(orderID string) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *Binance) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if err := getOrdersRequest.Validate(getOrdersRequest.CheckId(), getOrdersRequest.CheckPairs()); err != nil {
-		return nil, err
+// GetOrderInfo returns order information based on order ID
+func (b *Binance) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (o order.Detail, err error) {
+	if err = getOrdersRequest.Validate(getOrdersRequest.CheckId(), getOrdersRequest.CheckPairs()); err != nil {
+		return
 	}
 
 	if getOrdersRequest.AssetType == "" {
 		getOrdersRequest.AssetType = asset.Spot
 	}
 
-	var orders []order.Detail
 	formattedPair, err := b.FormatExchangeCurrency(getOrdersRequest.Pairs[0], getOrdersRequest.AssetType)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	orderId, err := convert.Int64FromString(getOrdersRequest.OrderID)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	resp, err := b.QueryOrder(formattedPair.String(), "", orderId)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	orderSide := order.Side(resp.Side)
 	orderDate, err := convert.TimeFromUnixTimestampFloat(resp.Time)
 	if err != nil {
-		return nil, err
+		return
 	}
+
+	orderCloseDate, err := convert.TimeFromUnixTimestampFloat(float64(resp.UpdateTime))
+	if err != nil {
+		return
+	}
+
 	pair, err := currency.NewPairFromString(resp.Symbol)
 	if err != nil {
-		return nil, err
+		return
+	}
+
+	status, err := order.StringToOrderStatus(resp.Status)
+	if err != nil {
+		return
 	}
 
 	OrderType := order.Limit
@@ -662,19 +665,21 @@ func (b *Binance) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) (
 		OrderType = order.Market
 	}
 
-	orders = append(orders, order.Detail{
-		Amount:    resp.ExecutedQty,
-		Date:      orderDate,
-		Exchange:  b.Name,
-		ID:        strconv.FormatInt(resp.OrderID, 10),
-		Side:      orderSide,
-		Type:      OrderType,
-		Pair:      pair,
-		Cost:      resp.CummulativeQuoteQty,
-		AssetType: getOrdersRequest.AssetType,
-	})
-
-	return orders, nil
+	return order.Detail{
+		Amount:         resp.OrigQty,
+		Date:           orderDate,
+		Exchange:       b.Name,
+		ID:             strconv.FormatInt(resp.OrderID, 10),
+		Side:           orderSide,
+		Type:           OrderType,
+		Pair:           pair,
+		Cost:           resp.CummulativeQuoteQty,
+		AssetType:      getOrdersRequest.AssetType,
+		CloseTime:      orderCloseDate,
+		Status:         status,
+		Price:          resp.Price,
+		ExecutedAmount: resp.ExecutedQty,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

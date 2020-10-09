@@ -659,18 +659,18 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (h *HUOBI) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
 	var orderDetail order.Detail
 	var respData *OrderInfo
 	if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		resp, err := h.wsGetOrderDetails(orderID)
+		resp, err := h.wsGetOrderDetails(getOrdersRequest.OrderID)
 		if err != nil {
 			return orderDetail, err
 		}
 		respData = &resp.Data
 	} else {
-		oID, err := strconv.ParseInt(orderID, 10, 64)
+		oID, err := strconv.ParseInt(getOrdersRequest.OrderID, 10, 64)
 		if err != nil {
 			return orderDetail, err
 		}
@@ -681,11 +681,12 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 		respData = &resp
 	}
 	if respData.ID == 0 {
-		return orderDetail, fmt.Errorf("%s - order not found for orderid %s", h.Name, orderID)
+		return orderDetail, fmt.Errorf("%s - order not found for orderid %s", h.Name, getOrdersRequest.OrderID)
 	}
 	var responseID = strconv.FormatInt(respData.ID, 10)
-	if responseID != orderID {
-		return orderDetail, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " + orderID + " Received: " + responseID)
+	if responseID != getOrdersRequest.OrderID {
+		return orderDetail, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " +
+			getOrdersRequest.OrderID + " Received: " + responseID)
 	}
 	typeDetails := strings.Split(respData.Type, "-")
 	orderSide, err := order.StringToOrderSide(typeDetails[0])
@@ -693,7 +694,7 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 		if h.Websocket.IsConnected() {
 			h.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: h.Name,
-				OrderID:  orderID,
+				OrderID:  getOrdersRequest.OrderID,
 				Err:      err,
 			}
 		} else {
@@ -705,7 +706,7 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 		if h.Websocket.IsConnected() {
 			h.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: h.Name,
-				OrderID:  orderID,
+				OrderID:  getOrdersRequest.OrderID,
 				Err:      err,
 			}
 		} else {
@@ -717,7 +718,7 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 		if h.Websocket.IsConnected() {
 			h.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: h.Name,
-				OrderID:  orderID,
+				OrderID:  getOrdersRequest.OrderID,
 				Err:      err,
 			}
 		} else {
@@ -732,7 +733,7 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 	orderDetail = order.Detail{
 		Exchange:       h.Name,
-		ID:             orderID,
+		ID:             getOrdersRequest.OrderID,
 		AccountID:      strconv.FormatInt(respData.AccountID, 10),
 		Pair:           p,
 		Type:           orderType,
@@ -746,11 +747,6 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 		AssetType:      a,
 	}
 	return orderDetail, nil
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *HUOBI) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

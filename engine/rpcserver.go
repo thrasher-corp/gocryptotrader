@@ -804,7 +804,20 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
-	result, err := exch.GetOrderInfo(r.OrderId)
+
+	var pairs []currency.Pair
+	pairs = append(pairs, currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	})
+
+	req := order.GetOrdersRequest{
+		OrderID: r.OrderId,
+		Pairs:   pairs,
+	}
+
+	result, err := exch.GetOrderInfo(&req)
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
 	}
@@ -836,52 +849,9 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		OpenVolume:    result.RemainingAmount,
 		Fee:           result.Fee,
 		Trades:        trades,
+		Cost:          result.Cost,
+		UpdateTime:    result.CloseTime.Unix(),
 	}, err
-}
-
-// GetClosedOrder returns closed order information based on exchange and order ID
-func (s *RPCServer) GetClosedOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
-	}
-
-	var pairs []currency.Pair
-	pairs = append(pairs, currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	})
-
-	req := order.GetOrdersRequest{
-		OrderID: r.OrderId,
-		Pairs:   pairs,
-	}
-	result, err := exch.GetClosedOrderInfo(&req)
-	if err != nil {
-		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
-	}
-
-	if len(result) > 0 {
-		return &gctrpc.OrderDetails{
-			Exchange:      result[0].Exchange,
-			Id:            result[0].ID,
-			BaseCurrency:  result[0].Pair.Base.String(),
-			QuoteCurrency: result[0].Pair.Quote.String(),
-			AssetType:     result[0].AssetType.String(),
-			OrderSide:     result[0].Side.String(),
-			OrderType:     result[0].Type.String(),
-			CreationTime:  result[0].Date.Unix(),
-			Status:        result[0].Status.String(),
-			Price:         result[0].Price,
-			Amount:        result[0].Amount,
-			OpenVolume:    result[0].RemainingAmount,
-			Fee:           result[0].Fee,
-			Cost:          result[0].Cost,
-		}, nil
-	}
-
-	return &gctrpc.OrderDetails{}, fmt.Errorf("order not found")
 }
 
 // SubmitOrder submits an order specified by exchange, currency pair and asset

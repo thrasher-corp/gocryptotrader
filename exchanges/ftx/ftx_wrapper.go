@@ -644,10 +644,10 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (f *FTX) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
 	var resp order.Detail
-	orderData, err := f.GetOrderStatus(orderID)
+	orderData, err := f.GetOrderStatus(getOrdersRequest.OrderID)
 	if err != nil {
 		return resp, err
 	}
@@ -678,11 +678,6 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	resp.Type = orderVars.OrderType
 	resp.Fee = orderVars.Fee
 	return resp, nil
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *FTX) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
