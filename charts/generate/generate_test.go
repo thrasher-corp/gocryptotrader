@@ -78,8 +78,13 @@ func TestGenerateMap(t *testing.T) {
 	}{
 		{
 			"valid",
-			filepath.Join("..", "templates"),
-			[]templateData{},
+			filepath.Join("testdata"),
+			[]templateData{
+				{
+					"base.tmpl",
+					"{40,226,149,175,194,176,226,150,161,194,176,239,188,137,226,149,175,239,184,181,32,226,148,187,226,148,129,226,148,187,10}",
+				},
+			},
 			false,
 		},
 	}
