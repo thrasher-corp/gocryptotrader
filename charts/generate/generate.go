@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -93,6 +94,9 @@ func main() {
 
 func buildFileList() ([]string, error) {
 	var files []string
+	if templatePath == "" {
+		return []string{}, errors.New("no template path found")
+	}
 	err := filepath.Walk(templatePath, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			files = append(files, path)
@@ -114,7 +118,7 @@ func stripPath(in string) string {
 }
 
 func byteJoin(b []byte) string {
-	s := make([]string, len(b))
+	s := make([]string, 0, len(b))
 	for i := range b {
 		s = append(s, strconv.Itoa(int(b[i])))
 	}

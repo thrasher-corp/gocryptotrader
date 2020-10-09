@@ -144,7 +144,7 @@ func genIntervalData(totalCandles int) []IntervalData {
 	for x := 1; x < totalCandles; x++ {
 		out[x] = IntervalData{
 			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)).Format("2006-01-02"),
-			Value:     out[x-1].Value + rand.Float64(),
+			Value:     out[x-1].Value + rand.Float64(), // nolint:gosec // no need to import crypo/rand for testing
 		}
 	}
 
@@ -164,9 +164,9 @@ func genOHCLVData(totalCandles int) *kline.Item {
 	outItem.Candles[0] = kline.Candle{
 		Time:   start,
 		Open:   0,
-		High:   10 + rand.Float64(),
-		Low:    10 + rand.Float64(),
-		Close:  10 + rand.Float64(),
+		High:   10 + rand.Float64(), // nolint:gosec // no need to import crypo/rand for testing
+		Low:    10 + rand.Float64(), // nolint:gosec // no need to import crypo/rand for testing
+		Close:  10 + rand.Float64(), // nolint:gosec // no need to import crypo/rand for testing
 		Volume: 10,
 	}
 
@@ -174,10 +174,10 @@ func genOHCLVData(totalCandles int) *kline.Item {
 		outItem.Candles[x] = kline.Candle{
 			Time:   start.Add(time.Hour * 24 * time.Duration(x)),
 			Open:   outItem.Candles[x-1].Close,
-			High:   outItem.Candles[x-1].Open + rand.Float64(),
-			Low:    outItem.Candles[x-1].Open - rand.Float64(),
-			Close:  outItem.Candles[x-1].Open + rand.Float64(),
-			Volume: float64(rand.Int63n(150)),
+			High:   outItem.Candles[x-1].Open + rand.Float64(), // nolint:gosec // no need to import crypo/rand for testing
+			Low:    outItem.Candles[x-1].Open - rand.Float64(), // nolint:gosec // no need to import crypo/rand for testing
+			Close:  outItem.Candles[x-1].Open + rand.Float64(), // nolint:gosec // no need to import crypo/rand for testing
+			Volume: float64(rand.Int63n(150)),                  // nolint:gosec // no need to import crypo/rand for testing
 		}
 	}
 

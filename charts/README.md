@@ -30,6 +30,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + Coding example
 
+##### Go
 ```go
 import "github.com/thrasher-corp/gocryptotrader/charts"
 
@@ -62,6 +63,24 @@ func TestCharts(t *testing.T) {
 }
 ```
 
+##### GCTScript
+```go
+exch := import("exchange")
+t := import("times")
+charts := import("charts")
+
+load := func() {
+    // define your start and end within reason.
+    start := t.date(2017, 8 , 17, 0 , 0 , 0, 0)
+    end := t.add_date(start, 0, 6 , 0)
+
+    // This fetches the ohlcv
+    ohlcvData := exch.ohlcv("binance", "BTC-USDT", "-", "spot", start, end, "1d")
+    charts.gen("chart", true, ohlcvData.candles)
+}
+
+load()
+```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
