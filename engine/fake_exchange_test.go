@@ -135,9 +135,6 @@ func (h *FakePassingExchange) CancelAllOrders(_ *order.Cancel) (order.CancelAllR
 func (h *FakePassingExchange) GetOrderInfo(_ string) (order.Detail, error) {
 	return order.Detail{}, nil
 }
-func (h *FakePassingExchange) GetClosedOrderInfo(_ *order.GetOrdersRequest) ([]order.Detail, error) {
-	return []order.Detail{}, nil
-}
 func (h *FakePassingExchange) GetDepositAddress(_ currency.Code, _ string) (string, error) {
 	return "", nil
 }

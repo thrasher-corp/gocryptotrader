@@ -378,14 +378,18 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	return resp, err
 }
 
-// GetOrderInfo returns information on a current open order
-func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
-	mOrder, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
+// GetOrderInfo returns order information based on order ID
+func (o *OKGroup) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (resp order.Detail, err error) {
+	mOrder, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: getOrdersRequest.OrderID})
 	if err != nil {
 		return
 	}
 
-	format, err := o.GetPairFormat(asset.Spot, false)
+	if getOrdersRequest.AssetType == "" {
+		getOrdersRequest.AssetType = asset.Spot
+	}
+
+	format, err := o.GetPairFormat(getOrdersRequest.AssetType, false)
 	if err != nil {
 		return resp, err
 	}
@@ -405,11 +409,6 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
 		Side:           order.Side(mOrder.Side),
 	}
 	return
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (o *OKGroup) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

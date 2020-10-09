@@ -515,11 +515,11 @@ func (c *CoinbasePro) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse,
 	return order.CancelAllResponse{}, err
 }
 
-// GetOrderInfo returns information on a current open order
-func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
-	genOrderDetail, errGo := c.GetOrder(orderID)
+// GetOrderInfo returns order information based on order ID
+func (c *CoinbasePro) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+	genOrderDetail, errGo := c.GetOrder(getOrdersRequest.OrderID)
 	if errGo != nil {
-		return order.Detail{}, fmt.Errorf("error retrieving order %s : %s", orderID, errGo)
+		return order.Detail{}, fmt.Errorf("error retrieving order %s : %s", getOrdersRequest.OrderID, errGo)
 	}
 	od, errOd := time.Parse(time.RFC3339, genOrderDetail.DoneAt)
 	if errOd != nil {
@@ -556,7 +556,7 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
 		Fee:             genOrderDetail.FillFees,
 	}
-	fillResponse, errGF := c.GetFills(orderID, genOrderDetail.ProductID)
+	fillResponse, errGF := c.GetFills(getOrdersRequest.OrderID, genOrderDetail.ProductID)
 	if errGF != nil {
 		return response, fmt.Errorf("error retrieving the order fills: %s", errGF)
 	}
@@ -577,11 +577,6 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		})
 	}
 	return response, nil
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *CoinbasePro) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

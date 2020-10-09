@@ -589,15 +589,15 @@ func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (c *Coinbene) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
 	var resp order.Detail
-	tempResp, err := c.FetchSpotOrderInfo(orderID)
+	tempResp, err := c.FetchSpotOrderInfo(getOrdersRequest.OrderID)
 	if err != nil {
 		return resp, err
 	}
 	resp.Exchange = c.Name
-	resp.ID = orderID
+	resp.ID = getOrdersRequest.OrderID
 	resp.Pair = currency.NewPairWithDelimiter(tempResp.BaseAsset,
 		"/",
 		tempResp.QuoteAsset)
@@ -606,11 +606,6 @@ func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
 	resp.ExecutedAmount = tempResp.FilledAmount
 	resp.Fee = tempResp.TotalFee
 	return resp, nil
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *Coinbene) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

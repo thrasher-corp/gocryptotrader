@@ -541,9 +541,9 @@ func orderIntToType(i int) order.Type {
 	return order.UnknownType
 }
 
-// GetOrderInfo returns information on a current open order
-func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
-	o, err := b.GetOrders("", orderID, "")
+// GetOrderInfo returns order information based on order ID
+func (b *BTSE) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+	o, err := b.GetOrders("", getOrdersRequest.OrderID, "")
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -559,7 +559,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 
 	for i := range o {
-		if o[i].OrderID != orderID {
+		if o[i].OrderID != getOrdersRequest.OrderID {
 			continue
 		}
 
@@ -591,11 +591,11 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 			time.Time{}, time.Time{},
 			0, 0, 0,
 			false,
-			"", orderID)
+			"", getOrdersRequest.OrderID)
 		if err != nil {
 			return od,
 				fmt.Errorf("unable to get order fills for orderID %s",
-					orderID)
+					getOrdersRequest.OrderID)
 		}
 
 		for i := range th {
@@ -616,11 +616,6 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		}
 	}
 	return od, nil
-}
-
-// GetClosedOrderInfo retrieves specified closed order information
-func (b *BTSE) GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

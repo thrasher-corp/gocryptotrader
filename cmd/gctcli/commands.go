@@ -1231,7 +1231,7 @@ func getOrders(c *cli.Context) error {
 var getOrderCommand = cli.Command{
 	Name:      "getorder",
 	Usage:     "gets the specified order info",
-	ArgsUsage: "<exchange> <order_id>",
+	ArgsUsage: "<exchange> <order_id> <pair>",
 	Action:    getOrder,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1241,6 +1241,10 @@ var getOrderCommand = cli.Command{
 		cli.StringFlag{
 			Name:  "order_id",
 			Usage: "the order id to retrieve",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the pair to retrieve",
 		},
 	},
 }
@@ -1253,11 +1257,27 @@ func getOrder(c *cli.Context) error {
 
 	var exchangeName string
 	var orderID string
+	var currencyPair string
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
 	}
 
 	if !validExchange(exchangeName) {
@@ -1278,87 +1298,6 @@ func getOrder(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
-		Exchange: exchangeName,
-		OrderId:  orderID,
-	})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(result)
-	return nil
-}
-
-var getClosedOrderCommand = cli.Command{
-	Name:      "getclosedorder",
-	Usage:     "gets the specified closed order info",
-	ArgsUsage: "<exchange> <order_id> <pair>",
-	Action:    getClosedOrder,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "exchange",
-			Usage: "the exchange to get the order for",
-		},
-		cli.StringFlag{
-			Name:  "order_id",
-			Usage: "the order id to retrieve",
-		},
-		cli.StringFlag{
-			Name:  "pair",
-			Usage: "the pair to retrieve",
-		},
-	},
-}
-
-func getClosedOrder(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getclosedorder")
-		return nil
-	}
-
-	var exchangeName string
-	var orderID string
-	var currencyPair string
-
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
-	}
-
-	if !validPair(currencyPair) {
-		return errInvalidPair
-	}
-
-	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
-	if err != nil {
-		return err
-	}
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
-	if c.IsSet("order_id") {
-		orderID = c.String("order_id")
-	} else {
-		orderID = c.Args().Get(1)
-	}
-
-	conn, err := setupClient()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetClosedOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchangeName,
 		OrderId:  orderID,
 		Pair: &gctrpc.CurrencyPair{

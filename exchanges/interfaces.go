@@ -52,8 +52,7 @@ type IBotExchange interface {
 	ModifyOrder(action *order.Modify) (string, error)
 	CancelOrder(o *order.Cancel) error
 	CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error)
-	GetOrderInfo(orderID string) (order.Detail, error)
-	GetClosedOrderInfo(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
+	GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error)
 	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)
 	GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
 	GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)

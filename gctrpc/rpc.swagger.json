@@ -634,38 +634,6 @@
         ]
       }
     },
-    "/v1/getclosedorder": {
-      "post": {
-        "operationId": "GoCryptoTrader_GetClosedOrder",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcOrderDetails"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetOrderRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
     "/v1/getcommunicationrelayers": {
       "get": {
         "operationId": "GoCryptoTrader_GetCommunicationRelayers",
@@ -3264,6 +3232,9 @@
         "id": {
           "type": "string"
         },
+        "client_order_id": {
+          "type": "string"
+        },
         "base_currency": {
           "type": "string"
         },
@@ -3280,6 +3251,10 @@
           "type": "string"
         },
         "creation_time": {
+          "type": "string",
+          "format": "int64"
+        },
+        "update_time": {
           "type": "string",
           "format": "int64"
         },
@@ -3302,15 +3277,15 @@
           "type": "number",
           "format": "double"
         },
+        "cost": {
+          "type": "number",
+          "format": "double"
+        },
         "trades": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcTradeHistory"
           }
-        },
-        "cost": {
-          "type": "number",
-          "format": "double"
         }
       }
     },
