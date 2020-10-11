@@ -16,6 +16,10 @@ import (
 )
 
 func TestAddTradesToBuffer(t *testing.T) {
+	processor.mutex.Lock()
+	processor.bufferProcessorInterval = bufferProcessorIntervalTime
+	processor.mutex.Unlock()
+	go processor.Run()
 	dbConf := database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite3,
