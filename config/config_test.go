@@ -1716,21 +1716,25 @@ func TestDefaultFilePath(t *testing.T) {
 
 func TestGetFilePath(t *testing.T) {
 	expected := "blah.json"
-	result, _ := GetFilePath("blah.json")
+	result, wasDefault, _ := GetFilePath("blah.json")
 	if result != "blah.json" {
 		t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
 	}
+	if wasDefault {
+		t.Errorf("TestGetFilePath: expected non-default")
+	}
 
 	expected = DefaultFilePath()
-	result, err := GetFilePath("")
+	result, wasDefault, err := GetFilePath("")
 	if file.Exists(expected) {
 		if err != nil || result != expected {
 			t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
 		}
-	} else {
-		if err == nil {
-			t.Error("Expected error when default config file does not exist")
+		if !wasDefault {
+			t.Errorf("TestGetFilePath: expected default file")
 		}
+	} else if err == nil {
+		t.Error("Expected error when default config file does not exist")
 	}
 }
 

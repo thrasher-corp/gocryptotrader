@@ -102,7 +102,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 
 // loadConfigWithSettings creates configuration based on the provided settings
 func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
-	filePath, err := config.GetFilePath(settings.ConfigFile)
+	filePath, err := config.GetAndMigrateDefaultPath(settings.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
