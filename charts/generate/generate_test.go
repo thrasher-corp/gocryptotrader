@@ -17,7 +17,7 @@ func TestBuildFileList(t *testing.T) {
 			"valid",
 			filepath.Join("testdata"),
 			[]string{
-				"testdata/base.tmpl",
+				filepath.Join("testdata", "base.tmpl"),
 			},
 			false,
 		},
