@@ -227,7 +227,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(forceUpdate bool) err
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-  	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
+		// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
 	tickerPrice := new(ticker.Price)
 	tick, err := {{.Variable}}.GetTicker(p.String())
@@ -235,13 +235,13 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType a
 		return tickerPrice, err
 	}
 	tickerPrice = &ticker.Price{
-		High:  tick.High,
-		Low:   tick.Low,
-		Bid:   tick.Bid,
-		Ask:   tick.Ask,
-		Open:  tick.Open,
-		Close: tick.Close,
-		Pair:  p,
+		High:    tick.High,
+		Low:     tick.Low,
+		Bid:     tick.Bid,
+		Ask:     tick.Ask,
+		Open:    tick.Open,
+		Close:   tick.Close,
+		Pair:    p,
 	}
 	err = ticker.ProcessTicker({{.Variable}}.Name, tickerPrice, assetType)
 	if err != nil {
@@ -272,7 +272,7 @@ func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, as
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-    // NOTE: UPDATE ORDERBOOK EXAMPLE
+	// NOTE: UPDATE ORDERBOOK EXAMPLE
 	/* 
 	orderbookNew, err := {{.Variable}}.GetOrderBook(exchange.FormatExchangeCurrency({{.Variable}}.Name, p).String(), 1000)
 	if err != nil {
@@ -340,16 +340,25 @@ func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(s *order.Submit) (order.Submi
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func ({{.Variable}} *{{.CapitalName}}) ModifyOrder(action *order.Modify) (string, error) {
+	// if err := action.Validate(); err != nil {
+	// 	return "", err
+	// }
 	return "", common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func ({{.Variable}} *{{.CapitalName}}) CancelOrder(order *order.Cancel) error {
+func ({{.Variable}} *{{.CapitalName}}) CancelOrder(ord *order.Cancel) error {
+	// if err := ord.Validate(ord.StandardCancel()); err != nil {
+	//	 return err
+	// }
 	return common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	// if err := orderCancellation.Validate(); err != nil {
+	//	 return err
+	// }
 	return order.CancelAllResponse{}, common.ErrNotYetImplemented
 }
 
@@ -366,29 +375,44 @@ func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(cryptocurrency currency
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	// if err := withdrawRequest.Validate(); err != nil {
+	//	return nil, err
+	// }
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	// if err := withdrawRequest.Validate(); err != nil {
+	//	return nil, err
+	// }
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	// if err := withdrawRequest.Validate(); err != nil {
+	//	return nil, err
+	// }
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetActiveOrders retrieves any orders that are active/open
 func ({{.Variable}} *{{.CapitalName}}) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	// if err := getOrdersRequest.Validate(); err != nil {
+	//	return nil, err
+	// }
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func ({{.Variable}} *{{.CapitalName}}) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	// if err := getOrdersRequest.Validate(); err != nil {
+	//	return nil, err
+	// }
 	return nil, common.ErrNotYetImplemented
 }
 

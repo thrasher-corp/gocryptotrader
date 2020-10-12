@@ -50,7 +50,7 @@ type IBotExchange interface {
 	GetFundingHistory() ([]FundHistory, error)
 	SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 	ModifyOrder(action *order.Modify) (string, error)
-	CancelOrder(order *order.Cancel) error
+	CancelOrder(o *order.Cancel) error
 	CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error)
 	GetOrderInfo(orderID string) (order.Detail, error)
 	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)

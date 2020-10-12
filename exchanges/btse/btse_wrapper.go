@@ -484,14 +484,18 @@ func (b *BTSE) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *BTSE) CancelOrder(order *order.Cancel) error {
-	fPair, err := b.FormatExchangeCurrency(order.Pair,
-		order.AssetType)
+func (b *BTSE) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+
+	fPair, err := b.FormatExchangeCurrency(o.Pair,
+		o.AssetType)
 	if err != nil {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(order.ID, fPair.String(), order.ClientOrderID)
+	_, err = b.CancelExistingOrder(o.ID, fPair.String(), o.ClientOrderID)
 	if err != nil {
 		return err
 	}
@@ -503,6 +507,10 @@ func (b *BTSE) CancelOrder(order *order.Cancel) error {
 // If product ID is sent, all orders of that specified market will be cancelled
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+
 	var resp order.CancelAllResponse
 
 	fPair, err := b.FormatExchangeCurrency(orderCancellation.Pair,
@@ -633,6 +641,10 @@ func (b *BTSE) GetDepositAddress(cryptocurrency currency.Code, accountID string)
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *BTSE) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	amountToString := strconv.FormatFloat(withdrawRequest.Amount, 'f', 8, 64)
 	resp, err := b.WalletWithdrawal(withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
@@ -661,6 +673,10 @@ func (b *BTSE) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Re
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	if len(req.Pairs) == 0 {
 		return nil, errors.New("no pair provided")
 	}
@@ -765,6 +781,10 @@ func matchType(input int, required order.Type) bool {
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *BTSE) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	var resp []order.Detail
 	if len(getOrdersRequest.Pairs) == 0 {
 		var err error

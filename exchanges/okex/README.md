@@ -31,8 +31,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 
 ```go
-  // Exchanges will be abstracted out in further updates and examples will be
-  // supplied then
+	// Exchanges will be abstracted out in further updates and examples will be
+	// supplied then
 ```
 
 ### How to do REST public/private calls
@@ -48,9 +48,9 @@ main.go
 var o exchange.IBotExchange
 
 for i := range bot.Exchanges {
-  if bot.Exchanges[i].GetName() == "OKex" {
-    y = bot.Exchanges[i]
-  }
+	if bot.Exchanges[i].GetName() == "OKex" {
+		y = bot.Exchanges[i]
+	}
 }
 
 // Public calls - wrapper functions
@@ -58,13 +58,13 @@ for i := range bot.Exchanges {
 // Fetches current ticker information
 tick, err := o.FetchTicker()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Fetches current orderbook information
 ob, err := o.FetchOrderbook()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Private calls - wrapper functions - make sure your APIKEY and APISECRET are
@@ -73,7 +73,7 @@ if err != nil {
 // Fetches current account information
 accountInfo, err := o.GetAccountInfo()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 
@@ -85,13 +85,13 @@ if err != nil {
 // Fetches current ticker information
 ticker, err := o.GetSpotTicker()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Fetches current orderbook information
 ob, err := o.GetSpotMarketDepth()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Private calls - make sure your APIKEY and APISECRET are set and
@@ -100,13 +100,13 @@ if err != nil {
 // GetContractPosition returns contract positioning
 accountInfo, err := o.GetContractPosition(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Submits an order and the exchange and returns its tradeID
 tradeID, err := o.PlaceContractOrders(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 

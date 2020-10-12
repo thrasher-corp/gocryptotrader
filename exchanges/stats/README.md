@@ -22,9 +22,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + This stats package services the exchanges package by providing stats on
 enabled exchanges i.e.
-  - Sort by largest volume
-  - Sort by best price for currency
-  - Others will be added soon
+	- Sort by largest volume
+	- Sort by best price for currency
+	- Others will be added soon
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

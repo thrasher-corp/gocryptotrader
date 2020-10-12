@@ -62,18 +62,18 @@ HTMLScrapingData is a struct which contains the necessary information to scrape 
 func TestAdd(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h1",
-		Key:           "id",
-		Val:           "revision-history",
-		TokenDataEnd:  "table",
-		TextTokenData: "td",
-		DateFormat:    "2006/01/02",
-		RegExp:        "^20(\\d){2}/(\\d){2}/(\\d){2}$",
-		CheckString:   "2019/11/15",
-		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
+		Key:             "id",
+		Val:             "revision-history",
+		TokenDataEnd:    "table",
+		TextTokenData:   "td",
+		DateFormat:      "2006/01/02",
+		RegExp:          "^20(\\d){2}/(\\d){2}/(\\d){2}$",
+		CheckString:     "2019/11/15",
+		Path:            "https://docs.gemini.com/rest-api/#revision-history"}
 	err := Add("Gemini", htmlScrape, data.Path, data, true, &testConfigData)
 	if err != nil {
 		t.Error(err)
-    }
+	}
 }
 ```
 
@@ -85,7 +85,7 @@ func TestAdd(t *testing.T) {
 	err := Add("Lbank", github, fmt.Sprintf(githubPath, data.Repo), data, false, &configData)
 	if err != nil {
 		t.Error(err)
-    }
+	}
 }
 ```
 

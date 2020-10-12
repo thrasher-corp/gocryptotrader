@@ -8,6 +8,7 @@ import (
 	"time"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
@@ -191,21 +192,22 @@ func TestExchangeOrderSubmit(t *testing.T) {
 	orderType := &objects.String{Value: "LIMIT"}
 	orderPrice := &objects.Float{Value: 1}
 	orderAmount := &objects.Float{Value: 1}
+	orderAsset := &objects.String{Value: asset.Spot.String()}
 
 	_, err = ExchangeOrderSubmit(exch, currencyPair, delimiter,
-		orderType, orderSide, orderPrice, orderAmount, orderID)
+		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Fatal(err)
 	}
 
 	_, err = ExchangeOrderSubmit(exch, currencyPair, delimiter,
-		orderType, orderSide, orderPrice, orderAmount, orderID)
+		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	_, err = ExchangeOrderSubmit(objects.TrueValue, currencyPair, delimiter,
-		orderType, orderSide, orderPrice, orderAmount, orderID)
+		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
 	if err != nil {
 		t.Fatal(err)
 	}
