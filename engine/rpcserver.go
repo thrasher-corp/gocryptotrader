@@ -18,6 +18,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/thrasher-corp/gocryptotrader/charts"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -1701,6 +1702,14 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new exchange via the dbseed")
 			}
 			return nil, err
+		}
+	}
+
+	if req.Chart {
+		c := charts.Chart{}
+		_, err := c.Generate()
+		if err != nil {
+			log.Errorf(log.GRPCSys, "failed to generate chart: %v", err)
 		}
 	}
 	return &resp, nil

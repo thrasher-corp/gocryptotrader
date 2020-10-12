@@ -10,6 +10,7 @@ import (
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gct-ta/indicators"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
@@ -431,7 +432,7 @@ func TestOBV(t *testing.T) {
 
 func TestToFloat64(t *testing.T) {
 	value := 54.0
-	v, err := toFloat64(value)
+	v, err := modules.ToFloat64(value)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,7 +440,7 @@ func TestToFloat64(t *testing.T) {
 		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
 	}
 
-	v, err = toFloat64(int(value))
+	v, err = modules.ToFloat64(int(value))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -447,7 +448,7 @@ func TestToFloat64(t *testing.T) {
 		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
 	}
 
-	v, err = toFloat64(int32(value))
+	v, err = modules.ToFloat64(int32(value))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +456,7 @@ func TestToFloat64(t *testing.T) {
 		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
 	}
 
-	v, err = toFloat64(int64(value))
+	v, err = modules.ToFloat64(int64(value))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -463,7 +464,7 @@ func TestToFloat64(t *testing.T) {
 		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
 	}
 
-	_, err = toFloat64("54")
+	_, err = modules.ToFloat64("54")
 	if err == nil {
 		t.Fatalf("attempting to convert a string should fail but test passed")
 	}

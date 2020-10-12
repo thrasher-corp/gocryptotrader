@@ -66,6 +66,46 @@ func TestGenerateChart(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "invalid-incorrect args",
+			args: args{
+				[]tengo.Object{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid-chartName conversion Failed",
+			args: args{
+				[]tengo.Object{
+					tengo.FalseValue,
+					tengo.FalseValue,
+					&ohlcvData,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid-write file conversion",
+			args: args{
+				[]tengo.Object{
+					&tengo.String{Value: "valid"},
+					&tengo.Float{Value: 420.69},
+					&ohlcvData,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid-invalid data",
+			args: args{
+				[]tengo.Object{
+					&tengo.String{Value: "valid"},
+					tengo.FalseValue,
+					nil,
+				},
+			},
+			wantErr: true,
+		},
 	}
 	for x := range tests {
 		tt := tests[x]
@@ -77,72 +117,6 @@ func TestGenerateChart(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("generateChart() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestToFloat64(t *testing.T) {
-	type args struct {
-		data interface{}
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    float64
-		wantErr bool
-	}{
-		{
-			"valid-int",
-			args{
-				42,
-			},
-			42.0,
-			false,
-		},
-		{
-			"valid-int32",
-			args{
-				int32(42),
-			},
-			42.0,
-			false,
-		},
-		{
-			"valid-int64",
-			args{
-				int64(42),
-			},
-			42.0,
-			false,
-		},
-		{
-			"valid-float64",
-			args{
-				42.0,
-			},
-			42.0,
-			false,
-		},
-		{
-			"invalid-string",
-			args{
-				"helloworld",
-			},
-			0,
-			true,
-		},
-	}
-	for x := range tests {
-		tt := tests[x]
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := toFloat64(tt.args.data)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("toFloat64() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("toFloat64() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

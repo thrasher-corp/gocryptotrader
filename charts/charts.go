@@ -12,8 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-//go:generate go run generate/generate.go
-
 // New returns a new chart instance
 func New(name, template, outputpath string) (chart Chart) {
 	switch template {
@@ -59,9 +57,6 @@ func (c *Chart) Generate() (*os.File, error) {
 			filepath.Join(c.TemplatePath, c.template),
 			filepath.Join(c.TemplatePath, "base.tmpl"),
 		}
-	}
-	if len(list) == 0 {
-		return nil, errors.New("no templates found")
 	}
 	var out *os.File
 	tmpl, err := template.ParseFiles(list...)

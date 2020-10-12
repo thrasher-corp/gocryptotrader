@@ -50,25 +50,25 @@ func atr(args ...objects.Object) (objects.Object, error) {
 	var allErrors []string
 	for x := range ohlcvInputData {
 		t := ohlcvInputData[x].([]interface{})
-		value, err := toFloat64(t[2])
+		value, err := modules.ToFloat64(t[2])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
 		ohlcvData[2] = append(ohlcvData[2], value)
 
-		value, err = toFloat64(t[3])
+		value, err = modules.ToFloat64(t[3])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
 		ohlcvData[3] = append(ohlcvData[3], value)
 
-		value, err = toFloat64(t[4])
+		value, err = modules.ToFloat64(t[4])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
 		ohlcvData[4] = append(ohlcvData[4], value)
 
-		value, err = toFloat64(t[5])
+		value, err = modules.ToFloat64(t[5])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}

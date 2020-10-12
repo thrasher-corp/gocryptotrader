@@ -52,7 +52,7 @@ func ema(args ...objects.Object) (objects.Object, error) {
 	for x := range ohlcvInputData {
 		t := ohlcvInputData[x].([]interface{})
 
-		value, err := toFloat64(t[4])
+		value, err := modules.ToFloat64(t[4])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}

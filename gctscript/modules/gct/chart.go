@@ -30,7 +30,6 @@ func GenerateChart(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, writeFile)
 	}
-
 	input := objects.ToInterface(args[2])
 	inputData, valid := input.([]interface{})
 	if !valid {
@@ -51,32 +50,32 @@ func GenerateChart(args ...objects.Object) (objects.Object, error) {
 		}
 		tempCandleData.Time = time.Unix(tz, 0)
 
-		value, err := toFloat64(t[1])
+		value, err := modules.ToFloat64(t[1])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
 
 		tempCandleData.Open = value
 
-		value, err = toFloat64(t[2])
+		value, err = modules.ToFloat64(t[2])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
 		tempCandleData.High = value
 
-		value, err = toFloat64(t[3])
+		value, err = modules.ToFloat64(t[3])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
 		tempCandleData.Low = value
 
-		value, err = toFloat64(t[4])
+		value, err = modules.ToFloat64(t[4])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
 		tempCandleData.Close = value
 
-		value, err = toFloat64(t[5])
+		value, err = modules.ToFloat64(t[5])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
@@ -107,19 +106,4 @@ func GenerateChart(args ...objects.Object) (objects.Object, error) {
 	}
 
 	return nil, nil
-}
-
-func toFloat64(data interface{}) (float64, error) {
-	switch d := data.(type) {
-	case float64:
-		return d, nil
-	case int:
-		return float64(d), nil
-	case int32:
-		return float64(d), nil
-	case int64:
-		return float64(d), nil
-	default:
-		return 0, fmt.Errorf(modules.ErrParameterConvertFailed, d)
-	}
 }
