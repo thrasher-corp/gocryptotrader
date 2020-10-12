@@ -2815,15 +2815,6 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 			TradeId:   trades[i].TID,
 		})
 	}
-	for i := range trades {
-		resp.Trades = append(resp.Trades, &gctrpc.SavedTrades{
-			Price:     trades[i].Price,
-			Amount:    trades[i].Amount,
-			Side:      trades[i].Side.String(),
-			Timestamp: trades[i].Timestamp.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
-			TradeId:   trades[i].TID,
-		})
-	}
 	if len(resp.Trades) == 0 {
 		return nil, fmt.Errorf("request for %v %v trade data and returned no results", r.Exchange, r.AssetType)
 	}

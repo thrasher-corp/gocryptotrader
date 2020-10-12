@@ -312,6 +312,13 @@ func setExchangeTradeProcessing(c *cli.Context) error {
 	var status bool
 	if c.IsSet("status") {
 		status = c.Bool("status")
+	} else {
+		statusStr := c.Args().Get(1)
+		var err error
+		status, err = strconv.ParseBool(statusStr)
+		if err != nil {
+			return err
+		}
 	}
 
 	conn, err := setupClient()
