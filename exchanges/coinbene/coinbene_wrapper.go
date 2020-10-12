@@ -522,7 +522,7 @@ func (c *Coinbene) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]tra
 	var resp []trade.Data
 	for i := range tradeData {
 		side := order.Buy
-		if tradeData[i].Direction == "s" {
+		if tradeData[i].Direction == "sell" {
 			side = order.Sell
 		}
 		resp = append(resp, trade.Data{

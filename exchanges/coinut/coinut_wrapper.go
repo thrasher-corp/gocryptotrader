@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -532,7 +531,7 @@ func (c *COINUT) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 			Side:         side,
 			Price:        tradeData.Trades[i].Price,
 			Amount:       tradeData.Trades[i].Quantity,
-			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData.Trades[i].Timestamp),
+			Timestamp:    time.Unix(0, tradeData.Trades[i].Timestamp*int64(time.Microsecond)),
 		})
 	}
 

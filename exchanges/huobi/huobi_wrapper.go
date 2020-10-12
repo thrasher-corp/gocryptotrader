@@ -567,7 +567,7 @@ func (h *HUOBI) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 			}
 			resp = append(resp, trade.Data{
 				Exchange:     h.Name,
-				TID:          strconv.FormatFloat(tradeData[i].Trades[j].ID, 'f', -1, 64),
+				TID:          strconv.FormatFloat(tradeData[i].Trades[j].TradeID, 'f', -1, 64),
 				CurrencyPair: p,
 				AssetType:    assetType,
 				Side:         side,

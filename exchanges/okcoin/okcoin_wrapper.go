@@ -500,7 +500,10 @@ func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 	default:
 		return nil, fmt.Errorf("%s asset type %v unsupported", o.Name, assetType)
 	}
-
+	err = o.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
 	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }

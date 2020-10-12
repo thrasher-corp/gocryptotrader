@@ -60,6 +60,12 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 		if data[i].Side == "" {
 			data[i].Side = order.UnknownSide
 		}
+		if data[i].Side == order.Bid {
+			data[i].Side = order.Buy
+		}
+		if data[i].Side == order.Ask {
+			data[i].Side = order.Sell
+		}
 		uu, err := uuid.NewV4()
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s uuid failed to generate for trade: %+v", exchangeName, data[i]))

@@ -294,7 +294,7 @@ func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) (
 		return nil, err
 	}
 	var tradeData []Trade
-	tradeData, err = l.GetTrades(p.Base.String(), nil)
+	tradeData, err = l.GetTrades(p.Quote.String(), nil)
 	if err != nil {
 		return nil, err
 	}

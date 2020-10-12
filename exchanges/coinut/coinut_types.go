@@ -68,9 +68,9 @@ type Orderbook struct {
 // TradeBase is a sub-type holding information on trades
 type TradeBase struct {
 	Price         float64 `json:"price,string"`
-	Quantity      float64 `json:"quantity,string"`
+	Quantity      float64 `json:"qty,string"`
 	Side          string  `json:"side"`
-	Timestamp     float64 `json:"timestamp"`
+	Timestamp     int64   `json:"timestamp"`
 	TransactionID int64   `json:"trans_id"`
 }
 

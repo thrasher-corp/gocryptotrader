@@ -412,7 +412,7 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (p *Poloniex) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return p.GetHistoricTrades(currencyPair, assetType, time.Time{}, time.Time{})
+	return p.GetHistoricTrades(currencyPair, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -451,7 +451,7 @@ allTrades:
 			}
 			resp = append(resp, trade.Data{
 				Exchange:     p.Name,
-				TID:          strconv.FormatInt(tradeData[i].GlobalTradeID, 10),
+				TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 				CurrencyPair: currencyPair,
 				AssetType:    assetType,
 				Side:         side,
