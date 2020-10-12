@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -548,6 +549,7 @@ func (k *Kraken) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

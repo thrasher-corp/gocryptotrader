@@ -2,6 +2,7 @@ package lbank
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -389,6 +390,7 @@ allTrades:
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 

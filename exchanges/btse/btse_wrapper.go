@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -449,6 +450,7 @@ func (b *BTSE) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

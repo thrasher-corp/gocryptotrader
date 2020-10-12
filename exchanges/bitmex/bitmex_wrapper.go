@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -482,6 +483,7 @@ allTrades:
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 

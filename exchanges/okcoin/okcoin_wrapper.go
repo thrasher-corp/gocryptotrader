@@ -3,6 +3,7 @@ package okcoin
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -499,5 +500,7 @@ func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 	default:
 		return nil, fmt.Errorf("%s asset type %v unsupported", o.Name, assetType)
 	}
+
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }

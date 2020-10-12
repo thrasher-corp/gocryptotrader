@@ -2,6 +2,7 @@ package bitstamp
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -412,6 +413,7 @@ func (b *Bitstamp) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]tra
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

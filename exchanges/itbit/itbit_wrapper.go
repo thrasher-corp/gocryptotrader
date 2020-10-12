@@ -3,6 +3,7 @@ package itbit
 import (
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -337,6 +338,7 @@ func (i *ItBit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

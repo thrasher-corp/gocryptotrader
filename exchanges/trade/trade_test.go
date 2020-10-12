@@ -81,7 +81,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 	if buffer[0].Amount != 1 {
 		t.Error("expected positive amount")
 	}
-	if buffer[0].Side != order.UnknownSide {
+	if buffer[0].Side != order.Sell {
 		t.Error("expected unknown side")
 	}
 }

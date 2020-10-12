@@ -3,6 +3,7 @@ package exmo
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -399,6 +400,7 @@ func (e *EXMO) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

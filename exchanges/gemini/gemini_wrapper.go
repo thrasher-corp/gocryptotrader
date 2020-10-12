@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -372,10 +373,9 @@ allTrades:
 	if err != nil {
 		return nil, err
 	}
-	if !timestampStart.IsZero() || !timestampEnd.IsZero() {
-		return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
-	}
+	resp = trade.FilterTradesByTime(resp, timestampStart, timestampEnd)
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

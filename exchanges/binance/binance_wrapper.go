@@ -2,13 +2,13 @@ package binance
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -511,10 +511,9 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 			Exchange:     b.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         order.Buy,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Quantity,
-			Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
+			Timestamp:    time.Unix(0, tradeData[i].Time*int64(time.Millisecond)),
 		})
 	}
 	if b.IsSaveTradeDataEnabled() {
@@ -524,6 +523,7 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 		}
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

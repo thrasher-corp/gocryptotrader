@@ -3,6 +3,7 @@ package zb
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -431,6 +432,7 @@ func (z *ZB) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Dat
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

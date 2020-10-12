@@ -118,7 +118,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		}
 
 		side := order.Buy
-		if wsTradeTemp.Data.Type == -1 {
+		if wsTradeTemp.Data.Type == 1 {
 			side = order.Sell
 		}
 		var a asset.Item

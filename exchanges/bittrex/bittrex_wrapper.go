@@ -2,6 +2,7 @@ package bittrex
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -414,6 +415,7 @@ func (b *Bittrex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

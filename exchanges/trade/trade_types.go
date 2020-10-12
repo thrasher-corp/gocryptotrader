@@ -37,16 +37,17 @@ type Processor struct {
 	bufferProcessorInterval time.Duration
 }
 
-type byDate []Data
+// ByDate sorts trades by date ascending
+type ByDate []Data
 
-func (b byDate) Len() int {
+func (b ByDate) Len() int {
 	return len(b)
 }
 
-func (b byDate) Less(i, j int) bool {
+func (b ByDate) Less(i, j int) bool {
 	return b[i].Timestamp.Before(b[j].Timestamp)
 }
 
-func (b byDate) Swap(i, j int) {
+func (b ByDate) Swap(i, j int) {
 	b[i], b[j] = b[j], b[i]
 }

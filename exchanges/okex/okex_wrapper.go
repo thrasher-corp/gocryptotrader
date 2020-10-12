@@ -3,6 +3,7 @@ package okex
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -771,5 +772,7 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 	default:
 		return nil, fmt.Errorf("%s asset type %v unsupported", o.Name, assetType)
 	}
+
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }

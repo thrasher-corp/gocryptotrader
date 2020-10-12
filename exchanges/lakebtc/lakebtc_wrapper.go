@@ -3,6 +3,7 @@ package lakebtc
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -366,6 +367,7 @@ func (l *LakeBTC) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 		return nil, err
 	}
 
+	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
 

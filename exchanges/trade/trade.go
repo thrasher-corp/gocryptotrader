@@ -51,9 +51,11 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 
 		if data[i].Price < 0 {
 			data[i].Price *= -1
+			data[i].Side = order.Sell
 		}
 		if data[i].Amount < 0 {
 			data[i].Amount *= -1
+			data[i].Side = order.Sell
 		}
 		if data[i].Side == "" {
 			data[i].Side = order.UnknownSide
@@ -128,7 +130,7 @@ func GetTradesInRange(exchangeName, assetType, base, quote string, startDate, en
 }
 
 func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
-	sort.Sort(byDate(trades))
+	sort.Sort(ByDate(trades))
 	var results []tradesql.Data
 	for i := range trades {
 		tradeID, err := uuid.NewV4()
@@ -219,7 +221,7 @@ func getNearestInterval(t time.Time, interval kline.Interval) int64 {
 }
 
 func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
-	sort.Sort(byDate(datas))
+	sort.Sort(ByDate(datas))
 	c.Open = datas[0].Price
 	c.Close = datas[len(datas)-1].Price
 	for i := range datas {
@@ -244,6 +246,10 @@ func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 // FilterTradesByTime removes any trades that are not between the start
 // and end times
 func FilterTradesByTime(trades []Data, startTime, endTime time.Time) []Data {
+	if startTime.IsZero() || endTime.IsZero() {
+		// can't filter without boundaries
+		return trades
+	}
 	var filteredTrades []Data
 	for i := range trades {
 		if trades[i].Timestamp.After(startTime) && trades[i].Timestamp.Before(endTime) {
