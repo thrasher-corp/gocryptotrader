@@ -666,7 +666,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Closed, nil
 	case strings.EqualFold(status, Cancelled.String()):
 		return Cancelled, nil
-	case strings.EqualFold(status, Canceled.String()): // Kraken case
+	case strings.EqualFold(status, "CANCELED"): // Kraken case
 		return Cancelled, nil
 	case strings.EqualFold(status, PendingCancel.String()),
 		strings.EqualFold(status, "pending cancel"),
