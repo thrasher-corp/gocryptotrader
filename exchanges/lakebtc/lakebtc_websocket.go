@@ -67,6 +67,9 @@ func (l *LakeBTC) listenToEndpoints() error {
 	if err != nil {
 		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
 	}
+	// LakeBTC does not provide enough trade data to sync to the trade database table
+	// please use REST until the API is updated
+	// l.WebsocketConn.Trade, err = l.WebsocketConn.Client.Bind("trades")
 	return nil
 }
 

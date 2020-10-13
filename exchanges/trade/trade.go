@@ -57,9 +57,6 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 			data[i].Amount *= -1
 			data[i].Side = order.Sell
 		}
-		if data[i].Side == "" {
-			data[i].Side = order.UnknownSide
-		}
 		if data[i].Side == order.Bid {
 			data[i].Side = order.Buy
 		}

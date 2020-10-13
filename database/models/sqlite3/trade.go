@@ -31,7 +31,7 @@ type Trade struct {
 	Asset          string      `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
 	Price          float64     `boil:"price" json:"price" toml:"price" yaml:"price"`
 	Amount         float64     `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
-	Side           string      `boil:"side" json:"side" toml:"side" yaml:"side"`
+	Side           null.String `boil:"side" json:"side,omitempty" toml:"side" yaml:"side,omitempty"`
 	Timestamp      string      `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
 
 	R *tradeR `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -95,7 +95,7 @@ var TradeWhere = struct {
 	Asset          whereHelperstring
 	Price          whereHelperfloat64
 	Amount         whereHelperfloat64
-	Side           whereHelperstring
+	Side           whereHelpernull_String
 	Timestamp      whereHelperstring
 }{
 	ID:             whereHelperstring{field: "\"trade\".\"id\""},
@@ -106,7 +106,7 @@ var TradeWhere = struct {
 	Asset:          whereHelperstring{field: "\"trade\".\"asset\""},
 	Price:          whereHelperfloat64{field: "\"trade\".\"price\""},
 	Amount:         whereHelperfloat64{field: "\"trade\".\"amount\""},
-	Side:           whereHelperstring{field: "\"trade\".\"side\""},
+	Side:           whereHelpernull_String{field: "\"trade\".\"side\""},
 	Timestamp:      whereHelperstring{field: "\"trade\".\"timestamp\""},
 }
 

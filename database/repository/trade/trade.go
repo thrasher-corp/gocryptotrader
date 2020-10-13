@@ -78,8 +78,10 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			Asset:          strings.ToLower(trades[i].AssetType),
 			Price:          trades[i].Price,
 			Amount:         trades[i].Amount,
-			Side:           strings.ToUpper(trades[i].Side),
 			Timestamp:      trades[i].Timestamp.UTC().Format(time.RFC3339),
+		}
+		if trades[i].Side != "" {
+			tempEvent.Side.SetValid(strings.ToUpper(trades[i].Side))
 		}
 		if trades[i].TID != "" {
 			tempEvent.Tid.SetValid(trades[i].TID)
@@ -111,9 +113,11 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			Asset:          strings.ToLower(trades[i].AssetType),
 			Price:          trades[i].Price,
 			Amount:         trades[i].Amount,
-			Side:           strings.ToUpper(trades[i].Side),
 			Timestamp:      trades[i].Timestamp.UTC(),
 			ID:             trades[i].ID,
+		}
+		if trades[i].Side != "" {
+			tempEvent.Side.SetValid(strings.ToUpper(trades[i].Side))
 		}
 		if trades[i].TID != "" {
 			tempEvent.Tid.SetValid(trades[i].TID)
@@ -166,8 +170,10 @@ func getByUUIDSQLite(uuid string) (Data, error) {
 		AssetType: strings.ToLower(result.Asset),
 		Price:     result.Price,
 		Amount:    result.Amount,
-		Side:      strings.ToUpper(result.Side),
 		Timestamp: ts,
+	}
+	if result.Side.Valid {
+		td.Side = result.Side.String
 	}
 	return td, nil
 }
@@ -189,7 +195,9 @@ func getByUUIDPostgres(uuid string) (td Data, err error) {
 		AssetType: strings.ToLower(result.Asset),
 		Price:     result.Price,
 		Amount:    result.Amount,
-		Side:      strings.ToUpper(result.Side),
+	}
+	if result.Side.Valid {
+		td.Side = result.Side.String
 	}
 	return td, nil
 }
@@ -235,7 +243,7 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 		if err != nil {
 			return td, err
 		}
-		td = append(td, Data{
+		t := Data{
 			ID:        result[i].ID,
 			Timestamp: ts,
 			Exchange:  strings.ToLower(exchangeName),
@@ -244,8 +252,12 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 			AssetType: strings.ToLower(result[i].Asset),
 			Price:     result[i].Price,
 			Amount:    result[i].Amount,
-			Side:      result[i].Side,
-		})
+		}
+		if result[i].Side.Valid {
+			t.Side = result[i].Side.String
+		}
+		td = append(td, t)
+
 	}
 	return td, nil
 }
@@ -270,7 +282,7 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 		return td, err
 	}
 	for i := range result {
-		td = append(td, Data{
+		t := Data{
 			ID:        result[i].ID,
 			Timestamp: result[i].Timestamp,
 			Exchange:  strings.ToLower(exchangeName),
@@ -279,8 +291,11 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 			AssetType: strings.ToLower(result[i].Asset),
 			Price:     result[i].Price,
 			Amount:    result[i].Amount,
-			Side:      strings.ToUpper(result[i].Side),
-		})
+		}
+		if result[i].Side.Valid {
+			t.Side = result[i].Side.String
+		}
+		td = append(td, t)
 	}
 	return td, nil
 }
