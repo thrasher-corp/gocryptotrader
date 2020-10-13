@@ -11,11 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/toorop/go-pusher"
 )
@@ -25,10 +23,6 @@ const (
 	marketGlobalEndpoint = "market-global"
 	marketSubstring      = "market-"
 	globalSubstring      = "-global"
-	tickerHighString     = "high"
-	tickerLastString     = "last"
-	tickerLowString      = "low"
-	tickerVolumeString   = "volume"
 	wssSchem             = "wss"
 )
 
@@ -70,10 +64,6 @@ func (l *LakeBTC) listenToEndpoints() error {
 		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
 	}
 	l.WebsocketConn.Orderbook, err = l.WebsocketConn.Client.Bind("update")
-	if err != nil {
-		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
-	}
-	l.WebsocketConn.Trade, err = l.WebsocketConn.Client.Bind("trades")
 	if err != nil {
 		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
 	}
@@ -155,15 +145,6 @@ func (l *LakeBTC) wsHandleIncomingData() {
 			if err != nil {
 				l.Websocket.DataHandler <- err
 			}
-		case data := <-l.WebsocketConn.Trade:
-			if l.Verbose {
-				log.Debugf(log.ExchangeSys,
-					"%v Websocket message received: %v", l.Name, data)
-			}
-			err := l.processTrades(data.Data, data.Channel)
-			if err != nil {
-				l.Websocket.DataHandler <- err
-			}
 		case data := <-l.WebsocketConn.Orderbook:
 			if l.Verbose {
 				log.Debugf(log.ExchangeSys,
@@ -179,41 +160,6 @@ func (l *LakeBTC) wsHandleIncomingData() {
 		default:
 		}
 	}
-}
-
-func (l *LakeBTC) processTrades(data, channel string) error {
-	if !l.IsSaveTradeDataEnabled() {
-		return nil
-	}
-	var tradeData WsTrades
-	err := json.Unmarshal([]byte(data), &tradeData)
-	if err != nil {
-		return err
-	}
-	curr, err := l.getCurrencyFromChannel(channel)
-	if err != nil {
-		return err
-	}
-	var trades []trade.Data
-	for i := range tradeData.Trades {
-		tSide, err := order.StringToOrderSide(tradeData.Trades[i].Type)
-		if err != nil {
-			l.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: l.Name,
-				Err:      err,
-			}
-		}
-		trades = append(trades, trade.Data{
-			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
-			CurrencyPair: curr,
-			AssetType:    asset.Spot,
-			Exchange:     l.Name,
-			Price:        tradeData.Trades[i].Price,
-			Amount:       tradeData.Trades[i].Amount,
-			Side:         tSide,
-		})
-	}
-	return trade.AddTradesToBuffer(l.Name, trades...)
 }
 
 func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
