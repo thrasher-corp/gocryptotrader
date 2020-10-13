@@ -575,9 +575,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("USDT-BTC")
+	currencyPair, err := currency.NewPairFromString("BTC_XMR")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if mockTests {
+		t.Skip("relies on time.Now()")
 	}
 	_, err = p.GetRecentTrades(currencyPair, asset.Spot)
 	if err != nil {
@@ -587,7 +590,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("USDT-BTC")
+	currencyPair, err := currency.NewPairFromString("BTC_XMR")
 	if err != nil {
 		t.Fatal(err)
 	}

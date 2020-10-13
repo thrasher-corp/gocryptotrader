@@ -410,7 +410,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("LTC")
+	currencyPair, err := currency.NewPairFromString("BTC-LTC")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -422,7 +422,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("LTC")
+	currencyPair, err := currency.NewPairFromString("BTC-LTC")
 	if err != nil {
 		t.Fatal(err)
 	}
