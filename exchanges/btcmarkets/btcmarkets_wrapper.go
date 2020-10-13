@@ -503,9 +503,9 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTCMarkets) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (b *BTCMarkets) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
-	o, err := b.FetchOrder(getOrdersRequest.OrderID)
+	o, err := b.FetchOrder(orderID)
 	if err != nil {
 		return resp, err
 	}
@@ -516,7 +516,7 @@ func (b *BTCMarkets) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (ord
 	}
 
 	resp.Exchange = b.Name
-	resp.ID = getOrdersRequest.OrderID
+	resp.ID = orderID
 	resp.Pair = p
 	resp.Price = o.Price
 	resp.Date = o.CreationTime

@@ -400,7 +400,7 @@ func (l *LakeBTC) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 }
 
 // GetOrderInfo returns order information based on order ID
-func (l *LakeBTC) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (l *LakeBTC) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

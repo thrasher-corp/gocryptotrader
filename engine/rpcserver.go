@@ -795,19 +795,13 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		return nil, errExchangeNotLoaded
 	}
 
-	var pairs []currency.Pair
-	pairs = append(pairs, currency.Pair{
+	pair := currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
 		Quote:     currency.NewCode(r.Pair.Quote),
-	})
-
-	req := order.GetOrdersRequest{
-		OrderID: r.OrderId,
-		Pairs:   pairs,
 	}
 
-	result, err := exch.GetOrderInfo(&req)
+	result, err := exch.GetOrderInfo(r.OrderId, pair, "") // assetType will be implemented in the future
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
 	}

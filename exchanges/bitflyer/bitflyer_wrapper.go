@@ -310,7 +310,7 @@ func (b *Bitflyer) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitflyer) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (b *Bitflyer) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

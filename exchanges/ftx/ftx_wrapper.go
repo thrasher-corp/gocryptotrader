@@ -645,9 +645,9 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 }
 
 // GetOrderInfo returns order information based on order ID
-func (f *FTX) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (f *FTX) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
-	orderData, err := f.GetOrderStatus(getOrdersRequest.OrderID)
+	orderData, err := f.GetOrderStatus(orderID)
 	if err != nil {
 		return resp, err
 	}
@@ -655,7 +655,7 @@ func (f *FTX) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Deta
 	if err != nil {
 		return resp, err
 	}
-	assetType, err := f.GetPairAssetType(p)
+	orderAssetType, err := f.GetPairAssetType(p)
 	if err != nil {
 		return resp, err
 	}
@@ -666,7 +666,7 @@ func (f *FTX) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Deta
 	resp.Exchange = f.Name
 	resp.ExecutedAmount = orderData.Size - orderData.RemainingSize
 	resp.Pair = p
-	resp.AssetType = assetType
+	resp.AssetType = orderAssetType
 	resp.Price = orderData.Price
 	resp.RemainingAmount = orderData.RemainingSize
 	orderVars, err := orderData.GetCompatible(f)

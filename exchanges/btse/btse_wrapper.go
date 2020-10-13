@@ -542,8 +542,8 @@ func orderIntToType(i int) order.Type {
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *BTSE) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
-	o, err := b.GetOrders("", getOrdersRequest.OrderID, "")
+func (b *BTSE) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+	o, err := b.GetOrders("", orderID, "")
 	if err != nil {
 		return order.Detail{}, err
 	}
@@ -559,7 +559,7 @@ func (b *BTSE) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Det
 	}
 
 	for i := range o {
-		if o[i].OrderID != getOrdersRequest.OrderID {
+		if o[i].OrderID != orderID {
 			continue
 		}
 
@@ -591,11 +591,10 @@ func (b *BTSE) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Det
 			time.Time{}, time.Time{},
 			0, 0, 0,
 			false,
-			"", getOrdersRequest.OrderID)
+			"", orderID)
 		if err != nil {
 			return od,
-				fmt.Errorf("unable to get order fills for orderID %s",
-					getOrdersRequest.OrderID)
+				fmt.Errorf("unable to get order fills for orderID %s", orderID)
 		}
 
 		for i := range th {
