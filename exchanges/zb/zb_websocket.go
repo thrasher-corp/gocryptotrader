@@ -231,7 +231,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			var tSide order.Side
-			tSide, err = order.StringToOrderSide(tradeData.Data[i].TradeType)
+			tSide, err = order.StringToOrderSide(tradeData.Data[i].Type)
 			if err != nil {
 				return &order.ClassificationError{
 					Exchange: z.Name,
