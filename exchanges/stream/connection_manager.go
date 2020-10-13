@@ -33,6 +33,8 @@ type ConnectionManager struct {
 
 	generalConfigurations      []ConnectionSetup
 	dedicatedAuthConfiguration ConnectionSetup
+
+	subMTX sync.Mutex
 }
 
 // ConnectionManagerConfig defines the needed variables for stream connections
@@ -236,16 +238,21 @@ func (c *ConnectionManager) GetAllSubscriptions() ([]ChannelSubscription, error)
 // are the same thing but have different functionality levels and that needs to
 // be expressed at a higher level
 func (c *ConnectionManager) GetAssetsBySubscriptionType(conn Connection, subType Subscription) (asset.Items, error) {
-	c.RLock()
-	defer c.RUnlock()
+	// fmt.Printf("Getting assets from conn: %p\n", conn)
+	c.subMTX.Lock()
+	defer c.subMTX.Unlock()
 	val, ok := c.conn[conn]
 	if !ok {
 		return nil, errors.New("cannot find connection")
 	}
 
+	// fmt.Println("CONNECTION Container:", c.conn)
+	// fmt.Println("CONNECTION Container VAL:", val)
+
 	var assets asset.Items
 	for i := range *val {
-		if ([]ChannelSubscription)(*val)[i].SubscriptionType == subType {
+		if ([]ChannelSubscription)(*val)[i].SubscriptionType == subType &&
+			!assets.Contains(([]ChannelSubscription)(*val)[i].Asset) {
 			assets = append(assets, ([]ChannelSubscription)(*val)[i].Asset)
 		}
 	}
@@ -259,17 +266,21 @@ func (c *ConnectionManager) GetAssetsBySubscriptionType(conn Connection, subType
 
 // AddSuccessfulSubscriptions adds subs mate
 func (c *ConnectionManager) AddSuccessfulSubscriptions(conn Connection, sub []ChannelSubscription) error {
-	c.Lock()
-	defer c.Unlock()
+	// fmt.Printf("Adding sucessful subs to conn: %p\n", conn)
+	c.subMTX.Lock()
+	defer c.subMTX.Unlock()
 	val, ok := c.conn[conn]
 	if !ok {
 		return errors.New("connection not set in manager")
 	}
 
 	if val == nil {
-		val = &sub
+		c.conn[conn] = &sub
+		fmt.Println("SETTING NEW SUBS")
 		return nil
 	}
+
+	fmt.Println("SETTING NEW SUBS AND CHECKING SLICE")
 
 	for x := range sub {
 		for y := range *val {

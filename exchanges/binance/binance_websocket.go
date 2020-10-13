@@ -35,7 +35,6 @@ type Job struct {
 
 // WsConnect initiates a websocket connection
 func (b *Binance) WsConnect(conn stream.Connection) error {
-	fmt.Println("WOWOWOWOWOWOWO")
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -43,7 +42,6 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 	var dialer websocket.Dialer
 	var err error
 	if conn.IsAuthenticated() {
-		fmt.Println("Auth WEBSOCKET")
 		if b.Websocket.CanUseAuthenticatedEndpoints() {
 			listenKey, err = b.GetWsAuthStreamKey()
 			if err != nil {
@@ -61,6 +59,8 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 					return err
 				}
 			}
+
+			fmt.Println("Authconn:", conn)
 
 			err = conn.Dial(&dialer, http.Header{})
 			if err != nil {
@@ -87,18 +87,14 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 		}
 	}
 
-	fmt.Println("UNAUTH WEBSOCKET")
+	fmt.Println("Unauth Conn:", conn)
 
 	err = conn.Dial(&dialer, http.Header{})
-	fmt.Println("WOOOOOOOOOOOOOOOOOW")
 	if err != nil {
-		fmt.Println("ERRROR")
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			b.Name,
 			err)
 	}
-
-	fmt.Println("UNAUTH CONNECTED")
 
 	conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
@@ -169,18 +165,22 @@ func (b *Binance) wsReadData(conn stream.Connection) {
 	defer b.Websocket.Wg.Done()
 
 	for {
+		// fmt.Println("WSREADDATA")
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
+			// fmt.Println("nil")
 			return
 		}
 		err := b.wsHandleData(resp.Raw, conn)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}
+		// fmt.Println("RETURN PROCESS")
 	}
 }
 
 func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
+	// fmt.Println("Data Come through", string(respRaw))
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -429,10 +429,14 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 							err)
 					}
 
+					// fmt.Println("depth update:", depth)
+
 					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Orderbook)
 					if err != nil {
 						return err
 					}
+
+					// fmt.Println("ASSETS:", assets)
 
 					for i := range assets {
 						err = b.UpdateLocalBuffer(assets[i], &depth)
@@ -754,7 +758,7 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 
 // Subscribe subscribes to a set of channels
 func (b *Binance) Subscribe(sub stream.SubscriptionParamaters) error {
-	fmt.Println(sub)
+	fmt.Println("Subbing:", sub)
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}

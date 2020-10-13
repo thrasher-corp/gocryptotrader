@@ -212,21 +212,15 @@ func (w *Websocket) Connect() error {
 	// w.subscriptions = nil
 	// w.subscriptionMutex.Unlock()
 
-	fmt.Println("meow")
-
 	subs, err := w.Connections.GenerateSubscriptions()
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("meow2")
-
 	corns, err := w.Connections.GenerateConnections()
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("CORNS:", corns)
 
 	for i := range corns {
 		err = w.Connections.LoadNewConnection(corns[i])
@@ -241,14 +235,10 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("%v Error connecting %s", w.exchangeName, err)
 	}
 
-	fmt.Println("meow3")
-
 	err = w.Connections.Subscribe(subs)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("meow4")
 
 	// err := w.connector(nil)
 	// if err != nil {
