@@ -7,7 +7,8 @@ CREATE UNIQUE INDEX unique_trade_no_id ON trade (base,quote,asset,price,amount,s
 -- +goose StatementEnd
 -- +goose Down
 -- +goose StatementBegin
-ALTER TABLE trade DROP CONSTRAINT unique_trade_no_id;
+DROP INDEX  unique_trade_no_id;
+
 ALTER TABLE trade ADD CONSTRAINT uniquetrade
-    unique(exchange_name_id, base, quote, asset, price, amount, side, timestamp)
+    unique(exchange_name_id, base, quote, asset, price, amount, side, timestamp);
 -- +goose StatementEnd
