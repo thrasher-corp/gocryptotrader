@@ -257,7 +257,6 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 			t.Side = result[i].Side.String
 		}
 		td = append(td, t)
-
 	}
 	return td, nil
 }
