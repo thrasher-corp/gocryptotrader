@@ -74,28 +74,6 @@ func TestGenerateChart(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "invalid-chartName conversion Failed",
-			args: args{
-				[]tengo.Object{
-					tengo.FalseValue,
-					tengo.FalseValue,
-					&ohlcvData,
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid-write file conversion",
-			args: args{
-				[]tengo.Object{
-					&tengo.String{Value: "valid"},
-					&tengo.Float{Value: 420.69},
-					&ohlcvData,
-				},
-			},
-			wantErr: true,
-		},
-		{
 			name: "invalid-invalid data",
 			args: args{
 				[]tengo.Object{

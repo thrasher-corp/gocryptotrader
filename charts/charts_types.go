@@ -1,19 +1,27 @@
 package charts
 
-import (
-	"io"
+import "io"
+
+const (
+	watermark    = "GoCryptoTrader"
+	tvScriptName = "lightweight-charts.standalone.production.js"
 )
 
 var tempByte []byte
 
 // Chart configuration options
 type Chart struct {
+	Config
+	Data
+}
+
+// Config handles chart configurable options
+type Config struct {
 	template     string
 	TemplatePath string
 	output       string
 	OutputPath   string
 
-	Data
 	w         io.ReadWriter
 	WriteFile bool
 }

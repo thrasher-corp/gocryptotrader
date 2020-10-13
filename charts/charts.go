@@ -8,12 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // New returns a new chart instance
-func New(name, template, outputpath string) (chart Chart) {
+func New(name, template, outPath string) (chart Chart) {
 	switch template {
 	case "basic":
 		chart.template = "basic.tmpl"
@@ -23,10 +24,10 @@ func New(name, template, outputpath string) (chart Chart) {
 		chart.template = "timeseries-markers.tmpl"
 	}
 	chart.output = name
-	if outputpath == "" {
+	if outPath == "" {
 		chart.OutputPath = "output"
 	} else {
-		chart.OutputPath = outputpath
+		chart.OutputPath = outPath
 	}
 	return chart
 }
@@ -58,6 +59,7 @@ func (c *Chart) Generate() (*os.File, error) {
 			filepath.Join(c.TemplatePath, "base.tmpl"),
 		}
 	}
+
 	var out *os.File
 	tmpl, err := template.ParseFiles(list...)
 	if err != nil {
@@ -72,6 +74,10 @@ func (c *Chart) Generate() (*os.File, error) {
 		f, createErr := os.Create(filepath.Join(c.OutputPath, c.output))
 		if createErr != nil {
 			return nil, err
+		}
+		createErr = c.writeJavascriptLibrary()
+		if createErr != nil {
+			log.Errorf(log.Global, "failed to write javascript library: %v", createErr)
 		}
 		defer func() {
 			err = f.Close()
@@ -130,4 +136,27 @@ func KlineItemToSeriesData(item *kline.Item) ([]SeriesData, error) {
 		}
 	}
 	return out, nil
+}
+
+func (c *Chart) writeJavascriptLibrary() error {
+	outfile := filepath.Join(c.OutputPath, tvScriptName)
+	if c.TemplatePath == "" {
+		f, err := os.Create(outfile)
+		if err != nil {
+			return err
+		}
+		n, err := f.Write(templateList["lightweight-charts.standalone.production.js"])
+		if err != nil {
+			return err
+		}
+		if n != len(templateList["lightweight-charts.standalone.production.js"]) {
+			return errors.New("write length mismatch")
+		}
+	} else {
+		_, err := file.Copy(filepath.Join(c.TemplatePath, tvScriptName), outfile)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

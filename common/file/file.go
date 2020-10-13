@@ -56,6 +56,36 @@ func Move(sourcePath, destPath string) error {
 	return os.Remove(sourcePath)
 }
 
+// Copy copies a file from a source file to a destination file
+func Copy(sourceFile, destFile string) (int64, error) {
+	sfStat, err := os.Stat(sourceFile)
+	if err != nil {
+		return 0, err
+	}
+
+	if !sfStat.Mode().IsRegular() {
+		return 0, fmt.Errorf("%s is not a file", sourceFile)
+	}
+
+	sf, err := os.Open(sourceFile)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		_ = sf.Close()
+	}()
+
+	f, err := os.Create(destFile)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	return io.Copy(f, sf)
+}
+
 // Exists returns whether or not a file or path exists
 func Exists(name string) bool {
 	_, err := os.Stat(name)

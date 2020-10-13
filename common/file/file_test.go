@@ -185,3 +185,46 @@ func TestWriteAsCSV(t *testing.T) {
 		}
 	}
 }
+
+func TestCopy(t *testing.T) {
+	fld, err := ioutil.TempDir("", "gct-temp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := ioutil.TempFile(fld, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		if fld != "" {
+			_ = os.RemoveAll(fld)
+		}
+	})
+
+	_, err = f.Write([]byte("Hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Copy(f.Name(), f.Name()+"_temp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Copy(f.Name(), fld)
+	if err == nil {
+		t.Fatal("expected Copy() to fail on attempt to copy to invalid location")
+	}
+
+	_, err = Copy("gct", f.Name()+"_temp")
+	if err == nil {
+		t.Fatal("expected Copy() to fail on attempt to copy missing file")
+	}
+
+	_, err = Copy(fld, fld+"_temp")
+	if err == nil {
+		t.Fatal("expected Copy() to fail on attempt to copy a non-file")
+	}
+}
