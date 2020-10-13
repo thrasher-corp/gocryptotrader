@@ -1534,6 +1534,9 @@ func migrateConfigToDefaultPath(configfile string) (string, error) {
 	} else {
 		target = filepath.Join(newDir, File)
 	}
+	if configfile == target {
+		return configfile, nil
+	}
 	if file.Exists(target) {
 		log.Warnf(log.ConfigMgr, "config file already found in '%s'; not overwriting, defaulting to %s", target, configfile)
 		return configfile, nil
