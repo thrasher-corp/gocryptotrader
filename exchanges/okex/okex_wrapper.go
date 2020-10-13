@@ -701,7 +701,8 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 	var side order.Side
 	switch assetType {
 	case asset.Spot:
-		tradeData, err := o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
+		var tradeData []okgroup.GetSpotFilledOrdersInformationResponse
+		tradeData, err = o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
 			InstrumentID: p.String(),
 		})
 		if err != nil {
@@ -724,7 +725,8 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 			})
 		}
 	case asset.Futures:
-		tradeData, err := o.GetFuturesFilledOrder(okgroup.GetFuturesFilledOrderRequest{
+		var tradeData []okgroup.GetFuturesFilledOrdersResponse
+		tradeData, err = o.GetFuturesFilledOrder(okgroup.GetFuturesFilledOrderRequest{
 			InstrumentID: p.String(),
 		})
 		if err != nil {
@@ -747,7 +749,8 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 			})
 		}
 	case asset.PerpetualSwap:
-		tradeData, err := o.GetSwapFilledOrdersData(&okgroup.GetSwapFilledOrdersDataRequest{
+		var tradeData []okgroup.GetSwapFilledOrdersDataResponse
+		tradeData, err = o.GetSwapFilledOrdersData(&okgroup.GetSwapFilledOrdersDataRequest{
 			InstrumentID: p.String(),
 		})
 		if err != nil {

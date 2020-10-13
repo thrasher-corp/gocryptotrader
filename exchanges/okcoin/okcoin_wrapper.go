@@ -474,7 +474,8 @@ func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		tradeData, err := o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
+		var tradeData []okgroup.GetSpotFilledOrdersInformationResponse
+		tradeData, err = o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
 			InstrumentID: p.String(),
 		})
 		if err != nil {
@@ -504,6 +505,7 @@ func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 	if err != nil {
 		return nil, err
 	}
+
 	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
