@@ -506,7 +506,7 @@ func (b *Bitmex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitmex) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (b *Bitmex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

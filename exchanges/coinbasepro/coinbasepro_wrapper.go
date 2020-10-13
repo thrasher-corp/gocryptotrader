@@ -516,10 +516,10 @@ func (c *CoinbasePro) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse,
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *CoinbasePro) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
-	genOrderDetail, errGo := c.GetOrder(getOrdersRequest.OrderID)
+func (c *CoinbasePro) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
+	genOrderDetail, errGo := c.GetOrder(orderID)
 	if errGo != nil {
-		return order.Detail{}, fmt.Errorf("error retrieving order %s : %s", getOrdersRequest.OrderID, errGo)
+		return order.Detail{}, fmt.Errorf("error retrieving order %s : %s", orderID, errGo)
 	}
 	od, errOd := time.Parse(time.RFC3339, genOrderDetail.DoneAt)
 	if errOd != nil {
@@ -556,7 +556,7 @@ func (c *CoinbasePro) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (or
 		RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
 		Fee:             genOrderDetail.FillFees,
 	}
-	fillResponse, errGF := c.GetFills(getOrdersRequest.OrderID, genOrderDetail.ProductID)
+	fillResponse, errGF := c.GetFills(orderID, genOrderDetail.ProductID)
 	if errGF != nil {
 		return response, fmt.Errorf("error retrieving the order fills: %s", errGF)
 	}

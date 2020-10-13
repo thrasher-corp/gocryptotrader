@@ -270,7 +270,7 @@ func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancel) (order.Can
 }
 
 // GetOrderInfo returns order information based on order ID
-func (a *Alphapoint) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (float64, error) {
+func (a *Alphapoint) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
 	orders, err := a.GetOrders()
 	if err != nil {
 		return 0, err
@@ -278,7 +278,7 @@ func (a *Alphapoint) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (flo
 
 	for x := range orders {
 		for y := range orders[x].OpenOrders {
-			if strconv.Itoa(orders[x].OpenOrders[y].ServerOrderID) == getOrdersRequest.OrderID {
+			if strconv.Itoa(orders[x].OpenOrders[y].ServerOrderID) == orderID {
 				return orders[x].OpenOrders[y].QtyRemaining, nil
 			}
 		}

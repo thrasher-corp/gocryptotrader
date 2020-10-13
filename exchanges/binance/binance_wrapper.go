@@ -550,17 +550,15 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 	submitOrderResponse.IsOrderPlaced = true
 
-	if len(response.Fills) > 0 {
-		for _, tr := range response.Fills {
-			submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
-				Price:    tr.Price,
-				Amount:   tr.Qty,
-				Fee:      tr.Commission,
-				FeeAsset: tr.CommissionAsset,
-			})
-		}
+	for i := range response.Fills {
+		submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
+			Price:    response.Fills[i].Price,
+			Amount:   response.Fills[i].Qty,
+			Fee:      response.Fills[i].Commission,
+			FeeAsset: response.Fills[i].CommissionAsset,
+		})
 	}
-	//submitOrderResponse.
+
 	return submitOrderResponse, nil
 }
 
@@ -615,21 +613,17 @@ func (b *Binance) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Binance) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (o order.Detail, err error) {
-	if err = getOrdersRequest.Validate(getOrdersRequest.CheckId(), getOrdersRequest.CheckPairs()); err != nil {
-		return
+func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (o order.Detail, err error) {
+	if assetType == "" {
+		assetType = asset.Spot
 	}
 
-	if getOrdersRequest.AssetType == "" {
-		getOrdersRequest.AssetType = asset.Spot
-	}
-
-	formattedPair, err := b.FormatExchangeCurrency(getOrdersRequest.Pairs[0], getOrdersRequest.AssetType)
+	formattedPair, err := b.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return
 	}
 
-	orderId, err := convert.Int64FromString(getOrdersRequest.OrderID)
+	orderId, err := convert.Int64FromString(orderID)
 	if err != nil {
 		return
 	}
@@ -650,7 +644,7 @@ func (b *Binance) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (o orde
 		return
 	}
 
-	pair, err := currency.NewPairFromString(resp.Symbol)
+	orderPair, err := currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return
 	}
@@ -660,9 +654,9 @@ func (b *Binance) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (o orde
 		return
 	}
 
-	OrderType := order.Limit
+	orderType := order.Limit
 	if resp.Type == "MARKET" {
-		OrderType = order.Market
+		orderType = order.Market
 	}
 
 	return order.Detail{
@@ -671,10 +665,10 @@ func (b *Binance) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (o orde
 		Exchange:       b.Name,
 		ID:             strconv.FormatInt(resp.OrderID, 10),
 		Side:           orderSide,
-		Type:           OrderType,
-		Pair:           pair,
+		Type:           orderType,
+		Pair:           orderPair,
 		Cost:           resp.CummulativeQuoteQty,
-		AssetType:      getOrdersRequest.AssetType,
+		AssetType:      assetType,
 		CloseTime:      orderCloseDate,
 		Status:         status,
 		Price:          resp.Price,

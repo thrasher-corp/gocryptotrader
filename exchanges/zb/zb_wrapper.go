@@ -541,7 +541,7 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 }
 
 // GetOrderInfo returns order information based on order ID
-func (z *ZB) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (z *ZB) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

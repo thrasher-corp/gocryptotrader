@@ -509,24 +509,24 @@ func (g *Gateio) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 }
 
 // GetOrderInfo returns order information based on order ID
-func (g *Gateio) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (g *Gateio) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	orders, err := g.GetOpenOrders("")
 	if err != nil {
 		return orderDetail, errors.New("failed to get open orders")
 	}
 
-	if getOrdersRequest.AssetType == "" {
-		getOrdersRequest.AssetType = asset.Spot
+	if assetType == "" {
+		assetType = asset.Spot
 	}
 
-	format, err := g.GetPairFormat(getOrdersRequest.AssetType, false)
+	format, err := g.GetPairFormat(assetType, false)
 	if err != nil {
 		return orderDetail, err
 	}
 
 	for x := range orders.Orders {
-		if orders.Orders[x].OrderNumber != getOrdersRequest.OrderID {
+		if orders.Orders[x].OrderNumber != orderID {
 			continue
 		}
 		orderDetail.Exchange = g.Name
@@ -549,7 +549,7 @@ func (g *Gateio) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.D
 		}
 		return orderDetail, nil
 	}
-	return orderDetail, fmt.Errorf("no order found with id %v", getOrdersRequest.OrderID)
+	return orderDetail, fmt.Errorf("no order found with id %v", orderID)
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

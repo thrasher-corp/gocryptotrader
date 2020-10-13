@@ -363,7 +363,7 @@ func ({{.Variable}} *{{.CapitalName}}) CancelAllOrders(orderCancellation *order.
 }
 
 // GetOrderInfo returns order information based on order ID
-func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 

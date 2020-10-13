@@ -610,34 +610,30 @@ func (k *Kraken) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 }
 
 // GetOrderInfo returns order information based on order ID
-func (k *Kraken) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
-	if err := getOrdersRequest.Validate(getOrdersRequest.CheckId()); err != nil {
-		return orderDetail, err
-	}
-
 	resp, err := k.QueryOrdersInfo(OrderInfoOptions{
 		Trades: true,
-	}, getOrdersRequest.OrderID)
+	}, orderID)
 	if err != nil {
 		return orderDetail, err
 	}
 
-	orderInfo, ok := resp[getOrdersRequest.OrderID]
+	orderInfo, ok := resp[orderID]
 	if !ok {
-		return orderDetail, fmt.Errorf("order %s not found in response", getOrdersRequest.OrderID)
+		return orderDetail, fmt.Errorf("order %s not found in response", orderID)
 	}
 
-	if getOrdersRequest.AssetType == "" {
-		getOrdersRequest.AssetType = asset.Spot
+	if assetType == "" {
+		assetType = asset.Spot
 	}
 
-	avail, err := k.GetAvailablePairs(getOrdersRequest.AssetType)
+	avail, err := k.GetAvailablePairs(assetType)
 	if err != nil {
 		return orderDetail, err
 	}
 
-	format, err := k.GetPairFormat(getOrdersRequest.AssetType, true)
+	format, err := k.GetPairFormat(assetType, true)
 	if err != nil {
 		return orderDetail, err
 	}
@@ -669,7 +665,7 @@ func (k *Kraken) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.D
 	}
 	orderDetail = order.Detail{
 		Exchange:        k.Name,
-		ID:              getOrdersRequest.OrderID,
+		ID:              orderID,
 		Pair:            p,
 		Side:            side,
 		Type:            oType,

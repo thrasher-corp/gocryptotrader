@@ -445,7 +445,7 @@ func (e *EXMO) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error)
 }
 
 // GetOrderInfo returns order information based on order ID
-func (e *EXMO) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (e *EXMO) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

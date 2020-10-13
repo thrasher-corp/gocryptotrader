@@ -446,7 +446,7 @@ func (l *Lbank) CancelAllOrders(o *order.Cancel) (order.CancelAllResponse, error
 }
 
 // GetOrderInfo returns order information based on order ID
-func (l *Lbank) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (l *Lbank) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {
@@ -455,10 +455,10 @@ func (l *Lbank) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.De
 
 	for key, val := range orderIDs {
 		for i := range val {
-			if val[i] != getOrdersRequest.OrderID {
+			if val[i] != orderID {
 				continue
 			}
-			tempResp, err := l.QueryOrder(key, getOrdersRequest.OrderID)
+			tempResp, err := l.QueryOrder(key, orderID)
 			if err != nil {
 				return resp, err
 			}

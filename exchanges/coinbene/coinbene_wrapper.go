@@ -590,14 +590,14 @@ func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *Coinbene) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (c *Coinbene) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
-	tempResp, err := c.FetchSpotOrderInfo(getOrdersRequest.OrderID)
+	tempResp, err := c.FetchSpotOrderInfo(orderID)
 	if err != nil {
 		return resp, err
 	}
 	resp.Exchange = c.Name
-	resp.ID = getOrdersRequest.OrderID
+	resp.ID = orderID
 	resp.Pair = currency.NewPairWithDelimiter(tempResp.BaseAsset,
 		"/",
 		tempResp.QuoteAsset)

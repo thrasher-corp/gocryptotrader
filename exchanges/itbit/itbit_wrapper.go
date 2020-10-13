@@ -401,7 +401,7 @@ func (i *ItBit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 }
 
 // GetOrderInfo returns order information based on order ID
-func (i *ItBit) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (i *ItBit) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

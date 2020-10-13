@@ -88,9 +88,7 @@ func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 		return nil, err
 	}
 
-	r, err := ex.GetOrderInfo(&order.GetOrdersRequest{
-		OrderID: orderID,
-	})
+	r, err := ex.GetOrderInfo(orderID, currency.Pair{}, "")
 	if err != nil {
 		return nil, err
 	}

@@ -395,7 +395,7 @@ func (l *LocalBitcoins) CancelAllOrders(_ *order.Cancel) (order.CancelAllRespons
 }
 
 // GetOrderInfo returns order information based on order ID
-func (l *LocalBitcoins) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (l *LocalBitcoins) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

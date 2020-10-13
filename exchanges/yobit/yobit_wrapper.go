@@ -420,7 +420,7 @@ func (y *Yobit) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error
 }
 
 // GetOrderInfo returns order information based on order ID
-func (y *Yobit) GetOrderInfo(getOrdersRequest *order.GetOrdersRequest) (order.Detail, error) {
+func (y *Yobit) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
