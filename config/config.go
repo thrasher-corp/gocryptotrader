@@ -1457,14 +1457,12 @@ func (c *Config) CheckConnectionMonitorConfig() {
 // Windows: %APPDATA%\GoCryptoTrader\config.json or config.dat
 // Helpful for printing application usage
 func DefaultFilePath() string {
-	f := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), File)
-	if !file.Exists(f) {
-		encFile := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), EncryptedFile)
-		if file.Exists(encFile) {
-			return encFile
-		}
+	foundConfig, _, err := GetFilePath("")
+	if err != nil {
+		// If there was no config file, show default location for .json
+		return filepath.Join(common.GetDefaultDataDir(runtime.GOOS), File)
 	}
-	return f
+	return foundConfig
 }
 
 // GetAndMigrateDefaultPath returns the target config file
