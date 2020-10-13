@@ -33,3 +33,6 @@ sqlboiler.json
 # GCT API Check
 backup.json
 .DS_STORE
+
+# chart output ignore
+charts/output
