@@ -1475,7 +1475,7 @@ func GetAndMigrateDefaultPath(configFile string) (string, error) {
 		return "", err
 	}
 	if wasDefault {
-		return migrateConfigToDefaultPath(filePath)
+		return migrateConfig(filePath, common.GetDefaultDataDir(runtime.GOOS))
 	}
 	return filePath, nil
 }
@@ -1513,27 +1513,22 @@ func GetFilePath(configfile string) (configPath string, isImplicitDefaultPath bo
 	return configfile, true, nil
 }
 
-// migrateConfigToDefaultPath will move the config file to the default
+// migrateConfig will move the config file to the target
 // config directory as `File` or `EncryptedFile` depending on whether the config
 // is encrypted
-func migrateConfigToDefaultPath(configFile string) (string, error) {
-	if !file.Exists(configFile) {
-		return "", fmt.Errorf("file %s does not exist", configFile)
-	}
-
+func migrateConfig(configFile, targetDir string) (string, error) {
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return "", err
 	}
 
-	newDir := common.GetDefaultDataDir(runtime.GOOS)
-
 	var target string
 	if ConfirmECS(data) {
-		target = filepath.Join(newDir, EncryptedFile)
+		target = EncryptedFile
 	} else {
-		target = filepath.Join(newDir, File)
+		target = File
 	}
+	target = filepath.Join(targetDir, target)
 	if configFile == target {
 		return configFile, nil
 	}
