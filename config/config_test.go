@@ -1,11 +1,14 @@
 package config
 
 import (
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -1641,11 +1644,6 @@ func TestReadConfig(t *testing.T) {
 	if err == nil {
 		t.Error("TestReadConfig error cannot be nil")
 	}
-
-	err = readConfig.ReadConfig("", true)
-	if err != nil {
-		t.Error("TestReadConfig error")
-	}
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -1712,12 +1710,17 @@ func TestGetFilePath(t *testing.T) {
 		t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
 	}
 
-	expected = TestFile
-	result, _ = GetFilePath("")
-	if result != expected {
-		t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
+	expected = DefaultFilePath()
+	result, err := GetFilePath("")
+	if file.Exists(expected) {
+		if err != nil || result != expected {
+			t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
+		}
+	} else {
+		if err == nil {
+			t.Error("Expected error when default config file does not exist")
+		}
 	}
-	testBypass = true
 }
 
 func TestCheckRemoteControlConfig(t *testing.T) {
@@ -2032,5 +2035,45 @@ func TestRemoveExchange(t *testing.T) {
 	}
 	if success := c.RemoveExchange("1D10TH0RS3"); success {
 		t.Fatal("exchange shouldn't exist")
+	}
+}
+
+func TestGetDataPath(t *testing.T) {
+	tests := []struct {
+		name string
+		dir  string
+		elem []string
+		want string
+	}{
+		{
+			name: "empty",
+			dir:  "",
+			elem: []string{},
+			want: common.GetDefaultDataDir(runtime.GOOS),
+		},
+		{
+			name: "empty a b",
+			dir:  "",
+			elem: []string{"a", "b"},
+			want: filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "a", "b"),
+		},
+		{
+			name: "target",
+			dir:  "target",
+			elem: []string{"a", "b"},
+			want: filepath.Join("target", "a", "b"),
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			c := &Config{
+				DataDirectory: tt.dir,
+			}
+			if got := c.GetDataPath(tt.elem...); got != tt.want {
+				t.Errorf("Config.GetDataPath() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

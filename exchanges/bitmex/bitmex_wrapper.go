@@ -451,6 +451,10 @@ func (b *Bitmex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bitmex) ModifyOrder(action *order.Modify) (string, error) {
+	if err := action.Validate(); err != nil {
+		return "", err
+	}
+
 	var params OrderAmendParams
 
 	if math.Mod(action.Amount, 1) != 0 {
@@ -470,9 +474,12 @@ func (b *Bitmex) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitmex) CancelOrder(order *order.Cancel) error {
+func (b *Bitmex) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
 	var params = OrderCancelParams{
-		OrderID: order.ID,
+		OrderID: o.ID,
 	}
 	_, err := b.CancelOrders(&params)
 	return err
@@ -512,6 +519,10 @@ func (b *Bitmex) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	var request = UserRequestWithdrawalParams{
 		Address:  withdrawRequest.Crypto.Address,
 		Amount:   withdrawRequest.Amount,
@@ -557,6 +568,10 @@ func (b *Bitmex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
 func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	params := OrdersRequest{}
 	params.Filter = "{\"open\":true}"
@@ -605,6 +620,10 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
 func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	params := OrdersRequest{}
 	resp, err := b.GetOrders(&params)

@@ -83,6 +83,12 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 		return nil, errors.New("invalid path")
 	}
 
+	if i.HeaderResponse != nil {
+		if *i.HeaderResponse == nil {
+			return nil, errors.New("header response is nil")
+		}
+	}
+
 	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
 		return nil, err
@@ -200,6 +206,12 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			}
 		}
 
+		if p.HeaderResponse != nil {
+			for k, v := range resp.Header {
+				(*p.HeaderResponse)[k] = v
+			}
+		}
+
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusAccepted {
 			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",
@@ -271,10 +283,12 @@ func (r *Requester) SetProxy(p *url.URL) error {
 		return errors.New("no proxy URL supplied")
 	}
 
-	r.HTTPClient.Transport = &http.Transport{
-		Proxy:               http.ProxyURL(p),
-		TLSHandshakeTimeout: proxyTLSTimeout,
+	t, ok := r.HTTPClient.Transport.(*http.Transport)
+	if !ok {
+		return errors.New("transport not set, cannot set proxy")
 	}
+	t.Proxy = http.ProxyURL(p)
+	t.TLSHandshakeTimeout = proxyTLSTimeout
 	return nil
 }
 

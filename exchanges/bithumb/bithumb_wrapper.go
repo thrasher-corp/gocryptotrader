@@ -337,6 +337,10 @@ func (b *Bithumb) GetExchangeHistory(p currency.Pair, assetType asset.Item, time
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
 func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	if err := s.Validate(); err != nil {
+		return order.SubmitResponse{}, err
+	}
+
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -371,6 +375,10 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bithumb) ModifyOrder(action *order.Modify) (string, error) {
+	if err := action.Validate(); err != nil {
+		return "", err
+	}
+
 	order, err := b.ModifyTrade(action.ID,
 		action.Pair.Base.String(),
 		action.Side.Lower(),
@@ -385,15 +393,23 @@ func (b *Bithumb) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bithumb) CancelOrder(order *order.Cancel) error {
-	_, err := b.CancelTrade(order.Side.String(),
-		order.ID,
-		order.Pair.Base.String())
+func (b *Bithumb) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+
+	_, err := b.CancelTrade(o.Side.String(),
+		o.ID,
+		o.Pair.Base.String())
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
@@ -447,6 +463,10 @@ func (b *Bithumb) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	v, err := b.WithdrawCrypto(withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Currency.String(),
@@ -463,6 +483,10 @@ func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	if math.Mod(withdrawRequest.Amount, 1) != 0 {
 		return nil, errors.New("currency KRW does not support decimal places")
 	}
@@ -500,6 +524,9 @@ func (b *Bithumb) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	var orders []order.Detail
 	resp, err := b.GetOrders("", "", "1000", "", "")
 	if err != nil {
@@ -548,6 +575,10 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	resp, err := b.GetOrders("", "", "1000", "", "")
 	if err != nil {
@@ -606,10 +637,8 @@ func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := b.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	formattedPair, err := b.FormatExchangeCurrency(pair, a)

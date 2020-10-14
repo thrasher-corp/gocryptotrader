@@ -474,6 +474,10 @@ func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item, tim
 
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
+	if err := o.Validate(); err != nil {
+		return order.SubmitResponse{}, err
+	}
+
 	var submitOrderResponse order.SubmitResponse
 	err := o.Validate()
 	if err != nil {
@@ -528,6 +532,10 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bitfinex) ModifyOrder(action *order.Modify) (string, error) {
+	if err := action.Validate(); err != nil {
+		return "", err
+	}
+
 	orderIDInt, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
 		return action.ID, err
@@ -547,8 +555,12 @@ func (b *Bitfinex) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitfinex) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+func (b *Bitfinex) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+
+	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -594,6 +606,10 @@ func (b *Bitfinex) GetDepositAddress(c currency.Code, accountID string) (string,
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
 	// TODO: Discover an automated way to make the decision for wallet type to withdraw from
@@ -616,6 +632,10 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
 func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	withdrawalType := "wire"
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -635,6 +655,10 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
 func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	v, err := b.WithdrawFiatFunds(withdrawRequest)
 	if err != nil {
 		return nil, err
@@ -656,6 +680,10 @@ func (b *Bitfinex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	resp, err := b.GetOpenOrders()
 	if err != nil {
@@ -721,6 +749,10 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	resp, err := b.GetInactiveOrders()
 	if err != nil {
@@ -821,10 +853,8 @@ func (b *Bitfinex) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := b.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
@@ -853,7 +883,7 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   candles[x].Timestamp,
 			Open:   candles[x].Open,
-			High:   candles[x].Close,
+			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].Volume,
@@ -866,10 +896,8 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := b.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	ret := kline.Item{
@@ -897,7 +925,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			ret.Candles = append(ret.Candles, kline.Candle{
 				Time:   candles[i].Timestamp,
 				Open:   candles[i].Open,
-				High:   candles[i].Close,
+				High:   candles[i].High,
 				Low:    candles[i].Low,
 				Close:  candles[i].Close,
 				Volume: candles[i].Volume,

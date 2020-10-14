@@ -81,7 +81,7 @@ func TestGetTrades(t *testing.T) {
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour * 2)
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewPairWithDelimiter("BTC", "USD", "-")
 	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +92,7 @@ func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewPairWithDelimiter("BTC", "USD", "-")
 	_, err := c.GetHistoricCandlesExtended(p, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
@@ -438,11 +438,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.BTC,
 			Quote:     currency.USD,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
 	}
 	response, err := c.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -463,6 +464,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	err := c.CancelOrder(orderCancellation)
@@ -485,6 +487,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	resp, err := c.CancelAllOrders(orderCancellation)
@@ -505,7 +508,7 @@ func TestModifyOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := c.ModifyOrder(&order.Modify{})
+	_, err := c.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -516,7 +519,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 	}
@@ -542,8 +545,8 @@ func TestWithdrawFiat(t *testing.T) {
 	var withdrawFiatRequest = withdraw.Request{
 		Amount:   100,
 		Currency: currency.USD,
-		Fiat: &withdraw.FiatRequest{
-			Bank: &banking.Account{
+		Fiat: withdraw.FiatRequest{
+			Bank: banking.Account{
 				BankName: "Federal Reserve Bank",
 			},
 		},
@@ -566,8 +569,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	var withdrawFiatRequest = withdraw.Request{
 		Amount:   100,
 		Currency: currency.USD,
-		Fiat: &withdraw.FiatRequest{
-			Bank: &banking.Account{
+		Fiat: withdraw.FiatRequest{
+			Bank: banking.Account{
 				BankName: "Federal Reserve Bank",
 			},
 		},

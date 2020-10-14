@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -402,11 +403,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    10,
-		Amount:   1,
-		ClientID: "1234234",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     10,
+		Amount:    1,
+		ClientID:  "1234234",
+		AssetType: asset.Spot,
 	}
 
 	response, err := g.SubmitOrder(orderSubmission)
@@ -426,7 +428,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		ID: "266029865",
+		ID:        "266029865",
+		AssetType: asset.Spot,
+		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	}
 
 	err := g.CancelOrder(orderCancellation)
@@ -452,6 +456,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	resp, err := g.CancelAllOrders(orderCancellation)
@@ -471,7 +476,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.ModifyOrder(&order.Modify{})
+	_, err := g.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -483,7 +488,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 	}

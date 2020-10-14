@@ -1,5 +1,5 @@
-import { Injectable, Optional, SkipSelf, NgModule } from '@angular/core';
-import { Subject, Observable, Observer } from 'rxjs/Rx';
+import { Optional, SkipSelf, NgModule } from '@angular/core';
+import { Subject, Observable, Observer } from 'rxjs';
 import { WebSocketMessage } from './../../shared/classes/websocket';
 
 @NgModule()

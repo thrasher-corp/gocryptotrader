@@ -718,6 +718,10 @@ func (b *Binance) GetExchangeHistory(p currency.Pair, assetType asset.Item, time
 
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	if err := s.Validate(); err != nil {
+		return order.SubmitResponse{}, err
+	}
+
 	var submitOrderResponse order.SubmitResponse
 
 	if err := s.Validate(); err != nil {
@@ -871,38 +875,41 @@ func (b *Binance) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Binance) CancelOrder(order *order.Cancel) error {
+func (b *Binance) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
 
-	fpair, err := b.FormatExchangeCurrency(order.Pair, order.AssetType)
+	fpair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
 
-	switch order.AssetType {
+	switch o.AssetType {
 	case asset.Spot:
 
-		orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+		orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 		if err != nil {
 			return err
 		}
 
 		_, err = b.CancelExistingOrder(fpair.String(),
 			orderIDInt,
-			order.AccountID)
+			o.AccountID)
 		if err != nil {
 			return err
 		}
 
 	case asset.CoinMarginedFutures:
 
-		_, err := b.FuturesCancelOrder(fpair.String(), order.ID, "")
+		_, err := b.FuturesCancelOrder(fpair.String(), o.ID, "")
 		if err != nil {
 			return err
 		}
 
 	case asset.USDTMarginedFutures:
 
-		_, err := b.UCancelOrder(fpair.String(), order.ID, "")
+		_, err := b.UCancelOrder(fpair.String(), o.ID, "")
 		if err != nil {
 			return err
 		}
@@ -1125,6 +1132,10 @@ func (b *Binance) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (b *Binance) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
 	v, err := b.WithdrawCrypto(withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
@@ -1161,6 +1172,10 @@ func (b *Binance) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	if len(req.Pairs) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
@@ -1353,6 +1368,10 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	if len(req.Pairs) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
@@ -1573,10 +1592,8 @@ func (b *Binance) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := b.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
@@ -1611,7 +1628,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   candles[x].OpenTime,
 			Open:   candles[x].Open,
-			High:   candles[x].Close,
+			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].Volume,
@@ -1624,10 +1641,8 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := b.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	ret := kline.Item{
@@ -1661,7 +1676,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 			ret.Candles = append(ret.Candles, kline.Candle{
 				Time:   candles[i].OpenTime,
 				Open:   candles[i].Open,
-				High:   candles[i].Close,
+				High:   candles[i].High,
 				Low:    candles[i].Low,
 				Close:  candles[i].Close,
 				Volume: candles[i].Volume,

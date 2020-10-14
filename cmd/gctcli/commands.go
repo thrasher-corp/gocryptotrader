@@ -1323,6 +1323,10 @@ var submitOrderCommand = cli.Command{
 			Name:  "client_id",
 			Usage: "the optional client order ID",
 		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "required asset type",
+		},
 	},
 }
 
@@ -1339,6 +1343,7 @@ func submitOrder(c *cli.Context) error {
 	var amount float64
 	var price float64
 	var clientID string
+	var assetType string
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -1411,6 +1416,17 @@ func submitOrder(c *cli.Context) error {
 		clientID = c.Args().Get(6)
 	}
 
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(7)
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -1435,6 +1451,7 @@ func submitOrder(c *cli.Context) error {
 		Amount:    amount,
 		Price:     price,
 		ClientId:  clientID,
+		AssetType: assetType,
 	})
 	if err != nil {
 		return err
@@ -3905,6 +3922,14 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
+		cli.BoolFlag{
+			Name:  "sync",
+			Usage: "<true/false>",
+		},
+		cli.BoolFlag{
+			Name:  "db",
+			Usage: "source data from database <true/false>",
+		},
 	},
 }
 
@@ -3970,6 +3995,16 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		}
 	}
 
+	var sync bool
+	if c.IsSet("sync") {
+		sync = c.Bool("sync")
+	}
+
+	var db bool
+	if c.IsSet("db") {
+		db = c.Bool("db")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -4006,6 +4041,8 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 			End:          e.Unix(),
 			TimeInterval: int64(candleInterval),
 			ExRequest:    true,
+			Sync:         sync,
+			UseDb:        db,
 		})
 	if err != nil {
 		return err

@@ -10,12 +10,14 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -27,8 +29,9 @@ type BTSE struct {
 
 const (
 	btseAPIURL         = "https://api.btse.com"
-	btseFuturesAPIURL  = "https://api.btse.com/futures"
 	btseSPOTAPIPath    = "/spot/v2/"
+	btseSPOTPath       = "/spot"
+	btseFuturesPath    = "/futures"
 	btseFuturesAPIPath = "/futures/api/v2.1/"
 
 	// Public endpoints
@@ -36,18 +39,22 @@ const (
 	btseMarkets        = "markets"
 	btseOrderbook      = "orderbook"
 	btseTrades         = "trades"
-	btseTicker         = "ticker"
-	btseStats          = "stats"
 	btseTime           = "time"
+	btseOHLCV          = "ohlcv"
+	btsePrice          = "price"
 	btseFuturesFunding = "/api/v2.1/funding_history"
 
 	// Authenticated endpoints
-	btseAccount       = "account"
-	btseOrder         = "order"
-	btsePendingOrders = "pending"
-	btseDeleteOrder   = "deleteOrder"
-	btseFills         = "fills"
-	btseTimeLayout    = "2006-01-02 15:04:04"
+	btseWallet           = "user/wallet"
+	btseWalletHistory    = "user/wallet_history"
+	btseWalletAddress    = "user/wallet/address"
+	btseWalletWithdrawal = "user/wallet/withdraw"
+	btseExchangeHistory  = "user/trade_history"
+	btseUserFee          = "user/fees"
+	btseOrder            = "order"
+	btsePegOrder         = "order/peg"
+	btsePendingOrders    = "user/open_orders"
+	btseCancelAllAfter   = "order/cancelAllAfter"
 )
 
 // FetchFundingHistory gets funding history
@@ -57,84 +64,232 @@ func (b *BTSE) FetchFundingHistory(symbol string) (map[string][]FundingHistoryDa
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return resp, common.SendHTTPGetRequest(btseFuturesAPIURL+btseFuturesFunding+params.Encode(),
+	return resp, common.SendHTTPGetRequest(btseAPIURL+btseFuturesPath+btseFuturesFunding+params.Encode(),
 		true,
 		false,
 		&resp)
 }
 
-// GetMarketsSummary stores market summary data
-func (b *BTSE) GetMarketsSummary() (*HighLevelMarketData, error) {
-	var m HighLevelMarketData
-	return &m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, true)
+// GetMarketSummary stores market summary data
+func (b *BTSE) GetMarketSummary(symbol string, spot bool) (MarketSummary, error) {
+	var m MarketSummary
+	path := btseMarketOverview
+	if symbol != "" {
+		path += "?symbol=" + url.QueryEscape(symbol)
+	}
+	return m, b.SendHTTPRequest(http.MethodGet, path, &m, spot, queryFunc)
 }
 
 // GetSpotMarkets returns a list of spot markets available on BTSE
 func (b *BTSE) GetSpotMarkets() ([]SpotMarket, error) {
 	var m []SpotMarket
-	return m, b.SendHTTPRequest(http.MethodGet, btseMarkets, &m, true)
-}
-
-// GetFuturesMarkets returns a list of futures markets available on BTSE
-func (b *BTSE) GetFuturesMarkets() ([]FuturesMarket, error) {
-	var m []FuturesMarket
-	return m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, false)
+	return m, b.SendHTTPRequest(http.MethodGet, btseMarkets, &m, true, queryFunc)
 }
 
 // FetchOrderBook gets orderbook data for a given pair
-func (b *BTSE) FetchOrderBook(symbol string) (*Orderbook, error) {
+func (b *BTSE) FetchOrderBook(symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
 	var o Orderbook
-	endpoint := fmt.Sprintf("%s/%s", btseOrderbook, symbol)
-	return &o, b.SendHTTPRequest(http.MethodGet, endpoint, &o, true)
+	urlValues := url.Values{}
+	urlValues.Add("symbol", symbol)
+	if limitBids > 0 {
+		urlValues.Add("limit_bids", strconv.Itoa(limitBids))
+	}
+	if limitAsks > 0 {
+		urlValues.Add("limit_asks", strconv.Itoa(limitAsks))
+	}
+	if group > 0 {
+		urlValues.Add("group", strconv.Itoa(group))
+	}
+	return &o, b.SendHTTPRequest(http.MethodGet,
+		common.EncodeURLValues(btseOrderbook, urlValues), &o, spot, queryFunc)
+}
+
+// FetchOrderBookL2 retrieve level 2 orderbook for requested symbol and depth
+func (b *BTSE) FetchOrderBookL2(symbol string, depth int) (*Orderbook, error) {
+	var o Orderbook
+	urlValues := url.Values{}
+	urlValues.Add("symbol", symbol)
+	urlValues.Add("depth", strconv.FormatInt(int64(depth), 10))
+	endpoint := common.EncodeURLValues(btseOrderbook+"/L2", urlValues)
+	return &o, b.SendHTTPRequest(http.MethodGet, endpoint, &o, true, queryFunc)
 }
 
 // GetTrades returns a list of trades for the specified symbol
-func (b *BTSE) GetTrades(symbol string) ([]Trade, error) {
+func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool) ([]Trade, error) {
 	var t []Trade
-	endpoint := fmt.Sprintf("%s/%s", btseTrades, symbol)
-	return t, b.SendHTTPRequest(http.MethodGet, endpoint, &t, true)
-}
-
-// GetTicker returns the ticker for a specified symbol
-func (b *BTSE) GetTicker(symbol string) (*Ticker, error) {
-	var t Ticker
-	endpoint := fmt.Sprintf("%s/%s", btseTicker, symbol)
-	err := b.SendHTTPRequest(http.MethodGet, endpoint, &t, true)
-	if err != nil {
-		return nil, err
+	urlValues := url.Values{}
+	urlValues.Add("symbol", symbol)
+	if count > 0 {
+		urlValues.Add("count", strconv.Itoa(count))
 	}
-	return &t, nil
+	if !start.IsZero() && !end.IsZero() {
+		if start.After(end) {
+			return t, errors.New("start cannot be after end time")
+		}
+		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
+		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	if beforeSerialID > 0 {
+		urlValues.Add("beforeSerialId", strconv.Itoa(beforeSerialID))
+	}
+	if afterSerialID > 0 {
+		urlValues.Add("afterSerialId", strconv.Itoa(afterSerialID))
+	}
+	if includeOld {
+		urlValues.Add("includeOld", "true")
+	}
+	return t, b.SendHTTPRequest(http.MethodGet,
+		common.EncodeURLValues(btseTrades, urlValues), &t, true, queryFunc)
 }
 
-// GetMarketStatistics gets market statistics for a specificed market
-func (b *BTSE) GetMarketStatistics(symbol string) (*MarketStatistics, error) {
-	var m MarketStatistics
-	endpoint := fmt.Sprintf("%s/%s", btseStats, symbol)
-	return &m, b.SendHTTPRequest(http.MethodGet, endpoint, &m, true)
+// OHLCV retrieve and return OHLCV candle data for requested symbol
+func (b *BTSE) OHLCV(symbol string, start, end time.Time, resolution int) (OHLCV, error) {
+	var o OHLCV
+	urlValues := url.Values{}
+	urlValues.Add("symbol", symbol)
+
+	if !start.IsZero() && !end.IsZero() {
+		if start.After(end) {
+			return o, errors.New("start cannot be after end time")
+		}
+		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
+		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	var res = 60
+	if resolution != 0 {
+		res = resolution
+	}
+	urlValues.Add("resolution", strconv.FormatInt(int64(res), 10))
+	endpoint := common.EncodeURLValues(btseOHLCV, urlValues)
+	return o, b.SendHTTPRequest(http.MethodGet, endpoint, &o, true, queryFunc)
+}
+
+// GetPrice get current price for requested symbol
+func (b *BTSE) GetPrice(symbol string) (Price, error) {
+	var p Price
+	path := btsePrice + "?symbol=" + url.QueryEscape(symbol)
+	return p, b.SendHTTPRequest(http.MethodGet, path, &p, true, queryFunc)
 }
 
 // GetServerTime returns the exchanges server time
 func (b *BTSE) GetServerTime() (*ServerTime, error) {
 	var s ServerTime
-	return &s, b.SendHTTPRequest(http.MethodGet, btseTime, &s, true)
+	return &s, b.SendHTTPRequest(http.MethodGet, btseTime, &s, true, queryFunc)
 }
 
-// GetAccountBalance returns the users account balance
-func (b *BTSE) GetAccountBalance() ([]CurrencyBalance, error) {
+// GetWalletInformation returns the users account balance
+func (b *BTSE) GetWalletInformation() ([]CurrencyBalance, error) {
 	var a []CurrencyBalance
-	return a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseAccount, nil, &a, true)
+	return a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseWallet, true, nil, nil, &a, queryFunc)
+}
+
+// GetFeeInformation retrieve fee's (maker/taker) for requested symbol
+func (b *BTSE) GetFeeInformation(symbol string) ([]AccountFees, error) {
+	var resp []AccountFees
+	urlValues := url.Values{}
+	if symbol != "" {
+		urlValues.Add("symbol", symbol)
+	}
+	return resp, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseUserFee, true, urlValues, nil, &resp, queryFunc)
+}
+
+// GetWalletHistory returns the users account balance
+func (b *BTSE) GetWalletHistory(symbol string, start, end time.Time, count int) (WalletHistory, error) {
+	var resp WalletHistory
+
+	urlValues := url.Values{}
+	if symbol != "" {
+		urlValues.Add("symbol", symbol)
+	}
+	if !start.IsZero() && !end.IsZero() {
+		if start.After(end) || end.Before(start) {
+			return resp, errors.New("start cannot be after end time")
+		}
+		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
+		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	if count > 0 {
+		urlValues.Add("count", strconv.Itoa(count))
+	}
+	return resp, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseWalletHistory, true, urlValues, nil, &resp, queryFunc)
+}
+
+// GetWalletAddress returns the users account balance
+func (b *BTSE) GetWalletAddress(currency string) (WalletAddress, error) {
+	var resp WalletAddress
+
+	urlValues := url.Values{}
+	if currency != "" {
+		urlValues.Add("currency", currency)
+	}
+
+	return resp, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseWalletAddress, true, urlValues, nil, &resp, queryFunc)
+}
+
+// CreateWalletAddress create new deposit address for requested currency
+func (b *BTSE) CreateWalletAddress(currency string) (WalletAddress, error) {
+	var resp WalletAddress
+	req := make(map[string]interface{}, 1)
+	req["currency"] = currency
+	err := b.SendAuthenticatedHTTPRequest(http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
+	if err != nil {
+		errResp := ErrorResponse{}
+		errResponseStr := strings.Split(err.Error(), "raw response: ")
+		err := json.Unmarshal([]byte(errResponseStr[1]), &errResp)
+		if err != nil {
+			return resp, err
+		}
+		if errResp.ErrorCode == 3528 {
+			walletAddress := strings.Split(errResp.Message, "BADREQUEST: ")
+			return WalletAddress{
+				{
+					Address: walletAddress[1],
+				},
+			}, nil
+		}
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+// WalletWithdrawal submit request to withdraw crypto currency
+func (b *BTSE) WalletWithdrawal(currency, address, tag, amount string) (WithdrawalResponse, error) {
+	var resp WithdrawalResponse
+	req := make(map[string]interface{}, 4)
+	req["currency"] = currency
+	req["address"] = address
+	req["tag"] = tag
+	req["amount"] = amount
+	return resp, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseWalletWithdrawal, true, nil, req, &resp, queryFunc)
 }
 
 // CreateOrder creates an order
-func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeInForce, tag string) (*string, error) {
+func (b *BTSE) CreateOrder(clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
 	req := make(map[string]interface{})
-	req["amount"] = amount
-	req["price"] = price
+	if clOrderID != "" {
+		req["clOrderID"] = clOrderID
+	}
+	if deviation > 0.0 {
+		req["deviation"] = deviation
+	}
+	if postOnly {
+		req["postOnly"] = postOnly
+	}
+	if price > 0.0 {
+		req["price"] = price
+	}
 	if side != "" {
 		req["side"] = side
 	}
-	if orderType != "" {
-		req["type"] = orderType
+	if size > 0.0 {
+		req["size"] = size
+	}
+	if stealth > 0.0 {
+		req["stealth"] = stealth
+	}
+	if stopPrice > 0.0 {
+		req["stopPrice"] = stopPrice
 	}
 	if symbol != "" {
 		req["symbol"] = symbol
@@ -142,75 +297,146 @@ func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeI
 	if timeInForce != "" {
 		req["time_in_force"] = timeInForce
 	}
-	if tag != "" {
-		req["tag"] = tag
+	if trailValue > 0.0 {
+		req["trailValue"] = trailValue
+	}
+	if triggerPrice > 0.0 {
+		req["triggerPrice"] = triggerPrice
+	}
+	if txType != "" {
+		req["txType"] = txType
+	}
+	if orderType != "" {
+		req["type"] = orderType
 	}
 
-	type orderResp struct {
-		ID string `json:"id"`
-	}
-
-	var r orderResp
-	return &r.ID, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, req, &r, true)
+	var r []Order
+	return r, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, true, url.Values{}, req, &r, orderFunc)
 }
 
 // GetOrders returns all pending orders
-func (b *BTSE) GetOrders(symbol string) ([]OpenOrder, error) {
-	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
+func (b *BTSE) GetOrders(symbol, orderID, clOrderID string) ([]OpenOrder, error) {
+	req := url.Values{}
+	if orderID != "" {
+		req.Add("orderID", orderID)
+	}
+	req.Add("symbol", symbol)
+	if clOrderID != "" {
+		req.Add("clOrderID", clOrderID)
 	}
 	var o []OpenOrder
-	return o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, req, &o, true)
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, true, req, nil, &o, orderFunc)
 }
 
 // CancelExistingOrder cancels an order
-func (b *BTSE) CancelExistingOrder(orderID, symbol string) (*CancelOrder, error) {
+func (b *BTSE) CancelExistingOrder(orderID, symbol, clOrderID string) (CancelOrder, error) {
 	var c CancelOrder
-	req := make(map[string]interface{})
-	req["order_id"] = orderID
-	req["symbol"] = symbol
-	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrder, req, &c, true)
+	req := url.Values{}
+	if orderID != "" {
+		req.Add("orderID", orderID)
+	}
+	req.Add("symbol", symbol)
+	if clOrderID != "" {
+		req.Add("clOrderID", clOrderID)
+	}
+
+	return c, b.SendAuthenticatedHTTPRequest(http.MethodDelete, btseOrder, true, req, nil, &c, orderFunc)
 }
 
-// GetFills gets all filled orders
-func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) ([]FilledOrder, error) {
-	if orderID != "" && symbol != "" {
-		return nil, errors.New("orderID and symbol cannot co-exist in the same query")
-	} else if orderID == "" && symbol == "" {
-		return nil, errors.New("orderID OR symbol must be set")
-	}
-
+// CancelAllAfter cancels all orders after timeout
+func (b *BTSE) CancelAllAfter(timeout int) error {
 	req := make(map[string]interface{})
-	if orderID != "" {
-		req["order_id"] = orderID
-	}
+	req["timeout"] = timeout
+	return b.SendAuthenticatedHTTPRequest(http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
+}
 
+// IndexOrderPeg create peg order that will track a certain percentage above/below the index price
+func (b *BTSE) IndexOrderPeg(clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
+	var o []Order
+	req := make(map[string]interface{})
+	if clOrderID != "" {
+		req["clOrderID"] = clOrderID
+	}
+	if deviation > 0.0 {
+		req["deviation"] = deviation
+	}
+	if postOnly {
+		req["postOnly"] = postOnly
+	}
+	if price > 0.0 {
+		req["price"] = price
+	}
+	if side != "" {
+		req["side"] = side
+	}
+	if size > 0.0 {
+		req["size"] = size
+	}
+	if stealth > 0.0 {
+		req["stealth"] = stealth
+	}
+	if stopPrice > 0.0 {
+		req["stopPrice"] = stopPrice
+	}
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-
-	if before != "" {
-		req["before"] = before
+	if timeInForce != "" {
+		req["time_in_force"] = timeInForce
+	}
+	if trailValue > 0.0 {
+		req["trailValue"] = trailValue
+	}
+	if triggerPrice > 0.0 {
+		req["triggerPrice"] = triggerPrice
+	}
+	if txType != "" {
+		req["txType"] = txType
+	}
+	if orderType != "" {
+		req["type"] = orderType
 	}
 
-	if after != "" {
-		req["after"] = after
-	}
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btsePegOrder, true, url.Values{}, req, nil, orderFunc)
+}
 
-	if limit != "" {
-		req["limit"] = limit
+// TradeHistory returns previous trades on exchange
+func (b *BTSE) TradeHistory(symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool, clOrderID, orderID string) (TradeHistory, error) {
+	var resp TradeHistory
+	urlValues := url.Values{}
+	if symbol != "" {
+		urlValues.Add("symbol", symbol)
 	}
-	if username != "" {
-		req["username"] = username
+	if !start.IsZero() && !end.IsZero() {
+		if start.After(end) || end.Before(start) {
+			return resp, errors.New("start and end must both be valid")
+		}
+		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
+		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-
-	var o []FilledOrder
-	return o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseFills, req, &o, true)
+	if beforeSerialID > 0 {
+		urlValues.Add("beforeSerialId", strconv.Itoa(beforeSerialID))
+	}
+	if afterSerialID > 0 {
+		urlValues.Add("afterSerialId", strconv.Itoa(afterSerialID))
+	}
+	if includeOld {
+		urlValues.Add("includeOld", "true")
+	}
+	if count > 0 {
+		urlValues.Add("count", strconv.Itoa(count))
+	}
+	if clOrderID != "" {
+		urlValues.Add("clOrderId", clOrderID)
+	}
+	if orderID != "" {
+		urlValues.Add("orderID", orderID)
+	}
+	return resp, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseExchangeHistory, true, urlValues, nil, &resp, queryFunc)
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
-func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}, spotEndpoint bool) error {
+func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}, spotEndpoint bool, f request.EndpointLimit) error {
 	p := btseSPOTAPIPath
 	if !spotEndpoint {
 		p = btseFuturesAPIPath
@@ -222,66 +448,76 @@ func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}, spot
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+		Endpoint:      f,
 	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
-func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[string]interface{}, result interface{}, spotEndpoint bool) error {
+func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, isSpot bool, values url.Values, req map[string]interface{}, result interface{}, f request.EndpointLimit) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
 
-	p := btseSPOTAPIPath
-	if !spotEndpoint {
-		p = btseFuturesAPIPath
+	// The concatenation is done this way because BTSE expect endpoint+nonce or endpoint+nonce+body
+	// when signing the data but the full path of the request  is /spot/api/v3.2/<endpoint>
+	// its messy but it works and supports futures as well
+	host := b.API.Endpoints.URL
+	if isSpot {
+		host += btseSPOTPath + btseSPOTAPIPath + endpoint
+		endpoint = btseSPOTAPIPath + endpoint
+	} else {
+		host += btseFuturesPath + btseFuturesAPIPath
+		endpoint += btseFuturesAPIPath
 	}
-
-	path := p + endpoint
-	headers := make(map[string]string)
-	headers["btse-api"] = b.API.Credentials.Key
-	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
-	headers["btse-nonce"] = nonce
-	var body io.Reader
 	var hmac []byte
-	var payload []byte
-	if len(req) != 0 {
-		var err error
-		payload, err = json.Marshal(req)
+	var body io.Reader
+	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+	headers := map[string]string{
+		"btse-api":   b.API.Credentials.Key,
+		"btse-nonce": nonce,
+	}
+	if req != nil {
+		reqPayload, err := json.Marshal(req)
 		if err != nil {
 			return err
 		}
-		body = bytes.NewBuffer(payload)
+		body = bytes.NewBuffer(reqPayload)
 		hmac = crypto.GetHMAC(
 			crypto.HashSHA512_384,
-			[]byte((path + nonce + string(payload))),
+			[]byte((endpoint + nonce + string(reqPayload))),
 			[]byte(b.API.Credentials.Secret),
 		)
+		headers["Content-Type"] = "application/json"
 	} else {
 		hmac = crypto.GetHMAC(
 			crypto.HashSHA512_384,
-			[]byte((path + nonce)),
+			[]byte((endpoint + nonce)),
 			[]byte(b.API.Credentials.Secret),
 		)
+		if len(values) > 0 {
+			host += "?" + values.Encode()
+		}
 	}
 	headers["btse-sign"] = crypto.HexEncodeToString(hmac)
+
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
-			"%s Sending %s request to URL %s with params %s\n",
-			b.Name, method, path, string(payload))
+			"%s Sending %s request to URL %s",
+			b.Name, method, endpoint)
 	}
 
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          b.API.Endpoints.URL + path,
+		Path:          host,
 		Headers:       headers,
 		Body:          body,
 		Result:        result,
 		AuthRequest:   true,
-		NonceEnabled:  true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+		Endpoint:      f,
 	})
 }
 
@@ -291,7 +527,7 @@ func (b *BTSE) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = calculateTradingFee(feeBuilder.IsMaker) * feeBuilder.Amount * feeBuilder.PurchasePrice
+		fee = b.calculateTradingFee(feeBuilder) * feeBuilder.Amount * feeBuilder.PurchasePrice
 	case exchange.CryptocurrencyWithdrawalFee:
 		switch feeBuilder.Pair.Base {
 		case currency.USDT:
@@ -346,16 +582,28 @@ func getInternationalBankWithdrawalFee(amount float64) float64 {
 	return fee
 }
 
-// calculateTradingFee BTSE has fee tiers, but does not disclose them via API,
-// so the largest fee has to be assumed
-func calculateTradingFee(isMaker bool) float64 {
-	fee := 0.00050
-	if !isMaker {
-		fee = 0.001
+// calculateTradingFee return fee based on users current fee tier or default values
+func (b *BTSE) calculateTradingFee(feeBuilder *exchange.FeeBuilder) float64 {
+	formattedPair, err := b.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
+	if err != nil {
+		if feeBuilder.IsMaker {
+			return 0.001
+		}
+		return 0.002
 	}
-	return fee
+	feeTiers, err := b.GetFeeInformation(formattedPair.String())
+	if err != nil {
+		if feeBuilder.IsMaker {
+			return 0.001
+		}
+		return 0.002
+	}
+	if feeBuilder.IsMaker {
+		return feeTiers[0].MakerFee
+	}
+	return feeTiers[0].TakerFee
 }
 
 func parseOrderTime(timeStr string) (time.Time, error) {
-	return time.Parse(btseTimeLayout, timeStr)
+	return time.Parse(common.SimpleTimeFormat, timeStr)
 }

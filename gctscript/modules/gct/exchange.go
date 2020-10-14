@@ -318,7 +318,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeOrderSubmit submit order on exchange
 func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 8 {
+	if len(args) != 9 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
@@ -333,6 +333,10 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	delimiter, ok := objects.ToString(args[2])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+	}
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return nil, err
 	}
 	orderType, ok := objects.ToString(args[3])
 	if !ok {
@@ -354,23 +358,23 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
 	}
-	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
-	if err != nil {
-		return nil, err
+	assetType, ok := objects.ToString(args[8])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
+	}
+	a := asset.Item(assetType)
+	if !asset.IsValid(a) {
+		return nil, fmt.Errorf("asset type: %s is invalid", a)
 	}
 
 	tempSubmit := &order.Submit{
-		Pair:     pair,
-		Type:     order.Type(orderType),
-		Side:     order.Side(orderSide),
-		Price:    orderPrice,
-		Amount:   orderAmount,
-		ClientID: orderClientID,
-	}
-
-	err = tempSubmit.Validate()
-	if err != nil {
-		return nil, err
+		Pair:      pair,
+		Type:      order.Type(orderType),
+		Side:      order.Side(orderSide),
+		Price:     orderPrice,
+		Amount:    orderAmount,
+		ClientID:  orderClientID,
+		AssetType: a,
 	}
 
 	rtn, err := wrappers.GetWrapper().SubmitOrder(tempSubmit)
@@ -452,7 +456,8 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	}
 
 	withdrawRequest := &withdraw.Request{
-		Crypto: &withdraw.CryptoRequest{
+		Exchange: exchangeName,
+		Crypto: withdraw.CryptoRequest{
 			Address:    address,
 			AddressTag: addressTag,
 			FeeAmount:  feeAmount,
@@ -462,7 +467,7 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 		Amount:      amount,
 	}
 
-	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(exchangeName, withdrawRequest)
+	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(withdrawRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -498,12 +503,13 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	}
 
 	withdrawRequest := &withdraw.Request{
+		Exchange:    exchangeName,
 		Currency:    currency.NewCode(cur),
 		Description: description,
 		Amount:      amount,
 	}
 
-	rtn, err := wrappers.GetWrapper().WithdrawalFiatFunds(exchangeName, bankAccountID, withdrawRequest)
+	rtn, err := wrappers.GetWrapper().WithdrawalFiatFunds(bankAccountID, withdrawRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -575,7 +581,7 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	var candles objects.Array
 	for x := range ret.Candles {
 		candle := &objects.Array{}
-		candle.Value = append(candle.Value, &objects.Time{Value: ret.Candles[x].Time},
+		candle.Value = append(candle.Value, &objects.Int{Value: ret.Candles[x].Time.Unix()},
 			&objects.Float{Value: ret.Candles[x].Open},
 			&objects.Float{Value: ret.Candles[x].High},
 			&objects.Float{Value: ret.Candles[x].Low},

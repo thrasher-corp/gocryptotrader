@@ -215,18 +215,18 @@ func (w Wrapper) DepositAddress(exch string, _ currency.Code) (string, error) {
 }
 
 // WithdrawalCryptoFunds validator for test execution/scripts
-func (w Wrapper) WithdrawalCryptoFunds(exch string, _ *withdraw.Request) (out string, err error) {
-	if exch == exchError.String() {
-		return exch, errTestFailed
+func (w Wrapper) WithdrawalCryptoFunds(r *withdraw.Request) (out string, err error) {
+	if r.Exchange == exchError.String() {
+		return r.Exchange, errTestFailed
 	}
 
 	return "", nil
 }
 
 // WithdrawalFiatFunds validator for test execution/scripts
-func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.Request) (out string, err error) {
-	if exch == exchError.String() {
-		return exch, errTestFailed
+func (w Wrapper) WithdrawalFiatFunds(_ string, r *withdraw.Request) (out string, err error) {
+	if r.Exchange == exchError.String() {
+		return r.Exchange, errTestFailed
 	}
 
 	return "123", nil
@@ -249,7 +249,7 @@ func (w Wrapper) OHLCV(exch string, p currency.Pair, a asset.Item, start, end ti
 	})
 
 	for x := 1; x < 200; x++ {
-		r := validatorLow + rand.Float64()*(validatorHigh-validatorLow)
+		r := validatorLow + rand.Float64()*(validatorHigh-validatorLow) // nolint:gosec // no need to import crypo/rand
 		candle := kline.Candle{
 			Time:   candles[x-1].Time.Add(-i.Duration()),
 			Open:   r,

@@ -1,12 +1,15 @@
 package exchange
 
 import (
+	"errors"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -102,14 +105,18 @@ func TestSetClientProxyAddress(t *testing.T) {
 	t.Parallel()
 
 	requester := request.New("rawr",
-		&http.Client{})
+		common.NewHTTPClientWithTimeout(time.Second*15))
 
 	newBase := Base{
 		Name:      "rawr",
 		Requester: requester}
 
 	newBase.Websocket = stream.New()
-	err := newBase.SetClientProxyAddress(":invalid")
+	err := newBase.SetClientProxyAddress("")
+	if err != nil {
+		t.Error(err)
+	}
+	err = newBase.SetClientProxyAddress(":invalid")
 	if err == nil {
 		t.Error("SetClientProxyAddress parsed invalid URL")
 	}
@@ -131,6 +138,13 @@ func TestSetClientProxyAddress(t *testing.T) {
 
 	if newBase.Websocket.GetProxyAddress() != "http://www.valid.com" {
 		t.Error("SetClientProxyAddress error", err)
+	}
+
+	// Nil out transport
+	newBase.Requester.HTTPClient.Transport = nil
+	err = newBase.SetClientProxyAddress("http://www.valid.com")
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
 }
 
@@ -303,6 +317,24 @@ func TestGetClientBankAccounts(t *testing.T) {
 	_, err = b.GetClientBankAccounts("MEOW", "USD")
 	if err == nil {
 		t.Error("an error should have been thrown for a non-existent exchange")
+	}
+}
+
+func TestGetExchangeBankAccounts(t *testing.T) {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig(config.TestFile, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var b = Base{Name: "Bitfinex"}
+	r, err := b.GetExchangeBankAccounts("", "USD")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r.BankName != "Deutsche Bank Privat Und Geschaeftskunden AG" {
+		t.Fatal("incorrect bank name")
 	}
 }
 
@@ -1837,5 +1869,186 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
+	}
+}
+
+func TestBase_ValidateKline(t *testing.T) {
+	pairs := currency.Pairs{
+		currency.Pair{Base: currency.BTC, Quote: currency.USDT},
+	}
+
+	availablePairs := currency.Pairs{
+		currency.Pair{Base: currency.BTC, Quote: currency.USDT},
+		currency.Pair{Base: currency.BTC, Quote: currency.AUD},
+	}
+
+	b := Base{
+		Name: "TESTNAME",
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					AssetEnabled: convert.BoolPtr(true),
+					Enabled:      pairs,
+					Available:    availablePairs,
+				},
+			},
+		},
+		Features: Features{
+			Enabled: FeaturesEnabled{
+				Kline: kline.ExchangeCapabilitiesEnabled{
+					Intervals: map[string]bool{
+						kline.OneMin.Word(): true,
+					},
+				},
+			},
+		},
+	}
+
+	err := b.ValidateKline(availablePairs[0], asset.Spot, kline.OneMin)
+	if err != nil {
+		t.Fatalf("expected validation to pass received error: %v", err)
+	}
+
+	err = b.ValidateKline(availablePairs[1], asset.Spot, kline.OneYear)
+	if err == nil {
+		t.Fatal("expected validation to fail")
+	}
+
+	err = b.ValidateKline(availablePairs[1], asset.Index, kline.OneYear)
+	if err == nil {
+		t.Fatal("expected validation to fail")
+	}
+}
+
+func TestCheckTransientError(t *testing.T) {
+	b := Base{}
+	err := b.CheckTransientError(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.CheckTransientError(errors.New("wow"))
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	nErr := net.DNSError{}
+	err = b.CheckTransientError(&nErr)
+	if err != nil {
+		t.Fatal("error cannot be nil")
+	}
+}
+
+func TestDisableEnableRateLimiter(t *testing.T) {
+	b := Base{}
+	b.checkAndInitRequester()
+	err := b.EnableRateLimiter()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = b.DisableRateLimiter()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.DisableRateLimiter()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = b.EnableRateLimiter()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetWebsocket(t *testing.T) {
+	b := Base{}
+	_, err := b.GetWebsocket()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	b.Websocket = &stream.Websocket{}
+	_, err = b.GetWebsocket()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFlushWebsocketChannels(t *testing.T) {
+	b := Base{}
+	err := b.FlushWebsocketChannels()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.Websocket = &stream.Websocket{}
+	err = b.FlushWebsocketChannels()
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSubscribeToWebsocketChannels(t *testing.T) {
+	b := Base{}
+	err := b.SubscribeToWebsocketChannels(nil)
+	if err == nil {
+		t.Fatal(err)
+	}
+
+	b.Websocket = &stream.Websocket{}
+	err = b.SubscribeToWebsocketChannels(nil)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUnsubscribeToWebsocketChannels(t *testing.T) {
+	b := Base{}
+	err := b.UnsubscribeToWebsocketChannels(nil)
+	if err == nil {
+		t.Fatal(err)
+	}
+
+	b.Websocket = &stream.Websocket{}
+	err = b.UnsubscribeToWebsocketChannels(nil)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetSubscriptions(t *testing.T) {
+	b := Base{}
+	_, err := b.GetSubscriptions()
+	if err == nil {
+		t.Fatal(err)
+	}
+
+	b.Websocket = &stream.Websocket{}
+	_, err = b.GetSubscriptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAuthenticateWebsocket(t *testing.T) {
+	b := Base{}
+	if err := b.AuthenticateWebsocket(); err == nil {
+		t.Fatal("error cannot be nil")
+	}
+}
+
+func TestKlineIntervalEnabled(t *testing.T) {
+	b := Base{}
+	if b.klineIntervalEnabled(kline.EightHour) {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	b := Base{}
+	if b.FormatExchangeKlineInterval(kline.EightHour) != "28800" {
+		t.Fatal("unexpected value")
 	}
 }

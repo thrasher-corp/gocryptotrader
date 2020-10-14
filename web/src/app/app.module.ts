@@ -59,8 +59,6 @@ import { AppRoutingModule } from './app-routing.module';
 
 import { Wallet } from './shared/classes/wallet';
 
-
-import * as Rx from 'rxjs/Rx';
 import { TradeHistoryComponent } from './shared/trade-history/trade-history.component';
 import { PriceHistoryComponent } from './shared/price-history/price-history.component';
 import { MyOrdersComponent } from './shared/my-orders/my-orders.component';

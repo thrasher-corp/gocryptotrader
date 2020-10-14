@@ -923,17 +923,19 @@ func (h *HUOBI) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (h *HUOBI) CancelOrder(order *order.Cancel) error {
-
-	p, err := h.FormatExchangeCurrency(order.Pair, order.AssetType)
+func (h *HUOBI) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	p, err := h.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
 
-	switch order.AssetType {
+	switch o.AssetType {
 
 	case asset.Spot:
-		orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+		orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -943,14 +945,14 @@ func (h *HUOBI) CancelOrder(order *order.Cancel) error {
 
 	case asset.CoinMarginedFutures:
 
-		_, err = h.CancelSwapOrder(order.ID, order.ClientID, p.String())
+		_, err = h.CancelSwapOrder(o.ID, o.ClientID, p.String())
 		if err != nil {
 			return err
 		}
 
 	case asset.Futures:
 
-		_, err = h.FCancelOrder(order.ID, order.ClientID, p.String())
+		_, err = h.FCancelOrder(o.ID, o.ClientID, p.String())
 		if err != nil {
 			return err
 		}
@@ -961,7 +963,9 @@ func (h *HUOBI) CancelOrder(order *order.Cancel) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 
 	switch orderCancellation.AssetType {
@@ -1268,7 +1272,15 @@ func (h *HUOBI) GetDepositAddress(cryptocurrency currency.Code, accountID string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (h *HUOBI) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	resp, err := h.Withdraw(withdrawRequest.Currency, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Amount, withdrawRequest.Crypto.FeeAmount)
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
+	resp, err := h.Withdraw(withdrawRequest.Currency,
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.Amount,
+		withdrawRequest.Crypto.FeeAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -1300,6 +1312,9 @@ func (h *HUOBI) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	var orders []order.Detail
 
 	switch req.AssetType {
@@ -1516,6 +1531,9 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	var orders []order.Detail
 
 	switch req.AssetType {
@@ -1752,10 +1770,8 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !h.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := h.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	formattedPair, err := h.FormatExchangeCurrency(pair, a)
@@ -1788,7 +1804,7 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   time.Unix(candles[x].ID, 0),
 			Open:   candles[x].Open,
-			High:   candles[x].Close,
+			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].Volume,

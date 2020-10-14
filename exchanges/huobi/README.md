@@ -32,8 +32,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 
 ```go
-  // Exchanges will be abstracted out in further updates and examples will be
-  // supplied then
+	// Exchanges will be abstracted out in further updates and examples will be
+	// supplied then
 ```
 ### How to do REST public/private calls
 
@@ -48,9 +48,9 @@ main.go
 var h exchange.IBotExchange
 
 for i := range bot.Exchanges {
-  if bot.Exchanges[i].GetName() == "Huobi" {
-    h = bot.Exchanges[i]
-  }
+	if bot.Exchanges[i].GetName() == "Huobi" {
+		h = bot.Exchanges[i]
+	}
 }
 
 // Public calls - wrapper functions
@@ -58,13 +58,13 @@ for i := range bot.Exchanges {
 // Fetches current ticker information
 tick, err := h.FetchTicker()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Fetches current orderbook information
 ob, err := h.FetchOrderbook()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Private calls - wrapper functions - make sure your APIKEY and APISECRET are
@@ -73,7 +73,7 @@ if err != nil {
 // Fetches current account information
 accountInfo, err := h.GetAccountInfo()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 
@@ -85,13 +85,13 @@ if err != nil {
 // Fetches current ticker information
 ticker, err := h.GetTicker()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Fetches current orderbook information
 ob, err := h.GetOrderBook()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Private calls - make sure your APIKEY and APISECRET are set and
@@ -100,21 +100,21 @@ if err != nil {
 // GetUserInfo returns account info
 accountInfo, err := h.GetUserInfo(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Submits an order and the exchange and returns its tradeID
 tradeID, err := h.Trade(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 
 ### How to do Websocket public/private calls
 
 ```go
-  // Exchanges will be abstracted out in further updates and examples will be
-  // supplied then
+	// Exchanges will be abstracted out in further updates and examples will be
+	// supplied then
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

@@ -1512,11 +1512,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1000000000,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1000000000,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.SubmitOrder(orderSubmission)
@@ -1566,6 +1567,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
+		AssetType:     asset.Spot,
 	}
 
 	_, err := b.CancelAllOrders(orderCancellation)
@@ -1719,7 +1721,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.ModifyOrder(&order.Modify{})
+	_, err := b.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() error cannot be nil")
 	}
@@ -1732,10 +1734,11 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange:    b.Name,
 		Amount:      0,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 	}
@@ -1746,8 +1749,8 @@ func TestWithdraw(t *testing.T) {
 		t.Error("Withdraw() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Withdraw() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock Withdraw() error", err)
+	case mockTests && err == nil:
+		t.Error("Mock Withdraw() error cannot be nil")
 	}
 }
 
@@ -2130,7 +2133,7 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2148,7 +2151,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}

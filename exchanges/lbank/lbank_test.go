@@ -317,11 +317,12 @@ func TestSubmitOrder(t *testing.T) {
 			Quote:     currency.USDT,
 			Delimiter: "_",
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
 	}
 	response, err := l.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -339,6 +340,7 @@ func TestCancelOrder(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	var a order.Cancel
 	a.Pair = cp
+	a.AssetType = asset.Spot
 	a.ID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(&a)
 	if err != nil {
@@ -410,7 +412,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString(testCurrencyPair)
+	pair, err := currency.NewPairFromString("eth_btc")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -430,7 +432,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 	startTime := time.Now().Add(-time.Hour)
 	end := time.Now()
-	pair, err := currency.NewPairFromString(testCurrencyPair)
+	pair, err := currency.NewPairFromString("eth_btc")
 	if err != nil {
 		t.Fatal(err)
 	}

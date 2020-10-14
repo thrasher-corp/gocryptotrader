@@ -162,6 +162,7 @@ func TestExchange_SubmitOrder(t *testing.T) {
 		Amount:       orderAmount,
 		ClientID:     orderClientID,
 		Exchange:     exchName,
+		AssetType:    asset.Spot,
 	}
 	_, err = exchangeTest.SubmitOrder(tempOrder)
 	if err != nil {
@@ -195,7 +196,7 @@ func cleanup() {
 }
 
 func configureExchangeKeys() bool {
-	ex := engine.GetExchangeByName(exchName).GetBase()
+	ex := engine.Bot.GetExchangeByName(exchName).GetBase()
 	ex.SetAPIKeys(exchAPIKEY, exchAPISECRET, exchClientID)
 	ex.SkipAuthCheck = true
 	return ex.ValidateAPICredentials()

@@ -7,17 +7,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
-func (s *Submit) Validate() error {
+func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s == nil {
 		return ErrSubmissionIsNil
 	}
 
 	if s.Pair.IsEmpty() {
 		return ErrPairIsEmpty
+	}
+
+	if s.AssetType == "" {
+		return ErrAssetNotSet
 	}
 
 	if s.Side != Buy &&
@@ -37,6 +43,18 @@ func (s *Submit) Validate() error {
 
 	if s.Type == Limit && s.Price <= 0 {
 		return ErrPriceMustBeSetIfLimitOrder
+	}
+
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Check()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
 	}
 
 	return nil
@@ -677,4 +695,93 @@ func (o *ClassificationError) Error() string {
 	return fmt.Sprintf("%s - classification error: %v",
 		o.Exchange,
 		o.Err)
+}
+
+// StandardCancel defines an option in the validator to make sure an ID is set
+// for a standard cancel
+func (c *Cancel) StandardCancel() validate.Checker {
+	return validate.Check(func() error {
+		if c.ID == "" {
+			return errors.New("ID not set")
+		}
+		return nil
+	})
+}
+
+// Validate checks internal struct requirements
+func (c *Cancel) Validate(opt ...validate.Checker) error {
+	if c == nil {
+		return ErrCancelOrderIsNil
+	}
+
+	if c.Pair.IsEmpty() {
+		return ErrPairIsEmpty
+	}
+
+	if c.AssetType == "" {
+		return ErrAssetNotSet
+	}
+
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Check()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
+	}
+	return nil
+}
+
+// Validate checks internal struct requirements
+func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
+	if g == nil {
+		return ErrGetOrdersRequestIsNil
+	}
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Check()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
+	}
+	return nil
+}
+
+// Validate checks internal struct requirements
+func (m *Modify) Validate(opt ...validate.Checker) error {
+	if m == nil {
+		return ErrModifyOrderIsNil
+	}
+
+	if m.Pair.IsEmpty() {
+		return ErrPairIsEmpty
+	}
+
+	if m.AssetType.String() == "" {
+		return ErrAssetNotSet
+	}
+
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Check()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
+	}
+	if m.ClientOrderID == "" && m.ID == "" {
+		return ErrOrderIDNotSet
+	}
+	return nil
 }

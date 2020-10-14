@@ -72,19 +72,19 @@ func (o *orderStore) GetByInternalOrderID(internalOrderID string) (*order.Detail
 	return nil, ErrOrderNotFound
 }
 
-func (o *orderStore) exists(order *order.Detail) bool {
-	if order == nil {
+func (o *orderStore) exists(det *order.Detail) bool {
+	if det == nil {
 		return false
 	}
 	o.m.RLock()
 	defer o.m.RUnlock()
-	r, ok := o.Orders[order.Exchange]
+	r, ok := o.Orders[det.Exchange]
 	if !ok {
 		return false
 	}
 
 	for x := range r {
-		if r[x].ID == order.ID {
+		if r[x].ID == det.ID {
 			return true
 		}
 	}
@@ -92,33 +92,33 @@ func (o *orderStore) exists(order *order.Detail) bool {
 }
 
 // Add Adds an order to the orderStore for tracking the lifecycle
-func (o *orderStore) Add(order *order.Detail) error {
-	if order == nil {
+func (o *orderStore) Add(det *order.Detail) error {
+	if det == nil {
 		return errors.New("order store: Order is nil")
 	}
-	exch := GetExchangeByName(order.Exchange)
+	exch := Bot.GetExchangeByName(det.Exchange)
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
-	if o.exists(order) {
+	if o.exists(det) {
 		return ErrOrdersAlreadyExists
 	}
 	// Untracked websocket orders will not have internalIDs yet
-	if order.InternalOrderID == "" {
+	if det.InternalOrderID == "" {
 		id, err := uuid.NewV4()
 		if err != nil {
 			log.Warnf(log.OrderMgr,
 				"Order manager: Unable to generate UUID. Err: %s",
 				err)
 		} else {
-			order.InternalOrderID = id.String()
+			det.InternalOrderID = id.String()
 		}
 	}
 	o.m.Lock()
 	defer o.m.Unlock()
-	orders := o.Orders[order.Exchange]
-	orders = append(orders, order)
-	o.Orders[order.Exchange] = orders
+	orders := o.Orders[det.Exchange]
+	orders = append(orders, det)
+	o.Orders[det.Exchange] = orders
 
 	return nil
 }
@@ -214,6 +214,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 				Type:          v[y].Type,
 				Side:          v[y].Side,
 				Pair:          v[y].Pair,
+				AssetType:     v[y].AssetType,
 			})
 			if err != nil {
 				log.Error(log.OrderMgr, err)
@@ -250,7 +251,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 		return errors.New("order id is empty")
 	}
 
-	exch := GetExchangeByName(cancel.Exchange)
+	exch := Bot.GetExchangeByName(cancel.Exchange)
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
@@ -307,7 +308,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		}
 	}
 
-	exch := GetExchangeByName(newOrder.Exchange)
+	exch := Bot.GetExchangeByName(newOrder.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
@@ -387,13 +388,13 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 }
 
 func (o *orderManager) processOrders() {
-	authExchanges := GetAuthAPISupportedExchanges()
+	authExchanges := Bot.GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
 		log.Debugf(log.OrderMgr,
 			"Order manager: Processing orders for exchange %v.",
 			authExchanges[x])
 
-		exch := GetExchangeByName(authExchanges[x])
+		exch := Bot.GetExchangeByName(authExchanges[x])
 		supportedAssets := exch.GetAssetTypes()
 		for y := range supportedAssets {
 			pairs, err := exch.GetEnabledPairs(supportedAssets[y])

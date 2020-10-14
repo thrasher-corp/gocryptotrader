@@ -48,12 +48,12 @@ func bidAskGenerator() []orderbook.Item {
 	var response []orderbook.Item
 	randIterator := 100
 	for i := 0; i < randIterator; i++ {
-		price := float64(rand.Intn(1000))
+		price := float64(rand.Intn(1000)) // nolint:gosec // no need to import crypo/rand for testing
 		if price == 0 {
 			price = 1
 		}
 		response = append(response, orderbook.Item{
-			Amount: float64(rand.Intn(10)),
+			Amount: float64(rand.Intn(10)), // nolint:gosec // no need to import crypo/rand for testing
 			Price:  price,
 			ID:     int64(i),
 		})
@@ -124,7 +124,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(4)
+		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)
@@ -159,7 +159,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(4)
+		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)
@@ -195,7 +195,7 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(4)
+		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)
@@ -229,7 +229,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(4)
+		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)

@@ -1,13 +1,19 @@
 package testhelpers
 
 import (
+	"database/sql"
 	"os"
+	"path/filepath"
 	"reflect"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	psqlConn "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	sqliteConn "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/goose"
+	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 var (
@@ -15,6 +21,8 @@ var (
 	TempDir string
 	// PostgresTestDatabase postgresql database config details
 	PostgresTestDatabase *database.Config
+	// MigrationDir default folder for migration's
+	MigrationDir = filepath.Join("..", "..", "migrations")
 )
 
 // GetConnectionDetails returns connection details for CI or test db instances
@@ -68,7 +76,6 @@ func GetConnectionDetails() *database.Config {
 // ConnectToDatabase opens connection to database and returns pointer to instance of database.DB
 func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err error) {
 	database.DB.Config = conn
-
 	if conn.Driver == database.DBPostgreSQL {
 		dbConn, err = psqlConn.Connect()
 		if err != nil {
@@ -77,12 +84,16 @@ func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err er
 	} else if conn.Driver == database.DBSQLite3 || conn.Driver == database.DBSQLite {
 		database.DB.DataPath = TempDir
 		dbConn, err = sqliteConn.Connect()
-
 		if err != nil {
 			return nil, err
 		}
 	}
-	database.DB.Connected = true
+
+	err = migrateDB(database.DB.SQL)
+	if err != nil {
+		return nil, err
+	}
+
 	return
 }
 
@@ -97,4 +108,19 @@ func CloseDatabase(conn *database.Instance) (err error) {
 // CheckValidConfig checks if database connection details are empty
 func CheckValidConfig(config *drivers.ConnectionDetails) bool {
 	return !reflect.DeepEqual(drivers.ConnectionDetails{}, *config)
+}
+
+func migrateDB(db *sql.DB) error {
+	return goose.Run("up", db, repository.GetSQLDialect(), MigrationDir, "")
+}
+
+// EnableVerboseTestOutput enables debug output for SQL queries
+func EnableVerboseTestOutput() {
+	c := log.GenDefaultSettings()
+	log.GlobalLogConfig = &c
+	log.SetupGlobalLogger()
+
+	DBLogger := database.Logger{}
+	boil.DebugMode = true
+	boil.DebugWriter = DBLogger
 }

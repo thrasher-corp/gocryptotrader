@@ -800,6 +800,114 @@ func testWithdrawalHistoryToManyAddOpWithdrawalFiats(t *testing.T) {
 		}
 	}
 }
+func testWithdrawalHistoryToOneExchangeUsingExchangeName(t *testing.T) {
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var local WithdrawalHistory
+	var foreign Exchange
+
+	seed := randomize.NewSeed()
+	if err := randomize.Struct(seed, &local, withdrawalHistoryDBTypes, false, withdrawalHistoryColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize WithdrawalHistory struct: %s", err)
+	}
+	if err := randomize.Struct(seed, &foreign, exchangeDBTypes, false, exchangeColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	}
+
+	if err := foreign.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	local.ExchangeNameID = foreign.ID
+	if err := local.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := local.ExchangeName().One(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if check.ID != foreign.ID {
+		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
+	}
+
+	slice := WithdrawalHistorySlice{&local}
+	if err = local.L.LoadExchangeName(ctx, tx, false, (*[]*WithdrawalHistory)(&slice), nil); err != nil {
+		t.Fatal(err)
+	}
+	if local.R.ExchangeName == nil {
+		t.Error("struct should have been eager loaded")
+	}
+
+	local.R.ExchangeName = nil
+	if err = local.L.LoadExchangeName(ctx, tx, true, &local, nil); err != nil {
+		t.Fatal(err)
+	}
+	if local.R.ExchangeName == nil {
+		t.Error("struct should have been eager loaded")
+	}
+}
+
+func testWithdrawalHistoryToOneSetOpExchangeUsingExchangeName(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a WithdrawalHistory
+	var b, c Exchange
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, withdrawalHistoryDBTypes, false, strmangle.SetComplement(withdrawalHistoryPrimaryKeyColumns, withdrawalHistoryColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &b, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, x := range []*Exchange{&b, &c} {
+		err = a.SetExchangeName(ctx, tx, i != 0, x)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if a.R.ExchangeName != x {
+			t.Error("relationship struct not set to correct value")
+		}
+
+		if x.R.ExchangeNameWithdrawalHistories[0] != &a {
+			t.Error("failed to append to foreign relationship struct")
+		}
+		if a.ExchangeNameID != x.ID {
+			t.Error("foreign key was wrong value", a.ExchangeNameID)
+		}
+
+		zero := reflect.Zero(reflect.TypeOf(a.ExchangeNameID))
+		reflect.Indirect(reflect.ValueOf(&a.ExchangeNameID)).Set(zero)
+
+		if err = a.Reload(ctx, tx); err != nil {
+			t.Fatal("failed to reload", err)
+		}
+
+		if a.ExchangeNameID != x.ID {
+			t.Error("foreign key was wrong value", a.ExchangeNameID, x.ID)
+		}
+	}
+}
 
 func testWithdrawalHistoriesReload(t *testing.T) {
 	t.Parallel()
@@ -875,7 +983,7 @@ func testWithdrawalHistoriesSelect(t *testing.T) {
 }
 
 var (
-	withdrawalHistoryDBTypes = map[string]string{`ID`: `TEXT`, `Exchange`: `TEXT`, `ExchangeID`: `TEXT`, `Status`: `TEXT`, `Currency`: `TEXT`, `Amount`: `REAL`, `Description`: `TEXT`, `WithdrawType`: `INTEGER`, `CreatedAt`: `TIMESTAMP`, `UpdatedAt`: `TIMESTAMP`}
+	withdrawalHistoryDBTypes = map[string]string{`ID`: `TEXT`, `ExchangeNameID`: `TEXT`, `ExchangeID`: `TEXT`, `Status`: `TEXT`, `Currency`: `TEXT`, `Amount`: `REAL`, `Description`: `TEXT`, `WithdrawType`: `INTEGER`, `CreatedAt`: `TIMESTAMP`, `UpdatedAt`: `TIMESTAMP`}
 	_                        = bytes.MinRead
 )
 

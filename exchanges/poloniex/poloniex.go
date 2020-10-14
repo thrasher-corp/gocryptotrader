@@ -785,7 +785,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["Key"] = p.API.Credentials.Key
-	values.Set("nonce", p.Requester.GetNonce(true).String())
+	values.Set("nonce", strconv.FormatInt(time.Now().UnixNano(), 10))
 	values.Set("command", endpoint)
 
 	hmac := crypto.GetHMAC(crypto.HashSHA512,
@@ -803,7 +803,6 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 		Body:          bytes.NewBufferString(values.Encode()),
 		Result:        result,
 		AuthRequest:   true,
-		NonceEnabled:  true,
 		Verbose:       p.Verbose,
 		HTTPDebugging: p.HTTPDebugging,
 		HTTPRecording: p.HTTPRecording,

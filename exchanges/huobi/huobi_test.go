@@ -475,8 +475,8 @@ func TestFCancelAllTriggerOrders(t *testing.T) {
 }
 
 func TestFQueryTriggerOpenOrders(t *testing.T) {
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
 	_, err := h.FQueryTriggerOpenOrders("ETH", "", 0, 0)
@@ -551,7 +551,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cp2, err := currency.NewPairFromString("BTC200918")
+	cp2, err := currency.NewPairFromString("BTC_CQ")
 	if err != nil {
 		t.Error(err)
 	}
@@ -562,6 +562,9 @@ func TestUpdateOrderbook(t *testing.T) {
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
 	_, err := h.UpdateAccountInfo()
 	if err != nil {
@@ -608,6 +611,9 @@ func TestGetOrderHistory(t *testing.T) {
 }
 
 func TestCancelAllOrders(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	t.Parallel()
 	_, err := h.CancelAllOrders(&order.Cancel{AssetType: asset.Futures})
 	if err != nil {
@@ -776,15 +782,13 @@ func TestGetSwapPriceLimits(t *testing.T) {
 }
 
 func TestGetMarginRates(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
 	_, err := h.GetMarginRates("btcusdt")
 	if err != nil {
 		t.Error(err)
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get order history: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -1143,7 +1147,7 @@ func TestGetSpotKline(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1165,7 +1169,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("BTC-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1494,12 +1498,13 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type:  order.AnyType,
-		Pairs: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		AssetType: asset.Spot,
+		Type:      order.AnyType,
+		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 	}
 
 	_, err := h.GetActiveOrders(&getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
+	if areTestAPIKeysSet() && err == nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -1531,11 +1536,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USDT,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: strconv.FormatInt(accounts[0].ID, 10),
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  strconv.FormatInt(accounts[0].ID, 10),
+		AssetType: asset.Spot,
 	}
 	response, err := h.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -1554,6 +1560,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	err := h.CancelOrder(orderCancellation)
@@ -1567,16 +1574,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = order.Cancel{
 		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	resp, err := h.CancelAllOrders(&orderCancellation)
@@ -1611,7 +1615,7 @@ func TestModifyOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := h.ModifyOrder(&order.Modify{})
+	_, err := h.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -1622,7 +1626,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 	}

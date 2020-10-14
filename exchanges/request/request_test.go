@@ -144,6 +144,14 @@ func TestCheckRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var passback http.Header
+	check.HeaderResponse = &passback
+	_, err = check.validateRequest(ctx, r)
+	if err == nil {
+		t.Fatal("expected error when underlying memory is not allocated")
+	}
+	passback = http.Header{}
+
 	// Test setting headers
 	check.Headers = map[string]string{
 		"Content-Type": "Super awesome HTTP party experience",
@@ -278,17 +286,29 @@ func TestDoRequest(t *testing.T) {
 	var resp struct {
 		Response bool `json:"response"`
 	}
+
+	// Check header contents
+	var passback = http.Header{}
 	err = r.SendPayload(ctx, &Item{
-		Method:   http.MethodGet,
-		Path:     testURL,
-		Result:   &resp,
-		Endpoint: UnAuth,
+		Method:         http.MethodGet,
+		Path:           testURL,
+		Result:         &resp,
+		Endpoint:       UnAuth,
+		HeaderResponse: &passback,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !resp.Response {
 		t.Fatal(unexpected)
+	}
+
+	if passback.Get("Content-Length") != "17" {
+		t.Fatal("incorrect header value")
+	}
+
+	if passback.Get("Content-Type") != "application/json" {
+		t.Fatal("incorrect header value")
 	}
 
 	// Check error
@@ -454,7 +474,7 @@ func TestGetNonceMillis(t *testing.T) {
 func TestSetProxy(t *testing.T) {
 	t.Parallel()
 	r := New("test",
-		new(http.Client),
+		&http.Client{Transport: new(http.Transport)},
 		WithLimiter(&globalshell))
 	u, err := url.Parse("http://www.google.com")
 	if err != nil {

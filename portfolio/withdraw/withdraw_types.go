@@ -46,6 +46,8 @@ const (
 var (
 	// ErrRequestCannotBeNil message to return when a request is nil
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
+	// ErrExchangeNameUnset message to return when an exchange name is unset
+	ErrExchangeNameUnset = errors.New("exchange name unset")
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
 	// CacheSize cache size to use for withdrawal request history
@@ -65,7 +67,7 @@ type CryptoRequest struct {
 
 // FiatRequest used for fiat withdrawal requests
 type FiatRequest struct {
-	Bank *banking.Account
+	Bank banking.Account
 
 	IsExpressWire bool
 	// Intermediary bank information
@@ -94,16 +96,16 @@ type Request struct {
 	OneTimePassword int64
 	PIN             int64
 
-	Crypto *CryptoRequest `json:",omitempty"`
-	Fiat   *FiatRequest   `json:",omitempty"`
+	Crypto CryptoRequest `json:",omitempty"`
+	Fiat   FiatRequest   `json:",omitempty"`
 }
 
 // Response holds complete details for Response
 type Response struct {
 	ID uuid.UUID `json:"id"`
 
-	Exchange       *ExchangeResponse `json:"exchange"`
-	RequestDetails *Request          `json:"request_details"`
+	Exchange       ExchangeResponse `json:"exchange"`
+	RequestDetails Request          `json:"request_details"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -112,6 +114,7 @@ type Response struct {
 // ExchangeResponse holds information returned from an exchange
 type ExchangeResponse struct {
 	Name   string `json:"name"`
+	UUID   uuid.UUID
 	ID     string `json:"id"`
 	Status string `json:"status"`
 }

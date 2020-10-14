@@ -356,13 +356,11 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 		}
 	case asset.Futures:
 		pairs, err := k.GetFuturesMarkets()
-		fmt.Println(pairs)
 		if err != nil {
 			return nil, err
 		}
 		for x := range pairs.Instruments {
 			if pairs.Instruments[x].Tradable == true {
-				fmt.Println(pairs.Instruments[x].Symbol)
 				products = append(products, pairs.Instruments[x].Symbol)
 			}
 		}
@@ -448,7 +446,6 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 		for i := range pairs {
 			for x := range tickers.Tickers {
 				pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
-				fmt.Println(pairFmt)
 				if err != nil {
 					return nil, err
 				}
@@ -496,8 +493,6 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(fpair)
 
 	var orderBook = new(orderbook.Base)
 
@@ -597,8 +592,6 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 			if err != nil {
 				return info, err
 			}
-			fmt.Println("SUP BRO:", bal)
-			fmt.Printf("%+v\n", assetTranslator.Assets)
 			for name, j := range bal.Accounts {
 				for code, value := range j.Balances {
 
@@ -745,26 +738,24 @@ func (k *Kraken) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (k *Kraken) CancelOrder(order *order.Cancel) error {
-	switch order.AssetType {
-
-	case asset.Spot:
-
-		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			return k.wsCancelOrders([]string{order.ID})
-		}
-		_, err := k.CancelExistingOrder(order.ID)
+func (k *Kraken) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
+	}
 
+	switch o.AssetType {
+	case asset.Spot:
+		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			return k.wsCancelOrders([]string{o.ID})
+		}
+		_, err := k.CancelExistingOrder(o.ID)
+		return err
 	case asset.Futures:
-
-		_, err := k.FuturesCancelOrder(order.ID, "")
+		_, err := k.FuturesCancelOrder(o.ID, "")
 		if err != nil {
 			return err
 		}
-
 	}
-
 	return nil
 }
 
@@ -948,6 +939,9 @@ func (k *Kraken) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal
 // Populate exchange.WithdrawRequest.TradePassword with withdrawal key name, as set up on your account
 func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
 	v, err := k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
@@ -960,6 +954,9 @@ func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (k *Kraken) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
 	v, err := k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
@@ -972,6 +969,9 @@ func (k *Kraken) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
 	v, err := k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
@@ -992,6 +992,9 @@ func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 
 // GetActiveOrders retrieves any orders that are active/open
 func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	var orders []order.Detail
 
 	switch req.AssetType {
@@ -1099,6 +1102,9 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
 
 	var orders []order.Detail
 
@@ -1343,10 +1349,8 @@ func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !k.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := k.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	ret := kline.Item{
@@ -1376,7 +1380,7 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   timeValue,
 			Open:   candles[x].Open,
-			High:   candles[x].Close,
+			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].Volume,
@@ -1389,12 +1393,9 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !k.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := k.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
-
 	ret := kline.Item{
 		Exchange: k.Name,
 		Pair:     pair,
@@ -1422,7 +1423,7 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   timeValue,
 			Open:   candles[i].Open,
-			High:   candles[i].Close,
+			High:   candles[i].High,
 			Low:    candles[i].Low,
 			Close:  candles[i].Close,
 			Volume: candles[i].Volume,

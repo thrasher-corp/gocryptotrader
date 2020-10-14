@@ -32,14 +32,14 @@ import (
 func main() {
 	log.Println("Loading flags...")
 	parseCLFlags()
-	var err error
 	log.Println("Loading engine...")
-	engine.Bot, err = engine.New()
+	bot, err := engine.New()
 	if err != nil {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
 	}
+	engine.Bot = bot
 
-	engine.Bot.Settings = engine.Settings{
+	bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,
 		Verbose:                        verboseOverride,
 		EnableExchangeHTTPRateLimiter:  true,
@@ -63,7 +63,7 @@ func main() {
 			wrapperConfig.Exchanges[strings.ToLower(name)] = &config.APICredentialsConfig{}
 		}
 		if shouldLoadExchange(name) {
-			err = engine.LoadExchange(name, true, &wg)
+			err = bot.LoadExchange(name, true, &wg)
 			if err != nil {
 				log.Printf("Failed to load exchange %s. Err: %s", name, err)
 				continue
@@ -92,7 +92,7 @@ func main() {
 	log.Println("Testing exchange wrappers..")
 	var exchangeResponses []ExchangeResponses
 
-	exchs := engine.GetExchanges()
+	exchs := bot.GetExchanges()
 	for x := range exchs {
 		base := exchs[x].GetBase()
 		if !base.Config.Enabled {
@@ -471,12 +471,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		s := &order.Submit{
-			Pair:     p,
-			Side:     testOrderSide,
-			Type:     testOrderType,
-			Amount:   config.OrderSubmission.Amount,
-			Price:    config.OrderSubmission.Price,
-			ClientID: config.OrderSubmission.OrderID,
+			Pair:      p,
+			Side:      testOrderSide,
+			Type:      testOrderType,
+			Amount:    config.OrderSubmission.Amount,
+			Price:     config.OrderSubmission.Price,
+			ClientID:  config.OrderSubmission.OrderID,
+			AssetType: assetTypes[i],
 		}
 		var r11 order.SubmitResponse
 		r11, err = e.SubmitOrder(s)
@@ -635,7 +636,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		withdrawRequest := withdraw.Request{
 			Currency: p.Quote,
-			Crypto: &withdraw.CryptoRequest{
+			Crypto: withdraw.CryptoRequest{
 				Address: withdrawAddressOverride,
 			},
 			Amount: config.OrderSubmission.Amount,
@@ -679,8 +680,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		withdrawRequestFiat := withdraw.Request{
 			Currency: p.Quote,
 			Amount:   config.OrderSubmission.Amount,
-			Fiat: &withdraw.FiatRequest{
-				Bank: &banking.Account{
+			Fiat: withdraw.FiatRequest{
+				Bank: banking.Account{
 					AccountName:    config.BankDetails.BankAccountName,
 					AccountNumber:  config.BankDetails.BankAccountNumber,
 					SWIFTCode:      config.BankDetails.SwiftCode,

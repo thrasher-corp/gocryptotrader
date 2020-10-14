@@ -80,8 +80,9 @@ func TestZip(t *testing.T) {
 	if filepath.Base(o[0]) != "binance.json" || filepath.Base(o[4]) != "localbitcoins.json" {
 		t.Fatal("unexpected archive result received")
 	}
-	if len(o) != 6 {
-		t.Fatalf("expected 2 files to be extracted received: %v ", len(o))
+	expected := 7
+	if len(o) != expected {
+		t.Fatalf("expected %v files to be extracted received: %v ", expected, len(o))
 	}
 
 	folder = filepath.Join("..", "..", "..", "testdata", "invalid_file.json")

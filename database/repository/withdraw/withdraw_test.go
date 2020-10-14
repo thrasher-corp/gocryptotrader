@@ -6,22 +6,32 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
-	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/goose"
+)
+
+var (
+	verbose       = false
+	testExchanges = []exchange.Details{
+		{
+			Name: "one",
+		},
+	}
 )
 
 func TestMain(m *testing.M) {
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
+	}
+
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
 	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
@@ -79,10 +89,9 @@ func TestWithdraw(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			path := filepath.Join("..", "..", "migrations")
-			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
+			err = exchange.InsertMany(testExchanges)
 			if err != nil {
-				t.Fatalf("failed to run migrations %v", err)
+				t.Fatal(err)
 			}
 
 			if test.runner != nil {
@@ -99,45 +108,51 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
-func withdrawHelper(t *testing.T) {
-	t.Helper()
-	var wg sync.WaitGroup
+func seedWithdrawData() {
 	for x := 0; x < 20; x++ {
-		wg.Add(1)
-		go func(x int) {
-			defer wg.Done()
-			test := fmt.Sprintf("test-%v", x)
-			resp := &withdraw.Response{
-				Exchange: &withdraw.ExchangeResponse{
-					Name:   test,
-					ID:     test,
-					Status: test,
+		test := fmt.Sprintf("test-%v", x)
+		resp := &withdraw.Response{
+			Exchange: withdraw.ExchangeResponse{
+				Name:   testExchanges[0].Name,
+				ID:     test,
+				Status: test,
+			},
+			RequestDetails: withdraw.Request{
+				Exchange:    testExchanges[0].Name,
+				Description: test,
+				Amount:      1.0,
+				Fiat: withdraw.FiatRequest{
+					Bank: banking.Account{
+						Enabled:             false,
+						ID:                  fmt.Sprintf("test-%v", x),
+						BankName:            fmt.Sprintf("test-%v-bank", x),
+						AccountName:         "hello",
+						AccountNumber:       fmt.Sprintf("test-%v", x),
+						BSBNumber:           "123456",
+						SupportedCurrencies: "BTC-AUD",
+						SupportedExchanges:  testExchanges[0].Name,
+					},
 				},
-				RequestDetails: &withdraw.Request{
-					Exchange:    test,
-					Description: test,
-					Amount:      1.0,
-				},
-			}
-			rnd := rand.Intn(2)
-			if rnd == 0 {
-				resp.RequestDetails.Currency = currency.AUD
-				resp.RequestDetails.Type = 1
-				resp.RequestDetails.Fiat = new(withdraw.FiatRequest)
-				resp.RequestDetails.Fiat.Bank = new(banking.Account)
-			} else {
-				resp.RequestDetails.Currency = currency.BTC
-				resp.RequestDetails.Type = 0
-				resp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
-				resp.RequestDetails.Crypto.Address = test
-				resp.RequestDetails.Crypto.FeeAmount = 0
-				resp.RequestDetails.Crypto.AddressTag = test
-			}
-			Event(resp)
-		}(x)
+			},
+		}
+		rnd := rand.Intn(2) // nolint:gosec // used for generating test data, no need to import crypo/rand
+		if rnd == 0 {
+			resp.RequestDetails.Currency = currency.AUD
+			resp.RequestDetails.Type = 1
+		} else {
+			resp.RequestDetails.Currency = currency.BTC
+			resp.RequestDetails.Type = 0
+			resp.RequestDetails.Crypto.Address = test
+			resp.RequestDetails.Crypto.FeeAmount = 0
+			resp.RequestDetails.Crypto.AddressTag = test
+		}
+		exchange.ResetExchangeCache()
+		Event(resp)
 	}
+}
+func withdrawHelper(t *testing.T) {
+	seedWithdrawData()
 
-	wg.Wait()
 	_, err := GetEventByUUID(withdraw.DryRunID.String())
 	if err != nil {
 		if !errors.Is(err, ErrNoResults) {
@@ -145,27 +160,31 @@ func withdrawHelper(t *testing.T) {
 		}
 	}
 
-	v, err := GetEventsByExchange("test-1", 10)
+	v, err := GetEventsByExchange(testExchanges[0].Name, 10)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
-	_, err = GetEventByExchangeID("test-1", "test-1")
+	if v[0].Exchange.Name != testExchanges[0].Name {
+		t.Fatalf("expected name to be translated to valid string instead received: %v", v[0].Exchange.Name)
+	}
+
+	_, err = GetEventByExchangeID(testExchanges[0].Name, "test-1")
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	if len(v) > 0 {
 		_, err = GetEventByUUID(v[0].ID.String())
 		if err != nil {
 			if !errors.Is(err, ErrNoResults) {
-				t.Fatal(err)
+				t.Error(err)
 			}
 		}
 	}
 
-	_, err = GetEventsByDate("test-1", time.Now().UTC().Add(-time.Minute), time.Now().UTC(), 5)
+	_, err = GetEventsByDate(testExchanges[0].Name, time.Now().UTC().Add(-time.Minute), time.Now().UTC(), 5)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }

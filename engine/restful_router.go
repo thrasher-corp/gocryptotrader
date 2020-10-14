@@ -31,24 +31,24 @@ func RESTLogger(inner http.Handler, name string) http.Handler {
 }
 
 // StartRESTServer starts a REST server
-func StartRESTServer() {
-	listenAddr := Bot.Config.RemoteControl.DeprecatedRPC.ListenAddress
+func StartRESTServer(bot *Engine) {
+	listenAddr := bot.Config.RemoteControl.DeprecatedRPC.ListenAddress
 	log.Debugf(log.RESTSys,
 		"Deprecated RPC server support enabled. Listen URL: http://%s:%d\n",
 		common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
-	err := http.ListenAndServe(listenAddr, newRouter(true))
+	err := http.ListenAndServe(listenAddr, newRouter(bot, true))
 	if err != nil {
 		log.Errorf(log.RESTSys, "Failed to start deprecated RPC server. Err: %s", err)
 	}
 }
 
 // StartWebsocketServer starts a Websocket server
-func StartWebsocketServer() {
-	listenAddr := Bot.Config.RemoteControl.WebsocketRPC.ListenAddress
+func StartWebsocketServer(bot *Engine) {
+	listenAddr := bot.Config.RemoteControl.WebsocketRPC.ListenAddress
 	log.Debugf(log.RESTSys,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
 		common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
-	err := http.ListenAndServe(listenAddr, newRouter(false))
+	err := http.ListenAndServe(listenAddr, newRouter(bot, false))
 	if err != nil {
 		log.Errorf(log.RESTSys, "Failed to start websocket RPC server. Err: %s", err)
 	}
@@ -56,15 +56,15 @@ func StartWebsocketServer() {
 
 // newRouter takes in the exchange interfaces and returns a new multiplexor
 // router
-func newRouter(isREST bool) *mux.Router {
+func newRouter(bot *Engine, isREST bool) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	var routes []Route
 	var listenAddr string
 
 	if isREST {
-		listenAddr = Bot.Config.RemoteControl.DeprecatedRPC.ListenAddress
+		listenAddr = bot.Config.RemoteControl.DeprecatedRPC.ListenAddress
 	} else {
-		listenAddr = Bot.Config.RemoteControl.WebsocketRPC.ListenAddress
+		listenAddr = bot.Config.RemoteControl.WebsocketRPC.ListenAddress
 	}
 
 	if common.ExtractPort(listenAddr) == 80 {
@@ -85,9 +85,9 @@ func newRouter(isREST bool) *mux.Router {
 			{"AllActiveExchangesAndOrderbooks", http.MethodGet, "/exchanges/orderbook/latest/all", RESTGetAllActiveOrderbooks},
 		}
 
-		if Bot.Config.Profiler.Enabled {
-			if Bot.Config.Profiler.MutexProfileFraction > 0 {
-				runtime.SetMutexProfileFraction(Bot.Config.Profiler.MutexProfileFraction)
+		if bot.Config.Profiler.Enabled {
+			if bot.Config.Profiler.MutexProfileFraction > 0 {
+				runtime.SetMutexProfileFraction(bot.Config.Profiler.MutexProfileFraction)
 			}
 			log.Debugf(log.RESTSys,
 				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof/\n",

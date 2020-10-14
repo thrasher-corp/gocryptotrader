@@ -10,7 +10,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This Mock package is part of the GoCryptoTrader codebase.
+This mock package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -20,16 +20,17 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Mock Testing Suite
 
-### Current Features
-
-+ REST recording service 
+## Current Features for mock
++ REST recording service
 + REST mock response server
 
 ### How to enable
 
-+ Mock testing is enabled by default in some exchanges; to disable and run live endpoint testing parse -tags=mock_test_off as a go test param.
++ Any exchange with mock testing will be enabled by default. This is done using build tags which are highlighted in the examples below via `//+build mock_test_off`. To disable and run live endpoint testing parse `-tags=mock_test_off` as a go test param.
 
-+ To record a live endpoint create two files for an exchange.
+## Mock test setup
+
++ Create two additional test files for the exchange. Examples are below:
 
 ### file one - your_current_exchange_name_live_test.go
 
@@ -58,12 +59,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("your_current_exchange_name Setup() init error", err)
 	}
-	your_current_exchange_nameConfig.AuthenticatedAPISupport = true
-	your_current_exchange_nameConfig.APIKey = apiKey
-	your_current_exchange_nameConfig.APISecret = apiSecret
-	l.SetDefaults()
-	l.Setup(&your_current_exchange_nameConfig)
-	log.Printf(sharedtestvalues.LiveTesting, l.Name, l.APIUrl)
+	your_current_exchange_nameConfig.API.AuthenticatedSupport = true
+	your_current_exchange_nameConfig.API.Credentials.Key = apiKey
+	your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
+	s.SetDefaults()
+	s.Setup(&your_current_exchange_nameConfig)
+	log.Printf(sharedtestvalues.LiveTesting, s.Name, s.API.Endpoints.URL)
 	os.Exit(m.Run())
 }
 ```
@@ -98,58 +99,95 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("your_current_exchange_name Setup() init error", err)
 	}
-	your_current_exchange_nameConfig.AuthenticatedAPISupport = true
-	your_current_exchange_nameConfig.APIKey = apiKey
-	your_current_exchange_nameConfig.APISecret = apiSecret
-	l.SetDefaults()
-	l.Setup(&your_current_exchange_nameConfig)
+	your_current_exchange_nameConfig.API.AuthenticatedSupport = true
+	your_current_exchange_nameConfig.API.Credentials.Key = apiKey
+	your_current_exchange_nameConfig.API.Credentials.Secret = apiSecret
+	s.SetDefaults()
+	s.Setup(&your_current_exchange_nameConfig)
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
 		log.Fatalf("Mock server error %s", err)
 	}
 
-	g.HTTPClient = newClient
-	g.APIUrl = serverDetails
+	s.HTTPClient = newClient
+	s.API.Endpoints.URL = serverDetails
 
-	log.Printf(sharedtestvalues.MockTesting, l.Name, l.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, s.Name, s.API.Endpoints.URL)
 	os.Exit(m.Run())
 }
 
 ```
 
-+ Once those files are completed go through each invidual test function and add
+## Mock test storage
+
++ Under `testdata/http_mock` create a folder matching the name of your exchange. Then create a JSON file matching the name of your exchange with the following formatting:
+```
+{
+	"routes": {
+	}
+}
+```
+
+
+## Recording a test result
+
++ Once the files `your_current_exchange_name_mock_test.go` and `your_current_exchange_name_live_test.go` along with the JSON file `testdata/http_mock/our_current_exchange_name/our_current_exchange_name.json` are created, go through each individual test function and add
 
 ```go
 var s SomeExchange
 
 func TestDummyTest(t *testing.T) {
-    s.APIURL = exchangeDefaultURL // This will overwrite the current mock url at localhost
-    s.Verbose = true // This will show you some fancy debug output
-    s.HTTPRecording = true // This will record the request and response payloads
-
-    err := s.SomeExchangeEndpointFunction()
-    // check error
+	s.Verbose = true // This will show you some fancy debug output
+	s.HTTPRecording = true // This will record the request and response payloads
+	s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
+	s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
+	s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
+	err := s.SomeExchangeEndpointFunction()
+	// check error
 }
 ```
 
-+ After this is completed it should populate a new mocktest.json file for you with the relavent payloads in testdata
++ This will store the request and results under the freshly created `testdata/http_mock/your_current_exchange/your_current_exchange.json`
+
+## Validating
+
 + To check if the recording was successful, comment out recording and apiurl changes, then re-run test.
 
 ```go
 var s SomeExchange
 
 func TestDummyTest(t *testing.T) {
-    // s.APIURL = exchangeDefaultURL // This will overwrite the current mock url at localhost
-    s.Verbose = true // This will show you some fancy debug output
-    // s.HTTPRecording = true // This will record the request and response payloads
-
-    err := s.SomeExchangeEndpointFunction()
-    // check error
+	s.Verbose = true // This will show you some fancy debug output
+	// s.HTTPRecording = true // This will record the request and response payloads
+	// s.API.Endpoints.URL = apiURL // This will overwrite the current mock url at localhost
+	// s.API.Endpoints.URLSecondary = secondAPIURL // This is only if your API has multiple endpoints
+	// s.HTTPClient = http.DefaultClient // This will ensure that a real HTTPClient is used to record
+	err := s.SomeExchangeEndpointFunction()
+	// check error
 }
 ```
 
 + The payload should be the same.
+
+## Considerations
+
++ Some functions require timestamps. Mock tests _must_ match the same request structure, so `time.Now()` will cause problems for mock testing.
+	+ To address this, use the boolean variable `mockTests` to create a consistent date. An example is below.
+```
+	startTime := time.Now().Add(-time.Hour * 1)
+	endTime := time.Now()
+	if mockTests {
+		startTime = time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
+		endTime = time.Date(2020, 9, 2, 0, 0, 0, 0, time.UTC)
+	}
+```
++ Authenticated endpoints will typically require valid API keys and a signature to run successfully. Authenticated endpoints should be skipped. See an example below
+```
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
+```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
@@ -171,4 +209,3 @@ When submitting a PR, please abide by our coding guidelines:
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
-

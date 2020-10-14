@@ -52,13 +52,13 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		RESTfulError(r.Method, err)
 	}
 
-	SetupExchanges()
+	Bot.SetupExchanges()
 }
 
 // GetAllActiveOrderbooks returns all enabled exchanges orderbooks
 func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
-	exchanges := GetExchanges()
+	exchanges := Bot.GetExchanges()
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes()
 		exchName := exchanges[x].GetName()
@@ -116,7 +116,7 @@ func RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
 // RESTGetAllActiveTickers returns all active tickers
 func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeCurrencies
-	response.Data = GetAllActiveTickers()
+	response.Data = Bot.GetAllActiveTickers()
 
 	err := RESTfulJSONResponse(w, response)
 	if err != nil {
@@ -127,7 +127,7 @@ func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 // RESTGetAllEnabledAccountInfo via get request returns JSON response of account
 // info
 func RESTGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
-	response := GetAllEnabledExchangeAccountInfo()
+	response := Bot.GetAllEnabledExchangeAccountInfo()
 	err := RESTfulJSONResponse(w, response)
 	if err != nil {
 		RESTfulError(r.Method, err)

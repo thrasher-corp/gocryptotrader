@@ -410,8 +410,12 @@ func (e *EXMO) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (e *EXMO) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+func (e *EXMO) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+
+	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -464,6 +468,10 @@ func (e *EXMO) GetDepositAddress(cryptocurrency currency.Code, _ string) (string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (e *EXMO) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	resp, err := e.WithdrawCryptocurrency(withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
@@ -497,6 +505,10 @@ func (e *EXMO) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (e *EXMO) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	resp, err := e.GetOpenOrders()
 	if err != nil {
 		return nil, err
@@ -530,6 +542,10 @@ func (e *EXMO) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	if len(req.Pairs) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}

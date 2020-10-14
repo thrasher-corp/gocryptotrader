@@ -119,7 +119,9 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
-
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	_, err := k.UpdateAccountInfo()
 	if err != nil {
 		t.Error(err)
@@ -127,8 +129,10 @@ func TestUpdateAccountInfo(t *testing.T) {
 }
 
 func TestWrapperGetOrderInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
-
 	_, err := k.GetOrderInfo("123", asset.Futures)
 	if err != nil {
 		t.Error(err)
@@ -136,6 +140,10 @@ func TestWrapperGetOrderInfo(t *testing.T) {
 }
 
 func TestFuturesBatchOrder(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
+	}
+	t.Parallel()
 	var data []PlaceBatchOrderData
 	var tempData PlaceBatchOrderData
 	tempData.PlaceOrderType = "cancel"
@@ -716,22 +724,27 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // TestGetActiveOrders wrapper test
 func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := k.GetActiveOrders(&getOrdersRequest)
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not get open orders: %s", err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 // TestGetOrderHistory wrapper test
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := k.GetOrderHistory(&getOrdersRequest)
@@ -778,11 +791,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.XBT,
 			Quote: currency.USD,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
 	}
 	response, err := k.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -799,7 +813,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	var orderCancellation = &order.Cancel{
-		ID: "OGEX6P-B5Q74-IGZ72R",
+		ID:        "OGEX6P-B5Q74-IGZ72R",
+		AssetType: asset.Spot,
 	}
 
 	err := k.CancelOrder(orderCancellation)
@@ -817,7 +832,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	resp, err := k.CancelAllOrders(&order.Cancel{})
+	resp, err := k.CancelAllOrders(&order.Cancel{AssetType: asset.Spot})
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -850,7 +865,7 @@ func TestModifyOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := k.ModifyOrder(&order.Modify{})
+	_, err := k.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -859,7 +874,7 @@ func TestModifyOrder(t *testing.T) {
 // TestWithdraw wrapper test
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 		Amount:        -1,
@@ -1494,7 +1509,7 @@ func TestWsOpenOrders(t *testing.T) {
         "cost": "0.00000",
         "descr": {
           "close": "",
-          "leverage": "0:1",
+          "leverage": "0.1",
           "order": "sell 10.00345345 XBT/USD @ limit 34.50000 with 0:1 leverage",
           "ordertype": "limit",
           "pair": "XBT/USD",
@@ -1523,7 +1538,7 @@ func TestWsOpenOrders(t *testing.T) {
         "cost": "0.00000",
         "descr": {
           "close": "",
-          "leverage": "0:1",
+          "leverage": "0.1",
           "order": "sell 0.00000010 XBT/USD @ limit 5334.60000 with 0:1 leverage",
           "ordertype": "limit",
           "pair": "XBT/USD",
@@ -1552,7 +1567,7 @@ func TestWsOpenOrders(t *testing.T) {
         "cost": "0.00000",
         "descr": {
           "close": "",
-          "leverage": "0:1",
+          "leverage": "0.1",
           "order": "sell 0.00001000 XBT/USD @ limit 90.40000 with 0:1 leverage",
           "ordertype": "limit",
           "pair": "XBT/USD",
@@ -1581,7 +1596,7 @@ func TestWsOpenOrders(t *testing.T) {
         "cost": "0.00000",
         "descr": {
           "close": "",
-          "leverage": "0:1",
+          "leverage": "0.1",
           "order": "sell 0.00001000 XBT/USD @ limit 9.00000 with 0:1 leverage",
           "ordertype": "limit",
           "pair": "XBT/USD",
@@ -1686,7 +1701,7 @@ func TestParseTime(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("XBTUSD")
+	currencyPair, err := currency.NewPairFromString("XBT-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1702,7 +1717,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("XBTUSD")
+	currencyPair, err := currency.NewPairFromString("XBT-USD")
 	if err != nil {
 		t.Fatal(err)
 	}

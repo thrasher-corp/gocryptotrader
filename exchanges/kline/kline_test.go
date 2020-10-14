@@ -1,15 +1,33 @@
 package kline
 
 import (
+	"errors"
+	"io/ioutil"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
+
+var (
+	verbose       = false
+	testExchanges = []exchange.Details{
+		{
+			Name: "one",
+		},
+	}
 )
 
 func TestValidateData(t *testing.T) {
@@ -84,11 +102,11 @@ func TestCreateKline(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 	for i := 0; i < 24000; i++ {
 		trades = append(trades, order.TradeHistory{
-			Timestamp: time.Now().Add((time.Duration(rand.Intn(10)) * time.Minute) +
-				(time.Duration(rand.Intn(10)) * time.Second)),
-			TID:    crypto.HexEncodeToString([]byte(string(i))),
-			Amount: float64(rand.Intn(20)) + 1,
-			Price:  1000 + float64(rand.Intn(1000)),
+			Timestamp: time.Now().Add((time.Duration(rand.Intn(10)) * time.Minute) + // nolint:gosec // no need to import crypo/rand for testing
+				(time.Duration(rand.Intn(10)) * time.Second)), // nolint:gosec // no need to import crypo/rand for testing
+			TID:    crypto.HexEncodeToString([]byte(string(rune(i)))),
+			Amount: float64(rand.Intn(20)) + 1,      // nolint:gosec // no need to import crypo/rand for testing
+			Price:  1000 + float64(rand.Intn(1000)), // nolint:gosec // no need to import crypo/rand for testing
 		})
 	}
 
@@ -237,14 +255,24 @@ func TestDurationToWord(t *testing.T) {
 func TestKlineErrors(t *testing.T) {
 	v := ErrorKline{
 		Interval: OneYear,
+		Pair:     currency.NewPair(currency.BTC, currency.AUD),
+		Err:      errors.New("hello world"),
 	}
 
-	if v.Error() != "oneyear interval unsupported by exchange" {
-		t.Fatal("unexpected error returned")
+	if v.Interval != OneYear {
+		t.Fatalf("expected OneYear received %v:", v.Interval)
 	}
 
-	if v.Unwrap().Error() != "8760h0m0s interval unsupported by exchange" {
-		t.Fatal("unexpected error returned")
+	if v.Pair != currency.NewPair(currency.BTC, currency.AUD) {
+		t.Fatalf("expected OneYear received %v:", v.Pair)
+	}
+
+	if v.Error() != "hello world" {
+		t.Fatal("expected error return received empty value")
+	}
+
+	if v.Unwrap().Error() != "hello world" {
+		t.Fatal("expected error return received empty value")
 	}
 }
 
@@ -381,7 +409,7 @@ func TestCalcDateRanges(t *testing.T) {
 
 	v = CalcDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
 	if len(v) != 1 {
-		t.Fatal("expected CalcDateRanges() with a Candle count lower than limit to return 1 result")
+		t.Fatal("expected CalcDateRanges() with a Item count lower than limit to return 1 result")
 	}
 }
 
@@ -394,7 +422,7 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	}
 
 	for x := 0; x < 100; x++ {
-		y := rand.Float64()
+		y := rand.Float64() // nolint:gosec // used for generating test data, no need to import crypo/rand
 		tempKline.Candles = append(tempKline.Candles,
 			Candle{
 				Time:   time.Now().AddDate(0, 0, -x),
@@ -414,5 +442,242 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	tempKline.SortCandlesByTimestamp(true)
 	if tempKline.Candles[0].Time.Before(tempKline.Candles[1].Time) {
 		t.Fatal("expected kline.Candles to be in ascending order")
+	}
+}
+
+func setupTest(t *testing.T) {
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
+	}
+
+	var err error
+	testhelpers.MigrationDir = filepath.Join("..", "..", "database", "migrations")
+	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
+	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+}
+
+func TestStoreInDatabase(t *testing.T) {
+	setupTest(t)
+
+	testCases := []struct {
+		name   string
+		config *database.Config
+		seedDB func(bool) error
+		runner func(t *testing.T)
+		closer func(dbConn *database.Instance) error
+	}{
+		{
+			name:   "postgresql",
+			config: testhelpers.PostgresTestDatabase,
+			seedDB: seedDB,
+		},
+		{
+			name: "SQLite",
+			config: &database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+			},
+			seedDB: seedDB,
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+				t.Skip("database not configured skipping test")
+			}
+
+			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if test.seedDB != nil {
+				err = test.seedDB(false)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
+			_, ohlcvData, err := genOHCLVData()
+			if err != nil {
+				t.Fatal(err)
+			}
+			r, err := StoreInDatabase(&ohlcvData)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if r != 365 {
+				t.Fatalf("unexpected number inserted: %v", r)
+			}
+
+			err = testhelpers.CloseDatabase(dbConn)
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+
+	err := os.RemoveAll(testhelpers.TempDir)
+	if err != nil {
+		t.Fatalf("Failed to remove temp db file: %v", err)
+	}
+}
+
+func TestLoadFromDatabase(t *testing.T) {
+	setupTest(t)
+
+	testCases := []struct {
+		name   string
+		config *database.Config
+		seedDB func(bool) error
+		runner func(t *testing.T)
+		closer func(dbConn *database.Instance) error
+	}{
+		{
+			name:   "postgresql",
+			config: testhelpers.PostgresTestDatabase,
+			seedDB: seedDB,
+		},
+		{
+			name: "SQLite",
+			config: &database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+			},
+			seedDB: seedDB,
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+				t.Skip("database not configured skipping test")
+			}
+
+			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if test.seedDB != nil {
+				err = test.seedDB(true)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
+			p, err := currency.NewPairFromString("BTCUSDT")
+			if err != nil {
+				t.Fatal(err)
+			}
+			start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+			end := start.AddDate(1, 0, 0)
+			ret, err := LoadFromDatabase(testExchanges[0].Name, p, asset.Spot, OneDay, start, end)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ret.Exchange != testExchanges[0].Name {
+				t.Fatalf("uncorrect data returned: %v", ret.Exchange)
+			}
+
+			err = testhelpers.CloseDatabase(dbConn)
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+
+	err := os.RemoveAll(testhelpers.TempDir)
+	if err != nil {
+		t.Fatalf("Failed to remove temp db file: %v", err)
+	}
+}
+
+// TODO: find a better way to handle this to remove duplication between candle test
+func seedDB(includeOHLCVData bool) error {
+	err := exchange.InsertMany(testExchanges)
+	if err != nil {
+		return err
+	}
+
+	if includeOHLCVData {
+		data, _, err := genOHCLVData()
+		if err != nil {
+			return err
+		}
+		_, err = candle.Insert(&data)
+		return err
+	}
+	return nil
+}
+
+func genOHCLVData() (out candle.Item, outItem Item, err error) {
+	exchangeUUID, err := exchange.UUIDByName(testExchanges[0].Name)
+	if err != nil {
+		return
+	}
+
+	out.ExchangeID = exchangeUUID.String()
+	out.Base = currency.BTC.String()
+	out.Quote = currency.USDT.String()
+	out.Interval = 86400
+	out.Asset = "spot"
+
+	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+	for x := 0; x < 365; x++ {
+		out.Candles = append(out.Candles, candle.Candle{
+			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)),
+			Open:      1000,
+			High:      1000,
+			Low:       1000,
+			Close:     1000,
+			Volume:    1000,
+		})
+	}
+
+	outItem.Interval = OneDay
+	outItem.Asset = asset.Spot
+	outItem.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	outItem.Exchange = testExchanges[0].Name
+
+	for x := 0; x < 365; x++ {
+		outItem.Candles = append(outItem.Candles, Candle{
+			Time:   start.Add(time.Hour * 24 * time.Duration(x)),
+			Open:   1000,
+			High:   1000,
+			Low:    1000,
+			Close:  1000,
+			Volume: 1000,
+		})
+	}
+
+	return out, outItem, nil
+}
+
+func TestLoadCSV(t *testing.T) {
+	v, err := LoadFromGCTScriptCSV(filepath.Join("..", "..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if v[0].Time.UTC() != time.Unix(1546300800, 0).UTC() {
+		t.Fatalf("unexpected value received: %v", v[0].Time)
+	}
+
+	if v[269].Close != 8177.91 {
+		t.Fatalf("unexpected value received: %v", v[269].Close)
+	}
+
+	if v[364].Open != 7246 {
+		t.Fatalf("unexpected value received: %v", v[364].Open)
 	}
 }

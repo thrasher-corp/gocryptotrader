@@ -44,7 +44,7 @@ func TestConfigAllJsonResponse(t *testing.T) {
 }
 
 func TestInvalidHostRequest(t *testing.T) {
-	SetupTestHelpers(t)
+	e := SetupTestHelpers(t)
 	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +52,7 @@ func TestInvalidHostRequest(t *testing.T) {
 	req.Host = "invalidsite.com"
 
 	resp := httptest.NewRecorder()
-	newRouter(true).ServeHTTP(resp, req)
+	newRouter(e, true).ServeHTTP(resp, req)
 
 	if status := resp.Code; status != http.StatusNotFound {
 		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
@@ -60,7 +60,7 @@ func TestInvalidHostRequest(t *testing.T) {
 }
 
 func TestValidHostRequest(t *testing.T) {
-	SetupTestHelpers(t)
+	e := SetupTestHelpers(t)
 	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +68,7 @@ func TestValidHostRequest(t *testing.T) {
 	req.Host = "localhost:9050"
 
 	resp := httptest.NewRecorder()
-	newRouter(true).ServeHTTP(resp, req)
+	newRouter(e, true).ServeHTTP(resp, req)
 
 	if status := resp.Code; status != http.StatusOK {
 		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusOK, status)
@@ -76,7 +76,7 @@ func TestValidHostRequest(t *testing.T) {
 }
 
 func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
-	SetupTestHelpers(t)
+	e := SetupTestHelpers(t)
 	req, err := http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +84,7 @@ func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
 
 	req.Host = "localhost:9050"
 	resp := httptest.NewRecorder()
-	newRouter(true).ServeHTTP(resp, req)
+	newRouter(e, true).ServeHTTP(resp, req)
 	if status := resp.Code; status != http.StatusNotFound {
 		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
 	}
@@ -102,7 +102,7 @@ func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
 	}
 
 	resp = httptest.NewRecorder()
-	newRouter(true).ServeHTTP(resp, req)
+	newRouter(e, true).ServeHTTP(resp, req)
 	mutexValue = runtime.SetMutexProfileFraction(10)
 	if mutexValue != 5 {
 		t.Fatalf("SetMutexProfileFraction() should be 5 after setup received: %v", mutexValue)
