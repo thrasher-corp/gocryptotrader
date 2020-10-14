@@ -9,16 +9,16 @@ import (
 )
 
 // New returns a new instance of VM
-func New() *VM {
-	if VMSCount.Len() >= int32(GCTScriptConfig.MaxVirtualMachines) {
-		if GCTScriptConfig.Verbose {
+func (g *GctScriptManager) New() *VM {
+	if VMSCount.Len() >= int32(g.GetMaxVirtualMachines()) {
+		if g.config.Verbose {
 			log.Warnf(log.GCTScriptMgr, "GCTScript MaxVirtualMachines (%v) hit, unable to start further instances",
-				GCTScriptConfig.MaxVirtualMachines)
+				g.GetMaxVirtualMachines())
 		}
 		return nil
 	}
 	VMSCount.add()
-	vm := NewVM()
+	vm := g.NewVM()
 	if vm == nil {
 		VMSCount.remove()
 	} else {
@@ -29,10 +29,10 @@ func New() *VM {
 
 // Validate will attempt to execute a script in a test/non-live environment
 // to confirm it passes requirements for execution
-func Validate(file string) (err error) {
+func (g *GctScriptManager) Validate(file string) (err error) {
 	validator.IsTestExecution.Store(true)
 	defer validator.IsTestExecution.Store(false)
-	tempVM := NewVM()
+	tempVM := g.NewVM()
 	err = tempVM.Load(file)
 	if err != nil {
 		return
@@ -45,8 +45,8 @@ func Validate(file string) (err error) {
 }
 
 // ShutdownAll shutdown all
-func ShutdownAll() (err error) {
-	if GCTScriptConfig.Verbose {
+func (g *GctScriptManager) ShutdownAll() (err error) {
+	if g.config.Verbose {
 		log.Debugln(log.GCTScriptMgr, "Shutting down all Virtual Machines")
 	}
 
@@ -67,14 +67,14 @@ func ShutdownAll() (err error) {
 }
 
 // RemoveVM remove VM from list
-func RemoveVM(id uuid.UUID) error {
+func (g *GctScriptManager) RemoveVM(id uuid.UUID) error {
 	if _, f := AllVMSync.Load(id); !f {
 		return fmt.Errorf(ErrNoVMFound, id.String())
 	}
 
 	AllVMSync.Delete(id)
 	VMSCount.remove()
-	if GCTScriptConfig.Verbose {
+	if g.config.Verbose {
 		log.Debugf(log.GCTScriptMgr, "VM %v removed from AllVMs", id)
 	}
 	return nil

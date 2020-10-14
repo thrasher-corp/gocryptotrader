@@ -48,14 +48,16 @@ var (
 
 // VM contains a pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
 type VM struct {
-	ID       uuid.UUID
-	Hash     string
-	File     string
-	Path     string
-	Script   *tengo.Script
-	Compiled *tengo.Compiled
-	ctx      context.Context
-	T        time.Duration
-	NextRun  time.Time
-	S        chan struct{}
+	ID         uuid.UUID
+	Hash       string
+	File       string
+	Path       string
+	Script     *tengo.Script
+	Compiled   *tengo.Compiled
+	ctx        context.Context
+	T          time.Duration
+	NextRun    time.Time
+	S          chan struct{}
+	config     *Config
+	unregister func() error
 }

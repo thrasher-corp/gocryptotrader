@@ -3720,7 +3720,7 @@ func gctScriptUpload(c *cli.Context) error {
 		}
 	}
 
-	if filepath.Ext(filename) != ".gct" && filepath.Ext(filename) != ".zip" {
+	if filepath.Ext(filename) != common.GctExt && filepath.Ext(filename) != ".zip" {
 		return errors.New("file type must be gct or zip")
 	}
 

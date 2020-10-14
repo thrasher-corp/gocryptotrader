@@ -1708,7 +1708,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 
 // GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
 func (s *RPCServer) GCTScriptStatus(_ context.Context, r *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
+	if !s.GctScriptManager.IsEnabled() {
 		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -1717,7 +1717,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, r *gctrpc.GCTScriptStatus
 	}
 
 	resp := &gctrpc.GCTScriptStatusResponse{
-		Status: fmt.Sprintf("%v of %v virtual machines running", gctscript.VMSCount.Len(), gctscript.GCTScriptConfig.MaxVirtualMachines),
+		Status: fmt.Sprintf("%v of %v virtual machines running", gctscript.VMSCount.Len(), s.GctScriptManager.GetMaxVirtualMachines()),
 	}
 
 	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
@@ -1736,7 +1736,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, r *gctrpc.GCTScriptStatus
 
 // GCTScriptQuery queries a running script and returns script running information
 func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRequest) (*gctrpc.GCTScriptQueryResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
+	if !s.GctScriptManager.IsEnabled() {
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -1767,7 +1767,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 
 // GCTScriptExecute execute a script
 func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GenericResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
+	if !s.GctScriptManager.IsEnabled() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -1775,7 +1775,7 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 		r.Script.Path = gctscript.ScriptPath
 	}
 
-	gctVM := gctscript.New()
+	gctVM := s.GctScriptManager.New()
 	if gctVM == nil {
 		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "unable to create VM instance"}, nil
 	}
@@ -1799,7 +1799,7 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 
 // GCTScriptStop terminate a running script
 func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GenericResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
+	if !s.GctScriptManager.IsEnabled() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -1821,7 +1821,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 
 // GCTScriptUpload upload a new script to ScriptPath
 func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GenericResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
+	if !s.GctScriptManager.IsEnabled() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -1877,7 +1877,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 		}
 		var failedFiles []string
 		for x := range files {
-			err = gctscript.Validate(files[x])
+			err = s.GctScriptManager.Validate(files[x])
 			if err != nil {
 				failedFiles = append(failedFiles, files[x])
 			}
@@ -1891,16 +1891,16 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 			if err != nil {
 				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v (%v), manual deletion required", filepath.Base(fPath), err)
 			}
-			return &gctrpc.GenericResponse{Status: ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
+			return &gctrpc.GenericResponse{Status: gctscript.ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
 		}
 	} else {
-		err = gctscript.Validate(fPath)
+		err = s.GctScriptManager.Validate(fPath)
 		if err != nil {
 			errRemove := os.Remove(fPath)
 			if errRemove != nil {
 				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required: %v", filepath.Base(fPath), errRemove)
 			}
-			return &gctrpc.GenericResponse{Status: ErrScriptFailedValidation, Data: err.Error()}, nil
+			return &gctrpc.GenericResponse{Status: gctscript.ErrScriptFailedValidation, Data: err.Error()}, nil
 		}
 	}
 
@@ -1912,7 +1912,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 
 // GCTScriptReadScript read a script and return contents
 func (s *RPCServer) GCTScriptReadScript(_ context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptQueryResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
+	if !s.GctScriptManager.IsEnabled() {
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -1937,7 +1937,7 @@ func (s *RPCServer) GCTScriptReadScript(_ context.Context, r *gctrpc.GCTScriptRe
 
 // GCTScriptListAll lists all scripts inside the default script path
 func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRequest) (*gctrpc.GCTScriptStatusResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
+	if !s.GctScriptManager.IsEnabled() {
 		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
@@ -1947,7 +1947,7 @@ func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRe
 			if err != nil {
 				return err
 			}
-			if filepath.Ext(path) == ".gct" {
+			if filepath.Ext(path) == common.GctExt {
 				resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
 					Name: path,
 				})
@@ -1963,11 +1963,11 @@ func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRe
 
 // GCTScriptStopAll stops all running scripts
 func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRequest) (*gctrpc.GenericResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
+	if !s.GctScriptManager.IsEnabled() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	err := gctscript.ShutdownAll()
+	err := s.GctScriptManager.ShutdownAll()
 	if err != nil {
 		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 	}
@@ -1980,19 +1980,19 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 
 // GCTScriptAutoLoadToggle adds or removes an entry to the autoload list
 func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScriptAutoLoadRequest) (*gctrpc.GenericResponse, error) {
-	if !gctscript.GCTScriptConfig.Enabled {
+	if !s.GctScriptManager.IsEnabled() {
 		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	if r.Status {
-		err := gctscript.Autoload(r.Script, true)
+		err := s.GctScriptManager.Autoload(r.Script, true)
 		if err != nil {
 			return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 		}
 		return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
 	}
 
-	err := gctscript.Autoload(r.Script, false)
+	err := s.GctScriptManager.Autoload(r.Script, false)
 	if err != nil {
 		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 	}

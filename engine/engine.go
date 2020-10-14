@@ -33,7 +33,7 @@ type Engine struct {
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
 	DatabaseManager             databaseManager
-	GctScriptManager            gctScriptManager
+	GctScriptManager            gctscript.GctScriptManager
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
@@ -172,11 +172,13 @@ func validateSettings(b *Engine, s *Settings) {
 	}
 
 	if flagSet["gctscriptmanager"] {
-		gctscript.GCTScriptConfig.Enabled = s.EnableGCTScriptManager
+		enabled := s.EnableGCTScriptManager
+		b.GctScriptManager.Enabled = &enabled
 	}
 
 	if flagSet["maxvirtualmachines"] {
-		gctscript.GCTScriptConfig.MaxVirtualMachines = uint8(s.MaxVirtualMachines)
+		maxMachines := uint8(s.MaxVirtualMachines)
+		b.GctScriptManager.MaxVirtualMachines = &maxMachines
 	}
 
 	if flagSet["withdrawcachesize"] {
@@ -464,10 +466,8 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGCTScriptManager {
-		if bot.Config.GCTScript.Enabled {
-			if err := bot.GctScriptManager.Start(); err != nil {
-				gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %v", err)
-			}
+		if err := bot.GctScriptManager.Start(&bot.Config.GCTScript, &bot.ServicesWG); err != nil {
+			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %v", err)
 		}
 	}
 

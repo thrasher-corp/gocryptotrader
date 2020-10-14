@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
@@ -130,11 +129,10 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		}
 		return dispatch.Stop()
 	case "gctscript":
+		bot.GctScriptManager.Enabled = &enable
 		if enable {
-			vm.GCTScriptConfig.Enabled = true
-			return bot.GctScriptManager.Start()
+			return bot.GctScriptManager.Start(&bot.Config.GCTScript, &bot.ServicesWG)
 		}
-		vm.GCTScriptConfig.Enabled = false
 		return bot.GctScriptManager.Stop()
 	}
 

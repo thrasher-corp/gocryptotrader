@@ -39,6 +39,8 @@ const (
 	SatoshisPerBTC = 100000000
 	SatoshisPerLTC = 100000000
 	WeiPerEther    = 1000000000000000000
+	// GctExt is the extension for GCT Tengo script files
+	GctExt = ".gct"
 )
 
 // SimpleTimeFormat a common, but non-implemented time format in golang

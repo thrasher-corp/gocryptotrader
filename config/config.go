@@ -1337,7 +1337,6 @@ func (c *Config) checkGCTScriptConfig() error {
 	}
 
 	gctscript.ScriptPath = scriptPath
-	gctscript.GCTScriptConfig = &c.GCTScript
 
 	return nil
 }
