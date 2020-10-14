@@ -31,8 +31,8 @@ package charts
 
 var (
 	templateList = map[string][]byte{
-{{- range .Data }}
-	{{ printf "%q: %v" .Name .Data }},
+{{- range .Output }}
+	{{ printf "%q: %v" .Name .Output }},
 {{- end }}
 }
 )
@@ -79,7 +79,12 @@ func main() {
 		}
 	}()
 	if err != nil {
-		log.Print(err)
+		log.Printf("template execution failed: %v, cleaning up files", err)
+		err := os.RemoveAll(f.Name())
+		if err != nil {
+			log.Println(err)
+		}
+		os.Exit(0)
 	}
 
 	cmd := exec.Command("go", "fmt")
@@ -98,6 +103,9 @@ func buildFileList() ([]string, error) {
 		return []string{}, errors.New("no template path found")
 	}
 	err := filepath.Walk(templatePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if !info.IsDir() {
 			files = append(files, path)
 		}

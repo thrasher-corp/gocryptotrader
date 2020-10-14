@@ -87,10 +87,13 @@ func GenerateChart(args ...objects.Object) (objects.Object, error) {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	chart := charts.New(chartName, "timeseries", OutputDir)
 	var err error
+	chart, err := charts.New(chartName, "timeseries", OutputDir)
+	if err != nil {
+		return nil, err
+	}
 	chart.WriteFile = writeFile
-	chart.Data.Data, err = charts.KlineItemToSeriesData(ohlcvData)
+	chart.Output.Data, err = charts.KlineItemToSeriesData(ohlcvData)
 	if err != nil {
 		return nil, err
 	}

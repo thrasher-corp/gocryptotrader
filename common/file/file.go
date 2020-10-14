@@ -57,17 +57,17 @@ func Move(sourcePath, destPath string) error {
 }
 
 // Copy copies a file from a source file to a destination file
-func Copy(sourceFile, destFile string) (int64, error) {
-	sfStat, err := os.Stat(sourceFile)
+func Copy(sourcePath, destPath string) (int64, error) {
+	sfStat, err := os.Stat(sourcePath)
 	if err != nil {
 		return 0, err
 	}
 
 	if !sfStat.Mode().IsRegular() {
-		return 0, fmt.Errorf("%s is not a file", sourceFile)
+		return 0, fmt.Errorf("%s is not a file", sourcePath)
 	}
 
-	sf, err := os.Open(sourceFile)
+	sf, err := os.Open(sourcePath)
 	if err != nil {
 		return 0, err
 	}
@@ -75,7 +75,7 @@ func Copy(sourceFile, destFile string) (int64, error) {
 		_ = sf.Close()
 	}()
 
-	f, err := os.Create(destFile)
+	f, err := os.Create(destPath)
 	if err != nil {
 		return 0, err
 	}

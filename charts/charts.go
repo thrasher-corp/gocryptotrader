@@ -14,25 +14,28 @@ import (
 )
 
 // New returns a new chart instance
-func New(name, template, outPath string) (chart Chart) {
+func New(name, template, outPath string) (chart *Chart, err error) {
+	chart = new(Chart)
 	switch template {
 	case "basic":
-		chart.template = "basic.tmpl"
+		chart.Template = "basic.tmpl"
 	case "timeseries":
-		chart.template = "timeseries.tmpl"
+		chart.Template = "timeseries.tmpl"
 	case "timeseries-markers":
-		chart.template = "timeseries-markers.tmpl"
+		chart.Template = "timeseries-markers.tmpl"
+	default:
+		return nil, errors.New("invalid Template")
 	}
-	chart.output = name
+	chart.Config.File = name
 	if outPath == "" {
-		chart.OutputPath = "output"
+		chart.Path = "Output"
 	} else {
-		chart.OutputPath = outPath
+		chart.Path = outPath
 	}
-	return chart
+	return chart, nil
 }
 
-// Generate chart output
+// Generate chart Output
 func (c *Chart) Generate() (*os.File, error) {
 	var list []string
 	if c.TemplatePath == "" {
@@ -41,9 +44,9 @@ func (c *Chart) Generate() (*os.File, error) {
 			return nil, err
 		}
 
-		data, ok := templateList[c.template]
+		data, ok := templateList[c.Template]
 		if !ok {
-			return nil, errors.New("template: " + c.template + " not found")
+			return nil, errors.New("Template: " + c.Template + " not found")
 		}
 		templateFile, err := writeTemplate(data)
 		if err != nil {
@@ -55,7 +58,7 @@ func (c *Chart) Generate() (*os.File, error) {
 		}
 	} else {
 		list = []string{
-			filepath.Join(c.TemplatePath, c.template),
+			filepath.Join(c.TemplatePath, c.Template),
 			filepath.Join(c.TemplatePath, "base.tmpl"),
 		}
 	}
@@ -67,13 +70,13 @@ func (c *Chart) Generate() (*os.File, error) {
 	}
 
 	if c.WriteFile {
-		if filepath.Ext(c.output) != ".html" {
-			c.output += ".html"
+		if filepath.Ext(c.Config.File) != ".html" {
+			c.Config.File += ".html"
 		}
 		var createErr error
-		f, createErr := os.Create(filepath.Join(c.OutputPath, c.output))
+		f, createErr := os.Create(filepath.Join(c.Path, c.Config.File))
 		if createErr != nil {
-			return nil, err
+			return nil, createErr
 		}
 		createErr = c.writeJavascriptLibrary()
 		if createErr != nil {
@@ -91,14 +94,14 @@ func (c *Chart) Generate() (*os.File, error) {
 		c.w = bytes.NewBuffer(tempByte)
 	}
 
-	if c.Data.Height == 0 {
-		c.Data.Height = 1024
+	if c.Output.Page.Height == 0 {
+		c.Output.Page.Height = 1024
 	}
-	if c.Data.Width == 0 {
-		c.Data.Width = 768
+	if c.Output.Page.Width == 0 {
+		c.Output.Page.Width = 768
 	}
 
-	err = tmpl.Execute(c.w, c.Data)
+	err = tmpl.Execute(c.w, c.Output)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +142,7 @@ func KlineItemToSeriesData(item *kline.Item) ([]SeriesData, error) {
 }
 
 func (c *Chart) writeJavascriptLibrary() error {
-	outfile := filepath.Join(c.OutputPath, tvScriptName)
+	outfile := filepath.Join(c.Path, tvScriptName)
 	if c.TemplatePath == "" {
 		f, err := os.Create(outfile)
 		if err != nil {
@@ -152,11 +155,8 @@ func (c *Chart) writeJavascriptLibrary() error {
 		if n != len(templateList["lightweight-charts.standalone.production.js"]) {
 			return errors.New("write length mismatch")
 		}
-	} else {
-		_, err := file.Copy(filepath.Join(c.TemplatePath, tvScriptName), outfile)
-		if err != nil {
-			return err
-		}
+		return f.Close()
 	}
-	return nil
+	_, err := file.Copy(filepath.Join(c.TemplatePath, tvScriptName), outfile)
+	return err
 }

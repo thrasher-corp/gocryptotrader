@@ -21,7 +21,7 @@ func TestChartResult(t *testing.T) {
 		TemplatePath string
 		output       string
 		outputPath   string
-		Data         Data
+		Data         Output
 		w            io.ReadWriter
 		writeFile    bool
 	}
@@ -35,13 +35,13 @@ func TestChartResult(t *testing.T) {
 			"valid",
 			fields{
 				output:       "basic.html",
-				outputPath:   "output",
+				outputPath:   "Output",
 				template:     "basic.tmpl",
 				TemplatePath: "templates",
 				writeFile:    false,
-				Data: Data{
+				Data: Output{
 					Data: genIntervalData(1),
-					size: size{
+					Page: Page{
 						Height: 1920,
 						Width:  1080,
 					},
@@ -54,13 +54,13 @@ func TestChartResult(t *testing.T) {
 			"valid-timeseries-from-map",
 			fields{
 				output:       "timeseries.html",
-				outputPath:   "output",
+				outputPath:   "Output",
 				template:     "timeseries.tmpl",
 				TemplatePath: "",
 				writeFile:    false,
-				Data: Data{
+				Data: Output{
 					Data: ohlcvKline,
-					size: size{
+					Page: Page{
 						Height: 1920,
 						Width:  1080,
 					},
@@ -75,14 +75,14 @@ func TestChartResult(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Chart{
 				Config: Config{
-					template:     tt.fields.template,
+					Template:     tt.fields.template,
 					TemplatePath: tt.fields.TemplatePath,
-					output:       tt.fields.output,
-					OutputPath:   tt.fields.outputPath,
+					File:         tt.fields.output,
+					Path:         tt.fields.outputPath,
 					w:            tt.fields.w,
 					WriteFile:    tt.fields.writeFile,
 				},
-				Data: tt.fields.Data,
+				Output: tt.fields.Data,
 			}
 			f, err := c.Generate()
 			if err != nil {
@@ -105,52 +105,6 @@ func TestChartResult(t *testing.T) {
 				if err != nil {
 					t.Error("failed to remove file manual removal may be required")
 				}
-			}
-		})
-	}
-}
-
-func TestNew(t *testing.T) {
-	tests := []struct {
-		name string
-		want Chart
-	}{
-		{
-			"basic",
-			Chart{
-				Config: Config{
-					output:     "basic",
-					template:   "basic.tmpl",
-					OutputPath: "output",
-				},
-			},
-		},
-		{
-			"timeseries",
-			Chart{
-				Config: Config{
-					output:     "timeseries",
-					template:   "timeseries.tmpl",
-					OutputPath: "output",
-				},
-			},
-		},
-		{
-			"timeseries-markers",
-			Chart{
-				Config: Config{
-					output:     "timeseries-markers",
-					template:   "timeseries-markers.tmpl",
-					OutputPath: "output",
-				},
-			},
-		},
-	}
-	for x := range tests {
-		tt := tests[x]
-		t.Run(tt.name, func(t *testing.T) {
-			if got := New(tt.name, tt.name, tt.want.OutputPath); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("New() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -210,7 +164,7 @@ func TestChartGenerate(t *testing.T) {
 		TemplatePath string
 		output       string
 		OutputPath   string
-		Data         Data
+		Data         Output
 		w            io.ReadWriter
 		WriteFile    bool
 	}
@@ -224,10 +178,10 @@ func TestChartGenerate(t *testing.T) {
 			"basic",
 			fields{
 				output:     "basic.html",
-				OutputPath: "output",
+				OutputPath: "Output",
 				template:   "basic.tmpl",
 				WriteFile:  true,
-				Data: Data{
+				Data: Output{
 					Data: genIntervalData(365),
 				},
 			},
@@ -238,11 +192,11 @@ func TestChartGenerate(t *testing.T) {
 			"basic-invalid",
 			fields{
 				output:       "basic.html",
-				OutputPath:   "output",
+				OutputPath:   "Output",
 				template:     "basic.tmpl",
 				TemplatePath: filepath.Join("generate"),
 				WriteFile:    true,
-				Data: Data{
+				Data: Output{
 					Data: genIntervalData(365),
 				},
 			},
@@ -253,11 +207,11 @@ func TestChartGenerate(t *testing.T) {
 			"timeseries",
 			fields{
 				output:       "timeseries.html",
-				OutputPath:   "output",
+				OutputPath:   "Output",
 				template:     "timeseries.tmpl",
 				TemplatePath: "templates",
 				WriteFile:    true,
-				Data: Data{
+				Data: Output{
 					Data: ohlcvKline,
 				},
 			},
@@ -270,14 +224,14 @@ func TestChartGenerate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Chart{
 				Config: Config{
-					template:     tt.fields.template,
+					Template:     tt.fields.template,
 					TemplatePath: tt.fields.TemplatePath,
-					output:       tt.fields.output,
-					OutputPath:   tt.fields.OutputPath,
+					File:         tt.fields.output,
+					Path:         tt.fields.OutputPath,
 					w:            tt.fields.w,
 					WriteFile:    tt.fields.WriteFile,
 				},
-				Data: tt.fields.Data,
+				Output: tt.fields.Data,
 			}
 			f, err := c.Generate()
 			if (err != nil) != tt.wantErr {
@@ -356,20 +310,105 @@ func TestKlineItemToSeriesData(t *testing.T) {
 func TestTestTestTest(t *testing.T) {
 	c := Chart{
 		Config: Config{
-			OutputPath:   "output",
-			output:       "timeseries.html",
-			template:     "timeseries.tmpl",
+			Path:         "Output",
+			File:         "timeseries.html",
+			Template:     "timeseries.tmpl",
 			TemplatePath: "",
 			WriteFile:    true,
 		},
 	}
 	var err error
-	c.Data.Data, err = KlineItemToSeriesData(genOHCLVData(365))
+	c.Output.Data, err = KlineItemToSeriesData(genOHCLVData(365))
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = c.Generate()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNew(t *testing.T) {
+	type args struct {
+		name     string
+		template string
+		outPath  string
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantChart *Chart
+		wantErr   bool
+	}{
+		{
+			"basic",
+			args{
+				name:     "basic",
+				template: "basic",
+				outPath:  "Output",
+			},
+			&Chart{
+				Config: Config{
+					Template: "basic.tmpl",
+					File:     "basic",
+					Path:     "Output",
+				},
+			},
+			false,
+		},
+		{
+			"timeseries",
+			args{
+				name:     "timeseries",
+				template: "timeseries",
+				outPath:  "Output",
+			},
+			&Chart{
+				Config: Config{
+					Template: "timeseries.tmpl",
+					File:     "timeseries",
+					Path:     "Output",
+				},
+			},
+			false,
+		},
+		{
+			"timeseries-markers",
+			args{
+				name:     "timeseries-markers",
+				template: "timeseries-markers",
+				outPath:  "",
+			},
+			&Chart{
+				Config: Config{
+					Template: "timeseries-markers.tmpl",
+					File:     "timeseries-markers",
+					Path:     "Output",
+				},
+			},
+			false,
+		},
+		{
+			"invalid",
+			args{
+				name:     "invalid",
+				template: "invalid",
+				outPath:  "Output",
+			},
+			nil,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotChart, err := New(tt.args.name, tt.args.template, tt.args.outPath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotChart, tt.wantChart) {
+				t.Errorf("New() gotChart = %v, want %v", gotChart, tt.wantChart)
+			}
+		})
 	}
 }

@@ -20,9 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for charts
 
-#### Current Features for chart package
-
-+ Generate Timeseries Chat from OHLCV Data
++ Generate Timeseries Chart from OHLCV Data
 + Generate Standard chart from time/value Data
 + Output to HTML
 + Serve over HTTP

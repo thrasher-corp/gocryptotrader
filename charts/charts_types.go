@@ -12,29 +12,30 @@ var tempByte []byte
 // Chart configuration options
 type Chart struct {
 	Config
-	Data
+	Output
 }
 
 // Config handles chart configurable options
 type Config struct {
-	template     string
+	Template     string
 	TemplatePath string
-	output       string
-	OutputPath   string
+	File         string
+	Path         string
 
 	w         io.ReadWriter
 	WriteFile bool
 }
 
-// Data holds page related configuration data that is passed to template generation
-type Data struct {
-	PageTitle string
-	size
+// Output holds page related configuration data that is passed to Template generation
+type Output struct {
+	Page Page
+	Exchange string
 	Pair string
 	Data interface{}
 }
 
-type size struct {
+type Page struct {
+	PageTitle string
 	Width  float64
 	Height float64
 }

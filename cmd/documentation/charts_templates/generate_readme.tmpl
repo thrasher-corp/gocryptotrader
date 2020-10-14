@@ -1,0 +1,19 @@
+{{define "charts generate" -}}
+{{template "header" .}}
+
+#### Usage
+
+This tool will run out of box without any configuration but flag overrides are provided (with their default values):
+```shell
+  -file string
+    	override output file (default "chart_data_gen.go")
+  -output string
+    	override output path (default "..")
+  -path string
+    	path to load templates from (default "../templates")
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}
