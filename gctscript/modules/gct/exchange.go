@@ -260,7 +260,26 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
 	}
-	orderDetails, err := wrappers.GetWrapper().QueryOrder(exchangeName, orderID)
+	currencyPairString, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
+	}
+	assetTypeString, ok := objects.ToString(args[3])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeString)
+	}
+
+	pair, err := currency.NewPairFromString(currencyPairString)
+	if err != nil {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
+	}
+
+	assetType := asset.New(assetTypeString)
+	if assetType == nil {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeString)
+	}
+
+	orderDetails, err := wrappers.GetWrapper().QueryOrder(exchangeName, orderID, pair, assetType[0])
 	if err != nil {
 		return nil, err
 	}
