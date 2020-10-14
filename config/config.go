@@ -1516,12 +1516,12 @@ func GetFilePath(configfile string) (configPath string, isImplicitDefaultPath bo
 // migrateConfigToDefaultPath will move the config file to the default
 // config directory as `File` or `EncryptedFile` depending on whether the config
 // is encrypted
-func migrateConfigToDefaultPath(configfile string) (string, error) {
-	if !file.Exists(configfile) {
-		return "", fmt.Errorf("file %s does not exist", configfile)
+func migrateConfigToDefaultPath(configFile string) (string, error) {
+	if !file.Exists(configFile) {
+		return "", fmt.Errorf("file %s does not exist", configFile)
 	}
 
-	data, err := ioutil.ReadFile(configfile)
+	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return "", err
 	}
@@ -1534,15 +1534,15 @@ func migrateConfigToDefaultPath(configfile string) (string, error) {
 	} else {
 		target = filepath.Join(newDir, File)
 	}
-	if configfile == target {
-		return configfile, nil
+	if configFile == target {
+		return configFile, nil
 	}
 	if file.Exists(target) {
-		log.Warnf(log.ConfigMgr, "config file already found in '%s'; not overwriting, defaulting to %s", target, configfile)
-		return configfile, nil
+		log.Warnf(log.ConfigMgr, "config file already found in '%s'; not overwriting, defaulting to %s", target, configFile)
+		return configFile, nil
 	}
 
-	err = file.Move(configfile, target)
+	err = file.Move(configFile, target)
 	if err != nil {
 		return "", err
 	}
