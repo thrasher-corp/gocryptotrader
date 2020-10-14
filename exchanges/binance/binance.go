@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -63,10 +64,10 @@ const (
 type Binance struct {
 	exchange.Base
 
-	buffer       map[string]chan *WebsocketDepthStream
+	buffer       map[string]map[asset.Item]chan *WebsocketDepthStream
 	mtx          sync.Mutex
-	fetchingbook map[string]bool
-	initialSync  map[string]bool
+	fetchingbook map[string]map[asset.Item]bool
+	initialSync  map[string]map[asset.Item]bool
 	jobs         chan Job
 
 	// Valid string list that is required by the exchange

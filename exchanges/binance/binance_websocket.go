@@ -102,7 +102,7 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 		Delay:             pingDelay,
 	})
 
-	b.preConnectionSetup()
+	b.preConnectionSetup(conn)
 
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData(conn)
@@ -128,14 +128,14 @@ func (b *Binance) spawnConnection(setup stream.ConnectionSetup) (stream.Connecti
 	}, nil
 }
 
-func (b *Binance) preConnectionSetup() {
-	b.buffer = make(map[string]chan *WebsocketDepthStream)
-	b.fetchingbook = make(map[string]bool)
-	b.initialSync = make(map[string]bool)
+func (b *Binance) preConnectionSetup(conn stream.Connection) {
+	b.buffer = make(map[string]map[asset.Item]chan *WebsocketDepthStream)
+	b.fetchingbook = make(map[string]map[asset.Item]bool)
+	b.initialSync = make(map[string]map[asset.Item]bool)
 	b.jobs = make(chan Job, 100)
 	for i := 0; i < 10; i++ {
 		// 10 workers for synchronising book
-		b.SynchroniseWebsocketOrderbook()
+		b.SynchroniseWebsocketOrderbook(conn)
 	}
 }
 
@@ -362,7 +362,7 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 						return err
 					}
 
-					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Ticker)
+					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Ticker, pair)
 					if err != nil {
 						return err
 					}
@@ -399,7 +399,7 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 						return err
 					}
 
-					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Kline)
+					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Kline, pair)
 					if err != nil {
 						return err
 					}
@@ -429,14 +429,19 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 							err)
 					}
 
-					// fmt.Println("depth update:", depth)
+					fmt.Println("PAIR:", depth.Pair)
 
-					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Orderbook)
+					pair, err := currency.NewPairFromString(depth.Pair)
 					if err != nil {
 						return err
 					}
 
-					// fmt.Println("ASSETS:", assets)
+					assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Orderbook, pair)
+					if err != nil {
+						return err
+					}
+
+					fmt.Println("ASSETS:", assets)
 
 					for i := range assets {
 						err = b.UpdateLocalBuffer(assets[i], &depth)
@@ -475,21 +480,28 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 // SeedLocalCache seeds depth data
-func (b *Binance) SeedLocalCache(p currency.Pair, a asset.Item) error {
-	fPair, err := b.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return err
-	}
+func (b *Binance) SeedLocalCache(p currency.Pair, a asset.Items) error {
+	// fPair, err := b.FormatExchangeCurrency(p, a)
+	// if err != nil {
+	// 	return err
+	// }
 
 	ob, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: fPair.String(),
+		Symbol: p.String(),
 		Limit:  1000,
 	})
 	if err != nil {
 		return err
 	}
 
-	return b.SeedLocalCacheWithBook(p, &ob, a)
+	for i := range a {
+		err = b.SeedLocalCacheWithBook(p, &ob, a[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
@@ -545,10 +557,11 @@ func (b *Binance) CheckAndLoadBook(c currency.Pair, a asset.Item, u *WebsocketDe
 	b.mtx.Lock() // protects fetching book
 	defer b.mtx.Unlock()
 
-	ch, ok := b.buffer[c.String()]
+	ch, ok := b.buffer[c.String()][a]
 	if !ok {
 		ch = make(chan *WebsocketDepthStream, 1000)
-		b.buffer[c.String()] = ch
+		b.buffer[c.String()] = make(map[asset.Item]chan *WebsocketDepthStream)
+		b.buffer[c.String()][a] = ch
 	}
 	select {
 	case ch <- u:
@@ -556,7 +569,7 @@ func (b *Binance) CheckAndLoadBook(c currency.Pair, a asset.Item, u *WebsocketDe
 		return fmt.Errorf("channel blockage %s", c)
 	}
 
-	if b.fetchingbook[c.String()] {
+	if b.fetchingbook[c.String()][a] {
 		return nil
 	}
 
@@ -576,8 +589,19 @@ func (b *Binance) CheckAndLoadBook(c currency.Pair, a asset.Item, u *WebsocketDe
 func (b *Binance) applyBufferUpdate(cp currency.Pair, a asset.Item) error {
 	currentBook := b.Websocket.Orderbook.GetOrderbook(cp, a)
 	if currentBook == nil {
-		b.initialSync[cp.String()] = true
-		b.fetchingbook[cp.String()] = true
+		_, ok := b.initialSync[cp.String()]
+		if !ok {
+			b.initialSync[cp.String()] = make(map[asset.Item]bool)
+		}
+
+		b.initialSync[cp.String()][a] = true
+
+		_, ok = b.fetchingbook[cp.String()]
+		if !ok {
+			b.fetchingbook[cp.String()] = make(map[asset.Item]bool)
+		}
+		b.fetchingbook[cp.String()][a] = true
+
 		select {
 		case b.jobs <- Job{cp, a}:
 		default:
@@ -589,19 +613,19 @@ func (b *Binance) applyBufferUpdate(cp currency.Pair, a asset.Item) error {
 loop:
 	for {
 		select {
-		case d := <-b.buffer[cp.String()]:
+		case d := <-b.buffer[cp.String()][a]:
 			if d.LastUpdateID <= currentBook.LastUpdateID {
 				// Drop any event where u is <= lastUpdateId in the snapshot.
 				continue
 			}
 			id := currentBook.LastUpdateID + 1
-			if b.initialSync[cp.String()] {
+			if b.initialSync[cp.String()][a] {
 				// The first processed event should have U <= lastUpdateId+1 AND
 				// u >= lastUpdateId+1.
 				if d.FirstUpdateID > id && d.LastUpdateID < id {
 					return errors.New("initial sync failure")
 				}
-				b.initialSync[cp.String()] = false
+				b.initialSync[cp.String()][a] = false
 			} else {
 				// While listening to the stream, each new event's U should be
 				// equal to the previous event's u+1.
@@ -648,6 +672,8 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
 
+	fmt.Println("asset Item update:", a)
+
 	return b.Websocket.Orderbook.Update(&buffer.Update{
 		Bids:     updateBid,
 		Asks:     updateAsk,
@@ -659,32 +685,41 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
-func (b *Binance) SynchroniseWebsocketOrderbook() {
+func (b *Binance) SynchroniseWebsocketOrderbook(conn stream.Connection) {
 	b.Websocket.Wg.Add(1)
 	go func() {
 		defer b.Websocket.Wg.Done()
 		for {
 			select {
 			case job := <-b.jobs:
-				err := b.SeedLocalCache(job.Pair, job.Asset)
+				assets, err := b.Websocket.Connections.GetAssetsBySubscriptionType(conn, stream.Orderbook, job.Pair)
+				if err != nil {
+					fmt.Println(b.Websocket.Connections.GetAllSubscriptions())
+					log.Errorln(log.WebsocketMgr, "cannot fetch asssociated asset types", err)
+					continue
+				}
+
+				err = b.SeedLocalCache(job.Pair, assets)
 				if err != nil {
 					log.Errorln(log.WebsocketMgr, "seeding local cache for orderbook error", err)
 					continue
 				}
 
-				b.mtx.Lock()
-				err = b.applyBufferUpdate(job.Pair, job.Asset)
-				if err != nil {
-					log.Errorln(log.WebsocketMgr, "applying orderbook updates error", err)
-					err = b.Websocket.Orderbook.FlushOrderbook(job.Pair, job.Asset)
+				for i := range assets {
+					b.mtx.Lock()
+					err = b.applyBufferUpdate(job.Pair, assets[i])
 					if err != nil {
-						log.Errorln(log.WebsocketMgr, "flushing websocket error:", err)
+						log.Errorln(log.WebsocketMgr, "applying orderbook updates error", err)
+						err = b.Websocket.Orderbook.FlushOrderbook(job.Pair, assets[i])
+						if err != nil {
+							log.Errorln(log.WebsocketMgr, "flushing websocket error:", err)
+						}
+						continue
 					}
-					continue
-				}
 
-				b.fetchingbook[job.Pair.String()] = false
-				b.mtx.Unlock()
+					b.fetchingbook[job.Pair.String()][assets[i]] = false
+					b.mtx.Unlock()
+				}
 
 			case <-b.Websocket.ShutdownC:
 				return
@@ -702,26 +737,26 @@ type Channel struct {
 // GenerateSubscriptions generates the default subscription set
 func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels []Channel
-	if options.Features.TickerFetching {
-		channels = append(channels, Channel{
-			Definition: "@ticker",
-			Type:       stream.Ticker,
-		})
-	}
+	// if options.Features.TickerFetching {
+	// 	channels = append(channels, Channel{
+	// 		Definition: "@ticker",
+	// 		Type:       stream.Ticker,
+	// 	})
+	// }
 
-	if options.Features.TradeFetching {
-		channels = append(channels, Channel{
-			Definition: "@trade",
-			Type:       stream.Trade,
-		})
-	}
+	// if options.Features.TradeFetching {
+	// 	channels = append(channels, Channel{
+	// 		Definition: "@trade",
+	// 		Type:       stream.Trade,
+	// 	})
+	// }
 
-	if options.Features.KlineFetching {
-		channels = append(channels, Channel{
-			Definition: "@kline_1m",
-			Type:       stream.Kline,
-		})
-	}
+	// if options.Features.KlineFetching {
+	// 	channels = append(channels, Channel{
+	// 		Definition: "@kline_1m",
+	// 		Type:       stream.Kline,
+	// 	})
+	// }
 
 	if options.Features.OrderbookFetching {
 		channels = append(channels, Channel{
