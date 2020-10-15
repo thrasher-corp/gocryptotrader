@@ -41,11 +41,29 @@ func Writer(file string) (*os.File, error) {
 // This must be used across the codebase for compatibility with Docker volumes
 // and Golang (fixes Invalid cross-device link when using os.Rename)
 func Move(sourcePath, destPath string) error {
+	sourceAbs, err := filepath.Abs(sourcePath)
+	if err != nil {
+		return err
+	}
+	destAbs, err := filepath.Abs(destPath)
+	if err != nil {
+		return err
+	}
+	if sourceAbs == destAbs {
+		return nil
+	}
 	inputFile, err := os.Open(sourcePath)
 	if err != nil {
 		return err
 	}
 
+	destDir := filepath.Dir(destPath)
+	if !Exists(destDir) {
+		err = os.MkdirAll(destDir, 0770)
+		if err != nil {
+			return err
+		}
+	}
 	outputFile, err := os.Create(destPath)
 	if err != nil {
 		inputFile.Close()

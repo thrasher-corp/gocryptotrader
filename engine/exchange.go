@@ -57,7 +57,7 @@ func dryrunParamInteraction(param string) {
 		return
 	}
 
-	if !Bot.Settings.EnableDryRun && !flagSet["dryrun"] {
+	if !Bot.Settings.EnableDryRun {
 		log.Warnf(log.Global,
 			"Command line argument '-%s' induces dry run mode."+
 				" Set -dryrun=false if you wish to override this.",
