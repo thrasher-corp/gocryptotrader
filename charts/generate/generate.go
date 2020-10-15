@@ -7,13 +7,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 )
 
@@ -57,44 +55,45 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println(data)
+	// err = common.CreateDir(outputPath)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fullout := filepath.Join(outputPath, outputFile)
+	// f, err := os.Create(fullout)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	err = common.CreateDir(outputPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fullout := filepath.Join(outputPath, outputFile)
-	f, err := os.Create(fullout)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = tmpl.Execute(f, struct {
-		Data []templateData
-	}{
-		Data: data,
-	})
-	defer func() {
-		err = f.Close()
-		if err != nil {
-			log.Print(err)
-		}
-	}()
-	if err != nil {
-		log.Printf("template execution failed: %v, cleaning up files", err)
-		err := os.RemoveAll(f.Name())
-		if err != nil {
-			log.Println(err)
-		}
-		os.Exit(0)
-	}
+	// err = tmpl.Execute(f, struct {
+	// 	Data []templateData
+	// }{
+	// 	Data: data,
+	// })
+	// defer func() {
+	// 	err = f.Close()
+	// 	if err != nil {
+	// 		log.Print(err)
+	// 	}
+	// }()
+	// if err != nil {
+	// 	log.Printf("template execution failed: %v, cleaning up files", err)
+	// 	err := os.RemoveAll(f.Name())
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 	}
+	// 	os.Exit(0)
+	// }
+	//
+	// cmd := exec.Command("go", "fmt")
+	// cmd.Dir = outputPath
+	// out, err := cmd.Output()
+	// if err != nil {
+	// 	log.Printf("unable to go fmt. output: %s err: %s", out, err)
+	// }
 
-	cmd := exec.Command("go", "fmt")
-	cmd.Dir = outputPath
-	out, err := cmd.Output()
-	if err != nil {
-		log.Printf("unable to go fmt. output: %s err: %s", out, err)
-	}
-
-	log.Printf("Template: %v generated", fullout)
+	// log.Printf("Template: %v generated", fullout)
 }
 
 func buildFileList() ([]string, error) {

@@ -357,32 +357,32 @@ func TestNew(t *testing.T) {
 			false,
 		},
 		{
-			"timeseries",
+			"candlestickseries",
 			args{
-				name:     "timeseries",
-				template: "timeseries",
+				name:     "candlestickseries",
+				template: "candlestickseries",
 				outPath:  "Output",
 			},
 			&Chart{
 				Config: Config{
-					Template: "timeseries.tmpl",
-					File:     "timeseries",
+					Template: "candlestickseries.tmpl",
+					File:     "candlestickseries",
 					Path:     "Output",
 				},
 			},
 			false,
 		},
 		{
-			"timeseries-markers",
+			"candlestickseries-markers",
 			args{
-				name:     "timeseries-markers",
-				template: "timeseries-markers",
+				name:     "candlestickseries-markers",
+				template: "candlestickseries-markers",
 				outPath:  "",
 			},
 			&Chart{
 				Config: Config{
-					Template: "timeseries-markers.tmpl",
-					File:     "timeseries-markers",
+					Template: "candlestickseries-markers.tmpl",
+					File:     "candlestickseries-markers",
 					Path:     "Output",
 				},
 			},
@@ -399,7 +399,8 @@ func TestNew(t *testing.T) {
 			true,
 		},
 	}
-	for _, tt := range tests {
+	for x := range tests {
+		tt := tests[x]
 		t.Run(tt.name, func(t *testing.T) {
 			gotChart, err := New(tt.args.name, tt.args.template, tt.args.outPath)
 			if (err != nil) != tt.wantErr {

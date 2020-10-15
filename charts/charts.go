@@ -19,10 +19,10 @@ func New(name, template, outPath string) (chart *Chart, err error) {
 	switch template {
 	case "basic":
 		chart.Template = "basic.tmpl"
-	case "timeseries":
-		chart.Template = "timeseries.tmpl"
-	case "timeseries-markers":
-		chart.Template = "timeseries-markers.tmpl"
+	case "candlestickseries":
+		chart.Template = "candlestickseries.tmpl"
+	case "candlestickseries-markers":
+		chart.Template = "candlestickseries-markers.tmpl"
 	default:
 		return nil, errors.New("invalid Template")
 	}

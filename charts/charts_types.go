@@ -3,8 +3,8 @@ package charts
 import "io"
 
 const (
-	watermark    = "GoCryptoTrader"
-	tvScriptName = "lightweight-charts.standalone.production.js"
+	watermark         = "GoCryptoTrader"
+	tvScriptName      = "lightweight-charts.standalone.production.js"
 	chartjsScriptName = "Chart.bundle.min.js"
 )
 
@@ -29,16 +29,16 @@ type Config struct {
 
 // Output holds page related configuration data that is passed to Template generation
 type Output struct {
-	Page Page
+	Page     Page
 	Exchange string
-	Pair string
-	Data interface{}
+	Pair     string
+	Data     interface{}
 }
 
 type Page struct {
 	PageTitle string
-	Width  float64
-	Height float64
+	Width     float64
+	Height    float64
 }
 
 // IntervalData is used to store basic chart data
