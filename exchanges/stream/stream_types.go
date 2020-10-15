@@ -19,13 +19,16 @@ type Connection interface {
 	GenerateMessageID(highPrecision bool) int64
 	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
-	// IsAssetAssociatedWithConnection(asset.Item) bool
-	// SetControllingAssets(asset.Items)
 	SetURL(string)
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
 	IsAuthenticated() bool
+
+	AddSuccessfulSubscriptions(subscriptions []ChannelSubscription) error
+	RemoveSuccessfulUnsubscriptions(subscriptions []ChannelSubscription) error
+	GetAllSubscriptions() []ChannelSubscription
+	GetAssetsBySubscriptionType(t Subscription, pair currency.Pair) (asset.Items, error)
 }
 
 // Response defines generalised data from the stream connection

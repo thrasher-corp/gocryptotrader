@@ -141,4 +141,5 @@ type WebsocketConnection struct {
 	readMessageErrors chan error
 
 	Authenticated bool
+	SubscriptionManager
 }

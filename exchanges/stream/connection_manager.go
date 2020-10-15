@@ -2,23 +2,9 @@ package stream
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-)
-
-// Subscription defines a subscription type
-type Subscription int
-
-// Consts here define difference subscription types
-const (
-	Orderbook Subscription = iota + 1
-	Kline
-	Trade
-	Ticker
 )
 
 // // ConnectionSubscriptions defines connection pool and associated current
@@ -50,7 +36,7 @@ const (
 // ConnectionManager manages connections
 type ConnectionManager struct {
 	sync.Mutex
-	conn               map[Connection]map[Subscription][]ChannelSubscription
+	connections        []Connection
 	features           *protocol.Features
 	connector          func(conn Connection) error
 	generator          func(options SubscriptionOptions) ([]ChannelSubscription, error)
@@ -105,7 +91,6 @@ func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, err
 	}
 
 	return &ConnectionManager{
-		conn:               make(map[Connection]map[Subscription][]ChannelSubscription),
 		connector:          cfg.ExchangeConnector,
 		generator:          cfg.ExchangeGenerateSubscriptions,
 		subscriber:         cfg.ExchangeSubscriber,
@@ -169,15 +154,16 @@ func (c *ConnectionManager) CreateConnectionsBySubscriptions() error {
 }
 
 // LoadNewConnection loads a newly established connection
-func (c *ConnectionManager) LoadNewConnection(newConn Connection) error {
+func (c *ConnectionManager) LoadNewConnection(conn Connection) error {
 	c.Lock()
 	defer c.Unlock()
-	_, ok := c.conn[newConn]
-	if !ok {
-		c.conn[newConn] = nil
-		return nil
+	for i := range c.connections {
+		if c.connections[i] == conn {
+			return errors.New("connection already loaded")
+		}
 	}
-	return errors.New("connection already loaded")
+	c.connections = append(c.connections, conn)
+	return nil
 }
 
 // Connect connects all loaded connections
@@ -185,8 +171,8 @@ func (c *ConnectionManager) Connect() error {
 	c.Lock()
 	defer c.Unlock()
 
-	for conn := range c.conn {
-		err := c.connector(conn)
+	for i := range c.connections {
+		err := c.connector(c.connections[i])
 		if err != nil {
 			return err
 		}
@@ -207,15 +193,16 @@ func (c *ConnectionManager) Subscribe(subs []ChannelSubscription) error {
 		return errors.New("no subscription data cannot subscribe")
 	}
 
-	for conn := range c.conn {
-		if conn.IsAuthenticated() {
+	for i := range c.connections {
+		if c.connections[i].IsAuthenticated() {
 			continue
 		}
 
 		err := c.subscriber(SubscriptionParamaters{
 			Items:   subs,
-			Conn:    conn,
-			Manager: c})
+			Conn:    c.connections[i],
+			Manager: c,
+		})
 		if err != nil {
 			return err
 		}
@@ -241,128 +228,6 @@ func (c *ConnectionManager) Unsubscribe(unsubs []SubscriptionParamaters) error {
 		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// GetAllSubscriptions returns current subscriptions for our streaming
-// connections
-func (c *ConnectionManager) GetAllSubscriptions() []ChannelSubscription {
-	c.Lock()
-	defer c.Unlock()
-	var subscriptions []ChannelSubscription
-	for _, subTypes := range c.conn {
-		for _, subs := range subTypes {
-			subscriptions = append(subscriptions, subs...)
-		}
-	}
-	return subscriptions
-}
-
-// GetAssetsBySubscriptionType returns assets associated with the same channel
-// subscription type. This is used for when margin and spot which collectively
-// are the same thing but have different functionality
-func (c *ConnectionManager) GetAssetsBySubscriptionType(conn Connection, subType Subscription, pair currency.Pair) (asset.Items, error) {
-	// fmt.Printf("Getting assets from conn: %p\n", conn)
-	c.Lock()
-	defer c.Unlock()
-	val, ok := c.conn[conn]
-	if !ok {
-		return nil, errors.New("cannot find connection")
-	}
-
-	// fmt.Println("CONNECTION Container:", c.conn)
-	// fmt.Println("CONNECTION Container VAL:", val)
-	fmt.Printf("subscriptions: %v Connection: %p\n", val, conn)
-
-	var assets asset.Items
-	for s, subscriptions := range val {
-		fmt.Println("CATS DOOM!")
-		if s != subType {
-			fmt.Println("bad subtype")
-			continue
-		}
-
-		for i := range subscriptions {
-			if !subscriptions[i].Currency.Equal(pair) ||
-				assets.Contains(subscriptions[i].Asset) {
-				fmt.Println("THIS SUCKS!")
-				continue
-			}
-			assets = append(assets, subscriptions[i].Asset)
-		}
-	}
-
-	if len(assets) == 0 {
-		return nil, errors.New("no asset associations found")
-	}
-
-	return assets, nil
-}
-
-// AddSuccessfulSubscriptions adds subs mate
-func (c *ConnectionManager) AddSuccessfulSubscriptions(conn Connection, subs []ChannelSubscription) error {
-	// fmt.Printf("Adding sucessful subs to conn: %p\n", conn)
-	// c.Lock()
-	// defer c.Unlock()
-	subscriptions, ok := c.conn[conn]
-	if !ok {
-		return errors.New("connection not set in manager")
-	}
-
-	if subscriptions == nil {
-		subscriptions = make(map[Subscription][]ChannelSubscription)
-		for i := range subs {
-			t := subs[i].SubscriptionType
-			subscriptions[t] = append(subscriptions[t], subs[i])
-		}
-		c.conn[conn] = subscriptions
-		return nil
-	}
-
-	for i := range subs {
-		t := subs[i].SubscriptionType
-		subscribed, ok := subscriptions[t]
-		if !ok {
-			return fmt.Errorf("connection does not have subscribed type %v", t)
-		}
-		for j := range subscribed {
-			if subscribed[j].Channel == subs[i].Channel {
-				return fmt.Errorf("channel %s already subscribed", subs[i].Channel)
-			}
-		}
-		subscriptions[t] = append(subscriptions[t], subs[i])
-	}
-	return nil
-}
-
-// RemoveSuccessfulUnsubscriptions removes subs mate
-func (c *ConnectionManager) RemoveSuccessfulUnsubscriptions(conn Connection, unsub []ChannelSubscription) error {
-	// c.Lock()
-	// defer c.Unlock()
-	subscriptions, ok := c.conn[conn]
-	if !ok {
-		return errors.New("connection not set in manager")
-	}
-
-	if subscriptions == nil {
-		return errors.New("connection does not have associated subscriptions")
-	}
-
-	for x := range unsub {
-		t := unsub[x].SubscriptionType
-		subscribed, ok := subscriptions[t]
-		if !ok {
-			return fmt.Errorf("connection does not have subscribed type %v", t)
-		}
-		for y := range subscribed {
-			if subscribed[y].Channel == unsub[x].Channel {
-				subscribed[y] = subscribed[len(subscribed)-1]
-				subscribed[len(subscribed)-1] = ChannelSubscription{}
-				subscribed = subscribed[:len(subscribed)-1]
-			}
-		}
-		return errors.New("subscription not found")
 	}
 	return nil
 }
