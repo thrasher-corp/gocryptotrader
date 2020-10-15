@@ -310,10 +310,10 @@ func TestKlineItemToSeriesData(t *testing.T) {
 func TestTestTestTest(t *testing.T) {
 	c := Chart{
 		Config: Config{
-			Path:         "Output",
+			Path:         "output",
 			File:         "timeseries.html",
 			Template:     "timeseries.tmpl",
-			TemplatePath: "",
+			TemplatePath: "templates",
 			WriteFile:    true,
 		},
 	}

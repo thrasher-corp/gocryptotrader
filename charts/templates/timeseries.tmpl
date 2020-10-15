@@ -51,4 +51,31 @@
           {{end}}]
    )
 </script>
+
+<canvas id="myChart"></canvas>
+    <script>
+        var ctx = document.getElementById('myChart').getContext('2d');
+        var barchart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {{range .Data }}
+                       '{{.Timestamp}}',
+                    {{end}}
+                ],
+                datasets: [{
+                    label: 'Volume',
+                    backgroundColor: 'rgb(255, 99, 132)',
+                    borderColor: 'rgb(255, 99, 132)',
+                    data: [
+                                       {{range .Data }}
+                                          '{{.Volume}}',
+                                       {{end}}
+                    ]
+                }]
+            },
+            options: {}
+        });
+    </script>
+    </body>
 {{end}}

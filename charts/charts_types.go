@@ -5,6 +5,7 @@ import "io"
 const (
 	watermark    = "GoCryptoTrader"
 	tvScriptName = "lightweight-charts.standalone.production.js"
+	chartjsScriptName = "Chart.bundle.min.js"
 )
 
 var tempByte []byte

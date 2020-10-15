@@ -142,9 +142,10 @@ func KlineItemToSeriesData(item *kline.Item) ([]SeriesData, error) {
 }
 
 func (c *Chart) writeJavascriptLibrary() error {
-	outfile := filepath.Join(c.Path, tvScriptName)
+	tvOutfile := filepath.Join(c.Path, tvScriptName)
+	chartJSOutfile := filepath.Join(c.Path, chartjsScriptName)
 	if c.TemplatePath == "" {
-		f, err := os.Create(outfile)
+		f, err := os.Create(tvOutfile)
 		if err != nil {
 			return err
 		}
@@ -157,6 +158,10 @@ func (c *Chart) writeJavascriptLibrary() error {
 		}
 		return f.Close()
 	}
-	_, err := file.Copy(filepath.Join(c.TemplatePath, tvScriptName), outfile)
+	_, err := file.Copy(filepath.Join(c.TemplatePath, tvScriptName), tvOutfile)
+	if err != nil {
+		return err
+	}
+	_, err = file.Copy(filepath.Join(c.TemplatePath, chartjsScriptName), chartJSOutfile)
 	return err
 }
