@@ -3,13 +3,10 @@ package backtest
 import (
 	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
-	"github.com/thrasher-corp/gocryptotrader/charts"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -95,15 +92,6 @@ func TestBackTest(t *testing.T) {
 	// if err != nil {
 	// 	t.Fatal(err)
 	// }
-	wd, _ := os.Getwd()
-	path := filepath.Join(wd, "output")
-	chart := charts.New("backtester", "basic", path)
-	chart.Data.Data = statistic.ToChartData()
-	chart.TemplatePath = filepath.Join("..", "charts", "templates")
-	_, err = chart.ToFile().Generate()
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// err = GenerateOutput(r)
 	// if err != nil {
