@@ -106,7 +106,7 @@ func (w Wrapper) Pairs(exch string, _ bool, _ asset.Item) (*currency.Pairs, erro
 }
 
 // QueryOrder validator for test execution/scripts
-func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
+func (w Wrapper) QueryOrder(exch, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
