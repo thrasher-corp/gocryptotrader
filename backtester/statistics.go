@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/charts"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"gonum.org/v1/gonum/stat"
 )
 
@@ -289,20 +287,4 @@ func (s *Statistic) JSON(writeFile bool) ([]byte, error) {
 
 func (s *Statistic) SetStrategyName(name string) {
 	s.strategyName = name
-}
-
-func (s *Statistic) ToChartData() []charts.AdvancedIntervalData {
-	var resp []charts.AdvancedIntervalData
-
-	results := s.ReturnResults()
-	for x := range results.Transactions {
-		resp = append(resp, charts.AdvancedIntervalData{
-			Timestamp: results.Transactions[x].Time.Format(common.SimpleTimeFormat),
-			Value:     results.Transactions[x].Price,
-			Amount:    results.Transactions[x].Amount,
-			Direction: results.Transactions[x].Direction.String(),
-		})
-
-	}
-	return resp
 }

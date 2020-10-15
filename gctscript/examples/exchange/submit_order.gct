@@ -2,7 +2,7 @@ fmt := import("fmt")
 exch := import("exchange")
 
 load := func() {
-  info := exch.ordersubmit("BTC Markets","BTC-AUD","-","LIMIT","SELL",1000000, 1,"")
+  info := exch.ordersubmit("BTC Markets","BTC-AUD","-","LIMIT","SELL",1000000, 1,"", SPOT)
   fmt.println(info)
 }
 

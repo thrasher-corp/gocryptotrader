@@ -291,9 +291,9 @@ func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out 
 }
 
 // SortCandlesByTimestamp sorts candles by timestamp
-func (k *Item) SortCandlesByTimestamp(asc bool) {
+func (k *Item) SortCandlesByTimestamp(desc bool) {
 	sort.Slice(k.Candles, func(i, j int) bool {
-		if asc {
+		if desc {
 			return k.Candles[i].Time.After(k.Candles[j].Time)
 		}
 		return k.Candles[i].Time.Before(k.Candles[j].Time)

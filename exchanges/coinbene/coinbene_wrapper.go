@@ -550,13 +550,20 @@ func (c *Coinbene) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *Coinbene) CancelOrder(order *order.Cancel) error {
-	_, err := c.CancelSpotOrder(order.ID)
+func (c *Coinbene) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	_, err := c.CancelSpotOrder(o.ID)
 	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+
 	var resp order.CancelAllResponse
 	fpair, err := c.FormatExchangeCurrency(orderCancellation.Pair,
 		orderCancellation.AssetType)
@@ -626,6 +633,10 @@ func (c *Coinbene) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	if len(getOrdersRequest.Pairs) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
@@ -678,6 +689,10 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	if len(getOrdersRequest.Pairs) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {

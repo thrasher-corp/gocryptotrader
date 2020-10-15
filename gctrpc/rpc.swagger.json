@@ -3505,6 +3505,9 @@
         },
         "client_id": {
           "type": "string"
+        },
+        "asset_type": {
+          "type": "string"
         }
       }
     },

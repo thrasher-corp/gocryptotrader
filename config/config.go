@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1484,10 +1483,6 @@ func GetFilePath(configfile string) (string, error) {
 		return configfile, nil
 	}
 
-	if flag.Lookup("test.v") != nil && !TestBypass {
-		return TestFile, nil
-	}
-
 	exePath, err := common.GetExecutablePath()
 	if err != nil {
 		return "", err
@@ -1582,6 +1577,7 @@ func GetFilePath(configfile string) (string, error) {
 
 // ReadConfig verifies and checks for encryption and verifies the unencrypted
 // file contains JSON.
+// Prompts for decryption key, if target file is encrypted
 func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 	defaultPath, err := GetFilePath(configPath)
 	if err != nil {
@@ -1604,12 +1600,18 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 		}
 
 		if c.EncryptConfig == fileEncryptionPrompt {
-			m.Lock()
-			IsInitialSetup = true
-			m.Unlock()
-			if c.PromptForConfigEncryption(configPath, dryrun) {
-				c.EncryptConfig = fileEncryptionEnabled
-				return c.SaveConfig(defaultPath, dryrun)
+			confirm, err := promptForConfigEncryption()
+			if err == nil {
+				if confirm {
+					c.EncryptConfig = fileEncryptionEnabled
+					return c.SaveConfig(defaultPath, dryrun)
+				}
+
+				c.EncryptConfig = fileEncryptionDisabled
+				err := c.SaveConfig(configPath, dryrun)
+				if err != nil {
+					log.Errorf(log.ConfigMgr, "Cannot save config. Error: %s\n", err)
+				}
 			}
 		}
 		return nil
@@ -1620,7 +1622,7 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 		if errCounter >= maxAuthFailures {
 			return errors.New("failed to decrypt config after 3 attempts")
 		}
-		key, err := PromptForConfigKey(IsInitialSetup)
+		key, err := PromptForConfigKey(false)
 		if err != nil {
 			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
 			errCounter++
@@ -1629,9 +1631,9 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 
 		var f []byte
 		f = append(f, fileData...)
-		data, err := DecryptConfigFile(f, key)
+		data, err := c.decryptConfigData(f, key)
 		if err != nil {
-			log.Errorf(log.ConfigMgr, "DecryptConfigFile err: %s", err)
+			log.Errorf(log.ConfigMgr, "decryptConfigData err: %s", err)
 			errCounter++
 			continue
 		}
@@ -1650,6 +1652,7 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 }
 
 // SaveConfig saves your configuration to your desired path
+// prompts for encryption key, if necessary
 func (c *Config) SaveConfig(configPath string, dryrun bool) error {
 	if dryrun {
 		return nil
@@ -1666,17 +1669,21 @@ func (c *Config) SaveConfig(configPath string, dryrun bool) error {
 	}
 
 	if c.EncryptConfig == fileEncryptionEnabled {
-		var key []byte
-
-		if IsInitialSetup {
+		// Ensure we have the key from session or from user
+		if len(c.sessionDK) == 0 {
+			var key []byte
 			key, err = PromptForConfigKey(true)
 			if err != nil {
 				return err
 			}
-			IsInitialSetup = false
+			var sessionDK, storedSalt []byte
+			sessionDK, storedSalt, err = makeNewSessionDK(key)
+			if err != nil {
+				return err
+			}
+			c.sessionDK, c.storedSalt = sessionDK, storedSalt
 		}
-
-		payload, err = EncryptConfigFile(payload, key)
+		payload, err = c.encryptConfigFile(payload)
 		if err != nil {
 			return err
 		}

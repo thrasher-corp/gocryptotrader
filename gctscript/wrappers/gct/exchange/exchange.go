@@ -25,12 +25,12 @@ type Exchange struct{}
 
 // Exchanges returns slice of all current exchanges
 func (e Exchange) Exchanges(enabledOnly bool) []string {
-	return engine.GetExchangeNames(enabledOnly)
+	return engine.Bot.GetExchangeNames(enabledOnly)
 }
 
 // GetExchange returns IBotExchange for exchange or error if exchange is not found
 func (e Exchange) GetExchange(exch string) (exchange.IBotExchange, error) {
-	ex := engine.GetExchangeByName(exch)
+	ex := engine.Bot.GetExchangeByName(exch)
 	if ex == nil {
 		return nil, fmt.Errorf("%v exchange not found", exch)
 	}
@@ -50,7 +50,7 @@ func (e Exchange) IsEnabled(exch string) bool {
 
 // Orderbook returns current orderbook requested exchange, pair and asset
 func (e Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
-	return engine.GetSpecificOrderbook(pair, exch, item)
+	return engine.Bot.GetSpecificOrderbook(pair, exch, item)
 }
 
 // Ticker returns ticker for provided currency pair & asset type
@@ -118,6 +118,7 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 		ID:        orderDetails.ID,
 		Pair:      orderDetails.Pair,
 		Side:      orderDetails.Side,
+		AssetType: orderDetails.AssetType,
 	}
 
 	err = engine.Bot.OrderManager.Cancel(cancel)
@@ -152,8 +153,8 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code) (out s
 }
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
-func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withdraw.Request) (string, error) {
-	ex, err := e.GetExchange(exch)
+func (e Exchange) WithdrawalFiatFunds(bankAccountID string, request *withdraw.Request) (string, error) {
+	ex, err := e.GetExchange(request.Exchange)
 	if err != nil {
 		return "", err
 	}
@@ -166,7 +167,7 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withd
 		}
 	}
 
-	otp, err := engine.GetExchangeoOTPByName(exch)
+	otp, err := engine.Bot.GetExchangeoOTPByName(request.Exchange)
 	if err == nil {
 		otpValue, errParse := strconv.ParseInt(otp, 10, 64)
 		if errParse != nil {
@@ -174,7 +175,6 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withd
 		}
 		request.OneTimePassword = otpValue
 	}
-	request.Exchange = exch
 	request.Fiat.Bank.AccountName = v.AccountName
 	request.Fiat.Bank.AccountNumber = v.AccountNumber
 	request.Fiat.Bank.BankName = v.BankName
@@ -186,7 +186,7 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withd
 	request.Fiat.Bank.SWIFTCode = v.SWIFTCode
 	request.Fiat.Bank.IBAN = v.IBAN
 
-	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
+	resp, err := engine.SubmitWithdrawal(request)
 	if err != nil {
 		return "", err
 	}
@@ -194,13 +194,13 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withd
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
-func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error) {
-	ex, err := e.GetExchange(exch)
+func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (string, error) {
+	// Checks if exchange is enabled or not so we don't call OTP generation
+	_, err := e.GetExchange(request.Exchange)
 	if err != nil {
 		return "", err
 	}
-
-	otp, err := engine.GetExchangeoOTPByName(exch)
+	otp, err := engine.Bot.GetExchangeoOTPByName(request.Exchange)
 	if err == nil {
 		v, errParse := strconv.ParseInt(otp, 10, 64)
 		if errParse != nil {
@@ -209,7 +209,7 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.Request) 
 		request.OneTimePassword = v
 	}
 
-	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
+	resp, err := engine.SubmitWithdrawal(request)
 	if err != nil {
 		return "", err
 	}

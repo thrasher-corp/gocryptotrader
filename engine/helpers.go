@@ -40,20 +40,20 @@ var (
 )
 
 // GetSubsystemsStatus returns the status of various subsystems
-func GetSubsystemsStatus() map[string]bool {
+func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems := make(map[string]bool)
-	systems["communications"] = Bot.CommsManager.Started()
-	systems["internet_monitor"] = Bot.ConnectionManager.Started()
-	systems["orders"] = Bot.OrderManager.Started()
-	systems["portfolio"] = Bot.PortfolioManager.Started()
-	systems["ntp_timekeeper"] = Bot.NTPManager.Started()
-	systems["database"] = Bot.DatabaseManager.Started()
-	systems["exchange_syncer"] = Bot.Settings.EnableExchangeSyncManager
-	systems["grpc"] = Bot.Settings.EnableGRPC
-	systems["grpc_proxy"] = Bot.Settings.EnableGRPCProxy
-	systems["gctscript"] = Bot.GctScriptManager.Started()
-	systems["deprecated_rpc"] = Bot.Settings.EnableDeprecatedRPC
-	systems["websocket_rpc"] = Bot.Settings.EnableWebsocketRPC
+	systems["communications"] = bot.CommsManager.Started()
+	systems["internet_monitor"] = bot.ConnectionManager.Started()
+	systems["orders"] = bot.OrderManager.Started()
+	systems["portfolio"] = bot.PortfolioManager.Started()
+	systems["ntp_timekeeper"] = bot.NTPManager.Started()
+	systems["database"] = bot.DatabaseManager.Started()
+	systems["exchange_syncer"] = bot.Settings.EnableExchangeSyncManager
+	systems["grpc"] = bot.Settings.EnableGRPC
+	systems["grpc_proxy"] = bot.Settings.EnableGRPCProxy
+	systems["gctscript"] = bot.GctScriptManager.Started()
+	systems["deprecated_rpc"] = bot.Settings.EnableDeprecatedRPC
+	systems["websocket_rpc"] = bot.Settings.EnableWebsocketRPC
 	systems["dispatch"] = dispatch.IsRunning()
 	return systems
 }
@@ -87,55 +87,55 @@ func GetRPCEndpoints() map[string]RPCEndpoint {
 }
 
 // SetSubsystem enables or disables an engine subsystem
-func SetSubsystem(subsys string, enable bool) error {
+func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 	switch strings.ToLower(subsys) {
 	case "communications":
 		if enable {
-			return Bot.CommsManager.Start()
+			return bot.CommsManager.Start()
 		}
-		return Bot.CommsManager.Stop()
+		return bot.CommsManager.Stop()
 	case "internet_monitor":
 		if enable {
-			return Bot.ConnectionManager.Start()
+			return bot.ConnectionManager.Start(&bot.Config.ConnectionMonitor)
 		}
-		return Bot.CommsManager.Stop()
+		return bot.CommsManager.Stop()
 	case "orders":
 		if enable {
-			return Bot.OrderManager.Start()
+			return bot.OrderManager.Start()
 		}
-		return Bot.OrderManager.Stop()
+		return bot.OrderManager.Stop()
 	case "portfolio":
 		if enable {
-			return Bot.PortfolioManager.Start()
+			return bot.PortfolioManager.Start()
 		}
-		return Bot.OrderManager.Stop()
+		return bot.OrderManager.Stop()
 	case "ntp_timekeeper":
 		if enable {
-			return Bot.NTPManager.Start()
+			return bot.NTPManager.Start()
 		}
-		return Bot.NTPManager.Stop()
+		return bot.NTPManager.Stop()
 	case "database":
 		if enable {
-			return Bot.DatabaseManager.Start()
+			return bot.DatabaseManager.Start()
 		}
-		return Bot.DatabaseManager.Stop()
+		return bot.DatabaseManager.Stop()
 	case "exchange_syncer":
 		if enable {
-			Bot.ExchangeCurrencyPairManager.Start()
+			bot.ExchangeCurrencyPairManager.Start()
 		}
-		Bot.ExchangeCurrencyPairManager.Stop()
+		bot.ExchangeCurrencyPairManager.Stop()
 	case "dispatch":
 		if enable {
-			return dispatch.Start(Bot.Settings.DispatchMaxWorkerAmount, Bot.Settings.DispatchJobsLimit)
+			return dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit)
 		}
 		return dispatch.Stop()
 	case "gctscript":
 		if enable {
 			vm.GCTScriptConfig.Enabled = true
-			return Bot.GctScriptManager.Start()
+			return bot.GctScriptManager.Start()
 		}
 		vm.GCTScriptConfig.Enabled = false
-		return Bot.GctScriptManager.Stop()
+		return bot.GctScriptManager.Stop()
 	}
 
 	return errors.New("subsystem not found")
@@ -143,11 +143,11 @@ func SetSubsystem(subsys string, enable bool) error {
 
 // GetExchangeOTPs returns OTP codes for all exchanges which have a otpsecret
 // stored
-func GetExchangeOTPs() (map[string]string, error) {
+func (bot *Engine) GetExchangeOTPs() (map[string]string, error) {
 	otpCodes := make(map[string]string)
-	for x := range Bot.Config.Exchanges {
-		if otpSecret := Bot.Config.Exchanges[x].API.Credentials.OTPSecret; otpSecret != "" {
-			exchName := Bot.Config.Exchanges[x].Name
+	for x := range bot.Config.Exchanges {
+		if otpSecret := bot.Config.Exchanges[x].API.Credentials.OTPSecret; otpSecret != "" {
+			exchName := bot.Config.Exchanges[x].Name
 			o, err := totp.GenerateCode(otpSecret, time.Now())
 			if err != nil {
 				log.Errorf(log.Global, "Unable to generate OTP code for exchange %s. Err: %s\n",
@@ -167,13 +167,13 @@ func GetExchangeOTPs() (map[string]string, error) {
 
 // GetExchangeoOTPByName returns a OTP code for the desired exchange
 // if it exists
-func GetExchangeoOTPByName(exchName string) (string, error) {
-	for x := range Bot.Config.Exchanges {
-		if !strings.EqualFold(Bot.Config.Exchanges[x].Name, exchName) {
+func (bot *Engine) GetExchangeoOTPByName(exchName string) (string, error) {
+	for x := range bot.Config.Exchanges {
+		if !strings.EqualFold(bot.Config.Exchanges[x].Name, exchName) {
 			continue
 		}
 
-		if otpSecret := Bot.Config.Exchanges[x].API.Credentials.OTPSecret; otpSecret != "" {
+		if otpSecret := bot.Config.Exchanges[x].API.Credentials.OTPSecret; otpSecret != "" {
 			return totp.GenerateCode(otpSecret, time.Now())
 		}
 	}
@@ -181,9 +181,9 @@ func GetExchangeoOTPByName(exchName string) (string, error) {
 }
 
 // GetAuthAPISupportedExchanges returns a list of auth api enabled exchanges
-func GetAuthAPISupportedExchanges() []string {
+func (bot *Engine) GetAuthAPISupportedExchanges() []string {
 	var exchangeNames []string
-	exchanges := GetExchanges()
+	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) &&
 			!exchanges[x].GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
@@ -195,16 +195,16 @@ func GetAuthAPISupportedExchanges() []string {
 }
 
 // IsOnline returns whether or not the engine has Internet connectivity
-func IsOnline() bool {
-	return Bot.ConnectionManager.IsOnline()
+func (bot *Engine) IsOnline() bool {
+	return bot.ConnectionManager.IsOnline()
 }
 
 // GetAvailableExchanges returns a list of enabled exchanges
-func GetAvailableExchanges() []string {
+func (bot *Engine) GetAvailableExchanges() []string {
 	var enExchanges []string
-	for x := range Bot.Config.Exchanges {
-		if Bot.Config.Exchanges[x].Enabled {
-			enExchanges = append(enExchanges, Bot.Config.Exchanges[x].Name)
+	for x := range bot.Config.Exchanges {
+		if bot.Config.Exchanges[x].Enabled {
+			enExchanges = append(enExchanges, bot.Config.Exchanges[x].Name)
 		}
 	}
 	return enExchanges
@@ -212,15 +212,15 @@ func GetAvailableExchanges() []string {
 
 // GetAllAvailablePairs returns a list of all available pairs on either enabled
 // or disabled exchanges
-func GetAllAvailablePairs(enabledExchangesOnly bool, assetType asset.Item) currency.Pairs {
+func (bot *Engine) GetAllAvailablePairs(enabledExchangesOnly bool, assetType asset.Item) currency.Pairs {
 	var pairList currency.Pairs
-	for x := range Bot.Config.Exchanges {
-		if enabledExchangesOnly && !Bot.Config.Exchanges[x].Enabled {
+	for x := range bot.Config.Exchanges {
+		if enabledExchangesOnly && !bot.Config.Exchanges[x].Enabled {
 			continue
 		}
 
-		exchName := Bot.Config.Exchanges[x].Name
-		pairs, err := Bot.Config.GetAvailablePairs(exchName, assetType)
+		exchName := bot.Config.Exchanges[x].Name
+		pairs, err := bot.Config.GetAvailablePairs(exchName, assetType)
 		if err != nil {
 			continue
 		}
@@ -237,9 +237,9 @@ func GetAllAvailablePairs(enabledExchangesOnly bool, assetType asset.Item) curre
 
 // GetSpecificAvailablePairs returns a list of supported pairs based on specific
 // parameters
-func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cryptoPairs bool, assetType asset.Item) currency.Pairs {
+func (bot *Engine) GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cryptoPairs bool, assetType asset.Item) currency.Pairs {
 	var pairList currency.Pairs
-	supportedPairs := GetAllAvailablePairs(enabledExchangesOnly, assetType)
+	supportedPairs := bot.GetAllAvailablePairs(enabledExchangesOnly, assetType)
 
 	for x := range supportedPairs {
 		if fiatPairs {
@@ -284,15 +284,15 @@ func IsRelatablePairs(p1, p2 currency.Pair, includeUSDT bool) bool {
 
 // MapCurrenciesByExchange returns a list of currency pairs mapped to an
 // exchange
-func MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetType asset.Item) map[string]currency.Pairs {
+func (bot *Engine) MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetType asset.Item) map[string]currency.Pairs {
 	currencyExchange := make(map[string]currency.Pairs)
 	for x := range p {
-		for y := range Bot.Config.Exchanges {
-			if enabledExchangesOnly && !Bot.Config.Exchanges[y].Enabled {
+		for y := range bot.Config.Exchanges {
+			if enabledExchangesOnly && !bot.Config.Exchanges[y].Enabled {
 				continue
 			}
-			exchName := Bot.Config.Exchanges[y].Name
-			if !Bot.Config.SupportsPair(exchName, p[x], assetType) {
+			exchName := bot.Config.Exchanges[y].Name
+			if !bot.Config.SupportsPair(exchName, p[x], assetType) {
 				continue
 			}
 
@@ -315,15 +315,15 @@ func MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetT
 
 // GetExchangeNamesByCurrency returns a list of exchanges supporting
 // a currency pair based on whether the exchange is enabled or not
-func GetExchangeNamesByCurrency(p currency.Pair, enabled bool, assetType asset.Item) []string {
+func (bot *Engine) GetExchangeNamesByCurrency(p currency.Pair, enabled bool, assetType asset.Item) []string {
 	var exchanges []string
-	for x := range Bot.Config.Exchanges {
-		if enabled != Bot.Config.Exchanges[x].Enabled {
+	for x := range bot.Config.Exchanges {
+		if enabled != bot.Config.Exchanges[x].Enabled {
 			continue
 		}
 
-		exchName := Bot.Config.Exchanges[x].Name
-		if !Bot.Config.SupportsPair(exchName, p, assetType) {
+		exchName := bot.Config.Exchanges[x].Name
+		if !bot.Config.SupportsPair(exchName, p, assetType) {
 			continue
 		}
 		exchanges = append(exchanges, exchName)
@@ -427,8 +427,8 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
-func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
-	exch := GetExchangeByName(exchangeName)
+func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
+	exch := bot.GetExchangeByName(exchangeName)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
@@ -437,8 +437,8 @@ func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
-func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
-	exch := GetExchangeByName(exchangeName)
+func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
+	exch := bot.GetExchangeByName(exchangeName)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
@@ -582,25 +582,25 @@ func SeedExchangeAccountInfo(accounts []account.Holdings) {
 }
 
 // GetCryptocurrenciesByExchange returns a list of cryptocurrencies the exchange supports
-func GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, enabledPairs bool, assetType asset.Item) ([]string, error) {
+func (bot *Engine) GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, enabledPairs bool, assetType asset.Item) ([]string, error) {
 	var cryptocurrencies []string
-	for x := range Bot.Config.Exchanges {
-		if !strings.EqualFold(Bot.Config.Exchanges[x].Name, exchangeName) {
+	for x := range bot.Config.Exchanges {
+		if !strings.EqualFold(bot.Config.Exchanges[x].Name, exchangeName) {
 			continue
 		}
-		if enabledExchangesOnly && !Bot.Config.Exchanges[x].Enabled {
+		if enabledExchangesOnly && !bot.Config.Exchanges[x].Enabled {
 			continue
 		}
 
 		var err error
 		var pairs []currency.Pair
 		if enabledPairs {
-			pairs, err = Bot.Config.GetEnabledPairs(exchangeName, assetType)
+			pairs, err = bot.Config.GetEnabledPairs(exchangeName, assetType)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			pairs, err = Bot.Config.GetAvailablePairs(exchangeName, assetType)
+			pairs, err = bot.Config.GetAvailablePairs(exchangeName, assetType)
 			if err != nil {
 				return nil, err
 			}
@@ -622,12 +622,12 @@ func GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, en
 }
 
 // GetCryptocurrencyDepositAddressesByExchange returns the cryptocurrency deposit addresses for a particular exchange
-func GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string]string, error) {
-	if Bot.DepositAddressManager != nil {
-		return Bot.DepositAddressManager.GetDepositAddressesByExchange(exchName)
+func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string]string, error) {
+	if bot.DepositAddressManager != nil {
+		return bot.DepositAddressManager.GetDepositAddressesByExchange(exchName)
 	}
 
-	result := GetExchangeCryptocurrencyDepositAddresses()
+	result := bot.GetExchangeCryptocurrencyDepositAddresses()
 	r, ok := result[exchName]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -637,12 +637,12 @@ func GetCryptocurrencyDepositAddressesByExchange(exchName string) (map[string]st
 
 // GetExchangeCryptocurrencyDepositAddress returns the cryptocurrency deposit address for a particular
 // exchange
-func GetExchangeCryptocurrencyDepositAddress(exchName, accountID string, item currency.Code) (string, error) {
-	if Bot.DepositAddressManager != nil {
-		return Bot.DepositAddressManager.GetDepositAddressByExchange(exchName, item)
+func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(exchName, accountID string, item currency.Code) (string, error) {
+	if bot.DepositAddressManager != nil {
+		return bot.DepositAddressManager.GetDepositAddressByExchange(exchName, item)
 	}
 
-	exch := GetExchangeByName(exchName)
+	exch := bot.GetExchangeByName(exchName)
 	if exch == nil {
 		return "", ErrExchangeNotFound
 	}
@@ -650,19 +650,19 @@ func GetExchangeCryptocurrencyDepositAddress(exchName, accountID string, item cu
 }
 
 // GetExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
-func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
+func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 	result := make(map[string]map[string]string)
-	exchanges := GetExchanges()
+	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		exchName := exchanges[x].GetName()
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-			if Bot.Settings.Verbose {
+			if bot.Settings.Verbose {
 				log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 			}
 			continue
 		}
 
-		cryptoCurrencies, err := GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
+		cryptoCurrencies, err := bot.GetCryptocurrenciesByExchange(exchName, true, true, asset.Spot)
 		if err != nil {
 			log.Debugf(log.ExchangeSys, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 			continue
@@ -691,19 +691,19 @@ func FormatCurrency(p currency.Pair) currency.Pair {
 }
 
 // GetExchangeNames returns a list of enabled or disabled exchanges
-func GetExchangeNames(enabledOnly bool) []string {
-	exchangeNames := GetAvailableExchanges()
+func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
+	exchangeNames := bot.GetAvailableExchanges()
 	if enabledOnly {
 		return exchangeNames
 	}
-	exchangeNames = append(exchangeNames, Bot.Config.GetDisabledExchanges()...)
+	exchangeNames = append(exchangeNames, bot.Config.GetDisabledExchanges()...)
 	return exchangeNames
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
-func GetAllActiveTickers() []EnabledExchangeCurrencies {
+func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
-	exchanges := GetExchanges()
+	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes()
 		exchName := exchanges[x].GetName()
@@ -736,15 +736,15 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 }
 
 // GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
-func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
+func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	var response AllEnabledExchangeAccounts
-	exchanges := GetExchanges()
+	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		if exchanges[x] != nil && exchanges[x].IsEnabled() {
 			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-				if Bot.Settings.Verbose {
+				if bot.Settings.Verbose {
 					log.Debugf(log.ExchangeSys,
-						"GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n",
+						"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
 						exchanges[x].GetName())
 				}
 				continue

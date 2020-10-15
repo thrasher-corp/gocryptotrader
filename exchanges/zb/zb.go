@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	zbTradeURL   = "http://api.zb.live/data"
-	zbMarketURL  = "https://trade.zb.live/api"
-	zbAPIVersion = "v1"
-
+	zbTradeURL                        = "http://api.zb.live"
+	zbMarketURL                       = "https://trade.zb.live/api"
+	zbAPIVersion                      = "v1"
+	zbData                            = "data"
 	zbAccountInfo                     = "getAccountInfo"
 	zbMarkets                         = "markets"
 	zbKline                           = "kline"
@@ -136,7 +136,7 @@ func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) 
 // GetMarkets returns market information including pricing, symbols and
 // each symbols decimal precision
 func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
-	endpoint := fmt.Sprintf("%s/%s/%s", z.API.Endpoints.URL, zbAPIVersion, zbMarkets)
+	endpoint := fmt.Sprintf("%s/%s/%s/%s", z.API.Endpoints.URL, zbData, zbAPIVersion, zbMarkets)
 
 	var res map[string]MarketResponseItem
 	err := z.SendHTTPRequest(endpoint, &res, request.UnAuth)
@@ -163,7 +163,7 @@ func (z *ZB) GetLatestSpotPrice(symbol string) (float64, error) {
 
 // GetTicker returns a ticker for a given symbol
 func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.API.Endpoints.URL, zbAPIVersion, zbTicker, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s/%s?market=%s", z.API.Endpoints.URL, zbData, zbAPIVersion, zbTicker, symbol)
 	var res TickerResponse
 	err := z.SendHTTPRequest(urlPath, &res, request.UnAuth)
 	return res, err
@@ -171,7 +171,7 @@ func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
 
 // GetTickers returns ticker data for all supported symbols
 func (z *ZB) GetTickers() (map[string]TickerChildResponse, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s", z.API.Endpoints.URL, zbAPIVersion, zbTickers)
+	urlPath := fmt.Sprintf("%s/%s/%s/%s", z.API.Endpoints.URL, zbData, zbAPIVersion, zbTickers)
 	resp := make(map[string]TickerChildResponse)
 	err := z.SendHTTPRequest(urlPath, &resp, request.UnAuth)
 	return resp, err
@@ -179,7 +179,7 @@ func (z *ZB) GetTickers() (map[string]TickerChildResponse, error) {
 
 // GetOrderbook returns the orderbook for a given symbol
 func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s?market=%s", z.API.Endpoints.URL, zbAPIVersion, zbDepth, symbol)
+	urlPath := fmt.Sprintf("%s/%s/%s/%s?market=%s", z.API.Endpoints.URL, zbData, zbAPIVersion, zbDepth, symbol)
 	var res OrderbookResponse
 
 	err := z.SendHTTPRequest(urlPath, &res, request.UnAuth)
@@ -217,7 +217,7 @@ func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 		vals.Set("size", fmt.Sprintf("%d", arg.Size))
 	}
 
-	urlPath := fmt.Sprintf("%s/%s/%s?%s", z.API.Endpoints.URL, zbAPIVersion, zbKline, vals.Encode())
+	urlPath := fmt.Sprintf("%s/%s/%s/%s?%s", z.API.Endpoints.URL, zbData, zbAPIVersion, zbKline, vals.Encode())
 
 	var res KLineResponse
 	var rawKlines map[string]interface{}

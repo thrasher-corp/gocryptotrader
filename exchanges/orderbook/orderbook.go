@@ -140,26 +140,43 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 	exchange = strings.ToLower(exchange)
 	s.RLock()
 	defer s.RUnlock()
-	if s.Books[exchange] == nil {
+	if _, ok := s.Books[exchange]; !ok {
 		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
 	}
 
-	if s.Books[exchange][p.Base.Item] == nil {
+	if _, ok := s.Books[exchange][p.Base.Item]; !ok {
 		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
 			p.Base)
 	}
 
-	if s.Books[exchange][p.Base.Item][p.Quote.Item] == nil {
+	if _, ok := s.Books[exchange][p.Base.Item][p.Quote.Item]; !ok {
 		return nil, fmt.Errorf("no orderbooks associated with quote currency %s",
 			p.Quote)
 	}
 
-	if s.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
+	var liveOrderBook *Book
+	var ok bool
+	if liveOrderBook, ok = s.Books[exchange][p.Base.Item][p.Quote.Item][a]; !ok {
 		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
 			a)
 	}
 
-	return s.Books[exchange][p.Base.Item][p.Quote.Item][a].b, nil
+	localCopyOfAsks := make([]Item, len(s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.Asks))
+	localCopyOfBids := make([]Item, len(s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.Bids))
+	copy(localCopyOfBids, liveOrderBook.b.Bids)
+	copy(localCopyOfAsks, liveOrderBook.b.Asks)
+
+	ob := Base{
+		Pair:         liveOrderBook.b.Pair,
+		Bids:         localCopyOfBids,
+		Asks:         localCopyOfAsks,
+		LastUpdated:  liveOrderBook.b.LastUpdated,
+		LastUpdateID: liveOrderBook.b.LastUpdateID,
+		AssetType:    liveOrderBook.b.AssetType,
+		ExchangeName: liveOrderBook.b.ExchangeName,
+	}
+
+	return &ob, nil
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook

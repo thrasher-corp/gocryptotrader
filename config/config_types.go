@@ -67,10 +67,8 @@ const (
 
 // Variables here are used for configuration
 var (
-	Cfg            Config
-	IsInitialSetup bool
-	TestBypass     bool
-	m              sync.Mutex
+	Cfg Config
+	m   sync.Mutex
 )
 
 // Config is the overarching object that holds all the information for
@@ -100,6 +98,9 @@ type Config struct {
 	FiatDisplayCurrency *currency.Code            `json:"fiatDispayCurrency,omitempty"`
 	Cryptocurrencies    *currency.Currencies      `json:"cryptocurrencies,omitempty"`
 	SMS                 *SMSGlobalConfig          `json:"smsGlobal,omitempty"`
+	// encryption session values
+	storedSalt []byte
+	sessionDK  []byte
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure

@@ -191,5 +191,5 @@ func (p Pairs) GetRandomPair() Pair {
 		return Pair{Base: NewCode(""), Quote: NewCode("")}
 	}
 
-	return p[rand.Intn(pairsLen)]
+	return p[rand.Intn(pairsLen)] // nolint:gosec // basic number generation required, no need for crypo/rand
 }
