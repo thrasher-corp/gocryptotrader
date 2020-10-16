@@ -109,7 +109,17 @@ func main() {
 
 	var err error
 	settings.CheckParamInteraction = true
-	engine.Bot, err = engine.NewFromSettings(&settings)
+
+	// collect flags
+	flagSet := make(map[string]bool)
+	// Stores the set flags
+	flag.Visit(func(f *flag.Flag) { flagSet[f.Name] = true })
+	if !flagSet["config"] {
+		// If config file is not explicitly set, fall back to default path resolution
+		settings.ConfigFile = ""
+	}
+
+	engine.Bot, err = engine.NewFromSettings(&settings, flagSet)
 	if engine.Bot == nil || err != nil {
 		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
 	}
