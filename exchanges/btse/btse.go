@@ -29,10 +29,10 @@ type BTSE struct {
 
 const (
 	btseAPIURL         = "https://api.btse.com"
-	btseSPOTAPIPath    = "/spot/v2/"
 	btseSPOTPath       = "/spot"
+	btseSPOTAPIPath    = "/api/v3.2/"
 	btseFuturesPath    = "/futures"
-	btseFuturesAPIPath = "/futures/api/v2.1/"
+	btseFuturesAPIPath = "/api/v2.1/"
 
 	// Public endpoints
 	btseMarketOverview = "market_summary"
@@ -437,9 +437,9 @@ func (b *BTSE) TradeHistory(symbol string, start, end time.Time, beforeSerialID,
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}, spotEndpoint bool, f request.EndpointLimit) error {
-	p := btseSPOTAPIPath
+	p := btseSPOTPath + btseSPOTAPIPath
 	if !spotEndpoint {
-		p = btseFuturesAPIPath
+		p = btseFuturesPath + btseFuturesAPIPath
 	}
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,

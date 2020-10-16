@@ -41,7 +41,7 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	cp, err := currency.NewPairFromString("BTCUSD_200925")
+	cp, err := currency.NewPairFromString("BTCUSD_201225")
 	if err != nil {
 		t.Error(err)
 	}
@@ -85,8 +85,6 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUExchangeInfo(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UExchangeInfo()
 	if err != nil {
 		t.Error(err)
@@ -95,8 +93,6 @@ func TestUExchangeInfo(t *testing.T) {
 
 func TestUFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UFuturesOrderbook("BTCUSDT", 5)
 	if err != nil {
 		t.Error(err)
@@ -105,8 +101,6 @@ func TestUFuturesOrderbook(t *testing.T) {
 
 func TestURecentTrades(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.URecentTrades("BTCUSDT", "", 5)
 	if err != nil {
 		t.Error(err)
@@ -128,8 +122,6 @@ func TestUHistoricalTrades(t *testing.T) {
 
 func TestUCompressedTrades(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UCompressedTrades("BTCUSDT", "", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -142,8 +134,6 @@ func TestUCompressedTrades(t *testing.T) {
 
 func TestUKlineData(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UKlineData("BTCUSDT", "1d", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -156,8 +146,6 @@ func TestUKlineData(t *testing.T) {
 
 func TestUGetMarkPrice(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UGetMarkPrice("BTCUSDT")
 	if err != nil {
 		t.Error(err)
@@ -170,8 +158,6 @@ func TestUGetMarkPrice(t *testing.T) {
 
 func TestUGetFundingHistory(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UGetFundingHistory("BTCUSDT", 1, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -184,8 +170,6 @@ func TestUGetFundingHistory(t *testing.T) {
 
 func TestU24HTickerPriceChangeStats(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.U24HTickerPriceChangeStats("BTCUSDT")
 	if err != nil {
 		t.Error(err)
@@ -198,8 +182,6 @@ func TestU24HTickerPriceChangeStats(t *testing.T) {
 
 func TestUSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.USymbolPriceTicker("BTCUSDT")
 	if err != nil {
 		t.Error(err)
@@ -212,8 +194,6 @@ func TestUSymbolPriceTicker(t *testing.T) {
 
 func TestUSymbolOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.USymbolOrderbookTicker("BTCUSDT")
 	if err != nil {
 		t.Error(err)
@@ -226,8 +206,6 @@ func TestUSymbolOrderbookTicker(t *testing.T) {
 
 func TestULiquidationOrders(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.ULiquidationOrders("BTCUSDT", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -240,8 +218,6 @@ func TestULiquidationOrders(t *testing.T) {
 
 func TestUOpenInterest(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UOpenInterest("BTCUSDT")
 	if err != nil {
 		t.Error(err)
@@ -250,8 +226,6 @@ func TestUOpenInterest(t *testing.T) {
 
 func TestUOpenInterestStats(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UOpenInterestStats("BTCUSDT", "5m", 1, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -264,8 +238,6 @@ func TestUOpenInterestStats(t *testing.T) {
 
 func TestUTopAcccountsLongShortRatio(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UTopAcccountsLongShortRatio("BTCUSDT", "5m", 2, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -278,8 +250,6 @@ func TestUTopAcccountsLongShortRatio(t *testing.T) {
 
 func TestUTopPostionsLongShortRatio(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UTopPostionsLongShortRatio("BTCUSDT", "5m", 3, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -604,8 +574,6 @@ func TestUAccountForcedOrders(t *testing.T) {
 
 func TestGetFuturesExchangeInfo(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.FuturesExchangeInfo()
 	if err != nil {
 		t.Error(err)
@@ -614,8 +582,6 @@ func TestGetFuturesExchangeInfo(t *testing.T) {
 
 func TestGetInterestHistory(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetInterestHistory()
 	if err != nil {
 		t.Error(err)
@@ -624,8 +590,6 @@ func TestGetInterestHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFundingRates("BTCUSDT", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -638,8 +602,6 @@ func TestGetFundingRates(t *testing.T) {
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesOrderbook("BTCUSD_PERP", 5)
 	if err != nil {
 		t.Error(err)
@@ -648,8 +610,6 @@ func TestGetFuturesOrderbook(t *testing.T) {
 
 func TestGetFuturesPublicTrades(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesPublicTrades("BTCUSD_PERP", 5)
 	if err != nil {
 		t.Error(err)
@@ -658,8 +618,6 @@ func TestGetFuturesPublicTrades(t *testing.T) {
 
 func TestGetPastPublicTrades(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetPastPublicTrades("BTCUSD_PERP", 5, 0)
 	if err != nil {
 		t.Error(err)
@@ -668,8 +626,6 @@ func TestGetPastPublicTrades(t *testing.T) {
 
 func TestGetAggregatedTradesList(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesAggregatedTradesList("BTCUSD_PERP", 0, 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -678,8 +634,6 @@ func TestGetAggregatedTradesList(t *testing.T) {
 
 func TestGetPerpsExchangeInfo(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetPerpMarkets()
 	if err != nil {
 		t.Error(err)
@@ -688,8 +642,6 @@ func TestGetPerpsExchangeInfo(t *testing.T) {
 
 func TestGetIndexAndMarkPrice(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetIndexAndMarkPrice("", "BTCUSD")
 	if err != nil {
 		t.Error(err)
@@ -698,8 +650,6 @@ func TestGetIndexAndMarkPrice(t *testing.T) {
 
 func TestGetFuturesKlineData(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesKlineData("BTCUSD_PERP", "1M", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -708,8 +658,6 @@ func TestGetFuturesKlineData(t *testing.T) {
 
 func TestGetContinuousKlineData(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetContinuousKlineData("BTCUSD", "CURRENT_QUARTER", "1M", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -718,8 +666,6 @@ func TestGetContinuousKlineData(t *testing.T) {
 
 func TestGetIndexPriceKlines(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetIndexPriceKlines("BTCUSD", "1M", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -728,8 +674,6 @@ func TestGetIndexPriceKlines(t *testing.T) {
 
 func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesSwapTickerChangeStats("BTCUSD_PERP", "")
 	if err != nil {
 		t.Error(err)
@@ -738,8 +682,6 @@ func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 
 func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesSymbolPriceTicker("BTCUSD_PERP", "")
 	if err != nil {
 		t.Error(err)
@@ -748,8 +690,6 @@ func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 
 func TestGetFuturesOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesOrderbookTicker("", "")
 	if err != nil {
 		t.Error(err)
@@ -758,8 +698,6 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 
 func TestGetFuturesLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesLiquidationOrders("", "", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -768,8 +706,6 @@ func TestGetFuturesLiquidationOrders(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetOpenInterest("BTCUSD_PERP")
 	if err != nil {
 		t.Error(err)
@@ -778,8 +714,6 @@ func TestGetOpenInterest(t *testing.T) {
 
 func TestGetOpenInterestStats(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetOpenInterestStats("BTCUSD", "CURRENT_QUARTER", "5m", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -788,8 +722,6 @@ func TestGetOpenInterestStats(t *testing.T) {
 
 func TestGetTraderFuturesAccountRatio(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetTraderFuturesAccountRatio("BTCUSD", "5m", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -798,8 +730,6 @@ func TestGetTraderFuturesAccountRatio(t *testing.T) {
 
 func TestGetTraderFuturesPositionsRatio(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetTraderFuturesPositionsRatio("BTCUSD", "5m", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -808,8 +738,6 @@ func TestGetTraderFuturesPositionsRatio(t *testing.T) {
 
 func TestGetMarketRatio(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetMarketRatio("BTCUSD", "5m", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -818,8 +746,6 @@ func TestGetMarketRatio(t *testing.T) {
 
 func TestGetFuturesTakerVolume(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesTakerVolume("BTCUSD", "ALL", "5m", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -828,8 +754,6 @@ func TestGetFuturesTakerVolume(t *testing.T) {
 
 func TestFuturesBasisData(t *testing.T) {
 	t.Parallel()
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.GetFuturesBasisData("BTCUSD", "CURRENT_QUARTER", "5m", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -841,8 +765,6 @@ func TestFuturesNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.FuturesNewOrder(
 		"BTCUSD_200925", "BUY", "", "LIMIT", "GTC", "", "", "", "", "", 1, 1, 0, 0, 0,
 	)
@@ -1105,17 +1027,15 @@ func TestFuturesPositionsADLEstimate(t *testing.T) {
 }
 
 func TestGetMarkPriceKline(t *testing.T) {
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	_, err := b.GetMarkPriceKline("BTCUSD_200925", "1M", 5, time.Time{}, time.Time{})
+	t.Parallel()
+	_, err := b.GetMarkPriceKline("BTCUSD_201225", "1M", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetMarginExchangeInfo(t *testing.T) {
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	t.Parallel()
 	_, err := b.GetMarginMarkets()
 	if err != nil {
 		t.Error(err)
@@ -1134,10 +1054,6 @@ func TestGetExchangeInfo(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-
-	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-
 	_, err := b.FetchTradablePairs(asset.Spot)
 	if err != nil {
 		t.Error("Binance FetchTradablePairs(asset asets.AssetType) error", err)
@@ -1582,17 +1498,15 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	t.Parallel()
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	_, err := b.UpdateAccountInfo()
-	switch {
-	case areTestAPIKeysSet() && err != nil:
-		t.Error("GetAccountInfo() error", err)
-	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("GetAccountInfo() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock GetAccountInfo() error", err)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

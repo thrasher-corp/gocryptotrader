@@ -70,7 +70,7 @@ func TestGetMarketsSummary(t *testing.T) {
 		t.Error(err)
 	}
 
-	ret, err := b.GetMarketSummary(testPair, true)
+	ret, err := b.GetMarketSummary("BTCPFC", false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -109,7 +109,7 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := currency.NewPairFromString("BTC-PFC")
+	f, err := currency.NewPairFromString("BTCPFC")
 	if err != nil {
 		t.Fatal(err)
 	}

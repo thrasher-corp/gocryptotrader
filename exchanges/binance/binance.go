@@ -1826,10 +1826,8 @@ func (b *Binance) FuturesBatchCancelOrders(symbol string, orderList, origClientO
 	var resp []BatchCancelOrderData
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	fmt.Println(orderList)
 	if len(orderList) != 0 {
 		jsonOrderList, err := json.Marshal(orderList)
-		fmt.Println(string(jsonOrderList))
 		if err != nil {
 			return resp, err
 		}
@@ -2133,7 +2131,6 @@ func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 func (b *Binance) GetPerpMarkets() (PerpsExchangeInfo, error) {
 	var resp PerpsExchangeInfo
 	path := spotAPIURL + perpExchangeInfo
-
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
@@ -2142,7 +2139,6 @@ func (b *Binance) GetPerpMarkets() (PerpsExchangeInfo, error) {
 func (b *Binance) GetMarginMarkets() (PerpsExchangeInfo, error) {
 	var resp PerpsExchangeInfo
 	path := spotAPIURL + perpExchangeInfo
-
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
@@ -2160,7 +2156,7 @@ func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixNano(), 10))
 	}
-	path := futuresAPIURL + fundingRate + params.Encode()
+	path := uFuturesAPIURL + fundingRate + params.Encode()
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
@@ -2177,7 +2173,7 @@ type Binance struct {
 // information
 func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 	var resp ExchangeInfo
-	path := b.API.Endpoints.URL + exchangeInfo
+	path := spotAPIURL + exchangeInfo
 
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
@@ -2615,7 +2611,6 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f 
 	params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
 	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
 	signature := params.Encode()
-	fmt.Println(signature)
 	hmacSigned := crypto.GetHMAC(crypto.HashSHA256, []byte(signature), []byte(b.API.Credentials.Secret))
 	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 	headers := make(map[string]string)

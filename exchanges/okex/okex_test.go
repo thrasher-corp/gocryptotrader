@@ -82,6 +82,9 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestGetMarginRates(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
 	_, err := o.GetMarginRates("XRP-USDT")
 	if err != nil {
 		t.Error(err)

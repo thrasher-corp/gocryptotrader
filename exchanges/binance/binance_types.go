@@ -447,10 +447,10 @@ type FuturesCandleStick struct {
 // AllLiquidationOrders gets all liquidation orders
 type AllLiquidationOrders struct {
 	Symbol       string  `json:"symbol"`
-	Price        float64 `json:"price"`
-	OrigQty      float64 `json:"origQty"`
-	ExecutedQty  float64 `json:"executedQty"`
-	AveragePrice float64 `json:"averagePrice"`
+	Price        float64 `json:"price,string"`
+	OrigQty      float64 `json:"origQty,string"`
+	ExecutedQty  float64 `json:"executedQty,string"`
+	AveragePrice float64 `json:"averagePrice,string"`
 	Status       string  `json:"status"`
 	TimeInForce  string  `json:"timeInForce"`
 	OrderType    string  `json:"type"`

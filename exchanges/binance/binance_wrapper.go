@@ -665,8 +665,6 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 
 		case asset.USDTMarginedFutures:
 
-			fmt.Printf("HI\n\n\n")
-
 			accData, err := b.UAccountBalanceV2()
 			if err != nil {
 				return info, err
