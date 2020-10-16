@@ -3,11 +3,13 @@ package charts
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -130,7 +132,7 @@ func KlineItemToSeriesData(item *kline.Item) ([]SeriesData, error) {
 	out := make([]SeriesData, len(item.Candles))
 	for x := range item.Candles {
 		out[x] = SeriesData{
-			Timestamp: item.Candles[x].Time.Format("2006-01-02"),
+			Timestamp: item.Candles[x].Time.Format(common.SimpleTimeFormat),
 			Open:      item.Candles[x].Open,
 			High:      item.Candles[x].High,
 			Low:       item.Candles[x].Low,
@@ -149,12 +151,20 @@ func (c *Chart) writeJavascriptLibrary() error {
 		if err != nil {
 			return err
 		}
-		n, err := f.Write(templateList["lightweight-charts.standalone.production.js"])
+		n, err := f.Write(templateList[tvScriptName])
 		if err != nil {
 			return err
 		}
-		if n != len(templateList["lightweight-charts.standalone.production.js"]) {
-			return errors.New("write length mismatch")
+		if n != len(templateList[tvScriptName]) {
+			return fmt.Errorf("write length mismatch for: %v", tvScriptName)
+		}
+
+		n, err = f.Write(templateList[chartjsScriptName])
+		if err != nil {
+			return err
+		}
+		if n != len(templateList[chartjsScriptName]) {
+			return fmt.Errorf("write length mismatch for: %v", chartjsScriptName)
 		}
 		return f.Close()
 	}

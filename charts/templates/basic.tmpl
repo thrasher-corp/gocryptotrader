@@ -3,8 +3,8 @@
 {{define "title"}}Basic Chart{{end}}
 {{define "content"}}
     <script> let chart = LightweightCharts.createChart(document.body, {
-               width: {{.Width}},
-               height: {{.Height}},
+               width: {{$.Page.Width}},
+               height: {{$.Page.Height}},
              	rightPriceScale: {
              		scaleMargins: {
              			top: 0.1,
@@ -12,12 +12,12 @@
              		},
              	},
              	watermark: {
-             		visible: true,
+             		visible: {{$.Page.Watermark.Visible}},
              		fontSize: 24,
-             		horzAlign: 'center',
+             		horzAlidgn: 'center',
              		vertAlign: 'center',
              		color: 'rgba(171, 71, 188, 0.5)',
-             		text: 'GoCryptoTrader',
+             		text: {{$.Page.Watermark.Name}},
              	},
              	layout: {
              		backgroundColor: '#ffffff',

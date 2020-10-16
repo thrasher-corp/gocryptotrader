@@ -37,8 +37,14 @@ type Output struct {
 
 type Page struct {
 	PageTitle string
+	Watermark
 	Width     float64
 	Height    float64
+}
+
+type Watermark struct {
+	Name string
+	Visible bool
 }
 
 // IntervalData is used to store basic chart data
