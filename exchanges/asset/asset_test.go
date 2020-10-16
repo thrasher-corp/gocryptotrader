@@ -38,7 +38,7 @@ func TestContains(t *testing.T) {
 	}
 
 	// Every asset should be created and matched with func New so this should
-	// be contained
+	// not be matched against list
 	if a.Contains("SpOt") {
 		t.Error("TestContains returned an unexpected result")
 	}
