@@ -345,7 +345,7 @@ type QueryOrderData struct {
 	Time                float64 `json:"time"`
 	IsWorking           bool    `json:"isWorking"`
 	CummulativeQuoteQty float64 `json:"cummulativeQuoteQty,string"`
-	OrderListId         int64   `json:"orderListId"`
+	OrderListID         int64   `json:"orderListId"`
 	OrigQuoteOrderQty   float64 `json:"origQuoteOrderQty,string"`
 	UpdateTime          int64   `json:"updateTime"`
 }

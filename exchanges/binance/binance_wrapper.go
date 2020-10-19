@@ -514,16 +514,15 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		sideType = order.Sell.String()
 	}
 
-	var timeInForce RequestParamsTimeForceType
+	timeInForce := BinanceRequestParamsTimeGTC
 	var requestParamsOrderType RequestParamsOrderType
 	switch s.Type {
 	case order.Market:
+		timeInForce = ""
 		requestParamsOrderType = BinanceRequestParamsOrderMarket
 	case order.Limit:
-		timeInForce = BinanceRequestParamsTimeGTC
 		requestParamsOrderType = BinanceRequestParamsOrderLimit
 	default:
-		timeInForce = BinanceRequestParamsTimeGTC
 		submitOrderResponse.IsOrderPlaced = false
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
@@ -623,12 +622,12 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		return
 	}
 
-	orderId, err := convert.Int64FromString(orderID)
+	orderIDInt64, err := convert.Int64FromString(orderID)
 	if err != nil {
 		return
 	}
 
-	resp, err := b.QueryOrder(formattedPair.String(), "", orderId)
+	resp, err := b.QueryOrder(formattedPair.String(), "", orderIDInt64)
 	if err != nil {
 		return
 	}

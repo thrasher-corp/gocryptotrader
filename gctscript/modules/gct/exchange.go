@@ -266,8 +266,8 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 
 	switch len(args) {
 	case 3:
-		currencyPairString, ok := objects.ToString(args[2])
-		if !ok {
+		currencyPairString, isOk := objects.ToString(args[2])
+		if !isOk {
 			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
 		}
 

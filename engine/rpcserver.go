@@ -883,12 +883,12 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 	}
 
 	var trades []*gctrpc.Trades
-	for _, tr := range resp.Trades {
+	for i := range resp.Trades {
 		trades = append(trades, &gctrpc.Trades{
-			Amount:   tr.Amount,
-			Price:    tr.Price,
-			Fee:      tr.Fee,
-			FeeAsset: tr.FeeAsset,
+			Amount:   resp.Trades[i].Amount,
+			Price:    resp.Trades[i].Price,
+			Fee:      resp.Trades[i].Fee,
+			FeeAsset: resp.Trades[i].FeeAsset,
 		})
 	}
 
