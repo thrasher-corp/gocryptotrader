@@ -23,5 +23,6 @@ func validExchange(exch string) bool {
 }
 
 func validAsset(i string) bool {
-	return asset.IsValid(asset.Item(i))
+	_, err := asset.New(i)
+	return err == nil
 }

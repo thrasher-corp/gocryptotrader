@@ -183,13 +183,12 @@ func TestDryRunParamInteraction(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Now set dryrun mode to false (via flagset and the previously enabled
-	// setting), enable exchange verbose mode and verify that verbose mode
+	// Now set dryrun mode to true,
+	// enable exchange verbose mode and verify that verbose mode
 	// will be set on Bitfinex
-	bot.Settings.EnableDryRun = false
+	bot.Settings.EnableDryRun = true
 	bot.Settings.CheckParamInteraction = true
 	bot.Settings.EnableExchangeVerbose = true
-	flagSet["dryrun"] = true
 	if err = bot.LoadExchange(testExchange, false, nil); err != nil {
 		t.Error(err)
 	}
@@ -199,8 +198,8 @@ func TestDryRunParamInteraction(t *testing.T) {
 		t.Error(err)
 	}
 
-	if bot.Settings.EnableDryRun ||
+	if !bot.Settings.EnableDryRun ||
 		!exchCfg.Verbose {
-		t.Error("dryrun should be false and verbose should be true")
+		t.Error("dryrun should be true and verbose should be true")
 	}
 }

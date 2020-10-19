@@ -26,14 +26,14 @@ s := new(smtpservice.SMTPservice)
 
 // Define SMTPservice configuration
 commsConfig := config.CommunicationsConfig{SMTPservice: config.SMTPConfig{
-  Name: "SMTPservice",
-	Enabled: true,
-	Verbose: false,
-  Host: "host",
-	Port: "port",
-	AccountName: "name",
+	Name:            "SMTPservice",
+	Enabled:         true,
+	Verbose:         false,
+	Host:            "host",
+	Port:            "port",
+	AccountName:     "name",
 	AccountPassword: "password",
-	RecipientList: "something@something.com,somethingelse@something.com"
+	RecipientList:   "something@something.com,somethingelse@something.com"
 }}
 
 s.Setup(commsConfig)

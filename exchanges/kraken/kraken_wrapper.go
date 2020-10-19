@@ -921,7 +921,7 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   timeValue,
 			Open:   candles[x].Open,
-			High:   candles[x].Close,
+			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].Volume,
@@ -964,7 +964,7 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   timeValue,
 			Open:   candles[i].Open,
-			High:   candles[i].Close,
+			High:   candles[i].High,
 			Low:    candles[i].Low,
 			Close:  candles[i].Close,
 			Volume: candles[i].Volume,

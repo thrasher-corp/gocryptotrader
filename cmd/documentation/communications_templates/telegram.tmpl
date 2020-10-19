@@ -11,42 +11,42 @@ developed by Telegram Messenger LLP
 ### Current Features
 
 + Creation of bot that can retrieve
-  - Bot status
+	- Bot status
 
-  ### How to enable
+	### How to enable
 
-  + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
+	+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
 
-  + Individual package example below:
-  ```go
-  import (
-  "github.com/thrasher-corp/gocryptotrader/communications/telegram"
-  "github.com/thrasher-corp/gocryptotrader/config"
-  )
+	+ Individual package example below:
+	```go
+	import (
+	"github.com/thrasher-corp/gocryptotrader/communications/telegram"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	)
 
-  t := new(telegram.Telegram)
+	t := new(telegram.Telegram)
 
-  // Define Telegram configuration
-  commsConfig := config.CommunicationsConfig{TelegramConfig: config.TelegramConfig{
-    Name: "Telegram",
-  	Enabled: true,
-  	Verbose: false,
-    VerificationToken: "token",
-  }}
+	// Define Telegram configuration
+	commsConfig := config.CommunicationsConfig{TelegramConfig: config.TelegramConfig{
+	Name: "Telegram",
+		Enabled: true,
+		Verbose: false,
+	VerificationToken: "token",
+	}}
 
-  t.Setup(commsConfig)
-  err := t.Connect
-  // Handle error
-  ```
+	t.Setup(commsConfig)
+	err := t.Connect
+	// Handle error
+	```
 
 + Once the bot has started you can interact with the bot using these commands
 via Telegram:
 
 ```
-/start  		- Will authenticate your ID
-/status 		- Displays the status of the bot
-/help 			- Displays current command list
-/settings 	- Displays current bot settings
+/start			- Will authenticate your ID
+/status			- Displays the status of the bot
+/help			- Displays current command list
+/settings		- Displays current bot settings
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

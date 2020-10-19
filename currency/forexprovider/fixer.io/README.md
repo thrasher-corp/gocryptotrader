@@ -37,13 +37,13 @@ c := fixer.Fixer{}
 
 // Define configuration
 newSettings := base.Settings{
-  	Name: "Fixer",
-	Enabled: true,
-	Verbose: false,
+	Name:             "Fixer",
+	Enabled:          true,
+	Verbose:          false,
 	RESTPollingDelay: time.Duration,
-	APIKey: "key",
-	APIKeyLvl: "keylvl",
-	PrimaryProvider: true,
+	APIKey:           "key",
+	APIKeyLvl:        "keylvl",
+	PrimaryProvider:  true,
 }
 
 c.Setup(newSettings)

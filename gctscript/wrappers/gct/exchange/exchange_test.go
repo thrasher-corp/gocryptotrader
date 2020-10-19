@@ -181,7 +181,7 @@ func TestExchange_CancelOrder(t *testing.T) {
 }
 
 func setupEngine() (err error) {
-	engine.Bot, err = engine.NewFromSettings(&settings)
+	engine.Bot, err = engine.NewFromSettings(&settings, nil)
 	if err != nil {
 		return err
 	}

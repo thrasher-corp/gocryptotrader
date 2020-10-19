@@ -713,7 +713,7 @@ func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   time.Unix(candles[x].Date, 0),
 			Open:   candles[x].Open,
-			High:   candles[x].Close,
+			High:   candles[x].High,
 			Low:    candles[x].Low,
 			Close:  candles[x].Close,
 			Volume: candles[x].Volume,
