@@ -29,13 +29,15 @@ import (
 
 const (
 	unexpectedLackOfError = "unexpected lack of error"
-	databaseFolder        = "database"
 	migrationsFolder      = "migrations"
+	databaseFolder        = "database"
 	databaseName          = "rpctestdb"
 )
 
 // Sets up everything required to run any function inside rpcserver
 func RPCTestSetup(t *testing.T) *Engine {
+	database.DB.Mu.Lock()
+	var err error
 	dbConf := database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite3,
@@ -44,15 +46,12 @@ func RPCTestSetup(t *testing.T) *Engine {
 		},
 	}
 	engerino := new(Engine)
-	engerino.Config = &config.Cfg
-	err := engerino.Config.LoadConfig(config.TestFile, true)
+	engerino.Config = &config.Config{}
+	err = engerino.Config.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
 	}
-	err = engerino.Config.RetrieveConfigCurrencyPairs(true, asset.Spot)
-	if err != nil {
-		t.Fatalf("Failed to retrieve config currency pairs. %s", err)
-	}
+
 	if engerino.GetExchangeByName(testExchange) == nil {
 		err = engerino.LoadExchange(testExchange, false, nil)
 		if err != nil {
@@ -60,7 +59,6 @@ func RPCTestSetup(t *testing.T) *Engine {
 		}
 	}
 	engerino.Config.Database = dbConf
-	database.DB.Config = &dbConf
 	err = engerino.DatabaseManager.Start(engerino)
 	if err != nil {
 		log.Fatal(err)
@@ -75,17 +73,22 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
 	}
+	database.DB.Mu.Unlock()
+
 	return engerino
 }
 
 func CleanRPCTest(t *testing.T, engerino *Engine) {
+	database.DB.Mu.Lock()
+	defer database.DB.Mu.Unlock()
 	err := engerino.DatabaseManager.Stop()
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	err = os.Remove(filepath.Join(common.GetDefaultDataDir(runtime.GOOS), databaseFolder, databaseName))
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 
@@ -112,7 +115,8 @@ func TestGetSavedTrades(t *testing.T) {
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	})
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if err != errExchangeNotLoaded {
 		t.Error(err)
@@ -129,7 +133,8 @@ func TestGetSavedTrades(t *testing.T) {
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	})
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if err.Error() != "request for Bitstamp spot trade data between 2019-11-30 00:00:00 and 2020-01-01 01:01:01 and returned no results" {
 		t.Error(err)
@@ -145,7 +150,8 @@ func TestGetSavedTrades(t *testing.T) {
 		Side:      order.Buy.String(),
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
 		Exchange: testExchange,
@@ -170,7 +176,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 	// bad param test
 	_, err := s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{})
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
@@ -190,7 +197,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if err != errExchangeNotLoaded {
 		t.Error(err)
@@ -210,7 +218,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 		TimeInterval: int64(kline.OneHour.Duration()),
 	})
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if err.Error() != "no trades returned from supplied params" {
 		t.Error(err)
@@ -228,7 +237,8 @@ func TestConvertTradesToCandles(t *testing.T) {
 		Side:      order.Buy.String(),
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	// get candle from one trade
@@ -415,7 +425,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		Timestamp:    time.Date(2020, 1, 2, 3, 1, 1, 7, time.UTC),
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	// db run including trades
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
@@ -446,10 +457,12 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	// bad request checks
 	_, err := s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{})
 	if err == nil {
-		t.Fatal("expected error")
+		t.Error("expected error")
+		return
 	}
 	if !errors.Is(err, errInvalidArguments) {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	// no data found response
@@ -484,7 +497,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 		Timestamp:    time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
@@ -516,7 +530,8 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 		Timestamp:    time.Date(2020, 1, 1, 13, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
@@ -544,10 +559,12 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	// bad request checks
 	_, err := s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{})
 	if err == nil {
-		t.Fatal("expected error")
+		t.Error("expected error")
+		return
 	}
 	if !errors.Is(err, errInvalidArguments) {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	// no data found response
@@ -566,7 +583,8 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		End:      defaultEnd.Format(common.SimpleTimeFormat),
 	})
 	if err != nil && err.Error() != "no candle data found: Bitstamp BTC USD 3600 spot" {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	// one candle missing periods response
@@ -587,7 +605,8 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		},
 	}, false)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	_, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
@@ -623,7 +642,8 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		},
 	}, false)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 
 	resp, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
@@ -651,7 +671,8 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	s := RPCServer{engerino}
 	_, err := s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	exch := s.GetExchangeByName(testExchange)
 	base := exch.GetBase()
@@ -661,7 +682,8 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 
 	_, err = s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: false})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	exch = s.GetExchangeByName(testExchange)
 	base = exch.GetBase()
@@ -676,7 +698,8 @@ func TestGetRecentTrades(t *testing.T) {
 	s := RPCServer{engerino}
 	_, err := s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
@@ -693,7 +716,8 @@ func TestGetRecentTrades(t *testing.T) {
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	})
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if err != errExchangeNotLoaded {
 		t.Error(err)
@@ -718,7 +742,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	s := RPCServer{engerino}
 	err := s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{}, nil)
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if !errors.Is(err, errInvalidArguments) {
 		t.Error(err)
@@ -735,7 +760,8 @@ func TestGetHistoricTrades(t *testing.T) {
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if err != errExchangeNotLoaded {
 		t.Error(err)
@@ -752,7 +778,8 @@ func TestGetHistoricTrades(t *testing.T) {
 		End:       time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC).Format(common.SimpleTimeFormat),
 	}, nil)
 	if err == nil {
-		t.Fatal(unexpectedLackOfError)
+		t.Error(unexpectedLackOfError)
+		return
 	}
 	if err != common.ErrFunctionNotSupported {
 		t.Error(err)
