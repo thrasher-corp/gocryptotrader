@@ -283,12 +283,12 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 		}
 	}
 
-	assetType := asset.New(assetTypeString)
-	if assetType == nil {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeString)
+	assetType, err := asset.New(assetTypeString)
+	if err != nil {
+		return nil, err
 	}
 
-	orderDetails, err := wrappers.GetWrapper().QueryOrder(exchangeName, orderID, pair, assetType[0])
+	orderDetails, err := wrappers.GetWrapper().QueryOrder(exchangeName, orderID, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
