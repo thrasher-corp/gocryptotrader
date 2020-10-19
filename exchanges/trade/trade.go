@@ -166,7 +166,7 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) (result []Data, err error) {
 		}
 		cp = cp.Upper()
 		var a = asset.Item(dbTrades[i].AssetType)
-		if !asset.IsValid(a) {
+		if !a.IsValid() {
 			return nil, fmt.Errorf("invalid asset type %v", a)
 		}
 		var s order.Side

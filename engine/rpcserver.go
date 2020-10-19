@@ -1698,14 +1698,13 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 		Base:      currency.NewCode(r.Pair.Base),
 		Quote:     currency.NewCode(r.Pair.Quote),
 	}
-
 	if r.UseDb {
-		candles, err = kline.LoadFromDatabase(r.Exchange,
+		klineItem, err = kline.LoadFromDatabase(r.Exchange,
 			pair,
 			a,
 			interval,
 			UTCStartTime,
-			UTCEndTime,		)
+			UTCEndTime)
 		if err != nil {
 			return nil, err
 		}
@@ -1714,14 +1713,14 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 		if exchangeEngine == nil {
 			return nil, errors.New("Exchange " + r.Exchange + " not found")
 		}
-		if req.ExRequest {
-			candles, err = exchangeEngine.GetHistoricCandlesExtended(pair,
+		if r.ExRequest {
+			klineItem, err = exchangeEngine.GetHistoricCandlesExtended(pair,
 				a,
 				UTCStartTime,
 				UTCEndTime,
 				interval)
 		} else {
-			candles, err = exchangeEngine.GetHistoricCandles(pair,
+			klineItem, err = exchangeEngine.GetHistoricCandles(pair,
 				a,
 				UTCStartTime,
 				UTCEndTime,
@@ -2392,7 +2391,7 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 		return nil, err
 	}
 	a := asset.Item(r.AssetType)
-	if !asset.IsValid(a) {
+	if !a.IsValid() {
 		return nil, errors.New("invalid asset")
 	}
 	var pairs currency.Pairs
@@ -2463,7 +2462,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 		return nil, err
 	}
 	a := asset.Item(r.AssetType)
-	if !asset.IsValid(a) {
+	if !a.IsValid() {
 		return nil, errors.New("invalid asset")
 	}
 	var pairs currency.Pairs
@@ -2536,7 +2535,7 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 		return nil, err
 	}
 	a := asset.Item(r.AssetType)
-	if !asset.IsValid(a) {
+	if !a.IsValid() {
 		return nil, errors.New("invalid asset")
 	}
 	var pairs currency.Pairs
@@ -2650,7 +2649,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		return nil, err
 	}
 	a := asset.Item(r.AssetType)
-	if !asset.IsValid(a) {
+	if !a.IsValid() {
 		return nil, errors.New("invalid asset")
 	}
 	var pairs currency.Pairs
@@ -2745,7 +2744,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		return err
 	}
 	a := asset.Item(r.AssetType)
-	if !asset.IsValid(a) {
+	if !a.IsValid() {
 		return errors.New("invalid asset")
 	}
 	var pairs currency.Pairs
@@ -2822,7 +2821,7 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 		return nil, err
 	}
 	a := asset.Item(r.AssetType)
-	if !asset.IsValid(a) {
+	if !a.IsValid() {
 		return nil, errors.New("invalid asset")
 	}
 	var pairs currency.Pairs
