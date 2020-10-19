@@ -91,16 +91,25 @@ func TestMove(t *testing.T) {
 			{InFile: "*", OutFile: "gct.txt", Write: true, ErrExpected: true},
 			{InFile: "*", OutFile: "gct.txt", Write: false, ErrExpected: true},
 			{InFile: "in.txt", OutFile: "*", Write: true, ErrExpected: true},
-			{InFile: "in.txt", OutFile: "gct.txt", Write: true, ErrExpected: false},
 		}
 	default:
 		tests = []testTable{
 			{InFile: "", OutFile: "gct.txt", Write: true, ErrExpected: true},
 			{InFile: "", OutFile: "gct.txt", Write: false, ErrExpected: true},
 			{InFile: "in.txt", OutFile: "", Write: true, ErrExpected: true},
-			{InFile: "in.txt", OutFile: "gct.txt", Write: true, ErrExpected: false},
 		}
 	}
+	tests = append(tests, []testTable{
+		{InFile: "in.txt", OutFile: "gct.txt", Write: true, ErrExpected: false},
+		{InFile: "in.txt", OutFile: "non-existing/gct.txt", Write: true, ErrExpected: false},
+		{InFile: "in.txt", OutFile: "in.txt", Write: true, ErrExpected: false},
+	}...)
+
+	if Exists("non-existing") {
+		t.Error("target 'non-existing' should not exist")
+	}
+	defer os.RemoveAll("non-existing")
+	defer os.Remove("in.txt")
 
 	for x := range tests {
 		err := tester(tests[x].InFile, tests[x].OutFile, tests[x].Write)

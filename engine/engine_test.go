@@ -51,12 +51,12 @@ func TestLoadConfigWithSettings(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			// prepare the 'flags'
-			flagSet = make(map[string]bool)
+			flagSet := make(map[string]bool)
 			for _, v := range tt.flags {
 				flagSet[v] = true
 			}
 			// Run the test
-			got, err := loadConfigWithSettings(tt.settings)
+			got, err := loadConfigWithSettings(tt.settings, flagSet)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("loadConfigWithSettings() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -77,7 +77,7 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
-	})
+	}, make(map[string]bool))
 	if err != nil {
 		t.Error(err)
 	}

@@ -1,6 +1,7 @@
 package asset
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -63,12 +64,12 @@ func (a Items) Strings() []string {
 // Contains returns whether or not the supplied asset exists
 // in the list of Items
 func (a Items) Contains(i Item) bool {
-	if !IsValid(i) {
+	if !i.IsValid() {
 		return false
 	}
 
 	for x := range a {
-		if strings.EqualFold(a[x].String(), i.String()) {
+		if a[x].String() == i.String() {
 			return true
 		}
 	}
@@ -83,35 +84,24 @@ func (a Items) JoinToString(separator string) string {
 
 // IsValid returns whether or not the supplied asset type is valid or
 // not
-func IsValid(input Item) bool {
-	a := Supported()
-	for x := range a {
-		if strings.EqualFold(a[x].String(), input.String()) {
+func (a Item) IsValid() bool {
+	for x := range supported {
+		if supported[x].String() == a.String() {
 			return true
 		}
 	}
 	return false
 }
 
-// New takes an input of asset types as string and returns an Items
-// array
-func New(input string) Items {
-	if !strings.Contains(input, ",") {
-		if IsValid(Item(input)) {
-			return Items{
-				Item(input),
-			}
+// New takes an input matches to relevant package assets
+func New(input string) (Item, error) {
+	input = strings.ToLower(input)
+	for i := range supported {
+		if string(supported[i]) == input {
+			return supported[i], nil
 		}
-		return nil
 	}
-
-	assets := strings.Split(input, ",")
-	var result Items
-	for x := range assets {
-		if !IsValid(Item(assets[x])) {
-			return nil
-		}
-		result = append(result, Item(assets[x]))
-	}
-	return result
+	return "", fmt.Errorf("cannot create new asset: input %s mismatch to supported asset list %s",
+		input,
+		supported)
 }

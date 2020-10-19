@@ -37,7 +37,9 @@ func TestContains(t *testing.T) {
 		t.Fatal("TestContains returned an unexpected result")
 	}
 
-	if !a.Contains("SpOt") {
+	// Every asset should be created and matched with func New so this should
+	// not be matched against list
+	if a.Contains("SpOt") {
 		t.Error("TestContains returned an unexpected result")
 	}
 }
@@ -50,36 +52,39 @@ func TestJoinToString(t *testing.T) {
 }
 
 func TestIsValid(t *testing.T) {
-	if IsValid("rawr") {
+	if Item("rawr").IsValid() {
 		t.Fatal("TestIsValid returned an unexpected result")
 	}
 
-	if !IsValid(Spot) {
+	if !Spot.IsValid() {
 		t.Fatal("TestIsValid returned an unexpected result")
 	}
 }
 
 func TestNew(t *testing.T) {
-	a := New("Spota")
-	if a != nil {
+	_, err := New("Spota")
+	if err == nil {
 		t.Fatal("TestNew returned an unexpected result")
 	}
 
-	a = New("SpOt")
-	if a == nil {
-		t.Fatal("TestNew returned an unexpected result")
+	a, err := New("SpOt")
+	if err != nil {
+		t.Fatal("TestNew returned an unexpected result", err)
 	}
 
-	a = New("spot,futures")
-	if a.JoinToString(",") != "spot,futures" {
+	if a != Spot {
 		t.Fatal("TestNew returned an unexpected result")
 	}
+}
 
-	if a := New("Spot_rawr"); a != nil {
-		t.Fatal("TestNew returned an unexpected result")
+func TestSupported(t *testing.T) {
+	s := Supported()
+	if len(supported) != len(s) {
+		t.Fatal("TestSupported mismatched lengths")
 	}
-
-	if a := New("Spot,Rawr"); a != nil {
-		t.Fatal("TestNew returned an unexpected result")
+	for i := 0; i < len(supported); i++ {
+		if s[i] != supported[i] {
+			t.Fatal("TestSupported returned an unexpected result")
+		}
 	}
 }

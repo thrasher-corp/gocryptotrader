@@ -358,7 +358,7 @@ func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item
 		return fmt.Errorf("exchange %s currency pairs is nil", exchName)
 	}
 
-	if !asset.IsValid(assetType) {
+	if !assetType.IsValid() {
 		return fmt.Errorf("exchange %s invalid asset type %s",
 			exchName,
 			assetType)
@@ -1457,129 +1457,99 @@ func (c *Config) CheckConnectionMonitorConfig() {
 // Windows: %APPDATA%\GoCryptoTrader\config.json or config.dat
 // Helpful for printing application usage
 func DefaultFilePath() string {
-	f := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), File)
-	if !file.Exists(f) {
-		encFile := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), EncryptedFile)
-		if file.Exists(encFile) {
-			return encFile
-		}
+	foundConfig, _, err := GetFilePath("")
+	if err != nil {
+		// If there was no config file, show default location for .json
+		return filepath.Join(common.GetDefaultDataDir(runtime.GOOS), File)
 	}
-	return f
+	return foundConfig
+}
+
+// GetAndMigrateDefaultPath returns the target config file
+// migrating it from the old default location to new one,
+// if it was implicitly loaded from a default location and
+// wasn't already in the correct 'new' default location
+func GetAndMigrateDefaultPath(configFile string) (string, error) {
+	filePath, wasDefault, err := GetFilePath(configFile)
+	if err != nil {
+		return "", err
+	}
+	if wasDefault {
+		return migrateConfig(filePath, common.GetDefaultDataDir(runtime.GOOS))
+	}
+	return filePath, nil
 }
 
 // GetFilePath returns the desired config file or the default config file name
-// based on if the application is being run under test or normal mode. It will
-// also move/rename the config file under the following conditions:
-// 1) If a config file is found in the executable path directory and no explicit
-//    config path is set, plus no config is found in the GCT data dir, it will
-//    move it to the GCT data dir. If a config already exists in the GCT data
-//    dir, it will warn the user and load the config found in the GCT data dir
-// 2) If a config file in the GCT data dir has the file extension .dat but
-//    contains json data, it will rename to the file to config.json
-// 3) If a config file in the GCT data dir has the file extension .json but
-//    contains encrypted data, it will rename the file to config.dat
-func GetFilePath(configfile string) (string, error) {
+// and whether it was loaded from a default location (rather than explicitly specified)
+func GetFilePath(configfile string) (configPath string, isImplicitDefaultPath bool, err error) {
 	if configfile != "" {
-		return configfile, nil
+		return configfile, false, nil
 	}
 
 	exePath, err := common.GetExecutablePath()
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-
-	oldDirs := []string{
+	newDir := common.GetDefaultDataDir(runtime.GOOS)
+	defaultPaths := []string{
 		filepath.Join(exePath, File),
 		filepath.Join(exePath, EncryptedFile),
-	}
-
-	newDir := common.GetDefaultDataDir(runtime.GOOS)
-	err = common.CreateDir(newDir)
-	if err != nil {
-		return "", err
-	}
-	newDirs := []string{
 		filepath.Join(newDir, File),
 		filepath.Join(newDir, EncryptedFile),
 	}
 
-	// First upgrade the old dir config file if it exists to the corresponding
-	// new one
-	for x := range oldDirs {
-		if !file.Exists(oldDirs[x]) {
-			continue
-		}
-		if file.Exists(newDirs[x]) {
-			log.Warnf(log.ConfigMgr,
-				"config.json file found in root dir and gct dir; cannot overwrite, defaulting to gct dir config.json at %s",
-				newDirs[x])
-			return newDirs[x], nil
-		}
-		if filepath.Ext(oldDirs[x]) == ".json" {
-			err = file.Move(oldDirs[x], newDirs[0])
-			if err != nil {
-				return "", err
-			}
-			log.Debugf(log.ConfigMgr,
-				"Renamed old config file %s to %s\n",
-				oldDirs[x],
-				newDirs[0])
-		} else {
-			err = file.Move(oldDirs[x], newDirs[1])
-			if err != nil {
-				return "", err
-			}
-			log.Debugf(log.ConfigMgr,
-				"Renamed old config file %s to %s\n",
-				oldDirs[x],
-				newDirs[1])
+	for _, p := range defaultPaths {
+		if file.Exists(p) {
+			configfile = p
+			break
 		}
 	}
-
-	// Secondly check to see if the new config file extension is correct or not
-	for x := range newDirs {
-		if !file.Exists(newDirs[x]) {
-			continue
-		}
-
-		data, err := ioutil.ReadFile(newDirs[x])
-		if err != nil {
-			return "", err
-		}
-
-		if ConfirmECS(data) {
-			if filepath.Ext(newDirs[x]) == ".dat" {
-				return newDirs[x], nil
-			}
-
-			err = file.Move(newDirs[x], newDirs[1])
-			if err != nil {
-				return "", err
-			}
-			return newDirs[1], nil
-		}
-
-		if filepath.Ext(newDirs[x]) == ".json" {
-			return newDirs[x], nil
-		}
-
-		err = file.Move(newDirs[x], newDirs[0])
-		if err != nil {
-			return "", err
-		}
-
-		return newDirs[0], nil
+	if configfile == "" {
+		return "", false, fmt.Errorf("config.json file not found in %s, please follow README.md in root dir for config generation",
+			newDir)
 	}
 
-	return "", fmt.Errorf("config.json file not found in %s, please follow README.md in root dir for config generation",
-		newDir)
+	return configfile, true, nil
+}
+
+// migrateConfig will move the config file to the target
+// config directory as `File` or `EncryptedFile` depending on whether the config
+// is encrypted
+func migrateConfig(configFile, targetDir string) (string, error) {
+	data, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return "", err
+	}
+
+	var target string
+	if ConfirmECS(data) {
+		target = EncryptedFile
+	} else {
+		target = File
+	}
+	target = filepath.Join(targetDir, target)
+	if configFile == target {
+		return configFile, nil
+	}
+	if file.Exists(target) {
+		log.Warnf(log.ConfigMgr, "config file already found in '%s'; not overwriting, defaulting to %s", target, configFile)
+		return configFile, nil
+	}
+
+	err = file.Move(configFile, target)
+	if err != nil {
+		return "", err
+	}
+
+	return target, nil
 }
 
 // ReadConfig verifies and checks for encryption and verifies the unencrypted
 // file contains JSON.
 // Prompts for decryption key, if target file is encrypted
 func (c *Config) ReadConfig(configPath string, dryrun bool) error {
-	defaultPath, err := GetFilePath(configPath)
+	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {
 		return err
 	}
@@ -1658,7 +1628,7 @@ func (c *Config) SaveConfig(configPath string, dryrun bool) error {
 		return nil
 	}
 
-	defaultPath, err := GetFilePath(configPath)
+	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {
 		return err
 	}
