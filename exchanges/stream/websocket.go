@@ -185,9 +185,6 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 // Connect initiates a websocket connection by using a package defined connection
 // function
 func (w *Websocket) Connect() error {
-	// if w.connector == nil {
-	// 	return errors.New("websocket connect function not set, cannot continue")
-	// }
 	w.m.Lock()
 	defer w.m.Unlock()
 
@@ -212,33 +209,43 @@ func (w *Websocket) Connect() error {
 	// w.subscriptions = nil
 	// w.subscriptionMutex.Unlock()
 
-	subs, err := w.Connections.GenerateSubscriptions()
-	if err != nil {
-		return err
-	}
-
-	corns, err := w.Connections.GenerateConnections()
-	if err != nil {
-		return err
-	}
-
-	for i := range corns {
-		err = w.Connections.LoadNewConnection(corns[i])
-		if err != nil {
-			return err
-		}
-	}
-
-	err = w.Connections.Connect()
+	err := w.Connections.FullConnect(w.CanUseAuthenticatedEndpoints())
 	if err != nil {
 		w.setConnectingStatus(false)
 		return fmt.Errorf("%v Error connecting %s", w.exchangeName, err)
 	}
 
-	err = w.Connections.Subscribe(subs)
-	if err != nil {
-		return err
-	}
+	// subs, err := w.Connections.GenerateSubscriptions()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// fmt.Println("generated subs:", subs)
+
+	// connections, err := w.Connections.GenerateConnections()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// fmt.Println("generated cons:", connections)
+
+	// for i := range connections {
+	// 	err = w.Connections.LoadNewConnection(connections[i])
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
+
+	// err = w.Connections.Connect()
+	// if err != nil {
+	// 	w.setConnectingStatus(false)
+	// 	return fmt.Errorf("%v Error connecting %s", w.exchangeName, err)
+	// }
+
+	// err = w.Connections.Subscribe(subs)
+	// if err != nil {
+	// 	return err
+	// }
 
 	// err := w.connector(nil)
 	// if err != nil {
@@ -494,7 +501,7 @@ func (w *Websocket) FlushChannels() error {
 		// 	w.subscriptionMutex.Unlock()
 		// 	return w.SubscribeToChannels(newsubs)
 		// }
-		return nil
+		// return nil
 	}
 
 	err := w.Shutdown()

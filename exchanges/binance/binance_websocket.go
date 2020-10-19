@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -85,11 +86,8 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 
 			return nil
 		}
-		fmt.Println("GOODBYE BRO")
 		return nil
 	}
-
-	fmt.Println("Unauth Conn:", conn)
 
 	err = conn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -108,26 +106,41 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData(conn)
-
-	// subs, err := b.GenerateSubscriptions(stream.SubscriptionOptions{})
-	// if err != nil {
-	// 	return err
-	// }
-	// return b.Websocket.SubscribeToChannels(subs)
 	return nil
 }
 
-func (b *Binance) spawnConnection(setup stream.ConnectionSetup) (stream.Connection, error) {
-	return &stream.WebsocketConnection{
-		Verbose:       b.Verbose,
-		ExchangeName:  b.Name,
-		URL:           setup.URL,
-		ProxyURL:      b.Websocket.GetProxyAddress(),
-		Authenticated: setup.DedicatedAuthenticatedConn,
-		Match:         b.Websocket.Match,
-		Wg:            b.Websocket.Wg,
-		Traffic:       b.Websocket.TrafficAlert,
-	}, nil
+const maxSubscriptionsPerConnection = 1024
+
+func (b *Binance) spawnConnection(setup stream.ConnectionSetup, subscriptionCount int) ([]stream.Connection, error) {
+
+	fmt.Println("Subscription count:", subscriptionCount)
+	var connections []stream.Connection
+	if subscriptionCount <= maxSubscriptionsPerConnection {
+		return []stream.Connection{&stream.WebsocketConnection{
+			Verbose:       b.Verbose,
+			ExchangeName:  b.Name,
+			URL:           setup.URL,
+			ProxyURL:      b.Websocket.GetProxyAddress(),
+			Authenticated: setup.DedicatedAuthenticatedConn,
+			Match:         b.Websocket.Match,
+			Wg:            b.Websocket.Wg,
+			Traffic:       b.Websocket.TrafficAlert,
+		}}, nil
+	}
+
+	for i := subscriptionCount; i%1024 <= 0; i -= 1024 {
+		connections = append(connections, &stream.WebsocketConnection{
+			Verbose:       b.Verbose,
+			ExchangeName:  b.Name,
+			URL:           setup.URL,
+			ProxyURL:      b.Websocket.GetProxyAddress(),
+			Authenticated: setup.DedicatedAuthenticatedConn,
+			Match:         b.Websocket.Match,
+			Wg:            b.Websocket.Wg,
+			Traffic:       b.Websocket.TrafficAlert,
+		})
+	}
+	return connections, nil
 }
 
 func (b *Binance) preConnectionSetup(conn stream.Connection) {
@@ -339,13 +352,20 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 						return err
 					}
 
-					b.Websocket.DataHandler <- stream.TradeData{
-						CurrencyPair: pair,
-						Timestamp:    time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
-						Price:        price,
-						Amount:       amount,
-						Exchange:     b.Name,
-						AssetType:    asset.Spot,
+					assets, err := conn.GetAssetsBySubscriptionType(stream.Trade, pair)
+					if err != nil {
+						return err
+					}
+
+					for i := range assets {
+						b.Websocket.DataHandler <- stream.TradeData{
+							CurrencyPair: pair,
+							Timestamp:    time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
+							Price:        price,
+							Amount:       amount,
+							Exchange:     b.Name,
+							AssetType:    assets[i],
+						}
 					}
 				case "ticker":
 					var t TickerStream
@@ -428,27 +448,11 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 							err)
 					}
 
-					// fmt.Println("PAIR:", depth.Pair)
-
-					pair, err := currency.NewPairFromString(depth.Pair)
+					err = b.UpdateLocalBuffer(&depth, conn)
 					if err != nil {
-						return err
-					}
-
-					assets, err := conn.GetAssetsBySubscriptionType(stream.Orderbook, pair)
-					if err != nil {
-						return err
-					}
-
-					// fmt.Println("ASSETS:", assets)
-
-					for i := range assets {
-						err = b.UpdateLocalBuffer(assets[i], &depth, conn)
-						if err != nil {
-							return fmt.Errorf("%v - UpdateLocalCache error: %s",
-								b.Name,
-								err)
-						}
+						return fmt.Errorf("%v - UpdateLocalCache error: %s",
+							b.Name,
+							err)
 					}
 				default:
 					b.Websocket.DataHandler <- stream.UnhandledMessageWarning{
@@ -517,71 +521,66 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	}
 
 	newOrderBook.Pair = p
-	newOrderBook.AssetType = asset.Spot
+	newOrderBook.AssetType = a
 	newOrderBook.ExchangeName = b.Name
 	newOrderBook.LastUpdateID = orderbookNew.LastUpdateID
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
-// UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (b *Binance) UpdateLocalBuffer(a asset.Item, u *WebsocketDepthStream, conn stream.Connection) error {
-	enabledPairs, err := b.GetEnabledPairs(a)
+// UpdateLocalBuffer stages update to a related asset type associated with a
+// connection.
+func (b *Binance) UpdateLocalBuffer(u *WebsocketDepthStream, conn stream.Connection) error {
+	pair, err := currency.NewPairFromString(u.Pair)
 	if err != nil {
 		return err
 	}
 
-	format, err := b.GetPairFormat(a, true)
+	assets, err := conn.GetAssetsBySubscriptionType(stream.Orderbook, pair)
 	if err != nil {
 		return err
 	}
 
-	currencyPair, err := currency.NewPairFromFormattedPairs(u.Pair,
-		enabledPairs,
-		format)
-	if err != nil {
-		return err
-	}
-
-	return b.CheckAndLoadBook(currencyPair, a, u, conn)
-}
-
-// CheckAndLoadBook buffers updates, spawns workers for http book request and
-// lets slip routine, validates buffer contents and returns required work when
-// needed
-func (b *Binance) CheckAndLoadBook(c currency.Pair, a asset.Item, u *WebsocketDepthStream, conn stream.Connection) error {
 	b.mtx.Lock() // protects fetching book
 	defer b.mtx.Unlock()
 
-	ch, ok := b.buffer[c.String()][a]
-	if !ok {
-		ch = make(chan *WebsocketDepthStream, 1000)
-		b.buffer[c.String()] = make(map[asset.Item]chan *WebsocketDepthStream)
-		b.buffer[c.String()][a] = ch
-	}
-	select {
-	case ch <- u:
-	default:
-		return fmt.Errorf("channel blockage %s", c)
-	}
-
-	if b.fetchingbook[c.String()][a] {
-		return nil
-	}
-
-	err := b.applyBufferUpdate(c, a, conn)
-	if err != nil {
-		flushError := b.Websocket.Orderbook.FlushOrderbook(c, a)
-		if flushError != nil {
-			log.Errorln(log.WebsocketMgr, "flushing websocket error:", flushError)
+	var errs common.Errors
+	for i := range assets {
+		// Stage websocket update to buffer
+		ch, ok := b.buffer[pair.String()][assets[i]]
+		if !ok {
+			ch = make(chan *WebsocketDepthStream, 1000)
+			b.buffer[pair.String()] = make(map[asset.Item]chan *WebsocketDepthStream)
+			b.buffer[pair.String()][assets[i]] = ch
 		}
-		return err
+		select {
+		case ch <- u:
+		default:
+			return fmt.Errorf("channel blockage %s", pair)
+		}
+
+		if b.fetchingbook[pair.String()][assets[i]] {
+			return nil
+		}
+
+		err := b.applyBufferUpdate(pair, assets[i], conn)
+		if err != nil {
+			flushError := b.Websocket.Orderbook.FlushOrderbook(pair, assets[i])
+			if flushError != nil {
+				log.Errorln(log.WebsocketMgr, "flushing websocket error:", flushError)
+			}
+			errs = append(errs, err)
+		}
 	}
 
+	if errs != nil {
+		return errs
+	}
 	return nil
 }
 
-// BleedPipe applies the buffer to the orderbook
+// applyBufferUpdate applies the buffer to the orderbook or initiates a new
+// orderbook sync by the REST protocol which is off handed to go routine.
 func (b *Binance) applyBufferUpdate(cp currency.Pair, a asset.Item, conn stream.Connection) error {
 	currentBook := b.Websocket.Orderbook.GetOrderbook(cp, a)
 	if currentBook == nil {
@@ -606,7 +605,8 @@ func (b *Binance) applyBufferUpdate(cp currency.Pair, a asset.Item, conn stream.
 		return nil
 	}
 
-loop:
+loop: // This will continuously remove updates from the buffered channel and
+	// apply them to the current orderbook.
 	for {
 		select {
 		case d := <-b.buffer[cp.String()][a]:
@@ -626,7 +626,7 @@ loop:
 				// While listening to the stream, each new event's U should be
 				// equal to the previous event's u+1.
 				if d.FirstUpdateID != id {
-					return errors.New("synchronisation failure")
+					return fmt.Errorf("synchronisation failure for %s %s", cp, a)
 				}
 			}
 			err := b.ProcessUpdate(cp, a, d)
@@ -668,8 +668,6 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
 
-	fmt.Println("asset Item update:", a)
-
 	return b.Websocket.Orderbook.Update(&buffer.Update{
 		Bids:     updateBid,
 		Asks:     updateAsk,
@@ -690,7 +688,6 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 			case job := <-b.jobs:
 				assets, err := job.Conn.GetAssetsBySubscriptionType(stream.Orderbook, job.Pair)
 				if err != nil {
-					fmt.Println(job.Conn.GetAllSubscriptions())
 					log.Errorln(log.WebsocketMgr, "cannot fetch asssociated asset types", err)
 					continue
 				}
@@ -701,9 +698,9 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 					continue
 				}
 
-				b.mtx.Lock()
+				b.mtx.Lock() // immediatly apply the buffer updates so we don't
+				// wait for a new update to initiate this.
 				for i := range assets {
-					fmt.Println("MEOW ASSETS", assets[i])
 					err = b.applyBufferUpdate(job.Pair, assets[i], job.Conn)
 					if err != nil {
 						log.Errorln(log.WebsocketMgr, "applying orderbook updates error", err)
@@ -725,42 +722,36 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 	}()
 }
 
-// Channel adds an application of a subscription type
-type Channel struct {
-	Definition string
-	Type       stream.Subscription
-}
-
 // GenerateSubscriptions generates the default subscription set
 func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
-	var channels []Channel
+	var channels []WsChannel
 	if options.Features.TickerFetching {
-		channels = append(channels, Channel{
+		channels = append(channels, WsChannel{
 			Definition: "@ticker",
 			Type:       stream.Ticker,
 		})
 	}
 
 	if options.Features.TradeFetching {
-		channels = append(channels, Channel{
+		channels = append(channels, WsChannel{
 			Definition: "@trade",
 			Type:       stream.Trade,
 		})
 	}
 
 	if options.Features.KlineFetching {
-		channels = append(channels, Channel{
+		channels = append(channels, WsChannel{
 			Definition: "@kline_1m",
 			Type:       stream.Kline,
 		})
 	}
 
-	// if options.Features.OrderbookFetching {
-	// 	channels = append(channels, Channel{
-	// 		Definition: "@depth@100ms",
-	// 		Type:       stream.Orderbook,
-	// 	})
-	// }
+	if options.Features.OrderbookFetching {
+		channels = append(channels, WsChannel{
+			Definition: "@depth@100ms",
+			Type:       stream.Orderbook,
+		})
+	}
 
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes()
@@ -790,7 +781,6 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 
 // Subscribe subscribes to a set of channels
 func (b *Binance) Subscribe(sub stream.SubscriptionParamaters) error {
-	fmt.Println("Subbing:", sub)
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -818,50 +808,3 @@ func (b *Binance) Unsubscribe(unsub stream.SubscriptionParamaters) error {
 	}
 	return unsub.Conn.RemoveSuccessfulUnsubscriptions(unsub.Items)
 }
-
-// // NewProtocolSync sets up a new protocol syncrhonisation system for buffering,
-// // syncing and deploying currency pairs
-// func NewProtocolSync(jobCap int) (*ProtocolSync, error) {
-// 	return &ProtocolSync{
-// 		buffer: make(map[string]Buffer),
-// 		job:    make(chan currency.Pair, jobCap),
-// 	}, nil
-// }
-
-// // ProtocolSync provides a sychronisation method for different currency pair
-// // assets
-// type ProtocolSync struct {
-// 	sync.Mutex
-// 	buffer map[string]Buffer
-// 	job    chan currency.Pair
-// }
-
-// // Buffer defines a buffered channel of potential updates and sync mechanism
-// // to determine actionable through put
-// type Buffer struct {
-// 	b     chan *WebsocketDepthStream
-// 	fetch int32
-// }
-
-// // GetEnabledPairsCombineAsset returns the full list with the combination of
-// // assets as margin and spot are the same currency pair and use the same book
-// func (b *Binance) GetEnabledPairsCombineAsset() (currency.Pairs, error) {
-// 	var pairs currency.Pairs
-// 	spot, err := b.GetEnabledPairs(asset.Spot)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	pairs = append(pairs, spot...)
-
-// 	margin, err := b.GetEnabledPairs(asset.Margin)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	for i := range margin {
-// 		if !pairs.Contains(margin[i], true) {
-// 			pairs = append(pairs, margin[i])
-// 		}
-// 	}
-// 	return pairs, nil
-// }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Response holds basic binance api response data
@@ -705,4 +706,10 @@ type WsPayload struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
 	ID     int64    `json:"id"`
+}
+
+// WsChannel adds an application of a subscription type
+type WsChannel struct {
+	Definition string
+	Type       stream.Subscription
 }

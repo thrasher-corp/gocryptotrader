@@ -51,16 +51,6 @@ type Websocket struct {
 	Subscribe         chan []ChannelSubscription
 	Unsubscribe       chan []ChannelSubscription
 
-	// // Subscriber function for package defined websocket subscriber
-	// // functionality
-	// Subscriber func(SubscriptionParamaters) error
-	// // Unsubscriber function for packaged defined websocket unsubscriber
-	// // functionality
-	// Unsubscriber func(SubscriptionParamaters) error
-	// // GenerateSubs function for package defined websocket generate
-	// // subscriptions functionality
-	// GenerateSubs func(SubscriptionOptions) ([]SubscriptionParamaters, error)
-
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
 
@@ -109,7 +99,7 @@ type WebsocketSetup struct {
 	Subscriber                         func(SubscriptionParamaters) error
 	Unsubscriber                       func(SubscriptionParamaters) error
 	GenerateSubscriptions              func(SubscriptionOptions) ([]ChannelSubscription, error)
-	GenerateConnection                 func(ConnectionSetup) (Connection, error)
+	GenerateConnection                 func(ConnectionSetup, int) ([]Connection, error)
 	Features                           *protocol.Features
 	ResponseCheckTimeout               time.Duration
 	ResponseMaxLimit                   time.Duration
