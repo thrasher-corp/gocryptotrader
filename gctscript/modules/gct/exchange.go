@@ -239,7 +239,7 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeOrderQuery query order on exchange
 func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 2 {
+	if len(args) < 2 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
@@ -251,18 +251,27 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
 	}
-	currencyPairString, ok := objects.ToString(args[2])
-	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
-	}
-	assetTypeString, ok := objects.ToString(args[3])
-	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeString)
-	}
 
-	pair, err := currency.NewPairFromString(currencyPairString)
-	if err != nil {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
+	var pair currency.Pair
+	assetTypeString := asset.Spot.String()
+
+	switch len(args) {
+	case 3:
+		currencyPairString, ok := objects.ToString(args[2])
+		if !ok {
+			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
+		}
+
+		var err error
+		pair, err = currency.NewPairFromString(currencyPairString)
+		if err != nil {
+			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
+		}
+	case 4:
+		assetTypeString, ok = objects.ToString(args[3])
+		if !ok {
+			return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeString)
+		}
 	}
 
 	assetType := asset.New(assetTypeString)
