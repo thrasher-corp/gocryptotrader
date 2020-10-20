@@ -1,6 +1,8 @@
 package config
 
 import (
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -27,6 +29,17 @@ const (
 	testPair                = "BTC-USD"
 	testString              = "test"
 )
+
+func TestGetNonExistentDefaultFilePathDoesNotCreateDefaultDir(t *testing.T) {
+	dir := common.GetDefaultDataDir(runtime.GOOS)
+	if file.Exists(dir) {
+		t.Skip("The default directory already exists before running the test")
+	}
+	GetFilePath("")
+	if file.Exists(dir) {
+		t.Fatalf("The target directory was created in %s", dir)
+	}
+}
 
 func TestGetCurrencyConfig(t *testing.T) {
 	cfg := GetConfig()
@@ -1705,21 +1718,25 @@ func TestDefaultFilePath(t *testing.T) {
 
 func TestGetFilePath(t *testing.T) {
 	expected := "blah.json"
-	result, _ := GetFilePath("blah.json")
+	result, wasDefault, _ := GetFilePath("blah.json")
 	if result != "blah.json" {
 		t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
 	}
+	if wasDefault {
+		t.Errorf("TestGetFilePath: expected non-default")
+	}
 
 	expected = DefaultFilePath()
-	result, err := GetFilePath("")
+	result, wasDefault, err := GetFilePath("")
 	if file.Exists(expected) {
 		if err != nil || result != expected {
 			t.Errorf("TestGetFilePath: expected %s got %s", expected, result)
 		}
-	} else {
-		if err == nil {
-			t.Error("Expected error when default config file does not exist")
+		if !wasDefault {
+			t.Errorf("TestGetFilePath: expected default file")
 		}
+	} else if err == nil {
+		t.Error("Expected error when default config file does not exist")
 	}
 }
 
@@ -2073,6 +2090,113 @@ func TestGetDataPath(t *testing.T) {
 			}
 			if got := c.GetDataPath(tt.elem...); got != tt.want {
 				t.Errorf("Config.GetDataPath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMigrateConfig(t *testing.T) {
+	type args struct {
+		configFile string
+		targetDir  string
+	}
+
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	tests := []struct {
+		name    string
+		setup   func(t *testing.T)
+		cleanup func(t *testing.T)
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "nonexisting",
+			args: args{
+				configFile: "not-exists.json",
+			},
+			wantErr: true,
+		},
+		{
+			name: "source present, no target dir",
+			setup: func(t *testing.T) {
+				test, err := os.Create("test.json")
+				if err != nil {
+					t.Fatal(err)
+				}
+				test.Close()
+			},
+			cleanup: func(t *testing.T) {
+				os.Remove("test.json")
+			},
+			args: args{
+				configFile: "test.json",
+				targetDir:  filepath.Join(dir, "new"),
+			},
+			want:    filepath.Join(dir, "new", File),
+			wantErr: false,
+		},
+		{
+			name: "source same as target",
+			setup: func(t *testing.T) {
+				err := file.Write(filepath.Join(dir, File), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+			},
+			args: args{
+				configFile: filepath.Join(dir, File),
+				targetDir:  dir,
+			},
+			want:    filepath.Join(dir, File),
+			wantErr: false,
+		},
+		{
+			name: "source and target present",
+			setup: func(t *testing.T) {
+				err := file.Write(filepath.Join(dir, File), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = file.Write(filepath.Join(dir, "src", EncryptedFile), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+			},
+			args: args{
+				configFile: filepath.Join(dir, "src", EncryptedFile),
+				targetDir:  dir,
+			},
+			want: filepath.Join(dir, "src", EncryptedFile),
+			// We only expect warning
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setup != nil {
+				tt.setup(t)
+			}
+			if tt.cleanup != nil {
+				defer tt.cleanup(t)
+			}
+			got, err := migrateConfig(tt.args.configFile, tt.args.targetDir)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("migrateConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("migrateConfig() = %v, want %v", got, tt.want)
+			}
+			if err == nil && !file.Exists(got) {
+				t.Errorf("migrateConfig: %v should exist", got)
 			}
 		})
 	}

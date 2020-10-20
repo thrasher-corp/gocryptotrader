@@ -2,7 +2,6 @@ package gct
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	objects "github.com/d5/tengo/v2"
@@ -58,7 +57,11 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	assetType := asset.Item(assetTypeParam)
+
+	assetType, err := asset.New(assetTypeParam)
+	if err != nil {
+		return nil, err
+	}
 
 	ob, err := wrappers.GetWrapper().Orderbook(exchangeName, pair, assetType)
 	if err != nil {
@@ -121,7 +124,10 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	assetType := asset.Item(assetTypeParam)
+	assetType, err := asset.New(assetTypeParam)
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := wrappers.GetWrapper().Ticker(exchangeName, pair, assetType)
 	if err != nil {
@@ -187,7 +193,10 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
 	}
-	assetType := asset.Item(strings.ToLower(assetTypeParam))
+	assetType, err := asset.New(assetTypeParam)
+	if err != nil {
+		return nil, err
+	}
 
 	rtnValue, err := wrappers.GetWrapper().Pairs(exchangeName, enabledOnly, assetType)
 	if err != nil {
@@ -362,9 +371,9 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
 	}
-	a := asset.Item(assetType)
-	if !asset.IsValid(a) {
-		return nil, fmt.Errorf("asset type: %s is invalid", a)
+	a, err := asset.New(assetType)
+	if err != nil {
+		return nil, err
 	}
 
 	tempSubmit := &order.Submit{
@@ -571,7 +580,10 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	assetType := asset.Item(assetTypeParam)
+	assetType, err := asset.New(assetTypeParam)
+	if err != nil {
+		return nil, err
+	}
 
 	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pair, assetType, startTime, endTime, kline.Interval(interval))
 	if err != nil {

@@ -66,16 +66,37 @@ func TestCalculateNetProfit(t *testing.T) {
 
 func TestRoundFloat(t *testing.T) {
 	t.Parallel()
-	// mapping of input vs expected result
-	testTable := map[float64]float64{
-		2.3232323:  2.32,
-		-2.3232323: -2.32,
+	// mapping of input vs expected result : map[precision]map[testedValue]expectedOutput
+	testTableValues := map[int]map[float64]float64{
+		0: {
+			2.23456789:  2,
+			-2.23456789: -2,
+		},
+		1: {
+			2.23456789:  2.2,
+			-2.23456789: -2.2,
+		},
+		2: {
+			2.23456789:  2.23,
+			-2.23456789: -2.23,
+		},
+		4: {
+			2.23456789:  2.2346,
+			-2.23456789: -2.2346,
+		},
+		8: {
+			2.23456781:  2.23456781,
+			-2.23456781: -2.23456781,
+		},
 	}
-	for testInput, expectedOutput := range testTable {
-		actualOutput := RoundFloat(testInput, 2)
-		if actualOutput != expectedOutput {
-			t.Errorf("RoundFloat Expected '%f'. Actual '%f'.",
-				expectedOutput, actualOutput)
+
+	for precision, values := range testTableValues {
+		for testInput, expectedOutput := range values {
+			actualOutput := RoundFloat(testInput, precision)
+			if actualOutput != expectedOutput {
+				t.Errorf("RoundFloat Expected '%v'. Actual '%v' on precission %d",
+					expectedOutput, actualOutput, precision)
+			}
 		}
 	}
 }

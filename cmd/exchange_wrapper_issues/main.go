@@ -280,10 +280,11 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 	testOrderType := parseOrderType(config.OrderSubmission.OrderType)
 	assetTypes := base.GetAssetTypes()
 	if assetTypeOverride != "" {
-		if asset.IsValid(asset.Item(assetTypeOverride)) {
-			assetTypes = asset.Items{asset.Item(assetTypeOverride)}
-		} else {
+		a, err := asset.New(assetTypeOverride)
+		if err != nil {
 			log.Printf("%v Asset Type '%v' not recognised, defaulting to exchange defaults", base.GetName(), assetTypeOverride)
+		} else {
+			assetTypes = asset.Items{a}
 		}
 	}
 	for i := range assetTypes {

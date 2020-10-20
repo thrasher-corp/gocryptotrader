@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -47,9 +46,6 @@ type Engine struct {
 // Vars for engine
 var (
 	Bot *Engine
-
-	// Stores the set flags
-	flagSet = make(map[string]bool)
 )
 
 // New starts a new engine
@@ -66,17 +62,15 @@ func New() (*Engine, error) {
 }
 
 // NewFromSettings starts a new engine based on supplied settings
-func NewFromSettings(settings *Settings) (*Engine, error) {
+func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, error) {
 	if settings == nil {
 		return nil, errors.New("engine: settings is nil")
 	}
-	// collect flags
-	flag.Visit(func(f *flag.Flag) { flagSet[f.Name] = true })
 
 	var b Engine
 	var err error
 
-	b.Config, err = loadConfigWithSettings(settings)
+	b.Config, err = loadConfigWithSettings(settings, flagSet)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
@@ -96,13 +90,13 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
 	}
 
-	validateSettings(&b, settings)
+	validateSettings(&b, settings, flagSet)
 	return &b, nil
 }
 
 // loadConfigWithSettings creates configuration based on the provided settings
-func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
-	filePath, err := config.GetFilePath(settings.ConfigFile)
+func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*config.Config, error) {
+	filePath, err := config.GetAndMigrateDefaultPath(settings.ConfigFile)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +121,7 @@ func loadConfigWithSettings(settings *Settings) (*config.Config, error) {
 }
 
 // validateSettings validates and sets all bot settings
-func validateSettings(b *Engine, s *Settings) {
+func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings.Verbose = s.Verbose
 	b.Settings.EnableDryRun = s.EnableDryRun
 	b.Settings.EnableAllExchanges = s.EnableAllExchanges
