@@ -159,13 +159,13 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 
 	// Save encrypted config
 	enc1 := filepath.Join(tempDir, "encrypted.dat")
-	err = c.SaveConfig(enc1)
+	err = c.SaveConfigToFile(enc1)
 	if err != nil {
 		t.Fatalf("Problem storing config in file %s: %s\n", enc1, err)
 	}
 	// Save again
 	enc2 := filepath.Join(tempDir, "encrypted2.dat")
-	err = c.SaveConfig(enc2)
+	err = c.SaveConfigToFile(enc2)
 	if err != nil {
 		t.Fatalf("Problem storing config in file %s: %s\n", enc2, err)
 	}
@@ -213,7 +213,7 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 
 	// Save encrypted config
 	enc := filepath.Join(tempDir, "encrypted.dat")
-	err = c.SaveConfig(enc)
+	err = c.SaveConfigToFile(enc)
 	if err != nil {
 		t.Fatalf("Problem storing config in file %s: %s\n", enc, err)
 	}
@@ -225,7 +225,7 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 	// Clean session
 	readConf := &Config{}
 	// Load with no existing state, key is read from the prepared file
-	err = readConf.ReadConfig(enc, true)
+	err = readConf.ReadConfigFromFile(enc, true)
 
 	// Verify
 	if err != nil {
@@ -268,7 +268,7 @@ func TestReadConfigWithPrompt(t *testing.T) {
 
 	// Save config
 	testConfigFile := filepath.Join(tempDir, "config.json")
-	err = c.SaveConfig(testConfigFile)
+	err = c.SaveConfigToFile(testConfigFile)
 	if err != nil {
 		t.Fatalf("Problem saving config file in %s: %s\n", tempDir, err)
 	}
@@ -287,7 +287,7 @@ func TestReadConfigWithPrompt(t *testing.T) {
 
 	// Run the test
 	c = &Config{}
-	c.ReadConfig(testConfigFile, false)
+	c.ReadConfigFromFile(testConfigFile, false)
 
 	// Verify results
 	data, err := ioutil.ReadFile(testConfigFile)

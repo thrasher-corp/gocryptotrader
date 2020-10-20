@@ -1547,11 +1547,11 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 	return target, nil
 }
 
-// ReadConfig reads the configuration from the given file
+// ReadConfigFromFile reads the configuration from the given file
 // if target file is encrypted, prompts for encryption key
 // Also - if not in dryrun mode - it checks if the configuration needs to be encrypted
 // and stores the file as encrypted, if necessary (prompting for enryption key)
-func (c *Config) ReadConfig(configPath string, dryrun bool) error {
+func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
 	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {
 		return err
@@ -1577,11 +1577,11 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 		if err == nil {
 			if confirm {
 				c.EncryptConfig = fileEncryptionEnabled
-				return c.SaveConfig(defaultPath)
+				return c.SaveConfigToFile(defaultPath)
 			}
 
 			c.EncryptConfig = fileEncryptionDisabled
-			err := c.SaveConfig(defaultPath)
+			err := c.SaveConfigToFile(defaultPath)
 			if err != nil {
 				log.Errorf(log.ConfigMgr, "Cannot save config. Error: %s\n", err)
 			}
@@ -1590,7 +1590,7 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 	return nil
 }
 
-// ReadConfig verifies and checks for encryption and loads the config.
+// ReadConfig verifies and checks for encryption and loads the config from a JSON object.
 // Prompts for decryption key, if target data is encrypted.
 // Returns the loaded configuration and whether it was encrypted.
 func ReadConfig(configReader io.Reader, keyProvider func() ([]byte, error)) (*Config, bool, error) {
@@ -1648,9 +1648,9 @@ func readEncryptedConf(reader io.Reader, key []byte) (*Config, error) {
 	return c, err
 }
 
-// SaveConfig saves your configuration to your desired path
-// prompts for encryption key, if necessary
-func (c *Config) SaveConfig(configPath string) error {
+// SaveConfigToFile saves your configuration to your desired path as a JSON object.
+// The function encrypts the data and prompts for encryption key, if necessary
+func (c *Config) SaveConfigToFile(configPath string) error {
 	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {
 		return err
@@ -1663,7 +1663,7 @@ func (c *Config) SaveConfig(configPath string) error {
 	return c.Save(writer, func() ([]byte, error) { return PromptForConfigKey(true) })
 }
 
-// Save saves your configuration to the writer
+// Save saves your configuration to the writer as a JSON object
 // with encryption, if configured
 func (c *Config) Save(configWriter io.Writer, keyProvider func() ([]byte, error)) error {
 	payload, err := json.MarshalIndent(c, "", " ")
@@ -1793,7 +1793,7 @@ func (c *Config) CheckConfig() error {
 
 // LoadConfig loads your configuration file into your configuration object
 func (c *Config) LoadConfig(configPath string, dryrun bool) error {
-	err := c.ReadConfig(configPath, dryrun)
+	err := c.ReadConfigFromFile(configPath, dryrun)
 	if err != nil {
 		return fmt.Errorf(ErrFailureOpeningConfig, configPath, err)
 	}
@@ -1818,7 +1818,7 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 	c.Exchanges = newCfg.Exchanges
 
 	if !dryrun {
-		err = c.SaveConfig(configPath)
+		err = c.SaveConfigToFile(configPath)
 		if err != nil {
 			return err
 		}
