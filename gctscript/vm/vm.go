@@ -23,6 +23,13 @@ import (
 
 // NewVM attempts to create a new Virtual Machine firstly from pool
 func (g *GctScriptManager) NewVM() (vm *VM) {
+	if !g.Started() {
+		log.Error(log.GCTScriptMgr, Error{
+			Action: "NewVM",
+			Cause:  ErrScriptingDisabled,
+		})
+		return nil
+	}
 	newUUID, err := uuid.NewV4()
 	if err != nil {
 		log.Error(log.GCTScriptMgr, Error{
@@ -54,13 +61,6 @@ func SetDefaultScriptOutput() {
 func (vm *VM) Load(file string) error {
 	if vm == nil {
 		return ErrNoVMLoaded
-	}
-
-	if !vm.config.Enabled {
-		return &Error{
-			Action: "Load",
-			Cause:  ErrScriptingDisabled,
-		}
 	}
 
 	if filepath.Ext(file) != common.GctExt {

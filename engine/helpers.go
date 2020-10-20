@@ -129,9 +129,8 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		}
 		return dispatch.Stop()
 	case "gctscript":
-		bot.GctScriptManager.Enabled = &enable
 		if enable {
-			return bot.GctScriptManager.Start(&bot.Config.GCTScript, &bot.ServicesWG)
+			return bot.GctScriptManager.Start(&bot.ServicesWG)
 		}
 		return bot.GctScriptManager.Stop()
 	}

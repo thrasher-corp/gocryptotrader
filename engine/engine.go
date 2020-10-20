@@ -32,7 +32,7 @@ type Engine struct {
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
 	DatabaseManager             databaseManager
-	GctScriptManager            gctscript.GctScriptManager
+	GctScriptManager            *gctscript.GctScriptManager
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
@@ -57,6 +57,12 @@ func New() (*Engine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
+	var scriptManager *gctscript.GctScriptManager
+	scriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
+	}
+	b.GctScriptManager = scriptManager
 
 	return &b, nil
 }
@@ -91,6 +97,14 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	}
 
 	validateSettings(&b, settings, flagSet)
+
+	var scriptManager *gctscript.GctScriptManager
+	scriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
+	}
+	b.GctScriptManager = scriptManager
+
 	return &b, nil
 }
 
@@ -128,7 +142,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings.EnableAllPairs = s.EnableAllPairs
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
-	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager
+	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager && (flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
 	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
 	b.Settings.EnableDispatcher = s.EnableDispatcher
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
@@ -163,11 +177,6 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		b.Settings.EnableDeprecatedRPC = s.EnableDeprecatedRPC
 	} else {
 		b.Settings.EnableDeprecatedRPC = b.Config.RemoteControl.DeprecatedRPC.Enabled
-	}
-
-	if flagSet["gctscriptmanager"] {
-		enabled := s.EnableGCTScriptManager
-		b.GctScriptManager.Enabled = &enabled
 	}
 
 	if flagSet["maxvirtualmachines"] {
@@ -460,7 +469,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGCTScriptManager {
-		if err := bot.GctScriptManager.Start(&bot.Config.GCTScript, &bot.ServicesWG); err != nil {
+		if err := bot.GctScriptManager.Start(&bot.ServicesWG); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %v", err)
 		}
 	}

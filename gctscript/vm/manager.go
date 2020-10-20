@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -21,8 +20,14 @@ type GctScriptManager struct {
 	stopped  int32
 	shutdown chan struct{}
 	// Optional values to override stored config ('nil' if not overridden)
-	Enabled            *bool
 	MaxVirtualMachines *uint8
+}
+
+// NewManager creates a new instance of script manager
+func NewManager(config *Config) (*GctScriptManager, error) {
+	return &GctScriptManager{
+		config: config,
+	}, nil
 }
 
 // Started returns if gctscript manager subsystem is started
@@ -31,12 +36,7 @@ func (g *GctScriptManager) Started() bool {
 }
 
 // Start starts gctscript subsystem and creates shutdown channel
-func (g *GctScriptManager) Start(config *Config, wg *sync.WaitGroup) (err error) {
-	g.config = config
-	if !g.IsEnabled() {
-		return errors.New("manager has been disabled")
-	}
-
+func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 	if atomic.AddInt32(&g.started, 1) != 1 {
 		return fmt.Errorf("%s %s", gctscriptManagerName, subsystem.ErrSubSystemAlreadyStarted)
 	}
@@ -108,11 +108,6 @@ func (g *GctScriptManager) autoLoad() {
 		}
 		go temp.CompileAndRun()
 	}
-}
-
-// IsEnabled returns whether the manager is enabled
-func (g *GctScriptManager) IsEnabled() bool {
-	return (g.Enabled != nil && *g.Enabled) || (g.Enabled == nil && g.config.Enabled)
 }
 
 // GetMaxVirtualMachines returns the max number of VMs to create
