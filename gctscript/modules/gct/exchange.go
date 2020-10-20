@@ -265,6 +265,12 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	assetTypeString := asset.Spot.String()
 
 	switch len(args) {
+	case 4:
+		assetTypeString, ok = objects.ToString(args[3])
+		if !ok {
+			return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeString)
+		}
+		fallthrough
 	case 3:
 		currencyPairString, isOk := objects.ToString(args[2])
 		if !isOk {
@@ -275,11 +281,6 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 		pair, err = currency.NewPairFromString(currencyPairString)
 		if err != nil {
 			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPairString)
-		}
-	case 4:
-		assetTypeString, ok = objects.ToString(args[3])
-		if !ok {
-			return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeString)
 		}
 	}
 
