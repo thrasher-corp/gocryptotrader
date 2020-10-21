@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -25,23 +26,16 @@ func (s *TestStrategy) OnSignal(d DataHandler, p PortfolioHandler) (SignalEvent,
 			CurrencyPair: d.Latest().Pair()},
 	}
 
-	smaFast := indicators.SMA(d.StreamClose(), 10)
-	smaSlow := indicators.SMA(d.StreamClose(), 30)
-
-	ret := indicators.Crossover(smaFast, smaSlow)
-	if ret {
-		signal.SetDirection(order.Buy)
+	rsi := indicators.RSI(d.StreamClose(), 14)
+	latestRSI := rsi[len(rsi)-1]
+	if latestRSI <= 30 {
+		// oversold, time to buy like a sweet pro
+		signal.Direction = order.Buy
+	} else if latestRSI >= 70 {
+		// overbought, time to sell because granny is talking about BTC again
+		signal.Direction = order.Sell
 	} else {
-		signal.SetDirection(order.Sell)
-	}
-
-	rsiRet := indicators.RSI(d.StreamClose(), 14)[d.Offset()-1]
-	if rsiRet < 30 {
-		signal.Amount = 5
-		signal.SetDirection(order.Buy)
-	} else if rsiRet > 70 {
-		signal.Amount = 5
-		signal.SetDirection(order.Sell)
+		signal.Direction = ""
 	}
 
 	return &signal, nil

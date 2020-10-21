@@ -4,16 +4,17 @@ import (
 	"math"
 )
 
-func (e *Exchange) ExecuteOrder(order OrderEvent, data DataHandler) (*Fill, error) {
+func (e *Exchange) ExecuteOrder(o OrderEvent, data DataHandler) (*Fill, error) {
 	f := &Fill{
 		Event: Event{
-			Time:         order.GetTime(),
-			CurrencyPair: order.Pair(),
+			Time:         o.GetTime(),
+			CurrencyPair: o.Pair(),
 		},
-		Amount: order.GetAmount(),
+		Amount: o.GetAmount(),
 		Price:  data.Latest().LatestPrice(),
 	}
-	f.Direction = order.GetDirection()
+
+	f.Direction = o.GetDirection()
 	f.Commission = e.calculateCommission(f.Amount, f.Price)
 	f.ExchangeFee = e.calculateExchangeFee()
 	f.Cost = e.calculateCost(f.Commission, f.ExchangeFee)
