@@ -643,11 +643,6 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		return
 	}
 
-	orderPair, err := currency.NewPairFromString(resp.Symbol)
-	if err != nil {
-		return
-	}
-
 	status, err := order.StringToOrderStatus(resp.Status)
 	if err != nil {
 		return
@@ -665,7 +660,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		ID:             strconv.FormatInt(resp.OrderID, 10),
 		Side:           orderSide,
 		Type:           orderType,
-		Pair:           orderPair,
+		Pair:           formattedPair,
 		Cost:           resp.CummulativeQuoteQty,
 		AssetType:      assetType,
 		CloseTime:      orderCloseDate,
