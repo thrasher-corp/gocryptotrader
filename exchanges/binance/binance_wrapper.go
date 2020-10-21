@@ -497,10 +497,6 @@ func (b *Binance) GetExchangeHistory(p currency.Pair, assetType asset.Item, time
 
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
-
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -524,8 +520,13 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var orderRequest = NewOrderRequest{
-		Symbol:      s.Pair.Base.String() + s.Pair.Quote.String(),
+		Symbol:      fPair.String(),
 		Side:        sideType,
 		Price:       s.Price,
 		Quantity:    s.Amount,
