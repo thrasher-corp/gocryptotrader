@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -906,20 +905,8 @@ func distruptFormatting(p currency.Pair) (currency.Pair, error) {
 	}
 
 	return currency.Pair{
-		Base:      getStrange(base),
-		Quote:     getStrange(quote),
-		Delimiter: "////&&&***",
+		Base:      p.Base.Upper(),
+		Quote:     p.Quote.Lower(),
+		Delimiter: "---TEST DELIMITER---",
 	}, nil
-}
-
-func getStrange(payload string) currency.Code {
-	var e []byte
-	for i := range payload {
-		if i%2 != 0 {
-			e = append(e, bytes.ToUpper([]byte{payload[i]})...)
-		} else {
-			e = append(e, bytes.ToLower([]byte{payload[i]})...)
-		}
-	}
-	return currency.NewCode(string(e))
 }

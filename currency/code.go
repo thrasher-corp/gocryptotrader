@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 func (r Role) String() string {
@@ -143,6 +144,10 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 
 // Register registers a currency from a string and returns a currency code
 func (b *BaseCodes) Register(c string) Code {
+	var format bool
+	if c != "" {
+		format = unicode.IsUpper(rune(c[0]))
+	}
 	// Force upper string storage and matching
 	c = strings.ToUpper(c)
 
@@ -152,7 +157,7 @@ func (b *BaseCodes) Register(c string) Code {
 		if b.Items[i].Symbol == c {
 			return Code{
 				Item:      b.Items[i],
-				UpperCase: true,
+				UpperCase: format,
 			}
 		}
 	}
@@ -162,7 +167,7 @@ func (b *BaseCodes) Register(c string) Code {
 
 	return Code{
 		Item:      newItem,
-		UpperCase: true,
+		UpperCase: format,
 	}
 }
 

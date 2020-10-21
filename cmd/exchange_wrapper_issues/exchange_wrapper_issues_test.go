@@ -6,20 +6,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-func TestGetStrange(t *testing.T) {
-	if getStrange("BTC").String() != "bTc" {
-		t.Fatal("did not return correct strange code")
-	}
-
-	if getStrange("bTc").String() != "bTc" {
-		t.Fatal("did not return correct strange code")
-	}
-
-	if getStrange("BtC").String() != "bTc" {
-		t.Fatal("did not return correct strange code")
-	}
-}
-
 func TestDisruptFormatting(t *testing.T) {
 	_, err := distruptFormatting(currency.Pair{})
 	if err == nil {
@@ -38,7 +24,7 @@ func TestDisruptFormatting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if badPair.String() != "bTc////&&&***uSdT" {
+	if badPair.String() != "BTC---TEST DELIMITER---usdt" {
 		t.Fatal("incorrect disrupted pair")
 	}
 }
