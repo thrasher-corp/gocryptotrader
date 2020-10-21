@@ -214,9 +214,6 @@ func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType asset.Item, t
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
 func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
