@@ -321,7 +321,12 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticke
 
 // FetchTicker returns the ticker for a currency pair
 func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(b.Name, fPair, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -330,7 +335,12 @@ func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	ob, err := orderbook.Get(b.Name, fPair, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}

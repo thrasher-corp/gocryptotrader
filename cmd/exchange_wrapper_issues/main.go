@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -94,6 +96,7 @@ func main() {
 
 	exchs := bot.GetExchanges()
 	for x := range exchs {
+		exchs[x].SetDefaults()
 		base := exchs[x].GetBase()
 		if !base.Config.Enabled {
 			log.Printf("Exchange %v not enabled, skipping", base.GetName())
@@ -289,12 +292,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 	}
 	for i := range assetTypes {
 		var msg string
-		var p currency.Pair
 		log.Printf("%v %v", base.GetName(), assetTypes[i])
 		if _, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]; !ok {
 			continue
 		}
 
+		var p currency.Pair
 		switch {
 		case currencyPairOverride != "":
 			var err error
@@ -314,13 +317,19 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled.GetRandomPair()
 		}
 
+		var err error
+		p, err = distruptFormatting(p)
+		if err != nil {
+			log.Println("failed to distrupt currency pair formatting:", err)
+		}
+
 		responseContainer := ExchangeAssetPairResponses{
 			AssetType: assetTypes[i],
 			Pair:      p,
 		}
 
 		log.Printf("Setup config for %v %v %v", base.GetName(), assetTypes[i], p)
-		err := e.Setup(base.Config)
+		err = e.Setup(base.Config)
 		if err != nil {
 			log.Printf("%v Encountered error reloading config: '%v'", base.GetName(), err)
 		}
@@ -882,4 +891,35 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 		}
 		log.Println()
 	}
+}
+
+// distruptFormatting adds in an unused delimiter and strange casing features to
+// ensure format currency pair is used througout the code base.
+func distruptFormatting(p currency.Pair) (currency.Pair, error) {
+	base := p.Base.String()
+	if base == "" {
+		return currency.Pair{}, errors.New("cannot distrupt formatting as base is not populated")
+	}
+	quote := p.Quote.String()
+	if quote == "" {
+		return currency.Pair{}, errors.New("cannot distrupt formatting as quote is not populated")
+	}
+
+	return currency.Pair{
+		Base:      getStrange(base),
+		Quote:     getStrange(quote),
+		Delimiter: "////&&&***",
+	}, nil
+}
+
+func getStrange(payload string) currency.Code {
+	var e []byte
+	for i := range payload {
+		if i%2 != 0 {
+			e = append(e, bytes.ToUpper([]byte{payload[i]})...)
+		} else {
+			e = append(e, bytes.ToLower([]byte{payload[i]})...)
+		}
+	}
+	return currency.NewCode(string(e))
 }
