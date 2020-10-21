@@ -541,8 +541,12 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.OrderID = resp
 		submitOrderResponse.IsOrderPlaced = true
 	} else {
+		fPair, err := k.FormatExchangeCurrency(s.Pair, s.AssetType)
+		if err != nil {
+			return submitOrderResponse, err
+		}
 		var response AddOrderResponse
-		response, err = k.AddOrder(s.Pair.String(),
+		response, err = k.AddOrder(fPair.String(),
 			s.Side.String(),
 			s.Type.String(),
 			s.Amount,

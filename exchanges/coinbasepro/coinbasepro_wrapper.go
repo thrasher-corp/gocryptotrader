@@ -443,10 +443,6 @@ func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType asset.Item, 
 
 // SubmitOrder submits a new order
 func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
-
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err

@@ -388,9 +388,14 @@ func (b *Bitstamp) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	buy := s.Side == order.Buy
 	market := s.Type == order.Market
-	response, err := b.PlaceOrder(s.Pair.String(),
+	response, err := b.PlaceOrder(fPair.String(),
 		s.Price,
 		s.Amount,
 		buy,

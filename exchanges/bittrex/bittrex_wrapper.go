@@ -390,14 +390,18 @@ func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			errors.New("limit orders only supported on exchange")
 	}
 
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var response UUID
-	var err error
 	if buy {
-		response, err = b.PlaceBuyLimit(s.Pair.String(),
+		response, err = b.PlaceBuyLimit(fPair.String(),
 			s.Amount,
 			s.Price)
 	} else {
-		response, err = b.PlaceSellLimit(s.Pair.String(),
+		response, err = b.PlaceSellLimit(fPair.String(),
 			s.Amount,
 			s.Price)
 	}

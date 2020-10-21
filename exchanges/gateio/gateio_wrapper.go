@@ -435,10 +435,15 @@ func (g *Gateio) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		orderTypeFormat = order.Sell.Lower()
 	}
 
+	fPair, err := g.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var spotNewOrderRequestParams = SpotNewOrderRequestParams{
 		Amount: s.Amount,
 		Price:  s.Price,
-		Symbol: s.Pair.String(),
+		Symbol: fPair.String(),
 		Type:   orderTypeFormat,
 	}
 

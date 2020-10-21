@@ -422,9 +422,14 @@ func (b *Bitmex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			errors.New("order contract amount can not have decimals")
 	}
 
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var orderNewParams = OrderNewParams{
 		OrderType:     s.Type.Title(),
-		Symbol:        s.Pair.String(),
+		Symbol:        fPair.String(),
 		OrderQuantity: s.Amount,
 		Side:          s.Side.Title(),
 	}

@@ -222,7 +222,12 @@ func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 		return submitOrderResponse, err
 	}
 
-	response, err := a.CreateOrder(s.Pair.String(),
+	fPair, err := a.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := a.CreateOrder(fPair.String(),
 		s.Side.String(),
 		s.Type.String(),
 		s.Amount,

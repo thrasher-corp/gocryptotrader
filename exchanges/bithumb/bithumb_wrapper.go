@@ -346,18 +346,22 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var orderID string
-	var err error
 	if s.Side == order.Buy {
 		var result MarketBuy
-		result, err = b.MarketBuyOrder(s.Pair.Base.String(), s.Amount)
+		result, err = b.MarketBuyOrder(fPair.Base.String(), s.Amount)
 		if err != nil {
 			return submitOrderResponse, err
 		}
 		orderID = result.OrderID
 	} else if s.Side == order.Sell {
 		var result MarketSell
-		result, err = b.MarketSellOrder(s.Pair.Base.String(), s.Amount)
+		result, err = b.MarketSellOrder(fPair.Base.String(), s.Amount)
 		if err != nil {
 			return submitOrderResponse, err
 		}

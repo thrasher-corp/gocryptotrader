@@ -420,9 +420,14 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	fPair, err := p.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	fillOrKill := s.Type == order.Market
 	isBuyOrder := s.Side == order.Buy
-	response, err := p.PlaceOrder(s.Pair.String(),
+	response, err := p.PlaceOrder(fPair.String(),
 		s.Price,
 		s.Amount,
 		false,

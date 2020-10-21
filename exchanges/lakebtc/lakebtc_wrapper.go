@@ -346,9 +346,16 @@ func (l *LakeBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	fPair, err := l.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	isBuyOrder := s.Side == order.Buy
-	response, err := l.Trade(isBuyOrder, s.Amount, s.Price,
-		s.Pair.Lower().String())
+	response, err := l.Trade(isBuyOrder,
+		s.Amount,
+		s.Price,
+		fPair.Lower().String())
 	if err != nil {
 		return submitOrderResponse, err
 	}

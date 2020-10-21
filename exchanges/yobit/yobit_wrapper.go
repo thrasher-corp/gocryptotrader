@@ -342,7 +342,12 @@ func (y *Yobit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, errors.New("only limit orders are allowed")
 	}
 
-	response, err := y.Trade(s.Pair.String(),
+	fPair, err := y.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := y.Trade(fPair.String(),
 		s.Side.String(),
 		s.Amount,
 		s.Price)
