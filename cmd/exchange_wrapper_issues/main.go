@@ -550,7 +550,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var r15 order.Detail
-		r15, err = e.GetOrderInfo(config.OrderSubmission.OrderID)
+		r15, err = e.GetOrderInfo(config.OrderSubmission.OrderID, p, assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()

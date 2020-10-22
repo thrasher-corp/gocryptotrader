@@ -378,14 +378,18 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	return resp, err
 }
 
-// GetOrderInfo returns information on a current open order
-func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
+// GetOrderInfo returns order information based on order ID
+func (o *OKGroup) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (resp order.Detail, err error) {
 	mOrder, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return
 	}
 
-	format, err := o.GetPairFormat(asset.Spot, false)
+	if assetType == "" {
+		assetType = asset.Spot
+	}
+
+	format, err := o.GetPairFormat(assetType, false)
 	if err != nil {
 		return resp, err
 	}

@@ -508,15 +508,19 @@ func (g *Gateio) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (g *Gateio) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	orders, err := g.GetOpenOrders("")
 	if err != nil {
 		return orderDetail, errors.New("failed to get open orders")
 	}
 
-	format, err := g.GetPairFormat(asset.Spot, false)
+	if assetType == "" {
+		assetType = asset.Spot
+	}
+
+	format, err := g.GetPairFormat(assetType, false)
 	if err != nil {
 		return orderDetail, err
 	}
