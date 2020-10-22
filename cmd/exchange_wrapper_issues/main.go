@@ -907,6 +907,6 @@ func disruptFormatting(p currency.Pair) (currency.Pair, error) {
 	return currency.Pair{
 		Base:      p.Base.Upper(),
 		Quote:     p.Quote.Lower(),
-		Delimiter: "---TEST-DELIMITER---",
+		Delimiter: "-TEST-DELIM-",
 	}, nil
 }

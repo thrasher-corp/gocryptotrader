@@ -24,7 +24,7 @@ func TestDisruptFormatting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if badPair.String() != "BTC---TEST-DELIMITER---usdt" {
+	if badPair.String() != "BTC-TEST-DELIM-usdt" {
 		t.Fatal("incorrect disrupted pair")
 	}
 }
