@@ -296,17 +296,53 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 	if len(result) != 1 {
 		return response, fmt.Errorf("invalid response")
 	}
-	response.Key = result[0][0].(string)
-	response.MTS = result[0][1].(float64)
-	response.DerivPrice = result[0][3].(float64)
-	response.SpotPrice = result[0][4].(float64)
-	response.InsuranceFundBalance = result[0][6].(float64)
-	response.NextFundingEventTS = result[0][8].(float64)
-	response.NextFundingAccured = result[0][9].(float64)
-	response.NextFundingStep = result[0][10].(float64)
-	response.CurrentFunding = result[0][12].(float64)
-	response.MarkPrice = result[0][15].(float64)
-	response.OpenInterest = result[0][18].(float64)
+	var floatData float64
+	var stringData string
+	var ok bool
+	if stringData, ok = result[0][0].(string); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.Key = stringData
+	if floatData, ok = result[0][1].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.MTS = floatData
+	if floatData, ok = result[0][3].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.DerivPrice = floatData
+	if floatData, ok = result[0][4].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.SpotPrice = floatData
+	if floatData, ok = result[0][6].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.InsuranceFundBalance = floatData
+	if floatData, ok = result[0][8].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.NextFundingEventTS = floatData
+	if floatData, ok = result[0][9].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.NextFundingAccured = floatData
+	if floatData, ok = result[0][10].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.NextFundingStep = floatData
+	if floatData, ok = result[0][12].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.CurrentFunding = floatData
+	if floatData, ok = result[0][15].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.MarkPrice = floatData
+	if floatData, ok = result[0][18].(float64); !ok {
+		return response, fmt.Errorf("type conversion failed, check for api updates")
+	}
+	response.OpenInterest = floatData
 	return response, nil
 }
 

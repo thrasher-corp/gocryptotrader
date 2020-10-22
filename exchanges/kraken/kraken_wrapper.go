@@ -498,7 +498,6 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 	switch assetType {
 	case asset.Spot:
-
 		orderbookNew, err := k.GetDepth(fpair.String())
 		if err != nil {
 			return nil, err
@@ -519,7 +518,6 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 		}
 
 	case asset.Futures:
-
 		futuresOB, err := k.GetFuturesOrderbook(fpair.String())
 		if err != nil {
 			return nil, err
@@ -559,8 +557,8 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	var balances []account.Balance
 	info.Exchange = k.Name
-
-	for x := range k.GetAssetTypes() {
+	assetTypes := k.GetAssetTypes()
+	for x := range assetTypes {
 		switch k.GetAssetTypes()[x] {
 		case asset.Spot:
 			bal, err := k.GetBalance()
@@ -587,7 +585,6 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 			})
 
 		case asset.Futures:
-
 			bal, err := k.GetFuturesAccountData()
 			if err != nil {
 				return info, err
@@ -659,7 +656,6 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	switch s.AssetType {
 
 	case asset.Spot:
-
 		fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Spot)
 		if err != nil {
 			return submitOrderResponse, err
@@ -702,7 +698,6 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.IsOrderPlaced = true
 
 	case asset.Futures:
-
 		fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Futures)
 		if err != nil {
 			return submitOrderResponse, err
@@ -769,7 +764,6 @@ func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, er
 	switch req.AssetType {
 
 	case asset.Spot:
-
 		var emptyOrderOptions OrderInfoOptions
 		openOrders, err := k.GetOpenOrders(emptyOrderOptions)
 		if err != nil {
@@ -788,7 +782,6 @@ func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, er
 		}
 
 	case asset.Futures:
-
 		fPair, err := k.FormatExchangeCurrency(req.Pair, asset.Futures)
 		if err != nil {
 			return cancelAllOrdersResponse, err
@@ -875,7 +868,6 @@ func (k *Kraken) GetOrderInfo(orderID string, assetType asset.Item) (order.Detai
 		}
 
 	case asset.Futures:
-
 		orderInfo, err := k.FuturesGetFills(time.Time{})
 		if err != nil {
 			return orderDetail, err
@@ -1040,7 +1032,6 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 
 	case asset.Futures:
-
 		var err error
 		var pairs currency.Pairs
 
@@ -1111,7 +1102,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 	switch getOrdersRequest.AssetType {
 
 	case asset.Spot:
-
 		req := GetClosedOrdersOptions{}
 		if getOrdersRequest.StartTicks.Unix() > 0 {
 			req.Start = strconv.FormatInt(getOrdersRequest.StartTicks.Unix(), 10)
@@ -1161,7 +1151,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		}
 
 	case asset.Futures:
-
 		var orderHistory FuturesRecentOrdersData
 		var err error
 
@@ -1191,7 +1180,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 
 					switch {
 					case orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.UID != "":
-
 						timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp)
 						if err != nil {
 							return orders, err
@@ -1220,7 +1208,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						})
 
 					case orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID != "":
-
 						timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp)
 						if err != nil {
 							return orders, err
@@ -1250,7 +1237,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						})
 
 					case orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID != "":
-
 						timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp)
 						if err != nil {
 							return orders, err
@@ -1280,7 +1266,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						})
 
 					case orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID != "":
-
 						timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp)
 						if err != nil {
 							return orders, err

@@ -543,7 +543,7 @@ func orderIntToType(i int) order.Type {
 
 // GetOrderInfo returns information on a current open order
 func (b *BTSE) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
-	o, err := b.GetOrders("", "", "")
+	o, err := b.GetOrders("", orderID, "")
 	if err != nil {
 		return order.Detail{}, err
 	}

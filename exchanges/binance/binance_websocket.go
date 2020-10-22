@@ -21,10 +21,8 @@ import (
 )
 
 const (
-	binanceDefaultWebsocketURL      = "wss://dstream.binance.com/ws/btcusd_201225@aggTrade"
-	binanceUSDTMarginedWebsocketURL = "wss://fstream3.binance.com"
-	binanceCoinMarginedWebsocketURL = "wss://dstream.binance.com"
-	pingDelay                       = time.Minute * 9
+	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
+	pingDelay                  = time.Minute * 9
 )
 
 var listenKey string
@@ -77,52 +75,6 @@ func (b *Binance) WsConnect() error {
 	if err != nil {
 		return err
 	}
-
-	///
-	/*
-		at := b.GetAssetTypes()
-		for x := range at {
-			switch at[x] {
-			case asset.USDTMarginedFutures:
-
-				b.USDTWS = stream.WebsocketConnection{
-					ExchangeName: b.Name,
-					URL:          binanceUSDTMarginedWebsocketURL,
-					Verbose:      b.Verbose,
-					Traffic:      b.Websocket.TrafficAlert,
-					ShutdownC:    b.Websocket.ShutdownC,
-					Wg:           b.Websocket.Wg,
-					Match:        b.Websocket.Match,
-				}
-				b.USDTWS.Dial(&dialer, http.Header{})
-			case asset.CoinMarginedFutures:
-				b.CoinMarginFuturesWS = stream.WebsocketConnection{
-					ExchangeName: b.Name,
-					URL:          binanceCoinMarginedWebsocketURL,
-					Verbose:      b.Verbose,
-					Traffic:      b.Websocket.TrafficAlert,
-					ShutdownC:    b.Websocket.ShutdownC,
-					Wg:           b.Websocket.Wg,
-					Match:        b.Websocket.Match,
-				}
-				err := b.CoinMarginFuturesWS.Dial(&dialer, http.Header{})
-				if err != nil {
-					log.Error(log.WebsocketMgr, err)
-				}
-				err = b.CoinMarginFuturesWS.SendJSONMessage(WsPayload{
-					Method: "SUBSCRIBE",
-					Params: []string{"BTCUSD_201225@aggTrade"},
-					ID:     1337,
-				})
-				if err != nil {
-					log.Error(log.WebsocketMgr, err)
-				}
-				resp := b.CoinMarginFuturesWS.ReadMessage()
-				log.Infof(log.WebsocketMgr, "\n\n\n\n %s \n\n\n\n", resp.Raw)
-			}
-		}
-	*/
-	///
 
 	for i := range enabledPairs {
 		err = b.SeedLocalCache(enabledPairs[i])
@@ -595,7 +547,6 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	}
 
 	for i := range channelsToSubscribe {
-
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 	}
 	err := b.Websocket.Conn.SendJSONMessage(payload)

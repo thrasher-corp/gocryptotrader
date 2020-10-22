@@ -635,7 +635,6 @@ func (h *HUOBI) FGetAccountInfo(symbol string) (FUserAccountData, error) {
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fAccountData, nil, req, &resp, false)
 }
 
@@ -646,7 +645,6 @@ func (h *HUOBI) FGetPositionsInfo(symbol string) (FUserAccountData, error) {
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	h.API.Endpoints.URL = huobiURL
 	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, fPositionInformation, nil, req, &resp, false)
 }
 

@@ -25,7 +25,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 	testSymbol              = "btcusdt"
 )
 

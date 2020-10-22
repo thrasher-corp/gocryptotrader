@@ -29,7 +29,7 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 // TestSetup setup func

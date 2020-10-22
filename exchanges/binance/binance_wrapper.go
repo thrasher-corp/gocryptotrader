@@ -154,6 +154,7 @@ func (b *Binance) SetDefaults() {
 					kline.TwoHour.Word():    true,
 					kline.FourHour.Word():   true,
 					kline.SixHour.Word():    true,
+					kline.EightHour.Word():  true,
 					kline.TwelveHour.Word(): true,
 					kline.OneDay.Word():     true,
 					kline.ThreeDay.Word():   true,
@@ -562,17 +563,14 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	var orderbookNew OrderBook
 	switch assetType {
 	case asset.Spot, asset.Margin:
-
 		orderbookNew, err = b.GetOrderBook(OrderBookDataRequestParams{
 			Symbol: fpair.String(),
 			Limit:  1000})
 
 	case asset.USDTMarginedFutures:
-
 		orderbookNew, err = b.UFuturesOrderbook(fpair.String(), 1000)
 
 	case asset.CoinMarginedFutures:
-
 		orderbookNew, err = b.GetFuturesOrderbook(fpair.String(), 1000)
 
 	}
@@ -615,7 +613,6 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 	for x := range assetTypes {
 		switch assetTypes[x] {
 		case asset.Spot:
-
 			raw, err := b.GetAccount()
 			if err != nil {
 				return info, err
@@ -645,7 +642,6 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 			info.Accounts = append(info.Accounts, acc)
 
 		case asset.CoinMarginedFutures:
-
 			accData, err := b.GetFuturesAccountInfo()
 			if err != nil {
 				return info, err
@@ -664,7 +660,6 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 			info.Accounts = append(info.Accounts, acc)
 
 		case asset.USDTMarginedFutures:
-
 			accData, err := b.UAccountBalanceV2()
 			if err != nil {
 				return info, err
@@ -683,7 +678,6 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 			info.Accounts = append(info.Accounts, acc)
 
 		default:
-			continue
 		}
 	}
 	err := account.Process(&info)
@@ -729,7 +723,6 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	switch s.AssetType {
 
 	case asset.Spot:
-
 		var sideType string
 		if s.Side == order.Buy {
 			sideType = order.Buy.String()
@@ -770,7 +763,6 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.IsOrderPlaced = true
 
 	case asset.CoinMarginedFutures:
-
 		fPair, err := b.FormatExchangeCurrency(s.Pair, asset.CoinMarginedFutures)
 		if err != nil {
 			return submitOrderResponse, err
@@ -816,7 +808,6 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.IsOrderPlaced = true
 
 	case asset.USDTMarginedFutures:
-
 		fPair, err := b.FormatExchangeCurrency(s.Pair, asset.USDTMarginedFutures)
 		if err != nil {
 			return submitOrderResponse, err
@@ -885,7 +876,6 @@ func (b *Binance) CancelOrder(o *order.Cancel) error {
 
 	switch o.AssetType {
 	case asset.Spot:
-
 		orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 		if err != nil {
 			return err
@@ -899,14 +889,12 @@ func (b *Binance) CancelOrder(o *order.Cancel) error {
 		}
 
 	case asset.CoinMarginedFutures:
-
 		_, err := b.FuturesCancelOrder(fpair.String(), o.ID, "")
 		if err != nil {
 			return err
 		}
 
 	case asset.USDTMarginedFutures:
-
 		_, err := b.UCancelOrder(fpair.String(), o.ID, "")
 		if err != nil {
 			return err
@@ -939,7 +927,6 @@ func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, e
 		}
 
 	case asset.CoinMarginedFutures:
-
 		if req.Pair.IsEmpty() {
 
 			enabledPairs, err := b.GetEnabledPairs(asset.CoinMarginedFutures)
@@ -975,7 +962,6 @@ func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, e
 		}
 
 	case asset.USDTMarginedFutures:
-
 		if req.Pair.IsEmpty() {
 
 			enabledPairs, err := b.GetEnabledPairs(asset.USDTMarginedFutures)
@@ -1028,7 +1014,6 @@ func (b *Binance) GetOrderInfo(orderID string, assetType asset.Item) (order.Deta
 	case asset.Spot:
 
 	case asset.CoinMarginedFutures:
-
 		orderData, err := b.GetAllFuturesOrders("", "", time.Time{}, time.Time{}, orderIDInt, 0)
 		if err != nil {
 			return resp, err
@@ -1073,7 +1058,6 @@ func (b *Binance) GetOrderInfo(orderID string, assetType asset.Item) (order.Deta
 		resp.Type = orderVars.OrderType
 
 	case asset.USDTMarginedFutures:
-
 		orderData, err := b.UAllAccountOrders("", 0, 0, time.Time{}, time.Time{})
 		if err != nil {
 			return resp, err
@@ -1183,7 +1167,6 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	switch req.AssetType {
 
 	case asset.Spot:
-
 		for x := range req.Pairs {
 			fpair, err := b.FormatExchangeCurrency(req.Pairs[x],
 				asset.Spot)
@@ -1222,7 +1205,6 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 
 	case asset.CoinMarginedFutures:
-
 		var openOrders []FuturesOrderData
 		var err error
 
@@ -1286,7 +1268,6 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 
 	case asset.USDTMarginedFutures:
-
 		var openOrders []UOrderData
 		var err error
 		var pairs currency.Pairs
@@ -1379,7 +1360,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	switch req.AssetType {
 
 	case asset.Spot:
-
 		for x := range req.Pairs {
 			fpair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 			if err != nil {
@@ -1421,7 +1401,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 
 	case asset.CoinMarginedFutures:
-
 		var orderHistory []FuturesOrderData
 		var err error
 
@@ -1492,7 +1471,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 
 	case asset.USDTMarginedFutures:
-
 		var orderHistory []UFuturesOrderData
 		var err error
 
