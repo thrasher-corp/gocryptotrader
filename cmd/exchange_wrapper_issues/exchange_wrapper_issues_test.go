@@ -7,19 +7,19 @@ import (
 )
 
 func TestDisruptFormatting(t *testing.T) {
-	_, err := distruptFormatting(currency.Pair{})
+	_, err := disruptFormatting(currency.Pair{})
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
-	_, err = distruptFormatting(currency.Pair{Base: currency.BTC})
+	_, err = disruptFormatting(currency.Pair{Base: currency.BTC})
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
 
-	badPair, err := distruptFormatting(p)
+	badPair, err := disruptFormatting(p)
 	if err != nil {
 		t.Fatal(err)
 	}

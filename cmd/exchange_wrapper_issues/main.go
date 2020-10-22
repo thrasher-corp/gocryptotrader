@@ -317,9 +317,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 
 		var err error
-		p, err = distruptFormatting(p)
+		p, err = disruptFormatting(p)
 		if err != nil {
-			log.Println("failed to distrupt currency pair formatting:", err)
+			log.Println("failed to disrupt currency pair formatting:", err)
 		}
 
 		responseContainer := ExchangeAssetPairResponses{
@@ -892,16 +892,16 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 	}
 }
 
-// distruptFormatting adds in an unused delimiter and strange casing features to
+// disruptFormatting adds in an unused delimiter and strange casing features to
 // ensure format currency pair is used througout the code base.
-func distruptFormatting(p currency.Pair) (currency.Pair, error) {
+func disruptFormatting(p currency.Pair) (currency.Pair, error) {
 	base := p.Base.String()
 	if base == "" {
-		return currency.Pair{}, errors.New("cannot distrupt formatting as base is not populated")
+		return currency.Pair{}, errors.New("cannot disrupt formatting as base is not populated")
 	}
 	quote := p.Quote.String()
 	if quote == "" {
-		return currency.Pair{}, errors.New("cannot distrupt formatting as quote is not populated")
+		return currency.Pair{}, errors.New("cannot disrupt formatting as quote is not populated")
 	}
 
 	return currency.Pair{
