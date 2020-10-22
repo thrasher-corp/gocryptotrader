@@ -283,18 +283,21 @@ message GetForexRatesResponse {
 message OrderDetails {
     string exchange = 1;
     string id = 2;
-    string base_currency = 3;
-    string quote_currency = 4;
-    string asset_type = 5;
-    string order_side = 6;
-    string order_type = 7;
-    int64 creation_time = 8;
-    string status = 9;
-    double price = 10;
-    double amount = 11;
-    double open_volume = 12;
-    double fee = 13;
-    repeated TradeHistory trades = 14;
+    string client_order_id = 3;
+    string base_currency = 4;
+    string quote_currency = 5;
+    string asset_type = 6;
+    string order_side = 7;
+    string order_type = 8;
+    int64 creation_time = 9;
+    int64 update_time = 10;
+    string status = 11;
+    double price = 12;
+    double amount = 13;
+    double open_volume = 14;
+    double fee = 15;
+    double cost = 16;
+    repeated TradeHistory trades = 17;
 }
 
 message TradeHistory {
@@ -321,6 +324,7 @@ message GetOrdersResponse {
 message GetOrderRequest {
     string exchange = 1;
     string order_id = 2;
+    CurrencyPair pair = 3;
 }
 
 message SubmitOrderRequest {
@@ -334,9 +338,17 @@ message SubmitOrderRequest {
     string asset_type = 8;
 }
 
+message Trades {
+    double amount = 1;
+    double price = 2;
+    double fee = 3;
+    string fee_asset = 4;
+}
+
 message SubmitOrderResponse {
     bool order_placed = 1;
     string order_id = 2;
+    repeated Trades trades= 3;
 }
 
 message SimulateOrderRequest {

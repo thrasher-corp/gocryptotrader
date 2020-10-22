@@ -328,22 +328,26 @@ type CancelOrderResponse struct {
 
 // QueryOrderData holds query order data
 type QueryOrderData struct {
-	Code          int     `json:"code"`
-	Msg           string  `json:"msg"`
-	Symbol        string  `json:"symbol"`
-	OrderID       int64   `json:"orderId"`
-	ClientOrderID string  `json:"clientOrderId"`
-	Price         float64 `json:"price,string"`
-	OrigQty       float64 `json:"origQty,string"`
-	ExecutedQty   float64 `json:"executedQty,string"`
-	Status        string  `json:"status"`
-	TimeInForce   string  `json:"timeInForce"`
-	Type          string  `json:"type"`
-	Side          string  `json:"side"`
-	StopPrice     float64 `json:"stopPrice,string"`
-	IcebergQty    float64 `json:"icebergQty,string"`
-	Time          float64 `json:"time"`
-	IsWorking     bool    `json:"isWorking"`
+	Code                int     `json:"code"`
+	Msg                 string  `json:"msg"`
+	Symbol              string  `json:"symbol"`
+	OrderID             int64   `json:"orderId"`
+	ClientOrderID       string  `json:"clientOrderId"`
+	Price               float64 `json:"price,string"`
+	OrigQty             float64 `json:"origQty,string"`
+	ExecutedQty         float64 `json:"executedQty,string"`
+	Status              string  `json:"status"`
+	TimeInForce         string  `json:"timeInForce"`
+	Type                string  `json:"type"`
+	Side                string  `json:"side"`
+	StopPrice           float64 `json:"stopPrice,string"`
+	IcebergQty          float64 `json:"icebergQty,string"`
+	Time                float64 `json:"time"`
+	IsWorking           bool    `json:"isWorking"`
+	CummulativeQuoteQty float64 `json:"cummulativeQuoteQty,string"`
+	OrderListID         int64   `json:"orderListId"`
+	OrigQuoteOrderQty   float64 `json:"origQuoteOrderQty,string"`
+	UpdateTime          int64   `json:"updateTime"`
 }
 
 // Balance holds query order data

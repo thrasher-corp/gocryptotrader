@@ -473,7 +473,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := k.GetOrderInfo("OZPTPJ-HVYHF-EDIGXS")
+	_, err := k.GetOrderInfo("OZPTPJ-HVYHF-EDIGXS", currency.Pair{}, asset.Spot)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting error")
 	}

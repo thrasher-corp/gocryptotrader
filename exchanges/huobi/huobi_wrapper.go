@@ -703,8 +703,8 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	var respData *OrderInfo
 	if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -729,7 +729,8 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 	var responseID = strconv.FormatInt(respData.ID, 10)
 	if responseID != orderID {
-		return orderDetail, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " + orderID + " Received: " + responseID)
+		return orderDetail, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " +
+			orderID + " Received: " + responseID)
 	}
 	typeDetails := strings.Split(respData.Type, "-")
 	orderSide, err := order.StringToOrderSide(typeDetails[0])

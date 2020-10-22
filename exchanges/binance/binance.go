@@ -45,6 +45,7 @@ const (
 	queryOrder   = "/api/v3/order"
 	openOrders   = "/api/v3/openOrders"
 	allOrders    = "/api/v3/allOrders"
+	myTrades     = "/api/v3/myTrades"
 
 	// Withdraw API endpoints
 	withdrawEndpoint  = "/wapi/v3/withdraw.html"

@@ -275,8 +275,8 @@ func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancel) (order.Can
 		a.CancelAllExistingOrders(orderCancellation.AccountID)
 }
 
-// GetOrderInfo returns information on a current open order
-func (a *Alphapoint) GetOrderInfo(orderID string) (float64, error) {
+// GetOrderInfo returns order information based on order ID
+func (a *Alphapoint) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
 	orders, err := a.GetOrders()
 	if err != nil {
 		return 0, err

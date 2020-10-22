@@ -593,8 +593,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{cancellAllOrdersResponse}),
 		})
 
-		var getOrderInforResponse order.Detail
-		getOrderInforResponse, err = e.GetOrderInfo(config.OrderSubmission.OrderID)
+		var r15 order.Detail
+		r15, err = e.GetOrderInfo(config.OrderSubmission.OrderID, p, assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -604,7 +604,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			SentParams: jsonifyInterface([]interface{}{config.OrderSubmission.OrderID}),
 			Function:   "GetOrderInfo",
 			Error:      msg,
-			Response:   jsonifyInterface([]interface{}{getOrderInforResponse}),
+			Response:   jsonifyInterface([]interface{}{r15}),
 		})
 
 		historyRequest := order.GetOrdersRequest{
