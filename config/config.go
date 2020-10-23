@@ -1568,23 +1568,25 @@ func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
 	// Override values in the current config
 	*c = *result
 
-	if dryrun || wasEncrypted || (!wasEncrypted && c.EncryptConfig == fileEncryptionDisabled) {
+	if dryrun || wasEncrypted || c.EncryptConfig == fileEncryptionDisabled {
 		return nil
 	}
 
 	if c.EncryptConfig == fileEncryptionPrompt {
 		confirm, err := promptForConfigEncryption()
-		if err == nil {
-			if confirm {
-				c.EncryptConfig = fileEncryptionEnabled
-				return c.SaveConfigToFile(defaultPath)
-			}
+		if err != nil {
+			log.Errorf(log.ConfigMgr, "The encryption prompt failed, ignoring for now, next time we will prompt again. Error: %s\n", err)
+			return nil
+		}
+		if confirm {
+			c.EncryptConfig = fileEncryptionEnabled
+			return c.SaveConfigToFile(defaultPath)
+		}
 
-			c.EncryptConfig = fileEncryptionDisabled
-			err := c.SaveConfigToFile(defaultPath)
-			if err != nil {
-				log.Errorf(log.ConfigMgr, "Cannot save config. Error: %s\n", err)
-			}
+		c.EncryptConfig = fileEncryptionDisabled
+		err = c.SaveConfigToFile(defaultPath)
+		if err != nil {
+			log.Errorf(log.ConfigMgr, "Cannot save config. Error: %s\n", err)
 		}
 	}
 	return nil
