@@ -1395,7 +1395,6 @@ func TestFixCasing(t *testing.T) {
 	if ret != "fUSD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
-
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {
