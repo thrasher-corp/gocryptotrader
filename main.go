@@ -85,6 +85,7 @@ func main() {
 	flag.StringVar(&settings.HTTPUserAgent, "httpuseragent", "", "sets the HTTP user agent")
 	flag.StringVar(&settings.HTTPProxy, "httpproxy", "", "sets the HTTP proxy server")
 	flag.BoolVar(&settings.EnableExchangeHTTPDebugging, "exchangehttpdebugging", false, "sets the exchanges HTTP debugging")
+	flag.DurationVar(&settings.TradeBufferProcessingInterval, "tradeprocessinginterval", time.Second*15, "sets the interval to save trade buffer data to the database")
 
 	// Common tuning settings
 	flag.DurationVar(&settings.GlobalHTTPTimeout, "globalhttptimeout", time.Duration(0), "sets common HTTP timeout value for HTTP requests")

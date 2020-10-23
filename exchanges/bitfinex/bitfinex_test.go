@@ -1361,6 +1361,41 @@ func TestFixCasing(t *testing.T) {
 	if ret != "tTNBUSD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
+	pair, err = currency.NewPairFromStrings("fUSD", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Margin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "fUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+	pair, err = currency.NewPairFromStrings("USD", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Margin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "fUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	pair, err = currency.NewPairFromStrings("FUSD", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Margin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "fUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {

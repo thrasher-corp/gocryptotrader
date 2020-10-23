@@ -21,7 +21,7 @@ import (
 // Setup creates the trade processor if trading is supported
 func (p *Processor) setup() {
 	p.mutex.Lock()
-	p.bufferProcessorInterval = bufferProcessorIntervalTime
+	p.bufferProcessorInterval = BufferProcessorIntervalTime
 	p.mutex.Unlock()
 	go p.Run()
 }

@@ -345,25 +345,48 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 	}
 
 	data := result.(map[string]interface{})
-	tradeInfo := data["result"].(map[string]interface{})
+	tradeInfo, ok := data["result"].(map[string]interface{})
+	if !ok {
+		return recentTrades, errors.New("unexpected data received")
+	}
 
-	for _, x := range tradeInfo[symbol].([]interface{}) {
+	trades, ok := tradeInfo[symbol].([]interface{})
+	if !ok {
+		return recentTrades, errors.New("unexpected data received")
+	}
+
+	for _, x := range trades {
 		r := RecentTrades{}
-		for i, y := range x.([]interface{}) {
-			switch i {
-			case 0:
-				r.Price, _ = strconv.ParseFloat(y.(string), 64)
-			case 1:
-				r.Volume, _ = strconv.ParseFloat(y.(string), 64)
-			case 2:
-				r.Time = y.(float64)
-			case 3:
-				r.BuyOrSell = y.(string)
-			case 4:
-				r.MarketOrLimit = y.(string)
-			case 5:
-				r.Miscellaneous = y.(string)
-			}
+		individualTrade, ok := x.([]interface{})
+		if !ok {
+			return recentTrades, errors.New("unexpected data received")
+		}
+		if len(individualTrade) != 6 {
+			return recentTrades, errors.New("unexpected data received")
+		}
+		r.Price, err = strconv.ParseFloat(individualTrade[0].(string), 64)
+		if err != nil {
+			return recentTrades, err
+		}
+		r.Volume, err = strconv.ParseFloat(individualTrade[1].(string), 64)
+		if err != nil {
+			return recentTrades, err
+		}
+		r.Time, ok = individualTrade[2].(float64)
+		if !ok {
+			return recentTrades, errors.New("unexpected data received")
+		}
+		r.BuyOrSell, ok = individualTrade[3].(string)
+		if !ok {
+			return recentTrades, errors.New("unexpected data received")
+		}
+		r.MarketOrLimit, ok = individualTrade[4].(string)
+		if !ok {
+			return recentTrades, errors.New("unexpected data received")
+		}
+		r.Miscellaneous, ok = individualTrade[5].(string)
+		if !ok {
+			return recentTrades, errors.New("unexpected data received")
 		}
 		recentTrades = append(recentTrades, r)
 	}

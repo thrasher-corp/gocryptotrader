@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	totalWrappers = 20
+	totalWrappers = 25
 )
 
 func main() {
@@ -201,7 +201,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "UpdateAccountInfo")
 	}
 
-	_, err = e.GetFeeByType(nil)
+	_, err = e.GetFeeByType(&exchange.FeeBuilder{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetFeeByType")
 	}

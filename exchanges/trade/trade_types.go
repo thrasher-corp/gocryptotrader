@@ -10,10 +10,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+const DefaultProcessorIntervalTime = time.Second * 15
+
 var (
-	buffer                      []Data
-	processor                   Processor
-	bufferProcessorIntervalTime = time.Second * 15
+	buffer    []Data
+	processor Processor
+	// BufferProcessorIntervalTime is the interval to save trade buffer data to the database.
+	// Change this by changing the runtime param `-tradeprocessinginterval=15s`
+	BufferProcessorIntervalTime = DefaultProcessorIntervalTime
 )
 
 // Data defines trade data

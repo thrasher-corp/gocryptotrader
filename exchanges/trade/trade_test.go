@@ -17,7 +17,7 @@ import (
 
 func TestAddTradesToBuffer(t *testing.T) {
 	processor.mutex.Lock()
-	processor.bufferProcessorInterval = bufferProcessorIntervalTime
+	processor.bufferProcessorInterval = BufferProcessorIntervalTime
 	processor.mutex.Unlock()
 	go processor.Run()
 	dbConf := database.Config{

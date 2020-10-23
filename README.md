@@ -1,4 +1,3 @@
-
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://travis-ci.com/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.com/thrasher-corp/gocryptotrader)
@@ -40,7 +39,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Pro | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
-| LakeBTC | Yes | No | NA |
+| LakeBTC | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
@@ -77,6 +76,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Basic event trigger system.
 + OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
 + Scripting support. See [gctscript](/gctscript/README.md).
++ Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
 + WebGUI (discontinued).
 
 ## Planned Features
@@ -143,20 +143,19 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 643 |
-| [shazbert](https://github.com/shazbert) | 196 |
-| [gloriousCode](https://github.com/gloriousCode) | 170 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 69 |
+| [shazbert](https://github.com/shazbert) | 197 |
+| [gloriousCode](https://github.com/gloriousCode) | 171 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 70 |
 | [xtda](https://github.com/xtda) | 47 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 9 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [Rots](https://github.com/Rots) | 7 |
+| [vazha](https://github.com/vazha) | 7 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
-| [Rots](https://github.com/Rots) | 5 |
-| [vazha](https://github.com/vazha) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
-| [vazha](https://github.com/vazha) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [azhang](https://github.com/azhang) | 2 |
