@@ -893,7 +893,7 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 }
 
 // disruptFormatting adds in an unused delimiter and strange casing features to
-// ensure format currency pair is used througout the code base.
+// ensure format currency pair is used throughout the code base.
 func disruptFormatting(p currency.Pair) (currency.Pair, error) {
 	base := p.Base.String()
 	if base == "" {
