@@ -516,7 +516,11 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		currPair = req.Pairs[0].String()
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currPair = fPair.String()
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)
@@ -580,7 +584,11 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		currPair = req.Pairs[0].String()
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currPair = fPair.String()
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)

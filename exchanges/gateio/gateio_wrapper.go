@@ -608,7 +608,11 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	var orders []order.Detail
 	var currPair string
 	if len(req.Pairs) == 1 {
-		currPair = req.Pairs[0].String()
+		fPair, err := g.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currPair = fPair.String()
 	}
 	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := 0; ; i += 100 {

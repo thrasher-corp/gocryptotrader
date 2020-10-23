@@ -592,7 +592,11 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 	if len(req.Pairs) != 1 {
 		currPair = "all"
 	} else {
-		currPair = req.Pairs[0].String()
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currPair = fPair.String()
 	}
 
 	resp, err := b.GetOpenOrders(currPair)
@@ -644,7 +648,11 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		currPair = req.Pairs[0].String()
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currPair = fPair.String()
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)
