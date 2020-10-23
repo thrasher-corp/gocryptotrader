@@ -112,8 +112,8 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		ExchangeGenerateSubscriptions: s.GenerateSubscriptions,
 		ExchangeSubscriber:            s.Subscriber,
 		ExchangeUnsubscriber:          s.Unsubscriber,
-		ExchangeGenerateConnection:    s.GenerateConnection,
-		Features:                      w.features,
+		// ExchangeGenerateConnection:    s.GenerateConnection,
+		Features: w.features,
 	})
 	if err != nil {
 		return err
