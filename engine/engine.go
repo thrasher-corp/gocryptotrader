@@ -57,12 +57,10 @@ func New() (*Engine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
-	var scriptManager *gctscript.GctScriptManager
-	scriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
+	b.GctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
 	}
-	b.GctScriptManager = scriptManager
 
 	return &b, nil
 }
@@ -96,14 +94,12 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
 	}
 
-	validateSettings(&b, settings, flagSet)
-
-	var scriptManager *gctscript.GctScriptManager
-	scriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
+	b.GctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
 	}
-	b.GctScriptManager = scriptManager
+
+	validateSettings(&b, settings, flagSet)
 
 	return &b, nil
 }

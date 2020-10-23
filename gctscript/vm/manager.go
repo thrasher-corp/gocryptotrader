@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -25,6 +26,9 @@ type GctScriptManager struct {
 
 // NewManager creates a new instance of script manager
 func NewManager(config *Config) (*GctScriptManager, error) {
+	if config == nil {
+		return nil, errors.New("config must be provided for script manager")
+	}
 	return &GctScriptManager{
 		config: config,
 	}, nil
