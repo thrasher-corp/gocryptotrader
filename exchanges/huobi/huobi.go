@@ -940,8 +940,8 @@ func (h *HUOBI) FCancelAllOrders(symbol, contractCode, contractType string) (FCa
 }
 
 // FFlashCloseOrder flash closes a futures order
-func (h *HUOBI) FFlashCloseOrder(symbol, contractType, contractCode, direction, orderPriceType, clientOrderID string, volume float64) (FFlashCloseOrderData, error) {
-	var resp FFlashCloseOrderData
+func (h *HUOBI) FFlashCloseOrder(symbol, contractType, contractCode, direction, orderPriceType, clientOrderID string, volume float64) (FOrderData, error) {
+	var resp FOrderData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
 	if contractType != "" {
@@ -1136,8 +1136,8 @@ func (h *HUOBI) FPlaceTriggerOrder(symbol, contractType, contractCode, triggerTy
 }
 
 // FCancelTriggerOrder cancels trigger order for futures
-func (h *HUOBI) FCancelTriggerOrder(symbol, orderID string) (FCancelTriggerOrdersData, error) {
-	var resp FCancelTriggerOrdersData
+func (h *HUOBI) FCancelTriggerOrder(symbol, orderID string) (FCancelOrderData, error) {
+	var resp FCancelOrderData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
 	req["order_id"] = orderID
@@ -1146,8 +1146,8 @@ func (h *HUOBI) FCancelTriggerOrder(symbol, orderID string) (FCancelTriggerOrder
 }
 
 // FCancelAllTriggerOrders cancels all trigger order for futures
-func (h *HUOBI) FCancelAllTriggerOrders(symbol, contractCode, contractType string) (FCancelTriggerOrdersData, error) {
-	var resp FCancelTriggerOrdersData
+func (h *HUOBI) FCancelAllTriggerOrders(symbol, contractCode, contractType string) (FCancelOrderData, error) {
+	var resp FCancelOrderData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
 	if contractCode != "" {

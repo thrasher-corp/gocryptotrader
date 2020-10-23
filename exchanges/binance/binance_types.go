@@ -485,7 +485,7 @@ type TopTraderAccountRatio struct {
 	Timestamp      int64   `json:"timestamp"`
 }
 
-// TopTraderPositionRatio stores positons' ratio for top trader accounts
+// TopTraderPositionRatio stores position ratio for top trader accounts
 type TopTraderPositionRatio struct {
 	Pair           string  `json:"pair"`
 	LongShortRatio float64 `json:"longShortRatio,string"`
@@ -520,8 +520,8 @@ type FuturesBasisData struct {
 	ContractType string  `json:"contractType"`
 	FuturesPrice float64 `json:"futuresPrice,string"`
 	IndexPrice   float64 `json:"indexPrice,string"`
-	Basis        float64 `json:"basis,string,string"`
-	BasisRate    float64 `json:"basisRate,string,string"`
+	Basis        float64 `json:"basis,string"`
+	BasisRate    float64 `json:"basisRate,string"`
 	Timestamp    int64   `json:"timestamp"`
 }
 
@@ -813,7 +813,7 @@ type FuturesAccountTradeList struct {
 // FuturesIncomeHistoryData stores futures income history data
 type FuturesIncomeHistoryData struct {
 	Symbol     string  `json:"symbol"`
-	IncomeType string  `json:"incomeType,string"`
+	IncomeType string  `json:"incomeType"`
 	Income     float64 `json:"income,string"`
 	Asset      string  `json:"asset"`
 	Info       string  `json:"info"`
@@ -842,16 +842,16 @@ type ForcedOrdersData struct {
 	AvgPrice      float64 `json:"avgPrice,string"`
 	OrigQty       float64 `json:"origQty,string"`
 	ExecutedQty   float64 `json:"executedQty,string"`
-	CumQuote      float64 `json:"cumQuote"`
-	TimeInForce   string  `json:"timeInForce,string"`
+	CumQuote      float64 `json:"cumQuote,string"`
+	TimeInForce   string  `json:"timeInForce"`
 	OrderType     string  `json:"orderType"`
 	ReduceOnly    bool    `json:"reduceOnly"`
 	ClosePosition bool    `json:"closePosition"`
 	Side          string  `json:"side"`
 	PositionSide  string  `json:"positionSide"`
 	StopPrice     float64 `json:"stopPrice,string"`
-	WorkingType   string  `json:"workingType,string"`
-	PriceProtect  float64 `json:"priceProtect"`
+	WorkingType   string  `json:"workingType"`
+	PriceProtect  float64 `json:"priceProtect,string"`
 	OrigType      string  `json:"origType"`
 	Time          int64   `json:"time"`
 	UpdateTime    int64   `json:"updateTime"`
@@ -914,17 +914,17 @@ type UFuturesExchangeInfo struct {
 		BaseAssetPrecision       int64   `json:"baseAssetPrecision"`
 		QuotePrecision           int64   `json:"quotePrecision"`
 		Filters                  []struct {
-			MinPrice          float64 `json:"minPrice,string,omitempty"`
-			MaxPrice          float64 `json:"maxPrice,string,omitempty"`
-			FilterType        string  `json:"filterType,omitempty"`
-			TickSize          float64 `json:"tickSize,string,omitempty"`
-			StepSize          float64 `json:"stepSize,string,omitempty"`
-			MaxQty            float64 `json:"maxQty,string,omitempty"`
-			MinQty            float64 `json:"minQty,string,omitempty"`
-			Limit             int64   `json:"limit,omitempty"`
-			MultiplierDown    float64 `json:"multiplierDown,string,omitempty"`
-			MultiplierUp      float64 `json:"multiplierUp,string,omitempty"`
-			MultiplierDecimal float64 `json:"multiplierDecimal,string,omitempty"`
+			MinPrice          float64 `json:"minPrice,string"`
+			MaxPrice          float64 `json:"maxPrice,string"`
+			FilterType        string  `json:"filterType"`
+			TickSize          float64 `json:"tickSize,string"`
+			StepSize          float64 `json:"stepSize,string"`
+			MaxQty            float64 `json:"maxQty,string"`
+			MinQty            float64 `json:"minQty,string"`
+			Limit             int64   `json:"limit"`
+			MultiplierDown    float64 `json:"multiplierDown,string"`
+			MultiplierUp      float64 `json:"multiplierUp,string"`
+			MultiplierDecimal float64 `json:"multiplierDecimal,string"`
 		} `json:"filters"`
 		OrderTypes  []string `json:"orderTypes"`
 		TimeInForce []string `json:"timeInForce"`
@@ -944,16 +944,16 @@ type CExchangeInfo struct {
 	ServerTime int64 `json:"serverTime"`
 	Symbols    []struct {
 		Filters []struct {
-			FilterType        string  `json:"filterType,omitempty"`
-			MinPrice          float64 `json:"minPrice,string,omitempty"`
-			MaxPrice          float64 `json:"maxPrice,string,omitempty"`
-			StepSize          float64 `json:"stepSize,string,omitempty"`
-			MaxQty            float64 `json:"maxQty,string,omitempty"`
-			MinQty            float64 `json:"minQty,string,omitempty"`
-			Limit             int64   `json:"limit,omitempty"`
-			MultiplierDown    float64 `json:"multiplierDown,string,omitempty"`
-			MultiplierUp      float64 `json:"multiplierUp,string,omitempty"`
-			MultiplierDecimal float64 `json:"multiplierDecimal,string,omitempty"`
+			FilterType        string  `json:"filterType"`
+			MinPrice          float64 `json:"minPrice,string"`
+			MaxPrice          float64 `json:"maxPrice,string"`
+			StepSize          float64 `json:"stepSize,string"`
+			MaxQty            float64 `json:"maxQty,string"`
+			MinQty            float64 `json:"minQty,string"`
+			Limit             int64   `json:"limit"`
+			MultiplierDown    float64 `json:"multiplierDown,string"`
+			MultiplierUp      float64 `json:"multiplierUp,string"`
+			MultiplierDecimal float64 `json:"multiplierDecimal,string"`
 		} `json:"filters"`
 		OrderTypes            []string `json:"orderType"`
 		TimeInForce           []string `json:"timeInForce"`

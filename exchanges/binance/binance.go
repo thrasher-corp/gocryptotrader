@@ -151,7 +151,7 @@ const (
 	dustLog                     = "/wapi/v3/userAssetDribbletLog.html"
 	tradeFee                    = "/wapi/v3/tradeFee.html"
 	assetDetail                 = "/wapi/v3/assetDetail.html"
-	undocumentedInterestHistory = "https://www.binance.com/gateway-api/v1/public/isolated-margin/pair/vip-level"
+	undocumentedInterestHistory = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
 )
 
 var validFuturesIntervals = []string{
@@ -302,7 +302,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(uValidPeriods, interval) {
-		return resp, fmt.Errorf("invalid interval")
+		return resp, errors.New("invalid interval")
 	}
 	params.Set("interval", interval)
 	if limit > 0 && limit < 1000 {
@@ -326,12 +326,12 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 	for x := range data {
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed for opentime")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed for open")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -340,7 +340,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed for high")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -349,7 +349,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed for low")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -358,7 +358,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed for close")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -367,7 +367,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed for volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -376,12 +376,12 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed for ")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -390,12 +390,12 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed for taker buy volume")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed for taker buy base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -581,7 +581,7 @@ func (b *Binance) UOpenInterestStats(symbol, period string, limit int64, startTi
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(uValidPeriods, period) {
-		return resp, fmt.Errorf("invalid period")
+		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
 	if limit > 0 && limit < 1000 {
@@ -603,7 +603,7 @@ func (b *Binance) UTopAcccountsLongShortRatio(symbol, period string, limit int64
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(uValidPeriods, period) {
-		return resp, fmt.Errorf("invalid period")
+		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
 	if limit > 0 && limit < 500 {
@@ -625,7 +625,7 @@ func (b *Binance) UTopPostionsLongShortRatio(symbol, period string, limit int64,
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(uValidPeriods, period) {
-		return resp, fmt.Errorf("invalid period")
+		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
 	if limit > 0 && limit < 500 {
@@ -647,7 +647,7 @@ func (b *Binance) UGlobalLongShortRatio(symbol, period string, limit int64, star
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(uValidPeriods, period) {
-		return resp, fmt.Errorf("invalid period")
+		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
 	if limit > 0 && limit < 500 {
@@ -669,7 +669,7 @@ func (b *Binance) UTakerBuySellVol(symbol, period string, limit int64, startTime
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(uValidPeriods, period) {
-		return resp, fmt.Errorf("invalid period")
+		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
 	if limit > 0 && limit < 500 {
@@ -695,16 +695,15 @@ func (b *Binance) UFuturesNewOrder(symbol, side, positionSide, orderType, timeIn
 	params.Set("side", side)
 	if positionSide != "" {
 		if !common.StringDataCompare(validPositionSide, positionSide) {
-			return resp, fmt.Errorf("invalid positionSide")
+			return resp, errors.New("invalid positionSide")
 		}
 		params.Set("positionSide", positionSide)
 	}
 	params.Set("type", orderType)
 	params.Set("timeInForce", timeInForce)
-	params.Set("orderType", orderType)
 	if reduceOnly != "" {
 		if !common.StringDataCompare(validBoolString, reduceOnly) {
-			return resp, fmt.Errorf("invalid reduceOnly")
+			return resp, errors.New("invalid reduceOnly")
 		}
 		params.Set("reduceOnly", reduceOnly)
 	}
@@ -716,13 +715,13 @@ func (b *Binance) UFuturesNewOrder(symbol, side, positionSide, orderType, timeIn
 	}
 	if workingType != "" {
 		if !common.StringDataCompare(validWorkingType, workingType) {
-			return resp, fmt.Errorf("invalid workingType")
+			return resp, errors.New("invalid workingType")
 		}
 		params.Set("workingType", workingType)
 	}
 	if newOrderRespType != "" {
 		if !common.StringDataCompare(validNewOrderRespType, newOrderRespType) {
-			return resp, fmt.Errorf("invalid newOrderRespType")
+			return resp, errors.New("invalid newOrderRespType")
 		}
 		params.Set("newOrderRespType", newOrderRespType)
 	}
@@ -751,22 +750,22 @@ func (b *Binance) UPlaceBatchOrders(data []PlaceBatchOrderData) ([]UOrderData, e
 	for x := range data {
 		if data[x].PositionSide != "" {
 			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
-				return resp, fmt.Errorf("invalid positionSide")
+				return resp, errors.New("invalid positionSide")
 			}
 		}
 		if data[x].ReduceOnly != "" {
 			if !common.StringDataCompare(validBoolString, data[x].ReduceOnly) {
-				return resp, fmt.Errorf("invalid reduceOnly")
+				return resp, errors.New("invalid reduceOnly")
 			}
 		}
 		if data[x].WorkingType != "" {
 			if !common.StringDataCompare(validWorkingType, data[x].WorkingType) {
-				return resp, fmt.Errorf("invalid workingType")
+				return resp, errors.New("invalid workingType")
 			}
 		}
 		if data[x].NewOrderRespType != "" {
 			if !common.StringDataCompare(validNewOrderRespType, data[x].NewOrderRespType) {
-				return resp, fmt.Errorf("invalid newOrderRespType")
+				return resp, errors.New("invalid newOrderRespType")
 			}
 		}
 	}
@@ -909,7 +908,7 @@ func (b *Binance) UChangeInitialLeverageRequest(symbol string, leverage int64) (
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !(leverage > 0 && leverage < 25) {
-		return resp, fmt.Errorf("invalid leverage")
+		return resp, errors.New("invalid leverage")
 	}
 	params.Set("leverage", strconv.FormatInt(leverage, 10))
 	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesChangeInitialLeverage, params, limitDefault, &resp)
@@ -921,7 +920,7 @@ func (b *Binance) UChangeInitialMarginType(symbol, marginType string) error {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(validMarginType, marginType) {
-		return fmt.Errorf("invalid marginType")
+		return errors.New("invalid marginType")
 	}
 	params.Set("marginType", marginType)
 	return b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+ufuturesChangeMarginType, params, limitDefault, &resp)
@@ -934,12 +933,12 @@ func (b *Binance) UModifyIsolatedPositionMarginReq(symbol, positionSide, changeT
 	params.Set("symbol", symbol)
 	if positionSide != "" {
 		if !common.StringDataCompare(validPositionSide, positionSide) {
-			return resp, fmt.Errorf("invalid margin changeType")
+			return resp, errors.New("invalid margin changeType")
 		}
 	}
 	cType, ok := validMarginChange[changeType]
 	if !ok {
-		return resp, fmt.Errorf("invalid margin changeType")
+		return resp, errors.New("invalid margin changeType")
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -953,7 +952,7 @@ func (b *Binance) UPositionMarginChangeHistory(symbol, changeType string, limit 
 	params.Set("symbol", symbol)
 	cType, ok := validMarginChange[changeType]
 	if !ok {
-		return resp, fmt.Errorf("invalid margin changeType")
+		return resp, errors.New("invalid margin changeType")
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
 	if limit > 0 && limit < 500 {
@@ -1007,7 +1006,7 @@ func (b *Binance) UAccountIncomeHistory(symbol, incomeType string, limit int64, 
 	params.Set("symbol", symbol)
 	if incomeType != "" {
 		if !common.StringDataCompare(validIncomeType, incomeType) {
-			return resp, fmt.Errorf("invalid incomeType")
+			return resp, errors.New("invalid incomeType")
 		}
 		params.Set("incomeType", incomeType)
 	}
@@ -1053,7 +1052,7 @@ func (b *Binance) UAccountForcedOrders(symbol, autoCloseType string, limit int64
 	}
 	if autoCloseType != "" {
 		if !common.StringDataCompare(validAutoCloseTypes, autoCloseType) {
-			return resp, fmt.Errorf("invalid incomeType")
+			return resp, errors.New("invalid incomeType")
 		}
 		params.Set("autoCloseType", autoCloseType)
 	}
@@ -1194,7 +1193,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, fmt.Errorf("invalid interval parsed")
+		return resp, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1215,12 +1214,12 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 	for x := range data {
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1229,7 +1228,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1238,7 +1237,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1247,7 +1246,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1256,7 +1255,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1265,12 +1264,12 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1279,12 +1278,12 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, fmt.Errorf("type casting failed")
+			return resp, errors.New("type casting failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1303,14 +1302,14 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 	params := url.Values{}
 	params.Set("pair", pair)
 	if !common.StringDataCompare(validContractType, contractType) {
-		return resp, fmt.Errorf("invalid contractType")
+		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
 	if limit > 0 && limit <= 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, fmt.Errorf("invalid interval parsed")
+		return resp, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1380,7 +1379,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, fmt.Errorf("invalid interval parsed")
+		return resp, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1450,7 +1449,7 @@ func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startT
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return resp, fmt.Errorf("invalid interval parsed")
+		return resp, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1588,11 +1587,11 @@ func (b *Binance) GetOpenInterestStats(pair, contractType, period string, limit 
 		params.Set("pair", pair)
 	}
 	if !common.StringDataCompare(validContractType, contractType) {
-		return resp, fmt.Errorf("invalid contractType")
+		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
 	if !common.StringDataCompare(validFuturesIntervals, period) {
-		return resp, fmt.Errorf("invalid period")
+		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
 	if limit > 0 && limit <= 1000 {
@@ -1614,7 +1613,7 @@ func (b *Binance) GetTraderFuturesAccountRatio(pair, period string, limit int64,
 	params := url.Values{}
 	params.Set("pair", pair)
 	if !common.StringDataCompare(validFuturesIntervals, period) {
-		return resp, fmt.Errorf("invalid period")
+		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
 	if limit > 0 && limit <= 1000 {
@@ -1636,7 +1635,7 @@ func (b *Binance) GetTraderFuturesPositionsRatio(pair, period string, limit int6
 	params := url.Values{}
 	params.Set("pair", pair)
 	if !common.StringDataCompare(validFuturesIntervals, period) {
-		return resp, fmt.Errorf("invalid period")
+		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
 	if limit > 0 && limit <= 1000 {
@@ -1658,7 +1657,7 @@ func (b *Binance) GetMarketRatio(pair, period string, limit int64, startTime, en
 	params := url.Values{}
 	params.Set("pair", pair)
 	if !common.StringDataCompare(validFuturesIntervals, period) {
-		return resp, fmt.Errorf("invalid period")
+		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
 	if limit > 0 && limit <= 1000 {
@@ -1680,14 +1679,14 @@ func (b *Binance) GetFuturesTakerVolume(pair, contractType, period string, limit
 	params := url.Values{}
 	params.Set("pair", pair)
 	if !common.StringDataCompare(validContractType, contractType) {
-		return resp, fmt.Errorf("invalid contractType")
+		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
 	if limit > 0 && limit <= 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, period) {
-		return resp, fmt.Errorf("invalid period parsed")
+		return resp, errors.New("invalid period parsed")
 	}
 	params.Set("period", period)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1706,14 +1705,14 @@ func (b *Binance) GetFuturesBasisData(pair, contractType, period string, limit i
 	params := url.Values{}
 	params.Set("pair", pair)
 	if !common.StringDataCompare(validContractType, contractType) {
-		return resp, fmt.Errorf("invalid contractType")
+		return resp, errors.New("invalid contractType")
 	}
 	params.Set("contractType", contractType)
 	if limit > 0 && limit <= 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, period) {
-		return resp, fmt.Errorf("invalid period parsed")
+		return resp, errors.New("invalid period parsed")
 	}
 	params.Set("period", period)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1736,16 +1735,15 @@ func (b *Binance) FuturesNewOrder(symbol, side, positionSide, orderType, timeInF
 	params.Set("side", side)
 	if positionSide != "" {
 		if !common.StringDataCompare(validPositionSide, positionSide) {
-			return resp, fmt.Errorf("invalid positionSide")
+			return resp, errors.New("invalid positionSide")
 		}
 		params.Set("positionSide", positionSide)
 	}
 	params.Set("type", orderType)
 	params.Set("timeInForce", timeInForce)
-	params.Set("orderType", orderType)
 	if reduceOnly != "" {
 		if !common.StringDataCompare(validBoolString, reduceOnly) {
-			return resp, fmt.Errorf("invalid reduceOnly")
+			return resp, errors.New("invalid reduceOnly")
 		}
 		params.Set("reduceOnly", reduceOnly)
 	}
@@ -1757,13 +1755,13 @@ func (b *Binance) FuturesNewOrder(symbol, side, positionSide, orderType, timeInF
 	}
 	if workingType != "" {
 		if !common.StringDataCompare(validWorkingType, workingType) {
-			return resp, fmt.Errorf("invalid workingType")
+			return resp, errors.New("invalid workingType")
 		}
 		params.Set("workingType", workingType)
 	}
 	if newOrderRespType != "" {
 		if !common.StringDataCompare(validNewOrderRespType, newOrderRespType) {
-			return resp, fmt.Errorf("invalid newOrderRespType")
+			return resp, errors.New("invalid newOrderRespType")
 		}
 		params.Set("newOrderRespType", newOrderRespType)
 	}
@@ -1792,22 +1790,22 @@ func (b *Binance) FuturesBatchOrder(data []PlaceBatchOrderData) ([]FuturesOrderP
 	for x := range data {
 		if data[x].PositionSide != "" {
 			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
-				return resp, fmt.Errorf("invalid positionSide")
+				return resp, errors.New("invalid positionSide")
 			}
 		}
 		if data[x].ReduceOnly != "" {
 			if !common.StringDataCompare(validBoolString, data[x].ReduceOnly) {
-				return resp, fmt.Errorf("invalid reduceOnly")
+				return resp, errors.New("invalid reduceOnly")
 			}
 		}
 		if data[x].WorkingType != "" {
 			if !common.StringDataCompare(validWorkingType, data[x].WorkingType) {
-				return resp, fmt.Errorf("invalid workingType")
+				return resp, errors.New("invalid workingType")
 			}
 		}
 		if data[x].NewOrderRespType != "" {
 			if !common.StringDataCompare(validNewOrderRespType, data[x].NewOrderRespType) {
-				return resp, fmt.Errorf("invalid newOrderRespType")
+				return resp, errors.New("invalid newOrderRespType")
 			}
 		}
 	}
@@ -1958,7 +1956,7 @@ func (b *Binance) FuturesChangeInitialLeverage(symbol string, leverage int64) (F
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !(leverage >= 1 && leverage <= 125) {
-		return resp, fmt.Errorf("invalid leverage")
+		return resp, errors.New("invalid leverage")
 	}
 	params.Set("leverage", strconv.FormatInt(leverage, 10))
 	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesChangeInitialLeverage, params, limitDefault, &resp)
@@ -1970,7 +1968,7 @@ func (b *Binance) FuturesChangeMarginType(symbol, marginType string) (GenericAut
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(validMarginType, marginType) {
-		return resp, fmt.Errorf("invalid marginType")
+		return resp, errors.New("invalid marginType")
 	}
 	params.Set("marginType", marginType)
 	return resp, b.SendAuthHTTPRequest(http.MethodPost, b.API.Endpoints.URL+cfuturesChangeMarginType, params, limitDefault, &resp)
@@ -1982,12 +1980,12 @@ func (b *Binance) ModifyIsolatedPositionMargin(symbol, positionSide, changeType 
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(validPositionSide, positionSide) {
-		return resp, fmt.Errorf("invalid positionSide")
+		return resp, errors.New("invalid positionSide")
 	}
 	params.Set("positionSide", positionSide)
 	cType, ok := validMarginChange[changeType]
 	if !ok {
-		return resp, fmt.Errorf("invalid changeType")
+		return resp, errors.New("invalid changeType")
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -2001,7 +1999,7 @@ func (b *Binance) FuturesMarginChangeHistory(symbol, changeType string, startTim
 	params.Set("symbol", symbol)
 	cType, ok := validMarginChange[changeType]
 	if !ok {
-		return resp, fmt.Errorf("invalid changeType")
+		return resp, errors.New("invalid changeType")
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -2098,7 +2096,7 @@ func (b *Binance) FuturesForceOrders(symbol, autoCloseType string, startTime, en
 	}
 	if autoCloseType != "" {
 		if !common.StringDataCompare(validAutoCloseTypes, autoCloseType) {
-			return resp, fmt.Errorf("invalid autoCloseType")
+			return resp, errors.New("invalid autoCloseType")
 		}
 		params.Set("autoCloseType", autoCloseType)
 	}
@@ -2118,7 +2116,7 @@ func (b *Binance) FuturesPositionsADLEstimate(symbol string) ([]ADLEstimateData,
 // GetInterestHistory gets interest history for currency/currencies provided
 func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 	var resp MarginInfoData
-	if err := b.SendHTTPRequest(undocumentedInterestHistory, limitDefault, &resp); err != nil {
+	if err := b.SendHTTPRequest(b.API.Endpoints.URLSecondary+undocumentedInterestHistory, limitDefault, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil

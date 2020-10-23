@@ -77,8 +77,6 @@ func setupWsTests(t *testing.T) {
 	wsSetupRan = true
 }
 
-// Expiry Futures Tests
-
 func TestFGetContractInfo(t *testing.T) {
 	t.Parallel()
 	_, err := h.FGetContractInfo("", "", "")
@@ -495,8 +493,6 @@ func TestFQueryTriggerOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 }
-
-// Coin Margined Futures Tests
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
@@ -1131,8 +1127,6 @@ func TestGetSwapMarkets(t *testing.T) {
 		t.Error(err)
 	}
 }
-
-// Spot Tests
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()

@@ -74,7 +74,7 @@ func (k *Kraken) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 
@@ -812,59 +812,60 @@ func (k *Kraken) GetOrderInfo(orderID string, assetType asset.Item) (order.Detai
 		if err != nil {
 			return orderDetail, err
 		}
-		if orderInfo, ok := openOrders.Open[orderID]; ok {
-			avail, err := k.GetAvailablePairs(asset.Spot)
-			if err != nil {
-				return orderDetail, err
-			}
-
-			fmt, err := k.GetPairFormat(asset.Spot, false)
-			if err != nil {
-				return orderDetail, err
-			}
-
-			var trades []order.TradeHistory
-			for i := range orderInfo.Trades {
-				trades = append(trades, order.TradeHistory{
-					TID: orderInfo.Trades[i],
-				})
-			}
-			side, err := order.StringToOrderSide(orderInfo.Description.Type)
-			if err != nil {
-				return orderDetail, err
-			}
-			status, err := order.StringToOrderStatus(orderInfo.Status)
-			if err != nil {
-				return orderDetail, err
-			}
-			oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
-			if err != nil {
-				return orderDetail, err
-			}
-
-			p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
-				avail,
-				fmt)
-			if err != nil {
-				return orderDetail, err
-			}
-			orderDetail = order.Detail{
-				Exchange:        k.Name,
-				ID:              orderID,
-				Pair:            p,
-				Side:            side,
-				Type:            oType,
-				Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
-				Status:          status,
-				Price:           orderInfo.Price,
-				Amount:          orderInfo.Volume,
-				ExecutedAmount:  orderInfo.VolumeExecuted,
-				RemainingAmount: orderInfo.Volume - orderInfo.VolumeExecuted,
-				Fee:             orderInfo.Fee,
-				Trades:          trades,
-			}
-		} else {
+		orderInfo, ok := openOrders.Open[orderID]
+		if !ok {
 			return orderDetail, errors.New(k.Name + " - Order ID not found: " + orderID)
+		}
+
+		avail, err := k.GetAvailablePairs(asset.Spot)
+		if err != nil {
+			return orderDetail, err
+		}
+
+		fmt, err := k.GetPairFormat(asset.Spot, false)
+		if err != nil {
+			return orderDetail, err
+		}
+
+		var trades []order.TradeHistory
+		for i := range orderInfo.Trades {
+			trades = append(trades, order.TradeHistory{
+				TID: orderInfo.Trades[i],
+			})
+		}
+		side, err := order.StringToOrderSide(orderInfo.Description.Type)
+		if err != nil {
+			return orderDetail, err
+		}
+		status, err := order.StringToOrderStatus(orderInfo.Status)
+		if err != nil {
+			return orderDetail, err
+		}
+		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
+		if err != nil {
+			return orderDetail, err
+		}
+
+		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
+			avail,
+			fmt)
+		if err != nil {
+			return orderDetail, err
+		}
+		orderDetail = order.Detail{
+			Exchange:        k.Name,
+			ID:              orderID,
+			Pair:            p,
+			Side:            side,
+			Type:            oType,
+			Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
+			Status:          status,
+			Price:           orderInfo.Price,
+			Amount:          orderInfo.Volume,
+			ExecutedAmount:  orderInfo.VolumeExecuted,
+			RemainingAmount: orderInfo.Volume - orderInfo.VolumeExecuted,
+			Fee:             orderInfo.Fee,
+			Trades:          trades,
 		}
 
 	case asset.Futures:

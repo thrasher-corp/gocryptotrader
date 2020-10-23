@@ -132,15 +132,15 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 		return response, err
 	}
 	if len(resp) != 2 {
-		return response, fmt.Errorf("invalid data received")
+		return response, errors.New("invalid data received")
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, fmt.Errorf("failed rate")
+		return response, errors.New("failed rate")
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, fmt.Errorf("failed rate")
+		return response, errors.New("failed rate")
 	}
 	response.Symbol = symbol
 	response.RateAverage = avgRate
@@ -161,15 +161,15 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 		return response, err
 	}
 	if len(resp) != 2 {
-		return response, fmt.Errorf("invalid data received")
+		return response, errors.New("invalid data received")
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, fmt.Errorf("failed rate")
+		return response, errors.New("failed rate")
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, fmt.Errorf("failed rate")
+		return response, errors.New("failed rate")
 	}
 	response.RateAverage = avgRate
 	response.AmountAverage = avgAmount
@@ -188,28 +188,29 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 	if err != nil {
 		return resp, err
 	}
-	if _, ok := data[0].(float64); !ok {
-		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	var ok bool
+	if _, ok = data[0].(float64); !ok {
+		return resp, errors.New("type conversion failed for id, check for api updates")
 	}
 	resp.ID = int64(data[0].(float64))
-	if _, ok := data[1].(string); !ok {
-		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	if _, ok = data[1].(string); !ok {
+		return resp, errors.New("type conversion failed for email, check for api updates")
 	}
 	resp.Email = data[1].(string)
-	if _, ok := data[2].(string); !ok {
-		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	if _, ok = data[2].(string); !ok {
+		return resp, errors.New("type conversion failed for username, check for api updates")
 	}
 	resp.Username = data[2].(string)
-	if _, ok := data[3].(float64); !ok {
-		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	if _, ok = data[3].(float64); !ok {
+		return resp, errors.New("type conversion failed for accountcreate, check for api updates")
 	}
 	resp.MTSAccountCreate = int64(data[3].(float64))
-	if _, ok := data[4].(float64); !ok {
-		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	if _, ok = data[4].(float64); !ok {
+		return resp, errors.New("type conversion failed for verified, check for api updates")
 	}
 	resp.Verified = int64(data[4].(float64))
-	if _, ok := data[7].(string); !ok {
-		return resp, fmt.Errorf("type conversion failed, check for api updates")
+	if _, ok = data[7].(string); !ok {
+		return resp, errors.New("type conversion failed for timezone, check for api updates")
 	}
 	resp.Timezone = data[7].(string)
 	return resp, nil
@@ -228,23 +229,27 @@ func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 		return resp, err
 	}
 	for x := range data {
-		if _, ok := data[x][0].(string); !ok {
-			return resp, fmt.Errorf("type conversion failed, check for api updates")
+		wType, ok := data[x][0].(string)
+		if !ok {
+			return resp, errors.New("type conversion failed for walletType, check for api updates")
 		}
-		if _, ok := data[x][1].(string); !ok {
-			return resp, fmt.Errorf("type conversion failed, check for api updates")
+		curr, ok := data[x][1].(string)
+		if !ok {
+			return resp, errors.New("type conversion failed for currency, check for api updates")
 		}
-		if _, ok := data[x][2].(string); !ok {
-			return resp, fmt.Errorf("type conversion failed, check for api updates")
+		bal, ok := data[x][2].(float64)
+		if !ok {
+			return resp, errors.New("type conversion failed for balance, check for api updates")
 		}
-		if _, ok := data[x][3].(string); !ok {
-			return resp, fmt.Errorf("type conversion failed, check for api updates")
+		unsettledInterest, ok := data[x][3].(float64)
+		if !ok {
+			return resp, errors.New("type conversion failed for unsettledInterest, check for api updates")
 		}
 		resp = append(resp, WalletDataV2{
-			WalletType:        data[x][0].(string),
-			Currency:          data[x][1].(string),
-			Balance:           data[x][2].(float64),
-			UnsettledInterest: data[x][3].(float64),
+			WalletType:        wType,
+			Currency:          curr,
+			Balance:           bal,
+			UnsettledInterest: unsettledInterest,
 		})
 	}
 	return resp, nil
@@ -261,7 +266,7 @@ func (b *Bitfinex) GetMarginPairs() ([]string, error) {
 		return nil, err
 	}
 	if len(resp) != 1 {
-		return nil, fmt.Errorf("invalid response")
+		return nil, errors.New("invalid response")
 	}
 	return resp[0], nil
 }
@@ -294,53 +299,53 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 		return response, err
 	}
 	if len(result) != 1 {
-		return response, fmt.Errorf("invalid response")
+		return response, errors.New("invalid response")
 	}
 	var floatData float64
 	var stringData string
 	var ok bool
 	if stringData, ok = result[0][0].(string); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.Key = stringData
 	if floatData, ok = result[0][1].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.MTS = floatData
 	if floatData, ok = result[0][3].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.DerivPrice = floatData
 	if floatData, ok = result[0][4].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.SpotPrice = floatData
 	if floatData, ok = result[0][6].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.InsuranceFundBalance = floatData
 	if floatData, ok = result[0][8].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.NextFundingEventTS = floatData
 	if floatData, ok = result[0][9].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.NextFundingAccured = floatData
 	if floatData, ok = result[0][10].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.NextFundingStep = floatData
 	if floatData, ok = result[0][12].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.CurrentFunding = floatData
 	if floatData, ok = result[0][15].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.MarkPrice = floatData
 	if floatData, ok = result[0][18].(float64); !ok {
-		return response, fmt.Errorf("type conversion failed, check for api updates")
+		return response, errors.New("type conversion failed, check for api updates")
 	}
 	response.OpenInterest = floatData
 	return response, nil

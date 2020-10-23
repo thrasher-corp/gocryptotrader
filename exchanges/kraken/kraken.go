@@ -142,18 +142,18 @@ func (k *Kraken) FuturesSendOrder(orderType order.Type, symbol, side, triggerSig
 	var resp FuturesSendOrderData
 	oType, ok := validOrderTypes[orderType]
 	if !ok {
-		return resp, fmt.Errorf("invalid orderType")
+		return resp, errors.New("invalid orderType")
 	}
 	params := url.Values{}
 	params.Set("orderType", oType)
 	params.Set("symbol", symbol)
 	if !common.StringDataCompare(validSide, side) {
-		return resp, fmt.Errorf("invalid side")
+		return resp, errors.New("invalid side")
 	}
 	params.Set("side", side)
 	if triggerSignal != "" {
 		if !common.StringDataCompare(validTriggerSignal, triggerSignal) {
-			return resp, fmt.Errorf("invalid triggerSignal")
+			return resp, errors.New("invalid triggerSignal")
 		}
 		params.Set("triggerSignal", triggerSignal)
 	}
@@ -162,7 +162,7 @@ func (k *Kraken) FuturesSendOrder(orderType order.Type, symbol, side, triggerSig
 	}
 	if reduceOnly != "" {
 		if !common.StringDataCompare(validReduceOnly, reduceOnly) {
-			return resp, fmt.Errorf("invalid reduceOnly")
+			return resp, errors.New("invalid reduceOnly")
 		}
 		params.Set("reduceOnly", reduceOnly)
 	}
@@ -379,7 +379,7 @@ func (k *Kraken) GetAssetPairs(assetPairs []string, info string) (map[string]Ass
 	}
 	if info != "" {
 		if (info != "margin") && (info != "leverage") && (info != "fees") && (info != "info") {
-			return response.Result, fmt.Errorf("parameter info can only be 'asset', 'margin' or 'fees'")
+			return response.Result, errors.New("parameter info can only be 'asset', 'margin' or 'fees'")
 		}
 		params.Set("info", info)
 	}

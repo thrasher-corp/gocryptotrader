@@ -473,6 +473,9 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 			ExchangeName: h.Name,
 			AssetType:    assetType,
 		})
+		if err != nil {
+			return nil, err
+		}
 	case asset.Futures:
 		fmtPair, err := h.FormatExchangeCurrency(p, assetType)
 		if err != nil {
@@ -495,6 +498,9 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 			ExchangeName: h.Name,
 			AssetType:    assetType,
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
 	return ticker.GetTicker(h.Name, p, assetType)
 }
@@ -551,10 +557,6 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 				Price:  orderbookNew.Asks[x][0],
 			})
 		}
-
-		orderBook.Pair = p
-		orderBook.ExchangeName = h.Name
-		orderBook.AssetType = assetType
 
 	case asset.Futures:
 		orderbookNew, err := h.FGetMarketDepth(formatPair.String(), "step0")
@@ -673,7 +675,7 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 
 						var updated bool
 						for i := range currencyDetails {
-							if currencyDetails[i].CurrencyName == currency.NewCode(balances[j].Currency) {
+							if currencyDetails[i].CurrencyName.String() == balances[j].Currency {
 								if frozen {
 									currencyDetails[i].Hold = balances[j].Balance
 								} else {
@@ -1057,7 +1059,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 					cancelAllOrdersResponse.Status[split[x]] = "success"
 				}
 				for y := range a.Data.Errors {
-					cancelAllOrdersResponse.Status[a.Data.Errors[y].OrderID] = "fail"
+					cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail"
 				}
 			}
 		} else {
@@ -1076,7 +1078,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 				cancelAllOrdersResponse.Status[split[x]] = "success"
 			}
 			for y := range a.Data.Errors {
-				cancelAllOrdersResponse.Status[a.Data.Errors[y].OrderID] = "fail"
+				cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail"
 			}
 
 		}
@@ -1692,12 +1694,6 @@ type reqVars struct {
 	TradeType   string
 	OrderType   string
 	OrderStatus string
-}
-
-func getRequestVars(req *order.GetOrdersRequest) reqVars {
-	var resp reqVars
-
-	return resp
 }
 
 func setOrderSideAndType(requestType string, orderDetail *order.Detail) {

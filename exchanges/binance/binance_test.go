@@ -527,13 +527,14 @@ func TestGetFuturesExchangeInfo(t *testing.T) {
 	}
 }
 
-// func TestGetInterestHistory(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := b.GetInterestHistory()
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+func TestGetInterestHistory(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	_, err := b.GetInterestHistory()
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()

@@ -172,6 +172,7 @@ func (b *Binance) SetDefaults() {
 
 	b.API.Endpoints.URLDefault = apiURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
+	b.API.Endpoints.URLSecondary = "https://www.binance.com"
 	b.Websocket = stream.New()
 	b.API.Endpoints.WebsocketURL = binanceDefaultWebsocketURL
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -794,6 +795,8 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			oType = "TAKE_PROFIT_MARKET"
 		case order.TrailingStop:
 			oType = "TRAILING_STOP_MARKET"
+		default:
+			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
 
 		order, err := b.FuturesNewOrder(fPair.String(), reqSide,
@@ -839,6 +842,8 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			oType = "TAKE_PROFIT_MARKET"
 		case order.TrailingStop:
 			oType = "TRAILING_STOP_MARKET"
+		default:
+			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
 
 		order, err := b.UFuturesNewOrder(fPair.String(), reqSide,
@@ -1103,7 +1108,7 @@ func (b *Binance) GetOrderInfo(orderID string, assetType asset.Item) (order.Deta
 
 	}
 
-	return resp, common.ErrNotYetImplemented
+	return resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

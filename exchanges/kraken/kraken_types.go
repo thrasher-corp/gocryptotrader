@@ -31,11 +31,11 @@ type WSFuturesTickerData struct {
 	OpenInterest                  float64 `json:"openinterest"`
 	MarkPrice                     float64 `json:"markPrice"`
 	MaturityTime                  int64   `json:"maturityTime"`
-	FundingRate                   float64 `json:"funding_rate,omitempty"`
-	FundingRatePrediction         float64 `json:"funding_rate_prediction,omitempty"`
-	RelativeFundingRate           float64 `json:"relative_funding_rate,omitempty"`
-	RelativeFundingRatePrediction float64 `json:"relative_funding_rate_prediction,omitempty"`
-	NextFundingRateTime           int64   `json:"next_funding_rate_time,omitempty"`
+	FundingRate                   float64 `json:"funding_rate"`
+	FundingRatePrediction         float64 `json:"funding_rate_prediction"`
+	RelativeFundingRate           float64 `json:"relative_funding_rate"`
+	RelativeFundingRatePrediction float64 `json:"relative_funding_rate_prediction"`
+	NextFundingRateTime           int64   `json:"next_funding_rate_time"`
 }
 
 // WsFuturesTradeData stores public trade data for futures websocket
@@ -259,23 +259,23 @@ type FuturesTradeHistoryData struct {
 // FuturesTickerData stores info for futures ticker
 type FuturesTickerData struct {
 	Tickers []struct {
-		Tag                   string  `json:"tag,omitempty"`
-		Pair                  string  `json:"pair,omitempty"`
-		Symbol                string  `json:"symbol,omitempty"`
-		MarkPrice             float64 `json:"markPrice,omitempty"`
-		Bid                   float64 `json:"bid,omitempty"`
-		BidSize               float64 `json:"bidSize,omitempty"`
-		Ask                   float64 `json:"ask,omitempty"`
-		AskSize               float64 `json:"askSize,omitempty"`
-		Vol24h                float64 `json:"vol24h,omitempty"`
-		OpenInterest          float64 `json:"openInterest,omitempty"`
-		Open24H               float64 `json:"open24h,omitempty"`
-		Last                  float64 `json:"last,omitempty"`
-		LastTime              string  `json:"lastTime,omitempty"`
-		LastSize              float64 `json:"lastSize,omitempty"`
-		Suspended             bool    `json:"suspended,omitempty"`
-		FundingRate           float64 `json:"fundingRate,omitempty"`
-		FundingRatePrediction float64 `json:"fundingRatePrediction,omitempty"`
+		Tag                   string  `json:"tag"`
+		Pair                  string  `json:"pair"`
+		Symbol                string  `json:"symbol"`
+		MarkPrice             float64 `json:"markPrice"`
+		Bid                   float64 `json:"bid"`
+		BidSize               float64 `json:"bidSize"`
+		Ask                   float64 `json:"ask"`
+		AskSize               float64 `json:"askSize"`
+		Vol24h                float64 `json:"vol24h"`
+		OpenInterest          float64 `json:"openInterest"`
+		Open24H               float64 `json:"open24h"`
+		Last                  float64 `json:"last"`
+		LastTime              string  `json:"lastTime"`
+		LastSize              float64 `json:"lastSize"`
+		Suspended             bool    `json:"suspended"`
+		FundingRate           float64 `json:"fundingRate"`
+		FundingRatePrediction float64 `json:"fundingRatePrediction"`
 	} `json:"tickers"`
 	ServerTime string `json:"serverTime"`
 }
@@ -396,25 +396,25 @@ type FuturesAccountsData struct {
 // AccountsData stores data of an account
 type AccountsData struct {
 	AccType  string             `json:"type,omitempty"`
-	Currency string             `json:"currency,omitempty"`
-	Balances map[string]float64 `json:"balances,omitempty"`
+	Currency string             `json:"currency"`
+	Balances map[string]float64 `json:"balances"`
 	Auxilary struct {
 		AF  float64 `json:"af"`
 		PnL float64 `json:"pnl"`
 		PV  float64 `json:"pv"`
-	} `json:"auxiliary,omitempty"`
+	} `json:"auxiliary"`
 	MarginRequirements struct {
 		IM float64 `json:"im"`
 		MM float64 `json:"mm"`
 		LT float64 `json:"lt"`
 		TT float64 `json:"tt"`
-	} `json:"marginRequirements,omitempty"`
+	} `json:"marginRequirements"`
 	TriggerEstimates struct {
 		IM float64 `json:"im"`
 		MM float64 `json:"mm"`
 		LT float64 `json:"lt"`
 		TT float64 `json:"tt"`
-	} `json:"triggerEstimates,omitempty"`
+	} `json:"triggerEstimates"`
 }
 
 // CancelAllOrdersData stores order data for all cancelled orders

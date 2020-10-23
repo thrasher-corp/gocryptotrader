@@ -968,21 +968,11 @@ type FBatchOrderResponse struct {
 type FCancelOrderData struct {
 	Data struct {
 		Errors []struct {
-			OrderID string `json:"order_id"`
+			OrderID int64  `json:"order_id"`
 			ErrCode int64  `json:"err_code,string"`
-			ErrMsg  string `json:"err_msg,string"`
+			ErrMsg  string `json:"err_msg"`
 		} `json:"errors"`
 		Successes string `json:"successes"`
-	} `json:"data"`
-	Timestamp int64 `json:"ts"`
-}
-
-// FFlashCloseOrderData stores order data for flash close orders
-type FFlashCloseOrderData struct {
-	Data struct {
-		OrderID       string `json:"order_id"`
-		OrderIDString string `json:"order_id_str"`
-		ClientOrderID int64  `json:"client_order_id"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
 }
@@ -1169,19 +1159,6 @@ type FTriggerOrderData struct {
 	Data struct {
 		OrderID    int64  `json:"order_id"`
 		OrderIDStr string `json:"order_id_str"`
-	} `json:"data"`
-	Timestamp int64 `json:"ts"`
-}
-
-// FCancelTriggerOrdersData stores cancel trigger order data
-type FCancelTriggerOrdersData struct {
-	Data struct {
-		Errors []struct {
-			OrderID int64  `json:"order_id,string"`
-			ErrCode int64  `json:"err_code,string"`
-			ErrMsg  string `json:"err_msg,string"`
-		} `json:"errors"`
-		Successes string `json:"successes"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
 }
