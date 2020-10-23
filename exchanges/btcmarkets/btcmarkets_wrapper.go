@@ -899,16 +899,21 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 		return kline.Item{}, err
 	}
 
+	fPair, err := b.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
 	ret := kline.Item{
 		Exchange: b.Name,
-		Pair:     p,
+		Pair:     fPair,
 		Asset:    a,
 		Interval: interval,
 	}
 
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
-		candles, err := b.GetMarketCandles(p.String(),
+		candles, err := b.GetMarketCandles(fPair.String(),
 			b.FormatExchangeKlineInterval(interval),
 			dates[x].Start, dates[x].End, -1, -1, -1)
 		if err != nil {
