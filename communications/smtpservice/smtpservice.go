@@ -69,7 +69,7 @@ func (s *SMTPservice) Send(subject, msg string) error {
 		s.AccountName == "" ||
 		s.AccountPassword == "" ||
 		s.From == "" {
-		return errors.New("STMPservice Send() cannot sent with unset service properties")
+		return errors.New("STMPservice Send() cannot send with unset service properties")
 	}
 
 	log.Debugf(log.CommunicationMgr, "SMTP: Sending email to %v. Subject: %s Message: %s [From: %s]\n", s.RecipientList,
