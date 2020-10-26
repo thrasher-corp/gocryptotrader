@@ -233,9 +233,9 @@ func TestSendHTTPGetRequest(t *testing.T) {
 	type test struct {
 		Address string `json:"address"`
 		ETH     struct {
-			Balance  int `json:"balance"`
-			TotalIn  int `json:"totalIn"`
-			TotalOut int `json:"totalOut"`
+			Balance  float64 `json:"balance"`
+			TotalIn  float64 `json:"totalIn"`
+			TotalOut float64 `json:"totalOut"`
 		} `json:"ETH"`
 	}
 	ethURL := `https://api.ethplorer.io/getAddressInfo/0xff71cb760666ab06aa73f34995b42dd4b85ea07b?apiKey=freekey`

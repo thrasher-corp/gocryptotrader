@@ -119,6 +119,7 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 		Pair:      orderDetails.Pair,
 		Side:      orderDetails.Side,
 		AssetType: orderDetails.AssetType,
+		Exchange:  exch,
 	}
 
 	err = engine.Bot.OrderManager.Cancel(cancel)

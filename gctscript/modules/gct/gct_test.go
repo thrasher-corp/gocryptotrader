@@ -197,7 +197,7 @@ func TestExchangeOrderSubmit(t *testing.T) {
 	_, err = ExchangeOrderSubmit(exch, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
 	if err != nil && !errors.Is(err, errTestFailed) {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	_, err = ExchangeOrderSubmit(exch, currencyPair, delimiter,

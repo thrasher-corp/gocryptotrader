@@ -5,10 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -177,6 +179,18 @@ func TestExchange_CancelOrder(t *testing.T) {
 	_, err := exchangeTest.CancelOrder(exchName, orderID)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestOHLCV(t *testing.T) {
+	cp := currency.NewPair(currency.BTC, currency.AUD)
+	cp.Delimiter = currency.DashDelimiter
+	calvinKline, err := exchangeTest.OHLCV(exchName, cp, assetType, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.OneHour)
+	if err != nil {
+		t.Error(err)
+	}
+	if calvinKline.Exchange != exchName {
+		t.Error("unexpected response")
 	}
 }
 

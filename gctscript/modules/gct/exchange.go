@@ -413,6 +413,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		Amount:    orderAmount,
 		ClientID:  orderClientID,
 		AssetType: a,
+		Exchange:  exchangeName,
 	}
 
 	rtn, err := wrappers.GetWrapper().SubmitOrder(tempSubmit)
