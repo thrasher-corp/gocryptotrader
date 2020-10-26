@@ -402,6 +402,11 @@ func TestCancelOrder(t *testing.T) {
 	if err := f.CancelOrder(&c); err != nil {
 		t.Error(err)
 	}
+
+	c.ClientOrderID = "1337"
+	if err := f.CancelOrder(&c); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestDeleteOrder(t *testing.T) {

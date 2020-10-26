@@ -570,6 +570,12 @@ func (f *FTX) CancelOrder(o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
+
+	if o.ClientOrderID != "" {
+		_, err := f.DeleteOrderByClientID(o.ClientOrderID)
+		return err
+	}
+
 	_, err := f.DeleteOrder(o.ID)
 	return err
 }
