@@ -381,7 +381,8 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 
 	return &orderSubmitResponse{
 		SubmitResponse: order.SubmitResponse{
-			OrderID: result.OrderID,
+			IsOrderPlaced: result.IsOrderPlaced,
+			OrderID:       result.OrderID,
 		},
 		InternalOrderID: id.String(),
 	}, nil
