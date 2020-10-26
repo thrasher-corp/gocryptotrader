@@ -589,8 +589,8 @@ func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (c *Coinbene) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	tempResp, err := c.FetchSpotOrderInfo(orderID)
 	if err != nil {

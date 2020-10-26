@@ -132,7 +132,7 @@ func (h *FakePassingExchange) CancelOrder(_ *order.Cancel) error           { ret
 func (h *FakePassingExchange) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, nil
 }
-func (h *FakePassingExchange) GetOrderInfo(_ string) (order.Detail, error) {
+func (h *FakePassingExchange) GetOrderInfo(_ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
 	return order.Detail{}, nil
 }
 func (h *FakePassingExchange) GetDepositAddress(_ currency.Code, _ string) (string, error) {

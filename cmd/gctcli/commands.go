@@ -1219,7 +1219,7 @@ func getOrders(c *cli.Context) error {
 var getOrderCommand = cli.Command{
 	Name:      "getorder",
 	Usage:     "gets the specified order info",
-	ArgsUsage: "<exchange> <order_id>",
+	ArgsUsage: "<exchange> <order_id> <pair>",
 	Action:    getOrder,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1229,6 +1229,10 @@ var getOrderCommand = cli.Command{
 		cli.StringFlag{
 			Name:  "order_id",
 			Usage: "the order id to retrieve",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the pair to retrieve",
 		},
 	},
 }
@@ -1240,11 +1244,27 @@ func getOrder(c *cli.Context) error {
 
 	var exchangeName string
 	var orderID string
+	var currencyPair string
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
 	}
 
 	if !validExchange(exchangeName) {
@@ -1267,6 +1287,11 @@ func getOrder(c *cli.Context) error {
 	result, err := client.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchangeName,
 		OrderId:  orderID,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
 	})
 	if err != nil {
 		return err
