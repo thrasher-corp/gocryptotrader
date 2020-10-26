@@ -1,6 +1,7 @@
 package trade
 
 import (
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,10 +17,10 @@ import (
 )
 
 func TestAddTradesToBuffer(t *testing.T) {
+	t.Parallel()
 	processor.mutex.Lock()
 	processor.bufferProcessorInterval = BufferProcessorIntervalTime
 	processor.mutex.Unlock()
-	go processor.Run()
 	dbConf := database.Config{
 		Enabled: true,
 		Driver:  database.DBSQLite3,
@@ -28,7 +29,10 @@ func TestAddTradesToBuffer(t *testing.T) {
 			Database: "./rpctestdb",
 		},
 	}
-	processor.setup()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	processor.setup(&wg)
+	wg.Wait()
 	database.DB.Config = &dbConf
 	cp, _ := currency.NewPairFromString("BTC-USD")
 	err := AddTradesToBuffer("test!", []Data{
@@ -63,7 +67,10 @@ func TestAddTradesToBuffer(t *testing.T) {
 	if err == nil {
 		t.Error("expected error")
 	}
-	buffer = nil
+	processor.mutex.Lock()
+	processor.buffer = nil
+	processor.mutex.Unlock()
+
 	err = AddTradesToBuffer("test!", []Data{
 		{
 			Timestamp:    time.Now(),
@@ -78,12 +85,14 @@ func TestAddTradesToBuffer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if buffer[0].Amount != 1 {
+	processor.mutex.Lock()
+	if processor.buffer[0].Amount != 1 {
 		t.Error("expected positive amount")
 	}
-	if buffer[0].Side != order.Sell {
+	if processor.buffer[0].Side != order.Sell {
 		t.Error("expected unknown side")
 	}
+	processor.mutex.Unlock()
 }
 
 func TestSqlDataToTrade(t *testing.T) {
@@ -188,12 +197,15 @@ func TestConvertTradesToCandles(t *testing.T) {
 }
 
 func TestShutdown(t *testing.T) {
+	t.Parallel()
 	var p Processor
 	p.mutex.Lock()
-	buffer = nil
 	p.bufferProcessorInterval = time.Second
 	p.mutex.Unlock()
-	go p.Run()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go p.Run(&wg)
+	wg.Wait()
 	time.Sleep(time.Millisecond)
 	if atomic.LoadInt32(&p.started) != 1 {
 		t.Error("expected it to start running")

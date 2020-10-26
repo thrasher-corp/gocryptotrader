@@ -13,7 +13,6 @@ import (
 const DefaultProcessorIntervalTime = time.Second * 15
 
 var (
-	buffer    []Data
 	processor Processor
 	// BufferProcessorIntervalTime is the interval to save trade buffer data to the database.
 	// Change this by changing the runtime param `-tradeprocessinginterval=15s`
@@ -39,6 +38,7 @@ type Processor struct {
 	mutex                   sync.Mutex
 	started                 int32
 	bufferProcessorInterval time.Duration
+	buffer                  []Data
 }
 
 // ByDate sorts trades by date ascending

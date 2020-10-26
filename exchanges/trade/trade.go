@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,11 +20,11 @@ import (
 )
 
 // Setup creates the trade processor if trading is supported
-func (p *Processor) setup() {
+func (p *Processor) setup(wg *sync.WaitGroup) {
 	p.mutex.Lock()
 	p.bufferProcessorInterval = BufferProcessorIntervalTime
 	p.mutex.Unlock()
-	go p.Run()
+	go p.Run(wg)
 }
 
 // AddTradesToBuffer will push trade data onto the buffer
@@ -36,7 +37,10 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 	}
 	var errs common.Errors
 	if atomic.AddInt32(&processor.started, 0) == 0 {
-		processor.setup()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		processor.setup(&wg)
+		wg.Wait()
 	}
 	var validDatas []Data
 	for i := range data {
@@ -71,7 +75,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 		validDatas = append(validDatas, data[i])
 	}
 	processor.mutex.Lock()
-	buffer = append(buffer, validDatas...)
+	processor.buffer = append(processor.buffer, validDatas...)
 	processor.mutex.Unlock()
 	if len(errs) > 0 {
 		return errs
@@ -80,9 +84,11 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 }
 
 // Processor will save trade data to the database in batches
-func (p *Processor) Run() {
+func (p *Processor) Run(wg *sync.WaitGroup) {
+	wg.Done()
 	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
 		log.Error(log.Trade, "trade processor already started")
+		return
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
@@ -93,8 +99,8 @@ func (p *Processor) Run() {
 	for {
 		<-ticker.C
 		p.mutex.Lock()
-		bufferCopy := append(buffer[:0:0], buffer...)
-		buffer = nil
+		bufferCopy := append(p.buffer[:0:0], p.buffer...)
+		p.buffer = nil
 		p.mutex.Unlock()
 		if len(bufferCopy) == 0 {
 			return
