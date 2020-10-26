@@ -205,7 +205,10 @@ func (b *Binance) UFuturesOrderbook(symbol string, limit int64) (OrderBook, erro
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	strLimit := strconv.FormatInt(limit, 10)
-	if common.StringDataCompare(uValidOBLimits, strLimit) {
+	if strLimit != "" {
+		if !common.StringDataCompare(uValidOBLimits, strLimit) {
+			return resp, fmt.Errorf("invalid limit: %v", limit)
+		}
 		params.Set("limit", strLimit)
 	}
 	err := b.SendHTTPRequest(b.API.Endpoints.URL+ufuturesOrderbook+params.Encode(), limitDefault, &data)
@@ -2061,7 +2064,10 @@ func (b *Binance) FuturesIncomeHistory(symbol, incomeType string, startTime, end
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if common.StringDataCompare(validIncomeType, incomeType) {
+	if incomeType != "" {
+		if !common.StringDataCompare(validIncomeType, incomeType) {
+			return resp, fmt.Errorf("invalid incomeType: %v", incomeType)
+		}
 		params.Set("incomeType", incomeType)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {

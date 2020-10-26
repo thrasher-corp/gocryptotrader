@@ -189,30 +189,32 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 		return resp, err
 	}
 	var ok bool
-	if _, ok = data[0].(float64); !ok {
+	var tempString string
+	var tempFloat float64
+	if tempFloat, ok = data[0].(float64); !ok {
 		return resp, errors.New("type conversion failed for id, check for api updates")
 	}
-	resp.ID = int64(data[0].(float64))
-	if _, ok = data[1].(string); !ok {
+	resp.ID = int64(tempFloat)
+	if tempString, ok = data[1].(string); !ok {
 		return resp, errors.New("type conversion failed for email, check for api updates")
 	}
-	resp.Email = data[1].(string)
-	if _, ok = data[2].(string); !ok {
+	resp.Email = tempString
+	if tempString, ok = data[2].(string); !ok {
 		return resp, errors.New("type conversion failed for username, check for api updates")
 	}
-	resp.Username = data[2].(string)
-	if _, ok = data[3].(float64); !ok {
+	resp.Username = tempString
+	if tempFloat, ok = data[3].(float64); !ok {
 		return resp, errors.New("type conversion failed for accountcreate, check for api updates")
 	}
-	resp.MTSAccountCreate = int64(data[3].(float64))
-	if _, ok = data[4].(float64); !ok {
+	resp.MTSAccountCreate = int64(tempFloat)
+	if tempFloat, ok = data[4].(float64); !ok {
 		return resp, errors.New("type conversion failed for verified, check for api updates")
 	}
-	resp.Verified = int64(data[4].(float64))
-	if _, ok = data[7].(string); !ok {
+	resp.Verified = int64(tempFloat)
+	if tempString, ok = data[7].(string); !ok {
 		return resp, errors.New("type conversion failed for timezone, check for api updates")
 	}
-	resp.Timezone = data[7].(string)
+	resp.Timezone = tempString
 	return resp, nil
 }
 
