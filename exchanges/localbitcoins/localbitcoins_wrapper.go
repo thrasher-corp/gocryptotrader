@@ -296,6 +296,11 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 		return submitOrderResponse, err
 	}
 
+	fPair, err := l.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	// These are placeholder details
 	// TODO store a user's localbitcoin details to use here
 	var params = AdCreate{
@@ -305,7 +310,7 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 		City:                       "City",
 		Location:                   "Location",
 		CountryCode:                "US",
-		Currency:                   s.Pair.Quote.String(),
+		Currency:                   fPair.Quote.String(),
 		AccountInfo:                "-",
 		BankName:                   "Bank",
 		MSG:                        s.Side.String(),
@@ -319,7 +324,7 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 	}
 
 	// Does not return any orderID, so create the add, then get the order
-	err := l.CreateAd(&params)
+	err = l.CreateAd(&params)
 	if err != nil {
 		return submitOrderResponse, err
 	}

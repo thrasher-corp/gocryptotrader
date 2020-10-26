@@ -245,7 +245,12 @@ func (b *Bitstamp) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := b.GetTicker(p.String(), false)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tick, err := b.GetTicker(fPair.String(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +263,7 @@ func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 		Ask:          tick.Ask,
 		Volume:       tick.Volume,
 		Open:         tick.Open,
-		Pair:         p,
+		Pair:         fPair,
 		LastUpdated:  time.Unix(tick.Timestamp, 0),
 		ExchangeName: b.Name,
 		AssetType:    assetType})
@@ -266,14 +271,19 @@ func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 		return nil, err
 	}
 
-	return ticker.GetTicker(b.Name, p, assetType)
+	return ticker.GetTicker(b.Name, fPair, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitstamp) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := ticker.GetTicker(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateTicker(p, assetType)
+		return nil, err
+	}
+
+	tick, err := ticker.GetTicker(b.Name, fPair, assetType)
+	if err != nil {
+		return b.UpdateTicker(fPair, assetType)
 	}
 	return tick, nil
 }
@@ -289,17 +299,27 @@ func (b *Bitstamp) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (b *Bitstamp) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateOrderbook(p, assetType)
+		return nil, err
+	}
+
+	ob, err := orderbook.Get(b.Name, fPair, assetType)
+	if err != nil {
+		return b.UpdateOrderbook(fPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	orderBook := new(orderbook.Base)
-	orderbookNew, err := b.GetOrderbook(p.String())
+	orderbookNew, err := b.GetOrderbook(fPair.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -318,7 +338,7 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		})
 	}
 
-	orderBook.Pair = p
+	orderBook.Pair = fPair
 	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
 
@@ -327,7 +347,7 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		return orderBook, err
 	}
 
-	return orderbook.Get(b.Name, p, assetType)
+	return orderbook.Get(b.Name, fPair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -388,9 +408,14 @@ func (b *Bitstamp) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	buy := s.Side == order.Buy
 	market := s.Type == order.Market
-	response, err := b.PlaceOrder(s.Pair.String(),
+	response, err := b.PlaceOrder(fPair.String(),
 		s.Price,
 		s.Amount,
 		buy,
@@ -567,7 +592,11 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 	if len(req.Pairs) != 1 {
 		currPair = "all"
 	} else {
-		currPair = req.Pairs[0].String()
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currPair = fPair.String()
 	}
 
 	resp, err := b.GetOpenOrders(currPair)
@@ -619,7 +648,11 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 	var currPair string
 	if len(req.Pairs) == 1 {
-		currPair = req.Pairs[0].String()
+		fPair, err := b.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currPair = fPair.String()
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)

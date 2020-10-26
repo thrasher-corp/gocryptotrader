@@ -341,13 +341,18 @@ func (i *ItBit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 				s.Amount)
 	}
 
+	fPair, err := i.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	response, err := i.PlaceOrder(wallet,
 		s.Side.String(),
 		s.Type.String(),
-		s.Pair.Base.String(),
+		fPair.Base.String(),
 		s.Amount,
 		s.Price,
-		s.Pair.String(),
+		fPair.String(),
 		"")
 	if err != nil {
 		return submitOrderResponse, err

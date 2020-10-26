@@ -144,23 +144,17 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 
 // Register registers a currency from a string and returns a currency code
 func (b *BaseCodes) Register(c string) Code {
-	NewUpperCode := c
-	lower := true
-	for _, r := range c {
-		if !unicode.IsLower(r) {
-			lower = false
-			break
-		}
+	var format bool
+	if c != "" {
+		format = unicode.IsUpper(rune(c[0]))
 	}
-	if lower {
-		NewUpperCode = strings.ToUpper(c)
-	}
-	format := strings.Contains(c, NewUpperCode)
+	// Force upper string storage and matching
+	c = strings.ToUpper(c)
 
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
-		if b.Items[i].Symbol == NewUpperCode {
+		if b.Items[i].Symbol == c {
 			return Code{
 				Item:      b.Items[i],
 				UpperCase: format,
@@ -168,7 +162,7 @@ func (b *BaseCodes) Register(c string) Code {
 		}
 	}
 
-	newItem := &Item{Symbol: NewUpperCode}
+	newItem := &Item{Symbol: c}
 	b.Items = append(b.Items, newItem)
 
 	return Code{
@@ -240,7 +234,7 @@ func (c Code) String() string {
 	}
 
 	if c.UpperCase {
-		return c.Item.Symbol
+		return strings.ToUpper(c.Item.Symbol)
 	}
 	return strings.ToLower(c.Item.Symbol)
 }
