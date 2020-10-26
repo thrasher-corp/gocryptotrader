@@ -427,7 +427,7 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 		req["postOnly"] = postOnly
 	}
 	if clientID != "" {
-		req["clientID"] = clientID
+		req["clientId"] = clientID
 	}
 	resp := struct {
 		Data OrderData `json:"result"`
@@ -534,25 +534,48 @@ func (f *FTX) GetOrderStatusByClientID(clientOrderID string) (OrderData, error) 
 // DeleteOrder deletes an order
 func (f *FTX) DeleteOrder(orderID string) (string, error) {
 	resp := struct {
-		Data string `json:"result"`
+		Result  string `json:"result"`
+		Success bool   `json:"success"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(http.MethodGet, deleteOrder+orderID, nil, &resp)
+	if err := f.SendAuthHTTPRequest(http.MethodDelete, deleteOrder+orderID, nil, &resp); err != nil {
+		return "", err
+	}
+	if !resp.Success {
+		return resp.Result, errors.New("delete order request by ID unsuccessful")
+	}
+	return resp.Result, nil
 }
 
 // DeleteOrderByClientID deletes an order
 func (f *FTX) DeleteOrderByClientID(clientID string) (string, error) {
 	resp := struct {
-		Data string `json:"result"`
+		Result  string `json:"result"`
+		Success bool   `json:"success"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(http.MethodGet, deleteOrderByClientID+clientID, nil, &resp)
+
+	if err := f.SendAuthHTTPRequest(http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp); err != nil {
+		return "", err
+	}
+	if !resp.Success {
+		return resp.Result, errors.New("delete order request by client ID unsuccessful")
+	}
+	return resp.Result, nil
 }
 
 // DeleteTriggerOrder deletes an order
 func (f *FTX) DeleteTriggerOrder(orderID string) (string, error) {
 	resp := struct {
-		Data string `json:"result"`
+		Result  string `json:"result"`
+		Success bool   `json:"success"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp)
+
+	if err := f.SendAuthHTTPRequest(http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp); err != nil {
+		return "", err
+	}
+	if !resp.Success {
+		return resp.Result, errors.New("delete trigger order request unsuccessful")
+	}
+	return resp.Result, nil
 }
 
 // GetFills gets fills' data
