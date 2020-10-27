@@ -174,10 +174,10 @@ func (w Wrapper) CancelOrder(exch, orderid string, cp currency.Pair, a asset.Ite
 	if orderid == "" {
 		return false, errTestFailed
 	}
-	if cp.IsInvalid() {
+	if !cp.IsEmpty() && cp.IsInvalid() {
 		return false, errTestFailed
 	}
-	if !a.IsValid() {
+	if a != "" && !a.IsValid() {
 		return false, errTestFailed
 	}
 	return true, nil
