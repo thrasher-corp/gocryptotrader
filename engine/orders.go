@@ -206,8 +206,6 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 		}
 
 		for y := range v {
-			log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%v]",
-				v[y].ID, v[y])
 			err := o.Cancel(&order.Cancel{
 				Exchange:      k,
 				ID:            v[y].ID,
@@ -221,20 +219,8 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 			})
 			if err != nil {
 				log.Error(log.OrderMgr, err)
-				Bot.CommsManager.PushEvent(base.Event{
-					Type:    "order",
-					Message: err.Error(),
-				})
 				continue
 			}
-
-			msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
-				k, v[y].ID)
-			log.Debugln(log.OrderMgr, msg)
-			Bot.CommsManager.PushEvent(base.Event{
-				Type:    "order",
-				Message: msg,
-			})
 		}
 	}
 }
@@ -242,38 +228,64 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 // Cancel will find the order in the orderManager, send a cancel request
 // to the exchange and if successful, update the status of the order
 func (o *orderManager) Cancel(cancel *order.Cancel) error {
+	var err error
+	defer func() {
+		if err != nil {
+			Bot.CommsManager.PushEvent(base.Event{
+				Type:    "order",
+				Message: err.Error(),
+			})
+		}
+	}()
+
 	if cancel == nil {
-		return errors.New("order cancel param is nil")
+		err = errors.New("order cancel param is nil")
+		return err
 	}
-
 	if cancel.Exchange == "" {
-		return errors.New("order exchange name is empty")
+		err = errors.New("order exchange name is empty")
+		return err
 	}
-
 	if cancel.ID == "" {
-		return errors.New("order id is empty")
+		err = errors.New("order id is empty")
+		return err
 	}
 
 	exch := Bot.GetExchangeByName(cancel.Exchange)
 	if exch == nil {
-		return ErrExchangeNotFound
+		err = ErrExchangeNotFound
+		return err
 	}
 
 	if cancel.AssetType.String() != "" && !exch.GetAssetTypes().Contains(cancel.AssetType) {
-		return errors.New("order asset type not supported by exchange")
+		err = errors.New("order asset type not supported by exchange")
+		return err
 	}
 
-	err := exch.CancelOrder(cancel)
+	log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%v]",
+		cancel.ID, cancel)
+
+	err = exch.CancelOrder(cancel)
 	if err != nil {
-		return fmt.Errorf("%v - Failed to cancel order: %v", cancel.Exchange, err)
+		err = fmt.Errorf("%v - Failed to cancel order: %v", cancel.Exchange, err)
+		return err
 	}
 	var od *order.Detail
 	od, err = o.orderStore.GetByExchangeAndID(cancel.Exchange, cancel.ID)
 	if err != nil {
-		return fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %v", cancel.Exchange, cancel.ID, err)
+		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %v", cancel.Exchange, cancel.ID, err)
+		return err
 	}
 
 	od.Status = order.Cancelled
+	msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
+		od.Exchange, od.ID)
+	log.Debugln(log.OrderMgr, msg)
+	Bot.CommsManager.PushEvent(base.Event{
+		Type:    "order",
+		Message: msg,
+	})
+
 	return nil
 }
 
