@@ -330,7 +330,7 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeOrderCancel cancels order on requested exchange
 func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 4 {
+	if len(args) < 2 || len(args) > 4 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
@@ -349,23 +349,30 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	if orderID == "" {
 		return nil, fmt.Errorf(ErrEmptyParameter, "orderID")
 	}
-	var currencyPair string
-	currencyPair, ok = objects.ToString(args[2])
-	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
-	}
-	cp, err := currency.NewPairFromString(currencyPair)
-	if err != nil {
-		return nil, err
-	}
-	assetType, ok := objects.ToString(args[3])
-	if !ok {
-		return nil, fmt.Errorf(ErrParameterConvertFailed, assetType)
+	var err error
+	var cp currency.Pair
+	if len(args) >= 2 {
+		var currencyPair string
+		currencyPair, ok = objects.ToString(args[2])
+		if !ok {
+			return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+		}
+		cp, err = currency.NewPairFromString(currencyPair)
+		if err != nil {
+			return nil, err
+		}
 	}
 	var a asset.Item
-	a, err = asset.New(assetType)
-	if err != nil {
-		return nil, err
+	if len(args) >= 3 {
+		var assetType string
+		assetType, ok = objects.ToString(args[3])
+		if !ok {
+			return nil, fmt.Errorf(ErrParameterConvertFailed, assetType)
+		}
+		a, err = asset.New(assetType)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var isCancelled bool

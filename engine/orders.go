@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -35,7 +36,7 @@ func (o *orderStore) get() map[string][]*order.Detail {
 func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, error) {
 	o.m.RLock()
 	defer o.m.RUnlock()
-	r, ok := o.Orders[exchange]
+	r, ok := o.Orders[strings.ToLower(exchange)]
 	if !ok {
 		return nil, ErrExchangeNotFound
 	}
@@ -52,7 +53,7 @@ func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, err
 func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
 	o.m.RLock()
 	defer o.m.RUnlock()
-	r, ok := o.Orders[exchange]
+	r, ok := o.Orders[strings.ToLower(exchange)]
 	if !ok {
 		return nil, ErrExchangeNotFound
 	}
@@ -80,7 +81,7 @@ func (o *orderStore) exists(det *order.Detail) bool {
 	}
 	o.m.RLock()
 	defer o.m.RUnlock()
-	r, ok := o.Orders[det.Exchange]
+	r, ok := o.Orders[strings.ToLower(det.Exchange)]
 	if !ok {
 		return false
 	}
@@ -118,9 +119,9 @@ func (o *orderStore) Add(det *order.Detail) error {
 	}
 	o.m.Lock()
 	defer o.m.Unlock()
-	orders := o.Orders[det.Exchange]
+	orders := o.Orders[strings.ToLower(det.Exchange)]
 	orders = append(orders, det)
-	o.Orders[det.Exchange] = orders
+	o.Orders[strings.ToLower(det.Exchange)] = orders
 
 	return nil
 }
