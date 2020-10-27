@@ -351,7 +351,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	}
 	var err error
 	var cp currency.Pair
-	if len(args) >= 2 {
+	if len(args) > 2 {
 		var currencyPair string
 		currencyPair, ok = objects.ToString(args[2])
 		if !ok {
@@ -363,7 +363,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		}
 	}
 	var a asset.Item
-	if len(args) >= 3 {
+	if len(args) > 3 {
 		var assetType string
 		assetType, ok = objects.ToString(args[3])
 		if !ok {

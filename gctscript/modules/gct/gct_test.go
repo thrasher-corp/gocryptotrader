@@ -180,14 +180,14 @@ func TestExchangeOrderCancel(t *testing.T) {
 		t.Error("expecting error")
 	}
 
-	_, err = ExchangeOrderCancel(exch, orderID, blank, assetType)
-	if err == nil {
-		t.Error("expecting error")
+	_, err = ExchangeOrderCancel(exch, orderID)
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err = ExchangeOrderCancel(exch, orderID, currencyPair, blank)
-	if err == nil {
-		t.Error("expecting error")
+	_, err = ExchangeOrderCancel(exch, orderID, currencyPair)
+	if err != nil {
+		t.Error(err)
 	}
 
 	_, err = ExchangeOrderCancel(exch, orderID, currencyPair, assetType)
