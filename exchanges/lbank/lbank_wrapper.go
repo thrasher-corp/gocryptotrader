@@ -770,16 +770,17 @@ func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return resp, err
 		}
-		var tempFee string
-		temp := strings.Split(withdrawalFee[0].Fee, ":\"")
-		if len(temp) > 1 {
-			tempFee = strings.TrimRight(temp[1], ",\"type")
-		} else {
-			tempFee = temp[0]
-		}
-		resp, err = strconv.ParseFloat(tempFee, 64)
-		if err != nil {
-			return resp, err
+		for i := range withdrawalFee {
+			if !strings.EqualFold(withdrawalFee[i].AssetCode, feeBuilder.Pair.Base.String()) {
+				continue
+			}
+			if withdrawalFee[i].Fee == "" {
+				return 0, nil
+			}
+			resp, err = strconv.ParseFloat(withdrawalFee[i].Fee, 64)
+			if err != nil {
+				return resp, err
+			}
 		}
 	}
 	return resp, nil

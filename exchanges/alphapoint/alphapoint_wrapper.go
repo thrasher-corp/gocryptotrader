@@ -220,15 +220,17 @@ func (a *Alphapoint) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
 func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	response, err := a.CreateOrder(s.Pair.String(),
+	fPair, err := a.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := a.CreateOrder(fPair.String(),
 		s.Side.String(),
 		s.Type.String(),
 		s.Amount,

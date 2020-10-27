@@ -397,7 +397,7 @@ func TestNewPairDelimiter(t *testing.T) {
 		t.Fatal(err)
 	}
 	actual = pair.String()
-	expected = "fBTC-USDT"
+	expected = "fbtc-USDT"
 	if actual != expected {
 		t.Errorf(
 			"Pair(): %s was not equal to expected value: %s",

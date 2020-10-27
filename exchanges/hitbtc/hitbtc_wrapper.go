@@ -534,8 +534,13 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			submitOrderResponse.FullyMatched = true
 		}
 	} else {
+		fPair, err := h.FormatExchangeCurrency(o.Pair, o.AssetType)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
 		var response OrderResponse
-		response, err = h.PlaceOrder(o.Pair.String(),
+		response, err = h.PlaceOrder(fPair.String(),
 			o.Price,
 			o.Amount,
 			strings.ToLower(o.Type.String()),

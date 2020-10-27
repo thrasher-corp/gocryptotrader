@@ -377,7 +377,12 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(b.Name, fPair, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -535,10 +540,6 @@ func (b *Binance) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Tim
 
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
-
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -564,8 +565,13 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var orderRequest = NewOrderRequest{
-		Symbol:      s.Pair.Base.String() + s.Pair.Quote.String(),
+		Symbol:      fPair.String(),
 		Side:        sideType,
 		Price:       s.Price,
 		Quantity:    s.Amount,

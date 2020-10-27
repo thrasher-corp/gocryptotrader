@@ -428,10 +428,12 @@ func (e *EXMO) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 	}
 
-	response, err := e.CreateOrder(s.Pair.String(),
-		oT,
-		s.Price,
-		s.Amount)
+	fPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := e.CreateOrder(fPair.String(), oT, s.Price, s.Amount)
 	if err != nil {
 		return submitOrderResponse, err
 	}

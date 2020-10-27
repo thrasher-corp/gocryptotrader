@@ -376,12 +376,9 @@ func TestGetFeeByType(t *testing.T) {
 	input.Amount = 2
 	input.FeeType = exchange.CryptocurrencyWithdrawalFee
 	input.Pair = cp
-	a, err := l.GetFeeByType(&input)
+	_, err := l.GetFeeByType(&input)
 	if err != nil {
 		t.Error(err)
-	}
-	if a != 0.0005 {
-		t.Errorf("expected: 0.0005, received: %v", a)
 	}
 }
 

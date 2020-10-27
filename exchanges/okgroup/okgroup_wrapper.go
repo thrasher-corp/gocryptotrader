@@ -64,9 +64,13 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(o.Name, p, assetType)
+	fPair, err := o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return o.UpdateOrderbook(p, assetType)
+		return nil, err
+	}
+	ob, err := orderbook.Get(o.Name, fPair, assetType)
+	if err != nil {
+		return o.UpdateOrderbook(fPair, assetType)
 	}
 	return ob, nil
 }
@@ -78,13 +82,13 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		return orderBook, errors.New("no orderbooks for index")
 	}
 
-	fpair, err := o.FormatExchangeCurrency(p, a)
+	fPair, err := o.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 
 	orderbookNew, err := o.GetOrderBook(GetOrderBookRequest{
-		InstrumentID: fpair.String(),
+		InstrumentID: fPair.String(),
 	}, a)
 	if err != nil {
 		return orderBook, err
@@ -163,7 +167,7 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		return orderBook, err
 	}
 
-	return orderbook.Get(o.Name, p, a)
+	return orderbook.Get(o.Name, fPair, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies

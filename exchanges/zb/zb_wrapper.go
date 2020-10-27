@@ -469,10 +469,15 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			oT = SpotNewOrderRequestParamsTypeSell
 		}
 
+		fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
 		var params = SpotNewOrderRequestParams{
 			Amount: o.Amount,
 			Price:  o.Price,
-			Symbol: o.Pair.Lower().String(),
+			Symbol: fPair.Lower().String(),
 			Type:   oT,
 		}
 		var response int64

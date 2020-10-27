@@ -537,9 +537,14 @@ func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *t
 	if assetType == asset.Index {
 		return tickerData, errors.New("ticker fetching not supported for index")
 	}
-	tickerData, err = ticker.GetTicker(o.Name, p, assetType)
+	fPair, err := o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return o.UpdateTicker(p, assetType)
+		return nil, err
+	}
+
+	tickerData, err = ticker.GetTicker(o.Name, fPair, assetType)
+	if err != nil {
+		return o.UpdateTicker(fPair, assetType)
 	}
 	return
 }

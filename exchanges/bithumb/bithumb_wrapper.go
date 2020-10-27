@@ -382,27 +382,27 @@ func (b *Bithumb) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Tim
 // SubmitOrder submits a new order
 // TODO: Fill this out to support limit orders
 func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
-
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var orderID string
-	var err error
 	if s.Side == order.Buy {
 		var result MarketBuy
-		result, err = b.MarketBuyOrder(s.Pair.Base.String(), s.Amount)
+		result, err = b.MarketBuyOrder(fPair.Base.String(), s.Amount)
 		if err != nil {
 			return submitOrderResponse, err
 		}
 		orderID = result.OrderID
 	} else if s.Side == order.Sell {
 		var result MarketSell
-		result, err = b.MarketSellOrder(s.Pair.Base.String(), s.Amount)
+		result, err = b.MarketSellOrder(fPair.Base.String(), s.Amount)
 		if err != nil {
 			return submitOrderResponse, err
 		}

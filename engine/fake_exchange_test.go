@@ -137,7 +137,10 @@ func (h *FakePassingExchange) CancelAllOrders(_ *order.Cancel) (order.CancelAllR
 	return order.CancelAllResponse{}, nil
 }
 func (h *FakePassingExchange) GetOrderInfo(_ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
-	return order.Detail{}, nil
+	return order.Detail{
+		Exchange: fakePassExchange,
+		ID:       "fakeOrder",
+	}, nil
 }
 func (h *FakePassingExchange) GetDepositAddress(_ currency.Code, _ string) (string, error) {
 	return "", nil

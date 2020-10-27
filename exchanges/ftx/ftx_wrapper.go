@@ -528,12 +528,12 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Side = order.Buy
 	}
 
-	formattedPair, err := f.FormatExchangeCurrency(s.Pair, s.AssetType)
+	fPair, err := f.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return resp, err
 	}
 
-	tempResp, err := f.Order(formattedPair.String(),
+	tempResp, err := f.Order(fPair.String(),
 		s.Side.Lower(),
 		s.Type.Lower(),
 		"",

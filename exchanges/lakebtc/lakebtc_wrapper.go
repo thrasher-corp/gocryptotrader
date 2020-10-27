@@ -240,26 +240,41 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 
 // FetchTicker returns the ticker for a currency pair
 func (l *LakeBTC) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(l.Name, p, assetType)
+	fPair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return l.UpdateTicker(p, assetType)
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(l.Name, fPair, assetType)
+	if err != nil {
+		return l.UpdateTicker(fPair, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(l.Name, p, assetType)
+	fPair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return l.UpdateOrderbook(p, assetType)
+		return nil, err
+	}
+
+	ob, err := orderbook.Get(l.Name, fPair, assetType)
+	if err != nil {
+		return l.UpdateOrderbook(fPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	fPair, err := l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	orderBook := new(orderbook.Base)
-	orderbookNew, err := l.GetOrderBook(p.String())
+	orderbookNew, err := l.GetOrderBook(fPair.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -272,7 +287,7 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderBook.Pair = p
+	orderBook.Pair = fPair
 	orderBook.ExchangeName = l.Name
 	orderBook.AssetType = assetType
 
@@ -281,7 +296,7 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 		return orderBook, err
 	}
 
-	return orderbook.Get(l.Name, p, assetType)
+	return orderbook.Get(l.Name, fPair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -383,9 +398,16 @@ func (l *LakeBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	fPair, err := l.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	isBuyOrder := s.Side == order.Buy
-	response, err := l.Trade(isBuyOrder, s.Amount, s.Price,
-		s.Pair.Lower().String())
+	response, err := l.Trade(isBuyOrder,
+		s.Amount,
+		s.Price,
+		fPair.Lower().String())
 	if err != nil {
 		return submitOrderResponse, err
 	}

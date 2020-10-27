@@ -72,7 +72,11 @@ func (c *commsManager) PushEvent(evt base.Event) {
 	if !c.Started() {
 		return
 	}
-	c.relayMsg <- evt
+	select {
+	case c.relayMsg <- evt:
+	default:
+		log.Errorf(log.CommunicationMgr, "Failed to send, no receiver when pushing event [%v]", evt)
+	}
 }
 
 func (c *commsManager) run() {
