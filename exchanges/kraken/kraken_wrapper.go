@@ -657,7 +657,6 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	switch s.AssetType {
-
 	case asset.Spot:
 		fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Spot)
 		if err != nil {
@@ -726,7 +725,8 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 		submitOrderResponse.OrderID = order.SendStatus.OrderID
 		submitOrderResponse.IsOrderPlaced = true
-
+	default:
+		return submitOrderResponse, fmt.Errorf("invalid assetType")
 	}
 
 	return submitOrderResponse, nil

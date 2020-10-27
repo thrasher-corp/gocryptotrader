@@ -66,7 +66,6 @@ func TestGetServerTime(t *testing.T) {
 }
 
 func TestFetchTradablePairs(t *testing.T) {
-	k.Verbose = true
 	t.Parallel()
 	_, err := k.FetchTradablePairs(asset.Futures)
 	if err != nil {
@@ -76,8 +75,6 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-
-	k.Verbose = true
 
 	// sp, err := currency.NewPairFromString("XBTUSD")
 	// if err != nil {
@@ -109,8 +106,6 @@ func TestUpdateOrderbook(t *testing.T) {
 	// if err != nil {
 	// 	t.Error(err)
 	// }
-
-	k.Verbose = true
 
 	fp, err := currency.NewPairFromString("pi_xbtusd")
 	if err != nil {

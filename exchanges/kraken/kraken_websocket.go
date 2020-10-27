@@ -473,7 +473,12 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
 			return
 		}
-		pair.Delimiter = k.CurrencyPairs.RequestFormat.Delimiter
+		fpair, err := k.FormatExchangeCurrency(pair, asset.Spot)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
+			return
+		}
+		pair.Delimiter = fpair.Delimiter
 	}
 	subscriptionChannelPair = append(subscriptionChannelPair, WebsocketChannelData{
 		Subscription: response.Subscription.Name,

@@ -37,6 +37,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 }
 
 func TestUpdateTicker(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BTCUSD_201225")
 	if err != nil {
@@ -529,7 +530,6 @@ func TestGetFuturesExchangeInfo(t *testing.T) {
 
 func TestGetInterestHistory(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.GetInterestHistory()
 	if err != nil {
 		t.Error(err)
