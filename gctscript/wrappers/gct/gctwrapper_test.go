@@ -59,7 +59,7 @@ var (
 		Value: "",
 	}
 	assetType = &objects.String{
-		Value: "SPOT",
+		Value: "spot",
 	}
 	orderID = &objects.String{
 		Value: "1235",
@@ -180,8 +180,7 @@ func TestExchangeOrderCancel(t *testing.T) {
 	if !errors.Is(err, objects.ErrWrongNumArguments) {
 		t.Fatal(err)
 	}
-
-	_, err = gct.ExchangeOrderCancel(exch, orderID)
+	_, err = gct.ExchangeOrderCancel(exch, orderID, currencyPair, assetType)
 	if err != nil && err != common.ErrNotYetImplemented {
 		t.Error(err)
 	}

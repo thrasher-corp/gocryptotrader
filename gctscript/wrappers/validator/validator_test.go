@@ -76,13 +76,28 @@ func TestWrapper_AccountInformation(t *testing.T) {
 
 func TestWrapper_CancelOrder(t *testing.T) {
 	t.Parallel()
-
-	_, err := testWrapper.CancelOrder(exchName, orderID)
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	_, err := testWrapper.CancelOrder(exchName, orderID, cp, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.CancelOrder(exchError.String(), "")
+	_, err = testWrapper.CancelOrder(exchError.String(), orderID, cp, assetType)
+	if err == nil {
+		t.Fatal("expected CancelOrder to return error on invalid name")
+	}
+
+	_, err = testWrapper.CancelOrder(exchName, "", cp, assetType)
+	if err == nil {
+		t.Fatal("expected CancelOrder to return error on invalid name")
+	}
+
+	_, err = testWrapper.CancelOrder(exchName, orderID, currency.Pair{}, assetType)
+	if err == nil {
+		t.Fatal("expected CancelOrder to return error on invalid name")
+	}
+
+	_, err = testWrapper.CancelOrder(exchName, orderID, cp, "")
 	if err == nil {
 		t.Fatal("expected CancelOrder to return error on invalid name")
 	}

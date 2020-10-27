@@ -107,8 +107,8 @@ func (e Exchange) SubmitOrder(submit *order.Submit) (*order.SubmitResponse, erro
 }
 
 // CancelOrder wrapper to cancel order on exchange
-func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
-	orderDetails, err := e.QueryOrder(exch, orderID, currency.Pair{}, "")
+func (e Exchange) CancelOrder(exch, orderID string, cp currency.Pair, a asset.Item) (bool, error) {
+	orderDetails, err := e.QueryOrder(exch, orderID, cp, a)
 	if err != nil {
 		return false, err
 	}

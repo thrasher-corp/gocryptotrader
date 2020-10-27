@@ -12,7 +12,7 @@ var (
 	IsTestExecution atomic.Value
 
 	exchError = &objects.String{
-		Value: "error",
+		Value: "",
 	}
 	errTestFailed = errors.New("test failed")
 )

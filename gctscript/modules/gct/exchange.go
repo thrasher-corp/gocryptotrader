@@ -330,7 +330,7 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeOrderCancel cancels order on requested exchange
 func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 2 {
+	if len(args) != 4 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
@@ -338,17 +338,37 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	orderID, ok := objects.ToString(args[1])
+	var orderID string
+	orderID, ok = objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
 	}
-
-	rtn, err := wrappers.GetWrapper().CancelOrder(exchangeName, orderID)
+	var currencyPair string
+	currencyPair, ok = objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+	}
+	cp, err := currency.NewPairFromString(currencyPair)
+	if err != nil {
+		return nil, err
+	}
+	assetType, ok := objects.ToString(args[3])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetType)
+	}
+	var a asset.Item
+	a, err = asset.New(assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	if rtn {
+	var isCancelled bool
+	isCancelled, err = wrappers.GetWrapper().CancelOrder(exchangeName, orderID, cp, a)
+	if err != nil {
+		return nil, err
+	}
+
+	if isCancelled {
 		return objects.TrueValue, nil
 	}
 	return objects.FalseValue, nil
