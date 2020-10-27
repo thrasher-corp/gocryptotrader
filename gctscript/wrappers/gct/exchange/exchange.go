@@ -88,7 +88,7 @@ func (e Exchange) QueryOrder(exch, orderID string, pair currency.Pair, assetType
 		return nil, err
 	}
 
-	return o, nil
+	return &o, nil
 }
 
 // SubmitOrder submit new order on exchange

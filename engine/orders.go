@@ -278,29 +278,26 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 
 // GetOrderInfo calls the exchange's wrapper GetOrderInfo function
 // and stores the result in the order manager
-func (o *orderManager) GetOrderInfo(exchangeName, orderID string, cp currency.Pair, a asset.Item) (*order.Detail, error) {
+func (o *orderManager) GetOrderInfo(exchangeName, orderID string, cp currency.Pair, a asset.Item) (order.Detail, error) {
 	if orderID == "" {
-		return nil, errors.New("order cannot be empty")
+		return order.Detail{}, errors.New("order cannot be empty")
 	}
 
 	exch := Bot.GetExchangeByName(exchangeName)
 	if exch == nil {
-		return nil, ErrExchangeNotFound
+		return order.Detail{}, ErrExchangeNotFound
 	}
 	result, err := exch.GetOrderInfo(orderID, cp, a)
 	if err != nil {
-		return nil, err
+		return order.Detail{}, err
 	}
 
 	err = o.orderStore.Add(&result)
-	if err != nil {
-		if err == ErrOrdersAlreadyExists {
-			return &result, nil
-		}
-		return nil, err
+	if err != nil && err != ErrOrdersAlreadyExists {
+		return order.Detail{}, err
 	}
 
-	return &result, nil
+	return result, nil
 }
 
 // Submit will take in an order struct, send it to the exchange and

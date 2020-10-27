@@ -285,7 +285,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error("Expected error due to empty order")
 	}
 
-	var result *order.Detail
+	var result order.Detail
 	result, err = Bot.OrderManager.GetOrderInfo(fakePassExchange, "1234", currency.Pair{}, "")
 	if err != nil {
 		t.Error(err)
