@@ -804,7 +804,14 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
-	result, err := exch.GetOrderInfo(r.OrderId)
+
+	pair := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+
+	result, err := exch.GetOrderInfo(r.OrderId, pair, "") // assetType will be implemented in the future
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
 	}
@@ -836,6 +843,8 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		OpenVolume:    result.RemainingAmount,
 		Fee:           result.Fee,
 		Trades:        trades,
+		Cost:          result.Cost,
+		UpdateTime:    result.CloseTime.Unix(),
 	}, err
 }
 
@@ -873,9 +882,20 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		return &gctrpc.SubmitOrderResponse{}, err
 	}
 
+	var trades []*gctrpc.Trades
+	for i := range resp.Trades {
+		trades = append(trades, &gctrpc.Trades{
+			Amount:   resp.Trades[i].Amount,
+			Price:    resp.Trades[i].Price,
+			Fee:      resp.Trades[i].Fee,
+			FeeAsset: resp.Trades[i].FeeAsset,
+		})
+	}
+
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
+		Trades:      trades,
 	}, err
 }
 

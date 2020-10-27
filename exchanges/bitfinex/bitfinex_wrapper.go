@@ -352,33 +352,47 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	b.appendOptionalDelimiter(&p)
-	tick, err := ticker.GetTicker(b.Name, p, asset.Spot)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateTicker(p, assetType)
+		return nil, err
+	}
+
+	b.appendOptionalDelimiter(&fPair)
+	tick, err := ticker.GetTicker(b.Name, fPair, asset.Spot)
+	if err != nil {
+		return b.UpdateTicker(fPair, assetType)
 	}
 	return tick, nil
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	b.appendOptionalDelimiter(&p)
-	ob, err := orderbook.Get(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateOrderbook(p, assetType)
+		return nil, err
+	}
+
+	b.appendOptionalDelimiter(&fPair)
+	ob, err := orderbook.Get(b.Name, fPair, assetType)
+	if err != nil {
+		return b.UpdateOrderbook(fPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	b.appendOptionalDelimiter(&p)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	b.appendOptionalDelimiter(&fPair)
 	var prefix = "t"
 	if assetType == asset.MarginFunding {
 		prefix = "f"
 	}
 
-	orderbookNew, err := b.GetOrderbook(prefix+p.String(), "P0", 100)
+	orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "P0", 100)
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +412,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		})
 	}
 
-	o.Pair = p
+	o.Pair = fPair
 	o.ExchangeName = b.Name
 	o.AssetType = assetType
 
@@ -407,7 +421,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		return nil, err
 	}
 
-	return orderbook.Get(b.Name, p, assetType)
+	return orderbook.Get(b.Name, fPair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
@@ -474,10 +488,6 @@ func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item, tim
 
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
-	if err := o.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
-
 	var submitOrderResponse order.SubmitResponse
 	err := o.Validate()
 	if err != nil {
@@ -583,8 +593,8 @@ func (b *Bitfinex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 	return order.CancelAllResponse{}, err
 }
 
-// GetOrderInfo returns information on a current open order
-func (b *Bitfinex) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (b *Bitfinex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

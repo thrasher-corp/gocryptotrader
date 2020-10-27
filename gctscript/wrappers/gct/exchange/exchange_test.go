@@ -137,7 +137,7 @@ func TestExchange_QueryOrder(t *testing.T) {
 	if !configureExchangeKeys() {
 		t.Skip("no exchange configured test skipped")
 	}
-	_, err := exchangeTest.QueryOrder(exchName, orderID)
+	_, err := exchangeTest.QueryOrder(exchName, orderID, currency.Pair{}, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}

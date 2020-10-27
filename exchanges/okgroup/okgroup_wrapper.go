@@ -63,9 +63,13 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(o.Name, p, assetType)
+	fPair, err := o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return o.UpdateOrderbook(p, assetType)
+		return nil, err
+	}
+	ob, err := orderbook.Get(o.Name, fPair, assetType)
+	if err != nil {
+		return o.UpdateOrderbook(fPair, assetType)
 	}
 	return ob, nil
 }
@@ -77,13 +81,13 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		return orderBook, errors.New("no orderbooks for index")
 	}
 
-	fpair, err := o.FormatExchangeCurrency(p, a)
+	fPair, err := o.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 
 	orderbookNew, err := o.GetOrderBook(GetOrderBookRequest{
-		InstrumentID: fpair.String(),
+		InstrumentID: fPair.String(),
 	}, a)
 	if err != nil {
 		return orderBook, err
@@ -162,7 +166,7 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		return orderBook, err
 	}
 
-	return orderbook.Get(o.Name, p, a)
+	return orderbook.Get(o.Name, fPair, a)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
@@ -378,14 +382,18 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	return resp, err
 }
 
-// GetOrderInfo returns information on a current open order
-func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
+// GetOrderInfo returns order information based on order ID
+func (o *OKGroup) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (resp order.Detail, err error) {
 	mOrder, err := o.GetSpotOrder(GetSpotOrderRequest{OrderID: orderID})
 	if err != nil {
 		return
 	}
 
-	format, err := o.GetPairFormat(asset.Spot, false)
+	if assetType == "" {
+		assetType = asset.Spot
+	}
+
+	format, err := o.GetPairFormat(assetType, false)
 	if err != nil {
 		return resp, err
 	}

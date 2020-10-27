@@ -471,8 +471,13 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			submitOrderResponse.FullyMatched = true
 		}
 	} else {
+		fPair, err := h.FormatExchangeCurrency(o.Pair, o.AssetType)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
 		var response OrderResponse
-		response, err = h.PlaceOrder(o.Pair.String(),
+		response, err = h.PlaceOrder(fPair.String(),
 			o.Price,
 			o.Amount,
 			strings.ToLower(o.Type.String()),
@@ -536,8 +541,8 @@ func (h *HitBTC) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (h *HitBTC) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (h *HitBTC) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

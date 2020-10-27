@@ -3022,6 +3022,9 @@
         },
         "order_id": {
           "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
         }
       }
     },
@@ -3229,6 +3232,9 @@
         "id": {
           "type": "string"
         },
+        "client_order_id": {
+          "type": "string"
+        },
         "base_currency": {
           "type": "string"
         },
@@ -3248,6 +3254,10 @@
           "type": "string",
           "format": "int64"
         },
+        "update_time": {
+          "type": "string",
+          "format": "int64"
+        },
         "status": {
           "type": "string"
         },
@@ -3264,6 +3274,10 @@
           "format": "double"
         },
         "fee": {
+          "type": "number",
+          "format": "double"
+        },
+        "cost": {
           "type": "number",
           "format": "double"
         },
@@ -3520,6 +3534,12 @@
         },
         "order_id": {
           "type": "string"
+        },
+        "trades": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcTrades"
+          }
         }
       }
     },
@@ -3610,6 +3630,26 @@
         "fee": {
           "type": "number",
           "format": "double"
+        }
+      }
+    },
+    "gctrpcTrades": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "fee": {
+          "type": "number",
+          "format": "double"
+        },
+        "fee_asset": {
+          "type": "string"
         }
       }
     },

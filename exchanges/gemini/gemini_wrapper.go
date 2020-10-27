@@ -234,7 +234,12 @@ func (g *Gemini) FetchAccountInfo() (account.Holdings, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := g.GetTicker(p.String())
+	fPair, err := g.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tick, err := g.GetTicker(fPair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -246,38 +251,53 @@ func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 		Ask:          tick.Ask,
 		Open:         tick.Open,
 		Close:        tick.Close,
-		Pair:         p,
+		Pair:         fPair,
 		ExchangeName: g.Name,
 		AssetType:    assetType})
 	if err != nil {
 		return nil, err
 	}
 
-	return ticker.GetTicker(g.Name, p, assetType)
+	return ticker.GetTicker(g.Name, fPair, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (g *Gemini) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(g.Name, p, assetType)
+	fPair, err := g.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return g.UpdateTicker(p, assetType)
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(g.Name, fPair, assetType)
+	if err != nil {
+		return g.UpdateTicker(fPair, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (g *Gemini) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(g.Name, p, assetType)
+	fPair, err := g.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return g.UpdateOrderbook(p, assetType)
+		return nil, err
+	}
+
+	ob, err := orderbook.Get(g.Name, fPair, assetType)
+	if err != nil {
+		return g.UpdateOrderbook(fPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	fPair, err := g.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	orderBook := new(orderbook.Base)
-	orderbookNew, err := g.GetOrderbook(p.String(), url.Values{})
+	orderbookNew, err := g.GetOrderbook(fPair.String(), url.Values{})
 	if err != nil {
 		return orderBook, err
 	}
@@ -290,7 +310,7 @@ func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Asks[x].Amount, Price: orderbookNew.Asks[x].Price})
 	}
 
-	orderBook.Pair = p
+	orderBook.Pair = fPair
 	orderBook.ExchangeName = g.Name
 	orderBook.AssetType = assetType
 
@@ -299,7 +319,7 @@ func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 		return orderBook, err
 	}
 
-	return orderbook.Get(g.Name, p, assetType)
+	return orderbook.Get(g.Name, fPair, assetType)
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -385,8 +405,8 @@ func (g *Gemini) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (g *Gemini) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (g *Gemini) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

@@ -45,6 +45,7 @@ const (
 	queryOrder   = "/api/v3/order"
 	openOrders   = "/api/v3/openOrders"
 	allOrders    = "/api/v3/allOrders"
+	myTrades     = "/api/v3/myTrades"
 
 	// Withdraw API endpoints
 	withdrawEndpoint  = "/wapi/v3/withdraw.html"
@@ -368,7 +369,6 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 	if o.NewOrderRespType != "" {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
-
 	return b.SendAuthHTTPRequest(http.MethodPost, path, params, limitOrder, resp)
 }
 

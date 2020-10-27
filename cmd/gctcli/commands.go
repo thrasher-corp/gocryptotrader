@@ -88,8 +88,7 @@ var enableSubsystemCommand = cli.Command{
 
 func enableSubsystem(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "enablesubsystem")
-		return nil
+		return cli.ShowCommandHelp(c, "enablesubsystem")
 	}
 
 	var subsystemName string
@@ -139,8 +138,7 @@ var disableSubsystemCommand = cli.Command{
 
 func disableSubsystem(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "disablesubsystem")
-		return nil
+		return cli.ShowCommandHelp(c, "disablesubsystem")
 	}
 
 	var subsystemName string
@@ -282,8 +280,7 @@ var enableExchangeCommand = cli.Command{
 
 func enableExchange(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "enableexchange")
-		return nil
+		return cli.ShowCommandHelp(c, "enableexchange")
 	}
 
 	var exchangeName string
@@ -333,8 +330,7 @@ var disableExchangeCommand = cli.Command{
 
 func disableExchange(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "disableexchange")
-		return nil
+		return cli.ShowCommandHelp(c, "disableexchange")
 	}
 
 	var exchangeName string
@@ -384,8 +380,7 @@ var getExchangeOTPCommand = cli.Command{
 
 func getExchangeOTPCode(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getexchangeotp")
-		return nil
+		return cli.ShowCommandHelp(c, "getexchangeotp")
 	}
 
 	var exchangeName string
@@ -460,8 +455,7 @@ var getExchangeInfoCommand = cli.Command{
 
 func getExchangeInfo(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getexchangeinfo")
-		return nil
+		return cli.ShowCommandHelp(c, "getexchangeinfo")
 	}
 
 	var exchangeName string
@@ -519,8 +513,7 @@ var getTickerCommand = cli.Command{
 
 func getTicker(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getticker")
-		return nil
+		return cli.ShowCommandHelp(c, "getticker")
 	}
 
 	var exchangeName string
@@ -636,8 +629,7 @@ var getOrderbookCommand = cli.Command{
 
 func getOrderbook(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getorderbook")
-		return nil
+		return cli.ShowCommandHelp(c, "getorderbook")
 	}
 
 	var exchangeName string
@@ -745,8 +737,7 @@ var getAccountInfoCommand = cli.Command{
 
 func getAccountInfo(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getaccountinfo")
-		return nil
+		return cli.ShowCommandHelp(c, "getaccountinfo")
 	}
 
 	var exchange string
@@ -795,8 +786,7 @@ var getAccountInfoStreamCommand = cli.Command{
 
 func getAccountInfoStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getaccountinfostream")
-		return nil
+		return cli.ShowCommandHelp(c, "getaccountinfostream")
 	}
 
 	var exchangeName string
@@ -945,8 +935,7 @@ var addPortfolioAddressCommand = cli.Command{
 
 func addPortfolioAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "addportfolioaddress")
-		return nil
+		return cli.ShowCommandHelp(c, "addportfolioaddress")
 	}
 
 	conn, err := setupClient()
@@ -1047,8 +1036,7 @@ var removePortfolioAddressCommand = cli.Command{
 
 func removePortfolioAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "removeportfolioaddress")
-		return nil
+		return cli.ShowCommandHelp(c, "removeportfolioaddress")
 	}
 
 	conn, err := setupClient()
@@ -1231,7 +1219,7 @@ func getOrders(c *cli.Context) error {
 var getOrderCommand = cli.Command{
 	Name:      "getorder",
 	Usage:     "gets the specified order info",
-	ArgsUsage: "<exchange> <order_id>",
+	ArgsUsage: "<exchange> <order_id> <pair>",
 	Action:    getOrder,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1242,22 +1230,41 @@ var getOrderCommand = cli.Command{
 			Name:  "order_id",
 			Usage: "the order id to retrieve",
 		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the pair to retrieve",
+		},
 	},
 }
 
 func getOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getorder")
-		return nil
+		return cli.ShowCommandHelp(c, "getorder")
 	}
 
 	var exchangeName string
 	var orderID string
+	var currencyPair string
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
+	}
+
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
 	}
 
 	if !validExchange(exchangeName) {
@@ -1280,6 +1287,11 @@ func getOrder(c *cli.Context) error {
 	result, err := client.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchangeName,
 		OrderId:  orderID,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
 	})
 	if err != nil {
 		return err
@@ -1332,8 +1344,7 @@ var submitOrderCommand = cli.Command{
 
 func submitOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "submitorder")
-		return nil
+		return cli.ShowCommandHelp(c, "submitorder")
 	}
 
 	var exchangeName string
@@ -1488,8 +1499,7 @@ var simulateOrderCommand = cli.Command{
 
 func simulateOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "simulateorder")
-		return nil
+		return cli.ShowCommandHelp(c, "simulateorder")
 	}
 
 	var exchangeName string
@@ -1598,8 +1608,7 @@ var whaleBombCommand = cli.Command{
 
 func whaleBomb(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "whalebomb")
-		return nil
+		return cli.ShowCommandHelp(c, "whalebomb")
 	}
 
 	var exchangeName string
@@ -1716,8 +1725,7 @@ var cancelOrderCommand = cli.Command{
 
 func cancelOrder(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "cancelorder")
-		return nil
+		return cli.ShowCommandHelp(c, "cancelorder")
 	}
 
 	var exchangeName string
@@ -1944,8 +1952,7 @@ var addEventCommand = cli.Command{
 
 func addEvent(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "addevent")
-		return nil
+		return cli.ShowCommandHelp(c, "addevent")
 	}
 
 	var exchangeName string
@@ -2075,8 +2082,7 @@ var removeEventCommand = cli.Command{
 
 func removeEvent(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "removeevent")
-		return nil
+		return cli.ShowCommandHelp(c, "removeevent")
 	}
 
 	var eventID int64
@@ -2126,8 +2132,7 @@ var getCryptocurrencyDepositAddressesCommand = cli.Command{
 
 func getCryptocurrencyDepositAddresses(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getcryptocurrencydepositaddresses")
-		return nil
+		return cli.ShowCommandHelp(c, "getcryptocurrencydepositaddresses")
 	}
 
 	var exchangeName string
@@ -2177,8 +2182,7 @@ var getCryptocurrencyDepositAddressCommand = cli.Command{
 
 func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getcryptocurrencydepositaddresses")
-		return nil
+		return cli.ShowCommandHelp(c, "getcryptocurrencydepositaddresses")
 	}
 
 	var exchangeName string
@@ -2264,8 +2268,7 @@ var withdrawCryptocurrencyFundsCommand = cli.Command{
 
 func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "withdrawcryptofunds")
-		return nil
+		return cli.ShowCommandHelp(c, "withdrawcryptofunds")
 	}
 
 	var exchange, cur, address, addressTag, description string
@@ -2380,8 +2383,7 @@ var withdrawFiatFundsCommand = cli.Command{
 
 func withdrawFiatFunds(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "withdrawfiatfunds")
-		return nil
+		return cli.ShowCommandHelp(c, "withdrawfiatfunds")
 	}
 
 	var exchange, cur, description, bankAccountID string
@@ -2721,8 +2723,7 @@ var getLoggerDetailsCommand = cli.Command{
 
 func getLoggerDetails(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getloggerdetails")
-		return nil
+		return cli.ShowCommandHelp(c, "getloggerdetails")
 	}
 
 	var logger string
@@ -2775,8 +2776,7 @@ var setLoggerDetailsCommand = cli.Command{
 
 func setLoggerDetails(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "setloggerdetails")
-		return nil
+		return cli.ShowCommandHelp(c, "setloggerdetails")
 	}
 
 	var logger string
@@ -2846,8 +2846,7 @@ var getOrderbookStreamCommand = cli.Command{
 
 func getOrderbookStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getorderbookstream")
-		return nil
+		return cli.ShowCommandHelp(c, "getorderbookstream")
 	}
 
 	var exchangeName string
@@ -2986,8 +2985,7 @@ var getExchangeOrderbookStreamCommand = cli.Command{
 
 func getExchangeOrderbookStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getexchangeorderbookstream")
-		return nil
+		return cli.ShowCommandHelp(c, "getexchangeorderbookstream")
 	}
 
 	var exchangeName string
@@ -3057,8 +3055,7 @@ var getTickerStreamCommand = cli.Command{
 
 func getTickerStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "gettickerstream")
-		return nil
+		return cli.ShowCommandHelp(c, "gettickerstream")
 	}
 
 	var exchangeName string
@@ -3167,8 +3164,7 @@ var getExchangeTickerStreamCommand = cli.Command{
 
 func getExchangeTickerStream(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "getexchangetickerstream")
-		return nil
+		return cli.ShowCommandHelp(c, "getexchangetickerstream")
 	}
 
 	var exchangeName string
