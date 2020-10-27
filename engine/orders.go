@@ -262,7 +262,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 		return err
 	}
 
-	log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%v]",
+	log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%+v]",
 		cancel.ID, cancel)
 
 	err = exch.CancelOrder(cancel)
