@@ -103,6 +103,7 @@ func (p *Processor) Run(wg *sync.WaitGroup) {
 		p.buffer = nil
 		p.mutex.Unlock()
 		if len(bufferCopy) == 0 {
+			ticker.Stop()
 			return
 		}
 		err := SaveTradesToDatabase(bufferCopy...)

@@ -350,14 +350,16 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 		return recentTrades, errors.New("unexpected data received")
 	}
 
-	trades, ok := tradeInfo[symbol].([]interface{})
+	var trades []interface{}
+	trades, ok = tradeInfo[symbol].([]interface{})
 	if !ok {
 		return recentTrades, errors.New("unexpected data received")
 	}
 
 	for _, x := range trades {
 		r := RecentTrades{}
-		individualTrade, ok := x.([]interface{})
+		var individualTrade []interface{}
+		individualTrade, ok = x.([]interface{})
 		if !ok {
 			return recentTrades, errors.New("unexpected data received")
 		}
