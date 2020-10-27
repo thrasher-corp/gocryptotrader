@@ -338,10 +338,16 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
+	if exchangeName == "" {
+		return nil, fmt.Errorf(ErrEmptyParameter, "exchange name")
+	}
 	var orderID string
 	orderID, ok = objects.ToString(args[1])
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
+	}
+	if orderID == "" {
+		return nil, fmt.Errorf(ErrEmptyParameter, "orderID")
 	}
 	var currencyPair string
 	currencyPair, ok = objects.ToString(args[2])

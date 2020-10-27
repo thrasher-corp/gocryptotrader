@@ -32,6 +32,9 @@ var (
 	orderID = &objects.String{
 		Value: "1235",
 	}
+	blank = &objects.String{
+		Value: "",
+	}
 
 	tv            = objects.TrueValue
 	fv            = objects.FalseValue
@@ -167,17 +170,22 @@ func TestExchangeOrderCancel(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ExchangeOrderCancel(exch, objects.FalseValue, currencyPair, assetType)
-	if err != nil {
+	_, err = ExchangeOrderCancel(blank, orderID, currencyPair, assetType)
+	if err == nil {
 		t.Error("expecting error")
 	}
 
-	_, err = ExchangeOrderCancel(exch, orderID, objects.FalseValue, assetType)
-	if err != nil {
+	_, err = ExchangeOrderCancel(exch, blank, currencyPair, assetType)
+	if err == nil {
 		t.Error("expecting error")
 	}
 
-	_, err = ExchangeOrderCancel(exch, orderID, currencyPair, objects.FalseValue)
+	_, err = ExchangeOrderCancel(exch, orderID, blank, assetType)
+	if err == nil {
+		t.Error("expecting error")
+	}
+
+	_, err = ExchangeOrderCancel(exch, orderID, currencyPair, blank)
 	if err == nil {
 		t.Error("expecting error")
 	}
