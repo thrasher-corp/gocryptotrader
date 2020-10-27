@@ -435,10 +435,15 @@ func (g *Gateio) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		orderTypeFormat = order.Sell.Lower()
 	}
 
+	fPair, err := g.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var spotNewOrderRequestParams = SpotNewOrderRequestParams{
 		Amount: s.Amount,
 		Price:  s.Price,
-		Symbol: s.Pair.String(),
+		Symbol: fPair.String(),
 		Type:   orderTypeFormat,
 	}
 
@@ -508,15 +513,19 @@ func (g *Gateio) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (g *Gateio) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (g *Gateio) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	orders, err := g.GetOpenOrders("")
 	if err != nil {
 		return orderDetail, errors.New("failed to get open orders")
 	}
 
-	format, err := g.GetPairFormat(asset.Spot, false)
+	if assetType == "" {
+		assetType = asset.Spot
+	}
+
+	format, err := g.GetPairFormat(assetType, false)
 	if err != nil {
 		return orderDetail, err
 	}
@@ -603,7 +612,11 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	var orders []order.Detail
 	var currPair string
 	if len(req.Pairs) == 1 {
-		currPair = req.Pairs[0].String()
+		fPair, err := g.FormatExchangeCurrency(req.Pairs[0], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		currPair = fPair.String()
 	}
 	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := 0; ; i += 100 {

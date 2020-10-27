@@ -345,6 +345,33 @@ func TestOrder(t *testing.T) {
 	}
 }
 
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set correctly")
+	}
+
+	currencyPair, err := currency.NewPairFromString(spotPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var orderSubmission = &order.Submit{
+		Pair:          currencyPair,
+		Side:          order.Sell,
+		Type:          order.Limit,
+		Price:         100000,
+		Amount:        1,
+		AssetType:     asset.Spot,
+		ClientOrderID: "order12345679$$$$$",
+	}
+	_, err = f.SubmitOrder(orderSubmission)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestTriggerOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
@@ -352,6 +379,32 @@ func TestTriggerOrder(t *testing.T) {
 	}
 	_, err := f.TriggerOrder(spotPair, order.Buy.Lower(), order.Stop.Lower(), "", "", 500, 0.0004, 0.0001, 0)
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set correctly")
+	}
+
+	currencyPair, err := currency.NewPairFromString(spotPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := order.Cancel{
+		ID:        "12366984218",
+		Pair:      currencyPair,
+		AssetType: asset.Spot,
+	}
+	if err := f.CancelOrder(&c); err != nil {
+		t.Error(err)
+	}
+
+	c.ClientOrderID = "1337"
+	if err := f.CancelOrder(&c); err != nil {
 		t.Error(err)
 	}
 }

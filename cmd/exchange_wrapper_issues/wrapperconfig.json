@@ -9,7 +9,7 @@
  "withdrawWalletAddress": "",
  "bankAccount": {
   "bankAccountName": "bankAccountName",
-  "bankAccountNumber": 1337,
+  "bankAccountNumber": "1337",
   "bankAddress": "bankAddress",
   "bankCity": "bankCity",
   "bankCountry": "bankCountry",
@@ -33,7 +33,6 @@
   "intermediaryBankCode": 1337
  },
  "exchanges": {
-  "alphapoint": {},
   "binance": {
    "key": "Key",
    "secret": "Secret",
@@ -97,6 +96,11 @@
    "otpSecret": "-"
   },
   "exmo": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "ftx": {
    "key": "Key",
    "secret": "Secret",
    "otpSecret": "-"

@@ -214,15 +214,17 @@ func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType asset.Item, t
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
 func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	response, err := a.CreateOrder(s.Pair.String(),
+	fPair, err := a.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := a.CreateOrder(fPair.String(),
 		s.Side.String(),
 		s.Type.String(),
 		s.Amount,
@@ -269,8 +271,8 @@ func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancel) (order.Can
 		a.CancelAllExistingOrders(orderCancellation.AccountID)
 }
 
-// GetOrderInfo returns information on a current open order
-func (a *Alphapoint) GetOrderInfo(orderID string) (float64, error) {
+// GetOrderInfo returns order information based on order ID
+func (a *Alphapoint) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
 	orders, err := a.GetOrders()
 	if err != nil {
 		return 0, err

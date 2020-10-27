@@ -35,7 +35,7 @@ type Exchange interface {
 	Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error)
 	Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
 	Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error)
-	QueryOrder(exch, orderid string) (*order.Detail, error)
+	QueryOrder(exch, orderid string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
 	SubmitOrder(submit *order.Submit) (*order.SubmitResponse, error)
 	CancelOrder(exch, orderid string) (bool, error)
 	AccountInformation(exch string) (account.Holdings, error)

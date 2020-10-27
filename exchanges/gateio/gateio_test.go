@@ -477,7 +477,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Skip("no API keys set skipping test")
 	}
 
-	_, err := g.GetOrderInfo("917591554", asset.Spot)
+	_, err := g.GetOrderInfo("917591554", currency.Pair{}, asset.Spot)
 	if err != nil {
 		if err.Error() != "no order found with id 917591554" && err.Error() != "failed to get open orders" {
 			t.Fatalf("GetOrderInfo() returned an error skipping test: %v", err)

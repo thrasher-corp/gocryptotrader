@@ -52,7 +52,7 @@ type IBotExchange interface {
 	ModifyOrder(action *order.Modify) (string, error)
 	CancelOrder(o *order.Cancel) error
 	CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error)
-	GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error)
+	GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error)
 	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)
 	GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
 	GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)

@@ -146,7 +146,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "CancelAllOrders")
 	}
 
-	_, err = e.GetOrderInfo("1", asset.Spot)
+	_, err = e.GetOrderInfo("1", p, assetType)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetOrderInfo")
 	}

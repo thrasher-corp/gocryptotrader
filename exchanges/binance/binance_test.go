@@ -1581,7 +1581,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.GetOrderInfo("123", asset.CoinMarginedFutures)
+	_, err := b.GetOrderInfo("123", currency.Pair{}, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}

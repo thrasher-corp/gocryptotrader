@@ -420,9 +420,14 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	fPair, err := p.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	fillOrKill := s.Type == order.Market
 	isBuyOrder := s.Side == order.Buy
-	response, err := p.PlaceOrder(s.Pair.String(),
+	response, err := p.PlaceOrder(fPair.String(),
 		s.Price,
 		s.Amount,
 		false,
@@ -503,8 +508,8 @@ func (p *Poloniex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (p *Poloniex) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

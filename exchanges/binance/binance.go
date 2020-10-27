@@ -2473,7 +2473,6 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 	if o.NewOrderRespType != "" {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
-
 	return b.SendAuthHTTPRequest(http.MethodPost, path, params, limitOrder, resp)
 }
 
@@ -2493,7 +2492,6 @@ func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOr
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-
 	return resp, b.SendAuthHTTPRequest(http.MethodDelete, path, params, limitOrder, &resp)
 }
 

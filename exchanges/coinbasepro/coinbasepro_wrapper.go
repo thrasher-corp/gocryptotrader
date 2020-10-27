@@ -443,10 +443,6 @@ func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType asset.Item, 
 
 // SubmitOrder submits a new order
 func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
-
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
@@ -515,8 +511,8 @@ func (c *CoinbasePro) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse,
 	return order.CancelAllResponse{}, err
 }
 
-// GetOrderInfo returns information on a current open order
-func (c *CoinbasePro) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (c *CoinbasePro) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	genOrderDetail, errGo := c.GetOrder(orderID)
 	if errGo != nil {
 		return order.Detail{}, fmt.Errorf("error retrieving order %s : %s", orderID, errGo)

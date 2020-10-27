@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -94,6 +95,7 @@ func main() {
 
 	exchs := bot.GetExchanges()
 	for x := range exchs {
+		exchs[x].SetDefaults()
 		base := exchs[x].GetBase()
 		if !base.Config.Enabled {
 			log.Printf("Exchange %v not enabled, skipping", base.GetName())
@@ -289,12 +291,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 	}
 	for i := range assetTypes {
 		var msg string
-		var p currency.Pair
 		log.Printf("%v %v", base.GetName(), assetTypes[i])
 		if _, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]; !ok {
 			continue
 		}
 
+		var p currency.Pair
 		switch {
 		case currencyPairOverride != "":
 			var err error
@@ -314,13 +316,19 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled.GetRandomPair()
 		}
 
+		var err error
+		p, err = disruptFormatting(p)
+		if err != nil {
+			log.Println("failed to disrupt currency pair formatting:", err)
+		}
+
 		responseContainer := ExchangeAssetPairResponses{
 			AssetType: assetTypes[i],
 			Pair:      p,
 		}
 
 		log.Printf("Setup config for %v %v %v", base.GetName(), assetTypes[i], p)
-		err := e.Setup(base.Config)
+		err = e.Setup(base.Config)
 		if err != nil {
 			log.Printf("%v Encountered error reloading config: '%v'", base.GetName(), err)
 		}
@@ -550,7 +558,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var r15 order.Detail
-		r15, err = e.GetOrderInfo(config.OrderSubmission.OrderID, config.OrderSubmission.AssetType)
+		r15, err = e.GetOrderInfo(config.OrderSubmission.OrderID, p, assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -882,4 +890,23 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 		}
 		log.Println()
 	}
+}
+
+// disruptFormatting adds in an unused delimiter and strange casing features to
+// ensure format currency pair is used throughout the code base.
+func disruptFormatting(p currency.Pair) (currency.Pair, error) {
+	base := p.Base.String()
+	if base == "" {
+		return currency.Pair{}, errors.New("cannot disrupt formatting as base is not populated")
+	}
+	quote := p.Quote.String()
+	if quote == "" {
+		return currency.Pair{}, errors.New("cannot disrupt formatting as quote is not populated")
+	}
+
+	return currency.Pair{
+		Base:      p.Base.Upper(),
+		Quote:     p.Quote.Lower(),
+		Delimiter: "-TEST-DELIM-",
+	}, nil
 }

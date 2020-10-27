@@ -137,12 +137,12 @@ func TestWrapper_Pairs(t *testing.T) {
 func TestWrapper_QueryOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := testWrapper.QueryOrder(exchName, orderID)
+	_, err := testWrapper.QueryOrder(exchName, orderID, currency.Pair{}, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.QueryOrder(exchError.String(), "")
+	_, err = testWrapper.QueryOrder(exchError.String(), "", currency.Pair{}, assetType)
 	if err == nil {
 		t.Fatal("expected QueryOrder to return error on invalid name")
 	}

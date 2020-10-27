@@ -678,9 +678,12 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			}
 			submitOrderResponse.OrderID = resp
 			submitOrderResponse.IsOrderPlaced = true
-		} else {
+			fPair, err := k.FormatExchangeCurrency(s.Pair, s.AssetType)
+			if err != nil {
+				return submitOrderResponse, err
+			}
 			var response AddOrderResponse
-			response, err = k.AddOrder(s.Pair.String(),
+			response, err = k.AddOrder(fPair.String(),
 				s.Side.String(),
 				s.Type.String(),
 				s.Amount,
@@ -804,28 +807,34 @@ func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, er
 }
 
 // GetOrderInfo returns information on a current open order
-func (k *Kraken) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
+func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 
 	switch assetType {
 
 	case asset.Spot:
-		var emptyOrderOptions OrderInfoOptions
-		openOrders, err := k.GetOpenOrders(emptyOrderOptions)
+		resp, err := k.QueryOrdersInfo(OrderInfoOptions{
+			Trades: true,
+		}, orderID)
 		if err != nil {
 			return orderDetail, err
 		}
-		orderInfo, ok := openOrders.Open[orderID]
+
+		orderInfo, ok := resp[orderID]
 		if !ok {
-			return orderDetail, errors.New(k.Name + " - Order ID not found: " + orderID)
+			return orderDetail, fmt.Errorf("order %s not found in response", orderID)
 		}
 
-		avail, err := k.GetAvailablePairs(asset.Spot)
+		if assetType == "" {
+			assetType = asset.Spot
+		}
+
+		avail, err := k.GetAvailablePairs(assetType)
 		if err != nil {
 			return orderDetail, err
 		}
 
-		fmt, err := k.GetPairFormat(asset.Spot, false)
+		format, err := k.GetPairFormat(assetType, true)
 		if err != nil {
 			return orderDetail, err
 		}
@@ -851,7 +860,7 @@ func (k *Kraken) GetOrderInfo(orderID string, assetType asset.Item) (order.Detai
 
 		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
 			avail,
-			fmt)
+			format)
 		if err != nil {
 			return orderDetail, err
 		}
@@ -862,6 +871,7 @@ func (k *Kraken) GetOrderInfo(orderID string, assetType asset.Item) (order.Detai
 			Side:            side,
 			Type:            oType,
 			Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
+			CloseTime:       convert.TimeFromUnixTimestampDecimal(orderInfo.CloseTime),
 			Status:          status,
 			Price:           orderInfo.Price,
 			Amount:          orderInfo.Volume,

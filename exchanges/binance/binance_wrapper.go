@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -535,7 +536,12 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(b.Name, fPair, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -711,10 +717,6 @@ func (b *Binance) GetExchangeHistory(p currency.Pair, assetType asset.Item, time
 
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
-
 	var submitOrderResponse order.SubmitResponse
 
 	if err := s.Validate(); err != nil {
@@ -731,9 +733,11 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			sideType = order.Sell.String()
 		}
 
+		timeInForce := BinanceRequestParamsTimeGTC
 		var requestParamsOrderType RequestParamsOrderType
 		switch s.Type {
 		case order.Market:
+			timeInForce = ""
 			requestParamsOrderType = BinanceRequestParamsOrderMarket
 		case order.Limit:
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
@@ -742,19 +746,25 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, errors.New("unsupported order type")
 		}
 
+		fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
 		var orderRequest = NewOrderRequest{
-			Symbol:      s.Pair.Base.String() + s.Pair.Quote.String(),
+			Symbol:      fPair.String(),
 			Side:        sideType,
 			Price:       s.Price,
 			Quantity:    s.Amount,
 			TradeType:   requestParamsOrderType,
-			TimeInForce: BinanceRequestParamsTimeGTC,
+			TimeInForce: timeInForce,
 		}
 
 		response, err := b.NewOrder(&orderRequest)
 		if err != nil {
 			return submitOrderResponse, err
 		}
+
 		if response.OrderID > 0 {
 			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
 		}
@@ -762,6 +772,15 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			submitOrderResponse.FullyMatched = true
 		}
 		submitOrderResponse.IsOrderPlaced = true
+
+		for i := range response.Fills {
+			submitOrderResponse.Trades = append(submitOrderResponse.Trades, order.TradeHistory{
+				Price:    response.Fills[i].Price,
+				Amount:   response.Fills[i].Qty,
+				Fee:      response.Fills[i].Commission,
+				FeeAsset: response.Fills[i].CommissionAsset,
+			})
+		}
 
 	case asset.CoinMarginedFutures:
 		fPair, err := b.FormatExchangeCurrency(s.Pair, asset.CoinMarginedFutures)
@@ -1006,7 +1025,7 @@ func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, e
 }
 
 // GetOrderInfo returns information on a current open order
-func (b *Binance) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
+func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 
 	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
@@ -1017,6 +1036,53 @@ func (b *Binance) GetOrderInfo(orderID string, assetType asset.Item) (order.Deta
 	switch assetType {
 
 	case asset.Spot:
+
+		formattedPair, err := b.FormatExchangeCurrency(pair, assetType)
+		if err != nil {
+			return resp, err
+		}
+
+		data, err := b.QueryOrder(formattedPair.String(), "", orderIDInt)
+		if err != nil {
+			return resp, err
+		}
+
+		orderSide := order.Side(resp.Side)
+		orderDate, err := convert.TimeFromUnixTimestampFloat(data.Time)
+		if err != nil {
+			return resp, err
+		}
+
+		orderCloseDate, err := convert.TimeFromUnixTimestampFloat(float64(data.UpdateTime))
+		if err != nil {
+			return resp, err
+		}
+
+		status, err := order.StringToOrderStatus(data.Status)
+		if err != nil {
+			return resp, err
+		}
+
+		orderType := order.Limit
+		if resp.Type == "MARKET" {
+			orderType = order.Market
+		}
+
+		return order.Detail{
+			Amount:         data.OrigQty,
+			Date:           orderDate,
+			Exchange:       b.Name,
+			ID:             strconv.FormatInt(data.OrderID, 10),
+			Side:           orderSide,
+			Type:           orderType,
+			Pair:           formattedPair,
+			Cost:           data.CummulativeQuoteQty,
+			AssetType:      assetType,
+			CloseTime:      orderCloseDate,
+			Status:         status,
+			Price:          data.Price,
+			ExecutedAmount: data.ExecutedQty,
+		}, nil
 
 	case asset.CoinMarginedFutures:
 		orderData, err := b.GetAllFuturesOrders("", "", time.Time{}, time.Time{}, orderIDInt, 0)
@@ -1175,7 +1241,6 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		for x := range req.Pairs {
 			fpair, err := b.FormatExchangeCurrency(req.Pairs[x],
 				asset.Spot)
-
 			if err != nil {
 				return nil, err
 			}
@@ -1188,7 +1253,10 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			for i := range resp {
 				orderSide := order.Side(strings.ToUpper(resp[i].Side))
 				orderType := order.Type(strings.ToUpper(resp[i].Type))
-				orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
+				orderDate, err := convert.TimeFromUnixTimestampFloat(resp[i].Time)
+				if err != nil {
+					return nil, err
+				}
 
 				pair, err := currency.NewPairFromString(resp[i].Symbol)
 				if err != nil {
@@ -1380,7 +1448,10 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			for i := range resp {
 				orderSide := order.Side(strings.ToUpper(resp[i].Side))
 				orderType := order.Type(strings.ToUpper(resp[i].Type))
-				orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
+				orderDate, err := convert.TimeFromUnixTimestampFloat(resp[i].Time)
+				if err != nil {
+					return nil, err
+				}
 				// New orders are covered in GetOpenOrders
 				if resp[i].Status == "NEW" {
 					continue

@@ -426,10 +426,15 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			oT = SpotNewOrderRequestParamsTypeSell
 		}
 
+		fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
 		var params = SpotNewOrderRequestParams{
 			Amount: o.Amount,
 			Price:  o.Price,
-			Symbol: o.Pair.Lower().String(),
+			Symbol: fPair.Lower().String(),
 			Type:   oT,
 		}
 		var response int64
@@ -540,8 +545,8 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (z *ZB) GetOrderInfo(orderID string, assetType asset.Item) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (z *ZB) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

@@ -138,7 +138,7 @@ func TestWrapperGetOrderInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := k.GetOrderInfo("123", asset.Futures)
+	_, err := k.GetOrderInfo("123", currency.Pair{}, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -766,7 +766,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := k.GetOrderInfo("OZPTPJ-HVYHF-EDIGXS", asset.Spot)
+	_, err := k.GetOrderInfo("OZPTPJ-HVYHF-EDIGXS", currency.Pair{}, asset.Spot)
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting error")
 	}
