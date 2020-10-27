@@ -69,7 +69,7 @@ func (h *HUOBI) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 		},
 	}
 	futures := currency.PairStore{
@@ -78,7 +78,6 @@ func (h *HUOBI) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "",
 		},
 	}
 	err := h.StoreAssetPairFormat(asset.Spot, fmt1)
@@ -527,7 +526,6 @@ func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 
 	formatPair, err := h.FormatExchangeCurrency(p, assetType)
-
 	if err != nil {
 		return nil, err
 	}
@@ -1628,7 +1626,6 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 			if err != nil {
 				return orders, err
 			}
-
 			var currentPage int64 = 0
 
 			for done := false; !done; {

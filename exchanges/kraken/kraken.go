@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -1218,7 +1217,7 @@ func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values
 		Method:        method,
 		Path:          krakenFuturesURL + common.EncodeURLValues(path, postData),
 		Headers:       headers,
-		Body:          bytes.NewReader(nil),
+		Body:          nil,
 		Result:        result,
 		AuthRequest:   true,
 		Verbose:       k.Verbose,

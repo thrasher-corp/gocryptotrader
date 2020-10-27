@@ -58,14 +58,16 @@ func (k *Kraken) SetDefaults() {
 	k.API.CredentialsValidator.RequiresSecret = true
 	k.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
-	requestFmt := &currency.PairFormat{
-		Uppercase: true,
-		Separator: ",",
-	}
-	configFmt := &currency.PairFormat{
-		Uppercase: true,
-		Delimiter: currency.DashDelimiter,
-		Separator: ",",
+	meow := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Separator: ",",
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
+			Separator: ",",
+		},
 	}
 
 	futures := currency.PairStore{
@@ -78,7 +80,7 @@ func (k *Kraken) SetDefaults() {
 		},
 	}
 
-	err := k.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := k.StoreAssetPairFormat(asset.Spot, meow)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -442,13 +444,14 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 		if err != nil {
 			return nil, err
 		}
-
+		fmt.Println(pairs)
 		for i := range pairs {
 			for x := range tickers.Tickers {
 				pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
 				if err != nil {
 					return nil, err
 				}
+				fmt.Println(pairFmt)
 				if !strings.EqualFold(pairFmt.String(), tickers.Tickers[x].Symbol) {
 					err = ticker.ProcessTicker(&ticker.Price{
 						Last:         tickers.Tickers[x].Last,
