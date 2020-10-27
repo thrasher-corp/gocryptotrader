@@ -9,6 +9,8 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -272,6 +274,33 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 
 	od.Status = order.Cancelled
 	return nil
+}
+
+// GetOrderInfo calls the exchange's wrapper GetOrderInfo function
+// and stores the result in the order manager
+func (o *orderManager) GetOrderInfo(exchangeName, orderID string, cp currency.Pair, a asset.Item) (*order.Detail, error) {
+	if orderID == "" {
+		return nil, errors.New("order cannot be empty")
+	}
+
+	exch := Bot.GetExchangeByName(exchangeName)
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+	result, err := exch.GetOrderInfo(orderID, cp, a)
+	if err != nil {
+		return nil, err
+	}
+
+	err = o.orderStore.Add(&result)
+	if err != nil {
+		if err == ErrOrdersAlreadyExists {
+			return &result, nil
+		}
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 // Submit will take in an order struct, send it to the exchange and

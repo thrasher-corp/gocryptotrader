@@ -83,17 +83,12 @@ func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (*curren
 
 // QueryOrder returns details of a valid exchange order
 func (e Exchange) QueryOrder(exch, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	ex, err := e.GetExchange(exch)
+	o, err := engine.Bot.OrderManager.GetOrderInfo(exch, orderID, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := ex.GetOrderInfo(orderID, pair, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	return &r, nil
+	return o, nil
 }
 
 // SubmitOrder submit new order on exchange

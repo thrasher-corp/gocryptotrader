@@ -278,6 +278,31 @@ func TestCancelOrder(t *testing.T) {
 	}
 }
 
+func TestGetOrderInfo(t *testing.T) {
+	OrdersSetup(t)
+	_, err := Bot.OrderManager.GetOrderInfo("", "", currency.Pair{}, "")
+	if err == nil {
+		t.Error("Expected error due to empty order")
+	}
+
+	var result *order.Detail
+	result, err = Bot.OrderManager.GetOrderInfo(fakePassExchange, "1234", currency.Pair{}, "")
+	if err != nil {
+		t.Error(err)
+	}
+	if result.ID != "fakeOrder" {
+		t.Error("unexpected order returned")
+	}
+
+	result, err = Bot.OrderManager.GetOrderInfo(fakePassExchange, "1234", currency.Pair{}, "")
+	if err != nil {
+		t.Error(err)
+	}
+	if result.ID != "fakeOrder" {
+		t.Error("unexpected order returned")
+	}
+}
+
 func TestCancelAllOrders(t *testing.T) {
 	OrdersSetup(t)
 	o := &order.Detail{

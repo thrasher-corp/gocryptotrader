@@ -811,7 +811,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
-	result, err := exch.GetOrderInfo(r.OrderId, pair, "") // assetType will be implemented in the future
+	result, err := s.OrderManager.GetOrderInfo(r.Exchange, r.OrderId, pair, "") // assetType will be implemented in the future
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
 	}
