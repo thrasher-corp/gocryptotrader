@@ -349,17 +349,26 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 	if !ok {
 		return nil, errors.New("unable to parse trade data")
 	}
-	var responseErrors interface{}
-	responseErrors, ok = data["error"].(interface{})
+	var dataError interface{}
+	dataError, ok = data["error"]
 	if ok {
-		errorList, ok := responseErrors.([]interface{})
+		var dataErrorInterface interface{}
+		dataErrorInterface, ok = dataError.(interface{})
 		if ok {
-			var errs common.Errors
-			for i := range errorList {
-				errs = append(errs, errors.New(errorList[i].(string)))
-			}
-			if len(errs) > 0 {
-				return nil, errs
+			errorList, ok := dataErrorInterface.([]interface{})
+			if ok {
+				var errs common.Errors
+				for i := range errorList {
+					var errString string
+					errString, ok = errorList[i].(string)
+					if !ok {
+						continue
+					}
+					errs = append(errs, errors.New(errString))
+				}
+				if len(errs) > 0 {
+					return nil, errs
+				}
 			}
 		}
 	}
