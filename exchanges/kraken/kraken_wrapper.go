@@ -497,43 +497,36 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	if err != nil {
 		return nil, err
 	}
-
 	var orderBook = new(orderbook.Base)
-
 	switch assetType {
 	case asset.Spot:
 		orderbookNew, err := k.GetDepth(fpair.String())
 		if err != nil {
 			return nil, err
 		}
-
 		for x := range orderbookNew.Bids {
 			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 				Amount: orderbookNew.Bids[x].Amount,
 				Price:  orderbookNew.Bids[x].Price,
 			})
 		}
-
 		for x := range orderbookNew.Asks {
 			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
 				Amount: orderbookNew.Asks[x].Amount,
 				Price:  orderbookNew.Asks[x].Price,
 			})
 		}
-
 	case asset.Futures:
 		futuresOB, err := k.GetFuturesOrderbook(fpair.String())
 		if err != nil {
 			return nil, err
 		}
-
 		for x := range futuresOB.Orderbook.Asks {
 			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
 			})
 		}
-
 		for y := range futuresOB.Orderbook.Bids {
 			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 				Price:  futuresOB.Orderbook.Bids[y][0],
@@ -542,16 +535,13 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 		}
 
 	}
-
 	orderBook.Pair = p
 	orderBook.ExchangeName = k.Name
 	orderBook.AssetType = assetType
-
 	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}
-
 	return orderbook.Get(k.Name, p, assetType)
 }
 
@@ -569,7 +559,6 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 			if err != nil {
 				return info, err
 			}
-
 			for key := range bal {
 				translatedCurrency := assetTranslator.LookupAltname(key)
 				if translatedCurrency == "" {
@@ -583,11 +572,9 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 					TotalValue:   bal[key],
 				})
 			}
-
 			info.Accounts = append(info.Accounts, account.SubAccount{
 				Currencies: balances,
 			})
-
 		case asset.Futures:
 			bal, err := k.GetFuturesAccountData()
 			if err != nil {
@@ -595,7 +582,6 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 			}
 			for name := range bal.Accounts {
 				for code := range bal.Accounts[name].Balances {
-
 					translatedCurrency := assetTranslator.LookupAltname(strings.ToUpper(code))
 					if translatedCurrency == "" {
 						log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
@@ -603,7 +589,6 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 							code)
 						continue
 					}
-
 					balances = append(balances, account.Balance{
 						CurrencyName: currency.NewCode(translatedCurrency),
 						TotalValue:   bal.Accounts[name].Balances[code],
@@ -615,14 +600,11 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 					Currencies: balances,
 				})
 			}
-
 		}
-
 		err := account.Process(&info)
 		if err != nil {
 			return account.Holdings{}, err
 		}
-
 	}
 	return info, nil
 }
@@ -663,7 +645,6 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		if err != nil {
 			return submitOrderResponse, err
 		}
-
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			var resp string
 			resp, err = k.wsAddOrder(&WsAddOrderRequest{
@@ -702,13 +683,11 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			submitOrderResponse.FullyMatched = true
 		}
 		submitOrderResponse.IsOrderPlaced = true
-
 	case asset.Futures:
 		fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Futures)
 		if err != nil {
 			return submitOrderResponse, err
 		}
-
 		order, err := k.FuturesSendOrder(
 			s.Type,
 			fPair.String(),
@@ -723,7 +702,6 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		if err != nil {
 			return submitOrderResponse, err
 		}
-
 		submitOrderResponse.OrderID = order.SendStatus.OrderID
 		submitOrderResponse.IsOrderPlaced = true
 	default:
@@ -744,7 +722,6 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-
 	switch o.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -763,13 +740,10 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
-
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-
 	switch req.AssetType {
-
 	case asset.Spot:
 		var emptyOrderOptions OrderInfoOptions
 		openOrders, err := k.GetOpenOrders(emptyOrderOptions)
@@ -787,22 +761,18 @@ func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, er
 				cancelAllOrdersResponse.Status[orderID] = err.Error()
 			}
 		}
-
 	case asset.Futures:
 		fPair, err := k.FormatExchangeCurrency(req.Pair, asset.Futures)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-
 		cancelData, err := k.FuturesCancelAllOrders(fPair.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-
 		for x := range cancelData.CancelStatus.CancelledOrders {
 			cancelAllOrdersResponse.Status[cancelData.CancelStatus.CancelledOrders[x].OrderID] = "cancelled"
 		}
-
 	}
 	return cancelAllOrdersResponse, nil
 }
@@ -810,9 +780,7 @@ func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, er
 // GetOrderInfo returns information on a current open order
 func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
-
 	switch assetType {
-
 	case asset.Spot:
 		resp, err := k.QueryOrdersInfo(OrderInfoOptions{
 			Trades: true,
@@ -820,26 +788,21 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 		if err != nil {
 			return orderDetail, err
 		}
-
 		orderInfo, ok := resp[orderID]
 		if !ok {
 			return orderDetail, fmt.Errorf("order %s not found in response", orderID)
 		}
-
 		if assetType == "" {
 			assetType = asset.Spot
 		}
-
 		avail, err := k.GetAvailablePairs(assetType)
 		if err != nil {
 			return orderDetail, err
 		}
-
 		format, err := k.GetPairFormat(assetType, true)
 		if err != nil {
 			return orderDetail, err
 		}
-
 		var trades []order.TradeHistory
 		for i := range orderInfo.Trades {
 			trades = append(trades, order.TradeHistory{
@@ -858,7 +821,6 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 		if err != nil {
 			return orderDetail, err
 		}
-
 		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
 			avail,
 			format)
@@ -881,34 +843,27 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 			Fee:             orderInfo.Fee,
 			Trades:          trades,
 		}
-
 	case asset.Futures:
 		orderInfo, err := k.FuturesGetFills(time.Time{})
 		if err != nil {
 			return orderDetail, err
 		}
-
 		for y := range orderInfo.Fills {
-
 			if !(orderInfo.Fills[y].OrderID == orderID) {
 				continue
 			}
-
 			pair, err := currency.NewPairFromString(orderInfo.Fills[y].Symbol)
 			if err != nil {
 				return orderDetail, err
 			}
-
 			vars, err := compatibleVars(orderInfo.Fills[y].Side, "", "", orderInfo.Fills[y].FillType)
 			if err != nil {
 				return orderDetail, err
 			}
-
 			timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderInfo.Fills[y].FillTime)
 			if err != nil {
 				return orderDetail, err
 			}
-
 			orderDetail = order.Detail{
 				ID:       orderID,
 				Price:    orderInfo.Fills[y].Price,
@@ -921,7 +876,6 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 			}
 		}
 	}
-
 	return orderDetail, nil
 }
 
@@ -1004,25 +958,20 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 	var orders []order.Detail
-
 	switch req.AssetType {
-
 	case asset.Spot:
 		resp, err := k.GetOpenOrders(OrderInfoOptions{})
 		if err != nil {
 			return nil, err
 		}
-
 		avail, err := k.GetAvailablePairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-
 		fmt, err := k.GetPairFormat(asset.Spot, true)
 		if err != nil {
 			return nil, err
 		}
-
 		for i := range resp.Open {
 			p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
 				avail,
@@ -1030,7 +979,6 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			if err != nil {
 				return nil, err
 			}
-
 			side := order.Side(strings.ToUpper(resp.Open[i].Description.Type))
 			orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
 			orders = append(orders, order.Detail{
@@ -1046,11 +994,9 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				Pair:            p,
 			})
 		}
-
 	case asset.Futures:
 		var err error
 		var pairs currency.Pairs
-
 		if len(req.Pairs) > 0 {
 			pairs = req.Pairs
 		} else {
@@ -1059,35 +1005,27 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				return orders, err
 			}
 		}
-
 		activeOrders, err := k.FuturesOpenOrders()
 		if err != nil {
 			return orders, err
 		}
-
 		for i := range pairs {
-
 			fPair, err := k.FormatExchangeCurrency(pairs[i], asset.Futures)
 			if err != nil {
 				return orders, err
 			}
-
 			for a := range activeOrders.OpenOrders {
-
 				if !(activeOrders.OpenOrders[a].Symbol == fPair.String()) {
 					continue
 				}
-
 				vars, err := compatibleVars(activeOrders.OpenOrders[a].Side, "", activeOrders.OpenOrders[a].OrderType, "")
 				if err != nil {
 					return orders, err
 				}
-
 				timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", activeOrders.OpenOrders[a].ReceivedTime)
 				if err != nil {
 					return orders, err
 				}
-
 				orders = append(orders, order.Detail{
 					ID:       activeOrders.OpenOrders[a].OrderID,
 					Price:    activeOrders.OpenOrders[a].LimitPrice,
@@ -1099,11 +1037,8 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 					Exchange: k.Name,
 				})
 			}
-
 		}
-
 	}
-
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
@@ -1116,11 +1051,8 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
-
 	var orders []order.Detail
-
 	switch getOrdersRequest.AssetType {
-
 	case asset.Spot:
 		req := GetClosedOrdersOptions{}
 		if getOrdersRequest.StartTicks.Unix() > 0 {
@@ -1129,22 +1061,18 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		if getOrdersRequest.EndTicks.Unix() > 0 {
 			req.End = strconv.FormatInt(getOrdersRequest.EndTicks.Unix(), 10)
 		}
-
 		avail, err := k.GetAvailablePairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-
 		fmt, err := k.GetPairFormat(asset.Spot, true)
 		if err != nil {
 			return nil, err
 		}
-
 		resp, err := k.GetClosedOrders(req)
 		if err != nil {
 			return nil, err
 		}
-
 		for i := range resp.Closed {
 			p, err := currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair,
 				avail,
@@ -1152,7 +1080,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 			if err != nil {
 				return nil, err
 			}
-
 			side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
 			orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
 			orders = append(orders, order.Detail{
@@ -1169,7 +1096,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 				Pair:            p,
 			})
 		}
-
 	case asset.Futures:
 		var orderHistory FuturesRecentOrdersData
 		var err error
@@ -1183,147 +1109,129 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 			if err != nil {
 				return orders, err
 			}
+		}
+		for p := range pairs {
+			fPair, err := k.FormatExchangeCurrency(pairs[p], asset.Futures)
+			if err != nil {
+				return orders, err
+			}
+			orderHistory, err = k.FuturesRecentOrders(fPair.String())
+			if err != nil {
+				return orders, err
+			}
+			for o := range orderHistory.OrderEvents {
 
-			for p := range pairs {
-
-				fPair, err := k.FormatExchangeCurrency(pairs[p], asset.Futures)
-				if err != nil {
-					return orders, err
-				}
-
-				orderHistory, err = k.FuturesRecentOrders(fPair.String())
-				if err != nil {
-					return orders, err
-				}
-
-				for o := range orderHistory.OrderEvents {
-
-					switch {
-					case orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.UID != "":
-						timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp)
-						if err != nil {
-							return orders, err
-						}
-
-						vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Direction,
-							orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.OrderType, "")
-						if err != nil {
-							return orders, err
-						}
-
-						orders = append(orders, order.Detail{
-							Price:          orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.LimitPrice,
-							Amount:         orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Quantity,
-							ExecutedAmount: orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Filled,
-							RemainingAmount: orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Quantity -
-								orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Filled,
-							ID:        orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.UID,
-							ClientID:  orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.ClientID,
-							AssetType: asset.Futures,
-							Type:      vars.OrderType,
-							Date:      timeVar,
-							Side:      vars.Side,
-							Exchange:  k.Name,
-							Pair:      fPair,
-						})
-
-					case orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID != "":
-						timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp)
-						if err != nil {
-							return orders, err
-						}
-
-						vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Direction,
-							orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.OrderType, "")
-						if err != nil {
-							return orders, err
-						}
-
-						orders = append(orders, order.Detail{
-							Price:          orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.LimitPrice,
-							Amount:         orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Quantity,
-							ExecutedAmount: orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Filled,
-							RemainingAmount: orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Quantity -
-								orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Filled,
-							ID:        orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID,
-							ClientID:  orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.AccountID,
-							AssetType: asset.Futures,
-							Type:      vars.OrderType,
-							Date:      timeVar,
-							Side:      vars.Side,
-							Exchange:  k.Name,
-							Pair:      fPair,
-							Status:    order.Rejected,
-						})
-
-					case orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID != "":
-						timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp)
-						if err != nil {
-							return orders, err
-						}
-
-						vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Direction,
-							orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.OrderType, "")
-						if err != nil {
-							return orders, err
-						}
-
-						orders = append(orders, order.Detail{
-							Price:          orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.LimitPrice,
-							Amount:         orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Quantity,
-							ExecutedAmount: orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Filled,
-							RemainingAmount: orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Quantity -
-								orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Filled,
-							ID:        orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID,
-							ClientID:  orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.AccountID,
-							AssetType: asset.Futures,
-							Type:      vars.OrderType,
-							Date:      timeVar,
-							Side:      vars.Side,
-							Exchange:  k.Name,
-							Pair:      fPair,
-							Status:    order.Cancelled,
-						})
-
-					case orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID != "":
-						timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp)
-						if err != nil {
-							return orders, err
-						}
-
-						vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Direction,
-							orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.OrderType, "")
-						if err != nil {
-							return orders, err
-						}
-
-						orders = append(orders, order.Detail{
-							Price:          orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.LimitPrice,
-							Amount:         orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Quantity,
-							ExecutedAmount: orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Filled,
-							RemainingAmount: orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Quantity -
-								orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Filled,
-							ID:        orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID,
-							ClientID:  orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.AccountID,
-							AssetType: asset.Futures,
-							Type:      vars.OrderType,
-							Date:      timeVar,
-							Side:      vars.Side,
-							Exchange:  k.Name,
-							Pair:      fPair,
-						})
-
-					default:
-						return orders, fmt.Errorf("invalid orderHistory data")
-
+				switch {
+				case orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.UID != "":
+					timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp)
+					if err != nil {
+						return orders, err
+					}
+					vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Direction,
+						orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.OrderType, "")
+					if err != nil {
+						return orders, err
+					}
+					orders = append(orders, order.Detail{
+						Price:          orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.LimitPrice,
+						Amount:         orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Quantity,
+						ExecutedAmount: orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Filled,
+						RemainingAmount: orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Quantity -
+							orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Filled,
+						ID:        orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.UID,
+						ClientID:  orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.ClientID,
+						AssetType: asset.Futures,
+						Type:      vars.OrderType,
+						Date:      timeVar,
+						Side:      vars.Side,
+						Exchange:  k.Name,
+						Pair:      fPair,
+					})
+				case orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID != "":
+					timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp)
+					if err != nil {
+						return orders, err
 					}
 
+					vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Direction,
+						orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.OrderType, "")
+					if err != nil {
+						return orders, err
+					}
+					orders = append(orders, order.Detail{
+						Price:          orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.LimitPrice,
+						Amount:         orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Quantity,
+						ExecutedAmount: orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Filled,
+						RemainingAmount: orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Quantity -
+							orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Filled,
+						ID:        orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID,
+						ClientID:  orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.AccountID,
+						AssetType: asset.Futures,
+						Type:      vars.OrderType,
+						Date:      timeVar,
+						Side:      vars.Side,
+						Exchange:  k.Name,
+						Pair:      fPair,
+						Status:    order.Rejected,
+					})
+				case orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID != "":
+					timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp)
+					if err != nil {
+						return orders, err
+					}
+
+					vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Direction,
+						orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.OrderType, "")
+					if err != nil {
+						return orders, err
+					}
+					orders = append(orders, order.Detail{
+						Price:          orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.LimitPrice,
+						Amount:         orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Quantity,
+						ExecutedAmount: orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Filled,
+						RemainingAmount: orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Quantity -
+							orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Filled,
+						ID:        orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID,
+						ClientID:  orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.AccountID,
+						AssetType: asset.Futures,
+						Type:      vars.OrderType,
+						Date:      timeVar,
+						Side:      vars.Side,
+						Exchange:  k.Name,
+						Pair:      fPair,
+						Status:    order.Cancelled,
+					})
+				case orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID != "":
+					timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp)
+					if err != nil {
+						return orders, err
+					}
+
+					vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Direction,
+						orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.OrderType, "")
+					if err != nil {
+						return orders, err
+					}
+					orders = append(orders, order.Detail{
+						Price:          orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.LimitPrice,
+						Amount:         orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Quantity,
+						ExecutedAmount: orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Filled,
+						RemainingAmount: orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Quantity -
+							orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Filled,
+						ID:        orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID,
+						ClientID:  orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.AccountID,
+						AssetType: asset.Futures,
+						Type:      vars.OrderType,
+						Date:      timeVar,
+						Side:      vars.Side,
+						Exchange:  k.Name,
+						Pair:      fPair,
+					})
+				default:
+					return orders, fmt.Errorf("invalid orderHistory data")
 				}
-
 			}
-
 		}
-
 	}
 
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)

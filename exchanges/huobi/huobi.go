@@ -1660,7 +1660,7 @@ func (h *HUOBI) PlaceSwapOrders(code, clientOrderID, direction, offset, orderPri
 func (h *HUOBI) PlaceSwapBatchOrders(data BatchOrderRequestType) (BatchOrderData, error) {
 	var resp BatchOrderData
 	req := make(map[string]interface{})
-	if !((len(data.Data) >= 0) && (len(data.Data) <= 10)) {
+	if (len(data.Data) > 10) || len(data.Data) == 0 {
 		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
 	}
 	req["orders_data"] = data.Data

@@ -395,17 +395,14 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 			return nil, err
 		}
 		for i := range pairs {
-
 			pairFmt, err := b.FormatExchangeCurrency(pairs[i], assetType)
 			if err != nil {
 				return nil, err
 			}
-
 			for y := range tick {
 				if tick[y].Symbol != pairFmt.String() {
 					continue
 				}
-
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         tick[y].LastPrice,
 					High:         tick[y].HighPrice,
@@ -571,7 +568,6 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 		orderbookNew, err = b.UFuturesOrderbook(fpair.String(), 1000)
 	case asset.CoinMarginedFutures:
 		orderbookNew, err = b.GetFuturesOrderbook(fpair.String(), 1000)
-
 	}
 	if err != nil {
 		return nil, err
@@ -583,7 +579,6 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 				Price:  orderbookNew.Bids[x].Price,
 			})
 	}
-
 	for x := range orderbookNew.Asks {
 		orderBook.Asks = append(orderBook.Asks,
 			orderbook.Item{
@@ -591,12 +586,10 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 				Price:  orderbookNew.Asks[x].Price,
 			})
 	}
-
 	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}
-
 	return orderbook.Get(b.Name, p, assetType)
 }
 
@@ -871,47 +864,39 @@ func (b *Binance) CancelOrder(o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-
 	fpair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return err
 	}
-
 	switch o.AssetType {
 	case asset.Spot:
 		orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 		if err != nil {
 			return err
 		}
-
 		_, err = b.CancelExistingOrder(fpair.String(),
 			orderIDInt,
 			o.AccountID)
 		if err != nil {
 			return err
 		}
-
 	case asset.CoinMarginedFutures:
 		_, err := b.FuturesCancelOrder(fpair.String(), o.ID, "")
 		if err != nil {
 			return err
 		}
-
 	case asset.USDTMarginedFutures:
 		_, err := b.UCancelOrder(fpair.String(), o.ID, "")
 		if err != nil {
 			return err
 		}
-
 	}
 	return nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
-
 	var cancelAllOrdersResponse order.CancelAllResponse
-
 	switch req.AssetType {
 	case asset.Spot:
 		openOrders, err := b.OpenOrders("")
@@ -1383,7 +1368,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 					return orders, err
 				}
 				for y := range orderHistory {
-
 					var feeBuilder exchange.FeeBuilder
 					feeBuilder.Amount = orderHistory[y].ExecutedQty
 					feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
