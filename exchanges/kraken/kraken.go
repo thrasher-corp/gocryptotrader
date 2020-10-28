@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -341,19 +342,49 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 
 	err := k.SendHTTPRequest(path, &result)
 	if err != nil {
-		return recentTrades, err
+		return nil, err
 	}
 
-	data := result.(map[string]interface{})
-	tradeInfo, ok := data["result"].(map[string]interface{})
+	data, ok := result.(map[string]interface{})
 	if !ok {
-		return recentTrades, errors.New("unexpected data received")
+		return nil, errors.New("unable to parse trade data")
+	}
+	var responseErrors interface{}
+	responseErrors, ok = data["error"].(interface{})
+	if ok {
+		errorList, ok := responseErrors.([]interface{})
+		if ok {
+			var errs common.Errors
+			for i := range errorList {
+				errs = append(errs, errors.New(errorList[i].(string)))
+			}
+			if len(errs) > 0 {
+				return nil, errs
+			}
+		}
+	}
+
+	var resultField interface{}
+	resultField, ok = data["result"]
+	if !ok {
+		return nil, errors.New("unable to find field 'result'")
+	}
+	var tradeInfo map[string]interface{}
+	tradeInfo, ok = resultField.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("unable to parse field 'result'")
 	}
 
 	var trades []interface{}
-	trades, ok = tradeInfo[symbol].([]interface{})
+	var tradesForSymbol interface{}
+	tradesForSymbol, ok = tradeInfo[symbol]
 	if !ok {
-		return recentTrades, errors.New("unexpected data received")
+		return nil, fmt.Errorf("no data returned for symbol %v", symbol)
+	}
+
+	trades, ok = tradesForSymbol.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("no trades returned for symbol %v", symbol)
 	}
 
 	for _, x := range trades {
@@ -361,34 +392,34 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 		var individualTrade []interface{}
 		individualTrade, ok = x.([]interface{})
 		if !ok {
-			return recentTrades, errors.New("unexpected data received")
+			return nil, errors.New("unable to parse individual trade data")
 		}
 		if len(individualTrade) != 6 {
-			return recentTrades, errors.New("unexpected data received")
+			return nil, errors.New("unrecognised trade data received")
 		}
 		r.Price, err = strconv.ParseFloat(individualTrade[0].(string), 64)
 		if err != nil {
-			return recentTrades, err
+			return nil, err
 		}
 		r.Volume, err = strconv.ParseFloat(individualTrade[1].(string), 64)
 		if err != nil {
-			return recentTrades, err
+			return nil, err
 		}
 		r.Time, ok = individualTrade[2].(float64)
 		if !ok {
-			return recentTrades, errors.New("unexpected data received")
+			return nil, errors.New("unable to parse time for individual trade data")
 		}
 		r.BuyOrSell, ok = individualTrade[3].(string)
 		if !ok {
-			return recentTrades, errors.New("unexpected data received")
+			return nil, errors.New("unable to parse order side for individual trade data")
 		}
 		r.MarketOrLimit, ok = individualTrade[4].(string)
 		if !ok {
-			return recentTrades, errors.New("unexpected data received")
+			return nil, errors.New("unable to parse order type for individual trade data")
 		}
 		r.Miscellaneous, ok = individualTrade[5].(string)
 		if !ok {
-			return recentTrades, errors.New("unexpected data received")
+			return nil, errors.New("unable to parse misc field for individual trade data")
 		}
 		recentTrades = append(recentTrades, r)
 	}

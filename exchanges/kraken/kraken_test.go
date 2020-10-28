@@ -185,6 +185,11 @@ func TestGetTrades(t *testing.T) {
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
+
+	_, err = k.GetTrades("MADEUP")
+	if err == nil {
+		t.Error("expected error")
+	}
 }
 
 // TestGetSpread API endpoint test
