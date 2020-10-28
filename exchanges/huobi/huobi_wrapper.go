@@ -532,7 +532,8 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 	switch assetType {
 	case asset.Spot:
-		orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
+		var orderbookNew Orderbook
+		orderbookNew, err = h.GetDepth(OrderBookDataRequestParams{
 			Symbol: formatPair.String(),
 			Type:   OrderBookDataRequestParamsTypeStep0,
 		})
@@ -555,7 +556,8 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		}
 
 	case asset.Futures:
-		orderbookNew, err := h.FGetMarketDepth(formatPair.String(), "step0")
+		var orderbookNew OBData
+		orderbookNew, err = h.FGetMarketDepth(formatPair.String(), "step0")
 		if err != nil {
 			return nil, err
 		}
@@ -574,7 +576,8 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		}
 
 	case asset.CoinMarginedFutures:
-		orderbookNew, err := h.GetSwapMarketDepth(formatPair.String(), "step0")
+		var orderbookNew SwapMarketDepthData
+		orderbookNew, err = h.GetSwapMarketDepth(formatPair.String(), "step0")
 		if err != nil {
 			return nil, err
 		}
@@ -897,24 +900,18 @@ func (h *HUOBI) CancelOrder(o *order.Cancel) error {
 	}
 	switch o.AssetType {
 	case asset.Spot:
-		orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
+		var orderIDInt int64
+		orderIDInt, err = strconv.ParseInt(o.ID, 10, 64)
 		if err != nil {
 			return err
 		}
 		_, err = h.CancelExistingOrder(orderIDInt)
-		return err
 	case asset.CoinMarginedFutures:
 		_, err = h.CancelSwapOrder(o.ID, o.ClientID, p.String())
-		if err != nil {
-			return err
-		}
 	case asset.Futures:
 		_, err = h.FCancelOrder(o.ID, o.ClientID, p.String())
-		if err != nil {
-			return err
-		}
 	}
-	return nil
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

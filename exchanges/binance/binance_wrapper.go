@@ -1209,8 +1209,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				if err != nil {
 					return orders, err
 				}
-				var orderVars OrderVars
-				orderVars = compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+				orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
 				orders = append(orders, order.Detail{
 					Price:           openOrders[y].Price,
 					Amount:          openOrders[y].OrigQty,
@@ -1261,8 +1260,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 					if err != nil {
 						return orders, err
 					}
-					var orderVars OrderVars
-					orderVars = compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+					orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
 					orders = append(orders, order.Detail{
 						Price:           openOrders[y].Price,
 						Amount:          openOrders[y].OrigQty,
@@ -1376,8 +1374,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 					if err != nil {
 						return orders, err
 					}
-					var orderVars OrderVars
-					orderVars = compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+					orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
 					orders = append(orders, order.Detail{
 						Price:           orderHistory[y].Price,
 						Amount:          orderHistory[y].OrigQty,
@@ -1431,8 +1428,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 					if err != nil {
 						return orders, err
 					}
-					var orderVars OrderVars
-					orderVars = compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+					orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
 					orders = append(orders, order.Detail{
 						Price:           orderHistory[y].Price,
 						Amount:          orderHistory[y].OrigQty,

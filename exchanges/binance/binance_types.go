@@ -731,7 +731,7 @@ type FuturesAccountInformation struct {
 		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
 		OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
 		Leverage               float64 `json:"leverage,string"`
-		Isolated               bool    `json:"isolated,false"`
+		Isolated               bool    `json:"isolated"`
 		PositionSide           string  `json:"positionSide"`
 		EntryPrice             float64 `json:"entryPrice,string"`
 		MaxQty                 float64 `json:"maxQty,string"`

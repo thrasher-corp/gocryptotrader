@@ -357,7 +357,7 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 			return nil, err
 		}
 		for x := range pairs.Instruments {
-			if pairs.Instruments[x].Tradable == true {
+			if pairs.Instruments[x].Tradable {
 				products = append(products, pairs.Instruments[x].Symbol)
 			}
 		}
@@ -848,7 +848,7 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 			if err != nil {
 				return orderDetail, err
 			}
-			timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderInfo.Fills[y].FillTime)
+			timeVar, err := time.Parse(krakenFormat, orderInfo.Fills[y].FillTime)
 			if err != nil {
 				return orderDetail, err
 			}
@@ -1007,7 +1007,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				if err != nil {
 					return orders, err
 				}
-				timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", activeOrders.OpenOrders[a].ReceivedTime)
+				timeVar, err := time.Parse(krakenFormat, activeOrders.OpenOrders[a].ReceivedTime)
 				if err != nil {
 					return orders, err
 				}
