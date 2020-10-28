@@ -321,22 +321,18 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 				return nil, err
 			}
 		}
-
 		pairs, err := k.GetAssetPairs([]string{}, "")
 		if err != nil {
 			return nil, err
 		}
-
 		format, err := k.GetPairFormat(assetType, false)
 		if err != nil {
 			return nil, err
 		}
-
 		for i := range pairs {
 			if strings.Contains(pairs[i].Altname, ".d") {
 				continue
 			}
-
 			base := assetTranslator.LookupAltname(pairs[i].Base)
 			if base == "" {
 				log.Warnf(log.ExchangeSys,
@@ -345,7 +341,6 @@ func (k *Kraken) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 					pairs[i].Base)
 				continue
 			}
-
 			quote := assetTranslator.LookupAltname(pairs[i].Quote)
 			if quote == "" {
 				log.Warnf(log.ExchangeSys,
@@ -397,19 +392,16 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 	if err != nil {
 		return nil, err
 	}
-
 	switch assetType {
 	case asset.Spot:
 		pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
 		if err != nil {
 			return nil, err
 		}
-
 		tickers, err := k.GetTickers(pairsCollated)
 		if err != nil {
 			return nil, err
 		}
-
 		for i := range pairs {
 			for c, t := range tickers {
 				pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
@@ -425,7 +417,6 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 						continue // This looks dodge
 					}
 				}
-
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         t.Last,
 					High:         t.High,
@@ -500,7 +491,8 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	var orderBook = new(orderbook.Base)
 	switch assetType {
 	case asset.Spot:
-		orderbookNew, err := k.GetDepth(fpair.String())
+		var orderbookNew Orderbook
+		orderbookNew, err = k.GetDepth(fpair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -510,14 +502,15 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 				Price:  orderbookNew.Bids[x].Price,
 			})
 		}
-		for x := range orderbookNew.Asks {
+		for y := range orderbookNew.Asks {
 			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
-				Amount: orderbookNew.Asks[x].Amount,
-				Price:  orderbookNew.Asks[x].Price,
+				Amount: orderbookNew.Asks[y].Amount,
+				Price:  orderbookNew.Asks[y].Price,
 			})
 		}
 	case asset.Futures:
-		futuresOB, err := k.GetFuturesOrderbook(fpair.String())
+		var futuresOB FuturesOrderbookData
+		futuresOB, err = k.GetFuturesOrderbook(fpair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -533,7 +526,6 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			})
 		}
-
 	}
 	orderBook.Pair = p
 	orderBook.ExchangeName = k.Name
@@ -615,7 +607,6 @@ func (k *Kraken) FetchAccountInfo() (account.Holdings, error) {
 	if err != nil {
 		return k.UpdateAccountInfo()
 	}
-
 	return acc, nil
 }
 
@@ -633,12 +624,10 @@ func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType asset.Item, times
 // SubmitOrder submits a new order
 func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-
 	err := s.Validate()
 	if err != nil {
 		return submitOrderResponse, err
 	}
-
 	switch s.AssetType {
 	case asset.Spot:
 		fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Spot)
@@ -707,7 +696,6 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	default:
 		return submitOrderResponse, fmt.Errorf("invalid assetType")
 	}
-
 	return submitOrderResponse, nil
 }
 
@@ -885,16 +873,13 @@ func (k *Kraken) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 	if err != nil {
 		return "", err
 	}
-
 	var method string
 	for _, m := range methods {
 		method = m.Method
 	}
-
 	if method == "" {
 		return "", errors.New("method not found")
 	}
-
 	return k.GetCryptoDepositAddress(method, cryptocurrency.String())
 }
 
@@ -1099,9 +1084,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 	case asset.Futures:
 		var orderHistory FuturesRecentOrdersData
 		var err error
-
 		var pairs currency.Pairs
-
 		if len(getOrdersRequest.Pairs) > 0 {
 			pairs = getOrdersRequest.Pairs
 		} else {
@@ -1268,19 +1251,16 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 	if err := k.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
-
 	ret := kline.Item{
 		Exchange: k.Name,
 		Pair:     pair,
 		Asset:    a,
 		Interval: interval,
 	}
-
 	formattedPair, err := k.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
-
 	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(formattedPair.Upper().String()), k.FormatExchangeKlineInterval(interval))
 	if err != nil {
 		return kline.Item{}, err
@@ -1302,7 +1282,6 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 			Volume: candles[x].Volume,
 		})
 	}
-
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
@@ -1318,12 +1297,10 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		Asset:    a,
 		Interval: interval,
 	}
-
 	formattedPair, err := k.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
-
 	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(formattedPair.Upper().String()), k.FormatExchangeKlineInterval(interval))
 	if err != nil {
 		return kline.Item{}, err
@@ -1345,7 +1322,6 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			Volume: candles[i].Volume,
 		})
 	}
-
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
@@ -1353,7 +1329,6 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 // compatibleVars gets compatible variables for order vars
 func compatibleVars(side, direction, orderType, fillType string) (OrderVars, error) {
 	var resp OrderVars
-
 	if direction != "" {
 		switch direction {
 		case "BUY":
@@ -1362,7 +1337,6 @@ func compatibleVars(side, direction, orderType, fillType string) (OrderVars, err
 			resp.Side = order.Sell
 		}
 	}
-
 	switch side {
 	case "buy":
 		resp.Side = order.Buy
@@ -1371,7 +1345,6 @@ func compatibleVars(side, direction, orderType, fillType string) (OrderVars, err
 	default:
 		return resp, fmt.Errorf("invalid orderSide")
 	}
-
 	if orderType != "" {
 		switch orderType {
 		case "lmt":
@@ -1385,7 +1358,6 @@ func compatibleVars(side, direction, orderType, fillType string) (OrderVars, err
 		}
 		return resp, nil
 	}
-
 	switch fillType {
 	case "maker":
 		resp.OrderType = order.Limit
@@ -1396,6 +1368,5 @@ func compatibleVars(side, direction, orderType, fillType string) (OrderVars, err
 	default:
 		return resp, fmt.Errorf("invalid orderPriceType")
 	}
-
 	return resp, nil
 }

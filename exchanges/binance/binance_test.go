@@ -122,7 +122,7 @@ func TestUCompressedTrades(t *testing.T) {
 	}
 	_, err = b.UCompressedTrades("LTCUSDT", "", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
-
+		t.Error(err)
 	}
 }
 
