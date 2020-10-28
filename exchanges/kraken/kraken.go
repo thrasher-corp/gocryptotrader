@@ -355,7 +355,8 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 		var dataErrorInterface interface{}
 		dataErrorInterface, ok = dataError.(interface{})
 		if ok {
-			errorList, ok := dataErrorInterface.([]interface{})
+			var errorList []interface{}
+			errorList, ok = dataErrorInterface.([]interface{})
 			if ok {
 				var errs common.Errors
 				for i := range errorList {
