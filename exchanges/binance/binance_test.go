@@ -37,7 +37,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 }
 
 func TestUpdateTicker(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BTCUSD_201225")
 	if err != nil {
