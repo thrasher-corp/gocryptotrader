@@ -2073,7 +2073,7 @@ type PositionLimitData struct {
 
 // InternalAccountTransferData stores transfer data between subaccounts and main account
 type InternalAccountTransferData struct {
-	Ts   int64 `json:"ts"`
+	TS   int64 `json:"ts"`
 	Data struct {
 		OrderID string `json:"order_id"`
 	} `json:"data"`

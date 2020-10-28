@@ -1120,10 +1120,10 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 				return orders, err
 			}
 			for o := range orderHistory.OrderEvents {
-
 				switch {
 				case orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.UID != "":
-					timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp)
+					timeVar, err := time.Parse(krakenFormat,
+						orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp)
 					if err != nil {
 						return orders, err
 					}
@@ -1148,7 +1148,8 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						Pair:      fPair,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID != "":
-					timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp)
+					timeVar, err := time.Parse(krakenFormat,
+						orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp)
 					if err != nil {
 						return orders, err
 					}
@@ -1175,7 +1176,8 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						Status:    order.Rejected,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID != "":
-					timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp)
+					timeVar, err := time.Parse(krakenFormat,
+						orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp)
 					if err != nil {
 						return orders, err
 					}
@@ -1202,7 +1204,8 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						Status:    order.Cancelled,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID != "":
-					timeVar, err := time.Parse("2006-01-02T15:04:05.700Z", orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp)
+					timeVar, err := time.Parse(krakenFormat,
+						orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp)
 					if err != nil {
 						return orders, err
 					}

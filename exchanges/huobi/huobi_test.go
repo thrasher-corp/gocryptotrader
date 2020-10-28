@@ -573,9 +573,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 
-	var getOrdersRequest order.GetOrdersRequest
-
-	getOrdersRequest = order.GetOrdersRequest{
+	getOrdersRequest := order.GetOrdersRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 		AssetType: asset.Spot,

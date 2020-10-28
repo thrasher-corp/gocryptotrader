@@ -81,6 +81,8 @@ const (
 	// Rate limit consts
 	krakenRateInterval = time.Second
 	krakenRequestRate  = 1
+
+	krakenFormat = "2006-01-02T15:04:05.700Z"
 )
 
 var (
