@@ -1,14 +1,17 @@
 package smacross
 
 import (
-	backtest "github.com/thrasher-corp/gocryptotrader/backtester"
+	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
+	"github.com/thrasher-corp/gocryptotrader/backtester/event"
+	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
 )
 
 type Strategy struct{}
 
-func (s *Strategy) OnSignal(d backtest.DataHandler, _ backtest.PortfolioHandler) (backtest.SignalEvent, error) {
-	signal := backtest.Signal{
-		Event: backtest.Event{Time: d.Latest().GetTime(),
+func (s *Strategy) OnSignal(d portfolio.DataHandler, _ portfolio2.PortfolioHandler) (signal.SignalEvent, error) {
+	signal := event.Signal{
+		Event: event.Event{Time: d.Latest().GetTime(),
 			CurrencyPair: d.Latest().Pair()},
 	}
 
