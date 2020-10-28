@@ -1,15 +1,33 @@
 package backtest
 
 import (
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/risk"
+	"github.com/thrasher-corp/gocryptotrader/backtester/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/size"
 )
 
 // New returns a new BackTest instance
 func New() *BackTest {
 	return &BackTest{}
+}
+
+// NewFromSettings creates a new backtester from cmd or config settings
+func NewFromSettings(s *settings.Settings) *BackTest {
+	bt := New()
+	bt.Portfolio = &portfolio.Portfolio{
+		InitialFunds: s.InitialFunds,
+		RiskManager:  &risk.Risk{},
+		SizeManager: &size.Size{
+			DefaultSize:  100,
+			DefaultValue: 1000,
+		},
+	}
+	return bt
 }
 
 // Reset BackTest values to default
@@ -43,7 +61,7 @@ func (t *BackTest) Run() error {
 	return nil
 }
 
-func (t *BackTest) nextEvent() (e portfolio.EventHandler, ok bool) {
+func (t *BackTest) nextEvent() (e datahandler.EventHandler, ok bool) {
 	if len(t.EventQueue) == 0 {
 		return e, false
 	}
@@ -54,9 +72,9 @@ func (t *BackTest) nextEvent() (e portfolio.EventHandler, ok bool) {
 	return e, true
 }
 
-func (t *BackTest) eventLoop(e portfolio.EventHandler) error {
+func (t *BackTest) eventLoop(e datahandler.EventHandler) error {
 	switch event := e.(type) {
-	case portfolio.DataEventHandler:
+	case datahandler.DataEventHandler:
 		t.Portfolio.Update(event)
 		t.Statistic.Update(event, t.Portfolio)
 
