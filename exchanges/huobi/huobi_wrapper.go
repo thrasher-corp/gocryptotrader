@@ -366,7 +366,6 @@ func (h *HUOBI) FetchTradablePairs(a asset.Item) ([]string, error) {
 				pairs = append(pairs, symbols.Data[c].ContractCode)
 			}
 		}
-
 	}
 	return pairs, nil
 }
@@ -413,7 +412,6 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-
 	if !h.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", assetType, h.Name)
 	}
@@ -593,7 +591,6 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 				Price:  orderbookNew.Tick.Bids[y][0],
 			})
 		}
-
 	}
 
 	orderBook.Pair = p
@@ -750,11 +747,9 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 					})
 				}
 			}
-
 			acc.AssetType = asset.Futures
 			acc.Currencies = currencyDetails
 			info.Accounts = append(info.Accounts, acc)
-
 		}
 	}
 	err := account.Process(&info)
@@ -928,9 +923,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 		return order.CancelAllResponse{}, err
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
-
 	switch orderCancellation.AssetType {
-
 	case asset.Spot:
 		enabledPairs, err := h.GetEnabledPairs(asset.Spot)
 		if err != nil {
@@ -1181,7 +1174,6 @@ func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 				IsMaker:  maker,
 			})
 		}
-
 	}
 	return orderDetail, nil
 }
@@ -1417,7 +1409,6 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 				}
 			}
 		}
-
 	}
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)

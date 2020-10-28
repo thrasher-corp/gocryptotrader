@@ -82,7 +82,7 @@ const (
 	krakenRateInterval = time.Second
 	krakenRequestRate  = 1
 
-	krakenFormat = "2006-01-02T15:04:05.700Z"
+	krakenFormat = "2006-01-02T15:04:05.000Z"
 )
 
 var (

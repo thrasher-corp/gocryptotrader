@@ -1032,7 +1032,6 @@ func TestFetchTradablePairs(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 }
 
 func TestGetOrderBook(t *testing.T) {
@@ -1546,7 +1545,6 @@ func TestWrapperGetOpenOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 }
 
 func TestCancelOrder(t *testing.T) {
