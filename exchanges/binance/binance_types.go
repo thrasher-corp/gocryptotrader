@@ -774,7 +774,7 @@ type GetPositionMarginChangeHistoryData struct {
 	PositionSide     string  `json:"positionSide"`
 }
 
-// FuturesPositionInformation stores futures positon info
+// FuturesPositionInformation stores futures position info
 type FuturesPositionInformation struct {
 	Symbol           string  `json:"symbol"`
 	PositionAmount   float64 `json:"positionAmt,string"`

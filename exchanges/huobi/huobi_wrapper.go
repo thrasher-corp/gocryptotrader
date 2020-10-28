@@ -433,7 +433,7 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 				if err != nil {
 					return nil, err
 				}
-				if pairFmt.Lower().String() != strings.ToLower(tickers.Data[j].Symbol) {
+				if !strings.EqualFold(pairFmt.Lower().String(), tickers.Data[j].Symbol) {
 					continue
 				}
 				err = ticker.ProcessTicker(&ticker.Price{
@@ -1426,6 +1426,9 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 					orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
 						openOrders.Data.Orders[x].OrderPriceType,
 						openOrders.Data.Orders[x].Status)
+					if err != nil {
+						return orders, err
+					}
 
 					p, err := currency.NewPairFromString(openOrders.Data.Orders[x].ContractCode)
 					if err != nil {
@@ -1476,6 +1479,9 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 					orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
 						openOrders.Data.Orders[x].OrderPriceType,
 						openOrders.Data.Orders[x].Status)
+					if err != nil {
+						return orders, err
+					}
 
 					p, err := currency.NewPairFromString(openOrders.Data.Orders[x].ContractCode)
 					if err != nil {
@@ -1594,7 +1600,9 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 					orderVars, err = compatibleVars(orderHistory.Data.Orders[x].Direction,
 						orderHistory.Data.Orders[x].OrderPriceType,
 						orderHistory.Data.Orders[x].Status)
-
+					if err != nil {
+						return orders, err
+					}
 					orders = append(orders, order.Detail{
 						PostOnly:        (orderVars.OrderType == order.PostOnly),
 						Leverage:        orderHistory.Data.Orders[x].LeverageRate,
@@ -1642,6 +1650,9 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 					orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
 						openOrders.Data.Orders[x].OrderPriceType,
 						openOrders.Data.Orders[x].Status)
+					if err != nil {
+						return orders, err
+					}
 
 					if req.Side != orderVars.Side {
 						continue

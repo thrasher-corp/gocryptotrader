@@ -1184,7 +1184,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 func (k *Kraken) signFuturesRequest(endpoint, nonce, data string) string {
 	message := data + nonce + endpoint
 	hash := crypto.GetSHA256([]byte(message))
-	hc := crypto.GetHMAC(crypto.HashSHA512, hash[:], []byte(k.API.Credentials.Secret))
+	hc := crypto.GetHMAC(crypto.HashSHA512, hash, []byte(k.API.Credentials.Secret))
 	return base64.StdEncoding.EncodeToString(hc)
 }
 

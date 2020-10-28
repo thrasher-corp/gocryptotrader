@@ -395,10 +395,10 @@ type FuturesAccountsData struct {
 
 // AccountsData stores data of an account
 type AccountsData struct {
-	AccType  string             `json:"type,omitempty"`
-	Currency string             `json:"currency"`
-	Balances map[string]float64 `json:"balances"`
-	Auxilary struct {
+	AccType   string             `json:"type,omitempty"`
+	Currency  string             `json:"currency"`
+	Balances  map[string]float64 `json:"balances"`
+	Auxiliary struct {
 		AF  float64 `json:"af"`
 		PnL float64 `json:"pnl"`
 		PV  float64 `json:"pv"`

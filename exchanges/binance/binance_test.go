@@ -1479,6 +1479,9 @@ func TestWrapperGetActiveOrders(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	p, err := currency.NewPairFromString("EOS-USDT")
+	if err != nil {
+		t.Error(err)
+	}
 	_, err = b.GetActiveOrders(&order.GetOrdersRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -1490,6 +1493,9 @@ func TestWrapperGetActiveOrders(t *testing.T) {
 	}
 
 	p2, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Error(err)
+	}
 	_, err = b.GetActiveOrders(&order.GetOrdersRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -1507,6 +1513,9 @@ func TestWrapperGetOpenOrders(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	p, err := currency.NewPairFromString("EOS-USDT")
+	if err != nil {
+		t.Error(err)
+	}
 	_, err = b.GetOrderHistory(&order.GetOrdersRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,
@@ -1518,6 +1527,9 @@ func TestWrapperGetOpenOrders(t *testing.T) {
 	}
 
 	p2, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Error(err)
+	}
 	_, err = b.GetOrderHistory(&order.GetOrdersRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,

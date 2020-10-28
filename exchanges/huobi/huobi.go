@@ -105,7 +105,7 @@ const (
 	huobiBasisData                       = "index/market/history/swap_basis?"
 	huobiSwapAccInfo                     = "swap-api/v1/swap_account_info"
 	huobiSwapPosInfo                     = "swap-api/v1/swap_position_info"
-	huobiSwapAssetsAndPosInfo            = "swap-api/v1/swap_account_position_info"
+	huobiSwapAssetsAndPos                = "swap-api/v1/swap_account_position_info"
 	huobiSwapSubAccList                  = "swap-api/v1/swap_sub_account_list"
 	huobiSwapSubAccInfo                  = "swap-api/v1/swap_sub_account_info"
 	huobiSwapSubAccPosInfo               = "swap-api/v1/swap_sub_position_info"
@@ -796,7 +796,7 @@ func (h *HUOBI) FTransfer(subUID, symbol, transferType string, amount float64) (
 }
 
 // FGetTransferRecords gets transfer records data for futures
-func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate int64, pageIndex, pageSize int64) (FTransferRecords, error) {
+func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate, pageIndex, pageSize int64) (FTransferRecords, error) {
 	var resp FTransferRecords
 	req := make(map[string]interface{})
 	if symbol != "" {
@@ -806,7 +806,7 @@ func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate int6
 		return resp, fmt.Errorf("inavlid transferType received")
 	}
 	req["type"] = transferType
-	if createDate < 0 && createDate > 90 {
+	if createDate < 0 || createDate > 90 {
 		return resp, fmt.Errorf("invalid create date value: only supports up to 90 days")
 	}
 	req["create_date"] = strconv.FormatInt(createDate, 10)
@@ -1482,7 +1482,7 @@ func (h *HUOBI) GetSwapAssetsAndPositions(code string) (SwapAssetsAndPositionsDa
 	var resp SwapAssetsAndPositionsData
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapAssetsAndPosInfo, nil, req, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest2(http.MethodPost, huobiSwapAssetsAndPos, nil, req, &resp, false)
 }
 
 // GetSwapAllSubAccAssets gets asset info for all subaccounts
@@ -1660,7 +1660,7 @@ func (h *HUOBI) PlaceSwapOrders(code, clientOrderID, direction, offset, orderPri
 func (h *HUOBI) PlaceSwapBatchOrders(data BatchOrderRequestType) (BatchOrderData, error) {
 	var resp BatchOrderData
 	req := make(map[string]interface{})
-	if !((0 < len(data.Data)) && (len(data.Data) <= 10)) {
+	if !((len(data.Data) >= 0) && (len(data.Data) <= 10)) {
 		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
 	}
 	req["orders_data"] = data.Data

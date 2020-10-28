@@ -342,8 +342,7 @@ func TestFPlaceBatchOrder(t *testing.T) {
 		LeverageRate:   1,
 		OrderPriceType: "limit",
 	}
-	req = append(req, order1)
-	req = append(req, order2)
+	req = append(req, order1, order2)
 	_, err := h.FPlaceBatchOrder(req)
 	if err != nil {
 		t.Error(err)
@@ -598,6 +597,9 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	cp2, err := currency.NewPairFromString("BTC200918")
+	if err != nil {
+		t.Error(err)
+	}
 	getOrdersRequest.Pairs = []currency.Pair{cp2}
 	getOrdersRequest.AssetType = asset.Futures
 	_, err = h.GetOrderHistory(&getOrdersRequest)
@@ -979,8 +981,7 @@ func TestPlaceSwapBatchOrders(t *testing.T) {
 		LeverageRate:   1,
 		OrderPriceType: "limit",
 	}
-	req.Data = append(req.Data, order1)
-	req.Data = append(req.Data, order2)
+	req.Data = append(req.Data, order1, order2)
 
 	_, err := h.PlaceSwapBatchOrders(req)
 	if err != nil {

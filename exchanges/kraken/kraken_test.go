@@ -76,14 +76,14 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 
-	// sp, err := currency.NewPairFromString("XBTUSD")
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-	// _, err = k.UpdateTicker(sp, asset.Spot)
-	// if err != nil {
-	// 	t.Error(err)
-	// }
+	sp, err := currency.NewPairFromString("XBTUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.UpdateTicker(sp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
 
 	fp, err := currency.NewPairFromString("pi_xbtusd")
 	if err != nil {
@@ -98,14 +98,14 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 
-	// sp, err := currency.NewPairFromString("BTCEUR")
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-	// _, err = k.UpdateOrderbook(sp, asset.Spot)
-	// if err != nil {
-	// 	t.Error(err)
-	// }
+	sp, err := currency.NewPairFromString("BTCEUR")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.UpdateOrderbook(sp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
 
 	fp, err := currency.NewPairFromString("pi_xbtusd")
 	if err != nil {
