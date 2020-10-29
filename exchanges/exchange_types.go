@@ -157,13 +157,7 @@ type API struct {
 	AuthenticatedWebsocketSupport bool
 	PEMKeySupport                 bool
 
-	Endpoints struct {
-		URL                 string
-		URLDefault          string
-		URLSecondary        string
-		URLSecondaryDefault string
-		WebsocketURL        string
-	}
+	Endpoints map[string]string
 
 	Credentials struct {
 		Key      string

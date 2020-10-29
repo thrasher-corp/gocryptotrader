@@ -1048,10 +1048,9 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetMostRecentTrades(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetMostRecentTrades(RecentTradeRequestParams{
 		Symbol: "BTCUSDT",
-		Limit:  15,
+		Limit:  1000,
 	})
 
 	if err != nil {

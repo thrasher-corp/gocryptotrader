@@ -780,50 +780,30 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL() error {
-	if e.Config.API.Endpoints.URL == "" || e.Config.API.Endpoints.URLSecondary == "" {
-		return fmt.Errorf("exchange %s: SetAPIURL error. URL vals are empty", e.Name)
-	}
+	// if e.Config.API.Endpoints.URL == "" || e.Config.API.Endpoints.URLSecondary == "" {
+	// 	return fmt.Errorf("exchange %s: SetAPIURL error. URL vals are empty", e.Name)
+	// }
 
-	checkInsecureEndpoint := func(endpoint string) {
-		if strings.Contains(endpoint, "https") {
-			return
-		}
-		log.Warnf(log.ExchangeSys,
-			"%s is using HTTP instead of HTTPS [%s] for API functionality, an"+
-				" attacker could eavesdrop on this connection. Use at your"+
-				" own risk.",
-			e.Name, endpoint)
-	}
+	// checkInsecureEndpoint := func(endpoint string) {
+	// 	if strings.Contains(endpoint, "https") {
+	// 		return
+	// 	}
+	// 	log.Warnf(log.ExchangeSys,
+	// 		"%s is using HTTP instead of HTTPS [%s] for API functionality, an"+
+	// 			" attacker could eavesdrop on this connection. Use at your"+
+	// 			" own risk.",
+	// 		e.Name, endpoint)
+	// }
 
-	if e.Config.API.Endpoints.URL != config.APIURLNonDefaultMessage {
-		e.API.Endpoints.URL = e.Config.API.Endpoints.URL
-		checkInsecureEndpoint(e.API.Endpoints.URL)
-	}
-	if e.Config.API.Endpoints.URLSecondary != config.APIURLNonDefaultMessage {
-		e.API.Endpoints.URLSecondary = e.Config.API.Endpoints.URLSecondary
-		checkInsecureEndpoint(e.API.Endpoints.URLSecondary)
-	}
+	// if e.Config.API.Endpoints.URL != config.APIURLNonDefaultMessage {
+	// 	e.API.Endpoints.URL = e.Config.API.Endpoints.URL
+	// 	checkInsecureEndpoint(e.API.Endpoints.URL)
+	// }
+	// if e.Config.API.Endpoints.URLSecondary != config.APIURLNonDefaultMessage {
+	// 	e.API.Endpoints.URLSecondary = e.Config.API.Endpoints.URLSecondary
+	// 	checkInsecureEndpoint(e.API.Endpoints.URLSecondary)
+	// }
 	return nil
-}
-
-// GetAPIURL returns the set API URL
-func (e *Base) GetAPIURL() string {
-	return e.API.Endpoints.URL
-}
-
-// GetSecondaryAPIURL returns the set Secondary API URL
-func (e *Base) GetSecondaryAPIURL() string {
-	return e.API.Endpoints.URLSecondary
-}
-
-// GetAPIURLDefault returns exchange default URL
-func (e *Base) GetAPIURLDefault() string {
-	return e.API.Endpoints.URLDefault
-}
-
-// GetAPIURLSecondaryDefault returns exchange default secondary URL
-func (e *Base) GetAPIURLSecondaryDefault() string {
-	return e.API.Endpoints.URLSecondaryDefault
 }
 
 // SupportsREST returns whether or not the exchange supports
@@ -1137,4 +1117,18 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 	if e.Verbose {
 		log.Debugf(log.Trade, "Set %v 'SaveTradeData' to %v", e.Name, enabled)
 	}
+}
+
+// GetEndpoint gets endpoint
+func (e *Base) GetEndpoint(lookup string) (string, error) {
+	if e.API.Endpoints == nil {
+		return "", errors.New("effed")
+	}
+
+	v, ok := e.API.Endpoints[lookup]
+	if !ok {
+		return "", errors.New("not found")
+	}
+
+	return v, nil
 }

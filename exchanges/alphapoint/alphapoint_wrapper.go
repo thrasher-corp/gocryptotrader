@@ -20,6 +20,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultRest"
+	defaultWS   = "defaultWS"
+)
+
 // GetDefaultConfig returns a default exchange config for Alphapoint
 func (a *Alphapoint) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	return nil, common.ErrFunctionNotSupported
@@ -30,8 +35,8 @@ func (a *Alphapoint) SetDefaults() {
 	a.Name = "Alphapoint"
 	a.Enabled = true
 	a.Verbose = true
-	a.API.Endpoints.URL = alphapointDefaultAPIURL
-	a.API.Endpoints.WebsocketURL = alphapointDefaultWebsocketURL
+	a.API.Endpoints[defaultWS] = alphapointDefaultWebsocketURL
+	a.API.Endpoints[defaultRest] = alphapointDefaultAPIURL
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
 

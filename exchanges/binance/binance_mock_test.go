@@ -5,6 +5,7 @@
 package binance
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -45,8 +46,10 @@ func TestMain(m *testing.M) {
 	}
 
 	b.HTTPClient = newClient
-	b.API.Endpoints.URL = serverDetails
-	b.API.Endpoints.URLSecondary = serverDetails
-	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.URL)
+	fmt.Println(serverDetails)
+	for k := range b.API.Endpoints {
+		b.API.Endpoints[k] = serverDetails
+	}
+	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints)
 	os.Exit(m.Run())
 }

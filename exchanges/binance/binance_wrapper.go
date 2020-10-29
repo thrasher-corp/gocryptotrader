@@ -28,6 +28,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest             = "defaultURL"
+	spot                    = "spotURL"
+	uFutures                = "ufuturesURL"
+	cmFutures               = "cfuturesURL"
+	interestHistoryEdgeCase = "edgecase1"
+	websocketDefault        = "websocket"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *Binance) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -173,12 +182,14 @@ func (b *Binance) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	b.API.Endpoints.URLDefault = apiURL
-	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-	b.API.Endpoints.URLSecondary = "https://www.binance.com"
+	b.API.Endpoints = make(map[string]string)
+	b.API.Endpoints[defaultRest] = apiURL
+	b.API.Endpoints[spot] = spotAPIURL
+	b.API.Endpoints[uFutures] = ufuturesAPIURL
+	b.API.Endpoints[cmFutures] = cfuturesAPIURL
+	b.API.Endpoints[interestHistoryEdgeCase] = "https://www.binance.com"
 	b.Websocket = stream.New()
-	b.API.Endpoints.WebsocketURL = binanceDefaultWebsocketURL
+	b.API.Endpoints[websocketDefault] = binanceDefaultWebsocketURL
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -201,7 +212,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       binanceDefaultWebsocketURL,
+		DefaultURL:                       b.API.Endpoints[websocketDefault],
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        b.WsConnect,
