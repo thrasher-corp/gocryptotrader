@@ -389,7 +389,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Status:          oStatus,
 				AssetType:       assetType,
 				Date:            orders.Data[i].OrderTime,
-				Leverage:        strconv.FormatInt(orders.Data[i].Leverage, 10),
+				Leverage:        float64(orders.Data[i].Leverage),
 				Pair:            newPair,
 			}
 		}
