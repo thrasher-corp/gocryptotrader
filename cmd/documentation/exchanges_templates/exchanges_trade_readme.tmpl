@@ -1,0 +1,78 @@
+{{define "exchanges trade" -}}
+{{template "header" .}}
+## Current Features for {{.Name}}
+
++ The trade package contains a processor for both REST and websocket trade history processing
+  + Its primary purpose is to collect trade data from multiple sources and save it to the database's trade table
+  + If you do not have database enabled, then trades will not be processed
+
+### Requirements to save a trade to the database
++ Database has to be enabled
++ Under `config.json`, under your selected exchange, enable the field `saveTradeData`
+  + This will enable trade processing to occur for that specific exchange
+  + This can also be done via gRPC under the `SetExchangeTradeProcessing` command
+
+### Usage
++ To send trade data to be processed, use the following example:
+```
+err := trade.AddTradesToBuffer(b.Name, trade.Data{
+    Exchange:     b.Name,
+    TID:          strconv.FormatInt(tradeData[i].TID, 10),
+    CurrencyPair: p,
+    AssetType:    assetType,
+    Side:         side,
+    Price:        tradeData[i].Price,
+    Amount:       tradeData[i].Amount,
+    Timestamp:    tradeTS,
+})
+```
+_b in this context is an `IBotExchange` implemented struct_
+
+### Rules
++ If the trade processor has not started, it will automatically start upon being sent trade data.
++ The processor will add all received trades to a buffer
++ After 15 seconds, the trade processor will parse and save all trades on the buffer to the trade table
+  + This is to save on constant writing to the database. Trade data, especially when received via websocket would cause massive issues on the round trip of saving data for every trade
++ If the processor has not received any trades in that 15 second timeframe, it will shut down.
+  + Sending trade data to it later will automatically start it up again
+
+
+## Exchange Support Table
+
+| Exchange | Recent Trades via REST | Live trade updates via Websocket | Trade history via REST |
+|----------|------|-----------|-----|
+| Alphapoint | No  | No        | No  |
+| Binance| Yes  | Yes        | No  |
+| Bitfinex | Yes  | Yes        | Yes  |
+| Bitflyer | Yes  | No      | No  |
+| Bithumb | Yes  | NA       | No  |
+| BitMEX | Yes | Yes | Yes |
+| Bitstamp | Yes  | Yes       | No  |
+| Bittrex | Yes | No | No |
+| BTCMarkets | Yes | Yes       | No  |
+| BTSE | Yes | Yes | No |
+| Coinbene | Yes | Yes | No |
+| CoinbasePro | Yes | Yes | No|
+| COINUT | Yes | Yes | No |
+| Exmo | Yes | NA | No |
+| FTX | Yes | Yes | Yes |
+| GateIO | Yes | Yes | No |
+| Gemini | Yes | Yes | Yes |
+| HitBTC | Yes | Yes | Yes |
+| Huobi.Pro | Yes | Yes | No |
+| ItBit | Yes | NA | No |
+| Kraken | Yes | Yes | No |
+| LakeBTC | Yes | No | No |
+| Lbank | Yes | No | Yes |
+| LocalBitcoins | Yes | NA | No |
+| OKCoin International | Yes | Yes | No |
+| OKEX | Yes | Yes | No |
+| Poloniex | Yes | Yes | Yes |
+| Yobit | Yes | NA | No |
+| ZB.COM | Yes | Yes | No |
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -198,7 +199,9 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if !ok {
 				return errors.New("orderbook interface cast failed")
 			}
-
+			if len(obSnapBundle) == 0 {
+				return errors.New("no data within orderbook snapshot")
+			}
 			switch id := obSnapBundle[0].(type) {
 			case []interface{}:
 				for i := range obSnapBundle {
@@ -296,14 +299,20 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 			return nil
 		case wsTrades:
-			var trades []WebsocketTrade
+			if !b.IsSaveTradeDataEnabled() {
+				return nil
+			}
+			if chanAsset == asset.MarginFunding {
+				return nil
+			}
+			var tradeHolder []WebsocketTrade
 			switch len(d) {
 			case 2:
 				snapshot := d[1].([]interface{})
 				for i := range snapshot {
 					elem := snapshot[i].([]interface{})
 					if len(elem) == 5 {
-						trades = append(trades, WebsocketTrade{
+						tradeHolder = append(tradeHolder, WebsocketTrade{
 							ID:        int64(elem[0].(float64)),
 							Timestamp: int64(elem[1].(float64)),
 							Amount:    elem[2].(float64),
@@ -311,7 +320,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							Period:    int64(elem[4].(float64)),
 						})
 					} else {
-						trades = append(trades, WebsocketTrade{
+						tradeHolder = append(tradeHolder, WebsocketTrade{
 							ID:        int64(elem[0].(float64)),
 							Timestamp: int64(elem[1].(float64)),
 							Amount:    elem[2].(float64),
@@ -320,16 +329,13 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 				}
 			case 3:
-				if d[1].(string) == wsTradeExecutionUpdate ||
-					d[1].(string) == wsFundingTradeUpdate {
-					// "(f)te - trade executed" && "(f)tu - trade updated"
-					// contain the same amount of data
-					// "(f)te" gets sent first so we can drop "(f)tu"
+				if d[1].(string) != wsFundingTradeUpdate &&
+					d[1].(string) != wsTradeExecutionUpdate {
 					return nil
 				}
 				data := d[2].([]interface{})
 				if len(data) == 5 {
-					trades = append(trades, WebsocketTrade{
+					tradeHolder = append(tradeHolder, WebsocketTrade{
 						ID:        int64(data[0].(float64)),
 						Timestamp: int64(data[1].(float64)),
 						Amount:    data[2].(float64),
@@ -337,7 +343,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						Period:    int64(data[4].(float64)),
 					})
 				} else {
-					trades = append(trades, WebsocketTrade{
+					tradeHolder = append(tradeHolder, WebsocketTrade{
 						ID:        int64(data[0].(float64)),
 						Timestamp: int64(data[1].(float64)),
 						Amount:    data[2].(float64),
@@ -345,40 +351,31 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					})
 				}
 			}
-
-			for i := range trades {
+			var trades []trade.Data
+			for i := range tradeHolder {
 				side := order.Buy
-				newAmount := trades[i].Amount
+				newAmount := tradeHolder[i].Amount
 				if newAmount < 0 {
 					side = order.Sell
 					newAmount *= -1
 				}
-
-				if trades[i].Rate > 0 {
-					b.Websocket.DataHandler <- stream.FundingData{
-						CurrencyPair: pair,
-						Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
-						Amount:       newAmount,
-						Exchange:     b.Name,
-						AssetType:    chanAsset,
-						Side:         side,
-						Rate:         trades[i].Rate,
-						Period:       trades[i].Period,
-					}
-					continue
+				price := tradeHolder[i].Price
+				if price == 0 && tradeHolder[i].Rate > 0 {
+					price = tradeHolder[i].Rate
 				}
-
-				b.Websocket.DataHandler <- stream.TradeData{
+				trades = append(trades, trade.Data{
+					TID:          strconv.FormatInt(tradeHolder[i].ID, 10),
 					CurrencyPair: pair,
-					Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
-					Price:        trades[i].Price,
+					Timestamp:    time.Unix(0, tradeHolder[i].Timestamp*int64(time.Millisecond)),
+					Price:        price,
 					Amount:       newAmount,
 					Exchange:     b.Name,
 					AssetType:    chanAsset,
 					Side:         side,
-				}
+				})
 			}
-			return nil
+
+			return b.AddTradesToBuffer(trades...)
 		}
 
 		if authResp, ok := d[1].(string); ok {

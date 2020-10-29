@@ -40,8 +40,9 @@ func setupTestLoggers() {
 				Output: "stdout",
 			}},
 	}
-
+	RWM.Lock()
 	GlobalLogConfig = &logTest
+	RWM.Unlock()
 	SetupGlobalLogger()
 	SetupSubLoggers(logTest.SubLoggers)
 }
@@ -50,8 +51,10 @@ func SetupDisabled() {
 	logTest := Config{
 		Enabled: convert.BoolPtr(false),
 	}
-
+	RWM.Lock()
 	GlobalLogConfig = &logTest
+	RWM.Unlock()
+
 	SetupGlobalLogger()
 	SetupSubLoggers(logTest.SubLoggers)
 }

@@ -3,6 +3,7 @@ package okex
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -15,10 +16,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -690,4 +693,99 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = o.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	var side order.Side
+	switch assetType {
+	case asset.Spot:
+		var tradeData []okgroup.GetSpotFilledOrdersInformationResponse
+		tradeData, err = o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
+			InstrumentID: p.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     o.Name,
+				TID:          tradeData[i].TradeID,
+				CurrencyPair: p,
+				Side:         side,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Size,
+				Timestamp:    tradeData[i].Timestamp,
+			})
+		}
+	case asset.Futures:
+		var tradeData []okgroup.GetFuturesFilledOrdersResponse
+		tradeData, err = o.GetFuturesFilledOrder(okgroup.GetFuturesFilledOrderRequest{
+			InstrumentID: p.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     o.Name,
+				TID:          tradeData[i].TradeID,
+				CurrencyPair: p,
+				Side:         side,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Qty,
+				Timestamp:    tradeData[i].Timestamp,
+			})
+		}
+	case asset.PerpetualSwap:
+		var tradeData []okgroup.GetSwapFilledOrdersDataResponse
+		tradeData, err = o.GetSwapFilledOrdersData(&okgroup.GetSwapFilledOrdersDataRequest{
+			InstrumentID: p.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     o.Name,
+				TID:          tradeData[i].TradeID,
+				CurrencyPair: p,
+				Side:         side,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Size,
+				Timestamp:    tradeData[i].Timestamp,
+			})
+		}
+	default:
+		return nil, fmt.Errorf("%s asset type %v unsupported", o.Name, assetType)
+	}
+
+	err = o.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
 }

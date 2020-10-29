@@ -35,6 +35,7 @@ const (
 	gateioTradeHistory    = "private/tradeHistory"
 	gateioDepositAddress  = "private/depositAddress"
 	gateioTicker          = "ticker"
+	gateioTrades          = "tradeHistory"
 	gateioTickers         = "tickers"
 	gateioOrderbook       = "orderBook"
 
@@ -117,6 +118,17 @@ func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
 	err := g.SendHTTPRequest(urlPath, &resp)
 	if err != nil {
 		return nil, err
+	}
+	return resp, nil
+}
+
+// GetTrades returns trades for symbols
+func (g *Gateio) GetTrades(symbol string) (TradeHistory, error) {
+	urlPath := fmt.Sprintf("%s/%s/%s/%s", g.API.Endpoints.URLSecondary, gateioAPIVersion, gateioTrades, symbol)
+	var resp TradeHistory
+	err := g.SendHTTPRequest(urlPath, &resp)
+	if err != nil {
+		return TradeHistory{}, err
 	}
 	return resp, nil
 }

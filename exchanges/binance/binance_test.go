@@ -1046,15 +1046,16 @@ func TestGetOrderBook(t *testing.T) {
 	}
 }
 
-func TestGetRecentTrades(t *testing.T) {
+func TestGetMostRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetRecentTrades(RecentTradeRequestParams{
+
+	_, err := b.GetMostRecentTrades(RecentTradeRequestParams{
 		Symbol: "BTCUSDT",
 		Limit:  15,
 	})
 
 	if err != nil {
-		t.Error("Binance GetRecentTrades() error", err)
+		t.Error("Binance GetMostRecentTrades() error", err)
 	}
 }
 
@@ -2078,5 +2079,29 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

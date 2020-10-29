@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -146,7 +147,6 @@ const (
 	allowableIterations = 25
 	delimiterColon      = ":"
 	delimiterDash       = "-"
-	delimiterUnderscore = "_"
 
 	maxConnByteLen = 4096
 )
@@ -410,7 +410,7 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -446,6 +446,9 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
+	if !o.IsSaveTradeDataEnabled() {
+		return nil
+	}
 	var response WebsocketTradeResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -453,6 +456,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 	}
 
 	a := o.GetAssetTypeFromTableName(response.Table)
+	var trades []trade.Data
 	for i := range response.Data {
 		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 
@@ -461,7 +465,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -478,8 +482,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 		if response.Data[i].Quantity != 0 {
 			amount = response.Data[i].Quantity
 		}
-
-		o.Websocket.DataHandler <- stream.TradeData{
+		trades = append(trades, trade.Data{
 			Amount:       amount,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
@@ -487,9 +490,10 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			Price:        response.Data[i].Price,
 			Side:         tSide,
 			Timestamp:    response.Data[i].Timestamp,
-		}
+			TID:          response.Data[i].TradeID,
+		})
 	}
-	return nil
+	return trade.AddTradesToBuffer(o.Name, trades...)
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
@@ -509,7 +513,7 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -575,7 +579,7 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}

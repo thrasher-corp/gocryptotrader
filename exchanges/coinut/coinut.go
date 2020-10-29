@@ -98,7 +98,7 @@ func (c *COINUT) GetInstrumentOrderbook(instrumentID, limit int64) (Orderbook, e
 }
 
 // GetTrades returns trade information
-func (c *COINUT) GetTrades(instrumentID int) (Trades, error) {
+func (c *COINUT) GetTrades(instrumentID int64) (Trades, error) {
 	var result Trades
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID

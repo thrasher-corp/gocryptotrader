@@ -141,8 +141,10 @@ func main() {
 		getAuditEventCommand,
 		getHistoricCandlesCommand,
 		getHistoricCandlesExtendedCommand,
+		findMissingSavedCandleIntervalsCommand,
 		gctScriptCommand,
 		websocketManagerCommand,
+		tradeCommand,
 	}
 
 	err := app.Run(os.Args)

@@ -91,12 +91,11 @@ func TestGetMarketDepths(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetTrades(testCurrencyPair, "600",
-		strconv.FormatInt(time.Now().Unix(), 10))
+	_, err := l.GetTrades(testCurrencyPair, 600, time.Now().Unix())
 	if err != nil {
 		t.Error(err)
 	}
-	a, err := l.GetTrades(testCurrencyPair, "600", "0")
+	a, err := l.GetTrades(testCurrencyPair, 600, 0)
 	if len(a) != 600 && err != nil {
 		t.Error(err)
 	}
@@ -377,12 +376,9 @@ func TestGetFeeByType(t *testing.T) {
 	input.Amount = 2
 	input.FeeType = exchange.CryptocurrencyWithdrawalFee
 	input.Pair = cp
-	a, err := l.GetFeeByType(&input)
+	_, err := l.GetFeeByType(&input)
 	if err != nil {
 		t.Error(err)
-	}
-	if a != 0.0005 {
-		t.Errorf("expected: 0.0005, received: %v", a)
 	}
 }
 
@@ -485,5 +481,34 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	// longer term
+	_, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*60*200), time.Now().Add(-time.Minute*60*199))
+	if err != nil {
+		t.Error(err)
 	}
 }

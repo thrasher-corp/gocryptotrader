@@ -116,7 +116,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.NTPManager.Stop()
 	case "database":
 		if enable {
-			return bot.DatabaseManager.Start()
+			return bot.DatabaseManager.Start(bot)
 		}
 		return bot.DatabaseManager.Stop()
 	case "exchange_syncer":

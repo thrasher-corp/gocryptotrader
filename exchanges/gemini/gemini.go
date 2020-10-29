@@ -107,7 +107,7 @@ func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook
 	return orderbook, g.SendHTTPRequest(path, &orderbook)
 }
 
-// GetTrades eturn the trades that have executed since the specified timestamp.
+// GetTrades return the trades that have executed since the specified timestamp.
 // Timestamps are either seconds or milliseconds since the epoch (1970-01-01).
 //
 // currencyPair - example "btcusd"
@@ -116,7 +116,17 @@ func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook
 // limit_trades	integer	Optional. The maximum number of trades to return.
 // include_breaks	boolean	Optional. Whether to display broken trades. False by
 // default. Can be '1' or 'true' to activate
-func (g *Gemini) GetTrades(currencyPair string, params url.Values) ([]Trade, error) {
+func (g *Gemini) GetTrades(currencyPair string, since, limit int64, includeBreaks bool) ([]Trade, error) {
+	params := url.Values{}
+	if since > 0 {
+		params.Add("since", strconv.FormatInt(since, 10))
+	}
+	if limit > 0 {
+		params.Add("limit_trades", strconv.FormatInt(limit, 10))
+	}
+	if includeBreaks {
+		params.Add("include_breaks", strconv.FormatBool(true))
+	}
 	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiTrades, currencyPair), params)
 	var trades []Trade
 

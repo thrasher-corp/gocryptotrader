@@ -99,12 +99,16 @@ func (l *Lbank) GetMarketDepths(symbol, size, merge string) (MarketDepthResponse
 }
 
 // GetTrades returns an array of available trades regarding a particular exchange
-func (l *Lbank) GetTrades(symbol, size, time string) ([]TradeResponse, error) {
+func (l *Lbank) GetTrades(symbol string, limit, time int64) ([]TradeResponse, error) {
 	var g []TradeResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("size", size)
-	params.Set("time", time)
+	if limit > 0 {
+		params.Set("size", strconv.FormatInt(limit, 10))
+	}
+	if time > 0 {
+		params.Set("time", strconv.FormatInt(time, 10))
+	}
 	path := fmt.Sprintf("%s/v%s/%s?%s", l.API.Endpoints.URL, lbankAPIVersion, lbankTrades, params.Encode())
 	return g, l.SendHTTPRequest(path, &g)
 }

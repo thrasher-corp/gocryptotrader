@@ -60,7 +60,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTrades(testCurrency, url.Values{})
+	_, err := g.GetTrades(testCurrency, 0, 0, false)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -1109,5 +1109,35 @@ func TestResponseToOrderType(t *testing.T) {
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString(testCurrency)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = g.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString(testCurrency)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
+	tEnd := time.Date(2020, 6, 7, 0, 0, 0, 0, time.UTC)
+	if !mockTests {
+		tStart = time.Date(2020, time.Now().Month(), 6, 0, 0, 0, 0, time.UTC)
+		tEnd = time.Date(2020, time.Now().Month(), 7, 0, 0, 0, 0, time.UTC)
+	}
+	_, err = g.GetHistoricTrades(currencyPair, asset.Spot, tStart, tEnd)
+	if err != nil {
+		t.Error(err)
 	}
 }

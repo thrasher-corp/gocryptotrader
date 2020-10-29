@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -214,15 +215,23 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 		case bitmexWSTrade:
-			var trades TradeData
-			err = json.Unmarshal(respRaw, &trades)
+			if !b.IsSaveTradeDataEnabled() {
+				return nil
+			}
+			var tradeHolder TradeData
+			err = json.Unmarshal(respRaw, &tradeHolder)
 			if err != nil {
 				return err
 			}
-
-			for i := range trades.Data {
+			var trades []trade.Data
+			for i := range tradeHolder.Data {
+				if tradeHolder.Data[i].Price == 0 {
+					// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
+					// These have a size of 0 and are used only to indicate a changing price.
+					continue
+				}
 				var p currency.Pair
-				p, err = currency.NewPairFromString(trades.Data[i].Symbol)
+				p, err = currency.NewPairFromString(tradeHolder.Data[i].Symbol)
 				if err != nil {
 					return err
 				}
@@ -233,7 +242,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					return err
 				}
 				var oSide order.Side
-				oSide, err = order.StringToOrderSide(trades.Data[i].Side)
+				oSide, err = order.StringToOrderSide(tradeHolder.Data[i].Side)
 				if err != nil {
 					b.Websocket.DataHandler <- order.ClassificationError{
 						Exchange: b.Name,
@@ -241,17 +250,18 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					}
 				}
 
-				b.Websocket.DataHandler <- stream.TradeData{
-					Timestamp:    trades.Data[i].Timestamp,
-					Price:        trades.Data[i].Price,
-					Amount:       float64(trades.Data[i].Size),
-					CurrencyPair: p,
+				trades = append(trades, trade.Data{
+					TID:          tradeHolder.Data[i].TrdMatchID,
 					Exchange:     b.Name,
+					CurrencyPair: p,
 					AssetType:    a,
 					Side:         oSide,
-				}
+					Price:        tradeHolder.Data[i].Price,
+					Amount:       float64(tradeHolder.Data[i].Size),
+					Timestamp:    tradeHolder.Data[i].Timestamp,
+				})
 			}
-
+			return b.AddTradesToBuffer(trades...)
 		case bitmexWSAnnouncement:
 			var announcement AnnouncementData
 			err = json.Unmarshal(respRaw, &announcement)

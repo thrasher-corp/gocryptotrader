@@ -17,6 +17,7 @@ func TestParent(t *testing.T) {
 	t.Run("Exchanges", testExchanges)
 	t.Run("Scripts", testScripts)
 	t.Run("ScriptExecutions", testScriptExecutions)
+	t.Run("Trades", testTrades)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptos)
 	t.Run("WithdrawalFiats", testWithdrawalFiats)
 	t.Run("WithdrawalHistories", testWithdrawalHistories)
@@ -28,6 +29,7 @@ func TestDelete(t *testing.T) {
 	t.Run("Exchanges", testExchangesDelete)
 	t.Run("Scripts", testScriptsDelete)
 	t.Run("ScriptExecutions", testScriptExecutionsDelete)
+	t.Run("Trades", testTradesDelete)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosDelete)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsDelete)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesDelete)
@@ -39,6 +41,7 @@ func TestQueryDeleteAll(t *testing.T) {
 	t.Run("Exchanges", testExchangesQueryDeleteAll)
 	t.Run("Scripts", testScriptsQueryDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsQueryDeleteAll)
+	t.Run("Trades", testTradesQueryDeleteAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosQueryDeleteAll)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsQueryDeleteAll)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesQueryDeleteAll)
@@ -50,6 +53,7 @@ func TestSliceDeleteAll(t *testing.T) {
 	t.Run("Exchanges", testExchangesSliceDeleteAll)
 	t.Run("Scripts", testScriptsSliceDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceDeleteAll)
+	t.Run("Trades", testTradesSliceDeleteAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosSliceDeleteAll)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsSliceDeleteAll)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceDeleteAll)
@@ -61,6 +65,7 @@ func TestExists(t *testing.T) {
 	t.Run("Exchanges", testExchangesExists)
 	t.Run("Scripts", testScriptsExists)
 	t.Run("ScriptExecutions", testScriptExecutionsExists)
+	t.Run("Trades", testTradesExists)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosExists)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsExists)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesExists)
@@ -72,6 +77,7 @@ func TestFind(t *testing.T) {
 	t.Run("Exchanges", testExchangesFind)
 	t.Run("Scripts", testScriptsFind)
 	t.Run("ScriptExecutions", testScriptExecutionsFind)
+	t.Run("Trades", testTradesFind)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosFind)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsFind)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesFind)
@@ -83,6 +89,7 @@ func TestBind(t *testing.T) {
 	t.Run("Exchanges", testExchangesBind)
 	t.Run("Scripts", testScriptsBind)
 	t.Run("ScriptExecutions", testScriptExecutionsBind)
+	t.Run("Trades", testTradesBind)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosBind)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsBind)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesBind)
@@ -94,6 +101,7 @@ func TestOne(t *testing.T) {
 	t.Run("Exchanges", testExchangesOne)
 	t.Run("Scripts", testScriptsOne)
 	t.Run("ScriptExecutions", testScriptExecutionsOne)
+	t.Run("Trades", testTradesOne)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosOne)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsOne)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesOne)
@@ -105,6 +113,7 @@ func TestAll(t *testing.T) {
 	t.Run("Exchanges", testExchangesAll)
 	t.Run("Scripts", testScriptsAll)
 	t.Run("ScriptExecutions", testScriptExecutionsAll)
+	t.Run("Trades", testTradesAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosAll)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsAll)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesAll)
@@ -116,6 +125,7 @@ func TestCount(t *testing.T) {
 	t.Run("Exchanges", testExchangesCount)
 	t.Run("Scripts", testScriptsCount)
 	t.Run("ScriptExecutions", testScriptExecutionsCount)
+	t.Run("Trades", testTradesCount)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosCount)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsCount)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesCount)
@@ -127,6 +137,7 @@ func TestHooks(t *testing.T) {
 	t.Run("Exchanges", testExchangesHooks)
 	t.Run("Scripts", testScriptsHooks)
 	t.Run("ScriptExecutions", testScriptExecutionsHooks)
+	t.Run("Trades", testTradesHooks)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosHooks)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsHooks)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesHooks)
@@ -143,6 +154,8 @@ func TestInsert(t *testing.T) {
 	t.Run("Scripts", testScriptsInsertWhitelist)
 	t.Run("ScriptExecutions", testScriptExecutionsInsert)
 	t.Run("ScriptExecutions", testScriptExecutionsInsertWhitelist)
+	t.Run("Trades", testTradesInsert)
+	t.Run("Trades", testTradesInsertWhitelist)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosInsert)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosInsertWhitelist)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsInsert)
@@ -156,6 +169,7 @@ func TestInsert(t *testing.T) {
 func TestToOne(t *testing.T) {
 	t.Run("CandleToExchangeUsingExchangeName", testCandleToOneExchangeUsingExchangeName)
 	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
+	t.Run("TradeToExchangeUsingExchangeName", testTradeToOneExchangeUsingExchangeName)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalCryptoToOneWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalFiatToOneWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalHistoryToExchangeUsingExchangeName", testWithdrawalHistoryToOneExchangeUsingExchangeName)
@@ -165,6 +179,7 @@ func TestToOne(t *testing.T) {
 // or deadlocks can occur.
 func TestOneToOne(t *testing.T) {
 	t.Run("ExchangeToCandleUsingExchangeNameCandle", testExchangeOneToOneCandleUsingExchangeNameCandle)
+	t.Run("ExchangeToTradeUsingExchangeNameTrade", testExchangeOneToOneTradeUsingExchangeNameTrade)
 }
 
 // TestToMany tests cannot be run in parallel
@@ -181,6 +196,7 @@ func TestToMany(t *testing.T) {
 func TestToOneSet(t *testing.T) {
 	t.Run("CandleToExchangeUsingExchangeNameCandle", testCandleToOneSetOpExchangeUsingExchangeName)
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
+	t.Run("TradeToExchangeUsingExchangeNameTrade", testTradeToOneSetOpExchangeUsingExchangeName)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptos", testWithdrawalCryptoToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiats", testWithdrawalFiatToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalHistoryToExchangeUsingExchangeNameWithdrawalHistories", testWithdrawalHistoryToOneSetOpExchangeUsingExchangeName)
@@ -194,6 +210,7 @@ func TestToOneRemove(t *testing.T) {}
 // or deadlocks can occur.
 func TestOneToOneSet(t *testing.T) {
 	t.Run("ExchangeToCandleUsingExchangeNameCandle", testExchangeOneToOneSetOpCandleUsingExchangeNameCandle)
+	t.Run("ExchangeToTradeUsingExchangeNameTrade", testExchangeOneToOneSetOpTradeUsingExchangeNameTrade)
 }
 
 // TestOneToOneRemove tests cannot be run in parallel
@@ -223,6 +240,7 @@ func TestReload(t *testing.T) {
 	t.Run("Exchanges", testExchangesReload)
 	t.Run("Scripts", testScriptsReload)
 	t.Run("ScriptExecutions", testScriptExecutionsReload)
+	t.Run("Trades", testTradesReload)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosReload)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsReload)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesReload)
@@ -234,6 +252,7 @@ func TestReloadAll(t *testing.T) {
 	t.Run("Exchanges", testExchangesReloadAll)
 	t.Run("Scripts", testScriptsReloadAll)
 	t.Run("ScriptExecutions", testScriptExecutionsReloadAll)
+	t.Run("Trades", testTradesReloadAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosReloadAll)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsReloadAll)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesReloadAll)
@@ -245,6 +264,7 @@ func TestSelect(t *testing.T) {
 	t.Run("Exchanges", testExchangesSelect)
 	t.Run("Scripts", testScriptsSelect)
 	t.Run("ScriptExecutions", testScriptExecutionsSelect)
+	t.Run("Trades", testTradesSelect)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosSelect)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsSelect)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesSelect)
@@ -256,6 +276,7 @@ func TestUpdate(t *testing.T) {
 	t.Run("Exchanges", testExchangesUpdate)
 	t.Run("Scripts", testScriptsUpdate)
 	t.Run("ScriptExecutions", testScriptExecutionsUpdate)
+	t.Run("Trades", testTradesUpdate)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosUpdate)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsUpdate)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesUpdate)
@@ -267,6 +288,7 @@ func TestSliceUpdateAll(t *testing.T) {
 	t.Run("Exchanges", testExchangesSliceUpdateAll)
 	t.Run("Scripts", testScriptsSliceUpdateAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceUpdateAll)
+	t.Run("Trades", testTradesSliceUpdateAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosSliceUpdateAll)
 	t.Run("WithdrawalFiats", testWithdrawalFiatsSliceUpdateAll)
 	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceUpdateAll)

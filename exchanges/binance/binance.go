@@ -2239,9 +2239,9 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 	return orderbook, nil
 }
 
-// GetRecentTrades returns recent trade activity
+// GetMostRecentTrades returns recent trade activity
 // limit: Up to 500 results returned
-func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
+func (b *Binance) GetMostRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	var resp []RecentTrade
 
 	params := url.Values{}

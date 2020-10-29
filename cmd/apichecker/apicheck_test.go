@@ -28,7 +28,9 @@ func TestMain(m *testing.M) {
 	testMode = true
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(true)
+	log.RWM.Lock()
 	log.GlobalLogConfig = &c
+	log.RWM.Unlock()
 	log.Infoln(log.Global, "set verbose to true for more detailed output")
 	var err error
 	configData, err = readFileData(jsonFile)
@@ -158,7 +160,7 @@ func TestAdd(t *testing.T) {
 	}
 	err := addExch("FalseName", htmlScrape, data2, false)
 	if err == nil {
-		t.Log("expected an error due to invalid path being parsed in")
+		t.Error("expected an error due to invalid path being parsed in")
 	}
 }
 
@@ -635,7 +637,7 @@ func TestWriteAuthVars(t *testing.T) {
 		trelloCardID = "jdsfl"
 		err := writeAuthVars(testMode)
 		if err != nil {
-			t.Log(err)
+			t.Error(err)
 		}
 	}
 }

@@ -1064,7 +1064,9 @@ func TestGetFuturesFilledOrder(t *testing.T) {
 	_, err := o.GetFuturesFilledOrder(okgroup.GetFuturesFilledOrderRequest{
 		InstrumentID: getFutureInstrumentID(),
 	})
-	testStandardErrorHandling(t, err)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 // TestGetFuturesHoldAmount API endpoint test
@@ -2161,5 +2163,29 @@ func TestStringToOrderStatus(t *testing.T) {
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("NEO-USDT_SWAP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = o.GetRecentTrades(currencyPair, asset.PerpetualSwap)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("NEO-USDT_SWAP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = o.GetHistoricTrades(currencyPair, asset.PerpetualSwap, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

@@ -200,7 +200,7 @@ func (o *OKEX) GetFuturesTokenInfoForCurrency(instrumentID string) (resp okgroup
 // The whole book will be returned for one request. Websocket is recommended here.
 func (o *OKEX) GetFuturesFilledOrder(request okgroup.GetFuturesFilledOrderRequest) (resp []okgroup.GetFuturesFilledOrdersResponse, _ error) {
 	requestURL := fmt.Sprintf("%v/%v/%v%v", okgroup.OKGroupInstruments, request.InstrumentID, okgroup.OKGroupTrades, okgroup.FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, true)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupFuturesSubsection, requestURL, nil, &resp, false)
 }
 
 // GetFuturesHoldAmount Get the number of futures with hold.

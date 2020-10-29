@@ -2,6 +2,7 @@ package ftx
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -436,8 +438,13 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (f *FTX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return f.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (f *FTX) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if timestampStart.Equal(timestampEnd) ||
 		timestampEnd.After(time.Now()) ||
 		timestampEnd.Before(timestampStart) ||
@@ -446,51 +453,65 @@ func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestam
 			timestampStart,
 			timestampEnd)
 	}
+	var err error
+	p, err = f.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 
-	marketName, err := f.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	var resp []exchange.TradeHistory
-	trades, err := f.GetTrades(marketName.String(),
-		time.Unix(timestampStart.Unix(), 0),
-		time.Unix(timestampEnd.Unix(), 0),
-		100)
-	if err != nil {
-		return nil, err
-	}
+	ts := timestampStart
+	var resp []trade.Data
+	limit := 100
+allTrades:
 	for {
-		var tempResp exchange.TradeHistory
-		if len(trades) > 0 {
-			tempResp.Amount = trades[0].Size
-			tempResp.Price = trades[0].Price
-			tempResp.Exchange = f.Name
-			tempResp.Timestamp = trades[0].Time
-			tempResp.TID = strconv.FormatInt(trades[0].ID, 10)
-			tempResp.Side = trades[0].Side
-			resp = append(resp, tempResp)
-		}
-		for y := 1; y < len(trades); y++ {
-			tempResp.Amount = trades[y].Size
-			tempResp.Price = trades[y].Price
-			tempResp.Exchange = f.Name
-			tempResp.Timestamp = trades[y].Time
-			tempResp.TID = strconv.FormatInt(trades[y].ID, 10)
-			tempResp.Side = trades[y].Side
-			resp = append(resp, tempResp)
-		}
-		if len(trades) != 100 {
-			break
-		}
-		trades, err = f.GetTrades(marketName.String(),
-			time.Unix(timestampStart.Unix(), 0),
-			time.Unix(trades[len(trades)-1].Time.Unix(), 0),
+		var trades []TradeData
+		trades, err = f.GetTrades(p.String(),
+			ts.Unix(),
+			timestampEnd.Unix(),
 			100)
 		if err != nil {
-			return resp, err
+			return nil, err
+		}
+
+		for i := 0; i < len(trades); i++ {
+			if trades[i].Time.Before(timestampStart) || trades[i].Time.After(timestampEnd) {
+				break allTrades
+			}
+			var side order.Side
+			side, err = order.StringToOrderSide(trades[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				TID:          strconv.FormatInt(trades[i].ID, 10),
+				Exchange:     f.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        trades[i].Price,
+				Amount:       trades[i].Size,
+				Timestamp:    trades[i].Time,
+			})
+			if i == len(trades)-1 {
+				if ts.Equal(trades[i].Time) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = trades[i].Time
+			}
+		}
+		if len(trades) != limit {
+			break allTrades
 		}
 	}
-	return resp, nil
+
+	err = f.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order

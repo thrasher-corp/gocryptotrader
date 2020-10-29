@@ -5,7 +5,7 @@ import "github.com/thrasher-corp/gocryptotrader/currency"
 // Trades holds trade data
 type Trades struct {
 	TradeID  int64   `json:"trade_id"`
-	Type     string  `json:"string"`
+	Type     string  `json:"type"`
 	Quantity float64 `json:"quantity,string"`
 	Price    float64 `json:"price,string"`
 	Amount   float64 `json:"amount,string"`

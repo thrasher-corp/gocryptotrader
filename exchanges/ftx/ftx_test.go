@@ -91,15 +91,15 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetTrades(spotPair, time.Time{}, time.Time{}, 200)
+	_, err := f.GetTrades(spotPair, 0, 0, 200)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetTrades(spotPair, time.Time{}, time.Time{}, 5)
+	_, err = f.GetTrades(spotPair, 0, 0, 5)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetTrades(spotPair, time.Unix(1559901511, 0), time.Unix(1559881511, 0), 5)
+	_, err = f.GetTrades(spotPair, 1559901511, 1559881511, 5)
 	if err == nil {
 		t.Error(err)
 	}
@@ -1150,23 +1150,38 @@ func TestAcceptOTCQuote(t *testing.T) {
 	}
 }
 
-func TestGetExchangeHistory(t *testing.T) {
+func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	p, err := currency.NewPairFromString("ADA-PERP")
-	if err != nil {
-		t.Fatal(err)
+	assets := f.GetAssetTypes()
+	for i := range assets {
+		enabledPairs, err := f.GetEnabledPairs(assets[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*15), time.Now())
+		if err != nil {
+			t.Error(err)
+		}
+		// longer term
+		_, err = f.GetHistoricTrades(enabledPairs.GetRandomPair(), assets[i], time.Now().Add(-time.Minute*60*310), time.Now().Add(-time.Minute*60*300))
+		if err != nil {
+			t.Error(err)
+		}
 	}
-	a, err := f.GetPairAssetType(p)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = f.GetExchangeHistory(p, a, time.Now().Add(-time.Minute*500), time.Now())
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = f.GetExchangeHistory(p, a, time.Time{}, time.Now())
-	if err == nil {
-		t.Error("error cannot be nil ")
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	assets := f.GetAssetTypes()
+	for i := range assets {
+		enabledPairs, err := f.GetEnabledPairs(assets[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = f.GetRecentTrades(enabledPairs.GetRandomPair(), assets[i])
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 

@@ -83,17 +83,12 @@ func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (*curren
 
 // QueryOrder returns details of a valid exchange order
 func (e Exchange) QueryOrder(exch, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	ex, err := e.GetExchange(exch)
+	o, err := engine.Bot.OrderManager.GetOrderInfo(exch, orderID, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := ex.GetOrderInfo(orderID, pair, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	return &r, nil
+	return &o, nil
 }
 
 // SubmitOrder submit new order on exchange
@@ -107,8 +102,8 @@ func (e Exchange) SubmitOrder(submit *order.Submit) (*order.SubmitResponse, erro
 }
 
 // CancelOrder wrapper to cancel order on exchange
-func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
-	orderDetails, err := e.QueryOrder(exch, orderID, currency.Pair{}, "")
+func (e Exchange) CancelOrder(exch, orderID string, cp currency.Pair, a asset.Item) (bool, error) {
+	orderDetails, err := e.QueryOrder(exch, orderID, cp, a)
 	if err != nil {
 		return false, err
 	}
@@ -119,6 +114,7 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 		Pair:      orderDetails.Pair,
 		Side:      orderDetails.Side,
 		AssetType: orderDetails.AssetType,
+		Exchange:  exch,
 	}
 
 	err = engine.Bot.OrderManager.Cancel(cancel)

@@ -2,7 +2,9 @@ package bitmex
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -420,9 +423,83 @@ func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *Bitmex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (b *Bitmex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *Bitmex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if assetType == asset.Index {
+		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
+	}
+	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	}
+	var err error
+	p, err = b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	limit := 1000
+	req := &GenericRequestParams{
+		Symbol:  p.String(),
+		Count:   int32(limit),
+		EndTime: timestampEnd.UTC().Format("2006-01-02T15:04:05.000Z"),
+	}
+	ts := timestampStart
+	var resp []trade.Data
+allTrades:
+	for {
+		req.StartTime = ts.UTC().Format("2006-01-02T15:04:05.000Z")
+		var tradeData []Trade
+		tradeData, err = b.GetTrade(req)
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			if tradeData[i].Timestamp.Before(timestampStart) || tradeData[i].Timestamp.After(timestampEnd) {
+				break allTrades
+			}
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			if tradeData[i].Price == 0 {
+				// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
+				// These have a size of 0 and are used only to indicate a changing price.
+				continue
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     b.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Price,
+				Amount:       float64(tradeData[i].Size),
+				Timestamp:    tradeData[i].Timestamp,
+				TID:          tradeData[i].TrdMatchID,
+			})
+			if i == len(tradeData)-1 {
+				if ts.Equal(tradeData[i].Timestamp) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = tradeData[i].Timestamp
+			}
+		}
+		if len(tradeData) != limit {
+			break allTrades
+		}
+	}
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order

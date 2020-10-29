@@ -2,6 +2,7 @@ package localbitcoins
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -91,6 +92,13 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
+	}
+}
+
+func TestGetTrades(t *testing.T) {
+	_, err := l.GetTrades("LTC", nil)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -397,5 +405,29 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Error("GetDepositAddress() expecting an error when no APIKeys are set")
 	case mockTests && err != nil:
 		t.Error("GetDepositAddress() error", err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTC-LTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTC-LTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

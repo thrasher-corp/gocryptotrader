@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,13 +21,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
 	geminiWebsocketEndpoint        = "wss://api.gemini.com/v1/"
 	geminiWebsocketSandboxEndpoint = "wss://api.sandbox.gemini.com/v1/"
-	geminiWsEvent                  = "event"
 	geminiWsMarketData             = "marketdata"
 	geminiWsOrderEvents            = "order/events"
 )
@@ -401,6 +402,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		}
 	} else {
 		var asks, bids []orderbook.Item
+		var trades []trade.Data
 		for i := range result.Events {
 			switch result.Events[i].Type {
 			case "trade":
@@ -411,7 +413,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 						Err:      err,
 					}
 				}
-				g.Websocket.DataHandler <- stream.TradeData{
+				trades = append(trades, trade.Data{
 					Timestamp:    time.Unix(0, result.TimestampMS*int64(time.Millisecond)),
 					CurrencyPair: pair,
 					AssetType:    asset.Spot,
@@ -419,7 +421,8 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 					Price:        result.Events[i].Price,
 					Amount:       result.Events[i].Amount,
 					Side:         tSide,
-				}
+					TID:          strconv.FormatInt(result.Events[i].ID, 10),
+				})
 			case "change":
 				item := orderbook.Item{
 					Amount: result.Events[i].Remaining,
@@ -432,6 +435,12 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 				}
 			default:
 				g.Websocket.DataHandler <- fmt.Errorf("%s - Unhandled websocket update: %+v", g.Name, result)
+			}
+		}
+		if len(trades) > 0 && g.IsSaveTradeDataEnabled() {
+			err := trade.AddTradesToBuffer(g.Name, trades...)
+			if err != nil {
+				g.Websocket.DataHandler <- err
 			}
 		}
 		if len(asks) == 0 && len(bids) == 0 {

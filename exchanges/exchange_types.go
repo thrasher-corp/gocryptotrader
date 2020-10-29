@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -108,19 +109,6 @@ type FeeBuilder struct {
 	Amount        float64
 }
 
-// TradeHistory holds exchange history data
-type TradeHistory struct {
-	Timestamp   time.Time
-	TID         string
-	Price       float64
-	Amount      float64
-	Exchange    string
-	Type        string
-	Side        string
-	Fee         float64
-	Description string
-}
-
 // FundHistory holds exchange funding history data
 type FundHistory struct {
 	ExchangeName      string
@@ -150,6 +138,7 @@ type Features struct {
 type FeaturesEnabled struct {
 	AutoPairUpdates bool
 	Kline           kline.ExchangeCapabilitiesEnabled
+	SaveTradeData   bool
 }
 
 // FeaturesSupported stores the exchanges supported features
@@ -214,5 +203,6 @@ type Base struct {
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
 	*request.Requester
-	Config *config.ExchangeConfig
+	Config        *config.ExchangeConfig
+	settingsMutex sync.RWMutex
 }

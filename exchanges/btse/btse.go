@@ -115,19 +115,21 @@ func (b *BTSE) FetchOrderBookL2(symbol string, depth int) (*Orderbook, error) {
 }
 
 // GetTrades returns a list of trades for the specified symbol
-func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool) ([]Trade, error) {
+func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld, spot bool) ([]Trade, error) {
 	var t []Trade
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
 	if count > 0 {
 		urlValues.Add("count", strconv.Itoa(count))
 	}
-	if !start.IsZero() && !end.IsZero() {
-		if start.After(end) {
-			return t, errors.New("start cannot be after end time")
-		}
+	if !start.IsZero() {
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
+	}
+	if !end.IsZero() {
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	if !start.IsZero() && !end.IsZero() && start.After(end) {
+		return t, errors.New("start cannot be after end time")
 	}
 	if beforeSerialID > 0 {
 		urlValues.Add("beforeSerialId", strconv.Itoa(beforeSerialID))
@@ -139,7 +141,7 @@ func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, af
 		urlValues.Add("includeOld", "true")
 	}
 	return t, b.SendHTTPRequest(http.MethodGet,
-		common.EncodeURLValues(btseTrades, urlValues), &t, true, queryFunc)
+		common.EncodeURLValues(btseTrades, urlValues), &t, spot, queryFunc)
 }
 
 // OHLCV retrieve and return OHLCV candle data for requested symbol
