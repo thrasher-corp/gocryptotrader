@@ -26,21 +26,21 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | Bittrex | Yes | No | NA |
-| BTCMarkets | Yes | No       | NA  |
+| BTCMarkets | Yes | Yes       | NA  |
 | BTSE | Yes | Yes | NA |
+| CoinbasePro | Yes | Yes | No|
+| Coinbene | Yes | Yes | No |
 | COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No |
-| CoinbasePro | Yes | Yes | No|
-| Coinbene | Yes | No | No |
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
+| LakeBTC | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| LakeBTC | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
 | OKEX | Yes | Yes | No |
@@ -76,6 +76,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Basic event trigger system.
 + OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
 + Scripting support. See [gctscript](/gctscript/README.md).
++ Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
 + WebGUI (discontinued).
 
 ## Planned Features
@@ -142,18 +143,18 @@ Binaries will be published once the codebase reaches a stable condition.
 |User|Contribution Amount|
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 643 |
-| [shazbert](https://github.com/shazbert) | 196 |
-| [gloriousCode](https://github.com/gloriousCode) | 170 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 69 |
+| [shazbert](https://github.com/shazbert) | 197 |
+| [gloriousCode](https://github.com/gloriousCode) | 171 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 70 |
 | [xtda](https://github.com/xtda) | 47 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 9 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [Rots](https://github.com/Rots) | 7 |
+| [vazha](https://github.com/vazha) | 7 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
-| [Rots](https://github.com/Rots) | 5 |
-| [vazha](https://github.com/vazha) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |

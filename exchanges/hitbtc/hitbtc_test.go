@@ -62,7 +62,7 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := h.GetTrades("BTCUSD", "", "", "", "", "", "")
+	_, err := h.GetTrades("BTCUSD", "", "", 0, 0, 0, 0)
 	if err != nil {
 		t.Error("Test faild - HitBTC GetTradeHistory() error", err)
 	}
@@ -990,5 +990,34 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = h.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = h.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
+	}
+	// longer term
+	_, err = h.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*60*200), time.Now().Add(-time.Minute*60*199))
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -116,7 +116,7 @@ type RecentTrade struct {
 	ID           int64   `json:"id"`
 	Price        float64 `json:"price,string"`
 	Quantity     float64 `json:"qty,string"`
-	Time         float64 `json:"time"`
+	Time         int64   `json:"time"`
 	IsBuyerMaker bool    `json:"isBuyerMaker"`
 	IsBestMatch  bool    `json:"isBestMatch"`
 }

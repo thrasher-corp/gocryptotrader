@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -184,6 +185,11 @@ func TestGetTrades(t *testing.T) {
 	_, err := k.GetTrades("BCHEUR")
 	if err != nil {
 		t.Error("GetTrades() error", err)
+	}
+
+	_, err = k.GetTrades("MADEUP")
+	if err == nil {
+		t.Error("expected error")
 	}
 }
 
@@ -1472,5 +1478,29 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("XBTUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = k.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("XBTUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = k.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

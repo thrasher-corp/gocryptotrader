@@ -34,10 +34,10 @@ type Orderbook struct {
 	Bids [][]float64 `json:"bids"` // buying orders
 }
 
-// Trades stores trade information
-type Trades struct {
+// Trade stores trade information
+type Trade struct {
 	Type      string  `json:"type"`
-	Price     float64 `json:"bid"`
+	Price     float64 `json:"price"`
 	Amount    float64 `json:"amount"`
 	TID       int64   `json:"tid"`
 	Timestamp int64   `json:"timestamp"`
@@ -96,8 +96,8 @@ type CancelOrder struct {
 	Error   string             `json:"error"`
 }
 
-// Trade stores the trade information
-type Trade struct {
+// TradeOrderResponse stores the trade information
+type TradeOrderResponse struct {
 	Received float64            `json:"received"`
 	Remains  float64            `json:"remains"`
 	OrderID  float64            `json:"order_id"`

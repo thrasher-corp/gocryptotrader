@@ -139,6 +139,93 @@
         ]
       }
     },
+    "/v1/converttradestocandles": {
+      "get": {
+        "operationId": "ConvertTradesToCandles",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetHistoricCandlesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset_type",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "time_interval",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "sync",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/disableexchange": {
       "post": {
         "operationId": "DisableExchange",
@@ -253,6 +340,145 @@
         "parameters": [
           {
             "name": "subsystem",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/findmissingsavedcandleintervals": {
+      "get": {
+        "operationId": "FindMissingSavedCandleIntervals",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcFindMissingIntervalsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchangeName",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "assetType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/findmissingsavedtradeintervals": {
+      "get": {
+        "operationId": "FindMissingSavedTradeIntervals",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcFindMissingIntervalsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchangeName",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "assetType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end",
             "in": "query",
             "required": false,
             "type": "string"
@@ -1113,15 +1339,13 @@
             "name": "start",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
             "name": "end",
             "in": "query",
             "required": false,
-            "type": "string",
-            "format": "int64"
+            "type": "string"
           },
           {
             "name": "time_interval",
@@ -1146,6 +1370,20 @@
           },
           {
             "name": "use_db",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "fill_missing_with_trades",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          },
+          {
+            "name": "force",
             "in": "query",
             "required": false,
             "type": "boolean",
@@ -1451,6 +1689,72 @@
             }
           }
         },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getsavedtrades": {
+      "get": {
+        "operationId": "GetSavedTrades",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcSavedTradesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset_type",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
         "tags": [
           "GoCryptoTrader"
         ]
@@ -1764,6 +2068,43 @@
             "schema": {
               "$ref": "#/definitions/gctrpcSetExchangePairRequest"
             }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/setexchangetradeprocessing": {
+      "get": {
+        "operationId": "SetExchangeTradeProcessing",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
           }
         ],
         "tags": [
@@ -2395,8 +2736,7 @@
       "type": "object",
       "properties": {
         "time": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "low": {
           "type": "number",
@@ -2524,6 +2864,29 @@
           "type": "string"
         },
         "iban": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcFindMissingIntervalsResponse": {
+      "type": "object",
+      "properties": {
+        "exchangeName": {
+          "type": "string"
+        },
+        "assetType": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "missingPeriods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
           "type": "string"
         }
       }
@@ -2940,12 +3303,10 @@
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
         "start": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "end": {
-          "type": "string",
-          "format": "int64"
+          "type": "string"
         },
         "interval": {
           "type": "string"
@@ -3411,6 +3772,48 @@
         },
         "description": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcSavedTrades": {
+      "type": "object",
+      "properties": {
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "side": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string"
+        },
+        "trade_id": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcSavedTradesResponse": {
+      "type": "object",
+      "properties": {
+        "exchange_name": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "trades": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcSavedTrades"
+          }
         }
       }
     },

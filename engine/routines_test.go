@@ -33,10 +33,6 @@ func TestHandleData(t *testing.T) {
 	if err == nil {
 		t.Error("Expected nil data error")
 	}
-	err = WebsocketDataHandler(exchName, stream.TradeData{})
-	if err != nil {
-		t.Error(err)
-	}
 	err = WebsocketDataHandler(exchName, stream.FundingData{})
 	if err != nil {
 		t.Error(err)

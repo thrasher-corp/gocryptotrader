@@ -545,6 +545,57 @@ func testExchangeOneToOneCandleUsingExchangeNameCandle(t *testing.T) {
 	}
 }
 
+func testExchangeOneToOneTradeUsingExchangeNameTrade(t *testing.T) {
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var foreign Trade
+	var local Exchange
+
+	seed := randomize.NewSeed()
+	if err := randomize.Struct(seed, &foreign, tradeDBTypes, true, tradeColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Trade struct: %s", err)
+	}
+	if err := randomize.Struct(seed, &local, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	}
+
+	if err := local.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	foreign.ExchangeNameID = local.ID
+	if err := foreign.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := local.ExchangeNameTrade().One(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if check.ExchangeNameID != foreign.ExchangeNameID {
+		t.Errorf("want: %v, got %v", foreign.ExchangeNameID, check.ExchangeNameID)
+	}
+
+	slice := ExchangeSlice{&local}
+	if err = local.L.LoadExchangeNameTrade(ctx, tx, false, (*[]*Exchange)(&slice), nil); err != nil {
+		t.Fatal(err)
+	}
+	if local.R.ExchangeNameTrade == nil {
+		t.Error("struct should have been eager loaded")
+	}
+
+	local.R.ExchangeNameTrade = nil
+	if err = local.L.LoadExchangeNameTrade(ctx, tx, true, &local, nil); err != nil {
+		t.Fatal(err)
+	}
+	if local.R.ExchangeNameTrade == nil {
+		t.Error("struct should have been eager loaded")
+	}
+}
+
 func testExchangeOneToOneSetOpCandleUsingExchangeNameCandle(t *testing.T) {
 	var err error
 
@@ -580,6 +631,67 @@ func testExchangeOneToOneSetOpCandleUsingExchangeNameCandle(t *testing.T) {
 		}
 
 		if a.R.ExchangeNameCandle != x {
+			t.Error("relationship struct not set to correct value")
+		}
+		if x.R.ExchangeName != &a {
+			t.Error("failed to append to foreign relationship struct")
+		}
+
+		if a.ID != x.ExchangeNameID {
+			t.Error("foreign key was wrong value", a.ID)
+		}
+
+		zero := reflect.Zero(reflect.TypeOf(x.ExchangeNameID))
+		reflect.Indirect(reflect.ValueOf(&x.ExchangeNameID)).Set(zero)
+
+		if err = x.Reload(ctx, tx); err != nil {
+			t.Fatal("failed to reload", err)
+		}
+
+		if a.ID != x.ExchangeNameID {
+			t.Error("foreign key was wrong value", a.ID, x.ExchangeNameID)
+		}
+
+		if _, err = x.Delete(ctx, tx); err != nil {
+			t.Fatal("failed to delete x", err)
+		}
+	}
+}
+func testExchangeOneToOneSetOpTradeUsingExchangeNameTrade(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a Exchange
+	var b, c Trade
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &b, tradeDBTypes, false, strmangle.SetComplement(tradePrimaryKeyColumns, tradeColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, tradeDBTypes, false, strmangle.SetComplement(tradePrimaryKeyColumns, tradeColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, x := range []*Trade{&b, &c} {
+		err = a.SetExchangeNameTrade(ctx, tx, i != 0, x)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if a.R.ExchangeNameTrade != x {
 			t.Error("relationship struct not set to correct value")
 		}
 		if x.R.ExchangeName != &a {

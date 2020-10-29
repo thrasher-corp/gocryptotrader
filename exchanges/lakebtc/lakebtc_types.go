@@ -37,7 +37,7 @@ type TickerResponse struct {
 
 // TradeHistory holds trade history data
 type TradeHistory struct {
-	Date   int64   `json:"data"`
+	Date   int64   `json:"date"`
 	Price  float64 `json:"price,string"`
 	Amount float64 `json:"amount,string"`
 	TID    int64   `json:"tid"`

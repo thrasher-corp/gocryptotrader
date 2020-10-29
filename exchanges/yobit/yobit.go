@@ -78,24 +78,22 @@ func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
 }
 
 // GetTrades returns the trades for a specific currency
-func (y *Yobit) GetTrades(symbol string, start int64, sortAsc bool) ([]Trades, error) {
-	type Response struct {
-		Data map[string][]Trades
+func (y *Yobit) GetTrades(symbol string) ([]Trade, error) {
+	type respDataHolder struct {
+		Data map[string][]Trade
 	}
 
-	v := url.Values{}
-	if sortAsc {
-		v.Set("order", "ASC")
-	} else {
-		v.Set("order", "DESC")
-	}
-	if start != 0 {
-		v.Set("since", strconv.FormatInt(start, 10))
+	var dataHolder respDataHolder
+	path := y.API.Endpoints.URL + "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol
+	err := y.SendHTTPRequest(path, &dataHolder.Data)
+	if err != nil {
+		return nil, err
 	}
 
-	var response Response
-	path := y.API.Endpoints.URL + "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol + "?" + v.Encode()
-	return response.Data[symbol], y.SendHTTPRequest(path, &response.Data)
+	if tr, ok := dataHolder.Data[symbol]; ok {
+		return tr, nil
+	}
+	return nil, nil
 }
 
 // GetAccountInformation returns a users account info
@@ -120,7 +118,7 @@ func (y *Yobit) Trade(pair, orderType string, amount, price float64) (int64, err
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("rate", strconv.FormatFloat(price, 'f', -1, 64))
 
-	result := Trade{}
+	result := TradeOrderResponse{}
 
 	err := y.SendAuthenticatedHTTPRequest(privateTrade, req, &result)
 	if err != nil {
