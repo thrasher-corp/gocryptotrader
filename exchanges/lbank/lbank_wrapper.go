@@ -250,15 +250,32 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	if err != nil {
 		return orderBook, err
 	}
-	for i := range a.Asks {
+	var price, amount float64
+	for i := range a.Data.Asks {
+		price, err = strconv.ParseFloat(a.Data.Asks[i][0], 64)
+		if err != nil {
+			return orderBook, err
+		}
+		amount, err = strconv.ParseFloat(a.Data.Asks[i][1], 64)
+		if err != nil {
+			return orderBook, err
+		}
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
-			Price:  a.Asks[i][0],
-			Amount: a.Asks[i][1]})
+			Price:  price,
+			Amount: amount})
 	}
-	for i := range a.Bids {
+	for i := range a.Data.Bids {
+		price, err = strconv.ParseFloat(a.Data.Bids[i][0], 64)
+		if err != nil {
+			return orderBook, err
+		}
+		amount, err = strconv.ParseFloat(a.Data.Bids[i][1], 64)
+		if err != nil {
+			return orderBook, err
+		}
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
-			Price:  a.Bids[i][0],
-			Amount: a.Bids[i][1]})
+			Price:  price,
+			Amount: amount})
 	}
 	orderBook.Pair = p
 	orderBook.ExchangeName = l.Name

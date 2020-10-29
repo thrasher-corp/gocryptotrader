@@ -33,6 +33,7 @@ type Lbank struct {
 const (
 	lbankAPIURL      = "https://api.lbkex.com"
 	lbankAPIVersion  = "1"
+	lbankAPIVersion2 = "2"
 	lbankFeeNotFound = 0.0
 
 	// Public endpoints
@@ -93,7 +94,7 @@ func (l *Lbank) GetMarketDepths(symbol, size, merge string) (MarketDepthResponse
 	params.Set("symbol", symbol)
 	params.Set("size", size)
 	params.Set("merge", merge)
-	path := fmt.Sprintf("%s/v%s/%s?%s", l.API.Endpoints.URL, lbankAPIVersion, lbankMarketDepths, params.Encode())
+	path := fmt.Sprintf("%s/v%s/%s?%s", l.API.Endpoints.URL, lbankAPIVersion2, lbankMarketDepths, params.Encode())
 	return m, l.SendHTTPRequest(path, &m)
 }
 

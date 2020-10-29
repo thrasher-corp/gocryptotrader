@@ -84,7 +84,7 @@ func TestGetMarketDepths(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, _ := l.GetMarketDepths(testCurrencyPair, "4", "0")
-	if len(a.Asks) != 4 {
+	if len(a.Data.Asks) != 4 {
 		t.Errorf("asks length requested doesnt match the output")
 	}
 }
