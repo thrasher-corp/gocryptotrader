@@ -1657,17 +1657,23 @@ func (c *Config) SaveConfigToFile(configPath string) error {
 	if err != nil {
 		return err
 	}
-	writer, err := file.Writer(defaultPath)
-	if err != nil {
-		return err
+	var writer *os.File
+	provider := func() (io.Writer, error) {
+		writer, err = file.Writer(defaultPath)
+		return writer, err
 	}
-	defer writer.Close()
-	return c.Save(writer, func() ([]byte, error) { return PromptForConfigKey(true) })
+	defer func() {
+		if writer != nil {
+			writer.Close()
+		}
+	}()
+	return c.Save(provider, func() ([]byte, error) { return PromptForConfigKey(true) })
 }
 
 // Save saves your configuration to the writer as a JSON object
 // with encryption, if configured
-func (c *Config) Save(configWriter io.Writer, keyProvider func() ([]byte, error)) error {
+// If there is an error when preparing the data to store, the writer is never requested
+func (c *Config) Save(writerProvider func() (io.Writer, error), keyProvider func() ([]byte, error)) error {
 	payload, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
 		return err
@@ -1692,6 +1698,10 @@ func (c *Config) Save(configWriter io.Writer, keyProvider func() ([]byte, error)
 		if err != nil {
 			return err
 		}
+	}
+	configWriter, err := writerProvider()
+	if err != nil {
+		return err
 	}
 	_, err = io.Copy(configWriter, bytes.NewReader(payload))
 	return err

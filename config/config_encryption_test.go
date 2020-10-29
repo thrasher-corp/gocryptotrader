@@ -2,10 +2,12 @@ package config
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -190,6 +192,7 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 }
 
 func TestSaveAndReopenEncryptedConfig(t *testing.T) {
+	t.Parallel()
 	c := &Config{}
 	c.Name = "myCustomName"
 	c.EncryptConfig = 1
@@ -199,33 +202,20 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Prepare password
-	passFile, err := ioutil.TempFile(tempDir, "*.pw")
-	if err != nil {
-		t.Fatalf("Problem creating temp file at %s: %s\n", tempDir, err)
-	}
-	passFile.WriteString("pass\npass\n")
-	passFile.Close()
-
-	// Temporarily replace Stdin with a custom input
-	cleanup := setAnswersFile(t, passFile.Name())
-	defer cleanup()
-
 	// Save encrypted config
 	enc := filepath.Join(tempDir, "encrypted.dat")
-	err = c.SaveConfigToFile(enc)
+	err = withInteractiveResponse(t, "pass\npass\n", func() error {
+		return c.SaveConfigToFile(enc)
+	})
 	if err != nil {
 		t.Fatalf("Problem storing config in file %s: %s\n", enc, err)
 	}
 
-	// Prepare password input for decryption
-	cleanup = setAnswersFile(t, passFile.Name())
-	defer cleanup()
-
-	// Clean session
 	readConf := &Config{}
-	// Load with no existing state, key is read from the prepared file
-	err = readConf.ReadConfigFromFile(enc, true)
+	err = withInteractiveResponse(t, "pass\n", func() error {
+		// Load with no existing state, key is read from the prepared file
+		return readConf.ReadConfigFromFile(enc, true)
+	})
 
 	// Verify
 	if err != nil {
@@ -273,21 +263,14 @@ func TestReadConfigWithPrompt(t *testing.T) {
 		t.Fatalf("Problem saving config file in %s: %s\n", tempDir, err)
 	}
 
-	// Answers to the prompt
-	responseFile, err := ioutil.TempFile(tempDir, "*.in")
-	if err != nil {
-		t.Fatalf("Problem creating temp file at %s: %s\n", tempDir, err)
-	}
-	responseFile.WriteString("y\npass\npass\n")
-	responseFile.Close()
-
-	// Temporarily replace Stdin with a custom input
-	cleanup := setAnswersFile(t, responseFile.Name())
-	defer cleanup()
-
 	// Run the test
 	c = &Config{}
-	c.ReadConfigFromFile(testConfigFile, false)
+	err = withInteractiveResponse(t, "y\npass\npass\n", func() error {
+		return c.ReadConfigFromFile(testConfigFile, false)
+	})
+	if err != nil {
+		t.Fatalf("Problem reading config file at %s: %s\n", testConfigFile, err)
+	}
 
 	// Verify results
 	data, err := ioutil.ReadFile(testConfigFile)
@@ -323,4 +306,68 @@ func TestReadEncryptedConfigFromReader(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected unable to decrypt, but got %+v", conf)
 	}
+}
+
+// TestSaveConfigToFileWithErrorInPasswordPrompt should preserve the original file
+func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
+	t.Parallel()
+	c := &Config{
+		Name:          "test",
+		EncryptConfig: fileEncryptionEnabled,
+	}
+	testData := []byte("testdata")
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	targetFile := f.Name()
+	defer os.Remove(targetFile)
+
+	_, err = io.Copy(f, bytes.NewReader(testData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = withInteractiveResponse(t, "\n\n", func() error {
+		err = c.SaveConfigToFile(targetFile)
+		if err == nil {
+			t.Error("Expected error")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := ioutil.ReadFile(targetFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(data, testData) {
+		t.Errorf("Expected contents %s, but was %s", testData, data)
+	}
+}
+
+func withInteractiveResponse(t *testing.T, response string, body func() error) error {
+	// Answers to the prompt
+	responseFile, err := ioutil.TempFile("", "*.in")
+	if err != nil {
+		return fmt.Errorf("problem creating temp file: %w", err)
+	}
+	_, err = responseFile.WriteString(response)
+	if err != nil {
+		return fmt.Errorf("problem writing to temp file at %s: %w", responseFile.Name(), err)
+	}
+	err = responseFile.Close()
+	if err != nil {
+		return fmt.Errorf("problem closing temp file at %s: %w", responseFile.Name(), err)
+	}
+	defer os.Remove(responseFile.Name())
+
+	// Temporarily replace Stdin with a custom input
+	cleanup := setAnswersFile(t, responseFile.Name())
+	defer cleanup()
+	return body()
 }
