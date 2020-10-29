@@ -31,8 +31,8 @@ func (ob *OrderBook) Remove(id int) error {
 	return fmt.Errorf("order %v not found", id)
 }
 
-// OrdersButts returns all Orders
-func (ob *OrderBook) OrdersButts() []OrderEvent {
+// GetOrders returns all Orders
+func (ob *OrderBook) GetOrders() []OrderEvent {
 	return ob.Orders
 }
 

@@ -1,4 +1,4 @@
-package strategy
+package strategies
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
@@ -10,3 +10,5 @@ type StrategyHandler interface {
 	Name() string
 	OnSignal(datahandler.DataHandler, portfolio.PortfolioHandler) (signal.SignalEvent, error)
 }
+
+const errNotFound = "strategy %v not found"

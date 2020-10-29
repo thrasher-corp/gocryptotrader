@@ -9,6 +9,12 @@ import (
 
 type Strategy struct{}
 
+const name = "SMACross"
+
+func (s *Strategy) Name() string {
+	return name
+}
+
 func (s *Strategy) OnSignal(d portfolio.DataHandler, _ portfolio2.PortfolioHandler) (signal.SignalEvent, error) {
 	signal := event.Signal{
 		Event: event.Event{Time: d.Latest().GetTime(),

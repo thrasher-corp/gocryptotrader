@@ -1,11 +1,10 @@
-package execution
+package orderbook
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/fill"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orderbook"
 )
 
 type ExecutionHandler interface {
-	ExecuteOrder(orderbook.OrderEvent, datahandler.DataHandler) (*fill.Fill, error)
+	ExecuteOrder(OrderEvent, datahandler.DataHandler) (*fill.Fill, error)
 }

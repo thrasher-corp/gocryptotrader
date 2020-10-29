@@ -1,7 +1,11 @@
 package backtest
 
 import (
+	"time"
+
+	data2 "github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
+	"github.com/thrasher-corp/gocryptotrader/backtester/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
@@ -9,6 +13,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/size"
+	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/strategies"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange2 "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // New returns a new BackTest instance
@@ -17,7 +30,7 @@ func New() *BackTest {
 }
 
 // NewFromSettings creates a new backtester from cmd or config settings
-func NewFromSettings(s *settings.Settings) *BackTest {
+func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 	bt := New()
 	bt.Portfolio = &portfolio.Portfolio{
 		InitialFunds: s.InitialFunds,
@@ -27,83 +40,186 @@ func NewFromSettings(s *settings.Settings) *BackTest {
 			DefaultValue: 1000,
 		},
 	}
-	return bt
+
+	// load exchange
+	var err error
+	engine.Bot, err = engine.NewFromSettings(&engine.Settings{
+		EnableDryRun:   true,
+		EnableAllPairs: true,
+	}, nil)
+	if err != nil {
+		return nil, err
+	}
+	err = engine.Bot.LoadExchange(s.ExchangeName, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	exch := engine.Bot.GetExchangeByName(s.ExchangeName)
+	if exch == nil {
+		return nil, engine.ErrExchangeNotFound
+	}
+
+	cp, err := currency.NewPairFromString(s.CurrencyPair)
+	if err != nil {
+		return nil, err
+	}
+
+	a, err := asset.New(s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	base := exch.GetBase()
+	fPair, err := base.FormatExchangeCurrency(cp, a)
+	if err != nil {
+		return nil, err
+	}
+	tStart, err := time.Parse(common.SimpleTimeFormat, s.StartTime)
+	if err != nil {
+		return nil, err
+	}
+
+	tEnd, err := time.Parse(common.SimpleTimeFormat, s.EndTime)
+	if err != nil {
+		return nil, err
+	}
+
+	// load the data
+	candles, err := exch.GetHistoricCandles(fPair, a, tStart, tEnd, kline.Interval(s.Interval))
+	if err != nil {
+		return nil, err
+	}
+
+	bt.Data = &data2.DataFromKline{
+		Item: candles,
+	}
+
+	err = bt.Data.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	bt.Strategy, err = strategies.LoadStrategyByName(s.StrategyName)
+	if err != nil {
+		return nil, err
+	}
+
+	takerFee, err := exch.GetFeeByType(&exchange2.FeeBuilder{
+		FeeType:       exchange2.CryptocurrencyTradeFee,
+		Pair:          fPair,
+		IsMaker:       false,
+		PurchasePrice: 1,
+		Amount:        1,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	makerFee, err := exch.GetFeeByType(&exchange2.FeeBuilder{
+		FeeType:       exchange2.CryptocurrencyTradeFee,
+		Pair:          fPair,
+		IsMaker:       true,
+		PurchasePrice: 1,
+		Amount:        1,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	bt.Exchange = &exchange.Exchange{
+		MakerFee:     makerFee,
+		TakerFee:     takerFee,
+		CurrencyPair: fPair,
+	}
+
+	statistic := statistics.Statistic{
+		StrategyName: s.StrategyName,
+		Pair:         fPair.String(),
+	}
+	bt.Statistic = &statistic
+
+	return bt, nil
 }
 
 // Reset BackTest values to default
-func (t *BackTest) Reset() {
-	t.EventQueue = nil
-	t.Data.Reset()
-	t.Portfolio.Reset()
-	t.Statistic.Reset()
+func (b *BackTest) Reset() {
+	b.EventQueue = nil
+	b.Data.Reset()
+	b.Portfolio.Reset()
+	b.Statistic.Reset()
 }
 
 // Run executes Backtest
-func (t *BackTest) Run() error {
-	t.Portfolio.SetFunds(t.Portfolio.GetInitialFunds())
-	for event, ok := t.nextEvent(); true; event, ok = t.nextEvent() {
+func (b *BackTest) Run() error {
+	b.Portfolio.SetFunds(b.Portfolio.GetInitialFunds())
+	for event, ok := b.nextEvent(); true; event, ok = b.nextEvent() {
 		if !ok {
-			data, ok := t.Data.Next()
+			data, ok := b.Data.Next()
 			if !ok {
 				break
 			}
-			t.EventQueue = append(t.EventQueue, data)
+			b.EventQueue = append(b.EventQueue, data)
 			continue
 		}
 
-		err := t.eventLoop(event)
+		err := b.eventLoop(event)
 		if err != nil {
 			return err
 		}
-		t.Statistic.TrackEvent(event)
+		b.Statistic.TrackEvent(event)
 	}
 
 	return nil
 }
 
-func (t *BackTest) nextEvent() (e datahandler.EventHandler, ok bool) {
-	if len(t.EventQueue) == 0 {
+func (b *BackTest) nextEvent() (e datahandler.EventHandler, ok bool) {
+	if len(b.EventQueue) == 0 {
 		return e, false
 	}
 
-	e = t.EventQueue[0]
-	t.EventQueue = t.EventQueue[1:]
+	e = b.EventQueue[0]
+	b.EventQueue = b.EventQueue[1:]
 
 	return e, true
 }
 
-func (t *BackTest) eventLoop(e datahandler.EventHandler) error {
+func (b *BackTest) eventLoop(e datahandler.EventHandler) error {
 	switch event := e.(type) {
 	case datahandler.DataEventHandler:
-		t.Portfolio.Update(event)
-		t.Statistic.Update(event, t.Portfolio)
+		b.Portfolio.Update(event)
+		b.Statistic.Update(event, b.Portfolio)
 
-		signal, err := t.Strategy.OnSignal(t.Data, t.Portfolio)
+		s, err := b.Strategy.OnSignal(b.Data, b.Portfolio)
 		if err != nil {
+			log.Error(log.Global, err)
 			break
 		}
-		t.EventQueue = append(t.EventQueue, signal)
+		b.EventQueue = append(b.EventQueue, s)
 
 	case signal.SignalEvent:
-		order, err := t.Portfolio.OnSignal(event, t.Data)
+		o, err := b.Portfolio.OnSignal(event, b.Data)
 		if err != nil {
+			log.Error(log.Global, err)
 			break
 		}
-		t.EventQueue = append(t.EventQueue, order)
+		b.EventQueue = append(b.EventQueue, o)
 
 	case orderbook.OrderEvent:
-		fill, err := t.Exchange.ExecuteOrder(event, t.Data)
+		f, err := b.Exchange.ExecuteOrder(event, b.Data)
 		if err != nil {
+			log.Error(log.Global, err)
 			break
 		}
-		t.Orderbook.Add(event)
-		t.EventQueue = append(t.EventQueue, fill)
+		b.Orderbook.Add(event)
+		b.EventQueue = append(b.EventQueue, f)
 	case fill.FillEvent:
-		transaction, err := t.Portfolio.OnFill(event, t.Data)
+		t, err := b.Portfolio.OnFill(event, b.Data)
 		if err != nil {
+			log.Error(log.Global, err)
 			break
 		}
-		t.Statistic.TrackTransaction(transaction)
+		b.Statistic.TrackTransaction(t)
 	}
 
 	return nil

@@ -2,12 +2,14 @@ package backtest
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	data2 "github.com/thrasher-corp/gocryptotrader/backtester/data"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
@@ -34,9 +36,11 @@ func (s *TestStrategy) OnSignal(d portfolio.DataHandler, p portfolio2.PortfolioH
 		Event: event.Event{Time: d.Latest().GetTime(),
 			CurrencyPair: d.Latest().Pair()},
 	}
+	log.Printf("STREAM CLOSE at: %v", d.StreamClose())
 
 	rsi := indicators.RSI(d.StreamClose(), 14)
 	latestRSI := rsi[len(rsi)-1]
+	log.Printf("RSI at: %v", latestRSI)
 	if latestRSI <= 30 {
 		// oversold, time to buy like a sweet pro
 		signal.Direction = order.Buy
@@ -44,7 +48,7 @@ func (s *TestStrategy) OnSignal(d portfolio.DataHandler, p portfolio2.PortfolioH
 		// overbought, time to sell because granny is talking about BTC again
 		signal.Direction = order.Sell
 	} else {
-		signal.Direction = ""
+		signal.Direction = common.DoNothing
 	}
 
 	return &signal, nil
@@ -101,8 +105,8 @@ func TestBackTest(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 	// fmt.Println(string(r))
-	// for x := range bt.Orderbook.OrdersButts() {
-	// 	fmt.Println(bt.Orderbook.OrdersButts()[x])
+	// for x := range bt.Orderbook.GetOrders() {
+	// 	fmt.Println(bt.Orderbook.GetOrders()[x])
 	// }
 	bt.Reset()
 }

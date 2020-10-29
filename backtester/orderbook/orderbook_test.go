@@ -103,9 +103,9 @@ func TestOrderBook_Orders(t *testing.T) {
 				Orders:  test.fields.orders,
 				History: test.fields.history,
 			}
-			got := ob.OrdersButts()
+			got := ob.GetOrders()
 			if !reflect.DeepEqual(got, test.want) {
-				t.Errorf("OrdersButts() got = %v, want %v", got, test.want)
+				t.Errorf("GetOrders() got = %v, want %v", got, test.want)
 			}
 		})
 	}

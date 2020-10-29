@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/d5/tengo/v2 v2.6.2
-	github.com/ericlagergren/decimal v0.0.0-20180907214518-0bb163153a5d
+	github.com/ericlagergren/decimal v0.0.0-20180907214518-0bb163153a5d // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gofrs/uuid v3.3.0+incompatible
