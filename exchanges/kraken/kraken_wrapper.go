@@ -628,18 +628,15 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if err != nil {
 		return submitOrderResponse, err
 	}
+	fmt.Printf("BITCH WHAT THE FUCK")
 	switch s.AssetType {
 	case asset.Spot:
-		fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Spot)
-		if err != nil {
-			return submitOrderResponse, err
-		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			var resp string
 			resp, err = k.wsAddOrder(&WsAddOrderRequest{
 				OrderType: s.Type.String(),
 				OrderSide: s.Side.String(),
-				Pair:      fPair.String(),
+				Pair:      s.Pair.String(),
 				Price:     s.Price,
 				Volume:    s.Amount,
 			})
@@ -648,7 +645,8 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			}
 			submitOrderResponse.OrderID = resp
 			submitOrderResponse.IsOrderPlaced = true
-			fPair, err := k.FormatExchangeCurrency(s.Pair, s.AssetType)
+		} else {
+			fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Spot)
 			if err != nil {
 				return submitOrderResponse, err
 			}
@@ -696,6 +694,7 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	default:
 		return submitOrderResponse, fmt.Errorf("invalid assetType")
 	}
+	fmt.Printf("HELOOOOOOOOOOOO\n\n\n")
 	return submitOrderResponse, nil
 }
 

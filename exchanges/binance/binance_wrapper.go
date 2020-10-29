@@ -68,10 +68,11 @@ func (b *Binance) SetDefaults() {
 	coinFutures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.UnderscoreDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "_",
+			Delimiter: currency.UnderscoreDelimiter,
 		},
 	}
 	usdtFutures := currency.PairStore{
