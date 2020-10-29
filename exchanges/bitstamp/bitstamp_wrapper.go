@@ -170,9 +170,11 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL: exch.API.Endpoints.WebsocketURL,
-	})
+	// return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL: exch.API.Endpoints.WebsocketURL,
+	// })
+
+	return nil
 }
 
 // Start starts the Bitstamp go routine

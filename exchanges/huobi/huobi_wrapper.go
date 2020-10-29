@@ -170,17 +170,18 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL: exch.API.Endpoints.WebsocketURL,
-	})
-	if err != nil {
-		return err
-	}
+	// err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL: exch.API.Endpoints.WebsocketURL,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
 
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                        wsAccountsOrdersURL,
-		DedicatedAuthenticatedConn: true,
-	})
+	// return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL:                        wsAccountsOrdersURL,
+	// 	DedicatedAuthenticatedConn: true,
+	// })
+	return nil
 }
 
 // Start starts the HUOBI go routine

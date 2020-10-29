@@ -175,9 +175,10 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL: exch.API.Endpoints.WebsocketURL,
-	})
+	// return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL: exch.API.Endpoints.WebsocketURL,
+	// })
+	return nil
 }
 
 // Start starts the HitBTC go routine

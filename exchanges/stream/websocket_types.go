@@ -90,21 +90,21 @@ type WebsocketSetup struct {
 	UpdateEntriesByID     bool
 
 	// Connection manager fields
-	ConnectionTimeout                  time.Duration
-	DefaultURL                         string
-	ExchangeName                       string
-	RunningURL                         string
-	RunningURLAuth                     string
-	Connector                          func(conn Connection) error
-	Subscriber                         func(SubscriptionParamaters) error
-	Unsubscriber                       func(SubscriptionParamaters) error
-	GenerateSubscriptions              func(SubscriptionOptions) ([]ChannelSubscription, error)
-	GenerateConnection                 func(ConnectionSetup, int) ([]Connection, error)
-	Features                           *protocol.Features
-	ResponseCheckTimeout               time.Duration
-	ResponseMaxLimit                   time.Duration
-	RateLimit                          int64
-	MaxTotalSubscriptionsPerConnection int
+	ConnectionTimeout        time.Duration
+	DefaultURL               string
+	ExchangeName             string
+	RunningURL               string
+	RunningURLAuth           string
+	Connector                func(conn Connection) error
+	Subscriber               func(SubscriptionParamaters) error
+	Unsubscriber             func(SubscriptionParamaters) error
+	GenerateSubscriptions    func(SubscriptionOptions) ([]ChannelSubscription, error)
+	GenerateConnection       func(url string, auth bool) (Connection, error)
+	Features                 *protocol.Features
+	ResponseCheckTimeout     time.Duration
+	ResponseMaxLimit         time.Duration
+	RateLimit                int64
+	ConnectionConfigurations []ConnectionSetup
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
@@ -129,6 +129,8 @@ type WebsocketConnection struct {
 	ResponseMaxLimit  time.Duration
 	Traffic           chan struct{}
 	readMessageErrors chan error
+
+	conf *ConnectionSetup
 
 	Authenticated bool
 	SubscriptionManager

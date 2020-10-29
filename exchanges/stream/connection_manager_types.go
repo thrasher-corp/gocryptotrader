@@ -12,12 +12,8 @@ type ConnectionSetup struct {
 	URL                        string
 	DedicatedAuthenticatedConn bool
 	AllowableAssets            asset.Items
+	MaxSubscriptions           uint16
 }
-
-// // ConnectionConfig defines a singular connection configuration
-// type ConnectionConfig struct {
-// 	DedicatedAuth bool
-// }
 
 // ConnectionManager manages connections
 type ConnectionManager struct {
@@ -28,10 +24,9 @@ type ConnectionManager struct {
 	generator          func(options SubscriptionOptions) ([]ChannelSubscription, error)
 	subscriber         func(sub SubscriptionParamaters) error
 	unsubscriber       func(unsub SubscriptionParamaters) error
-	generateConnection func(ConnectionSetup, []ChannelSubscription) ([]Connection, error)
+	generateConnection func(url string, auth bool) (Connection, error)
 
-	generalConfigurations      []ConnectionSetup
-	dedicatedAuthConfiguration ConnectionSetup
+	generalConfigurations []ConnectionSetup
 }
 
 // ConnectionManagerConfig defines the needed variables for stream connections
@@ -40,8 +35,10 @@ type ConnectionManagerConfig struct {
 	ExchangeGenerateSubscriptions func(options SubscriptionOptions) ([]ChannelSubscription, error)
 	ExchangeSubscriber            func(sub SubscriptionParamaters) error
 	ExchangeUnsubscriber          func(unsub SubscriptionParamaters) error
-	ExchangeGenerateConnection    func(ConnectionSetup, []ChannelSubscription) ([]Connection, error)
+	ExchangeGenerateConnection    func(url string, auth bool) (Connection, error)
 	Features                      *protocol.Features
+
+	Configurations []ConnectionSetup
 }
 
 // SubscriptionParamaters defines payload for subscribing and unsibscribing

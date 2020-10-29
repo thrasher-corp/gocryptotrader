@@ -57,9 +57,11 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL: o.API.Endpoints.WebsocketURL,
-	})
+	// return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL: o.API.Endpoints.WebsocketURL,
+	// })
+
+	return nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair

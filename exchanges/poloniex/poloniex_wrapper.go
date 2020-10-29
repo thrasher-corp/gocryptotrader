@@ -174,9 +174,11 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL: exch.API.Endpoints.WebsocketURL,
-	})
+	// return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL: exch.API.Endpoints.WebsocketURL,
+	// })
+
+	return nil
 }
 
 // Start starts the Poloniex go routine

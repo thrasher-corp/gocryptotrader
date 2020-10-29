@@ -173,9 +173,10 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return z.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL: z.Websocket.GetWebsocketURL(),
-	})
+	// return z.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL: z.Websocket.GetWebsocketURL(),
+	// })
+	return nil
 }
 
 // Start starts the OKEX go routine

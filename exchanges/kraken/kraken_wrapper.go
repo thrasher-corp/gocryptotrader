@@ -194,18 +194,20 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
 
-		URL: krakenWSURL,
-	})
-	if err != nil {
-		return err
-	}
+	// 	URL: krakenWSURL,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
 
-	return k.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                        krakenAuthWSURL,
-		DedicatedAuthenticatedConn: true,
-	})
+	// return k.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL:                        krakenAuthWSURL,
+	// 	DedicatedAuthenticatedConn: true,
+	// })
+
+	return nil
 }
 
 // Start starts the Kraken go routine

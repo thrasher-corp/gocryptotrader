@@ -204,17 +204,18 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL: publicBitfinexWebsocketEndpoint,
-	})
-	if err != nil {
-		return err
-	}
+	// err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL: publicBitfinexWebsocketEndpoint,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                        authenticatedBitfinexWebsocketEndpoint,
-		DedicatedAuthenticatedConn: true,
-	})
+	// return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL:                        authenticatedBitfinexWebsocketEndpoint,
+	// 	DedicatedAuthenticatedConn: true,
+	// })
+	return nil
 }
 
 // Start starts the Bitfinex go routine

@@ -109,38 +109,20 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 	return nil
 }
 
-const maxSubscriptionsPerConnection = 1024
-
-func (b *Binance) spawnConnection(setup stream.ConnectionSetup, subscriptionCount int) ([]stream.Connection, error) {
-
-	fmt.Println("Subscription count:", subscriptionCount)
-	var connections []stream.Connection
-	if subscriptionCount <= maxSubscriptionsPerConnection {
-		return []stream.Connection{&stream.WebsocketConnection{
-			Verbose:       b.Verbose,
-			ExchangeName:  b.Name,
-			URL:           setup.URL,
-			ProxyURL:      b.Websocket.GetProxyAddress(),
-			Authenticated: setup.DedicatedAuthenticatedConn,
-			Match:         b.Websocket.Match,
-			Wg:            b.Websocket.Wg,
-			Traffic:       b.Websocket.TrafficAlert,
-		}}, nil
+func (b *Binance) spawnConnection(url string, auth bool) (stream.Connection, error) {
+	if url == "" {
+		return nil, errors.New("url not specified when generating connection")
 	}
-
-	for i := subscriptionCount; i%1024 <= 0; i -= 1024 {
-		connections = append(connections, &stream.WebsocketConnection{
-			Verbose:       b.Verbose,
-			ExchangeName:  b.Name,
-			URL:           setup.URL,
-			ProxyURL:      b.Websocket.GetProxyAddress(),
-			Authenticated: setup.DedicatedAuthenticatedConn,
-			Match:         b.Websocket.Match,
-			Wg:            b.Websocket.Wg,
-			Traffic:       b.Websocket.TrafficAlert,
-		})
-	}
-	return connections, nil
+	return &stream.WebsocketConnection{
+		Verbose:       b.Verbose,
+		ExchangeName:  b.Name,
+		URL:           url,
+		ProxyURL:      b.Websocket.GetProxyAddress(),
+		Authenticated: auth,
+		Match:         b.Websocket.Match,
+		Wg:            b.Websocket.Wg,
+		Traffic:       b.Websocket.TrafficAlert,
+	}, nil
 }
 
 func (b *Binance) preConnectionSetup(conn stream.Connection) {
@@ -192,7 +174,6 @@ func (b *Binance) wsReadData(conn stream.Connection) {
 }
 
 func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
-	// fmt.Printf("Conn: %p\n", conn)
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -313,6 +294,7 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 					return err
 				}
 
+				// TODO: Need to infer asset by connection
 				pairs, err := b.GetEnabledPairs(asset.Spot)
 				if err != nil {
 					return err
@@ -531,7 +513,13 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 // UpdateLocalBuffer stages update to a related asset type associated with a
 // connection.
 func (b *Binance) UpdateLocalBuffer(u *WebsocketDepthStream, conn stream.Connection) error {
-	pair, err := currency.NewPairFromString(u.Pair)
+	// TODO: Infer the asset type from the connection
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
+	pair, err := currency.NewPairFromFormattedPairs(u.Pair, pairs, currency.PairFormat{Uppercase: true})
 	if err != nil {
 		return err
 	}
@@ -732,26 +720,26 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 		})
 	}
 
-	if options.Features.TradeFetching {
-		channels = append(channels, WsChannel{
-			Definition: "@trade",
-			Type:       stream.Trade,
-		})
-	}
+	// if options.Features.TradeFetching {
+	// 	channels = append(channels, WsChannel{
+	// 		Definition: "@trade",
+	// 		Type:       stream.Trade,
+	// 	})
+	// }
 
-	if options.Features.KlineFetching {
-		channels = append(channels, WsChannel{
-			Definition: "@kline_1m",
-			Type:       stream.Kline,
-		})
-	}
+	// if options.Features.KlineFetching {
+	// 	channels = append(channels, WsChannel{
+	// 		Definition: "@kline_1m",
+	// 		Type:       stream.Kline,
+	// 	})
+	// }
 
-	if options.Features.OrderbookFetching {
-		channels = append(channels, WsChannel{
-			Definition: "@depth@100ms",
-			Type:       stream.Orderbook,
-		})
-	}
+	// if options.Features.OrderbookFetching {
+	// 	channels = append(channels, WsChannel{
+	// 		Definition: "@depth@100ms",
+	// 		Type:       stream.Orderbook,
+	// 	})
+	// }
 
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes()
@@ -781,17 +769,24 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 
 // Subscribe subscribes to a set of channels
 func (b *Binance) Subscribe(sub stream.SubscriptionParamaters) error {
-	payload := WsPayload{
-		Method: "SUBSCRIBE",
-	}
+
 	for i := range sub.Items {
-		payload.Params = append(payload.Params, sub.Items[i].Channel)
+		payload := WsPayload{
+			Method: "SUBSCRIBE",
+			Params: []string{sub.Items[i].Channel},
+		}
+		err := sub.Conn.SendJSONMessage(payload)
+		if err != nil {
+			return err
+		}
+		err = sub.Conn.AddSuccessfulSubscriptions(sub.Items)
+		if err != nil {
+			return err
+		}
+		time.Sleep(time.Millisecond * 250)
 	}
-	err := sub.Conn.SendJSONMessage(payload)
-	if err != nil {
-		return err
-	}
-	return sub.Conn.AddSuccessfulSubscriptions(sub.Items)
+
+	return nil
 }
 
 // Unsubscribe unsubscribes from a set of channels

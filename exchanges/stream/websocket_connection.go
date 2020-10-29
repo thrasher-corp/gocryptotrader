@@ -319,6 +319,11 @@ func (w *WebsocketConnection) IsAuthenticated() bool {
 	return w.Authenticated
 }
 
+// GetConfiguration returns the configuration associated with this connection
+func (w *WebsocketConnection) GetConfiguration() *ConnectionSetup {
+	return w.conf
+}
+
 // // IsAssetAssociatedWithConnection returns if this connection handles this asset
 // func (w *WebsocketConnection) IsAssetAssociatedWithConnection(a asset.Item) bool {
 // 	return w.Assets.Contains(a)

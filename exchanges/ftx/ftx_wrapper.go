@@ -181,9 +181,10 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL: exch.API.Endpoints.WebsocketURL,
-	})
+	// return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL: exch.API.Endpoints.WebsocketURL,
+	// })
+	return nil
 }
 
 // Start starts the FTX go routine

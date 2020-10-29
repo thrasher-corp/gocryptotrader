@@ -5,6 +5,13 @@ import (
 	"fmt"
 )
 
+var (
+	errNoConfigurations   = errors.New("at least one general configuration must be supplied")
+	errNoGenerateConnFunc = errors.New("exchange connection generator function cannot be nil")
+	errNoGenerateSubsFunc = errors.New("exchange generate subscription function cannot be nil")
+	errMissingURLInConfig = errors.New("connection URL must be supplied")
+)
+
 // NewConnectionManager returns a new connection manager
 func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, error) {
 	if cfg == nil {
@@ -14,94 +21,102 @@ func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, err
 		return nil, errors.New("exchange connector function cannot be nil")
 	}
 	if cfg.ExchangeGenerateSubscriptions == nil {
-		return nil, errors.New("exchange generate subscription function cannot be nil")
+		return nil, errNoGenerateSubsFunc
 	}
 	if cfg.ExchangeGenerateConnection == nil {
-		return nil, errors.New("exchange generator function cannot be nil")
+		return nil, errNoGenerateConnFunc
 	}
 	if cfg.Features == nil {
 		return nil, errors.New("exchange features cannot be nil")
 	}
+	if len(cfg.Configurations) < 1 {
+		return nil, errNoConfigurations
+	}
+	for i := range cfg.Configurations {
+		if cfg.Configurations[i].URL == "" {
+			return nil, errMissingURLInConfig
+		}
+	}
 
 	return &ConnectionManager{
-		connector:          cfg.ExchangeConnector,
-		generator:          cfg.ExchangeGenerateSubscriptions,
-		subscriber:         cfg.ExchangeSubscriber,
-		unsubscriber:       cfg.ExchangeUnsubscriber,
-		generateConnection: cfg.ExchangeGenerateConnection,
-		features:           cfg.Features,
+		connector:             cfg.ExchangeConnector,
+		generator:             cfg.ExchangeGenerateSubscriptions,
+		subscriber:            cfg.ExchangeSubscriber,
+		unsubscriber:          cfg.ExchangeUnsubscriber,
+		generateConnection:    cfg.ExchangeGenerateConnection,
+		features:              cfg.Features,
+		generalConfigurations: cfg.Configurations,
 	}, nil
 }
 
 // GenerateConnections returns generated connections from the service
-func (c *ConnectionManager) GenerateConnections(authEnabled bool, subs []ChannelSubscription) (map[Connection]ChannelSubscription, error) {
-	// Get current connections
-	for i := range c.connections {
-		fmt.Println("CURRENT CONNECTION STATUS:", c.connections[i])
+func (c *ConnectionManager) GenerateConnections(subs []ChannelSubscription) (map[Connection][]ChannelSubscription, error) {
+	subscriptionsToConfig := make(map[*ConnectionSetup]*[]ChannelSubscription)
+	for y := range c.generalConfigurations {
+		// Populate configurations in map
+		if _, ok := subscriptionsToConfig[&c.generalConfigurations[y]]; !ok {
+			subscriptionsToConfig[&c.generalConfigurations[y]] = &[]ChannelSubscription{}
+		}
 	}
 
-	// var conns []Connection
-	// var dividedSubs [][]ChannelSubscription
+	// Associate individual subscription to configuration
+subscriptions:
+	for z := range subs {
+		for k, v := range subscriptionsToConfig {
+			if k.DedicatedAuthenticatedConn {
+				// ADD directive to ChannelSubs
+			}
 
-	// configurations:
-	// 	for x := range c.generalConfigurations {
-	// 		var relativeSubs []ChannelSubscription
-	// 		for y := range subs {
-	// 			if len(c.generalConfigurations[x].AllowableAssets) != 0 {
-	// 				// Test asset allowance
-	// 				if subs[y].Asset != "" &&
-	// 					!c.generalConfigurations[x].AllowableAssets.Contains(subs[y].Asset) {
-	// 					continue
-	// 				}
-	// 			}
+			if len(k.AllowableAssets) != 0 {
+				if !k.AllowableAssets.Contains(subs[z].Asset) {
+					continue
+				}
+			}
 
-	// 			if len(relativeSubs)+1 > 1024 {
-	// 				continue configurations
-	// 			}
-
-	// 			relativeSubs = append(relativeSubs, subs[y])
-	// 			subs = append(subs[:y], subs[y+1:]...)
-	// 			y--
-	// 		}
-
-	// 		conn, err := c.generateConnection(c.generalConfigurations[x], relativeSubs)
-	// 		if err != nil {
-	// 			return nil, nil, err
-	// 		}
-	// 		conns = append(conns, conn...)
-	// 		dividedSubs = append(dividedSubs, [][]ChannelSubscription{relativeSubs})
-	// 	}
-
-	// 	if subs != 0 {
-	// 		return fmt.Errorf("dangly subscriptions not associated with a connection %v", subs)
-	// 	}
-
-	// 	if authEnabled {
-	// 		conn, err := c.generateConnection(c.dedicatedAuthConfiguration, subs)
-	// 		if err != nil {
-	// 			return nil, nil, err
-	// 		}
-	// 		conns = append(conns, conn...)
-	// 	}
-
-	// 	return conns, dividedSubs, nil
-	return make(map[Connection]ChannelSubscription), nil
-}
-
-// LoadConfiguration loads a connection configuration defining limitting
-// paramaters for scalable streaming connections
-func (c *ConnectionManager) LoadConfiguration(cfg ConnectionSetup) error {
-	if cfg.DedicatedAuthenticatedConn {
-		c.dedicatedAuthConfiguration = cfg
-		return nil
+			*v = append(*v, subs[z])
+			continue subscriptions
+		}
+		return nil, fmt.Errorf("subscription [%v] could not be associated with a connection", subs[z])
 	}
-	c.generalConfigurations = append(c.generalConfigurations, cfg)
-	return nil
+
+	// reference our subscriptions to a new connection
+	reference := make(map[Connection][]ChannelSubscription)
+	for k, v := range subscriptionsToConfig {
+		if int(k.MaxSubscriptions) == 0 || len(*v) < int(k.MaxSubscriptions) {
+			conn, err := c.generateConnection(k.URL, k.DedicatedAuthenticatedConn)
+			if err != nil {
+				return nil, err
+			}
+			reference[conn] = *v
+			continue
+		}
+		// If includes max subscriptions sub-divide into windows
+		for i := len(*v); i > 0; i -= int(k.MaxSubscriptions) {
+			conn, err := c.generateConnection(k.URL, k.DedicatedAuthenticatedConn)
+			if err != nil {
+				return nil, err
+			}
+			reference[conn] = append(reference[conn], (*v)[i-int(k.MaxSubscriptions):i]...)
+		}
+	}
+	return reference, nil
 }
+
+// // LoadConfiguration loads a connection configuration defining limitting
+// // paramaters for scalable streaming connections
+// func (c *ConnectionManager) LoadConfiguration(cfg ConnectionSetup) error {
+// 	// if cfg.DedicatedAuthenticatedConn {
+// 	// 	c.dedicatedAuthConfiguration = cfg
+// 	// 	return nil
+// 	// }
+// 	// c.generalConfigurations = append(c.generalConfigurations, cfg)
+// 	// return nil
+// 	return errors.New("not yet implemented")
+// }
 
 // FullConnect generates subscriptions, deploys new connections and subscribes
 // to channels
-func (c *ConnectionManager) FullConnect(authEnabled bool) error {
+func (c *ConnectionManager) FullConnect() error {
 	subscriptions, err := c.GenerateSubscriptions()
 	if err != nil {
 		return err
@@ -125,15 +140,15 @@ func (c *ConnectionManager) FullConnect(authEnabled bool) error {
 	// 	}
 	// }
 
-	err = c.Connect()
-	if err != nil {
-		return err
-	}
+	// err = c.Connect()
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = c.Subscribe(subscriptions)
-	if err != nil {
-		return err
-	}
+	// err = c.Subscribe(subscriptions)
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
@@ -164,21 +179,14 @@ func (c *ConnectionManager) LoadNewConnection(conn Connection) error {
 }
 
 // Connect connects all loaded connections
-func (c *ConnectionManager) Connect() error {
+func (c *ConnectionManager) Connect(conn Connection) error {
 	c.Lock()
 	defer c.Unlock()
-
-	for i := range c.connections {
-		err := c.connector(c.connections[i])
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return c.connector(conn)
 }
 
 // Subscribe subscribes and sets subscription by stream connection
-func (c *ConnectionManager) Subscribe(subs []ChannelSubscription) error {
+func (c *ConnectionManager) Subscribe(conn Connection, subs []ChannelSubscription) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -190,21 +198,11 @@ func (c *ConnectionManager) Subscribe(subs []ChannelSubscription) error {
 		return errors.New("no subscription data cannot subscribe")
 	}
 
-	for i := range c.connections {
-		if c.connections[i].IsAuthenticated() {
-			continue
-		}
-
-		err := c.subscriber(SubscriptionParamaters{
-			Items:   subs,
-			Conn:    c.connections[i],
-			Manager: c,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return c.subscriber(SubscriptionParamaters{
+		Items:   subs,
+		Conn:    conn,
+		Manager: c,
+	})
 }
 
 // Unsubscribe unsubscribes and removes subscription by stream connection

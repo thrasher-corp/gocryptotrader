@@ -29,6 +29,8 @@ type Connection interface {
 	RemoveSuccessfulUnsubscriptions(subscriptions []ChannelSubscription) error
 	GetAllSubscriptions() []ChannelSubscription
 	GetAssetsBySubscriptionType(t Subscription, pair currency.Pair) (asset.Items, error)
+
+	GetConfiguration() *ConnectionSetup
 }
 
 // Response defines generalised data from the stream connection

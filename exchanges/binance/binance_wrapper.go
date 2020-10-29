@@ -167,43 +167,49 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:                            exch.Features.Enabled.Websocket,
-		Verbose:                            exch.Verbose,
-		AuthenticatedWebsocketAPISupport:   exch.API.AuthenticatedWebsocketSupport,
-		ConnectionTimeout:                  exch.WebsocketTrafficTimeout,
-		DefaultURL:                         binanceDefaultWebsocketURL,
-		ExchangeName:                       exch.Name,
-		RunningURL:                         exch.API.Endpoints.WebsocketURL,
-		Connector:                          b.WsConnect,
-		Subscriber:                         b.Subscribe,
-		Unsubscriber:                       b.Unsubscribe,
-		GenerateSubscriptions:              b.GenerateSubscriptions,
-		GenerateConnection:                 b.spawnConnection,
-		Features:                           &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:               exch.WebsocketOrderbookBufferLimit,
-		SortBuffer:                         true,
-		SortBufferByUpdateIDs:              true,
-		ResponseCheckTimeout:               exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:                   exch.WebsocketResponseMaxLimit,
-		MaxTotalSubscriptionsPerConnection: 1024,
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		ConnectionTimeout:                exch.WebsocketTrafficTimeout,
+		DefaultURL:                       binanceDefaultWebsocketURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        b.WsConnect,
+		Subscriber:                       b.Subscribe,
+		Unsubscriber:                     b.Unsubscribe,
+		GenerateSubscriptions:            b.GenerateSubscriptions,
+		GenerateConnection:               b.spawnConnection,
+		Features:                         &b.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		SortBuffer:                       true,
+		SortBufferByUpdateIDs:            true,
+		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
+		ConnectionConfigurations: []stream.ConnectionSetup{
+			{
+				URL:              binanceDefaultWebsocketURL,
+				AllowableAssets:  asset.Items{asset.Spot, asset.Margin},
+				MaxSubscriptions: uint16(1024),
+			},
+		},
 	})
 	if err != nil {
 		return err
 	}
 
-	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:             binanceDefaultWebsocketURL,
-		AllowableAssets: asset.Items{asset.Spot, asset.Margin},
-	})
-	if err != nil {
-		return err
-	}
+	// err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL:             binanceDefaultWebsocketURL,
+	// 	AllowableAssets: asset.Items{asset.Spot, asset.Margin},
+	// })
+	// if err != nil {
+	// 	return err
+	// }
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                        binanceDefaultWebsocketURL,
-		DedicatedAuthenticatedConn: true,
-	})
-	// return nil
+	// return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	// 	URL:                        binanceDefaultWebsocketURL,
+	// 	DedicatedAuthenticatedConn: true,
+	// })
+	return nil
 }
 
 // Start starts the Binance go routine

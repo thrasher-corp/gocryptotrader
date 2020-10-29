@@ -112,8 +112,9 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		ExchangeGenerateSubscriptions: s.GenerateSubscriptions,
 		ExchangeSubscriber:            s.Subscriber,
 		ExchangeUnsubscriber:          s.Unsubscriber,
-		// ExchangeGenerateConnection:    s.GenerateConnection,
-		Features: w.features,
+		ExchangeGenerateConnection:    s.GenerateConnection,
+		Features:                      w.features,
+		Configurations:                s.ConnectionConfigurations,
 	})
 	if err != nil {
 		return err
@@ -129,58 +130,58 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	return nil
 }
 
-// SetupNewConnection sets different types of potential connections
-func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
-	if w == nil {
-		return errors.New("setting up new connection error: websocket is nil")
-	}
-	// if c == (ConnectionSetup{}) {
-	// 	return errors.New("setting up new connection error: websocket connection configuration empty")
-	// }
+// // SetupNewConnection sets different types of potential connections
+// func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
+// 	if w == nil {
+// 		return errors.New("setting up new connection error: websocket is nil")
+// 	}
+// 	// if c == (ConnectionSetup{}) {
+// 	// 	return errors.New("setting up new connection error: websocket connection configuration empty")
+// 	// }
 
-	if w.exchangeName == "" {
-		return errors.New("setting up new connection error: exchange name not set, please call setup first")
-	}
+// 	if w.exchangeName == "" {
+// 		return errors.New("setting up new connection error: exchange name not set, please call setup first")
+// 	}
 
-	if w.TrafficAlert == nil {
-		return errors.New("setting up new connection error: traffic alert is nil, please call setup first")
-	}
+// 	if w.TrafficAlert == nil {
+// 		return errors.New("setting up new connection error: traffic alert is nil, please call setup first")
+// 	}
 
-	if w.ReadMessageErrors == nil {
-		return errors.New("setting up new connection error: read message errors is nil, please call setup first")
-	}
+// 	if w.ReadMessageErrors == nil {
+// 		return errors.New("setting up new connection error: read message errors is nil, please call setup first")
+// 	}
 
-	// connectionURL := w.GetWebsocketURL()
-	// if c.URL != "" {
-	// 	connectionURL = c.URL
-	// }
+// 	// connectionURL := w.GetWebsocketURL()
+// 	// if c.URL != "" {
+// 	// 	connectionURL = c.URL
+// 	// }
 
-	return w.Connections.LoadConfiguration(c)
+// 	return w.Connections.LoadConfiguration(c)
 
-	// return w.Connections.LoadNewConnection(&WebsocketConnection{
-	// 	ExchangeName:      w.exchangeName,
-	// 	URL:               connectionURL,
-	// 	ProxyURL:          w.GetProxyAddress(),
-	// 	Verbose:           w.verbose,
-	// 	ResponseMaxLimit:  c.ResponseMaxLimit,
-	// 	Traffic:           w.TrafficAlert,
-	// 	readMessageErrors: w.ReadMessageErrors,
-	// 	ShutdownC:         w.ShutdownC,
-	// 	Wg:                w.Wg,
-	// 	Match:             w.Match,
-	// 	RateLimit:         c.RateLimit,
-	// })
+// 	// return w.Connections.LoadNewConnection(&WebsocketConnection{
+// 	// 	ExchangeName:      w.exchangeName,
+// 	// 	URL:               connectionURL,
+// 	// 	ProxyURL:          w.GetProxyAddress(),
+// 	// 	Verbose:           w.verbose,
+// 	// 	ResponseMaxLimit:  c.ResponseMaxLimit,
+// 	// 	Traffic:           w.TrafficAlert,
+// 	// 	readMessageErrors: w.ReadMessageErrors,
+// 	// 	ShutdownC:         w.ShutdownC,
+// 	// 	Wg:                w.Wg,
+// 	// 	Match:             w.Match,
+// 	// 	RateLimit:         c.RateLimit,
+// 	// })
 
-	// newConn :=
+// 	// newConn :=
 
-	// if c.Authenticated {
-	// 	w.AuthConn = newConn
-	// } else {
-	// 	w.Conn = newConn
-	// }
+// 	// if c.Authenticated {
+// 	// 	w.AuthConn = newConn
+// 	// } else {
+// 	// 	w.Conn = newConn
+// 	// }
 
-	// return nil
-}
+// 	// return nil
+// }
 
 // Connect initiates a websocket connection by using a package defined connection
 // function
@@ -209,43 +210,51 @@ func (w *Websocket) Connect() error {
 	// w.subscriptions = nil
 	// w.subscriptionMutex.Unlock()
 
-	err := w.Connections.FullConnect(w.CanUseAuthenticatedEndpoints())
-	if err != nil {
-		w.setConnectingStatus(false)
-		return fmt.Errorf("%v Error connecting %s", w.exchangeName, err)
-	}
-
-	// subs, err := w.Connections.GenerateSubscriptions()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// fmt.Println("generated subs:", subs)
-
-	// connections, err := w.Connections.GenerateConnections()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// fmt.Println("generated cons:", connections)
-
-	// for i := range connections {
-	// 	err = w.Connections.LoadNewConnection(connections[i])
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-
-	// err = w.Connections.Connect()
+	// err := w.Connections.FullConnect()
 	// if err != nil {
 	// 	w.setConnectingStatus(false)
 	// 	return fmt.Errorf("%v Error connecting %s", w.exchangeName, err)
 	// }
 
-	// err = w.Connections.Subscribe(subs)
-	// if err != nil {
-	// 	return err
-	// }
+	subs, err := w.Connections.GenerateSubscriptions()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("generated subs:", subs)
+
+	connections, err := w.Connections.GenerateConnections(subs)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("generated cons:", len(connections))
+
+	for conn, subs := range connections {
+		fmt.Println("CONN SUB LENGTH", len(subs))
+		err = w.Connections.LoadNewConnection(conn)
+		if err != nil {
+			return err
+		}
+		fmt.Println("CONNECTION LOADED CONNECTING")
+
+		err = w.Connections.Connect(conn)
+		if err != nil {
+			w.setConnectingStatus(false)
+			return fmt.Errorf("%v Error connecting %s", w.exchangeName, err)
+		}
+
+		fmt.Println("Connected and now subbin")
+
+		err = w.Connections.Subscribe(conn, subs)
+		if err != nil {
+			fmt.Println("EFFED")
+
+			return err
+		}
+		fmt.Println("SUUUUUUUUUUUUUBED")
+
+	}
 
 	// err := w.connector(nil)
 	// if err != nil {
