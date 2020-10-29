@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 const (
@@ -311,9 +312,12 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 					case "t":
+						if !p.IsSaveTradeDataEnabled() {
+							return nil
+						}
 						currencyPair := currencyIDMap[channelID]
-						var trade WsTrade
-						trade.Symbol = currencyIDMap[channelID]
+						var t WsTrade
+						t.Symbol = currencyIDMap[channelID]
 						dataL3, ok := dataL2.([]interface{})
 						if !ok {
 							return errors.New("websocket trade update error: type conversion failure")
@@ -324,14 +328,14 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						}
 
 						// tradeID type intermittently changes
-						switch t := dataL3[1].(type) {
+						switch tradeIDData := dataL3[1].(type) {
 						case string:
-							trade.TradeID, err = strconv.ParseInt(t, 10, 64)
+							t.TradeID, err = strconv.ParseInt(tradeIDData, 10, 64)
 							if err != nil {
 								return err
 							}
 						case float64:
-							trade.TradeID = int64(t)
+							t.TradeID = int64(tradeIDData)
 						default:
 							return fmt.Errorf("unhandled type for websocket trade update: %v", t)
 						}
@@ -340,28 +344,31 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						if dataL3[2].(float64) != 1 {
 							side = order.Sell
 						}
-						trade.Volume, err = strconv.ParseFloat(dataL3[3].(string), 64)
+						t.Volume, err = strconv.ParseFloat(dataL3[3].(string), 64)
 						if err != nil {
 							return err
 						}
-						trade.Price, err = strconv.ParseFloat(dataL3[4].(string), 64)
+						t.Price, err = strconv.ParseFloat(dataL3[4].(string), 64)
 						if err != nil {
 							return err
 						}
-						trade.Timestamp = int64(dataL3[5].(float64))
+						t.Timestamp = int64(dataL3[5].(float64))
 
 						pair, err := currency.NewPairFromString(currencyPair)
 						if err != nil {
 							return err
 						}
 
-						p.Websocket.DataHandler <- stream.TradeData{
-							Timestamp:    time.Unix(trade.Timestamp, 0),
+						return p.AddTradesToBuffer(trade.Data{
+							TID:          strconv.FormatInt(t.TradeID, 10),
+							Exchange:     p.Name,
 							CurrencyPair: pair,
+							AssetType:    asset.Spot,
 							Side:         side,
-							Amount:       trade.Volume,
-							Price:        trade.Price,
-						}
+							Price:        t.Price,
+							Amount:       t.Volume,
+							Timestamp:    time.Unix(t.Timestamp, 0),
+						})
 					default:
 						p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
 						return nil

@@ -162,6 +162,7 @@ type TradesResponse struct {
 	OrderID  int64   `json:"orderNumber"`
 	Pair     string  `json:"pair"`
 	Type     string  `json:"type"`
+	Side     string  `json:"side"`
 	Rate     float64 `json:"rate,string"`
 	Amount   float64 `json:"amount,string"`
 	Total    float64 `json:"total"`
@@ -505,4 +506,22 @@ type wsOrderUpdate struct {
 	ID     int64         `json:"id"`
 	Method string        `json:"method"`
 	Params []interface{} `json:"params"`
+}
+
+// TradeHistory contains trade history data
+type TradeHistory struct {
+	Elapsed string              `json:"elapsed"`
+	Result  bool                `json:"result,string"`
+	Data    []TradeHistoryEntry `json:"data"`
+}
+
+// TradeHistoryEntry contains an individual trade
+type TradeHistoryEntry struct {
+	Amount    float64 `json:"amount,string"`
+	Date      string  `json:"date"`
+	Rate      float64 `json:"rate,string"`
+	Timestamp int64   `json:"timestamp,string"`
+	Total     float64 `json:"total,string"`
+	TradeID   string  `json:"tradeID"`
+	Type      string  `json:"type"`
 }

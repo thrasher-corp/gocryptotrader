@@ -72,7 +72,6 @@ func Insert(in Details) error {
 	if err != nil {
 		return err
 	}
-
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		err = insertSQLite(ctx, tx, []Details{in})
 	} else {
@@ -139,7 +138,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 			return errUUID
 		}
 		var tempInsert = modelSQLite.Exchange{
-			Name: in[x].Name,
+			Name: strings.ToLower(in[x].Name),
 			ID:   tempUUID.String(),
 		}
 
@@ -159,7 +158,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 	for x := range in {
 		var tempInsert = modelPSQL.Exchange{
-			Name: in[x].Name,
+			Name: strings.ToLower(in[x].Name),
 		}
 
 		err = tempInsert.Upsert(ctx, tx, true, []string{"name"}, boil.Infer(), boil.Infer())

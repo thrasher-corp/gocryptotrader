@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -264,41 +265,45 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 
 				switch streamType[1] {
 				case "trade":
-					var trade TradeStream
-					err := json.Unmarshal(rawData, &trade)
+					if !b.IsSaveTradeDataEnabled() {
+						return nil
+					}
+					var t TradeStream
+					err := json.Unmarshal(rawData, &t)
 					if err != nil {
 						return fmt.Errorf("%v - Could not unmarshal trade data: %s",
 							b.Name,
 							err)
 					}
 
-					price, err := strconv.ParseFloat(trade.Price, 64)
+					price, err := strconv.ParseFloat(t.Price, 64)
 					if err != nil {
 						return fmt.Errorf("%v - price conversion error: %s",
 							b.Name,
 							err)
 					}
 
-					amount, err := strconv.ParseFloat(trade.Quantity, 64)
+					amount, err := strconv.ParseFloat(t.Quantity, 64)
 					if err != nil {
 						return fmt.Errorf("%v - amount conversion error: %s",
 							b.Name,
 							err)
 					}
 
-					pair, err := currency.NewPairFromFormattedPairs(trade.Symbol, pairs, format)
+					pair, err := currency.NewPairFromFormattedPairs(t.Symbol, pairs, format)
 					if err != nil {
 						return err
 					}
 
-					b.Websocket.DataHandler <- stream.TradeData{
+					return b.AddTradesToBuffer(trade.Data{
 						CurrencyPair: pair,
-						Timestamp:    time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
+						Timestamp:    time.Unix(0, t.TimeStamp*int64(time.Millisecond)),
 						Price:        price,
 						Amount:       amount,
 						Exchange:     b.Name,
 						AssetType:    asset.Spot,
-					}
+						TID:          strconv.FormatInt(t.TradeID, 10),
+					})
 				case "ticker":
 					var t TickerStream
 					err := json.Unmarshal(rawData, &t)

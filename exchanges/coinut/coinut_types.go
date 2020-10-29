@@ -68,9 +68,9 @@ type Orderbook struct {
 // TradeBase is a sub-type holding information on trades
 type TradeBase struct {
 	Price         float64 `json:"price,string"`
-	Quantity      float64 `json:"quantity,string"`
+	Quantity      float64 `json:"qty,string"`
 	Side          string  `json:"side"`
-	Timestamp     float64 `json:"timestamp"`
+	Timestamp     int64   `json:"timestamp"`
 	TransactionID int64   `json:"trans_id"`
 }
 
@@ -344,29 +344,32 @@ type WsOrderbookUpdate struct {
 // WsTradeSnapshot defines Market trade response from the websocket
 // connection
 type WsTradeSnapshot struct {
-	Nonce  int64         `json:"nonce"`
-	Reply  string        `json:"reply"`
-	Status []interface{} `json:"status"`
-	Trades []WsTradeData `json:"trades"`
+	InstrumentID int64         `json:"inst_id"`
+	Nonce        int64         `json:"nonce"`
+	Reply        string        `json:"reply"`
+	Status       []interface{} `json:"status"`
+	Trades       []WsTradeData `json:"trades"`
 }
 
 // WsTradeData defines market trade data
 type WsTradeData struct {
+	InstID    int64   `json:"inst_id"`
+	TransID   int64   `json:"trans_id"`
 	Price     float64 `json:"price,string"`
-	Volume    float64 `json:"qty,string"`
+	Quantity  float64 `json:"qty,string"`
 	Side      string  `json:"side"`
 	Timestamp int64   `json:"timestamp"`
-	TransID   int64   `json:"trans_id"`
 }
 
 // WsTradeUpdate defines trade update response from the websocket connection
 type WsTradeUpdate struct {
 	InstID    int64   `json:"inst_id"`
+	TransID   int64   `json:"trans_id"`
 	Price     float64 `json:"price,string"`
-	Reply     string  `json:"reply"`
+	Quantity  float64 `json:"qty,string"`
 	Side      string  `json:"side"`
 	Timestamp int64   `json:"timestamp"`
-	TransID   int64   `json:"trans_id"`
+	Reply     string  `json:"reply"`
 }
 
 // WsInstrumentList defines instrument list

@@ -508,7 +508,16 @@ func TestStoreInDatabase(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			r, err := StoreInDatabase(&ohlcvData)
+			r, err := StoreInDatabase(&ohlcvData, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if r != 365 {
+				t.Fatalf("unexpected number inserted: %v", r)
+			}
+
+			r, err = StoreInDatabase(&ohlcvData, true)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -2,6 +2,7 @@ package bitstamp
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -396,9 +398,48 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *Bitstamp) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (b *Bitstamp) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tradeData []Transactions
+	tradeData, err = b.GetTransactions(p.String(), "")
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		s := order.Buy
+		if tradeData[i].Type == 1 {
+			s = order.Sell
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     b.Name,
+			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         s,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    time.Unix(tradeData[i].Date, 0),
+		})
+	}
+
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *Bitstamp) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

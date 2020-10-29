@@ -93,7 +93,7 @@ type Orderbook struct {
 
 // Trade stores the trade data
 type Trade struct {
-	ID        float64 `json:"id"`
+	TradeID   float64 `json:"trade-id"`
 	Price     float64 `json:"price"`
 	Amount    float64 `json:"amount"`
 	Direction string  `json:"direction"`
@@ -391,7 +391,7 @@ type WsTrade struct {
 		Data      []struct {
 			Amount    float64 `json:"amount"`
 			Timestamp int64   `json:"ts"`
-			ID        float64 `json:"id"`
+			TradeID   float64 `json:"tradeId"`
 			Price     float64 `json:"price"`
 			Direction string  `json:"direction"`
 		} `json:"data"`

@@ -112,7 +112,7 @@ type FuturesMarket struct {
 
 // Trade stores trade data
 type Trade struct {
-	SerialID int     `json:"serialId"`
+	SerialID int64   `json:"serialId"`
 	Symbol   string  `json:"symbol"`
 	Price    float64 `json:"price"`
 	Amount   float64 `json:"size"`

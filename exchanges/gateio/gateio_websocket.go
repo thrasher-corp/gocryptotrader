@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 const (
@@ -170,9 +171,12 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		}
 
 	case strings.Contains(result.Method, "trades"):
-		var trades []WebsocketTrade
+		if !g.IsSaveTradeDataEnabled() {
+			return nil
+		}
+		var tradeData []WebsocketTrade
 		var c string
-		err = json.Unmarshal(result.Params[1], &trades)
+		err = json.Unmarshal(result.Params[1], &tradeData)
 		if err != nil {
 			return err
 		}
@@ -186,26 +190,28 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
-		for i := range trades {
+		var trades []trade.Data
+		for i := range tradeData {
 			var tSide order.Side
-			tSide, err = order.StringToOrderSide(trades[i].Type)
+			tSide, err = order.StringToOrderSide(tradeData[i].Type)
 			if err != nil {
 				g.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: g.Name,
 					Err:      err,
 				}
 			}
-			g.Websocket.DataHandler <- stream.TradeData{
-				Timestamp:    time.Now(),
+			trades = append(trades, trade.Data{
+				Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
 				Exchange:     g.Name,
-				Price:        trades[i].Price,
-				Amount:       trades[i].Amount,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Amount,
 				Side:         tSide,
-			}
+				TID:          strconv.FormatInt(tradeData[i].ID, 10),
+			})
 		}
+		return trade.AddTradesToBuffer(g.Name, trades...)
 	case strings.Contains(result.Method, "balance.update"):
 		var balance wsBalanceSubscription
 		err = json.Unmarshal(respRaw, &balance)

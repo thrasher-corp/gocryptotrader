@@ -2,7 +2,9 @@ package gemini
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -328,9 +331,72 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (g *Gemini) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return g.GetHistoricTrades(currencyPair, assetType, time.Time{}, time.Time{})
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (g *Gemini) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	}
+	var err error
+	p, err = g.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	ts := timestampStart
+	limit := 500
+allTrades:
+	for {
+		var tradeData []Trade
+		tradeData, err = g.GetTrades(p.String(), ts.Unix(), int64(limit), false)
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			tradeTS := time.Unix(tradeData[i].Timestamp, 0)
+			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
+				break allTrades
+			}
+
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData[i].Type)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     g.Name,
+				TID:          strconv.FormatInt(tradeData[i].TID, 10),
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Amount,
+				Timestamp:    tradeTS,
+			})
+			if i == len(tradeData)-1 {
+				if ts == tradeTS {
+					break allTrades
+				}
+				ts = tradeTS
+			}
+		}
+		if len(tradeData) != limit {
+			break allTrades
+		}
+	}
+
+	err = g.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+	resp = trade.FilterTradesByTime(resp, timestampStart, timestampEnd)
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

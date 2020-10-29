@@ -107,3 +107,25 @@ func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFor
 	}
 	return NewPairFromString(currencyPair)
 }
+
+// MatchPairsWithNoDelimiter will move along a predictable index on the provided currencyPair
+// it will then split on that index and verify whether that currencypair exists in the
+// supplied pairs
+// this allows for us to match strange currencies with no delimiter where it is difficult to
+// infer where the delimiter is located eg BETHERETH is BETHER ETH
+func MatchPairsWithNoDelimiter(currencyPair string, pairs Pairs, pairFmt PairFormat) (Pair, error) {
+	for i := range pairs {
+		fPair := pairs[i].Format(pairFmt.Delimiter, pairFmt.Uppercase)
+		maxLen := 6
+		if len(currencyPair) < maxLen {
+			maxLen = len(currencyPair)
+		}
+		for j := 1; j <= maxLen; j++ {
+			if fPair.Base.String() == currencyPair[0:j] &&
+				fPair.Quote.String() == currencyPair[j:] {
+				return fPair, nil
+			}
+		}
+	}
+	return Pair{}, fmt.Errorf("currency %v not found in supplied pairs", currencyPair)
+}

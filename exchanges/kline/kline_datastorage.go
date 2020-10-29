@@ -29,6 +29,7 @@ func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interva
 		Exchange: exchange,
 		Pair:     pair,
 		Interval: interval,
+		Asset:    a,
 	}
 
 	for x := range retCandle.Candles {
@@ -45,7 +46,7 @@ func LoadFromDatabase(exchange string, pair currency.Pair, a asset.Item, interva
 }
 
 // StoreInDatabase returns Item from database seeded data
-func StoreInDatabase(in *Item) (uint64, error) {
+func StoreInDatabase(in *Item, force bool) (uint64, error) {
 	if in.Exchange == "" {
 		return 0, errors.New("name cannot be blank")
 	}
@@ -77,13 +78,19 @@ func StoreInDatabase(in *Item) (uint64, error) {
 
 	for x := range in.Candles {
 		databaseCandles.Candles = append(databaseCandles.Candles, candle.Candle{
-			Timestamp: in.Candles[x].Time,
+			Timestamp: in.Candles[x].Time.Truncate(in.Interval.Duration()),
 			Open:      in.Candles[x].Open,
 			High:      in.Candles[x].High,
 			Low:       in.Candles[x].Low,
 			Close:     in.Candles[x].Close,
 			Volume:    in.Candles[x].Volume,
 		})
+	}
+	if force {
+		_, err := candle.DeleteCandles(&databaseCandles)
+		if err != nil {
+			return 0, err
+		}
 	}
 	return candle.Insert(&databaseCandles)
 }

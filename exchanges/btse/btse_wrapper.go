@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -396,41 +398,6 @@ func (b *BTSE) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	if assetType != asset.Spot {
-		return nil, common.ErrNotYetImplemented
-	}
-
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	trades, err := b.GetTrades(fPair.String(),
-		timestampStart, timestampEnd,
-		0, 0, 0,
-		false)
-	if err != nil {
-		return nil, err
-	}
-	var resp []exchange.TradeHistory
-	for x := range trades {
-		tempExch := exchange.TradeHistory{
-			Timestamp: time.Unix(0, trades[x].Time*int64(time.Millisecond)),
-			Price:     trades[x].Price,
-			Amount:    trades[x].Amount,
-			Exchange:  b.Name,
-			Side:      trades[x].Side,
-			Type:      trades[x].Type,
-			TID:       strconv.Itoa(trades[x].SerialID),
-		}
-
-		resp = append(resp, tempExch)
-	}
-	return resp, nil
-}
-
 func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 	val, found := OrderSizeLimits(pair.String())
 	if !found {
@@ -439,6 +406,57 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 	return (math.Mod(amount, val.MinSizeIncrement) == 0) ||
 		amount < val.MinOrderSize ||
 		amount > val.MaxOrderSize
+}
+
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (b *BTSE) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	limit := 500
+
+	var tradeData []Trade
+	tradeData, err = b.GetTrades(p.String(),
+		time.Time{}, time.Time{},
+		0, 0, limit,
+		false,
+		assetType == asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	for i := range tradeData {
+		tradeTimestamp := time.Unix(tradeData[i].Time/1000, 0)
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     b.Name,
+			TID:          strconv.FormatInt(tradeData[i].SerialID, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    tradeTimestamp,
+		})
+	}
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *BTSE) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order

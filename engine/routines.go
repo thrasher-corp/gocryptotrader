@@ -288,14 +288,6 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		log.Info(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
-	case stream.TradeData:
-		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
-				exchName,
-				FormatCurrency(d.CurrencyPair),
-				d.AssetType,
-				d)
-		}
 	case stream.FundingData:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",

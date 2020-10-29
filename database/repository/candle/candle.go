@@ -33,8 +33,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		qm.Where("base = ?", strings.ToUpper(base)),
 		qm.Where("quote = ?", strings.ToUpper(quote)),
 		qm.Where("interval = ?", interval),
-		qm.Where("asset = ?", asset),
-		qm.Where("timestamp between ? and ?", start.UTC(), end.UTC()),
+		qm.Where("asset = ?", strings.ToLower(asset)),
 	}
 
 	exchangeUUID, errS := exchange.UUIDByName(exchangeName)
@@ -42,8 +41,8 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		return out, errS
 	}
 	queries = append(queries, qm.Where("exchange_name_id = ?", exchangeUUID.String()))
-
 	if repository.GetSQLDialect() == database.DBSQLite3 {
+		queries = append(queries, qm.Where("timestamp between ? and ?", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339)))
 		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
 		if errC != nil {
 			return out, errC
@@ -63,6 +62,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 			})
 		}
 	} else {
+		queries = append(queries, qm.Where("timestamp between ? and ?", start.UTC(), end.UTC()))
 		retCandle, errC := modelPSQL.Candles(queries...).All(context.Background(), database.DB.SQL)
 		if errC != nil {
 			return out, errC
@@ -89,6 +89,86 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 	out.Quote = quote
 	out.Asset = asset
 	return out, err
+}
+
+// DeleteCandles will delete all existing matching candles
+func DeleteCandles(in *Item) (int64, error) {
+	if database.DB.SQL == nil {
+		return 0, database.ErrDatabaseSupportDisabled
+	}
+	if len(in.Candles) < 1 {
+		return 0, errNoCandleData
+	}
+
+	ctx := context.Background()
+	queries := []qm.QueryMod{
+		qm.Where("base = ?", strings.ToUpper(in.Base)),
+		qm.Where("quote = ?", strings.ToUpper(in.Quote)),
+		qm.Where("interval = ?", in.Interval),
+		qm.Where("asset = ?", strings.ToLower(in.Asset)),
+		qm.Where("exchange_name_id = ?", in.ExchangeID),
+	}
+	if repository.GetSQLDialect() == database.DBSQLite3 {
+		queries = append(queries, qm.Where("timestamp between ? and ?", in.Candles[0].Timestamp.UTC().Format(time.RFC3339), in.Candles[len(in.Candles)-1].Timestamp.UTC().Format(time.RFC3339)))
+		return deleteSQLite(ctx, queries)
+	}
+
+	queries = append(queries, qm.Where("timestamp between ? and ?", in.Candles[0].Timestamp.UTC(), in.Candles[len(in.Candles)-1].Timestamp.UTC()))
+	return deletePostgres(ctx, queries)
+}
+
+func deleteSQLite(ctx context.Context, queries []qm.QueryMod) (int64, error) {
+	retCandle, err := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
+	if err != nil {
+		return 0, err
+	}
+	var tx *sql.Tx
+	tx, err = database.DB.SQL.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	var totalDeleted int64
+	totalDeleted, err = retCandle.DeleteAll(ctx, tx)
+	if err != nil {
+		errRB := tx.Rollback()
+		if errRB != nil {
+			log.Errorln(log.DatabaseMgr, errRB)
+		}
+		return 0, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return 0, err
+	}
+	return totalDeleted, nil
+}
+
+func deletePostgres(ctx context.Context, queries []qm.QueryMod) (int64, error) {
+	retCandle, err := modelPSQL.Candles(queries...).All(context.Background(), database.DB.SQL)
+	if err != nil {
+		return 0, err
+	}
+	var tx *sql.Tx
+	tx, err = database.DB.SQL.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	var totalDeleted int64
+	totalDeleted, err = retCandle.DeleteAll(ctx, tx)
+	if err != nil {
+		errRB := tx.Rollback()
+		if errRB != nil {
+			log.Errorln(log.DatabaseMgr, errRB)
+		}
+		return 0, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return 0, err
+	}
+	return totalDeleted, nil
 }
 
 // Insert series of candles
@@ -136,7 +216,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 			Base:           strings.ToUpper(in.Base),
 			Quote:          strings.ToUpper(in.Quote),
 			Interval:       strconv.FormatInt(in.Interval, 10),
-			Asset:          in.Asset,
+			Asset:          strings.ToLower(in.Asset),
 			Timestamp:      in.Candles[x].Timestamp.UTC().Format(time.RFC3339),
 			Open:           in.Candles[x].Open,
 			High:           in.Candles[x].High,
@@ -168,7 +248,7 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error
 			Base:           strings.ToUpper(in.Base),
 			Quote:          strings.ToUpper(in.Quote),
 			Interval:       in.Interval,
-			Asset:          in.Asset,
+			Asset:          strings.ToLower(in.Asset),
 			Timestamp:      in.Candles[x].Timestamp,
 			Open:           in.Candles[x].Open,
 			High:           in.Candles[x].High,

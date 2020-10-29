@@ -175,6 +175,14 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+func TestGetTradeHistory(t *testing.T) {
+	_, err := g.GetTrades(currency.NewPairWithDelimiter(currency.BTC.String(),
+		currency.USDT.String(), "_").String())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
@@ -807,5 +815,29 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 
 	if len(payload) != 4 {
 		t.Fatal("unexpected payload length")
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = g.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = g.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

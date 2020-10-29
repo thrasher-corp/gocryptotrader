@@ -124,7 +124,6 @@ func TestProcessTicker(t *testing.T) {
 	if Bot == nil {
 		Bot = new(Engine)
 	}
-	Bot.Settings.Verbose = true
 
 	e := Event{
 		Exchange: testExchange,
@@ -191,7 +190,6 @@ func TestProcessOrderbook(t *testing.T) {
 	if Bot == nil {
 		Bot = new(Engine)
 	}
-	Bot.Settings.Verbose = true
 
 	e := Event{
 		Exchange: testExchange,
@@ -226,7 +224,6 @@ func TestCheckEventCondition(t *testing.T) {
 	if Bot == nil {
 		Bot = new(Engine)
 	}
-	Bot.Settings.Verbose = true
 
 	e := Event{
 		Item: ItemPrice,

@@ -64,6 +64,13 @@ func (s *SMTPservice) Send(subject, msg string) error {
 	if subject == "" || msg == "" {
 		return errors.New("STMPservice Send() please add subject and alert")
 	}
+	if s.Host == "" ||
+		s.Port == "" ||
+		s.AccountName == "" ||
+		s.AccountPassword == "" ||
+		s.From == "" {
+		return errors.New("STMPservice Send() cannot send with unset service properties")
+	}
 
 	log.Debugf(log.CommunicationMgr, "SMTP: Sending email to %v. Subject: %s Message: %s [From: %s]\n", s.RecipientList,
 		subject, msg, s.From)
