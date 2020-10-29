@@ -192,7 +192,6 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 }
 
 func TestSaveAndReopenEncryptedConfig(t *testing.T) {
-	t.Parallel()
 	c := &Config{}
 	c.Name = "myCustomName"
 	c.EncryptConfig = 1
@@ -310,7 +309,6 @@ func TestReadEncryptedConfigFromReader(t *testing.T) {
 
 // TestSaveConfigToFileWithErrorInPasswordPrompt should preserve the original file
 func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
-	t.Parallel()
 	c := &Config{
 		Name:          "test",
 		EncryptConfig: fileEncryptionEnabled,
