@@ -5,10 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -137,7 +139,8 @@ func TestExchange_QueryOrder(t *testing.T) {
 	if !configureExchangeKeys() {
 		t.Skip("no exchange configured test skipped")
 	}
-	_, err := exchangeTest.QueryOrder(exchName, orderID)
+	t.Parallel()
+	_, err := exchangeTest.QueryOrder(exchName, orderID, currency.Pair{}, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,6 +151,7 @@ func TestExchange_SubmitOrder(t *testing.T) {
 		t.Skip("no exchange configured test skipped")
 	}
 
+	t.Parallel()
 	c, err := currency.NewPairDelimiter(pairs, delimiter)
 	if err != nil {
 		t.Fatal(err)
@@ -174,9 +178,25 @@ func TestExchange_CancelOrder(t *testing.T) {
 	if !configureExchangeKeys() {
 		t.Skip("no exchange configured test skipped")
 	}
-	_, err := exchangeTest.CancelOrder(exchName, orderID)
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	a := asset.Spot
+	_, err := exchangeTest.CancelOrder(exchName, orderID, cp, a)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestOHLCV(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.AUD)
+	cp.Delimiter = currency.DashDelimiter
+	calvinKline, err := exchangeTest.OHLCV(exchName, cp, assetType, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.OneHour)
+	if err != nil {
+		t.Error(err)
+	}
+	if calvinKline.Exchange != exchName {
+		t.Error("unexpected response")
 	}
 }
 
@@ -185,7 +205,8 @@ func setupEngine() (err error) {
 	if err != nil {
 		return err
 	}
-	return engine.Bot.Start()
+
+	return engine.Bot.LoadExchange(exchName, false, nil)
 }
 
 func cleanup() {

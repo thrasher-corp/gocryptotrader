@@ -356,10 +356,12 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	result, err := Bot.GetSpecificTicker(p,
-		tickerReq.Exchange,
-		asset.Item(tickerReq.AssetType))
+	a, err := asset.New(tickerReq.AssetType)
+	if err != nil {
+		return err
+	}
 
+	result, err := Bot.GetSpecificTicker(p, tickerReq.Exchange, a)
 	if err != nil {
 		wsResp.Error = err.Error()
 		client.SendWebsocketMessage(wsResp)
@@ -394,9 +396,12 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	result, err := Bot.GetSpecificOrderbook(p,
-		orderbookReq.Exchange, asset.Item(orderbookReq.AssetType))
+	a, err := asset.New(orderbookReq.AssetType)
+	if err != nil {
+		return err
+	}
 
+	result, err := Bot.GetSpecificOrderbook(p, orderbookReq.Exchange, a)
 	if err != nil {
 		wsResp.Error = err.Error()
 		client.SendWebsocketMessage(wsResp)

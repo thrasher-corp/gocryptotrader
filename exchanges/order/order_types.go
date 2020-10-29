@@ -64,6 +64,10 @@ type SubmitResponse struct {
 	IsOrderPlaced bool
 	FullyMatched  bool
 	OrderID       string
+	Rate          float64
+	Fee           float64
+	Cost          float64
+	Trades        []TradeHistory
 }
 
 // Modify contains all properties of an order
@@ -124,6 +128,7 @@ type Detail struct {
 	TargetAmount      float64
 	ExecutedAmount    float64
 	RemainingAmount   float64
+	Cost              float64
 	Fee               float64
 	Exchange          string
 	InternalOrderID   string
@@ -183,6 +188,7 @@ type TradeHistory struct {
 	Side        Side
 	Timestamp   time.Time
 	IsMaker     bool
+	FeeAsset    string
 }
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
@@ -191,9 +197,11 @@ type GetOrdersRequest struct {
 	Side       Side
 	StartTicks time.Time
 	EndTicks   time.Time
+	OrderID    string
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
-	Pairs []currency.Pair
+	Pairs     []currency.Pair
+	AssetType asset.Item
 }
 
 // Status defines order status types
@@ -216,6 +224,7 @@ const (
 	Hidden              Status = "HIDDEN"
 	UnknownStatus       Status = "UNKNOWN"
 	Open                Status = "OPEN"
+	Closed              Status = "CLOSED"
 )
 
 // Type enforces a standard for order types across the code base

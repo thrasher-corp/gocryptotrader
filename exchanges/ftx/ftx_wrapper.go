@@ -500,21 +500,21 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, err
 	}
 
-	if s.Side == order.Sell {
-		s.Side = order.Ask
+	if s.Side == order.Ask {
+		s.Side = order.Sell
 	}
-	if s.Side == order.Buy {
-		s.Side = order.Bid
+	if s.Side == order.Bid {
+		s.Side = order.Buy
 	}
 
-	formattedPair, err := f.FormatExchangeCurrency(s.Pair, s.AssetType)
+	fPair, err := f.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return resp, err
 	}
 
-	tempResp, err := f.Order(formattedPair.String(),
-		s.Side.String(),
-		s.Type.String(),
+	tempResp, err := f.Order(fPair.String(),
+		s.Side.Lower(),
+		s.Type.Lower(),
 		"",
 		"",
 		"",
@@ -570,6 +570,12 @@ func (f *FTX) CancelOrder(o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
+
+	if o.ClientOrderID != "" {
+		_, err := f.DeleteOrderByClientID(o.ClientOrderID)
+		return err
+	}
+
 	_, err := f.DeleteOrder(o.ID)
 	return err
 }
@@ -644,8 +650,8 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (f *FTX) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	orderData, err := f.GetOrderStatus(orderID)
 	if err != nil {
@@ -655,7 +661,7 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return resp, err
 	}
-	assetType, err := f.GetPairAssetType(p)
+	orderAssetType, err := f.GetPairAssetType(p)
 	if err != nil {
 		return resp, err
 	}
@@ -666,7 +672,7 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	resp.Exchange = f.Name
 	resp.ExecutedAmount = orderData.Size - orderData.RemainingSize
 	resp.Pair = p
-	resp.AssetType = assetType
+	resp.AssetType = orderAssetType
 	resp.Price = orderData.Price
 	resp.RemainingAmount = orderData.RemainingSize
 	orderVars, err := orderData.GetCompatible(f)

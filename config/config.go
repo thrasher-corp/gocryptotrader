@@ -360,7 +360,7 @@ func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item
 		return fmt.Errorf("exchange %s currency pairs is nil", exchName)
 	}
 
-	if !asset.IsValid(assetType) {
+	if !assetType.IsValid() {
 		return fmt.Errorf("exchange %s invalid asset type %s",
 			exchName,
 			assetType)

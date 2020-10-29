@@ -260,6 +260,11 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	tick, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
 		return nil, err
@@ -291,23 +296,33 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 			return nil, err
 		}
 	}
-	return ticker.GetTicker(b.Name, p, assetType)
+	return ticker.GetTicker(b.Name, fPair, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitmex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateTicker(p, assetType)
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(b.Name, fPair, assetType)
+	if err != nil {
+		return b.UpdateTicker(fPair, assetType)
 	}
 	return tickerNew, nil
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateOrderbook(p, assetType)
+		return nil, err
+	}
+
+	ob, err := orderbook.Get(b.Name, fPair, assetType)
+	if err != nil {
+		return b.UpdateOrderbook(fPair, assetType)
 	}
 	return ob, nil
 }
@@ -422,9 +437,14 @@ func (b *Bitmex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			errors.New("order contract amount can not have decimals")
 	}
 
+	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var orderNewParams = OrderNewParams{
 		OrderType:     s.Type.Title(),
-		Symbol:        s.Pair.String(),
+		Symbol:        fPair.String(),
 		OrderQuantity: s.Amount,
 		Side:          s.Side.Title(),
 	}
@@ -505,8 +525,8 @@ func (b *Bitmex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (b *Bitmex) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (b *Bitmex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

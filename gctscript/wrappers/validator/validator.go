@@ -106,7 +106,7 @@ func (w Wrapper) Pairs(exch string, _ bool, _ asset.Item) (*currency.Pairs, erro
 }
 
 // QueryOrder validator for test execution/scripts
-func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
+func (w Wrapper) QueryOrder(exch, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -167,11 +167,20 @@ func (w Wrapper) SubmitOrder(o *order.Submit) (*order.SubmitResponse, error) {
 }
 
 // CancelOrder validator for test execution/scripts
-func (w Wrapper) CancelOrder(exch, orderid string) (bool, error) {
+func (w Wrapper) CancelOrder(exch, orderid string, cp currency.Pair, a asset.Item) (bool, error) {
 	if exch == exchError.String() {
 		return false, errTestFailed
 	}
-	return orderid != "false", nil
+	if orderid == "" {
+		return false, errTestFailed
+	}
+	if !cp.IsEmpty() && cp.IsInvalid() {
+		return false, errTestFailed
+	}
+	if a != "" && !a.IsValid() {
+		return false, errTestFailed
+	}
+	return true, nil
 }
 
 // AccountInformation validator for test execution/scripts
