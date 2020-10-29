@@ -86,11 +86,11 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 	}
 
 	// load the data
-	candles, err := exch.GetHistoricCandles(fPair, a, tStart, tEnd, kline.Interval(s.Interval))
+	candles, err := exch.GetHistoricCandlesExtended(fPair, a, tStart, tEnd, kline.Interval(s.Interval))
 	if err != nil {
 		return nil, err
 	}
-
+	candles.SortCandlesByTimestamp(true)
 	bt.Data = &data2.DataFromKline{
 		Item: candles,
 	}

@@ -58,9 +58,6 @@ func (d *Data) SortStream() {
 		b1 := d.stream[i]
 		b2 := d.stream[j]
 
-		if b1.GetTime().Equal(b2.GetTime()) {
-			return b1.Pair().String() < b2.Pair().String()
-		}
 		return b1.GetTime().Before(b2.GetTime())
 	})
 }

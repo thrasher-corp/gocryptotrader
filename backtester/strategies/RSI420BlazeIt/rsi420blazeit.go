@@ -25,15 +25,18 @@ func (s *Strategy) OnSignal(d portfolio.DataHandler, _ portfolio2.PortfolioHandl
 		Event: event.Event{Time: d.Latest().GetTime(),
 			CurrencyPair: d.Latest().Pair()},
 	}
-	log.Debugf(log.Global, "STREAM CLOSE at: %v", d.StreamClose())
+	if d.Offset() <= 14 {
+		return &es, nil
+	}
+	dataRange := d.StreamClose()[d.Offset()-15 : d.Offset()]
 
-	rsi := indicators.RSI(d.StreamClose(), 14)
+	rsi := indicators.RSI(dataRange, 14)
 	lastSI := rsi[len(rsi)-1]
-	log.Debugf(log.Global, "RSI at: %v", lastSI)
+	log.Debugf(log.Global, "CLOSE at: %v, CLOSE TIME: %v, RSI: %v", dataRange, d.Latest().GetTime().UTC(), lastSI)
 	if lastSI >= 70 {
-		es.SetDirection(order.Buy)
-	} else if lastSI <= 30 {
 		es.SetDirection(order.Sell)
+	} else if lastSI <= 30 {
+		es.SetDirection(order.Buy)
 	} else {
 		es.SetDirection(common.DoNothing)
 	}

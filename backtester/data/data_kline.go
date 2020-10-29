@@ -62,8 +62,8 @@ func (d *DataFromKline) StreamLow() []float64 {
 }
 
 func (d *DataFromKline) StreamClose() []float64 {
-	ret := make([]float64, len(d.stream))
-	for x := range d.stream[d.offset:] {
+	ret := make([]float64, len(d.stream[:d.offset]))
+	for x := range d.stream[:d.offset] {
 		ret[x] = d.stream[x].(*Candle).Close
 	}
 	return ret
