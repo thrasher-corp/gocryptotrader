@@ -26,6 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bithumb) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -116,9 +120,8 @@ func (b *Bithumb) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	b.API.Endpoints.URLDefault = apiURL
-	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
+	b.API.Endpoints = make(map[string]string)
+	b.API.Endpoints[defaultRest] = apiURL
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

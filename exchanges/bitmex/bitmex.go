@@ -108,7 +108,7 @@ const (
 func (b *Bitmex) GetAnnouncement() ([]Announcement, error) {
 	var announcement []Announcement
 
-	return announcement, b.SendHTTPRequest(bitmexEndpointAnnouncement,
+	return announcement, b.SendHTTPRequest(defaultRest, bitmexEndpointAnnouncement,
 		nil,
 		&announcement)
 }
@@ -117,7 +117,7 @@ func (b *Bitmex) GetAnnouncement() ([]Announcement, error) {
 func (b *Bitmex) GetUrgentAnnouncement() ([]Announcement, error) {
 	var announcement []Announcement
 
-	return announcement, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return announcement, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointAnnouncementUrgent,
 		nil,
 		&announcement)
@@ -127,7 +127,7 @@ func (b *Bitmex) GetUrgentAnnouncement() ([]Announcement, error) {
 func (b *Bitmex) GetAPIKeys() ([]APIKey, error) {
 	var keys []APIKey
 
-	return keys, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return keys, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointAPIkeys,
 		nil,
 		&keys)
@@ -137,7 +137,7 @@ func (b *Bitmex) GetAPIKeys() ([]APIKey, error) {
 func (b *Bitmex) RemoveAPIKey(params APIKeyParams) (bool, error) {
 	var keyDeleted bool
 
-	return keyDeleted, b.SendAuthenticatedHTTPRequest(http.MethodDelete,
+	return keyDeleted, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodDelete,
 		bitmexEndpointAPIkeys,
 		&params,
 		&keyDeleted)
@@ -147,7 +147,7 @@ func (b *Bitmex) RemoveAPIKey(params APIKeyParams) (bool, error) {
 func (b *Bitmex) DisableAPIKey(params APIKeyParams) (APIKey, error) {
 	var keyInfo APIKey
 
-	return keyInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return keyInfo, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointDisableAPIkey,
 		&params,
 		&keyInfo)
@@ -157,7 +157,7 @@ func (b *Bitmex) DisableAPIKey(params APIKeyParams) (APIKey, error) {
 func (b *Bitmex) EnableAPIKey(params APIKeyParams) (APIKey, error) {
 	var keyInfo APIKey
 
-	return keyInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return keyInfo, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointEnableAPIkey,
 		&params,
 		&keyInfo)
@@ -167,14 +167,14 @@ func (b *Bitmex) EnableAPIKey(params APIKeyParams) (APIKey, error) {
 func (b *Bitmex) GetTrollboxMessages(params ChatGetParams) ([]Chat, error) {
 	var messages []Chat
 
-	return messages, b.SendHTTPRequest(bitmexEndpointTrollbox, &params, &messages)
+	return messages, b.SendHTTPRequest(defaultRest, bitmexEndpointTrollbox, &params, &messages)
 }
 
 // SendTrollboxMessage sends a message to the bitmex trollbox
 func (b *Bitmex) SendTrollboxMessage(params ChatSendParams) ([]Chat, error) {
 	var messages []Chat
 
-	return messages, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return messages, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointTrollboxSend,
 		&params,
 		&messages)
@@ -184,7 +184,7 @@ func (b *Bitmex) SendTrollboxMessage(params ChatSendParams) ([]Chat, error) {
 func (b *Bitmex) GetTrollboxChannels() ([]ChatChannel, error) {
 	var channels []ChatChannel
 
-	return channels, b.SendHTTPRequest(bitmexEndpointTrollboxChannels,
+	return channels, b.SendHTTPRequest(defaultRest, bitmexEndpointTrollboxChannels,
 		nil,
 		&channels)
 }
@@ -193,7 +193,7 @@ func (b *Bitmex) GetTrollboxChannels() ([]ChatChannel, error) {
 func (b *Bitmex) GetTrollboxConnectedUsers() (ConnectedUsers, error) {
 	var users ConnectedUsers
 
-	return users, b.SendHTTPRequest(bitmexEndpointTrollboxConnected, nil, &users)
+	return users, b.SendHTTPRequest(defaultRest, bitmexEndpointTrollboxConnected, nil, &users)
 }
 
 // GetAccountExecutions returns all raw transactions, which includes order
@@ -202,7 +202,7 @@ func (b *Bitmex) GetTrollboxConnectedUsers() (ConnectedUsers, error) {
 func (b *Bitmex) GetAccountExecutions(params *GenericRequestParams) ([]Execution, error) {
 	var executionList []Execution
 
-	return executionList, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return executionList, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointExecution,
 		params,
 		&executionList)
@@ -213,7 +213,7 @@ func (b *Bitmex) GetAccountExecutions(params *GenericRequestParams) ([]Execution
 func (b *Bitmex) GetAccountExecutionTradeHistory(params *GenericRequestParams) ([]Execution, error) {
 	var tradeHistory []Execution
 
-	return tradeHistory, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return tradeHistory, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointExecutionTradeHistory,
 		params,
 		&tradeHistory)
@@ -239,7 +239,7 @@ func (b *Bitmex) GetFullFundingHistory(symbol, count, filter, columns, start str
 		params.Set("startTime", startTime.Format(time.RFC3339))
 		params.Set("endTime", endTime.Format(time.RFC3339))
 	}
-	return fundingHistory, b.SendHTTPRequest(bitmexEndpointFundingHistory+params.Encode(),
+	return fundingHistory, b.SendHTTPRequest(defaultRest, bitmexEndpointFundingHistory+params.Encode(),
 		nil,
 		&fundingHistory)
 }
@@ -248,7 +248,7 @@ func (b *Bitmex) GetFullFundingHistory(symbol, count, filter, columns, start str
 func (b *Bitmex) GetInstruments(params *GenericRequestParams) ([]Instrument, error) {
 	var instruments []Instrument
 
-	return instruments, b.SendHTTPRequest(bitmexEndpointInstruments,
+	return instruments, b.SendHTTPRequest(defaultRest, bitmexEndpointInstruments,
 		params,
 		&instruments)
 }
@@ -257,7 +257,7 @@ func (b *Bitmex) GetInstruments(params *GenericRequestParams) ([]Instrument, err
 func (b *Bitmex) GetActiveInstruments(params *GenericRequestParams) ([]Instrument, error) {
 	var activeInstruments []Instrument
 
-	return activeInstruments, b.SendHTTPRequest(bitmexEndpointActiveInstruments,
+	return activeInstruments, b.SendHTTPRequest(defaultRest, bitmexEndpointActiveInstruments,
 		params,
 		&activeInstruments)
 }
@@ -267,7 +267,7 @@ func (b *Bitmex) GetActiveAndIndexInstruments() ([]Instrument, error) {
 	var activeAndIndices []Instrument
 
 	return activeAndIndices,
-		b.SendHTTPRequest(bitmexEndpointActiveAndIndexInstruments,
+		b.SendHTTPRequest(defaultRest, bitmexEndpointActiveAndIndexInstruments,
 			nil,
 			&activeAndIndices)
 }
@@ -276,7 +276,7 @@ func (b *Bitmex) GetActiveAndIndexInstruments() ([]Instrument, error) {
 func (b *Bitmex) GetActiveIntervals() (InstrumentInterval, error) {
 	var interval InstrumentInterval
 
-	return interval, b.SendHTTPRequest(bitmexEndpointActiveIntervals,
+	return interval, b.SendHTTPRequest(defaultRest, bitmexEndpointActiveIntervals,
 		nil,
 		&interval)
 }
@@ -285,7 +285,7 @@ func (b *Bitmex) GetActiveIntervals() (InstrumentInterval, error) {
 func (b *Bitmex) GetCompositeIndex(params *GenericRequestParams) ([]IndexComposite, error) {
 	var compositeIndices []IndexComposite
 
-	return compositeIndices, b.SendHTTPRequest(bitmexEndpointCompositeIndex,
+	return compositeIndices, b.SendHTTPRequest(defaultRest, bitmexEndpointCompositeIndex,
 		params,
 		&compositeIndices)
 }
@@ -294,35 +294,35 @@ func (b *Bitmex) GetCompositeIndex(params *GenericRequestParams) ([]IndexComposi
 func (b *Bitmex) GetIndices() ([]Instrument, error) {
 	var indices []Instrument
 
-	return indices, b.SendHTTPRequest(bitmexEndpointIndices, nil, &indices)
+	return indices, b.SendHTTPRequest(defaultRest, bitmexEndpointIndices, nil, &indices)
 }
 
 // GetInsuranceFundHistory returns insurance fund history
 func (b *Bitmex) GetInsuranceFundHistory(params *GenericRequestParams) ([]Insurance, error) {
 	var history []Insurance
 
-	return history, b.SendHTTPRequest(bitmexEndpointIndices, params, &history)
+	return history, b.SendHTTPRequest(defaultRest, bitmexEndpointIndices, params, &history)
 }
 
 // GetLeaderboard returns leaderboard information
 func (b *Bitmex) GetLeaderboard(params LeaderboardGetParams) ([]Leaderboard, error) {
 	var leader []Leaderboard
 
-	return leader, b.SendHTTPRequest(bitmexEndpointLeader, params, &leader)
+	return leader, b.SendHTTPRequest(defaultRest, bitmexEndpointLeader, params, &leader)
 }
 
 // GetAliasOnLeaderboard returns your alias on the leaderboard
 func (b *Bitmex) GetAliasOnLeaderboard() (Alias, error) {
 	var alias Alias
 
-	return alias, b.SendHTTPRequest(bitmexEndpointAlias, nil, &alias)
+	return alias, b.SendHTTPRequest(defaultRest, bitmexEndpointAlias, nil, &alias)
 }
 
 // GetLiquidationOrders returns liquidation orders
 func (b *Bitmex) GetLiquidationOrders(params *GenericRequestParams) ([]Liquidation, error) {
 	var orders []Liquidation
 
-	return orders, b.SendHTTPRequest(bitmexEndpointLiquidation,
+	return orders, b.SendHTTPRequest(defaultRest, bitmexEndpointLiquidation,
 		params,
 		&orders)
 }
@@ -331,7 +331,7 @@ func (b *Bitmex) GetLiquidationOrders(params *GenericRequestParams) ([]Liquidati
 func (b *Bitmex) GetCurrentNotifications() ([]Notification, error) {
 	var notifications []Notification
 
-	return notifications, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return notifications, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointNotifications,
 		nil,
 		&notifications)
@@ -340,7 +340,7 @@ func (b *Bitmex) GetCurrentNotifications() ([]Notification, error) {
 // GetOrders returns all the orders, open and closed
 func (b *Bitmex) GetOrders(params *OrdersRequest) ([]Order, error) {
 	var orders []Order
-	return orders, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return orders, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointOrder,
 		params,
 		&orders)
@@ -350,7 +350,7 @@ func (b *Bitmex) GetOrders(params *OrdersRequest) ([]Order, error) {
 func (b *Bitmex) AmendOrder(params *OrderAmendParams) (Order, error) {
 	var order Order
 
-	return order, b.SendAuthenticatedHTTPRequest(http.MethodPut,
+	return order, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPut,
 		bitmexEndpointOrder,
 		params,
 		&order)
@@ -360,7 +360,7 @@ func (b *Bitmex) AmendOrder(params *OrderAmendParams) (Order, error) {
 func (b *Bitmex) CreateOrder(params *OrderNewParams) (Order, error) {
 	var orderInfo Order
 
-	return orderInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return orderInfo, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointOrder,
 		params,
 		&orderInfo)
@@ -371,7 +371,7 @@ func (b *Bitmex) CreateOrder(params *OrderNewParams) (Order, error) {
 func (b *Bitmex) CancelOrders(params *OrderCancelParams) ([]Order, error) {
 	var cancelledOrders []Order
 
-	return cancelledOrders, b.SendAuthenticatedHTTPRequest(http.MethodDelete,
+	return cancelledOrders, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodDelete,
 		bitmexEndpointOrder,
 		params,
 		&cancelledOrders)
@@ -381,7 +381,7 @@ func (b *Bitmex) CancelOrders(params *OrderCancelParams) ([]Order, error) {
 func (b *Bitmex) CancelAllExistingOrders(params OrderCancelAllParams) ([]Order, error) {
 	var cancelledOrders []Order
 
-	return cancelledOrders, b.SendAuthenticatedHTTPRequest(http.MethodDelete,
+	return cancelledOrders, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodDelete,
 		bitmexEndpointCancelAllOrders,
 		params,
 		&cancelledOrders)
@@ -391,7 +391,7 @@ func (b *Bitmex) CancelAllExistingOrders(params OrderCancelAllParams) ([]Order, 
 func (b *Bitmex) AmendBulkOrders(params OrderAmendBulkParams) ([]Order, error) {
 	var amendedOrders []Order
 
-	return amendedOrders, b.SendAuthenticatedHTTPRequest(http.MethodPut,
+	return amendedOrders, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPut,
 		bitmexEndpointBulk,
 		params,
 		&amendedOrders)
@@ -401,7 +401,7 @@ func (b *Bitmex) AmendBulkOrders(params OrderAmendBulkParams) ([]Order, error) {
 func (b *Bitmex) CreateBulkOrders(params OrderNewBulkParams) ([]Order, error) {
 	var orders []Order
 
-	return orders, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return orders, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointBulk,
 		params,
 		&orders)
@@ -411,7 +411,7 @@ func (b *Bitmex) CreateBulkOrders(params OrderNewBulkParams) ([]Order, error) {
 func (b *Bitmex) CancelAllOrdersAfterTime(params OrderCancelAllAfterParams) ([]Order, error) {
 	var cancelledOrder []Order
 
-	return cancelledOrder, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return cancelledOrder, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointCancelOrderAfter,
 		params,
 		&cancelledOrder)
@@ -421,7 +421,7 @@ func (b *Bitmex) CancelAllOrdersAfterTime(params OrderCancelAllAfterParams) ([]O
 func (b *Bitmex) ClosePosition(params OrderClosePositionParams) ([]Order, error) {
 	var closedPositions []Order
 
-	return closedPositions, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return closedPositions, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointOrder,
 		params,
 		&closedPositions)
@@ -431,7 +431,7 @@ func (b *Bitmex) ClosePosition(params OrderClosePositionParams) ([]Order, error)
 func (b *Bitmex) GetOrderbook(params OrderBookGetL2Params) ([]OrderBookL2, error) {
 	var orderBooks []OrderBookL2
 
-	return orderBooks, b.SendHTTPRequest(bitmexEndpointOrderbookL2,
+	return orderBooks, b.SendHTTPRequest(defaultRest, bitmexEndpointOrderbookL2,
 		params,
 		&orderBooks)
 }
@@ -440,7 +440,7 @@ func (b *Bitmex) GetOrderbook(params OrderBookGetL2Params) ([]OrderBookL2, error
 func (b *Bitmex) GetPositions(params PositionGetParams) ([]Position, error) {
 	var positions []Position
 
-	return positions, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return positions, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointPosition,
 		params,
 		&positions)
@@ -450,7 +450,7 @@ func (b *Bitmex) GetPositions(params PositionGetParams) ([]Position, error) {
 func (b *Bitmex) IsolatePosition(params PositionIsolateMarginParams) (Position, error) {
 	var position Position
 
-	return position, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return position, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointIsolatePosition,
 		params,
 		&position)
@@ -460,7 +460,7 @@ func (b *Bitmex) IsolatePosition(params PositionIsolateMarginParams) (Position, 
 func (b *Bitmex) LeveragePosition(params PositionUpdateLeverageParams) (Position, error) {
 	var position Position
 
-	return position, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return position, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointLeveragePosition,
 		params,
 		&position)
@@ -470,7 +470,7 @@ func (b *Bitmex) LeveragePosition(params PositionUpdateLeverageParams) (Position
 func (b *Bitmex) UpdateRiskLimit(params PositionUpdateRiskLimitParams) (Position, error) {
 	var position Position
 
-	return position, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return position, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointAdjustRiskLimit,
 		params,
 		&position)
@@ -480,7 +480,7 @@ func (b *Bitmex) UpdateRiskLimit(params PositionUpdateRiskLimitParams) (Position
 func (b *Bitmex) TransferMargin(params PositionTransferIsolatedMarginParams) (Position, error) {
 	var position Position
 
-	return position, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return position, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointTransferMargin,
 		params,
 		&position)
@@ -490,7 +490,7 @@ func (b *Bitmex) TransferMargin(params PositionTransferIsolatedMarginParams) (Po
 func (b *Bitmex) GetQuotes(params *GenericRequestParams) ([]Quote, error) {
 	var quotations []Quote
 
-	return quotations, b.SendHTTPRequest(bitmexEndpointQuote,
+	return quotations, b.SendHTTPRequest(defaultRest, bitmexEndpointQuote,
 		params,
 		&quotations)
 }
@@ -499,7 +499,7 @@ func (b *Bitmex) GetQuotes(params *GenericRequestParams) ([]Quote, error) {
 func (b *Bitmex) GetQuotesByBuckets(params *QuoteGetBucketedParams) ([]Quote, error) {
 	var quotations []Quote
 
-	return quotations, b.SendHTTPRequest(bitmexEndpointQuoteBucketed,
+	return quotations, b.SendHTTPRequest(defaultRest, bitmexEndpointQuoteBucketed,
 		params,
 		&quotations)
 }
@@ -508,7 +508,7 @@ func (b *Bitmex) GetQuotesByBuckets(params *QuoteGetBucketedParams) ([]Quote, er
 func (b *Bitmex) GetSettlementHistory(params *GenericRequestParams) ([]Settlement, error) {
 	var history []Settlement
 
-	return history, b.SendHTTPRequest(bitmexEndpointSettlement,
+	return history, b.SendHTTPRequest(defaultRest, bitmexEndpointSettlement,
 		params,
 		&history)
 }
@@ -517,35 +517,35 @@ func (b *Bitmex) GetSettlementHistory(params *GenericRequestParams) ([]Settlemen
 func (b *Bitmex) GetStats() ([]Stats, error) {
 	var stats []Stats
 
-	return stats, b.SendHTTPRequest(bitmexEndpointStats, nil, &stats)
+	return stats, b.SendHTTPRequest(defaultRest, bitmexEndpointStats, nil, &stats)
 }
 
 // GetStatsHistorical historic stats
 func (b *Bitmex) GetStatsHistorical() ([]StatsHistory, error) {
 	var history []StatsHistory
 
-	return history, b.SendHTTPRequest(bitmexEndpointStatsHistory, nil, &history)
+	return history, b.SendHTTPRequest(defaultRest, bitmexEndpointStatsHistory, nil, &history)
 }
 
 // GetStatSummary returns the stats summary in USD terms
 func (b *Bitmex) GetStatSummary() ([]StatsUSD, error) {
 	var summary []StatsUSD
 
-	return summary, b.SendHTTPRequest(bitmexEndpointStatsSummary, nil, &summary)
+	return summary, b.SendHTTPRequest(defaultRest, bitmexEndpointStatsSummary, nil, &summary)
 }
 
 // GetTrade returns executed trades on the desk
 func (b *Bitmex) GetTrade(params *GenericRequestParams) ([]Trade, error) {
 	var trade []Trade
 
-	return trade, b.SendHTTPRequest(bitmexEndpointTrade, params, &trade)
+	return trade, b.SendHTTPRequest(defaultRest, bitmexEndpointTrade, params, &trade)
 }
 
 // GetPreviousTrades previous trade history in time buckets
 func (b *Bitmex) GetPreviousTrades(params *TradeGetBucketedParams) ([]Trade, error) {
 	var trade []Trade
 
-	return trade, b.SendHTTPRequest(bitmexEndpointTradeBucketed,
+	return trade, b.SendHTTPRequest(defaultRest, bitmexEndpointTradeBucketed,
 		params,
 		&trade)
 }
@@ -554,7 +554,7 @@ func (b *Bitmex) GetPreviousTrades(params *TradeGetBucketedParams) ([]Trade, err
 func (b *Bitmex) GetUserInfo() (User, error) {
 	var userInfo User
 
-	return userInfo, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return userInfo, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUser,
 		nil,
 		&userInfo)
@@ -564,7 +564,7 @@ func (b *Bitmex) GetUserInfo() (User, error) {
 func (b *Bitmex) UpdateUserInfo(params *UserUpdateParams) (User, error) {
 	var userInfo User
 
-	return userInfo, b.SendAuthenticatedHTTPRequest(http.MethodPut,
+	return userInfo, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPut,
 		bitmexEndpointUser,
 		params,
 		&userInfo)
@@ -574,7 +574,7 @@ func (b *Bitmex) UpdateUserInfo(params *UserUpdateParams) (User, error) {
 func (b *Bitmex) GetAffiliateStatus() (AffiliateStatus, error) {
 	var status AffiliateStatus
 
-	return status, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return status, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserAffiliate,
 		nil,
 		&status)
@@ -584,7 +584,7 @@ func (b *Bitmex) GetAffiliateStatus() (AffiliateStatus, error) {
 func (b *Bitmex) CancelWithdraw(token string) (TransactionInfo, error) {
 	var info TransactionInfo
 
-	return info, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return info, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointUserCancelWithdraw,
 		UserTokenParams{Token: token},
 		&info)
@@ -595,7 +595,7 @@ func (b *Bitmex) CancelWithdraw(token string) (TransactionInfo, error) {
 func (b *Bitmex) CheckReferalCode(referralCode string) (float64, error) {
 	var percentage float64
 
-	return percentage, b.SendHTTPRequest(bitmexEndpointUserCheckReferralCode,
+	return percentage, b.SendHTTPRequest(defaultRest, bitmexEndpointUserCheckReferralCode,
 		UserCheckReferralCodeParams{ReferralCode: referralCode},
 		&percentage)
 }
@@ -604,7 +604,7 @@ func (b *Bitmex) CheckReferalCode(referralCode string) (float64, error) {
 func (b *Bitmex) GetUserCommision() (UserCommission, error) {
 	var commissionInfo UserCommission
 
-	return commissionInfo, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return commissionInfo, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserCommision,
 		nil,
 		&commissionInfo)
@@ -614,7 +614,7 @@ func (b *Bitmex) GetUserCommision() (UserCommission, error) {
 func (b *Bitmex) ConfirmEmail(token string) (ConfirmEmail, error) {
 	var confirmation ConfirmEmail
 
-	return confirmation, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return confirmation, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserConfirmEmail,
 		UserTokenParams{Token: token},
 		&confirmation)
@@ -624,7 +624,7 @@ func (b *Bitmex) ConfirmEmail(token string) (ConfirmEmail, error) {
 func (b *Bitmex) ConfirmTwoFactorAuth(token, typ string) (bool, error) {
 	var working bool
 
-	return working, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return working, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointUserConfirmTFA,
 		UserConfirmTFAParams{Token: token, Type: typ},
 		&working)
@@ -634,7 +634,7 @@ func (b *Bitmex) ConfirmTwoFactorAuth(token, typ string) (bool, error) {
 func (b *Bitmex) ConfirmWithdrawal(token string) (TransactionInfo, error) {
 	var info TransactionInfo
 
-	return info, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return info, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointUserCancelWithdraw,
 		UserTokenParams{Token: token},
 		&info)
@@ -650,7 +650,7 @@ func (b *Bitmex) GetCryptoDepositAddress(cryptoCurrency string) (string, error) 
 				cryptoCurrency)
 	}
 
-	return address, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return address, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserDepositAddress,
 		UserCurrencyParams{Currency: "XBt"},
 		&address)
@@ -660,7 +660,7 @@ func (b *Bitmex) GetCryptoDepositAddress(cryptoCurrency string) (string, error) 
 func (b *Bitmex) DisableTFA(token, typ string) (bool, error) {
 	var disabled bool
 
-	return disabled, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return disabled, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointUserDisableTFA,
 		UserConfirmTFAParams{Token: token, Type: typ},
 		&disabled)
@@ -668,7 +668,7 @@ func (b *Bitmex) DisableTFA(token, typ string) (bool, error) {
 
 // UserLogOut logs you out of BitMEX
 func (b *Bitmex) UserLogOut() error {
-	return b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointUserLogout,
 		nil,
 		nil)
@@ -678,7 +678,7 @@ func (b *Bitmex) UserLogOut() error {
 func (b *Bitmex) UserLogOutAll() (int64, error) {
 	var status int64
 
-	return status, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return status, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointUserLogoutAll,
 		nil,
 		&status)
@@ -688,7 +688,7 @@ func (b *Bitmex) UserLogOutAll() (int64, error) {
 func (b *Bitmex) GetUserMargin(currency string) (UserMargin, error) {
 	var info UserMargin
 
-	return info, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return info, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserMargin,
 		UserCurrencyParams{Currency: currency},
 		&info)
@@ -698,7 +698,7 @@ func (b *Bitmex) GetUserMargin(currency string) (UserMargin, error) {
 func (b *Bitmex) GetAllUserMargin() ([]UserMargin, error) {
 	var info []UserMargin
 
-	return info, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return info, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserMargin,
 		UserCurrencyParams{Currency: "all"},
 		&info)
@@ -708,7 +708,7 @@ func (b *Bitmex) GetAllUserMargin() ([]UserMargin, error) {
 func (b *Bitmex) GetMinimumWithdrawalFee(currency string) (MinWithdrawalFee, error) {
 	var fee MinWithdrawalFee
 
-	return fee, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return fee, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserMinWithdrawalFee,
 		UserCurrencyParams{Currency: currency},
 		&fee)
@@ -718,7 +718,7 @@ func (b *Bitmex) GetMinimumWithdrawalFee(currency string) (MinWithdrawalFee, err
 func (b *Bitmex) GetUserPreferences(params UserPreferencesParams) (User, error) {
 	var userInfo User
 
-	return userInfo, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return userInfo, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointUserPreferences,
 		params,
 		&userInfo)
@@ -728,7 +728,7 @@ func (b *Bitmex) GetUserPreferences(params UserPreferencesParams) (User, error) 
 func (b *Bitmex) EnableTFA(typ string) (bool, error) {
 	var enabled bool
 
-	return enabled, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return enabled, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointUserRequestTFA,
 		UserConfirmTFAParams{Type: typ},
 		&enabled)
@@ -740,7 +740,7 @@ func (b *Bitmex) EnableTFA(typ string) (bool, error) {
 func (b *Bitmex) UserRequestWithdrawal(params UserRequestWithdrawalParams) (TransactionInfo, error) {
 	var info TransactionInfo
 
-	return info, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return info, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost,
 		bitmexEndpointUserRequestWithdraw,
 		params,
 		&info)
@@ -750,7 +750,7 @@ func (b *Bitmex) UserRequestWithdrawal(params UserRequestWithdrawalParams) (Tran
 func (b *Bitmex) GetWalletInfo(currency string) (WalletInfo, error) {
 	var info WalletInfo
 
-	return info, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return info, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserWallet,
 		UserCurrencyParams{Currency: currency},
 		&info)
@@ -760,7 +760,7 @@ func (b *Bitmex) GetWalletInfo(currency string) (WalletInfo, error) {
 func (b *Bitmex) GetWalletHistory(currency string) ([]TransactionInfo, error) {
 	var info []TransactionInfo
 
-	return info, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return info, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserWalletHistory,
 		UserCurrencyParams{Currency: currency},
 		&info)
@@ -770,22 +770,28 @@ func (b *Bitmex) GetWalletHistory(currency string) ([]TransactionInfo, error) {
 func (b *Bitmex) GetWalletSummary(currency string) ([]TransactionInfo, error) {
 	var info []TransactionInfo
 
-	return info, b.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return info, b.SendAuthenticatedHTTPRequest(defaultRest, http.MethodGet,
 		bitmexEndpointUserWalletSummary,
 		UserCurrencyParams{Currency: currency},
 		&info)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface{}) error {
+func (b *Bitmex) SendHTTPRequest(ep, path string, params Parameter, result interface{}) error {
+	fmt.Println("MEOW!")
 	var respCheck interface{}
-	path = b.API.Endpoints.URL + path
+	endpoint, err := b.GetEndpoint(ep)
+	if err != nil {
+		return err
+	}
+	path = endpoint + path
 	if params != nil {
 		if !params.IsNil() {
 			encodedPath, err := params.ToURLVals(path)
 			if err != nil {
 				return err
 			}
+
 			err = b.SendPayload(context.Background(), &request.Item{
 				Method:        http.MethodGet,
 				Path:          encodedPath,
@@ -797,30 +803,39 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 			if err != nil {
 				return err
 			}
+			fmt.Println("MOOOOOOOOOOOOOOOO")
 			return b.CaptureError(respCheck, result)
 		}
 	}
-	err := b.SendPayload(context.Background(), &request.Item{
-		Method:        http.MethodGet,
-		Path:          path,
-		Result:        &respCheck,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording,
+	var wow = make(http.Header)
+
+	err = b.SendPayload(context.Background(), &request.Item{
+		Method:         http.MethodGet,
+		Path:           path,
+		Result:         &respCheck,
+		Verbose:        b.Verbose,
+		HTTPDebugging:  b.HTTPDebugging,
+		HTTPRecording:  b.HTTPRecording,
+		HeaderResponse: &wow,
 	})
 	if err != nil {
 		return err
 	}
+	fmt.Println("HEADER RESPONSE:", wow)
+
 	return b.CaptureError(respCheck, result)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bitmex
-func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Parameter, result interface{}) error {
+func (b *Bitmex) SendAuthenticatedHTTPRequest(ep, verb, path string, params Parameter, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
-
+	endpoint, err := b.GetEndpoint(ep)
+	if err != nil {
+		return err
+	}
 	expires := time.Now().Add(time.Second * 10)
 	timestamp := expires.UnixNano()
 	timestampStr := strconv.FormatInt(timestamp, 10)
@@ -854,9 +869,9 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 
 	ctx, cancel := context.WithDeadline(context.Background(), expires)
 	defer cancel()
-	err := b.SendPayload(ctx, &request.Item{
+	err = b.SendPayload(ctx, &request.Item{
 		Method:        verb,
-		Path:          b.API.Endpoints.URL + path,
+		Path:          endpoint + path,
 		Headers:       headers,
 		Body:          bytes.NewBuffer([]byte(payload)),
 		Result:        &respCheck,

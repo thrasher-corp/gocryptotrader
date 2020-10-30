@@ -68,10 +68,7 @@ func (b *Bithumb) GetTradablePairs() ([]string, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 	var response TickerResponse
-	path := b.API.Endpoints.URL +
-		publicTicker +
-		strings.ToUpper(symbol)
-	err := b.SendHTTPRequest(path, &response)
+	err := b.SendHTTPRequest(defaultRest, publicTicker+strings.ToUpper(symbol), &response)
 	if err != nil {
 		return response.Data, err
 	}
@@ -86,8 +83,7 @@ func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 // GetAllTickers returns all ticker information
 func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 	var response TickersResponse
-	path := b.API.Endpoints.URL + publicTicker + "all"
-	err := b.SendHTTPRequest(path, &response)
+	err := b.SendHTTPRequest(defaultRest, publicTicker+"all", &response)
 	if err != nil {
 		return nil, err
 	}
@@ -116,9 +112,7 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 	response := Orderbook{}
-	path := b.API.Endpoints.URL + publicOrderBook + strings.ToUpper(symbol)
-
-	err := b.SendHTTPRequest(path, &response)
+	err := b.SendHTTPRequest(defaultRest, publicOrderBook+strings.ToUpper(symbol), &response)
 	if err != nil {
 		return response, err
 	}
@@ -135,11 +129,10 @@ func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, error) {
 	response := TransactionHistory{}
-	path := b.API.Endpoints.URL +
-		publicTransactionHistory +
+	path := publicTransactionHistory +
 		strings.ToUpper(symbol)
 
-	err := b.SendHTTPRequest(path, &response)
+	err := b.SendHTTPRequest(defaultRest, path, &response)
 	if err != nil {
 		return response, err
 	}
@@ -166,7 +159,7 @@ func (b *Bithumb) GetAccountInformation(orderCurrency, paymentCurrency string) (
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateAccInfo, val, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateAccInfo, val, &response)
 }
 
 // GetAccountBalance returns customer wallet information
@@ -185,7 +178,7 @@ func (b *Bithumb) GetAccountBalance(c string) (FullBalance, error) {
 		vals.Set("currency", c)
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(privateAccBalance, vals, &response)
+	err := b.SendAuthenticatedHTTPRequest(defaultRest, privateAccBalance, vals, &response)
 	if err != nil {
 		return fullBalance, err
 	}
@@ -238,7 +231,7 @@ func (b *Bithumb) GetWalletAddress(currency string) (WalletAddressRes, error) {
 	params := url.Values{}
 	params.Set("currency", strings.ToUpper(currency))
 
-	err := b.SendAuthenticatedHTTPRequest(privateWalletAdd, params, &response)
+	err := b.SendAuthenticatedHTTPRequest(defaultRest, privateWalletAdd, params, &response)
 	if err != nil {
 		return response, err
 	}
@@ -257,7 +250,7 @@ func (b *Bithumb) GetLastTransaction() (LastTransactionTicker, error) {
 	response := LastTransactionTicker{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateTicker, nil, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateTicker, nil, &response)
 }
 
 // GetOrders returns order list
@@ -292,7 +285,7 @@ func (b *Bithumb) GetOrders(orderID, transactionType, count, after, currency str
 	}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateOrders, params, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateOrders, params, &response)
 }
 
 // GetUserTransactions returns customer transactions
@@ -300,7 +293,7 @@ func (b *Bithumb) GetUserTransactions() (UserTransactions, error) {
 	response := UserTransactions{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateUserTrans, nil, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateUserTrans, nil, &response)
 }
 
 // PlaceTrade executes a trade order
@@ -321,7 +314,7 @@ func (b *Bithumb) PlaceTrade(orderCurrency, transactionType string, units float6
 	params.Set("price", strconv.FormatInt(price, 10))
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privatePlaceTrade, params, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privatePlaceTrade, params, &response)
 }
 
 // ModifyTrade modifies an order already on the exchange books
@@ -337,7 +330,7 @@ func (b *Bithumb) ModifyTrade(orderID, orderCurrency, transactionType string, un
 	params.Set("order_id", orderID)
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privatePlaceTrade, params, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privatePlaceTrade, params, &response)
 }
 
 // GetOrderDetails returns specific order details
@@ -355,7 +348,7 @@ func (b *Bithumb) GetOrderDetails(orderID, transactionType, currency string) (Or
 	params.Set("currency", strings.ToUpper(currency))
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateOrderDetail, params, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateOrderDetail, params, &response)
 }
 
 // CancelTrade cancels a customer purchase/sales transaction
@@ -372,7 +365,7 @@ func (b *Bithumb) CancelTrade(transactionType, orderID, currency string) (Action
 	params.Set("currency", strings.ToUpper(currency))
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateCancelTrade, nil, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateCancelTrade, nil, &response)
 }
 
 // WithdrawCrypto withdraws a customer currency to an address
@@ -395,7 +388,7 @@ func (b *Bithumb) WithdrawCrypto(address, destination, currency string, units fl
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateBTCWithdraw, params, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateBTCWithdraw, params, &response)
 }
 
 // RequestKRWDepositDetails returns Bithumb banking details for deposit
@@ -404,7 +397,7 @@ func (b *Bithumb) RequestKRWDepositDetails() (KRWDeposit, error) {
 	response := KRWDeposit{}
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateKRWDeposit, nil, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateKRWDeposit, nil, &response)
 }
 
 // RequestKRWWithdraw allows a customer KRW withdrawal request
@@ -421,7 +414,7 @@ func (b *Bithumb) RequestKRWWithdraw(bank, account string, price int64) (ActionS
 	params.Set("price", strconv.FormatInt(price, 10))
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateKRWWithdraw, params, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateKRWWithdraw, params, &response)
 }
 
 // MarketBuyOrder initiates a buy order through available order books
@@ -437,7 +430,7 @@ func (b *Bithumb) MarketBuyOrder(currency string, units float64) (MarketBuy, err
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateMarketBuy, params, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateMarketBuy, params, &response)
 }
 
 // MarketSellOrder initiates a sell order through available order books
@@ -453,14 +446,18 @@ func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, e
 	params.Set("units", strconv.FormatFloat(units, 'f', -1, 64))
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(privateMarketSell, params, &response)
+		b.SendAuthenticatedHTTPRequest(defaultRest, privateMarketSell, params, &response)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (b *Bithumb) SendHTTPRequest(path string, result interface{}) error {
+func (b *Bithumb) SendHTTPRequest(ep, path string, result interface{}) error {
+	endpoint, err := b.GetEndpoint(ep)
+	if err != nil {
+		return err
+	}
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          path,
+		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
@@ -469,11 +466,14 @@ func (b *Bithumb) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bithumb
-func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, result interface{}) error {
+func (b *Bithumb) SendAuthenticatedHTTPRequest(ep, path string, params url.Values, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
-
+	endpoint, err := b.GetEndpoint(ep)
+	if err != nil {
+		return err
+	}
 	if params == nil {
 		params = url.Values{}
 	}
@@ -501,9 +501,9 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		Message string `json:"message"`
 	}{}
 
-	err := b.SendPayload(context.Background(), &request.Item{
+	err = b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodPost,
-		Path:          b.API.Endpoints.URL + path,
+		Path:          endpoint + path,
 		Headers:       headers,
 		Body:          bytes.NewBufferString(payload),
 		Result:        &intermediary,
@@ -608,7 +608,7 @@ var errCode = map[string]string{
 
 // GetCandleStick returns candle stick data for requested pair
 func (b *Bithumb) GetCandleStick(symbol, interval string) (resp OHLCVResponse, err error) {
-	path := b.API.Endpoints.URL + publicCandleStick + symbol + "/" + interval
-	err = b.SendHTTPRequest(path, &resp)
+	path := publicCandleStick + symbol + "/" + interval
+	err = b.SendHTTPRequest(defaultRest, path, &resp)
 	return
 }

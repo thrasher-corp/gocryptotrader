@@ -230,6 +230,7 @@ func TestGetBalance(t *testing.T) {
 }
 
 func TestGetUserTransactions(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
 
 	_, err := b.GetUserTransactions("btcusd")
@@ -667,6 +668,7 @@ func TestWsRequestReconnect(t *testing.T) {
 }
 
 func TestBitstamp_OHLC(t *testing.T) {
+	b.Verbose = true
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 	_, err := b.OHLC("btcusd", start, end, "60", "10")

@@ -27,6 +27,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	testnetURL  = "testnetURL"
+	defaultWS   = "defaultWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bitmex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -119,10 +125,9 @@ func (b *Bitmex) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	b.API.Endpoints.URLDefault = bitmexAPIURL
-	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-	b.API.Endpoints.WebsocketURL = bitmexWSURL
+	b.API.Endpoints = make(map[string]string)
+	b.API.Endpoints[defaultRest] = bitmexAPIURL
+	b.API.Endpoints[defaultWS] = bitmexWSURL
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -183,7 +188,7 @@ func (b *Bitmex) Run() {
 			"%s Websocket: %s. (url: %s).\n",
 			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()),
-			b.API.Endpoints.WebsocketURL)
+			b.API.Endpoints[defaultWS])
 		b.PrintEnabledPairs()
 	}
 

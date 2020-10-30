@@ -35,6 +35,7 @@ func (a *Alphapoint) SetDefaults() {
 	a.Name = "Alphapoint"
 	a.Enabled = true
 	a.Verbose = true
+	a.API.Endpoints = make(map[string]string)
 	a.API.Endpoints[defaultWS] = alphapointDefaultWebsocketURL
 	a.API.Endpoints[defaultRest] = alphapointDefaultAPIURL
 	a.API.CredentialsValidator.RequiresKey = true
