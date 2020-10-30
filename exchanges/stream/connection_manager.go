@@ -91,12 +91,16 @@ subscriptions:
 			continue
 		}
 		// If includes max subscriptions sub-divide into windows
-		for i := len(*v); i > 0; i -= int(k.MaxSubscriptions) {
+		for remaining := len(*v); remaining > 0; remaining -= int(k.MaxSubscriptions) {
+			left := remaining - int(k.MaxSubscriptions)
+			if left < 0 {
+				left = 0
+			}
 			conn, err := c.generateConnection(k.URL, k.DedicatedAuthenticatedConn)
 			if err != nil {
 				return nil, err
 			}
-			reference[conn] = append(reference[conn], (*v)[i-int(k.MaxSubscriptions):i]...)
+			reference[conn] = append(reference[conn], (*v)[left:remaining]...)
 		}
 	}
 	return reference, nil
@@ -117,12 +121,12 @@ subscriptions:
 // FullConnect generates subscriptions, deploys new connections and subscribes
 // to channels
 func (c *ConnectionManager) FullConnect() error {
-	subscriptions, err := c.GenerateSubscriptions()
-	if err != nil {
-		return err
-	}
+	// subscriptions, err := c.GenerateSubscriptions()
+	// if err != nil {
+	// 	return err
+	// }
 
-	fmt.Println("generated subs:", subscriptions)
+	// fmt.Println("generated subs:", subscriptions)
 
 	// connections, subs, err := c.GenerateConnections(authEnabled, subscriptions)
 	// if err != nil {

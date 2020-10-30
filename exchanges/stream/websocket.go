@@ -221,22 +221,22 @@ func (w *Websocket) Connect() error {
 		return err
 	}
 
-	fmt.Println("generated subs:", subs)
+	// fmt.Println("generated subs:", subs)
 
 	connections, err := w.Connections.GenerateConnections(subs)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("generated cons:", len(connections))
+	// fmt.Println("generated cons:", len(connections))
 
 	for conn, subs := range connections {
-		fmt.Println("CONN SUB LENGTH", len(subs))
+		// fmt.Println("CONN SUB LENGTH", len(subs))
 		err = w.Connections.LoadNewConnection(conn)
 		if err != nil {
 			return err
 		}
-		fmt.Println("CONNECTION LOADED CONNECTING")
+		// fmt.Println("CONNECTION LOADED CONNECTING")
 
 		err = w.Connections.Connect(conn)
 		if err != nil {
@@ -244,16 +244,12 @@ func (w *Websocket) Connect() error {
 			return fmt.Errorf("%v Error connecting %s", w.exchangeName, err)
 		}
 
-		fmt.Println("Connected and now subbin")
+		// fmt.Println("Connected and now subbin")
 
 		err = w.Connections.Subscribe(conn, subs)
 		if err != nil {
-			fmt.Println("EFFED")
-
 			return err
 		}
-		fmt.Println("SUUUUUUUUUUUUUBED")
-
 	}
 
 	// err := w.connector(nil)

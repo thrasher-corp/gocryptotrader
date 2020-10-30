@@ -24,6 +24,11 @@ import (
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
 	pingDelay                  = time.Minute * 9
+
+	// maxBatchedPayloads defines an upper restriction on outbound batched
+	// subscriptions. There seems to be a byte limit that is not documented.
+	// Max bytes == 4096
+	maxBatchedPayloads = 150
 )
 
 var listenKey string
@@ -114,14 +119,16 @@ func (b *Binance) spawnConnection(url string, auth bool) (stream.Connection, err
 		return nil, errors.New("url not specified when generating connection")
 	}
 	return &stream.WebsocketConnection{
-		Verbose:       b.Verbose,
-		ExchangeName:  b.Name,
-		URL:           url,
-		ProxyURL:      b.Websocket.GetProxyAddress(),
-		Authenticated: auth,
-		Match:         b.Websocket.Match,
-		Wg:            b.Websocket.Wg,
-		Traffic:       b.Websocket.TrafficAlert,
+		Verbose:          b.Verbose,
+		ExchangeName:     b.Name,
+		URL:              url,
+		ProxyURL:         b.Websocket.GetProxyAddress(),
+		Authenticated:    auth,
+		Match:            b.Websocket.Match,
+		Wg:               b.Websocket.Wg,
+		Traffic:          b.Websocket.TrafficAlert,
+		RateLimit:        250,
+		ResponseMaxLimit: time.Second * 10,
 	}, nil
 }
 
@@ -129,7 +136,7 @@ func (b *Binance) preConnectionSetup(conn stream.Connection) {
 	b.buffer = make(map[string]map[asset.Item]chan *WebsocketDepthStream)
 	b.fetchingbook = make(map[string]map[asset.Item]bool)
 	b.initialSync = make(map[string]map[asset.Item]bool)
-	b.jobs = make(chan Job, 100)
+	b.jobs = make(chan Job, 2000)
 	for i := 0; i < 10; i++ {
 		// 10 workers for synchronising book
 		b.SynchroniseWebsocketOrderbook()
@@ -166,19 +173,62 @@ func (b *Binance) wsReadData(conn stream.Connection) {
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw, conn)
-		if err != nil {
-			b.Websocket.DataHandler <- err
-		}
+		go func() {
+			err := b.wsHandleData(resp.Raw, conn)
+			if err != nil {
+				b.Websocket.DataHandler <- err
+			}
+		}()
 	}
 }
 
 func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
+	// fmt.Println("Incoming:", string(respRaw))
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
 		return err
 	}
+
+	if err, ok := multiStreamData["error"]; ok {
+		hello, ok := err.(map[string]interface{})
+		if !ok {
+			return errors.New("could not type cast to map[string]interface{}")
+		}
+
+		code, ok := hello["code"].(float64)
+		if !ok {
+			return errors.New("invalid data for error code")
+		}
+
+		message, ok := hello["msg"].(string)
+		if !ok {
+			return errors.New("invalid data for error message")
+		}
+
+		return fmt.Errorf("websocket error code [%d], %s",
+			int(code),
+			message)
+	}
+
+	if data, ok := multiStreamData["result"]; ok {
+		fmt.Println("RESULT:", data)
+	}
+
+	if data, ok := multiStreamData["id"]; ok {
+		id, ok := data.(float64)
+		if !ok {
+			return errors.New("failed to type case to int")
+		}
+
+		fmt.Printf("WebsocketIncoming: %d for connection %p\n", int64(id), conn)
+
+		if !b.Websocket.Match.Incoming(int64(id)) {
+			log.Warnln(log.WebsocketMgr, "could not match successful subscription")
+		}
+		return nil
+	}
+
 	if method, ok := multiStreamData["method"].(string); ok {
 		// TODO handle subscription handling
 		if strings.EqualFold(method, "subscribe") {
@@ -720,26 +770,26 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 		})
 	}
 
-	// if options.Features.TradeFetching {
-	// 	channels = append(channels, WsChannel{
-	// 		Definition: "@trade",
-	// 		Type:       stream.Trade,
-	// 	})
-	// }
+	if options.Features.TradeFetching {
+		channels = append(channels, WsChannel{
+			Definition: "@trade",
+			Type:       stream.Trade,
+		})
+	}
 
-	// if options.Features.KlineFetching {
-	// 	channels = append(channels, WsChannel{
-	// 		Definition: "@kline_1m",
-	// 		Type:       stream.Kline,
-	// 	})
-	// }
+	if options.Features.KlineFetching {
+		channels = append(channels, WsChannel{
+			Definition: "@kline_1m",
+			Type:       stream.Kline,
+		})
+	}
 
-	// if options.Features.OrderbookFetching {
-	// 	channels = append(channels, WsChannel{
-	// 		Definition: "@depth@100ms",
-	// 		Type:       stream.Orderbook,
-	// 	})
-	// }
+	if options.Features.OrderbookFetching {
+		channels = append(channels, WsChannel{
+			Definition: "@depth@100ms",
+			Type:       stream.Orderbook,
+		})
+	}
 
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes()
@@ -769,21 +819,51 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 
 // Subscribe subscribes to a set of channels
 func (b *Binance) Subscribe(sub stream.SubscriptionParamaters) error {
+	fmt.Printf("Subscribing connection: %p, with how many subs %d\n", sub.Conn, len(sub.Items))
+	payload := WsPayload{
+		Method: "SUBSCRIBE",
+	}
 
+	var subbed []stream.ChannelSubscription
 	for i := range sub.Items {
-		payload := WsPayload{
-			Method: "SUBSCRIBE",
-			Params: []string{sub.Items[i].Channel},
+		payload.Params = append(payload.Params, sub.Items[i].Channel)
+		subbed = append(subbed, sub.Items[i])
+		if (i+1)%maxBatchedPayloads != 0 {
+			continue
 		}
+
+		// payload.ID = time.Now().Unix()
+		wow, _ := json.Marshal(payload)
+		fmt.Printf("OUTBOUND PAYLOAD: %d ID: %d connect: %p\n", len(wow), payload.ID, sub.Conn)
+
 		err := sub.Conn.SendJSONMessage(payload)
 		if err != nil {
 			return err
 		}
-		err = sub.Conn.AddSuccessfulSubscriptions(sub.Items)
+
+		err = sub.Conn.AddSuccessfulSubscriptions(subbed)
 		if err != nil {
 			return err
 		}
-		time.Sleep(time.Millisecond * 250)
+		payload.Params = nil
+		subbed = nil
+		time.Sleep(250 * time.Millisecond)
+	}
+
+	if payload.Params != nil {
+		payload.ID = time.Now().Unix()
+		err := sub.Conn.SendJSONMessage(payload)
+		if err != nil {
+			return err
+		}
+
+		wow, _ := json.Marshal(payload)
+		fmt.Printf("OUTBOUND PAYLOAD: %d ID: %d connect: %p\n", len(wow), payload.ID, sub.Conn)
+
+		err = sub.Conn.AddSuccessfulSubscriptions(subbed)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -794,12 +874,26 @@ func (b *Binance) Unsubscribe(unsub stream.SubscriptionParamaters) error {
 	payload := WsPayload{
 		Method: "UNSUBSCRIBE",
 	}
+
+	var unsubbed []stream.ChannelSubscription
 	for i := range unsub.Items {
 		payload.Params = append(payload.Params, unsub.Items[i].Channel)
+		unsubbed = append(unsubbed, unsub.Items[i])
+		if (i+1)%maxBatchedPayloads != 0 {
+			continue
+		}
+		err := unsub.Conn.SendJSONMessage(payload)
+		if err != nil {
+			return err
+		}
+
+		err = unsub.Conn.RemoveSuccessfulUnsubscriptions(unsubbed)
+		if err != nil {
+			return err
+		}
+		payload.Params = nil
+		unsubbed = nil
 	}
-	err := unsub.Conn.SendJSONMessage(payload)
-	if err != nil {
-		return err
-	}
-	return unsub.Conn.RemoveSuccessfulUnsubscriptions(unsub.Items)
+
+	return nil
 }
