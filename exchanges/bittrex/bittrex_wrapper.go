@@ -25,6 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bittrex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -96,9 +100,8 @@ func (b *Bittrex) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(bittrexRateInterval, bittrexRequestRate)))
-
-	b.API.Endpoints.URLDefault = bittrexAPIURL
-	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
+	b.API.Endpoints = make(map[string]string)
+	b.API.Endpoints[defaultRest] = bittrexAPIURL
 }
 
 // Setup method sets current configuration details if enabled

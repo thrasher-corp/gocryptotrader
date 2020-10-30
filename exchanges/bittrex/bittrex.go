@@ -68,7 +68,7 @@ type Bittrex struct {
 // along with other meta data.
 func (b *Bittrex) GetMarkets() (Market, error) {
 	var markets Market
-	path := fmt.Sprintf("%s/%s/", b.API.Endpoints.URL, bittrexAPIGetMarkets)
+	path := fmt.Sprintf("/%s/", bittrexAPIGetMarkets)
 
 	if err := b.SendHTTPRequest(path, &markets); err != nil {
 		return markets, err
@@ -83,7 +83,7 @@ func (b *Bittrex) GetMarkets() (Market, error) {
 // GetCurrencies is used to get all supported currencies at Bittrex
 func (b *Bittrex) GetCurrencies() (Currency, error) {
 	var currencies Currency
-	path := fmt.Sprintf("%s/%s/", b.API.Endpoints.URL, bittrexAPIGetCurrencies)
+	path := fmt.Sprintf("/%s/", bittrexAPIGetCurrencies)
 
 	if err := b.SendHTTPRequest(path, &currencies); err != nil {
 		return currencies, err
@@ -398,7 +398,7 @@ func (b *Bittrex) GetWithdrawalHistory(currency string) (WithdrawalHistory, erro
 	}
 	path := fmt.Sprintf("%s/%s", b.API.Endpoints.URL, bittrexAPIGetWithdrawalHistory)
 
-	if err := b.SendAuthenticatedHTTPRequest(path, values, &history); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(defaultRest, path, values, &history); err != nil {
 		return history, err
 	}
 
@@ -417,9 +417,9 @@ func (b *Bittrex) GetDepositHistory(currency string) (DepositHistory, error) {
 	if !(currency == "" || currency == " ") {
 		values.Set("currency", currency)
 	}
-	path := fmt.Sprintf("%s/%s", b.API.Endpoints.URL, bittrexAPIGetDepositHistory)
+	path := fmt.Sprintf("/%s", bittrexAPIGetDepositHistory)
 
-	if err := b.SendAuthenticatedHTTPRequest(path, values, &history); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(defaultRest, path, values, &history); err != nil {
 		return history, err
 	}
 
@@ -443,16 +443,19 @@ func (b *Bittrex) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request to a desired
 // path
-func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, result interface{}) (err error) {
+func (b *Bittrex) SendAuthenticatedHTTPRequest(ep, path string, values url.Values, result interface{}) (err error) {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
-
+	endpoint, err := b.GetEndpoint(ep)
+	if err != nil {
+		return err
+	}
 	n := b.Requester.GetNonce(true).String()
 
 	values.Set("apikey", b.API.Credentials.Key)
 	values.Set("nonce", n)
-	rawQuery := path + "?" + values.Encode()
+	rawQuery := endpoint + path + "?" + values.Encode()
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA512, []byte(rawQuery), []byte(b.API.Credentials.Secret),
 	)
