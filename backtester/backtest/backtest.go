@@ -71,6 +71,10 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 	}
 
 	base := exch.GetBase()
+	if !base.ValidateAPICredentials() {
+		log.Warnf(log.Global, "no credentials set for %v, this is theoretical only", base.Name)
+	}
+
 	fPair, err := base.FormatExchangeCurrency(cp, a)
 	if err != nil {
 		return nil, err
@@ -90,11 +94,10 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 	if err != nil {
 		return nil, err
 	}
-	candles.SortCandlesByTimestamp(true)
+
 	bt.Data = &data2.DataFromKline{
 		Item: candles,
 	}
-
 	err = bt.Data.Load()
 	if err != nil {
 		return nil, err

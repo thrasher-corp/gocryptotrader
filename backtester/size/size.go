@@ -11,7 +11,6 @@ import (
 	order2 "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// TODO implement risk manager
 func (s *Size) SizeOrder(o orderbook.OrderEvent, _ datahandler.DataEventHandler, _ portfolio.PortfolioHandler) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 

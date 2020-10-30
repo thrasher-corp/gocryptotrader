@@ -20,7 +20,7 @@ func (s *Strategy) Name() string {
 }
 
 func (s *Strategy) OnSignal(d portfolio.DataHandler, _ portfolio2.PortfolioHandler) (signal.SignalEvent, error) {
-	es := event.Signal{
+	es := signal.Signal{
 		Event: event.Event{Time: d.Latest().GetTime(),
 			CurrencyPair: d.Latest().Pair()},
 	}
