@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 const (
@@ -185,13 +186,16 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Pair:         p,
 			}
 		}
-
 	case strings.Contains(result["topic"].(string), "tradeHistory"):
+		if !b.IsSaveTradeDataEnabled() {
+			return nil
+		}
 		var tradeHistory wsTradeHistory
 		err = json.Unmarshal(respRaw, &tradeHistory)
 		if err != nil {
 			return err
 		}
+		var trades []trade.Data
 		for x := range tradeHistory.Data {
 			side := order.Buy
 			if tradeHistory.Data[x].Gain == -1 {
@@ -211,7 +215,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			b.Websocket.DataHandler <- stream.TradeData{
+			trades = append(trades, trade.Data{
 				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
 				CurrencyPair: p,
 				AssetType:    a,
@@ -219,8 +223,10 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Price:        tradeHistory.Data[x].Price,
 				Amount:       tradeHistory.Data[x].Amount,
 				Side:         side,
-			}
+				TID:          strconv.FormatInt(tradeHistory.Data[x].ID, 10),
+			})
 		}
+		return trade.AddTradesToBuffer(b.Name, trades...)
 	case strings.Contains(result["topic"].(string), "orderBookApi"):
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)
@@ -261,7 +267,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Amount: amount,
 			})
 		}
-		p, err := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
+		p, err := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, currency.UnderscoreDelimiter)])
 		if err != nil {
 			return err
 		}

@@ -315,7 +315,7 @@ type MovementHistory struct {
 type TradeHistory struct {
 	Price       float64 `json:"price,string"`
 	Amount      float64 `json:"amount,string"`
-	Timestamp   string  `json:"timestamp"`
+	Timestamp   int64   `json:"timestamp"`
 	Exchange    string  `json:"exchange"`
 	Type        string  `json:"type"`
 	FeeCurrency string  `json:"fee_currency"`

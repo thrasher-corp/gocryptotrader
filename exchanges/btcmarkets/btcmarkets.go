@@ -102,7 +102,7 @@ func (b *BTCMarkets) GetTrades(marketID string, before, after, limit int64) ([]T
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
 	}
-	if after >= 0 {
+	if after > 0 {
 		params.Set("after", strconv.FormatInt(after, 10))
 	}
 	if limit > 0 {

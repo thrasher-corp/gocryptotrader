@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -284,21 +285,42 @@ func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 		channelData := getSubscriptionChannelData(channelID)
 		switch channelData.Subscription {
 		case krakenWsTicker:
-			return k.wsProcessTickers(&channelData, response[1].(map[string]interface{}))
+			t, ok := response[1].(map[string]interface{})
+			if !ok {
+				return errors.New("received invalid ticker data")
+			}
+			return k.wsProcessTickers(&channelData, t)
 		case krakenWsOHLC:
-			return k.wsProcessCandles(&channelData, response[1].([]interface{}))
+			o, ok := response[1].([]interface{})
+			if !ok {
+				return errors.New("received invalid OHLCV data")
+			}
+			return k.wsProcessCandles(&channelData, o)
 		case krakenWsOrderbook:
-			return k.wsProcessOrderBook(&channelData, response[1].(map[string]interface{}))
+			ob, ok := response[1].(map[string]interface{})
+			if !ok {
+				return errors.New("received invalid orderbook data")
+			}
+			return k.wsProcessOrderBook(&channelData, ob)
 		case krakenWsSpread:
-			k.wsProcessSpread(&channelData, response[1].([]interface{}))
+			s, ok := response[1].([]interface{})
+			if !ok {
+				return errors.New("received invalid spread data")
+			}
+			k.wsProcessSpread(&channelData, s)
 		case krakenWsTrade:
-			k.wsProcessTrades(&channelData, response[1].([]interface{}))
+			t, ok := response[1].([]interface{})
+			if !ok {
+				return errors.New("received invalid trade data")
+			}
+			return k.wsProcessTrades(&channelData, t)
 		default:
-			return fmt.Errorf("%s Unidentified websocket data received: %+v",
+			return fmt.Errorf("%s received unidentified data: %+v",
 				k.Name,
 				response)
 		}
 	}
+
 	return nil
 }
 
@@ -559,37 +581,36 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 }
 
 // wsProcessTrades converts trade data and sends it to the datahandler
-func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []interface{}) {
+func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []interface{}) error {
+	if !k.IsSaveTradeDataEnabled() {
+		return nil
+	}
+	var trades []trade.Data
 	for i := range data {
-		trade := data[i].([]interface{})
-		timeData, err := strconv.ParseFloat(trade[2].(string), 64)
+		t, ok := data[i].([]interface{})
+		if !ok {
+			return errors.New("unidentified trade data received")
+		}
+		timeData, err := strconv.ParseFloat(t[2].(string), 64)
 		if err != nil {
-			k.Websocket.DataHandler <- err
-			return
+			return err
 		}
 
-		price, err := strconv.ParseFloat(trade[0].(string), 64)
+		price, err := strconv.ParseFloat(t[0].(string), 64)
 		if err != nil {
-			k.Websocket.DataHandler <- err
-			return
+			return err
 		}
 
-		amount, err := strconv.ParseFloat(trade[1].(string), 64)
+		amount, err := strconv.ParseFloat(t[1].(string), 64)
 		if err != nil {
-			k.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		var tSide = order.Buy
-		if trade[3].(string) == "s" {
+		if t[3].(string) == "s" {
 			tSide = order.Sell
 		}
 
-		var tType = order.Market
-		if trade[4].(string) == "l" {
-			tType = order.Limit
-		}
-
-		k.Websocket.DataHandler <- stream.TradeData{
+		trades = append(trades, trade.Data{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
 			Exchange:     k.Name,
@@ -597,9 +618,9 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Amount:       amount,
 			Timestamp:    convert.TimeFromUnixTimestampDecimal(timeData),
 			Side:         tSide,
-			EventType:    tType,
-		}
+		})
 	}
+	return trade.AddTradesToBuffer(k.Name, trades...)
 }
 
 // wsProcessOrderBook determines if the orderbook data is partial or update

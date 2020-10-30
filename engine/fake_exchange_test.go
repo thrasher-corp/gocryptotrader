@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -107,7 +108,10 @@ func (h *FakePassingExchange) SetPairs(_ currency.Pairs, _ asset.Item, _ bool) e
 	return nil
 }
 func (h *FakePassingExchange) GetAssetTypes() asset.Items { return asset.Items{asset.Spot} }
-func (h *FakePassingExchange) GetExchangeHistory(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]exchange.TradeHistory, error) {
+func (h *FakePassingExchange) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, nil
+}
+func (h *FakePassingExchange) GetRecentTrades(_ currency.Pair, _ asset.Item) ([]trade.Data, error) {
 	return nil, nil
 }
 func (h *FakePassingExchange) SupportsAutoPairUpdates() bool        { return true }
@@ -132,8 +136,11 @@ func (h *FakePassingExchange) CancelOrder(_ *order.Cancel) error           { ret
 func (h *FakePassingExchange) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, nil
 }
-func (h *FakePassingExchange) GetOrderInfo(_ string) (order.Detail, error) {
-	return order.Detail{}, nil
+func (h *FakePassingExchange) GetOrderInfo(_ string, _ currency.Pair, _ asset.Item) (order.Detail, error) {
+	return order.Detail{
+		Exchange: fakePassExchange,
+		ID:       "fakeOrder",
+	}, nil
 }
 func (h *FakePassingExchange) GetDepositAddress(_ currency.Code, _ string) (string, error) {
 	return "", nil

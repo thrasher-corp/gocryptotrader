@@ -1361,6 +1361,40 @@ func TestFixCasing(t *testing.T) {
 	if ret != "tTNBUSD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
+	pair, err = currency.NewPairFromStrings("fUSD", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Margin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "fUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+	pair, err = currency.NewPairFromStrings("USD", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Margin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "fUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	pair, err = currency.NewPairFromStrings("FUSD", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Margin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "fUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {
@@ -1399,5 +1433,44 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	currencyPair, err = currency.NewPairFromString("USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetRecentTrades(currencyPair, asset.Margin)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+
+	// longer term test
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*24*100), time.Now().Add(-time.Hour*24*99))
+	if err != nil {
+		t.Error(err)
 	}
 }

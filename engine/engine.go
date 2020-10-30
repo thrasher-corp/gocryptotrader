@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -223,6 +224,17 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		request.MaxRequestJobs = int32(b.Settings.MaxHTTPRequestJobsLimit)
 	}
 
+	b.Settings.TradeBufferProcessingInterval = s.TradeBufferProcessingInterval
+	if b.Settings.TradeBufferProcessingInterval != trade.DefaultProcessorIntervalTime {
+		if b.Settings.TradeBufferProcessingInterval >= time.Second {
+			trade.BufferProcessorIntervalTime = b.Settings.TradeBufferProcessingInterval
+		} else {
+			b.Settings.TradeBufferProcessingInterval = trade.DefaultProcessorIntervalTime
+			gctlog.Warnf(gctlog.Global, "-tradeprocessinginterval must be >= to 1 second, using default value of %v",
+				trade.DefaultProcessorIntervalTime)
+		}
+	}
+
 	b.Settings.RequestMaxRetryAttempts = s.RequestMaxRetryAttempts
 	if b.Settings.RequestMaxRetryAttempts != request.DefaultMaxRetryAttempts && s.RequestMaxRetryAttempts > 0 {
 		request.MaxRetryAttempts = b.Settings.RequestMaxRetryAttempts
@@ -304,6 +316,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable exchange HTTP debugging: %v", s.EnableExchangeHTTPDebugging)
 	gctlog.Debugf(gctlog.Global, "\t Max HTTP request jobs: %v", s.MaxHTTPRequestJobsLimit)
 	gctlog.Debugf(gctlog.Global, "\t HTTP request max retry attempts: %v", s.RequestMaxRetryAttempts)
+	gctlog.Debugf(gctlog.Global, "\t Trade buffer processing interval: %v", s.TradeBufferProcessingInterval)
 	gctlog.Debugf(gctlog.Global, "\t HTTP timeout: %v", s.HTTPTimeout)
 	gctlog.Debugf(gctlog.Global, "\t HTTP user agent: %v", s.HTTPUserAgent)
 	gctlog.Debugf(gctlog.Global, "- GCTSCRIPT SETTINGS: ")
@@ -326,7 +339,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDatabaseManager {
-		if err := bot.DatabaseManager.Start(); err != nil {
+		if err := bot.DatabaseManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
 		}
 	}

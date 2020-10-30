@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -91,7 +92,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		currencyPair := strings.Split(wsResponse.Channel, "_")
+		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
 		p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
 		if err != nil {
 			return err
@@ -102,19 +103,22 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case "trade":
+		if !b.IsSaveTradeDataEnabled() {
+			return nil
+		}
 		wsTradeTemp := websocketTradeResponse{}
 		err := json.Unmarshal(respRaw, &wsTradeTemp)
 		if err != nil {
 			return err
 		}
-		currencyPair := strings.Split(wsResponse.Channel, "_")
+		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
 		p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
 		if err != nil {
 			return err
 		}
 
 		side := order.Buy
-		if wsTradeTemp.Data.Type == -1 {
+		if wsTradeTemp.Data.Type == 1 {
 			side = order.Sell
 		}
 		var a asset.Item
@@ -122,16 +126,16 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- stream.TradeData{
+		return trade.AddTradesToBuffer(b.Name, trade.Data{
 			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 			CurrencyPair: p,
 			AssetType:    a,
 			Exchange:     b.Name,
-			EventType:    order.UnknownType,
 			Price:        wsTradeTemp.Data.Price,
 			Amount:       wsTradeTemp.Data.Amount,
 			Side:         side,
-		}
+			TID:          strconv.FormatInt(wsTradeTemp.Data.ID, 10),
+		})
 	case "order_created", "order_deleted", "order_changed":
 		if b.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket order acknowledgement", b.Name)

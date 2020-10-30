@@ -1,10 +1,10 @@
 package bitstamp
 
 import (
-	"net/url"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -200,11 +200,7 @@ func TestGetTradingPairs(t *testing.T) {
 
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
-
-	value := url.Values{}
-	value.Set("time", "hour")
-
-	_, err := b.GetTransactions(currency.BTC.String()+currency.USD.String(), value)
+	_, err := b.GetTransactions(currency.BTC.String()+currency.USD.String(), "hour")
 	if err != nil {
 		t.Error("GetTransactions() error", err)
 	}
@@ -703,5 +699,29 @@ func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
 	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("LTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("LTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

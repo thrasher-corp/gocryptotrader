@@ -2,6 +2,7 @@ package lbank
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -326,9 +328,70 @@ func (l *Lbank) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (l *Lbank) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return l.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (l *Lbank) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	}
+	var err error
+	p, err = l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	ts := timestampStart
+	limit := 600
+allTrades:
+	for {
+		var tradeData []TradeResponse
+		tradeData, err = l.GetTrades(p.String(), int64(limit), ts.UnixNano()/int64(time.Millisecond))
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			tradeTime := time.Unix(0, tradeData[i].DateMS*int64(time.Millisecond))
+			if tradeTime.Before(timestampStart) || tradeTime.After(timestampEnd) {
+				break allTrades
+			}
+			side := order.Buy
+			if strings.Contains(tradeData[i].Type, "sell") {
+				side = order.Sell
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     l.Name,
+				TID:          tradeData[i].TID,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Amount,
+				Timestamp:    tradeTime,
+			})
+			if i == len(tradeData)-1 {
+				if ts.Equal(tradeTime) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = tradeTime
+			}
+		}
+		if len(tradeData) != limit {
+			break allTrades
+		}
+	}
+
+	err = l.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order
@@ -445,8 +508,8 @@ func (l *Lbank) CancelAllOrders(o *order.Cancel) (order.CancelAllResponse, error
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (l *Lbank) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	orderIDs, err := l.getAllOpenOrderID()
 	if err != nil {
@@ -586,7 +649,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			}
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
-			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 9)
+			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 0)
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
@@ -678,7 +741,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				}
 				resp.Price = tempResp.Orders[x].Price
 				resp.Amount = tempResp.Orders[x].Amount
-				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 9)
+				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 0)
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
 				resp.RemainingAmount = tempResp.Orders[x].Price - tempResp.Orders[x].DealAmount
 				resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
@@ -707,16 +770,17 @@ func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		if err != nil {
 			return resp, err
 		}
-		var tempFee string
-		temp := strings.Split(withdrawalFee[0].Fee, ":\"")
-		if len(temp) > 1 {
-			tempFee = strings.TrimRight(temp[1], ",\"type")
-		} else {
-			tempFee = temp[0]
-		}
-		resp, err = strconv.ParseFloat(tempFee, 64)
-		if err != nil {
-			return resp, err
+		for i := range withdrawalFee {
+			if !strings.EqualFold(withdrawalFee[i].AssetCode, feeBuilder.Pair.Base.String()) {
+				continue
+			}
+			if withdrawalFee[i].Fee == "" {
+				return 0, nil
+			}
+			resp, err = strconv.ParseFloat(withdrawalFee[i].Fee, 64)
+			if err != nil {
+				return resp, err
+			}
 		}
 	}
 	return resp, nil

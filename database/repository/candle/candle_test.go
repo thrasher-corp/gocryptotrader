@@ -105,8 +105,17 @@ func TestInsert(t *testing.T) {
 			}
 
 			if r != 365 {
-				t.Fatalf("unexpected number inserted: %v", r)
+				t.Errorf("unexpected number inserted: %v", r)
 			}
+
+			d, err := DeleteCandles(&data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d != 365 {
+				t.Errorf("unexpected number deleted: %v", d)
+			}
+
 			err = testhelpers.CloseDatabase(dbConn)
 			if err != nil {
 				t.Error(err)

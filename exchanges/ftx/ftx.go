@@ -144,19 +144,19 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 }
 
 // GetTrades gets trades based on the conditions specified
-func (f *FTX) GetTrades(marketName string, startTime, endTime time.Time, limit int64) ([]TradeData, error) {
+func (f *FTX) GetTrades(marketName string, startTime, endTime, limit int64) ([]TradeData, error) {
 	strLimit := strconv.FormatInt(limit, 10)
 	params := url.Values{}
 	params.Set("limit", strLimit)
 	resp := struct {
 		Data []TradeData `json:"result"`
 	}{}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
+	if startTime > 0 && endTime > 0 {
+		if startTime >= (endTime) {
 			return resp.Data, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		params.Set("start_time", strconv.FormatInt(startTime, 10))
+		params.Set("end_time", strconv.FormatInt(endTime, 10))
 	}
 	return resp.Data, f.SendHTTPRequest(fmt.Sprintf(ftxAPIURL+getTrades, marketName)+params.Encode(),
 		&resp)
@@ -427,7 +427,7 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 		req["postOnly"] = postOnly
 	}
 	if clientID != "" {
-		req["clientID"] = clientID
+		req["clientId"] = clientID
 	}
 	resp := struct {
 		Data OrderData `json:"result"`
@@ -534,25 +534,48 @@ func (f *FTX) GetOrderStatusByClientID(clientOrderID string) (OrderData, error) 
 // DeleteOrder deletes an order
 func (f *FTX) DeleteOrder(orderID string) (string, error) {
 	resp := struct {
-		Data string `json:"result"`
+		Result  string `json:"result"`
+		Success bool   `json:"success"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(http.MethodGet, deleteOrder+orderID, nil, &resp)
+	if err := f.SendAuthHTTPRequest(http.MethodDelete, deleteOrder+orderID, nil, &resp); err != nil {
+		return "", err
+	}
+	if !resp.Success {
+		return resp.Result, errors.New("delete order request by ID unsuccessful")
+	}
+	return resp.Result, nil
 }
 
 // DeleteOrderByClientID deletes an order
 func (f *FTX) DeleteOrderByClientID(clientID string) (string, error) {
 	resp := struct {
-		Data string `json:"result"`
+		Result  string `json:"result"`
+		Success bool   `json:"success"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(http.MethodGet, deleteOrderByClientID+clientID, nil, &resp)
+
+	if err := f.SendAuthHTTPRequest(http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp); err != nil {
+		return "", err
+	}
+	if !resp.Success {
+		return resp.Result, errors.New("delete order request by client ID unsuccessful")
+	}
+	return resp.Result, nil
 }
 
 // DeleteTriggerOrder deletes an order
 func (f *FTX) DeleteTriggerOrder(orderID string) (string, error) {
 	resp := struct {
-		Data string `json:"result"`
+		Result  string `json:"result"`
+		Success bool   `json:"success"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp)
+
+	if err := f.SendAuthHTTPRequest(http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp); err != nil {
+		return "", err
+	}
+	if !resp.Success {
+		return resp.Result, errors.New("delete trigger order request unsuccessful")
+	}
+	return resp.Result, nil
 }
 
 // GetFills gets fills' data

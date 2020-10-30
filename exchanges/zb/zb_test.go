@@ -976,3 +976,40 @@ func TestValidateCandlesRequest(t *testing.T) {
 		t.Errorf("unexpected result, expected %v, received %v", z.Name, item.Exchange)
 	}
 }
+
+func TestGetTrades(t *testing.T) {
+	t.Parallel()
+
+	trades, err := z.GetTrades("btc_usdt")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(trades) == 0 {
+		t.Error("expected results")
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+
+	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = z.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = z.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
+	}
+}

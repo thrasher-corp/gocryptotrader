@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -408,9 +410,76 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (p *Poloniex) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return p.GetHistoricTrades(currencyPair, assetType, time.Now().Add(-time.Minute*15), time.Now())
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (p *Poloniex) GetHistoricTrades(currencyPair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	}
+	var err error
+	currencyPair, err = p.FormatExchangeCurrency(currencyPair, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []trade.Data
+	ts := timestampStart
+allTrades:
+	for {
+		var tradeData []TradeHistory
+		tradeData, err = p.GetTradeHistory(currencyPair.String(), ts.Unix(), timestampEnd.Unix())
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			var tt time.Time
+			tt, err = time.Parse(common.SimpleTimeFormat, tradeData[i].Date)
+			if err != nil {
+				return nil, err
+			}
+			if (tt.Before(timestampStart) && !timestampStart.IsZero()) || (tt.After(timestampEnd) && !timestampEnd.IsZero()) {
+				break allTrades
+			}
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData[i].Type)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     p.Name,
+				TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
+				CurrencyPair: currencyPair,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Rate,
+				Amount:       tradeData[i].Amount,
+				Timestamp:    tt,
+			})
+			if i == len(tradeData)-1 {
+				if ts.Equal(tt) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				if timestampStart.IsZero() {
+					break allTrades
+				}
+				ts = tt
+			}
+		}
+	}
+
+	err = p.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+	resp = trade.FilterTradesByTime(resp, timestampStart, timestampEnd)
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
 }
 
 // SubmitOrder submits a new order
@@ -420,9 +489,14 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	fPair, err := p.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	fillOrKill := s.Type == order.Market
 	isBuyOrder := s.Side == order.Buy
-	response, err := p.PlaceOrder(s.Pair.String(),
+	response, err := p.PlaceOrder(fPair.String(),
 		s.Price,
 		s.Amount,
 		false,
@@ -503,8 +577,8 @@ func (p *Poloniex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (p *Poloniex) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

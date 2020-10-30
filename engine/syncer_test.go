@@ -20,7 +20,6 @@ func TestNewCurrencyPairSyncer(t *testing.T) {
 	}
 
 	Bot.Settings.DisableExchangeAutoPairUpdates = true
-	Bot.Settings.Verbose = true
 	Bot.Settings.EnableExchangeWebsocketSupport = true
 
 	Bot.SetupExchanges()

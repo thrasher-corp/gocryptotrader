@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -292,11 +293,15 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		case wsTrades:
+			if !f.IsSaveTradeDataEnabled() {
+				return nil
+			}
 			var resultData WsTradeDataStore
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
 				return err
 			}
+			var trades []trade.Data
 			for z := range resultData.TradeData {
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(resultData.TradeData[z].Side)
@@ -306,7 +311,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
-				f.Websocket.DataHandler <- stream.TradeData{
+				trades = append(trades, trade.Data{
 					Timestamp:    resultData.TradeData[z].Time,
 					CurrencyPair: p,
 					AssetType:    a,
@@ -314,8 +319,10 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 					Price:        resultData.TradeData[z].Price,
 					Amount:       resultData.TradeData[z].Size,
 					Side:         oSide,
-				}
+					TID:          strconv.FormatInt(resultData.TradeData[z].ID, 10),
+				})
 			}
+			return trade.AddTradesToBuffer(f.Name, trades...)
 		case wsOrders:
 			var resultData WsOrderDataStore
 			err = json.Unmarshal(respRaw, &resultData)

@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
+	"github.com/thrasher-corp/gocryptotrader/common/timeperiods"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
@@ -34,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
@@ -48,15 +50,18 @@ import (
 )
 
 const (
-	errExchangeNameUnset = "exchange name unset"
-	errCurrencyPairUnset = "currency pair unset"
-	errAssetTypeUnset    = "asset type unset"
-	errDispatchSystem    = "dispatch system offline"
+	errExchangeNameUnset  = "exchange name unset"
+	errCurrencyPairUnset  = "currency pair unset"
+	errStartEndTimesUnset = "invalid start and end times"
+	errAssetTypeUnset     = "asset type unset"
+	errDispatchSystem     = "dispatch system offline"
+	invalidArguments      = "invalid arguments received"
 )
 
 var (
 	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
 	errExchangeBaseNotFound = errors.New("cannot get exchange base")
+	errInvalidArguments     = errors.New(invalidArguments)
 )
 
 // RPCServer struct
@@ -804,7 +809,14 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
-	result, err := exch.GetOrderInfo(r.OrderId)
+
+	pair := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+
+	result, err := s.OrderManager.GetOrderInfo(r.Exchange, r.OrderId, pair, "") // assetType will be implemented in the future
 	if err != nil {
 		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
 	}
@@ -836,6 +848,8 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		OpenVolume:    result.RemainingAmount,
 		Fee:           result.Fee,
 		Trades:        trades,
+		Cost:          result.Cost,
+		UpdateTime:    result.CloseTime.Unix(),
 	}, err
 }
 
@@ -873,9 +887,20 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		return &gctrpc.SubmitOrderResponse{}, err
 	}
 
+	var trades []*gctrpc.Trades
+	for i := range resp.Trades {
+		trades = append(trades, &gctrpc.Trades{
+			Amount:   resp.Trades[i].Amount,
+			Price:    resp.Trades[i].Price,
+			Fee:      resp.Trades[i].Fee,
+			FeeAsset: resp.Trades[i].FeeAsset,
+		})
+	}
+
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
+		Trades:      trades,
 	}, err
 }
 
@@ -1226,13 +1251,13 @@ func (s *RPCServer) WithdrawalEventsByDate(_ context.Context, r *gctrpc.Withdraw
 	if err != nil {
 		return nil, err
 	}
-
-	UTCSEndTime, err := time.Parse(common.SimpleTimeFormat, r.End)
+	var UTCEndTime time.Time
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
 	if err != nil {
 		return nil, err
 	}
-
-	ret, err := WithdrawEventByDate(r.Exchange, UTCStartTime, UTCSEndTime, int(r.Limit))
+	var ret []*withdraw.Response
+	ret, err = WithdrawEventByDate(r.Exchange, UTCStartTime, UTCEndTime, int(r.Limit))
 	if err != nil {
 		return nil, err
 	}
@@ -1275,7 +1300,6 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 	if err != nil {
 		return nil, err
 	}
-
 	assetTypes := exchCfg.CurrencyPairs.GetAssetTypes()
 
 	var a asset.Item
@@ -1615,14 +1639,11 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 		return nil, err
 	}
 
-	UTCSEndTime, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
+	UTCEndTime, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
 	if err != nil {
 		return nil, err
 	}
-
-	loc := time.FixedZone("", int(r.Offset))
-
-	events, err := audit.GetEvent(UTCStartTime, UTCSEndTime, r.OrderBy, int(r.Limit))
+	events, err := audit.GetEvent(UTCStartTime, UTCEndTime, r.OrderBy, int(r.Limit))
 	if err != nil {
 		return nil, err
 	}
@@ -1636,7 +1657,7 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 				Type:       v[x].Type,
 				Identifier: v[x].Identifier,
 				Message:    v[x].Message,
-				Timestamp:  v[x].CreatedAt.In(loc).Format(common.SimpleTimeFormat),
+				Timestamp:  v[x].CreatedAt.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
 			}
 
 			resp.Events = append(resp.Events, tempEvent)
@@ -1657,79 +1678,103 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 }
 
 // GetHistoricCandles returns historical candles for a given exchange
-func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	if req.Exchange == "" {
+func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+	if r.Exchange == "" {
 		return nil, errors.New(errExchangeNameUnset)
 	}
-
-	if req.Pair.String() == "" {
+	if r.Pair.String() == "" {
 		return nil, errors.New(errCurrencyPairUnset)
 	}
-
-	var candles kline.Item
-	var err error
-	resp := gctrpc.GetHistoricCandlesResponse{
-		Interval: kline.Interval(req.TimeInterval).Short(),
-		Pair:     req.Pair,
-		Start:    req.Start,
-		End:      req.End,
+	if r.Start == r.End {
+		return nil, errors.New(errStartEndTimesUnset)
 	}
 
-	a, err := asset.New(req.AssetType)
+	var klineItem kline.Item
+	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, err
+	}
+	var UTCEndTime time.Time
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, err
+	}
+	interval := kline.Interval(r.TimeInterval)
+
+	resp := gctrpc.GetHistoricCandlesResponse{
+		Interval: interval.Short(),
+		Pair:     r.Pair,
+		Start:    r.Start,
+		End:      r.End,
+	}
+
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
 	pair := currency.Pair{
-		Delimiter: req.Pair.Delimiter,
-		Base:      currency.NewCode(req.Pair.Base),
-		Quote:     currency.NewCode(req.Pair.Quote),
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
 	}
-
-	if req.UseDb {
-		candles, err = kline.LoadFromDatabase(req.Exchange,
+	if r.UseDb {
+		klineItem, err = kline.LoadFromDatabase(r.Exchange,
 			pair,
 			a,
-			kline.Interval(req.TimeInterval),
-			time.Unix(req.Start, 0),
-			time.Unix(req.End, 0),
-		)
-	} else {
-		exchangeEngine := s.GetExchangeByName(req.Exchange)
-		if exchangeEngine == nil {
-			return nil, errors.New("Exchange " + req.Exchange + " not found")
+			interval,
+			UTCStartTime,
+			UTCEndTime)
+		if err != nil {
+			return nil, err
 		}
-		if req.ExRequest {
-			candles, err = exchangeEngine.GetHistoricCandlesExtended(pair,
+	} else {
+		exchangeEngine := s.GetExchangeByName(r.Exchange)
+		if exchangeEngine == nil {
+			return nil, errors.New("Exchange " + r.Exchange + " not found")
+		}
+		if r.ExRequest {
+			klineItem, err = exchangeEngine.GetHistoricCandlesExtended(pair,
 				a,
-				time.Unix(req.Start, 0),
-				time.Unix(req.End, 0),
-				kline.Interval(req.TimeInterval))
+				UTCStartTime,
+				UTCEndTime,
+				interval)
 		} else {
-			candles, err = exchangeEngine.GetHistoricCandles(pair,
+			klineItem, err = exchangeEngine.GetHistoricCandles(pair,
 				a,
-				time.Unix(req.Start, 0),
-				time.Unix(req.End, 0),
-				kline.Interval(req.TimeInterval))
+				UTCStartTime,
+				UTCEndTime,
+				interval)
 		}
 	}
+
 	if err != nil {
 		return nil, err
 	}
-	resp.Exchange = candles.Exchange
-	for i := range candles.Candles {
+
+	if r.FillMissingWithTrades {
+		var tradeDataKline *kline.Item
+		tradeDataKline, err = fillMissingCandlesWithStoredTrades(UTCStartTime, UTCEndTime, &klineItem)
+		if err != nil {
+			return nil, err
+		}
+		klineItem.Candles = append(klineItem.Candles, tradeDataKline.Candles...)
+	}
+
+	resp.Exchange = klineItem.Exchange
+	for i := range klineItem.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   candles.Candles[i].Time.Unix(),
-			Low:    candles.Candles[i].Low,
-			High:   candles.Candles[i].High,
-			Open:   candles.Candles[i].Open,
-			Close:  candles.Candles[i].Close,
-			Volume: candles.Candles[i].Volume,
+			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			Low:    klineItem.Candles[i].Low,
+			High:   klineItem.Candles[i].High,
+			Open:   klineItem.Candles[i].Open,
+			Close:  klineItem.Candles[i].Close,
+			Volume: klineItem.Candles[i].Volume,
 		})
 	}
 
-	if req.Sync && !req.UseDb {
-		_, err = kline.StoreInDatabase(&candles)
+	if r.Sync && !r.UseDb {
+		_, err = kline.StoreInDatabase(&klineItem, r.Force)
 		if err != nil {
 			if errors.Is(err, exchangeDB.ErrNoExchangeFound) {
 				return nil, errors.New("exchange was not found in database, you can seed existing data or insert a new exchange via the dbseed")
@@ -1737,7 +1782,64 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 			return nil, err
 		}
 	}
+
 	return &resp, nil
+}
+
+func fillMissingCandlesWithStoredTrades(startTime, endTime time.Time, klineItem *kline.Item) (*kline.Item, error) {
+	var response kline.Item
+	var candleTimes []time.Time
+	for i := range klineItem.Candles {
+		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
+	}
+	ranges, err := timeperiods.FindTimeRangesContainingData(startTime, endTime, klineItem.Interval.Duration(), candleTimes)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range ranges {
+		if ranges[i].HasDataInRange {
+			continue
+		}
+		var tradeCandles kline.Item
+		trades, err := trade.GetTradesInRange(
+			klineItem.Exchange,
+			klineItem.Asset.String(),
+			klineItem.Pair.Base.String(),
+			klineItem.Pair.Quote.String(),
+			ranges[i].StartOfRange,
+			ranges[i].EndOfRange,
+		)
+		if err != nil {
+			return klineItem, err
+		}
+		if len(trades) == 0 {
+			continue
+		}
+		tradeCandles, err = trade.ConvertTradesToCandles(klineItem.Interval, trades...)
+		if err != nil {
+			return klineItem, err
+		}
+		if len(tradeCandles.Candles) == 0 {
+			continue
+		}
+
+		for i := range tradeCandles.Candles {
+			response.Candles = append(response.Candles, tradeCandles.Candles[i])
+		}
+
+		for i := range response.Candles {
+			log.Infof(log.GRPCSys,
+				"Filled requested OHLCV data for %v %v %v interval at %v with trade data",
+				klineItem.Exchange,
+				klineItem.Pair.String(),
+				klineItem.Asset,
+				response.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			)
+		}
+	}
+
+	return &response, nil
 }
 
 // GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
@@ -2292,4 +2394,486 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 		Data: fmt.Sprintf("new URL has been set [%s] for %s websocket connection",
 			r.Exchange,
 			r.Url)}, nil
+}
+
+// GetSavedTrades returns trades from the database
+func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
+	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
+		return nil, errInvalidArguments
+	}
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	a := asset.Item(r.AssetType)
+	if !a.IsValid() {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
+	}
+
+	var UTCStartTime, UTCEndTime time.Time
+	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, err
+	}
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, err
+	}
+	var trades []trade.Data
+	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, UTCStartTime, UTCEndTime)
+	if err != nil {
+		return nil, err
+	}
+	resp := &gctrpc.SavedTradesResponse{
+		ExchangeName: r.Exchange,
+		Asset:        r.AssetType,
+		Pair:         r.Pair,
+	}
+	for i := range trades {
+		resp.Trades = append(resp.Trades, &gctrpc.SavedTrades{
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Side:      trades[i].Side.String(),
+			Timestamp: trades[i].Timestamp.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			TradeId:   trades[i].TID,
+		})
+	}
+	if len(resp.Trades) == 0 {
+		return nil, fmt.Errorf("request for %v %v trade data between %v and %v and returned no results", r.Exchange, r.AssetType, r.Start, r.End)
+	}
+	return resp, nil
+}
+
+// ConvertTradesToCandles converts trades to candles using the interval requested
+// returns the data too for extra fun scrutiny
+func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertTradesToCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.TimeInterval == 0 {
+		return nil, errInvalidArguments
+	}
+	exch := s.GetExchangeByName(r.Exchange)
+	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, err
+	}
+	var UTCEndTime time.Time
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, err
+	}
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+	var cp currency.Pair
+	cp, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	a := asset.Item(r.AssetType)
+	if !a.IsValid() {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
+	}
+
+	var trades []trade.Data
+	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, UTCStartTime, UTCEndTime)
+	if err != nil {
+		return nil, err
+	}
+	if len(trades) == 0 {
+		return nil, fmt.Errorf("no trades returned from supplied params")
+	}
+	interval := kline.Interval(r.TimeInterval)
+	var klineItem kline.Item
+	klineItem, err = trade.ConvertTradesToCandles(interval, trades...)
+	if err != nil {
+		return nil, err
+	}
+	if len(klineItem.Candles) == 0 {
+		return nil, fmt.Errorf("no candles generated from trades")
+	}
+
+	resp := &gctrpc.GetHistoricCandlesResponse{
+		Exchange: r.Exchange,
+		Pair:     r.Pair,
+		Start:    r.Start,
+		End:      r.End,
+		Interval: interval.String(),
+	}
+	for i := range klineItem.Candles {
+		resp.Candle = append(resp.Candle, &gctrpc.Candle{
+			Time:   klineItem.Candles[i].Time.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			Low:    klineItem.Candles[i].Low,
+			High:   klineItem.Candles[i].High,
+			Open:   klineItem.Candles[i].Open,
+			Close:  klineItem.Candles[i].Close,
+			Volume: klineItem.Candles[i].Volume,
+		})
+	}
+
+	if r.Sync {
+		_, err = kline.StoreInDatabase(&klineItem, r.Force)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return resp, nil
+}
+
+// FindMissingSavedCandleIntervals is used to help determine what candle data is missing
+func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc.FindMissingCandlePeriodsRequest) (*gctrpc.FindMissingIntervalsResponse, error) {
+	if r.End == "" || r.Start == "" || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.Interval <= 0 {
+		return nil, errInvalidArguments
+	}
+	exch := s.GetExchangeByName(r.ExchangeName)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	a := asset.Item(r.AssetType)
+	if !a.IsValid() {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
+	}
+
+	var UTCStartTime, UTCEndTime time.Time
+	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, err
+	}
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, err
+	}
+	klineItem, err := kline.LoadFromDatabase(
+		r.ExchangeName,
+		currency.Pair{
+			Delimiter: r.Pair.Delimiter,
+			Base:      currency.NewCode(r.Pair.Base),
+			Quote:     currency.NewCode(r.Pair.Quote),
+		},
+		asset.Item(strings.ToLower(r.AssetType)),
+		kline.Interval(r.Interval),
+		UTCStartTime,
+		UTCEndTime,
+	)
+	if err != nil {
+		return nil, err
+	}
+	resp := &gctrpc.FindMissingIntervalsResponse{
+		ExchangeName:   r.ExchangeName,
+		AssetType:      r.AssetType,
+		Pair:           r.Pair,
+		MissingPeriods: []string{},
+	}
+	var candleTimes []time.Time
+	for i := range klineItem.Candles {
+		candleTimes = append(candleTimes, klineItem.Candles[i].Time)
+	}
+	var ranges []timeperiods.TimeRange
+	ranges, err = timeperiods.FindTimeRangesContainingData(UTCStartTime, UTCEndTime, klineItem.Interval.Duration(), candleTimes)
+	if err != nil {
+		return nil, err
+	}
+	foundCount := 0
+	for i := range ranges {
+		if !ranges[i].HasDataInRange {
+			resp.MissingPeriods = append(resp.MissingPeriods,
+				ranges[i].StartOfRange.UTC().Format(common.SimpleTimeFormatWithTimezone)+
+					" - "+
+					ranges[i].EndOfRange.UTC().Format(common.SimpleTimeFormatWithTimezone))
+		} else {
+			foundCount++
+		}
+	}
+
+	if len(resp.MissingPeriods) == 0 {
+		resp.Status = fmt.Sprintf("no missing candles found between %v and %v",
+			r.Start,
+			r.End,
+		)
+	} else {
+		resp.Status = fmt.Sprintf("Found %v candles. Missing %v candles in requested timeframe starting %v ending %v",
+			foundCount,
+			len(resp.MissingPeriods),
+			UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+	}
+
+	return resp, nil
+}
+
+// FindMissingSavedTradeIntervals is used to help determine what trade data is missing
+func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.FindMissingTradePeriodsRequest) (*gctrpc.FindMissingIntervalsResponse, error) {
+	if r.End == "" || r.Start == "" || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
+		return nil, errInvalidArguments
+	}
+	exch := s.GetExchangeByName(r.ExchangeName)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+	var err error
+	var UTCStartTime, UTCEndTime time.Time
+	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, err
+	}
+	UTCStartTime = UTCStartTime.Truncate(time.Hour)
+
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, err
+	}
+	UTCEndTime = UTCEndTime.Truncate(time.Hour)
+
+	intervalMap := make(map[time.Time]bool)
+	iterationTime := UTCStartTime
+	for iterationTime.Before(UTCEndTime) {
+		intervalMap[iterationTime] = false
+		iterationTime = iterationTime.Add(time.Hour)
+	}
+	var cp currency.Pair
+	cp, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	a := asset.Item(r.AssetType)
+	if !a.IsValid() {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
+	}
+
+	var trades []trade.Data
+	trades, err = trade.GetTradesInRange(
+		r.ExchangeName,
+		r.AssetType,
+		r.Pair.Base,
+		r.Pair.Quote,
+		UTCStartTime,
+		UTCEndTime,
+	)
+	if err != nil {
+		return nil, err
+	}
+	resp := &gctrpc.FindMissingIntervalsResponse{
+		ExchangeName:   r.ExchangeName,
+		AssetType:      r.AssetType,
+		Pair:           r.Pair,
+		MissingPeriods: []string{},
+	}
+	var tradeTimes []time.Time
+	for i := range trades {
+		tradeTimes = append(tradeTimes, trades[i].Timestamp)
+	}
+	var ranges []timeperiods.TimeRange
+	ranges, err = timeperiods.FindTimeRangesContainingData(UTCStartTime, UTCEndTime, time.Hour, tradeTimes)
+	if err != nil {
+		return nil, err
+	}
+	foundCount := 0
+	for i := range ranges {
+		if !ranges[i].HasDataInRange {
+			resp.MissingPeriods = append(resp.MissingPeriods,
+				ranges[i].StartOfRange.UTC().Format(common.SimpleTimeFormatWithTimezone)+
+					" - "+
+					ranges[i].EndOfRange.UTC().Format(common.SimpleTimeFormatWithTimezone))
+		} else {
+			foundCount++
+		}
+	}
+
+	if len(resp.MissingPeriods) == 0 {
+		resp.Status = fmt.Sprintf("no missing periods found between %v and %v",
+			r.Start,
+			r.End,
+		)
+	} else {
+		resp.Status = fmt.Sprintf("Found %v periods. Missing %v periods between %v and %v",
+			foundCount,
+			len(resp.MissingPeriods),
+			UTCStartTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			UTCEndTime.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone))
+	}
+
+	return resp, nil
+}
+
+// SetExchangeTradeProcessing allows the setting of exchange trade processing
+func (s *RPCServer) SetExchangeTradeProcessing(_ context.Context, r *gctrpc.SetExchangeTradeProcessingRequest) (*gctrpc.GenericResponse, error) {
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+	b := exch.GetBase()
+	b.SetSaveTradeDataStatus(r.Status)
+
+	return &gctrpc.GenericResponse{
+		Status: "success",
+	}, nil
+}
+
+// GetHistoricTrades returns trades between a set of dates
+func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gctrpc.GoCryptoTrader_GetHistoricTradesServer) error {
+	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
+		return errInvalidArguments
+	}
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return errExchangeNotLoaded
+	}
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return err
+	}
+	a := asset.Item(r.AssetType)
+	if !a.IsValid() {
+		return errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+	if !pairs.Contains(cp, false) {
+		return errors.New("currency not enabled")
+	}
+	var trades []trade.Data
+	var UTCStartTime, UTCEndTime time.Time
+	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return err
+	}
+
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return err
+	}
+
+	resp := &gctrpc.SavedTradesResponse{
+		ExchangeName: r.Exchange,
+		Asset:        r.AssetType,
+		Pair:         r.Pair,
+	}
+	iterateStartTime := UTCStartTime
+	iterateEndTime := iterateStartTime.Add(time.Hour)
+	for iterateStartTime.Before(UTCEndTime) {
+		trades, err = exch.GetHistoricTrades(cp, asset.Item(r.AssetType), iterateStartTime, iterateEndTime)
+		if err != nil {
+			return err
+		}
+		grpcTrades := &gctrpc.SavedTradesResponse{
+			ExchangeName: r.Exchange,
+			Asset:        r.AssetType,
+			Pair:         r.Pair,
+		}
+		for i := range trades {
+			tradeTS := trades[i].Timestamp.In(time.UTC)
+			if tradeTS.After(UTCEndTime) {
+				break
+			}
+			grpcTrades.Trades = append(grpcTrades.Trades, &gctrpc.SavedTrades{
+				Price:     trades[i].Price,
+				Amount:    trades[i].Amount,
+				Side:      trades[i].Side.String(),
+				Timestamp: tradeTS.Format(common.SimpleTimeFormatWithTimezone),
+				TradeId:   trades[i].TID,
+			})
+		}
+
+		stream.Send(grpcTrades)
+		iterateStartTime = iterateStartTime.Add(time.Hour)
+		iterateEndTime = iterateEndTime.Add(time.Hour)
+	}
+	stream.Send(resp)
+
+	return nil
+}
+
+// GetRecentTrades returns trades
+func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesRequest) (*gctrpc.SavedTradesResponse, error) {
+	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
+		return nil, errInvalidArguments
+	}
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+	a := asset.Item(r.AssetType)
+	if !a.IsValid() {
+		return nil, errors.New("invalid asset")
+	}
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, errors.New("currency not enabled")
+	}
+	var trades []trade.Data
+	trades, err = exch.GetRecentTrades(cp, asset.Item(r.AssetType))
+	if err != nil {
+		return nil, err
+	}
+	resp := &gctrpc.SavedTradesResponse{
+		ExchangeName: r.Exchange,
+		Asset:        r.AssetType,
+		Pair:         r.Pair,
+	}
+	for i := range trades {
+		resp.Trades = append(resp.Trades, &gctrpc.SavedTrades{
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Side:      trades[i].Side.String(),
+			Timestamp: trades[i].Timestamp.In(time.UTC).Format(common.SimpleTimeFormatWithTimezone),
+			TradeId:   trades[i].TID,
+		})
+	}
+	if len(resp.Trades) == 0 {
+		return nil, fmt.Errorf("request for %v %v trade data and returned no results", r.Exchange, r.AssetType)
+	}
+
+	return resp, nil
 }

@@ -45,6 +45,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Yobit setup error", err)
 	}
+
 	os.Exit(m.Run())
 }
 
@@ -82,7 +83,7 @@ func TestGetDepth(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTrades("btc_usd", 0, false)
+	_, err := y.GetTrades("btc_usd")
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -106,7 +107,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetOrderInfo("6196974")
+	_, err := y.GetOrderInfo("6196974", currency.Pair{}, asset.Spot)
 	if err == nil {
 		t.Error("GetOrderInfo() Expected error")
 	}
@@ -511,5 +512,27 @@ func TestGetDepositAddress(t *testing.T) {
 		if err == nil {
 			t.Error("GetDepositAddress() error")
 		}
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("btc_usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = y.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("btc_usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = y.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

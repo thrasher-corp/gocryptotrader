@@ -1,6 +1,8 @@
 package bitflyer
 
 import (
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -183,13 +186,18 @@ func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := b.GetTicker(b.CheckFXString(p).String())
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerNew, err := b.GetTicker(b.CheckFXString(fPair).String())
 	if err != nil {
 		return nil, err
 	}
 
 	err = ticker.ProcessTicker(&ticker.Price{
-		Pair:         p,
+		Pair:         fPair,
 		Ask:          tickerNew.BestAsk,
 		Bid:          tickerNew.BestBid,
 		Last:         tickerNew.Last,
@@ -200,14 +208,19 @@ func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 		return nil, err
 	}
 
-	return ticker.GetTicker(b.Name, p, assetType)
+	return ticker.GetTicker(b.Name, fPair, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitflyer) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := ticker.GetTicker(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateTicker(p, assetType)
+		return nil, err
+	}
+
+	tick, err := ticker.GetTicker(b.Name, fPair, assetType)
+	if err != nil {
+		return b.UpdateTicker(fPair, assetType)
 	}
 	return tick, nil
 }
@@ -223,18 +236,28 @@ func (b *Bitflyer) CheckFXString(p currency.Pair) currency.Pair {
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (b *Bitflyer) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateOrderbook(p, assetType)
+		return nil, err
+	}
+
+	ob, err := orderbook.Get(b.Name, fPair, assetType)
+	if err != nil {
+		return b.UpdateOrderbook(fPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	orderBook := new(orderbook.Base)
 
-	orderbookNew, err := b.GetOrderBook(b.CheckFXString(p).String())
+	orderbookNew, err := b.GetOrderBook(b.CheckFXString(fPair).String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -247,7 +270,7 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Price: orderbookNew.Bids[x].Price, Amount: orderbookNew.Bids[x].Size})
 	}
 
-	orderBook.Pair = p
+	orderBook.Pair = fPair
 	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
 
@@ -256,7 +279,7 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		return orderBook, err
 	}
 
-	return orderbook.Get(b.Name, p, assetType)
+	return orderbook.Get(b.Name, fPair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
@@ -281,9 +304,53 @@ func (b *Bitflyer) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *Bitflyer) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetRecentTrades returns recent historic trades
+func (b *Bitflyer) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	tradeData, err := b.GetExecutionHistory(p.String())
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		var timestamp time.Time
+		timestamp, err = time.Parse("2006-01-02T15:04:05.999999999", tradeData[i].ExecDate)
+		if err != nil {
+			return nil, err
+		}
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, trade.Data{
+			TID:          strconv.FormatInt(tradeData[i].ID, 10),
+			Exchange:     b.Name,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Size,
+			Timestamp:    timestamp,
+		})
+	}
+
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *Bitflyer) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -309,8 +376,8 @@ func (b *Bitflyer) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 	return order.CancelAllResponse{}, common.ErrNotYetImplemented
 }
 
-// GetOrderInfo returns information on a current open order
-func (b *Bitflyer) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (b *Bitflyer) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

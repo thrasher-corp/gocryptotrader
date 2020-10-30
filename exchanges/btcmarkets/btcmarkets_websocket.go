@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -142,32 +143,35 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case tradeEndPoint:
-		var trade WsTrade
-		err := json.Unmarshal(respRaw, &trade)
+		if !b.IsSaveTradeDataEnabled() {
+			return nil
+		}
+		var t WsTrade
+		err := json.Unmarshal(respRaw, &t)
 		if err != nil {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(trade.Currency)
+		p, err := currency.NewPairFromString(t.Currency)
 		if err != nil {
 			return err
 		}
 
 		side := order.Buy
-		if trade.Side == "Ask" {
+		if t.Side == "Ask" {
 			side = order.Sell
 		}
 
-		b.Websocket.DataHandler <- stream.TradeData{
-			Timestamp:    trade.Timestamp,
+		return trade.AddTradesToBuffer(b.Name, trade.Data{
+			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     b.Name,
-			Price:        trade.Price,
-			Amount:       trade.Volume,
+			Price:        t.Price,
+			Amount:       t.Volume,
 			Side:         side,
-			EventType:    order.UnknownType,
-		}
+			TID:          strconv.FormatInt(t.TradeID, 10),
+		})
 	case tick:
 		var tick WsTick
 		err := json.Unmarshal(respRaw, &tick)

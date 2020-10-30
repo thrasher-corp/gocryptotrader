@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -284,15 +286,54 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (l *LocalBitcoins) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tradeData []Trade
+	tradeData, err = l.GetTrades(p.Quote.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		resp = append(resp, trade.Data{
+			Exchange:     l.Name,
+			TID:          strconv.FormatInt(tradeData[i].TID, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    time.Unix(tradeData[i].Date, 0),
+		})
+	}
+
+	err = l.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (l *LocalBitcoins) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
 func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	fPair, err := l.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
 		return submitOrderResponse, err
 	}
 
@@ -305,7 +346,7 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 		City:                       "City",
 		Location:                   "Location",
 		CountryCode:                "US",
-		Currency:                   s.Pair.Quote.String(),
+		Currency:                   fPair.Quote.String(),
 		AccountInfo:                "-",
 		BankName:                   "Bank",
 		MSG:                        s.Side.String(),
@@ -319,7 +360,7 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 	}
 
 	// Does not return any orderID, so create the add, then get the order
-	err := l.CreateAd(&params)
+	err = l.CreateAd(&params)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -394,8 +435,8 @@ func (l *LocalBitcoins) CancelAllOrders(_ *order.Cancel) (order.CancelAllRespons
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (l *LocalBitcoins) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (l *LocalBitcoins) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }

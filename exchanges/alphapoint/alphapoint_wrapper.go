@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -206,23 +207,30 @@ func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (a *Alphapoint) GetRecentTrades(_ currency.Pair, _ asset.Item) ([]trade.Data, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (a *Alphapoint) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order and returns a true value when
 // successfully submitted
 func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
-	response, err := a.CreateOrder(s.Pair.String(),
+	fPair, err := a.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := a.CreateOrder(fPair.String(),
 		s.Side.String(),
 		s.Type.String(),
 		s.Amount,
@@ -269,8 +277,8 @@ func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancel) (order.Can
 		a.CancelAllExistingOrders(orderCancellation.AccountID)
 }
 
-// GetOrderInfo returns information on a current open order
-func (a *Alphapoint) GetOrderInfo(orderID string) (float64, error) {
+// GetOrderInfo returns order information based on order ID
+func (a *Alphapoint) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
 	orders, err := a.GetOrders()
 	if err != nil {
 		return 0, err

@@ -11,10 +11,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 const (
-	totalWrappers = 20
+	totalWrappers = 25
 )
 
 func main() {
@@ -116,9 +117,14 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetAccountInfo")
 	}
 
-	_, err = e.GetExchangeHistory(p, assetType, time.Time{}, time.Time{})
+	_, err = e.GetRecentTrades(p, assetType)
 	if err == common.ErrNotYetImplemented {
-		funcs = append(funcs, "GetExchangeHistory")
+		funcs = append(funcs, "GetRecentTrades")
+	}
+
+	_, err = e.GetHistoricTrades(p, assetType, time.Time{}, time.Time{})
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "GetHistoricTrades")
 	}
 
 	_, err = e.GetFundingHistory()
@@ -146,7 +152,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "CancelAllOrders")
 	}
 
-	_, err = e.GetOrderInfo("1")
+	_, err = e.GetOrderInfo("1", p, assetType)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetOrderInfo")
 	}
@@ -178,6 +184,26 @@ func testWrappers(e exchange.IBotExchange) []string {
 	_, err = e.WithdrawFiatFundsToInternationalBank(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawFiatFundsToInternationalBank")
+	}
+
+	_, err = e.GetHistoricCandles(currency.Pair{}, asset.Spot, time.Unix(0, 0), time.Unix(0, 0), kline.OneDay)
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "GetHistoricCandles")
+	}
+
+	_, err = e.GetHistoricCandlesExtended(currency.Pair{}, asset.Spot, time.Unix(0, 0), time.Unix(0, 0), kline.OneDay)
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "GetHistoricCandlesExtended")
+	}
+
+	_, err = e.UpdateAccountInfo()
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "UpdateAccountInfo")
+	}
+
+	_, err = e.GetFeeByType(&exchange.FeeBuilder{})
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "GetFeeByType")
 	}
 
 	return funcs

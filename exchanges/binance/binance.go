@@ -45,6 +45,7 @@ const (
 	queryOrder   = "/api/v3/order"
 	openOrders   = "/api/v3/openOrders"
 	allOrders    = "/api/v3/allOrders"
+	myTrades     = "/api/v3/myTrades"
 
 	// Withdraw API endpoints
 	withdrawEndpoint  = "/wapi/v3/withdraw.html"
@@ -134,9 +135,9 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 	return orderbook, nil
 }
 
-// GetRecentTrades returns recent trade activity
+// GetMostRecentTrades returns recent trade activity
 // limit: Up to 500 results returned
-func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
+func (b *Binance) GetMostRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	var resp []RecentTrade
 
 	params := url.Values{}
@@ -368,7 +369,6 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 	if o.NewOrderRespType != "" {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
-
 	return b.SendAuthHTTPRequest(http.MethodPost, path, params, limitOrder, resp)
 }
 

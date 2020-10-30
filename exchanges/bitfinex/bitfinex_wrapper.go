@@ -2,6 +2,8 @@ package bitfinex
 
 import (
 	"errors"
+	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -352,33 +355,47 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	b.appendOptionalDelimiter(&p)
-	tick, err := ticker.GetTicker(b.Name, p, asset.Spot)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateTicker(p, assetType)
+		return nil, err
+	}
+
+	b.appendOptionalDelimiter(&fPair)
+	tick, err := ticker.GetTicker(b.Name, fPair, asset.Spot)
+	if err != nil {
+		return b.UpdateTicker(fPair, assetType)
 	}
 	return tick, nil
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	b.appendOptionalDelimiter(&p)
-	ob, err := orderbook.Get(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return b.UpdateOrderbook(p, assetType)
+		return nil, err
+	}
+
+	b.appendOptionalDelimiter(&fPair)
+	ob, err := orderbook.Get(b.Name, fPair, assetType)
+	if err != nil {
+		return b.UpdateOrderbook(fPair, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	b.appendOptionalDelimiter(&p)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	b.appendOptionalDelimiter(&fPair)
 	var prefix = "t"
 	if assetType == asset.MarginFunding {
 		prefix = "f"
 	}
 
-	orderbookNew, err := b.GetOrderbook(prefix+p.String(), "P0", 100)
+	orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "P0", 100)
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +415,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		})
 	}
 
-	o.Pair = p
+	o.Pair = fPair
 	o.ExchangeName = b.Name
 	o.AssetType = assetType
 
@@ -407,7 +424,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		return nil, err
 	}
 
-	return orderbook.Get(b.Name, p, assetType)
+	return orderbook.Get(b.Name, fPair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
@@ -467,17 +484,78 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (b *Bitfinex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *Bitfinex) GetHistoricTrades(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+	if assetType == asset.MarginFunding {
+		return nil, fmt.Errorf("asset type '%v' not supported", assetType)
+	}
+	if timestampStart.Equal(timestampEnd) || timestampEnd.After(time.Now()) || timestampEnd.Before(timestampStart) {
+		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v", timestampStart, timestampEnd)
+	}
+	var err error
+	p, err = b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var currString string
+	currString, err = b.fixCasing(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	ts := timestampEnd
+	limit := 10000
+allTrades:
+	for {
+		var tradeData []Trade
+		tradeData, err = b.GetTrades(currString, int64(limit), 0, ts.Unix()*1000, false)
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			tradeTS := time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond))
+			if tradeTS.Before(timestampStart) && !timestampStart.IsZero() {
+				break allTrades
+			}
+			tID := strconv.FormatInt(tradeData[i].TID, 10)
+			resp = append(resp, trade.Data{
+				TID:          tID,
+				Exchange:     b.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Amount,
+				Timestamp:    time.Unix(0, tradeData[i].Timestamp*int64(time.Millisecond)),
+			})
+			if i == len(tradeData)-1 {
+				if ts.Equal(tradeTS) {
+					// reached end of trades to crawl
+					break allTrades
+				}
+				ts = tradeTS
+			}
+		}
+		if len(tradeData) != limit {
+			break allTrades
+		}
+	}
+
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
-	if err := o.Validate(); err != nil {
-		return order.SubmitResponse{}, err
-	}
-
 	var submitOrderResponse order.SubmitResponse
 	err := o.Validate()
 	if err != nil {
@@ -583,8 +661,8 @@ func (b *Bitfinex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 	return order.CancelAllResponse{}, err
 }
 
-// GetOrderInfo returns information on a current open order
-func (b *Bitfinex) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (b *Bitfinex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
@@ -955,10 +1033,16 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	y := in.Base.String()
 	if (y[0] != checkString[0] && y[0] != checkString[1]) ||
 		(y[0] == checkString[1] && y[1] == checkString[1]) || in.Base == currency.TNB {
+		if fmt.Quote.IsEmpty() {
+			return string(checkString[0]) + fmt.Base.Upper().String(), nil
+		}
 		return string(checkString[0]) + fmt.Upper().String(), nil
 	}
 
 	runes := []rune(fmt.Upper().String())
+	if fmt.Quote.IsEmpty() {
+		runes = []rune(fmt.Base.Upper().String())
+	}
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes), nil
 }

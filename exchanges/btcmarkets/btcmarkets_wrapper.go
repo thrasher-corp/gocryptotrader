@@ -3,6 +3,7 @@ package btcmarkets
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -321,7 +323,12 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticke
 
 // FetchTicker returns the ticker for a currency pair
 func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(b.Name, fPair, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -330,7 +337,12 @@ func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	ob, err := orderbook.Get(b.Name, fPair, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -414,9 +426,51 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (b *BTCMarkets) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	var tradeData []Trade
+	tradeData, err = b.GetTrades(p.String(), 0, 0, 200)
+	if err != nil {
+		return nil, err
+	}
+	for i := range tradeData {
+		side := order.Side("")
+		if tradeData[i].Side != "" {
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     b.Name,
+			TID:          tradeData[i].TradeID,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    tradeData[i].Timestamp,
+		})
+	}
+
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *BTCMarkets) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -502,8 +556,8 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (b *BTCMarkets) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	o, err := b.FetchOrder(orderID)
 	if err != nil {
@@ -889,16 +943,21 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 		return kline.Item{}, err
 	}
 
+	fPair, err := b.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
 	ret := kline.Item{
 		Exchange: b.Name,
-		Pair:     p,
+		Pair:     fPair,
 		Asset:    a,
 		Interval: interval,
 	}
 
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
-		candles, err := b.GetMarketCandles(p.String(),
+		candles, err := b.GetMarketCandles(fPair.String(),
 			b.FormatExchangeKlineInterval(interval),
 			dates[x].Start, dates[x].End, -1, -1, -1)
 		if err != nil {

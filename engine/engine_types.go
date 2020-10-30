@@ -59,6 +59,7 @@ type Settings struct {
 	EnableExchangeRESTSupport      bool
 	EnableExchangeWebsocketSupport bool
 	MaxHTTPRequestJobsLimit        int
+	TradeBufferProcessingInterval  time.Duration
 	RequestMaxRetryAttempts        int
 
 	// Global HTTP related settings

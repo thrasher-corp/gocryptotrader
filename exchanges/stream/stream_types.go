@@ -57,18 +57,6 @@ type PingHandler struct {
 	Delay             time.Duration
 }
 
-// TradeData defines trade data
-type TradeData struct {
-	Timestamp    time.Time
-	CurrencyPair currency.Pair
-	AssetType    asset.Item
-	Exchange     string
-	EventType    order.Type
-	Price        float64
-	Amount       float64
-	Side         order.Side
-}
-
 // FundingData defines funding data
 type FundingData struct {
 	Timestamp    time.Time
