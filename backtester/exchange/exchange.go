@@ -3,6 +3,7 @@ package exchange
 import (
 	"math"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/fill"
@@ -18,8 +19,11 @@ func (e *Exchange) ExecuteOrder(o orderbook.OrderEvent, data portfolio.DataHandl
 		Amount: o.GetAmount(),
 		Price:  data.Latest().LatestPrice(),
 	}
-	f.Amount = 1
+
 	f.Direction = o.GetDirection()
+	if f.Direction != common.DoNothing {
+		f.Amount = 1
+	}
 	f.Commission = e.calculateCommission(f.Amount, f.Price)
 	f.ExchangeFee = e.calculateExchangeFee()
 	f.Cost = e.calculateCost(f.Commission, f.ExchangeFee)

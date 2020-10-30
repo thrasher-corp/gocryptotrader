@@ -21,13 +21,8 @@ func LoadStrategyByName(name string) (StrategyHandler, error) {
 
 func getStrategies() []StrategyHandler {
 	var strats []StrategyHandler
-	var smaCross StrategyHandler
-	var rsi420BlazeIt StrategyHandler
-	smaCross = new(smacross.Strategy)
-	rsi420BlazeIt = new(RSI420BlazeIt.Strategy)
-
-	strats = append(strats, smaCross)
-	strats = append(strats, rsi420BlazeIt)
+	strats = append(strats, new(smacross.Strategy))
+	strats = append(strats, new(RSI420BlazeIt.Strategy))
 
 	return strats
 }

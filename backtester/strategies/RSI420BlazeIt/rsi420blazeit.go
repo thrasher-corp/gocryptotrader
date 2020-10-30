@@ -9,7 +9,6 @@ import (
 	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 type Strategy struct{}
@@ -28,11 +27,10 @@ func (s *Strategy) OnSignal(d portfolio.DataHandler, _ portfolio2.PortfolioHandl
 	if d.Offset() <= 14 {
 		return &es, nil
 	}
-	dataRange := d.StreamClose()[d.Offset()-15 : d.Offset()]
+	dataRange := d.StreamClose()[:d.Offset()]
 
 	rsi := indicators.RSI(dataRange, 14)
 	lastSI := rsi[len(rsi)-1]
-	log.Debugf(log.Global, "CLOSE at: %v, CLOSE TIME: %v, RSI: %v", dataRange, d.Latest().GetTime().UTC(), lastSI)
 	if lastSI >= 70 {
 		es.SetDirection(order.Sell)
 	} else if lastSI <= 30 {

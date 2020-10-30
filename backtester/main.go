@@ -15,8 +15,10 @@ import (
 
 func main() {
 	var s settings.Settings
-	flag.StringVar(&s.StartTime, "starttime", time.Now().Add(-time.Hour*24*365).Format(common.SimpleTimeFormat), "backtest start time")
-	flag.StringVar(&s.EndTime, "endtime", time.Now().Format(common.SimpleTimeFormat), "backtest end time")
+	defaultStartDate := time.Date(2017, 8, 17, 0, 0, 0, 0, time.UTC)
+	defaultEndDate := defaultStartDate.AddDate(1, 0, 0)
+	flag.StringVar(&s.StartTime, "starttime", defaultStartDate.Format(common.SimpleTimeFormat), "backtest start time")
+	flag.StringVar(&s.EndTime, "endtime", defaultEndDate.Format(common.SimpleTimeFormat), "backtest end time")
 	flag.DurationVar(&s.Interval, "interval", kline.OneDay.Duration(), "candle size")
 	flag.Float64Var(&s.InitialFunds, "initialfunds", 133713371337, "intial funds to trade with")
 	flag.StringVar(&s.ExchangeName, "exchangename", "Binance", "exchange to test against")
@@ -40,8 +42,9 @@ func main() {
 
 	ret := bt.Statistic.ReturnResults()
 	for x := range ret.Transactions {
-		fmt.Println(ret.Transactions[x])
+		if ret.Transactions[x].Amount > 0 {
+			fmt.Println(ret.Transactions[x])
+		}
 	}
 	fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
-
 }
