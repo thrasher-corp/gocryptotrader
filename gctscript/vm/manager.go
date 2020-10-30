@@ -3,11 +3,9 @@ package vm
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -53,6 +51,7 @@ func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 	log.Debugln(log.Global, gctscriptManagerName, subsystem.MsgSubSystemStarting)
 
 	g.shutdown = make(chan struct{})
+	wg.Add(1)
 	go g.run(wg)
 	return nil
 }
@@ -79,7 +78,6 @@ func (g *GctScriptManager) Stop() error {
 func (g *GctScriptManager) run(wg *sync.WaitGroup) {
 	log.Debugln(log.Global, gctscriptManagerName, subsystem.MsgSubSystemStarted)
 
-	wg.Add(1)
 	SetDefaultScriptOutput()
 	g.autoLoad()
 	defer func() {
@@ -90,28 +88,6 @@ func (g *GctScriptManager) run(wg *sync.WaitGroup) {
 	}()
 
 	<-g.shutdown
-}
-
-func (g *GctScriptManager) autoLoad() {
-	for x := range g.config.AutoLoad {
-		temp := g.New()
-		if temp == nil {
-			log.Errorf(log.GCTScriptMgr, "Unable to create Virtual Machine, autoload failed for: %v",
-				g.config.AutoLoad[x])
-			continue
-		}
-		var name = g.config.AutoLoad[x]
-		if filepath.Ext(name) != common.GctExt {
-			name += common.GctExt
-		}
-		scriptPath := filepath.Join(ScriptPath, name)
-		err := temp.Load(scriptPath)
-		if err != nil {
-			log.Errorf(log.GCTScriptMgr, "%v failed to load: %v", filepath.Base(scriptPath), err)
-			continue
-		}
-		go temp.CompileAndRun()
-	}
 }
 
 // GetMaxVirtualMachines returns the max number of VMs to create

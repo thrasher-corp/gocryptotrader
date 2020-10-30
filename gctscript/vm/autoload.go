@@ -42,3 +42,29 @@ func (g *GctScriptManager) Autoload(name string, remove bool) error {
 	}
 	return nil
 }
+
+func (g *GctScriptManager) autoLoad() {
+	for x := range g.config.AutoLoad {
+		temp := g.New()
+		if temp == nil {
+			log.Errorf(log.GCTScriptMgr, "Unable to create Virtual Machine, autoload failed for: %v",
+				g.config.AutoLoad[x])
+			continue
+		}
+		var name = g.config.AutoLoad[x]
+		if filepath.Ext(name) != common.GctExt {
+			name += common.GctExt
+		}
+		scriptPath := filepath.Join(ScriptPath, name)
+		err := temp.Load(scriptPath)
+		if err != nil {
+			log.Errorf(log.GCTScriptMgr, "%v failed to load: %v", filepath.Base(scriptPath), err)
+			err = temp.unregister()
+			if err != nil {
+				log.Errorf(log.GCTScriptMgr, "%v failed to unregister: %v", filepath.Base(scriptPath), err)
+			}
+			continue
+		}
+		go temp.CompileAndRun()
+	}
+}
