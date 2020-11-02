@@ -33,7 +33,7 @@ func (w *Orderbook) Update(u *Update) error {
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
-	obLookup, ok := w.ob[u.Pair][u.Asset]
+	obLookup, ok := w.ob[u.Pair.Base][u.Pair.Quote][u.Asset]
 	if !ok {
 		return fmt.Errorf("ob.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
 			w.exchangeName,
@@ -56,7 +56,7 @@ func (w *Orderbook) Update(u *Update) error {
 
 	if w.bufferEnabled {
 		// Reset the buffer
-		w.buffer[u.Pair][u.Asset] = nil
+		w.buffer[u.Pair.Base][u.Pair.Quote][u.Asset] = nil
 	}
 
 	// Process in data handler
@@ -66,16 +66,20 @@ func (w *Orderbook) Update(u *Update) error {
 
 func (w *Orderbook) processBufferUpdate(o *orderbook.Base, u *Update) bool {
 	if w.buffer == nil {
-		w.buffer = make(map[currency.Pair]map[asset.Item][]*Update)
+		w.buffer = make(map[currency.Code]map[currency.Code]map[asset.Item][]*Update)
 	}
-	if w.buffer[u.Pair] == nil {
-		w.buffer[u.Pair] = make(map[asset.Item][]*Update)
+	if w.buffer[u.Pair.Base] == nil {
+		w.buffer[u.Pair.Base] = make(map[currency.Code]map[asset.Item][]*Update)
 	}
-	bufferLookup := w.buffer[u.Pair][u.Asset]
+	if w.buffer[u.Pair.Base][u.Pair.Quote] == nil {
+		w.buffer[u.Pair.Base][u.Pair.Quote] = make(map[asset.Item][]*Update)
+	}
+
+	bufferLookup := w.buffer[u.Pair.Base][u.Pair.Quote][u.Asset]
 	if len(bufferLookup) <= w.obBufferLimit {
 		bufferLookup = append(bufferLookup, u)
 		if len(bufferLookup) < w.obBufferLimit {
-			w.buffer[u.Pair][u.Asset] = bufferLookup
+			w.buffer[u.Pair.Base][u.Pair.Quote][u.Asset] = bufferLookup
 			return false
 		}
 	}
@@ -94,7 +98,7 @@ func (w *Orderbook) processBufferUpdate(o *orderbook.Base, u *Update) bool {
 	for i := range bufferLookup {
 		w.processObUpdate(o, bufferLookup[i])
 	}
-	w.buffer[u.Pair][u.Asset] = bufferLookup
+	w.buffer[u.Pair.Base][u.Pair.Quote][u.Asset] = bufferLookup
 	return true
 }
 
@@ -251,14 +255,19 @@ func (w *Orderbook) LoadSnapshot(newOrderbook *orderbook.Base) error {
 
 	w.m.Lock()
 	defer w.m.Unlock()
-	if w.ob == nil {
-		w.ob = make(map[currency.Pair]map[asset.Item]*orderbook.Base)
-	}
-	if w.ob[newOrderbook.Pair] == nil {
-		w.ob[newOrderbook.Pair] = make(map[asset.Item]*orderbook.Base)
+
+	switch {
+	case w.ob == nil:
+		w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
+		fallthrough
+	case w.ob[newOrderbook.Pair.Base] == nil:
+		w.ob[newOrderbook.Pair.Base] = make(map[currency.Code]map[asset.Item]*orderbook.Base)
+		fallthrough
+	case w.ob[newOrderbook.Pair.Base][newOrderbook.Pair.Quote] == nil:
+		w.ob[newOrderbook.Pair.Base][newOrderbook.Pair.Quote] = make(map[asset.Item]*orderbook.Base)
 	}
 
-	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
+	w.ob[newOrderbook.Pair.Base][newOrderbook.Pair.Quote][newOrderbook.AssetType] = newOrderbook
 	err := newOrderbook.Process()
 	if err != nil {
 		return err
@@ -272,7 +281,7 @@ func (w *Orderbook) LoadSnapshot(newOrderbook *orderbook.Base) error {
 // calculation and cause problems
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base {
 	w.m.Lock()
-	ob := w.ob[p][a]
+	ob := w.ob[p.Base][p.Quote][a]
 	w.m.Unlock()
 	return ob
 }
@@ -290,10 +299,10 @@ func (w *Orderbook) FlushBuffer() {
 func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	w.m.Lock()
 	defer w.m.Unlock()
-	_, ok := w.ob[p][a]
+	_, ok := w.ob[p.Base][p.Quote][a]
 	if !ok {
 		return fmt.Errorf("orderbook not associated with pair: [%s] and asset [%s]", p, a)
 	}
-	w.ob[p][a] = nil
+	w.ob[p.Base][p.Quote][a] = nil
 	return nil
 }

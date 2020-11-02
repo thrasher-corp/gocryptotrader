@@ -76,7 +76,7 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		ob.updateBidsByPrice(ob.ob[cp][asset.Spot], update)
+		ob.updateBidsByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot], update)
 	}
 }
 
@@ -95,7 +95,7 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		ob.updateAsksByPrice(ob.ob[cp][asset.Spot], update)
+		ob.updateAsksByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot], update)
 	}
 }
 
@@ -114,7 +114,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		Price:  1337.1337,
 		ID:     1337,
 	}
-	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -149,7 +149,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		Price:  1337.1337,
 		ID:     1337,
 	}
-	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -185,7 +185,7 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 		Price:  1337.1337,
 		ID:     1337,
 	}
-	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -219,7 +219,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 		Price:  1337.1337,
 		ID:     1337,
 	}
-	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -245,7 +245,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &Update{
+	obl.updateAsksByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
 		Bids:       itemArray[5],
 		Asks:       itemArray[5],
 		Pair:       cp,
@@ -256,7 +256,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &Update{
+	obl.updateAsksByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
 		Bids:       itemArray[0],
 		Asks:       itemArray[0],
 		Pair:       cp,
@@ -267,7 +267,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(obl.ob[cp][asset.Spot].Asks) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
 		t.Error("Did not update")
 	}
 }
@@ -294,14 +294,14 @@ func TestHittingTheBuffer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp][asset.Spot].Asks) != 3 {
-		t.Log(obl.ob[cp][asset.Spot])
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
+		t.Log(obl.ob[cp.Base][cp.Quote][asset.Spot])
 		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Asks))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
 	}
-	if len(obl.ob[cp][asset.Spot].Bids) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Bids))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
 	}
 }
 
@@ -329,13 +329,13 @@ func TestInsertWithIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp][asset.Spot].Asks) != 6 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 6 {
 		t.Errorf("expected 6 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Asks))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
 	}
-	if len(obl.ob[cp][asset.Spot].Bids) != 6 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 6 {
 		t.Errorf("expected 6 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Bids))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
 	}
 }
 
@@ -363,13 +363,13 @@ func TestSortIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp][asset.Spot].Asks) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Asks))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
 	}
-	if len(obl.ob[cp][asset.Spot].Bids) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Bids))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
 	}
 }
 
@@ -387,10 +387,10 @@ func TestDeleteWithIDs(t *testing.T) {
 		Price:  1337.1337,
 		ID:     1337,
 	}
-	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
-	obl.ob[cp][asset.Spot].Asks = append(obl.ob[cp][asset.Spot].Asks,
+	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
+	obl.ob[cp.Base][cp.Quote][asset.Spot].Asks = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks,
 		itemArray[2][0])
-	obl.ob[cp][asset.Spot].Asks = append(obl.ob[cp][asset.Spot].Asks,
+	obl.ob[cp.Base][cp.Quote][asset.Spot].Asks = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks,
 		itemArray[1][0])
 
 	obl.updateEntriesByID = true
@@ -410,13 +410,13 @@ func TestDeleteWithIDs(t *testing.T) {
 		}
 	}
 
-	if len(obl.ob[cp][asset.Spot].Asks) != 0 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 0 {
 		t.Errorf("expected 0 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Asks))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
 	}
-	if len(obl.ob[cp][asset.Spot].Bids) != 1 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 1 {
 		t.Errorf("expected 1 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Bids))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
 	}
 }
 
@@ -442,14 +442,14 @@ func TestUpdateWithIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp][asset.Spot].Asks) != 1 {
-		t.Log(obl.ob[cp][asset.Spot])
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 1 {
+		t.Log(obl.ob[cp.Base][cp.Quote][asset.Spot])
 		t.Errorf("expected 1 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Asks))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
 	}
-	if len(obl.ob[cp][asset.Spot].Bids) != 1 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 1 {
 		t.Errorf("expected 1 entries, received: %v",
-			len(obl.ob[cp][asset.Spot].Bids))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
 	}
 }
 
@@ -480,9 +480,9 @@ func TestOutOfOrderIDs(t *testing.T) {
 		}
 	}
 	// Index 1 since index 0 is price 7000
-	if obl.ob[cp][asset.Spot].Asks[1].Price != 2000 {
+	if obl.ob[cp.Base][cp.Quote][asset.Spot].Asks[1].Price != 2000 {
 		t.Errorf("expected sorted price to be 3000, received: %v",
-			obl.ob[cp][asset.Spot].Asks[1].Price)
+			obl.ob[cp.Base][cp.Quote][asset.Spot].Asks[1].Price)
 	}
 }
 
@@ -618,11 +618,11 @@ func TestFlushbuffer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if obl.ob[cp][asset.Spot] == nil {
+	if obl.ob[cp.Base][cp.Quote][asset.Spot] == nil {
 		t.Error("expected ob to have ask entries")
 	}
 	obl.FlushBuffer()
-	if obl.ob[cp][asset.Spot] != nil {
+	if obl.ob[cp.Base][cp.Quote][asset.Spot] != nil {
 		t.Error("expected ob be flushed")
 	}
 }
@@ -751,20 +751,20 @@ func TestInsertingSnapShots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if obl.ob[snapShot1.Pair][snapShot1.AssetType].Asks[0] != snapShot1.Asks[0] {
+	if obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.AssetType].Asks[0] != snapShot1.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot1.Asks[0],
-			obl.ob[snapShot1.Pair][snapShot1.AssetType].Asks[0])
+			obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.AssetType].Asks[0])
 	}
-	if obl.ob[snapShot2.Pair][snapShot2.AssetType].Asks[0] != snapShot2.Asks[0] {
+	if obl.ob[snapShot2.Pair.Base][snapShot2.Pair.Quote][snapShot2.AssetType].Asks[0] != snapShot2.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot2.Asks[0],
-			obl.ob[snapShot2.Pair][snapShot2.AssetType].Asks[0])
+			obl.ob[snapShot2.Pair.Base][snapShot2.Pair.Quote][snapShot2.AssetType].Asks[0])
 	}
-	if obl.ob[snapShot3.Pair][snapShot3.AssetType].Asks[0] != snapShot3.Asks[0] {
+	if obl.ob[snapShot3.Pair.Base][snapShot3.Pair.Quote][snapShot3.AssetType].Asks[0] != snapShot3.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot3.Asks[0],
-			obl.ob[snapShot3.Pair][snapShot3.AssetType].Asks[0])
+			obl.ob[snapShot3.Pair.Base][snapShot3.Pair.Quote][snapShot3.AssetType].Asks[0])
 	}
 }
 
@@ -774,7 +774,7 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	ob := obl.GetOrderbook(cp, asset.Spot)
-	if obl.ob[cp][asset.Spot] != ob {
+	if obl.ob[cp.Base][cp.Quote][asset.Spot] != ob {
 		t.Error("Failed to get orderbook")
 	}
 }
@@ -799,7 +799,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 	}
 
 	asks := bidAskGenerator()
-	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &Update{
+	obl.updateAsksByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
 		Bids:       asks,
 		Asks:       asks,
 		Pair:       cp,
@@ -810,7 +810,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(obl.ob[cp][asset.Spot].Asks) <= 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) <= 3 {
 		t.Errorf("Insufficient updates")
 	}
 }

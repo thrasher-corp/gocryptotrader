@@ -185,7 +185,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		SortBufferByUpdateIDs:            true,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
-		// RateLimit:                        250,
+		RateLimit:                        250,
 		ConnectionConfigurations: []stream.ConnectionSetup{
 			{
 				URL:              binanceDefaultWebsocketURL,
