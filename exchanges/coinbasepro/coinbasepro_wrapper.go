@@ -27,6 +27,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	sandboxURL  = "sandbox"
+	defaultWS   = "defaultWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (c *CoinbasePro) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	c.SetDefaults()
@@ -131,10 +137,10 @@ func (c *CoinbasePro) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	c.API.Endpoints.URLDefault = coinbaseproAPIURL
-	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
-	c.API.Endpoints.WebsocketURL = coinbaseproWebsocketURL
+	c.API.Endpoints = make(map[string]string)
+	c.API.Endpoints[defaultRest] = coinbaseproAPIURL
+	c.API.Endpoints[sandboxURL] = coinbaseproSandboxAPIURL
+	c.API.Endpoints[defaultWS] = coinbaseproWebsocketURL
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

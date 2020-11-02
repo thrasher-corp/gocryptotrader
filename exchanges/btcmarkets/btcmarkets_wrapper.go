@@ -27,6 +27,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -58,9 +63,8 @@ func (b *BTCMarkets) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	b.API.Endpoints.URLDefault = btcMarketsAPIURL
-	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-
+	b.API.Endpoints = make(map[string]string)
+	b.API.Endpoints[defaultRest] = btcMarketsAPIURL
 	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
@@ -123,8 +127,7 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	b.API.Endpoints.WebsocketURL = btcMarketsWSURL
+	b.API.Endpoints[defaultRest] = btcMarketsWSURL
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

@@ -27,6 +27,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWSURL"
+	swapRest    = "swapURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (c *Coinbene) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	c.SetDefaults()
@@ -146,10 +152,10 @@ func (c *Coinbene) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	c.API.Endpoints.URLDefault = coinbeneAPIURL
-	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
-	c.API.Endpoints.WebsocketURL = wsContractURL
+	c.API.Endpoints = make(map[string]string)
+	c.API.Endpoints[defaultRest] = coinbeneAPIURL
+	c.API.Endpoints[swapRest] = coinbeneSwapAPIURL
+	c.API.Endpoints[defaultWS] = wsContractURL
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

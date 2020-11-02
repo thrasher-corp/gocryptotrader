@@ -28,6 +28,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWS"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (g *Gemini) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	g.SetDefaults()
@@ -106,10 +111,9 @@ func (g *Gemini) SetDefaults() {
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	g.API.Endpoints.URLDefault = geminiAPIURL
-	g.API.Endpoints.URL = g.API.Endpoints.URLDefault
-	g.API.Endpoints.WebsocketURL = geminiWebsocketEndpoint
+	g.API.Endpoints = make(map[string]string)
+	g.API.Endpoints[defaultRest] = geminiAPIURL
+	g.API.Endpoints[defaultWS] = geminiWebsocketEndpoint
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -129,7 +133,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	if exch.UseSandbox {
-		g.API.Endpoints.URL = geminiSandboxAPIURL
+		g.API.Endpoints[defaultRest] = geminiSandboxAPIURL
 	}
 
 	return g.Websocket.Setup(&stream.WebsocketSetup{

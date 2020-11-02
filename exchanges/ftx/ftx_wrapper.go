@@ -26,6 +26,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (f *FTX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	f.SetDefaults()
@@ -142,9 +147,8 @@ func (f *FTX) SetDefaults() {
 	f.Requester = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
-
-	f.API.Endpoints.URLDefault = ftxAPIURL
-	f.API.Endpoints.URL = f.API.Endpoints.URLDefault
+	f.API.Endpoints = make(map[string]string)
+	f.API.Endpoints[defaultRest] = ftxAPIURL
 	f.Websocket = stream.New()
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	f.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

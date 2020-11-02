@@ -85,6 +85,7 @@ func TestGetAuction(t *testing.T) {
 }
 
 func TestGetAuctionHistory(t *testing.T) {
+	g.Verbose = true
 	t.Parallel()
 	_, err := g.GetAuctionHistory(testCurrency, url.Values{})
 	if err != nil {
@@ -550,7 +551,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
-	g.API.Endpoints.WebsocketURL = geminiWebsocketSandboxEndpoint
+	g.API.Endpoints[defaultWS] = geminiWebsocketSandboxEndpoint
 
 	if !g.Websocket.IsEnabled() &&
 		!g.API.AuthenticatedWebsocketSupport ||

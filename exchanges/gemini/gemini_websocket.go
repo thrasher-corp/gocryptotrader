@@ -73,7 +73,7 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 		val.Set("offers", "true")
 		val.Set("trades", "true")
 		endpoint := fmt.Sprintf("%s%s/%s?%s",
-			g.API.Endpoints.WebsocketURL,
+			g.API.Endpoints[defaultWS],
 			geminiWsMarketData,
 			enabledCurrencies[i].String(),
 			val.Encode())
@@ -110,7 +110,7 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", g.Name)
 	}
 
-	endpoint := g.API.Endpoints.WebsocketURL + url
+	endpoint := g.API.Endpoints[defaultWS] + url
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
 	hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
 	headers := http.Header{}

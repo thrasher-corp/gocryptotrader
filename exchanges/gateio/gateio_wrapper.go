@@ -28,6 +28,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest   = "defaultURL"
+	secondaryRest = "secondaryURL"
+	defaultWS     = "defaultWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (g *Gateio) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	g.SetDefaults()
@@ -127,12 +133,10 @@ func (g *Gateio) SetDefaults() {
 	}
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	g.API.Endpoints.URLDefault = gateioTradeURL
-	g.API.Endpoints.URL = g.API.Endpoints.URLDefault
-	g.API.Endpoints.URLSecondaryDefault = gateioMarketURL
-	g.API.Endpoints.URLSecondary = g.API.Endpoints.URLSecondaryDefault
-	g.API.Endpoints.WebsocketURL = gateioWebsocketEndpoint
+	g.API.Endpoints = make(map[string]string)
+	g.API.Endpoints[defaultRest] = gateioTradeURL
+	g.API.Endpoints[secondaryRest] = gateioMarketURL
+	g.API.Endpoints[defaultWS] = gateioWebsocketEndpoint
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

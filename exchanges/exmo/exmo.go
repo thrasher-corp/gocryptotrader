@@ -57,7 +57,7 @@ func (e *EXMO) GetTrades(symbol string) (map[string][]Trades, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string][]Trades)
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoTrades)
+	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoTrades)
 	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)
 }
 
@@ -66,7 +66,7 @@ func (e *EXMO) GetOrderbook(symbol string) (map[string]Orderbook, error) {
 	v := url.Values{}
 	v.Set("pair", symbol)
 	result := make(map[string]Orderbook)
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoOrderbook)
+	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoOrderbook)
 	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)
 }
 
@@ -74,21 +74,21 @@ func (e *EXMO) GetOrderbook(symbol string) (map[string]Orderbook, error) {
 func (e *EXMO) GetTicker() (map[string]Ticker, error) {
 	v := url.Values{}
 	result := make(map[string]Ticker)
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoTicker)
+	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoTicker)
 	return result, e.SendHTTPRequest(common.EncodeURLValues(urlPath, v), &result)
 }
 
 // GetPairSettings returns the pair settings for a symbol or symbols
 func (e *EXMO) GetPairSettings() (map[string]PairSettings, error) {
 	result := make(map[string]PairSettings)
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoPairSettings)
+	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoPairSettings)
 	return result, e.SendHTTPRequest(urlPath, &result)
 }
 
 // GetCurrency returns a list of currencies
 func (e *EXMO) GetCurrency() ([]string, error) {
 	var result []string
-	urlPath := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, exmoCurrency)
+	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoCurrency)
 	return result, e.SendHTTPRequest(urlPath, &result)
 }
 
@@ -338,7 +338,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 	headers["Sign"] = crypto.HexEncodeToString(hash)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	path := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, endpoint)
+	path := fmt.Sprintf("/v%s/%s", exmoAPIVersion, endpoint)
 
 	return e.SendPayload(context.Background(), &request.Item{
 		Method:        method,
