@@ -1,15 +1,16 @@
-package data
+package ticker
 
 import (
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
 func TestDataFromTick_Load(t *testing.T) {
 	type fields struct {
 		ticks []*ticker.Price
-		Data  Data
+		Data  data.Data
 	}
 	tests := []struct {
 		name    string

@@ -10,14 +10,12 @@ import (
 	"github.com/thrasher-corp/gct-ta/indicators"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	data2 "github.com/thrasher-corp/gocryptotrader/backtester/data"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
+	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/exchange"
-	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/risk"
+	"github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -31,8 +29,8 @@ func (s *TestStrategy) Name() string {
 	return "TestStrategy"
 }
 
-func (s *TestStrategy) OnSignal(d portfolio.DataHandler, p portfolio2.PortfolioHandler) (signal.SignalEvent, error) {
-	signal := event.Signal{
+func (s *TestStrategy) OnSignal(d datahandler.DataHandler, p portfolio.PortfolioHandler) (signal.SignalEvent, error) {
+	signal := signal.Signal{
 		Event: event.Event{Time: d.Latest().GetTime(),
 			CurrencyPair: d.Latest().Pair()},
 	}
@@ -57,7 +55,7 @@ func (s *TestStrategy) OnSignal(d portfolio.DataHandler, p portfolio2.PortfolioH
 func TestBackTest(t *testing.T) {
 	bt := New()
 
-	data := data2.DataFromKline{
+	data := kline2.DataFromKline{
 		Item: genOHCLVData(),
 	}
 	err := data.Load()
@@ -66,13 +64,9 @@ func TestBackTest(t *testing.T) {
 	}
 
 	bt.Data = &data
-	bt.Portfolio = &portfolio2.Portfolio{
-		InitialFunds: 1000,
-		RiskManager:  &risk.Risk{},
-		SizeManager: &size.Size{
-			DefaultSize:  100,
-			DefaultValue: 1000,
-		},
+	bt.Portfolio, err = portfolio.New(1000, 100, 1000, false)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	bt.Strategy = &TestStrategy{}
@@ -95,19 +89,7 @@ func TestBackTest(t *testing.T) {
 		fmt.Println(ret.Transactions[x])
 	}
 	fmt.Printf("Total Events: %v | Total Transactions: %v\n", ret.TotalEvents, ret.TotalTransactions)
-	// r, err := Statistic.JSON(false)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
 
-	// err = GenerateOutput(r)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// fmt.Println(string(r))
-	// for x := range bt.Orderbook.GetOrders() {
-	// 	fmt.Println(bt.Orderbook.GetOrders()[x])
-	// }
 	bt.Reset()
 }
 

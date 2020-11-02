@@ -1,4 +1,4 @@
-package orderbook
+package orders
 
 import (
 	"sync"
@@ -24,7 +24,7 @@ type OrderEvent interface {
 	IsLeveraged() bool
 }
 
-type OrderBook struct {
+type Orders struct {
 	Counter int
 	Orders  []OrderEvent
 	History []OrderEvent

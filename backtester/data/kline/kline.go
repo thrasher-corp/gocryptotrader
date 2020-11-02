@@ -1,17 +1,19 @@
-package data
+package kline
 
 import (
 	"errors"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-type DataFromKline struct {
-	Item kline.Item
+func (c *Candle) DataType() portfolio.DataType {
+	return data.DataTypeCandle
+}
 
-	Data
+func (c *Candle) LatestPrice() float64 {
+	return c.Close
 }
 
 func (d *DataFromKline) Load() error {
@@ -19,9 +21,9 @@ func (d *DataFromKline) Load() error {
 		return errors.New("no candle data provided")
 	}
 
-	data := make([]portfolio.DataEventHandler, len(d.Item.Candles))
+	klineData := make([]portfolio.DataEventHandler, len(d.Item.Candles))
 	for i := range d.Item.Candles {
-		data[i] = &Candle{
+		klineData[i] = &Candle{
 			Event: event.Event{
 				Time: d.Item.Candles[i].Time, CurrencyPair: d.Item.Pair,
 			},
@@ -32,47 +34,62 @@ func (d *DataFromKline) Load() error {
 			Volume: d.Item.Candles[i].Volume,
 		}
 	}
-	d.stream = data
+	d.SetStream(klineData)
 	d.SortStream()
 	return nil
 }
 
 func (d *DataFromKline) StreamOpen() []float64 {
-	ret := make([]float64, len(d.stream))
-	for x := range d.stream {
-		ret[x] = d.stream[x].(*Candle).Open
+	s := d.GetStream()
+	o := d.GetOffset()
+
+	ret := make([]float64, o)
+	for x := range s[:o] {
+		ret[x] = s[x].(*Candle).Open
 	}
 	return ret
 }
 
 func (d *DataFromKline) StreamHigh() []float64 {
-	ret := make([]float64, len(d.stream))
-	for x := range d.stream {
-		ret[x] = d.stream[x].(*Candle).High
+	s := d.GetStream()
+	o := d.GetOffset()
+
+	ret := make([]float64, o)
+	for x := range s[:o] {
+		ret[x] = s[x].(*Candle).High
 	}
 	return ret
 }
 
 func (d *DataFromKline) StreamLow() []float64 {
-	ret := make([]float64, len(d.stream))
-	for x := range d.stream {
-		ret[x] = d.stream[x].(*Candle).Low
+	s := d.GetStream()
+	o := d.GetOffset()
+
+	ret := make([]float64, o)
+	for x := range s[:o] {
+		ret[x] = s[x].(*Candle).Low
 	}
 	return ret
 }
 
 func (d *DataFromKline) StreamClose() []float64 {
-	ret := make([]float64, len(d.stream))
-	for x := range d.stream {
-		ret[x] = d.stream[x].(*Candle).Close
+	s := d.GetStream()
+	o := d.GetOffset()
+
+	ret := make([]float64, o)
+	for x := range s[:o] {
+		ret[x] = s[x].(*Candle).Close
 	}
 	return ret
 }
 
 func (d *DataFromKline) StreamVol() []float64 {
-	ret := make([]float64, len(d.stream))
-	for x := range d.stream {
-		ret[x] = d.stream[x].(*Candle).Volume
+	s := d.GetStream()
+	o := d.GetOffset()
+
+	ret := make([]float64, o)
+	for x := range s[:o] {
+		ret[x] = s[x].(*Candle).Volume
 	}
 	return ret
 }

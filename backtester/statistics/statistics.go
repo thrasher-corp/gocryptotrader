@@ -106,7 +106,14 @@ func (s *Statistic) PrintResult() {
 
 	fmt.Printf("Counted %d total transactions:\n", len(s.Transactions()))
 	for k, v := range s.Transactions() {
-		fmt.Printf("%d. Transaction: %v Action: %v Price: %f Amount %f\n", k+1, v.GetTime().Format("2006-01-02 15:04:05.999999999"), v.GetDirection(), v.GetPrice(), v.GetAmount())
+		fmt.Printf("%d. Transaction: %v Action: %v Price: %f Amount: %f ExchangeFee: %v Cost: %v \n",
+			k+1,
+			v.GetTime().Format(time.RFC3339Nano),
+			v.GetDirection(),
+			v.GetPrice(),
+			v.GetAmount())
+		v.GetExchangeFee()
+		v.GetCost()
 	}
 
 	result, _ := s.TotalEquityReturn()

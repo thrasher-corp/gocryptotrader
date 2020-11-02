@@ -6,14 +6,14 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/order"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
 	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 func TestRisk_EvaluateOrder(t *testing.T) {
 	type args struct {
-		order orderbook.OrderEvent
+		order orders.OrderEvent
 		in1   datahandler.DataEventHandler
 		in2   map[currency.Pair]positions.Positions
 	}

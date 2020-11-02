@@ -3,9 +3,6 @@ package data
 import (
 	"sort"
 
-	"github.com/shopspring/decimal"
-
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 )
 
@@ -23,8 +20,16 @@ func (d *Data) Reset() {
 }
 
 // Stream will return entire data list
-func (d *Data) Stream() []portfolio.DataEventHandler {
+func (d *Data) GetStream() []portfolio.DataEventHandler {
 	return d.stream
+}
+
+func (d *Data) GetOffset() int {
+	return d.offset
+}
+
+func (d *Data) SetStream(s []portfolio.DataEventHandler) {
+	d.stream = s
 }
 
 // Next will return the next event in the list and also shift the offset one
@@ -83,28 +88,4 @@ func (d *Data) StreamVol() []float64 {
 
 func (d *Data) Offset() int {
 	return d.offset
-}
-
-func (c *Candle) DataType() portfolio.DataType {
-	return DataTypeCandle
-}
-
-func (c *Candle) LatestPrice() float64 {
-	return c.Close
-}
-
-func (t *Tick) LatestPrice() float64 {
-	bid := decimal.NewFromFloat(t.Bid)
-	ask := decimal.NewFromFloat(t.Ask)
-	diff := decimal.New(2, 0)
-	latest, _ := bid.Add(ask).Div(diff).Round(common.DecimalPlaces).Float64()
-	return latest
-}
-
-func (t *Tick) DataType() portfolio.DataType {
-	return DataTypeTick
-}
-
-func (t *Tick) Spread() float64 {
-	return t.Bid - t.Ask
 }

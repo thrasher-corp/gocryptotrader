@@ -21,7 +21,7 @@ type DataLoader interface {
 // DataStreamer interface handles loading, parsing, distributing BackTest data
 type DataStreamer interface {
 	Next() (DataEventHandler, bool)
-	Stream() []DataEventHandler
+	GetStream() []DataEventHandler
 	History() []DataEventHandler
 	Latest() DataEventHandler
 	List() []DataEventHandler

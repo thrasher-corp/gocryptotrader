@@ -10,20 +10,6 @@ const (
 	DataTypeTick
 )
 
-type Candle struct {
-	event.Event
-	Open   float64
-	Close  float64
-	Low    float64
-	High   float64
-	Volume float64
-}
-type Tick struct {
-	event.Event
-	Bid float64
-	Ask float64
-}
-
 type Orderbook struct {
 	event.Event
 	Bids []float64

@@ -6,7 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/order"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
 	"github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
 )
 
@@ -16,7 +16,7 @@ func TestSize_SizeOrder(t *testing.T) {
 		DefaultValue float64
 	}
 	type args struct {
-		order orderbook.OrderEvent
+		order orders.OrderEvent
 		in1   datahandler.DataEventHandler
 		in2   portfolio.PortfolioHandler
 	}
@@ -53,10 +53,10 @@ func TestSize_SizeOrder(t *testing.T) {
 		test := tests[x]
 		t.Run(test.name, func(t *testing.T) {
 			s := &Size{
-				DefaultSize:  test.fields.DefaultSize,
-				DefaultValue: test.fields.DefaultValue,
+				DefaultSize: test.fields.DefaultSize,
+				MaxSize:     test.fields.DefaultValue,
 			}
-			got, err := s.SizeOrder(test.args.order, test.args.in1, test.args.in2)
+			got, err := s.SizeOrder(test.args.order, test.args.in1)
 			if (err != nil) != test.wantErr {
 				t.Errorf("SizeOrder() error = %v, wantErr %v", err, test.wantErr)
 				return
@@ -98,8 +98,8 @@ func TestSize_setDefaultSize(t *testing.T) {
 		test := tests[x]
 		t.Run(test.name, func(t *testing.T) {
 			s := &Size{
-				DefaultSize:  test.fields.DefaultSize,
-				DefaultValue: test.fields.DefaultValue,
+				DefaultSize: test.fields.DefaultSize,
+				MaxSize:     test.fields.DefaultValue,
 			}
 			if got := s.setDefaultSize(test.args.price); got != test.want {
 				t.Errorf("setDefaultSize() = %v, want %v", got, test.want)

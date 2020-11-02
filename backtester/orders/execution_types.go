@@ -1,4 +1,4 @@
-package orderbook
+package orders
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"

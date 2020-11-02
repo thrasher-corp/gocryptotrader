@@ -9,11 +9,31 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
 	fill2 "github.com/thrasher-corp/gocryptotrader/backtester/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/order"
+	"github.com/thrasher-corp/gocryptotrader/backtester/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
+	"github.com/thrasher-corp/gocryptotrader/backtester/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+func New(initialFunds, defaultAmount, maximumAmount float64, isPercentage bool) (*Portfolio, error) {
+	if defaultAmount == 0 && maximumAmount == 0 {
+		return nil, errors.New("requires funding guidance")
+	}
+	if initialFunds == 0 {
+		return nil, errors.New("can't hope to buy anything without money")
+	}
+	return &Portfolio{
+		InitialFunds: initialFunds,
+		RiskManager:  &risk.Risk{},
+		SizeManager: &size.Size{
+			DefaultSize:       defaultAmount,
+			MaxSize:           maximumAmount,
+			IsPercentageBased: isPercentage,
+		},
+	}, nil
+}
 
 func (p *Portfolio) SetSizeManager(size SizeHandler) {
 	p.SizeManager = size
@@ -34,13 +54,13 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 
 	currAmount := p.Holdings[signal.Pair()].Amount
 	currFunds := p.GetFunds()
-	currPrice := data.Latest().LatestPrice()
+	//currPrice := data.Latest().LatestPrice()
 
 	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && currAmount <= signal.GetAmount() {
 		return &order.Order{}, errors.New("no holdings to sell")
 	}
 
-	if (signal.GetDirection() == gctorder.Buy || signal.GetDirection() == gctorder.Bid) && currFunds <= signal.GetPrice()*currPrice {
+	if (signal.GetDirection() == gctorder.Buy || signal.GetDirection() == gctorder.Bid) && currFunds == 0 {
 		return &order.Order{}, errors.New("not enough funds to buy")
 	}
 
@@ -57,17 +77,17 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 	}
 
 	latest := data.Latest()
-	sizedOrder, err := p.SizeManager.SizeOrder(initialOrder, latest, p)
+	sizedOrder, err := p.SizeManager.SizeOrder(initialOrder, latest)
 	if err != nil {
 		return nil, err
 	}
 
-	order, err := p.RiskManager.EvaluateOrder(sizedOrder, latest, p.Holdings)
+	o, err := p.RiskManager.EvaluateOrder(sizedOrder, latest, p.Holdings)
 	if err != nil {
 		return nil, err
 	}
 
-	return order, nil
+	return o, nil
 }
 
 func (p *Portfolio) OnFill(fill fill2.FillEvent, _ portfolio.DataHandler) (*fill2.Fill, error) {

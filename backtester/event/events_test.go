@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -107,7 +108,7 @@ func TestSignal_GetAmount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Signal{
+			s := &signal.Signal{
 				Event:     tt.fields.Event,
 				Amount:    tt.fields.Amount,
 				Price:     tt.fields.Price,
@@ -136,7 +137,7 @@ func TestSignal_GetDirection(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Signal{
+			s := &signal.Signal{
 				Event:     tt.fields.Event,
 				Amount:    tt.fields.Amount,
 				Price:     tt.fields.Price,
@@ -165,7 +166,7 @@ func TestSignal_GetPrice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Signal{
+			s := &signal.Signal{
 				Event:     tt.fields.Event,
 				Amount:    tt.fields.Amount,
 				Price:     tt.fields.Price,
@@ -203,7 +204,7 @@ func TestSignal_IsSignal(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Signal{
+			s := &signal.Signal{
 				Event:     tt.fields.Event,
 				Amount:    tt.fields.Amount,
 				Price:     tt.fields.Price,
@@ -232,7 +233,7 @@ func TestSignal_Pair(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Signal{
+			s := &signal.Signal{
 				Event:     tt.fields.Event,
 				Amount:    tt.fields.Amount,
 				Price:     tt.fields.Price,
@@ -264,7 +265,7 @@ func TestSignal_SetAmount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Signal{
+			s := &signal.Signal{
 				Event:     tt.fields.Event,
 				Amount:    tt.fields.Amount,
 				Price:     tt.fields.Price,
@@ -294,7 +295,7 @@ func TestSignal_SetDirection(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Signal{
+			s := &signal.Signal{
 				Event:     tt.fields.Event,
 				Amount:    tt.fields.Amount,
 				Price:     tt.fields.Price,
@@ -324,7 +325,7 @@ func TestSignal_SetPrice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Signal{
+			s := &signal.Signal{
 				Event:     tt.fields.Event,
 				Amount:    tt.fields.Amount,
 				Price:     tt.fields.Price,

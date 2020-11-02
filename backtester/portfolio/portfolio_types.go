@@ -4,7 +4,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/order"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
 	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
 	"github.com/thrasher-corp/gocryptotrader/backtester/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
@@ -37,5 +37,5 @@ type PortfolioHandler interface {
 }
 
 type SizeHandler interface {
-	SizeOrder(orderbook.OrderEvent, datahandler.DataEventHandler, PortfolioHandler) (*order.Order, error)
+	SizeOrder(orders.OrderEvent, datahandler.DataEventHandler) (*order.Order, error)
 }

@@ -2,24 +2,23 @@ package size
 
 import (
 	"errors"
-	"math"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/order"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
 	order2 "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (s *Size) SizeOrder(o orderbook.OrderEvent, _ datahandler.DataEventHandler, _ portfolio.PortfolioHandler) (*order.Order, error) {
+func (s *Size) SizeOrder(o orders.OrderEvent, _ datahandler.DataEventHandler) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 
-	if (s.DefaultSize == 0) || (s.DefaultValue == 0) {
+	if (s.DefaultSize == 0) || (s.MaxSize == 0) {
 		return nil, errors.New("no defaultSize or defaultValue set")
 	}
 
 	switch retOrder.GetDirection() {
 	case order2.Buy:
+		retOrder.SetAmount(s.setDefaultSize(retOrder.Price))
 	case order2.Sell:
 		retOrder.SetAmount(s.setDefaultSize(retOrder.Price))
 	}
@@ -27,8 +26,8 @@ func (s *Size) SizeOrder(o orderbook.OrderEvent, _ datahandler.DataEventHandler,
 }
 
 func (s *Size) setDefaultSize(price float64) float64 {
-	if (s.DefaultSize * price) > s.DefaultValue {
-		return math.Floor(s.DefaultValue / price)
+	if (price / s.DefaultSize) > s.MaxSize {
+		return price / s.MaxSize
 	}
-	return s.DefaultSize
+	return price / s.DefaultSize
 }

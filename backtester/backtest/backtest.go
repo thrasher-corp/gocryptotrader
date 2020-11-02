@@ -3,16 +3,14 @@ package backtest
 import (
 	"time"
 
-	data2 "github.com/thrasher-corp/gocryptotrader/backtester/data"
+	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/fill"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
 	"github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/strategies"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -32,17 +30,14 @@ func New() *BackTest {
 // NewFromSettings creates a new backtester from cmd or config settings
 func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 	bt := New()
-	bt.Portfolio = &portfolio.Portfolio{
-		InitialFunds: s.InitialFunds,
-		RiskManager:  &risk.Risk{},
-		SizeManager: &size.Size{
-			DefaultSize:  100,
-			DefaultValue: 1000,
-		},
+	var err error
+
+	bt.Portfolio, err = portfolio.New(s.InitialFunds, s.OrderSize, s.MaximumOrderSize, s.IsOrderSizePercentageBased)
+	if err != nil {
+		return nil, err
 	}
 
 	// load exchange
-	var err error
 	engine.Bot, err = engine.NewFromSettings(&engine.Settings{
 		EnableDryRun:   true,
 		EnableAllPairs: true,
@@ -60,12 +55,14 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 		return nil, engine.ErrExchangeNotFound
 	}
 
-	cp, err := currency.NewPairFromString(s.CurrencyPair)
+	var cp, fPair currency.Pair
+	cp, err = currency.NewPairFromString(s.CurrencyPair)
 	if err != nil {
 		return nil, err
 	}
 
-	a, err := asset.New(s.AssetType)
+	var a asset.Item
+	a, err = asset.New(s.AssetType)
 	if err != nil {
 		return nil, err
 	}
@@ -75,27 +72,29 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 		log.Warnf(log.Global, "no credentials set for %v, this is theoretical only", base.Name)
 	}
 
-	fPair, err := base.FormatExchangeCurrency(cp, a)
+	fPair, err = base.FormatExchangeCurrency(cp, a)
 	if err != nil {
 		return nil, err
 	}
-	tStart, err := time.Parse(common.SimpleTimeFormat, s.StartTime)
+	var tStart, tEnd time.Time
+	tStart, err = time.Parse(common.SimpleTimeFormat, s.StartTime)
 	if err != nil {
 		return nil, err
 	}
 
-	tEnd, err := time.Parse(common.SimpleTimeFormat, s.EndTime)
+	tEnd, err = time.Parse(common.SimpleTimeFormat, s.EndTime)
 	if err != nil {
 		return nil, err
 	}
 
 	// load the data
-	candles, err := exch.GetHistoricCandlesExtended(fPair, a, tStart, tEnd, kline.Interval(s.Interval))
+	var candles kline.Item
+	candles, err = exch.GetHistoricCandlesExtended(fPair, a, tStart, tEnd, kline.Interval(s.Interval))
 	if err != nil {
 		return nil, err
 	}
 
-	bt.Data = &data2.DataFromKline{
+	bt.Data = &kline2.DataFromKline{
 		Item: candles,
 	}
 	err = bt.Data.Load()
@@ -108,7 +107,8 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 		return nil, err
 	}
 
-	takerFee, err := exch.GetFeeByType(&exchange2.FeeBuilder{
+	var makerFee, takerFee float64
+	takerFee, err = exch.GetFeeByType(&exchange2.FeeBuilder{
 		FeeType:       exchange2.CryptocurrencyTradeFee,
 		Pair:          fPair,
 		IsMaker:       false,
@@ -119,7 +119,7 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 		return nil, err
 	}
 
-	makerFee, err := exch.GetFeeByType(&exchange2.FeeBuilder{
+	makerFee, err = exch.GetFeeByType(&exchange2.FeeBuilder{
 		FeeType:       exchange2.CryptocurrencyTradeFee,
 		Pair:          fPair,
 		IsMaker:       true,
@@ -192,7 +192,7 @@ func (b *BackTest) eventLoop(e datahandler.EventHandler) error {
 	case datahandler.DataEventHandler:
 		b.Portfolio.Update(event)
 		b.Statistic.Update(event, b.Portfolio)
-
+		// verify strategy
 		s, err := b.Strategy.OnSignal(b.Data, b.Portfolio)
 		if err != nil {
 			log.Error(log.Global, err)
@@ -208,13 +208,13 @@ func (b *BackTest) eventLoop(e datahandler.EventHandler) error {
 		}
 		b.EventQueue = append(b.EventQueue, o)
 
-	case orderbook.OrderEvent:
+	case orders.OrderEvent:
 		f, err := b.Exchange.ExecuteOrder(event, b.Data)
 		if err != nil {
 			log.Error(log.Global, err)
 			break
 		}
-		b.Orderbook.Add(event)
+		b.Orders.Add(event)
 		b.EventQueue = append(b.EventQueue, f)
 	case fill.FillEvent:
 		t, err := b.Portfolio.OnFill(event, b.Data)
