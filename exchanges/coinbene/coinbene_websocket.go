@@ -126,7 +126,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 	if ok && strings.Contains(result[event].(string), "login") {
 		if result["success"].(bool) {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			// var authsubs []stream.SubscriptionParamaters
+			// var authsubs []stream.SubscriptionParameters
 			// authsubs, err = c.GenerateAuthSubs(stream.SubscriptionOptions{})
 			// if err != nil {
 			// 	return err
@@ -453,7 +453,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Subscribe(sub stream.SubscriptionParamaters) error {
+func (c *Coinbene) Subscribe(sub stream.SubscriptionParameters) error {
 	// var sub WsSub
 	// sub.Operation = "subscribe"
 	// for i := range channelsToSubscribe {
@@ -468,7 +468,7 @@ func (c *Coinbene) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (c *Coinbene) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	// var unsub WsSub
 	// unsub.Operation = "unsubscribe"
 	// for i := range channelToUnsubscribe {

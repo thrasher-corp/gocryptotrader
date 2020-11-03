@@ -916,16 +916,16 @@ func (o *OKGroup) GenerateDefaultSubscriptions(options stream.SubscriptionOption
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *OKGroup) Subscribe(sub stream.SubscriptionParamaters) error {
+func (o *OKGroup) Subscribe(sub stream.SubscriptionParameters) error {
 	return o.handleSubscriptions("subscribe", sub)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *OKGroup) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (o *OKGroup) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	return o.handleSubscriptions("unsubscribe", unsub)
 }
 
-func (o *OKGroup) handleSubscriptions(operation string, subs stream.SubscriptionParamaters) error {
+func (o *OKGroup) handleSubscriptions(operation string, subs stream.SubscriptionParameters) error {
 	// request := WebsocketEventRequest{
 	// 	Operation: operation,
 	// }

@@ -6,28 +6,39 @@ import (
 )
 
 var (
-	errNoConfigurations   = errors.New("at least one general configuration must be supplied")
-	errNoGenerateConnFunc = errors.New("exchange connection generator function cannot be nil")
-	errNoGenerateSubsFunc = errors.New("exchange generate subscription function cannot be nil")
-	errMissingURLInConfig = errors.New("connection URL must be supplied")
+	errNoMainConfiguration          = errors.New("main configuration cannot be nil")
+	errNoExchangeConnectionFunction = errors.New("exchange connector function cannot be nil")
+	errNoConfigurations             = errors.New("at least one general configuration must be supplied")
+	errNoSubscribeFunction          = errors.New("exchange subscriber function must be supplied")
+	errNoUnsubscribeFunction        = errors.New("exchange unsubscriber function must be supplied")
+	errNoGenerateConnFunc           = errors.New("exchange connection generator function cannot be nil")
+	errNoFeatures                   = errors.New("exchange features cannot be nil")
+	errNoGenerateSubsFunc           = errors.New("exchange generate subscription function cannot be nil")
+	errMissingURLInConfig           = errors.New("connection URL must be supplied")
 )
 
 // NewConnectionManager returns a new connection manager
 func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, error) {
 	if cfg == nil {
-		return nil, errors.New("configuration cannot be nil")
+		return nil, errNoMainConfiguration
 	}
 	if cfg.ExchangeConnector == nil {
-		return nil, errors.New("exchange connector function cannot be nil")
+		return nil, errNoExchangeConnectionFunction
 	}
 	if cfg.ExchangeGenerateSubscriptions == nil {
 		return nil, errNoGenerateSubsFunc
+	}
+	if cfg.ExchangeSubscriber == nil {
+		return nil, errNoSubscribeFunction
+	}
+	if cfg.ExchangeUnsubscriber == nil {
+		return nil, errNoUnsubscribeFunction
 	}
 	if cfg.ExchangeGenerateConnection == nil {
 		return nil, errNoGenerateConnFunc
 	}
 	if cfg.Features == nil {
-		return nil, errors.New("exchange features cannot be nil")
+		return nil, errNoFeatures
 	}
 	if len(cfg.Configurations) < 1 {
 		return nil, errNoConfigurations
@@ -202,7 +213,7 @@ func (c *ConnectionManager) Subscribe(conn Connection, subs []ChannelSubscriptio
 		return errors.New("no subscription data cannot subscribe")
 	}
 
-	return c.subscriber(SubscriptionParamaters{
+	return c.subscriber(SubscriptionParameters{
 		Items:   subs,
 		Conn:    conn,
 		Manager: c,
@@ -210,7 +221,7 @@ func (c *ConnectionManager) Subscribe(conn Connection, subs []ChannelSubscriptio
 }
 
 // Unsubscribe unsubscribes and removes subscription by stream connection
-func (c *ConnectionManager) Unsubscribe(unsubs []SubscriptionParamaters) error {
+func (c *ConnectionManager) Unsubscribe(unsubs []SubscriptionParameters) error {
 	c.Lock()
 	defer c.Unlock()
 

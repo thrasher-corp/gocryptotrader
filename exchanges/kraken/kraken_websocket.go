@@ -98,7 +98,7 @@ func (k *Kraken) WsConnect(conn stream.Connection) error {
 					err)
 			} else {
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
-				// var authsubs []stream.SubscriptionParamaters
+				// var authsubs []stream.SubscriptionParameters
 				// authsubs, err = k.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
 				// if err != nil {
 				// 	return err
@@ -851,7 +851,7 @@ func (k *Kraken) GenerateAuthenticatedSubscriptions(option stream.SubscriptionOp
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (k *Kraken) Subscribe(sub stream.SubscriptionParamaters) error {
+func (k *Kraken) Subscribe(sub stream.SubscriptionParameters) error {
 	// 	var subs []WebsocketSubscriptionEventRequest
 	// channels:
 	// 	for x := range channelsToSubscribe {
@@ -919,7 +919,7 @@ func (k *Kraken) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (k *Kraken) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (k *Kraken) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	// 	var unsubs []WebsocketSubscriptionEventRequest
 	// channels:
 	// 	for x := range channelsToUnsubscribe {

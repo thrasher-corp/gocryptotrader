@@ -281,7 +281,7 @@ func (z *ZB) GenerateDefaultSubscriptions(options stream.SubscriptionOptions) ([
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (z *ZB) Subscribe(channelsToSubscribe stream.SubscriptionParamaters) error {
+func (z *ZB) Subscribe(channelsToSubscribe stream.SubscriptionParameters) error {
 	// var errs common.Errors
 	// for i := range channelsToSubscribe {
 	// 	subscriptionRequest := Subscription{

@@ -569,7 +569,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions(options stream.SubscriptionOptio
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(sub stream.SubscriptionParamaters) error {
+func (p *Poloniex) Subscribe(sub stream.SubscriptionParameters) error {
 	// 	var errs common.Errors
 	// channels:
 	// 	for i := range sub {
@@ -608,7 +608,7 @@ func (p *Poloniex) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (p *Poloniex) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	// 	var errs common.Errors
 	// channels:
 	// 	for i := range unsub {

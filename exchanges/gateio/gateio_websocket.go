@@ -45,7 +45,7 @@ func (g *Gateio) WsConnect(conn stream.Connection) error {
 			g.Websocket.DataHandler <- err
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		} else {
-			// var authsubs []stream.SubscriptionParamaters
+			// var authsubs []stream.SubscriptionParameters
 			// authsubs, err = g.GenerateAuthenticatedSubscriptions(stream.SubscriptionOptions{})
 			// if err != nil {
 			// 	g.Websocket.DataHandler <- err
@@ -502,7 +502,7 @@ func (g *Gateio) GenerateDefaultSubscriptions(options stream.SubscriptionOptions
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gateio) Subscribe(sub stream.SubscriptionParamaters) error {
+func (g *Gateio) Subscribe(sub stream.SubscriptionParameters) error {
 	// payloads, err := g.generatePayload(channelsToSubscribe)
 	// if err != nil {
 	// 	return err
@@ -592,7 +592,7 @@ channels:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (g *Gateio) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	// NOTE: This function does not take in parameters, it cannot unsubscribe a
 	// single item but a full channel. i.e. if you subscribe to ticker BTC_USDT
 	// & LTC_USDT this function will unsubscribe both. This function will be

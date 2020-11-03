@@ -722,7 +722,8 @@ type orderbookManager struct {
 	buffer map[currency.Code]map[currency.Code]map[asset.Item]chan *WebsocketDepthStream
 	bmtx   sync.Mutex
 
-	fetchingBook map[currency.Code]map[currency.Code]map[asset.Item]bool
+	fetchingBook map[currency.Code]map[currency.Code]map[asset.Item]*bool
+	initialSync  map[currency.Code]map[currency.Code]map[asset.Item]*bool
 	fmtx         sync.Mutex
 
 	jobs chan orderbookWsJob

@@ -96,7 +96,7 @@ func (f *FTX) WsAuth() error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (f *FTX) Subscribe(sub stream.SubscriptionParamaters) error {
+func (f *FTX) Subscribe(sub stream.SubscriptionParameters) error {
 	// 	var errs common.Errors
 	// channels:
 	// 	for i := range channelsToSubscribe {
@@ -134,7 +134,7 @@ func (f *FTX) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (f *FTX) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	// 	var errs common.Errors
 	// channels:
 	// 	for i := range channelsToUnsubscribe {

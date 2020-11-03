@@ -369,7 +369,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions(options stream.SubscriptionOp
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(sub stream.SubscriptionParamaters) error {
+func (c *CoinbasePro) Subscribe(sub stream.SubscriptionParameters) error {
 	// 	subscribe := WebsocketSubscribe{
 	// 		Type: "subscribe",
 	// 	}
@@ -412,7 +412,7 @@ func (c *CoinbasePro) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe stream.SubscriptionParamaters) error {
+func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe stream.SubscriptionParameters) error {
 	// 	unsubscribe := WebsocketSubscribe{
 	// 		Type: "unsubscribe",
 	// 	}

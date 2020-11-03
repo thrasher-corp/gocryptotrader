@@ -813,7 +813,7 @@ func (w *Websocket) GetName() string {
 
 // GetChannelDifference finds the difference between the subscribed channels
 // and the new subscription list when pairs are disabled or enabled.
-func (w *Websocket) GetChannelDifference(subs []SubscriptionParamaters) (sub, unsub []SubscriptionParamaters) {
+func (w *Websocket) GetChannelDifference(subs []SubscriptionParameters) (sub, unsub []SubscriptionParameters) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 
@@ -840,7 +840,7 @@ func (w *Websocket) GetChannelDifference(subs []SubscriptionParamaters) (sub, un
 }
 
 // UnsubscribeChannels unsubscribes from a websocket channel
-func (w *Websocket) UnsubscribeChannels(unsub []SubscriptionParamaters) error {
+func (w *Websocket) UnsubscribeChannels(unsub []SubscriptionParameters) error {
 	// for i := range unsub {
 	// 	if len(unsub[i].Items) == 0 {
 	// 		return fmt.Errorf("%s websocket: channels not populated cannot remove",
@@ -879,7 +879,7 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription)
 }
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
-func (w *Websocket) SubscribeToChannels(sub []SubscriptionParamaters) error {
+func (w *Websocket) SubscribeToChannels(sub []SubscriptionParameters) error {
 	// for i := range sub {
 	// 	if len(sub[i].Items) == 0 {
 	// 		return fmt.Errorf("%s websocket: cannot subscribe no channels supplied",

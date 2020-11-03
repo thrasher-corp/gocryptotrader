@@ -1037,7 +1037,7 @@ func (e *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscriptio
 	if e.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return e.Websocket.SubscribeToChannels([]stream.SubscriptionParamaters{
+	return e.Websocket.SubscribeToChannels([]stream.SubscriptionParameters{
 		{Items: channels},
 	})
 }
@@ -1048,7 +1048,7 @@ func (e *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscript
 	if e.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return e.Websocket.UnsubscribeChannels([]stream.SubscriptionParamaters{
+	return e.Websocket.UnsubscribeChannels([]stream.SubscriptionParameters{
 		{Items: channels},
 	})
 }

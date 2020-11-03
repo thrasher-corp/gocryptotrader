@@ -96,8 +96,8 @@ type WebsocketSetup struct {
 	RunningURL               string
 	RunningURLAuth           string
 	Connector                func(conn Connection) error
-	Subscriber               func(SubscriptionParamaters) error
-	Unsubscriber             func(SubscriptionParamaters) error
+	Subscriber               func(SubscriptionParameters) error
+	Unsubscriber             func(SubscriptionParameters) error
 	GenerateSubscriptions    func(SubscriptionOptions) ([]ChannelSubscription, error)
 	GenerateConnection       func(url string, auth bool) (Connection, error)
 	Features                 *protocol.Features

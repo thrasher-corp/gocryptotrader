@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -130,7 +131,8 @@ func (b *Binance) preConnectionSetup() {
 	if b.obm == nil {
 		b.obm = &orderbookManager{
 			buffer:       make(map[currency.Code]map[currency.Code]map[asset.Item]chan *WebsocketDepthStream),
-			fetchingBook: make(map[currency.Code]map[currency.Code]map[asset.Item]bool),
+			fetchingBook: make(map[currency.Code]map[currency.Code]map[asset.Item]*bool),
+			initialSync:  make(map[currency.Code]map[currency.Code]map[asset.Item]*bool),
 			jobs:         make(chan orderbookWsJob, 2000),
 		}
 
@@ -564,24 +566,19 @@ func (b *Binance) UpdateLocalBuffer(u *WebsocketDepthStream, conn stream.Connect
 		if err != nil {
 			return err
 		}
-		var fetching bool
-		fetching, err = b.obm.checkIsFetchingBook(pair, assets[i])
-		if err != nil {
-			return err
-		}
-
-		if fetching {
-			// Make sure we stage update for margin as an example as well.
-			continue
-		}
 
 		err := b.applyBufferUpdate(pair, assets[i], conn)
 		if err != nil {
-			flushError := b.Websocket.Orderbook.FlushOrderbook(pair, assets[i])
-			if flushError != nil {
-				log.Errorln(log.WebsocketMgr, "flushing websocket error:", flushError)
-			}
 			errs = append(errs, err)
+			err = b.Websocket.Orderbook.FlushOrderbook(pair, assets[i])
+			if err != nil {
+				log.Errorln(log.WebsocketMgr, "flushing websocket error:", err)
+			}
+
+			err = b.obm.cleanup(pair, assets[i])
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 
@@ -594,11 +591,21 @@ func (b *Binance) UpdateLocalBuffer(u *WebsocketDepthStream, conn stream.Connect
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
 func (b *Binance) applyBufferUpdate(pair currency.Pair, a asset.Item, conn stream.Connection) error {
+	var fetching bool
+	fetching, err := b.obm.checkIsFetchingBook(pair, a)
+	if err != nil {
+		return err
+	}
+
+	if fetching {
+		return nil
+	}
+
 	recent := b.Websocket.Orderbook.GetOrderbook(pair, a)
 	if recent == nil {
-		// fmt.Printf("book not found %s %s \n", pair, a)
 		return b.obm.fetchBookViaREST(pair, a, conn)
 	}
+
 	return b.obm.checkAndProcessUpdate(b.ProcessUpdate, pair, a, *recent)
 }
 
@@ -648,22 +655,17 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 		for {
 			select {
 			case job := <-b.obm.jobs:
-				// fmt.Println("job got")
 				assets, err := job.Conn.GetAssetsBySubscriptionType(stream.Orderbook, job.Pair)
 				if err != nil {
 					log.Errorln(log.WebsocketMgr, "cannot fetch asssociated asset types", err)
 					continue
 				}
 
-				// fmt.Println("assets", assets)
-
 				err = b.SeedLocalCache(job.Pair, assets)
 				if err != nil {
 					log.Errorln(log.WebsocketMgr, "seeding local cache for orderbook error", err)
 					continue
 				}
-
-				// fmt.Println("seeded cache")
 
 				// immediatly apply the buffer updates so we don't
 				// wait for a new update to initiate this.
@@ -673,13 +675,16 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 						log.Errorln(log.WebsocketMgr, "applying orderbook updates error", err)
 						continue
 					}
-					// fmt.Println("WOW")
 					err = b.applyBufferUpdate(job.Pair, assets[i], job.Conn)
 					if err != nil {
 						log.Errorln(log.WebsocketMgr, "applying orderbook updates error", err)
 						err = b.Websocket.Orderbook.FlushOrderbook(job.Pair, assets[i])
 						if err != nil {
 							log.Errorln(log.WebsocketMgr, "flushing websocket error:", err)
+						}
+						err = b.obm.cleanup(job.Pair, assets[i])
+						if err != nil {
+							log.Errorln(log.WebsocketMgr, "cleanup websocket error:", err)
 						}
 						continue
 					}
@@ -750,7 +755,7 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(sub stream.SubscriptionParamaters) error {
+func (b *Binance) Subscribe(sub stream.SubscriptionParameters) error {
 	// fmt.Printf("Subscribing connection: %p, with how many subs %d\n", sub.Conn, len(sub.Items))
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
@@ -793,7 +798,7 @@ func (b *Binance) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (b *Binance) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	payload := WsPayload{
 		Method: "UNSUBSCRIBE",
 	}
@@ -843,10 +848,31 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 		// might have up to a 10 second delay. There could be a potential 100
 		// updates for the currency.
 		o.buffer[pair.Base][pair.Quote][a] = ch
+
+		// set init and fetching tables
+		_, ok := o.fetchingBook[pair.Base]
+		if !ok {
+			o.fetchingBook[pair.Base] = make(map[currency.Code]map[asset.Item]*bool)
+		}
+		_, ok = o.fetchingBook[pair.Base][pair.Quote]
+		if !ok {
+			o.fetchingBook[pair.Base][pair.Quote] = make(map[asset.Item]*bool)
+		}
+		o.fetchingBook[pair.Base][pair.Quote][a] = convert.BoolPtr(false)
+
+		_, ok = o.initialSync[pair.Base]
+		if !ok {
+			o.initialSync[pair.Base] = make(map[currency.Code]map[asset.Item]*bool)
+		}
+		_, ok = o.initialSync[pair.Base][pair.Quote]
+		if !ok {
+			o.initialSync[pair.Base][pair.Quote] = make(map[asset.Item]*bool)
+		}
+		o.initialSync[pair.Base][pair.Quote][a] = convert.BoolPtr(false)
 	}
+
 	select {
 	case ch <- u:
-		// fmt.Printf("incoming updates put on buffer %s %s count %d\n", pair, a, len(ch))
 		return nil
 	default:
 		return fmt.Errorf("channel blockage for %s, asset %s and connection",
@@ -862,11 +888,25 @@ func (o *orderbookManager) checkIsFetchingBook(pair currency.Pair, a asset.Item)
 	fetching, ok := o.fetchingBook[pair.Base][pair.Quote][a]
 	if !ok {
 		return false,
-			fmt.Errorf("cannot match currency pair %s asset type %s",
+			fmt.Errorf("check is fetching book cannot match currency pair %s asset type %s",
 				pair,
 				a)
 	}
-	return fetching, nil
+	return *fetching, nil
+}
+
+// checkInitialSync checks if book is ready for initial sync
+func (o *orderbookManager) checkInitialSync(pair currency.Pair, a asset.Item) (bool, error) {
+	o.fmtx.Lock()
+	defer o.fmtx.Unlock()
+	isInit, ok := o.initialSync[pair.Base][pair.Quote][a]
+	if !ok {
+		return false,
+			fmt.Errorf("check initial sync cannot match currency pair %s asset type %s",
+				pair,
+				a)
+	}
+	return *isInit, nil
 }
 
 // checkIsFetchingBook checks status if the book is currently being via the REST
@@ -874,39 +914,60 @@ func (o *orderbookManager) checkIsFetchingBook(pair currency.Pair, a asset.Item)
 func (o *orderbookManager) stopFetchingBook(pair currency.Pair, a asset.Item) error {
 	o.fmtx.Lock()
 	defer o.fmtx.Unlock()
-	m1, ok := o.fetchingBook[pair.Base][pair.Quote]
+	ptr, ok := o.fetchingBook[pair.Base][pair.Quote][a]
 	if !ok {
-		return fmt.Errorf("could not match pair %s in hash table", pair)
+		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
+			pair,
+			a)
 	}
-	if b, ok := m1[a]; ok {
-		if !b {
-			return fmt.Errorf("fetching book already set false for %s %s",
-				pair,
-				a)
-		}
-		m1[a] = false
-		return nil
+	if !*ptr {
+		return fmt.Errorf("fetching book already set to false for %s %s",
+			pair,
+			a)
+	}
+	*ptr = false
+	return nil
 
+}
+
+// completeInitialSync sets if an asset type has completed its initial sync
+func (o *orderbookManager) completeInitialSync(pair currency.Pair, a asset.Item) error {
+	o.fmtx.Lock()
+	defer o.fmtx.Unlock()
+	ptr, ok := o.initialSync[pair.Base][pair.Quote][a]
+	if !ok {
+		return fmt.Errorf("complete initial sync cannot match currency pair %s asset type %s",
+			pair,
+			a)
 	}
-	return fmt.Errorf("could not match pair %s and asset type %s in hash table",
-		pair,
-		a)
+	if !*ptr {
+		return fmt.Errorf("initital sync already set to false for %s %s",
+			pair,
+			a)
+	}
+	*ptr = false
+	return nil
 }
 
 func (o *orderbookManager) fetchBookViaREST(pair currency.Pair, a asset.Item, conn stream.Connection) error {
 	o.fmtx.Lock()
 	defer o.fmtx.Unlock()
 
-	_, ok := o.fetchingBook[pair.Base]
+	i, ok := o.initialSync[pair.Base][pair.Quote][a]
 	if !ok {
-		o.fetchingBook[pair.Base] = make(map[currency.Code]map[asset.Item]bool)
+		return fmt.Errorf("fetch book via rest cannot match currency pair %s asset type %s",
+			pair,
+			a)
 	}
+	*i = true
 
-	_, ok = o.fetchingBook[pair.Base][pair.Quote]
+	f, ok := o.fetchingBook[pair.Base][pair.Quote][a]
 	if !ok {
-		o.fetchingBook[pair.Base][pair.Quote] = make(map[asset.Item]bool)
+		return fmt.Errorf("fetch book via rest cannot match currency pair %s asset type %s",
+			pair,
+			a)
 	}
-	o.fetchingBook[pair.Base][pair.Quote][a] = true
+	*f = true
 
 	select {
 	case o.jobs <- orderbookWsJob{pair, conn}:
@@ -920,8 +981,6 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair, a asset.Item, co
 func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, a asset.Item, recent orderbook.Base) error {
 	o.bmtx.Lock()
 	defer o.bmtx.Unlock()
-
-	// fmt.Printf("%+v\n", o.buffer)
 
 	ch, ok := o.buffer[pair.Base][pair.Quote][a]
 	if !ok {
@@ -939,13 +998,13 @@ loop:
 				// Drop any event where u is <= lastUpdateId in the snapshot.
 				continue
 			}
-			id := recent.LastUpdateID + 1
-			fetching, err := o.checkIsFetchingBook(pair, a)
+
+			initSync, err := o.checkInitialSync(pair, a)
 			if err != nil {
 				return err
 			}
-
-			if fetching {
+			id := recent.LastUpdateID + 1
+			if initSync {
 				// The first processed event should have U <= lastUpdateId+1 AND
 				// u >= lastUpdateId+1.
 				if d.FirstUpdateID > id && d.LastUpdateID < id {
@@ -953,7 +1012,7 @@ loop:
 						pair,
 						a)
 				}
-				err := o.stopFetchingBook(pair, a)
+				err := o.completeInitialSync(pair, a)
 				if err != nil {
 					return err
 				}
@@ -974,5 +1033,31 @@ loop:
 			break loop
 		}
 	}
+	return nil
+}
+
+// cleanup cleans up buffer and reset fetch and init
+func (o *orderbookManager) cleanup(pair currency.Pair, a asset.Item) error {
+	o.bmtx.Lock()
+	defer o.bmtx.Unlock()
+
+	ch, ok := o.buffer[pair.Base][pair.Quote][a]
+	if !ok {
+		return fmt.Errorf("cleanup cannot match %s %s to hash table", pair, a)
+	}
+
+bufferEmpty:
+	for {
+		select {
+		case _ = <-ch:
+			// bleed and disgard buffer
+		default:
+			break bufferEmpty
+		}
+	}
+
+	// reset underlying bools
+	_ = o.stopFetchingBook(pair, a)
+	_ = o.completeInitialSync(pair, a)
 	return nil
 }

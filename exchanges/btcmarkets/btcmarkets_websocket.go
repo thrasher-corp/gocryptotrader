@@ -315,7 +315,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions(options stream.SubscriptionOpt
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTCMarkets) Subscribe(sub stream.SubscriptionParamaters) error {
+func (b *BTCMarkets) Subscribe(sub stream.SubscriptionParameters) error {
 	// var authChannels = []string{fundChange, heartbeat, orderChange}
 
 	// var payload WsSubscribe

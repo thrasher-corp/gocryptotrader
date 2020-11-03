@@ -34,6 +34,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Binance setup error", err)
 	}
+	testWSConn, err = b.spawnConnection("testconn", false)
+	if err != nil {
+		log.Fatal("Binance websocket error", err)
+	}
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())

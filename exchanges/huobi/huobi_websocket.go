@@ -499,7 +499,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions(options stream.SubscriptionOptions)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(sub stream.SubscriptionParamaters) error {
+func (h *HUOBI) Subscribe(sub stream.SubscriptionParameters) error {
 	// var errs common.Errors
 	// for i := range channelsToSubscribe {
 	// 	if strings.Contains(channelsToSubscribe[i].Channel, "orders.") ||
@@ -530,7 +530,7 @@ func (h *HUOBI) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (h *HUOBI) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	// var errs common.Errors
 	// for i := range channelsToUnsubscribe {
 	// 	if strings.Contains(channelsToUnsubscribe[i].Channel, "orders.") ||

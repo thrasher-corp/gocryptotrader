@@ -575,7 +575,7 @@ func (c *COINUT) GenerateDefaultSubscriptions(options stream.SubscriptionOptions
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(sub stream.SubscriptionParamaters) error {
+func (c *COINUT) Subscribe(sub stream.SubscriptionParameters) error {
 	// var errs common.Errors
 	// for i := range channelsToSubscribe {
 	// 	fpair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
@@ -604,7 +604,7 @@ func (c *COINUT) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (c *COINUT) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	// var errs common.Errors
 	// for i := range channelToUnsubscribe {
 	// 	fpair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)

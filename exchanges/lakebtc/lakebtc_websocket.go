@@ -103,7 +103,7 @@ func (l *LakeBTC) GenerateDefaultSubscriptions(options stream.SubscriptionOption
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (l *LakeBTC) Subscribe(sub stream.SubscriptionParamaters) error {
+func (l *LakeBTC) Subscribe(sub stream.SubscriptionParameters) error {
 	// var errs common.Errors
 	// for i := range channelsToSubscribe {
 	// 	err := l.WebsocketConn.Client.Subscribe(channelsToSubscribe[i].Channel)
@@ -120,7 +120,7 @@ func (l *LakeBTC) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to unsubscribe from the channel
-func (l *LakeBTC) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (l *LakeBTC) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	// var errs common.Errors
 	// for i := range channelsToUnsubscribe {
 	// 	err := l.WebsocketConn.Client.Unsubscribe(channelsToUnsubscribe[i].Channel)

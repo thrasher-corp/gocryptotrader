@@ -22,8 +22,8 @@ type ConnectionManager struct {
 	features           *protocol.Features
 	connector          func(conn Connection) error
 	generator          func(options SubscriptionOptions) ([]ChannelSubscription, error)
-	subscriber         func(sub SubscriptionParamaters) error
-	unsubscriber       func(unsub SubscriptionParamaters) error
+	subscriber         func(sub SubscriptionParameters) error
+	unsubscriber       func(unsub SubscriptionParameters) error
 	generateConnection func(url string, auth bool) (Connection, error)
 
 	generalConfigurations []ConnectionSetup
@@ -33,16 +33,16 @@ type ConnectionManager struct {
 type ConnectionManagerConfig struct {
 	ExchangeConnector             func(conn Connection) error
 	ExchangeGenerateSubscriptions func(options SubscriptionOptions) ([]ChannelSubscription, error)
-	ExchangeSubscriber            func(sub SubscriptionParamaters) error
-	ExchangeUnsubscriber          func(unsub SubscriptionParamaters) error
+	ExchangeSubscriber            func(sub SubscriptionParameters) error
+	ExchangeUnsubscriber          func(unsub SubscriptionParameters) error
 	ExchangeGenerateConnection    func(url string, auth bool) (Connection, error)
 	Features                      *protocol.Features
 
 	Configurations []ConnectionSetup
 }
 
-// SubscriptionParamaters defines payload for subscribing and unsibscribing
-type SubscriptionParamaters struct {
+// SubscriptionParameters defines payload for subscribing and unsibscribing
+type SubscriptionParameters struct {
 	Items   []ChannelSubscription
 	Conn    Connection
 	Manager *ConnectionManager

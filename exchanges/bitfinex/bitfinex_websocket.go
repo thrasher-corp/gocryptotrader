@@ -967,7 +967,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions(options stream.SubscriptionOptio
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitfinex) Subscribe(sub stream.SubscriptionParamaters) error {
+func (b *Bitfinex) Subscribe(sub stream.SubscriptionParameters) error {
 	var errs common.Errors
 	for i := range sub.Items {
 		req := make(map[string]interface{})
@@ -992,7 +992,7 @@ func (b *Bitfinex) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitfinex) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (b *Bitfinex) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	var errs common.Errors
 	for i := range unsub.Items {
 		req := make(map[string]interface{})

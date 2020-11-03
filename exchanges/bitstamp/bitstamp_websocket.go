@@ -161,7 +161,7 @@ func (b *Bitstamp) generateDefaultSubscriptions(options stream.SubscriptionOptio
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(sub stream.SubscriptionParamaters) error {
+func (b *Bitstamp) Subscribe(sub stream.SubscriptionParameters) error {
 	// var errs common.Errors
 	// for i := range channelsToSubscribe {
 	// 	req := websocketEventRequest{
@@ -184,7 +184,7 @@ func (b *Bitstamp) Subscribe(sub stream.SubscriptionParamaters) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(unsub stream.SubscriptionParamaters) error {
+func (b *Bitstamp) Unsubscribe(unsub stream.SubscriptionParameters) error {
 	// var errs common.Errors
 	// for i := range channelsToUnsubscribe {
 	// 	req := websocketEventRequest{

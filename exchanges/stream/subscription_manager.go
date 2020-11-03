@@ -24,7 +24,7 @@ const (
 // connection
 type SubscriptionManager struct {
 	sync.Mutex
-	m map[Subscription][]ChannelSubscription
+	m map[Subscription]*[]ChannelSubscription
 }
 
 // AddSuccessfulSubscriptions adds a successful subscription
@@ -33,17 +33,14 @@ func (s *SubscriptionManager) AddSuccessfulSubscriptions(subscriptions []Channel
 		return errors.New("subscriptions cannot be nil")
 	}
 
-	if s.m == nil {
-		s.m = make(map[Subscription][]ChannelSubscription)
-	}
-
 	for x := range subscriptions {
-		_, ok := s.m[subscriptions[x].SubscriptionType]
+		ptr, ok := s.m[subscriptions[x].SubscriptionType]
 		if !ok {
-			s.m[subscriptions[x].SubscriptionType] = []ChannelSubscription{subscriptions[x]}
+			cont := []ChannelSubscription{subscriptions[x]}
+			s.m[subscriptions[x].SubscriptionType] = &cont
 			continue
 		}
-		s.m[subscriptions[x].SubscriptionType] = append(s.m[subscriptions[x].SubscriptionType], subscriptions[x])
+		*ptr = append(*ptr, subscriptions[x])
 	}
 	return nil
 }
@@ -58,11 +55,11 @@ removals:
 			return errors.New("cannot remove subscription type not found to be associated with connection")
 		}
 
-		for y := range slice {
-			if subscriptions[x].Channel == slice[y].Channel {
-				slice[y] = slice[len(slice)-1]
-				slice[len(slice)-1] = ChannelSubscription{}
-				slice = slice[:len(slice)-1]
+		for y := range *slice {
+			if subscriptions[x].Channel == (*slice)[y].Channel {
+				(*slice)[y] = (*slice)[len(*slice)-1]
+				(*slice)[len((*slice))-1] = ChannelSubscription{}
+				(*slice) = (*slice)[:len((*slice))-1]
 				continue removals
 			}
 		}
@@ -76,7 +73,7 @@ removals:
 func (s *SubscriptionManager) GetAllSubscriptions() []ChannelSubscription {
 	var subscriptions []ChannelSubscription
 	for _, subs := range s.m {
-		subscriptions = append(subscriptions, subs...)
+		subscriptions = append(subscriptions, *subs...)
 	}
 	return subscriptions
 }
@@ -94,14 +91,14 @@ func (s *SubscriptionManager) GetAssetsBySubscriptionType(t Subscription, pair c
 	}
 
 	var assets asset.Items
-	for i := range subscriptions {
-		if !subscriptions[i].Currency.Equal(pair) {
+	for i := range *subscriptions {
+		if !(*subscriptions)[i].Currency.Equal(pair) {
 			continue
 		}
-		if assets.Contains(subscriptions[i].Asset) {
+		if assets.Contains((*subscriptions)[i].Asset) {
 			continue
 		}
-		assets = append(assets, subscriptions[i].Asset)
+		assets = append(assets, (*subscriptions)[i].Asset)
 	}
 
 	if len(assets) == 0 {

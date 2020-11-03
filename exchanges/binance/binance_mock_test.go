@@ -39,6 +39,11 @@ func TestMain(m *testing.M) {
 		log.Fatal("Binance setup error", err)
 	}
 
+	testWSConn, err = b.spawnConnection("testconn", false)
+	if err != nil {
+		log.Fatal("Binance websocket error", err)
+	}
+
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
 		log.Fatalf("Mock server error %s", err)
