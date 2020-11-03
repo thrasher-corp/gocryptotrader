@@ -25,6 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (l *Lbank) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	l.SetDefaults()
@@ -109,9 +113,8 @@ func (l *Lbank) SetDefaults() {
 
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	l.API.Endpoints.URLDefault = lbankAPIURL
-	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
+	l.API.Endpoints = make(map[string]string)
+	l.API.Endpoints[defaultRest] = lbankAPIURL
 }
 
 // Setup sets exchange configuration profile

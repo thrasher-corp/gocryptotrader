@@ -20,6 +20,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWSURL"
+)
+
 // Note: GoCryptoTrader wrapper funcs currently only support SPOT trades.
 // Therefore this OKGroup_Wrapper can be shared between OKEX and OKCoin.
 // When circumstances change, wrapper funcs can be split appropriately
@@ -41,7 +46,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       o.API.Endpoints.WebsocketURL,
+		DefaultURL:                       o.API.Endpoints[defaultWS],
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        o.WsConnect,

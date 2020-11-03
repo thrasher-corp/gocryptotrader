@@ -26,6 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	i.SetDefaults()
@@ -94,9 +98,8 @@ func (i *ItBit) SetDefaults() {
 
 	i.Requester = request.New(i.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	i.API.Endpoints.URLDefault = itbitAPIURL
-	i.API.Endpoints.URL = i.API.Endpoints.URLDefault
+	i.API.Endpoints = make(map[string]string)
+	i.API.Endpoints[defaultRest] = itbitAPIURL
 }
 
 // Setup sets the exchange parameters from exchange config

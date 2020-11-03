@@ -28,6 +28,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest   = "defaultURL"
+	defaultWS     = "defaultWSURL"
+	secondaryRest = "secondaryURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	z.SetDefaults()
@@ -131,12 +137,10 @@ func (z *ZB) SetDefaults() {
 	z.Requester = request.New(z.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	z.API.Endpoints.URLDefault = zbTradeURL
-	z.API.Endpoints.URL = z.API.Endpoints.URLDefault
-	z.API.Endpoints.URLSecondaryDefault = zbMarketURL
-	z.API.Endpoints.URLSecondary = z.API.Endpoints.URLSecondaryDefault
-	z.API.Endpoints.WebsocketURL = zbWebsocketAPI
+	z.API.Endpoints = make(map[string]string)
+	z.API.Endpoints[defaultRest] = zbTradeURL
+	z.API.Endpoints[secondaryRest] = zbMarketURL
+	z.API.Endpoints[defaultWS] = zbWebsocketAPI
 	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

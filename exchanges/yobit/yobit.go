@@ -47,9 +47,9 @@ type Yobit struct {
 // GetInfo returns the Yobit info
 func (y *Yobit) GetInfo() (Info, error) {
 	resp := Info{}
-	path := fmt.Sprintf("%s/%s/%s/", y.API.Endpoints.URL, apiPublicVersion, publicInfo)
+	path := fmt.Sprintf("/%s/%s/", apiPublicVersion, publicInfo)
 
-	return resp, y.SendHTTPRequest(path, &resp)
+	return resp, y.SendHTTPRequest(defaultRest, path, &resp)
 }
 
 // GetTicker returns a ticker for a specific currency
@@ -59,9 +59,9 @@ func (y *Yobit) GetTicker(symbol string) (map[string]Ticker, error) {
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s/%s", y.API.Endpoints.URL, apiPublicVersion, publicTicker, symbol)
+	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
 
-	return response.Data, y.SendHTTPRequest(path, &response.Data)
+	return response.Data, y.SendHTTPRequest(defaultRest, path, &response.Data)
 }
 
 // GetDepth returns the depth for a specific currency
@@ -71,10 +71,10 @@ func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
 	}
 
 	response := Response{}
-	path := fmt.Sprintf("%s/%s/%s/%s", y.API.Endpoints.URL, apiPublicVersion, publicDepth, symbol)
+	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicDepth, symbol)
 
 	return response.Data[symbol],
-		y.SendHTTPRequest(path, &response.Data)
+		y.SendHTTPRequest(defaultRest, path, &response.Data)
 }
 
 // GetTrades returns the trades for a specific currency
@@ -84,8 +84,8 @@ func (y *Yobit) GetTrades(symbol string) ([]Trade, error) {
 	}
 
 	var dataHolder respDataHolder
-	path := y.API.Endpoints.URL + "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol
-	err := y.SendHTTPRequest(path, &dataHolder.Data)
+	path := "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol
+	err := y.SendHTTPRequest(defaultRest, path, &dataHolder.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -264,10 +264,14 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
+func (y *Yobit) SendHTTPRequest(ep, path string, result interface{}) error {
+	endpoint, err := y.GetEndpoint(ep)
+	if err != nil {
+		return err
+	}
 	return y.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          path,
+		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       y.Verbose,
 		HTTPDebugging: y.HTTPDebugging,

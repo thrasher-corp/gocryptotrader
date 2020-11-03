@@ -85,7 +85,6 @@ func TestGetAuction(t *testing.T) {
 }
 
 func TestGetAuctionHistory(t *testing.T) {
-	g.Verbose = true
 	t.Parallel()
 	_, err := g.GetAuctionHistory(testCurrency, url.Values{})
 	if err != nil {

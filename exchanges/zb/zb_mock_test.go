@@ -45,11 +45,14 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Mock server error %s", err)
 	}
+
 	z.HTTPClient = newClient
-	z.API.Endpoints.URL = serverDetails
+	for k := range z.API.Endpoints {
+		z.API.Endpoints[k] = serverDetails
+	}
 	log.Printf(sharedtestvalues.MockTesting,
 		z.Name,
-		z.API.Endpoints.URL)
+		z.API.Endpoints)
 
 	os.Exit(m.Run())
 }

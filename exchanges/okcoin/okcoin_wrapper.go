@@ -24,6 +24,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (o *OKCoin) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	o.SetDefaults()
@@ -137,10 +142,9 @@ func (o *OKCoin) SetDefaults() {
 		// TODO: Specify each individual endpoint rate limits as per docs
 		request.WithLimiter(request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate)),
 	)
-
-	o.API.Endpoints.URLDefault = okCoinAPIURL
-	o.API.Endpoints.URL = okCoinAPIURL
-	o.API.Endpoints.WebsocketURL = okCoinWebsocketURL
+	o.API.Endpoints = make(map[string]string)
+	o.API.Endpoints[defaultRest] = okCoinAPIURL
+	o.API.Endpoints[defaultWS] = okCoinWebsocketURL
 	o.APIVersion = okCoinAPIVersion
 	o.Websocket = stream.New()
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

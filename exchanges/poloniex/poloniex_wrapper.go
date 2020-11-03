@@ -26,6 +26,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (p *Poloniex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	p.SetDefaults()
@@ -131,10 +136,9 @@ func (p *Poloniex) SetDefaults() {
 	p.Requester = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	p.API.Endpoints.URLDefault = poloniexAPIURL
-	p.API.Endpoints.URL = p.API.Endpoints.URLDefault
-	p.API.Endpoints.WebsocketURL = poloniexWebsocketAddress
+	p.API.Endpoints = make(map[string]string)
+	p.API.Endpoints[defaultRest] = poloniexAPIURL
+	p.API.Endpoints[defaultWS] = poloniexWebsocketAddress
 	p.Websocket = stream.New()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

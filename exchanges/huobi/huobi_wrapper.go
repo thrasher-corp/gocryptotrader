@@ -27,6 +27,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWSURL"
+	futuresRest = "futuresURL" // (expiry and coinmargined futures use this URL)
+)
+
 // GetDefaultConfig returns a default exchange config
 func (h *HUOBI) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	h.SetDefaults()
@@ -158,10 +164,10 @@ func (h *HUOBI) SetDefaults() {
 	h.Requester = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	h.API.Endpoints.URLDefault = huobiAPIURL
-	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
-	h.API.Endpoints.WebsocketURL = wsMarketURL
+	h.API.Endpoints = make(map[string]string)
+	h.API.Endpoints[defaultRest] = huobiAPIURL
+	h.API.Endpoints[defaultWS] = wsMarketURL
+	h.API.Endpoints[futuresRest] = huobiURL
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

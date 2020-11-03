@@ -28,6 +28,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWS"
+	futuresRest = "futuresURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (k *Kraken) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	k.SetDefaults()
@@ -164,11 +170,11 @@ func (k *Kraken) SetDefaults() {
 	k.Requester = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
-
-	k.API.Endpoints.URLDefault = krakenAPIURL
-	k.API.Endpoints.URL = k.API.Endpoints.URLDefault
+	k.API.Endpoints = make(map[string]string)
+	k.API.Endpoints[defaultRest] = krakenAPIURL
+	k.API.Endpoints[futuresRest] = futuresRest
 	k.Websocket = stream.New()
-	k.API.Endpoints.WebsocketURL = krakenWSURL
+	k.API.Endpoints[defaultWS] = krakenWSURL
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit

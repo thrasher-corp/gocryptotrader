@@ -68,14 +68,14 @@ type Gemini struct {
 func (g *Gemini) GetSymbols() ([]string, error) {
 	var symbols []string
 	path := fmt.Sprintf("/v%s/%s", geminiAPIVersion, geminiSymbols)
-	return symbols, g.SendHTTPRequest(path, &symbols)
+	return symbols, g.SendHTTPRequest(defaultRest, path, &symbols)
 }
 
 // GetTicker returns information about recent trading activity for the symbol
 func (g *Gemini) GetTicker(currencyPair string) (TickerV2, error) {
 	ticker := TickerV2{}
 	path := fmt.Sprintf("/v2/ticker/%s", currencyPair)
-	err := g.SendHTTPRequest(path, &ticker)
+	err := g.SendHTTPRequest(defaultRest, path, &ticker)
 	if err != nil {
 		return ticker, err
 	}
@@ -103,7 +103,7 @@ func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook
 		params)
 
 	var orderbook Orderbook
-	return orderbook, g.SendHTTPRequest(path, &orderbook)
+	return orderbook, g.SendHTTPRequest(defaultRest, path, &orderbook)
 }
 
 // GetTrades return the trades that have executed since the specified timestamp.
@@ -129,7 +129,7 @@ func (g *Gemini) GetTrades(currencyPair string, since, limit int64, includeBreak
 	path := common.EncodeURLValues(fmt.Sprintf("/v%s/%s/%s", geminiAPIVersion, geminiTrades, currencyPair), params)
 	var trades []Trade
 
-	return trades, g.SendHTTPRequest(path, &trades)
+	return trades, g.SendHTTPRequest(defaultRest, path, &trades)
 }
 
 // GetAuction returns auction information
@@ -137,7 +137,7 @@ func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
 	path := fmt.Sprintf("/v%s/%s/%s", geminiAPIVersion, geminiAuction, currencyPair)
 	auction := Auction{}
 
-	return auction, g.SendHTTPRequest(path, &auction)
+	return auction, g.SendHTTPRequest(defaultRest, path, &auction)
 }
 
 // GetAuctionHistory returns the auction events, optionally including
@@ -154,7 +154,7 @@ func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
 func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]AuctionHistory, error) {
 	path := common.EncodeURLValues(fmt.Sprintf("/v%s/%s/%s/%s", geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
 	var auctionHist []AuctionHistory
-	return auctionHist, g.SendHTTPRequest(path, &auctionHist)
+	return auctionHist, g.SendHTTPRequest(defaultRest, path, &auctionHist)
 }
 
 // NewOrder Only limit orders are supported through the API at present.
@@ -350,10 +350,14 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
+func (g *Gemini) SendHTTPRequest(ep, path string, result interface{}) error {
+	endpoint, err := g.GetEndpoint(ep)
+	if err != nil {
+		return err
+	}
 	return g.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          path,
+		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       g.Verbose,
 		HTTPDebugging: g.HTTPDebugging,

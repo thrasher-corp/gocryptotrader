@@ -26,6 +26,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	defaultRest   = "defaultURL"
+	secondaryRest = "secondaryRestURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (y *Yobit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	y.SetDefaults()
@@ -98,11 +103,9 @@ func (y *Yobit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// Server responses are cached every 2 seconds.
 		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1)))
-
-	y.API.Endpoints.URLDefault = apiPublicURL
-	y.API.Endpoints.URL = y.API.Endpoints.URLDefault
-	y.API.Endpoints.URLSecondaryDefault = apiPrivateURL
-	y.API.Endpoints.URLSecondary = y.API.Endpoints.URLSecondaryDefault
+	y.API.Endpoints = make(map[string]string)
+	y.API.Endpoints[defaultRest] = apiPublicURL
+	y.API.Endpoints[secondaryRest] = apiPrivateURL
 }
 
 // Setup sets exchange configuration parameters for Yobit

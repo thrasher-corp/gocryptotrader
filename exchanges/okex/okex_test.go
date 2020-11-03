@@ -68,7 +68,6 @@ func TestMain(m *testing.M) {
 	okexConfig.API.Credentials.Key = apiKey
 	okexConfig.API.Credentials.Secret = apiSecret
 	okexConfig.API.Credentials.ClientID = passphrase
-	okexConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
 	o.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = o.Setup(okexConfig)
 	if err != nil {

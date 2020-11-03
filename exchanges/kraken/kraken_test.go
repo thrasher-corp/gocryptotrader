@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 	krakenConfig.API.AuthenticatedSupport = true
 	krakenConfig.API.Credentials.Key = apiKey
 	krakenConfig.API.Credentials.Secret = apiSecret
-	krakenConfig.API.Endpoints.WebsocketURL = k.API.Endpoints.WebsocketURL
+	// krakenConfig.API.Endpoints.WebsocketURL = k.API.Endpoints.WebsocketURL
 	k.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = k.Setup(krakenConfig)
 	if err != nil {

@@ -25,6 +25,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+const (
+	defaultRest = "defaultURL"
+	defaultWS   = "defaultWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (o *OKEX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	o.SetDefaults()
@@ -197,10 +202,9 @@ func (o *OKEX) SetDefaults() {
 		// TODO: Specify each individual endpoint rate limits as per docs
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
-
-	o.API.Endpoints.URLDefault = okExAPIURL
-	o.API.Endpoints.URL = okExAPIURL
-	o.API.Endpoints.WebsocketURL = OkExWebsocketURL
+	o.API.Endpoints = make(map[string]string)
+	o.API.Endpoints[defaultRest] = okExAPIURL
+	o.API.Endpoints[defaultWS] = OkExWebsocketURL
 	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -224,7 +228,7 @@ func (o *OKEX) Run() {
 			"%s Websocket: %s. (url: %s).\n",
 			o.Name,
 			common.IsEnabled(o.Websocket.IsEnabled()),
-			o.API.Endpoints.WebsocketURL)
+			o.API.Endpoints[defaultWS])
 	}
 
 	format, err := o.GetPairFormat(asset.Spot, false)
@@ -695,7 +699,7 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 	return ret, nil
 }
 
-// GetHistoricTrades returns historic trade data within the timeframe provided
+// GetRecentTrades returns historic trade data within the timeframe provided
 func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = o.FormatExchangeCurrency(p, assetType)
