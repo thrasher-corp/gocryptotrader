@@ -3,9 +3,9 @@ package statistics
 import (
 	"time"
 
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
-	"github.com/thrasher-corp/gocryptotrader/backtester/fill"
-	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
+	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
+	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/results"
 )
 

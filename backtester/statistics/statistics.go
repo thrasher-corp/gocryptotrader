@@ -11,9 +11,9 @@ import (
 	"gonum.org/v1/gonum/stat"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
-	"github.com/thrasher-corp/gocryptotrader/backtester/fill"
-	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
+	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
+	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	results2 "github.com/thrasher-corp/gocryptotrader/backtester/results"
 )
 
@@ -106,14 +106,13 @@ func (s *Statistic) PrintResult() {
 
 	fmt.Printf("Counted %d total transactions:\n", len(s.Transactions()))
 	for k, v := range s.Transactions() {
-		fmt.Printf("%d. Transaction: %v Action: %v Price: %f Amount: %f ExchangeFee: %v Cost: %v \n",
+		fmt.Printf("%d. Transaction: %v Action: %v Price: %f Amount: %f ExchangeFee: %v \n",
 			k+1,
 			v.GetTime().Format(time.RFC3339Nano),
 			v.GetDirection(),
 			v.GetPrice(),
 			v.GetAmount())
 		v.GetExchangeFee()
-		v.GetCost()
 	}
 
 	result, _ := s.TotalEquityReturn()

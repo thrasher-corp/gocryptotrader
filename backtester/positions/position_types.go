@@ -24,7 +24,6 @@ type Positions struct {
 	NetValueSold       float64
 	MarketPrice        float64
 	MarketValue        float64
-	Commission         float64
 	ExchangeFee        float64
 	Cost               float64
 	CostBasis          float64

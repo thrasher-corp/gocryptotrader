@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/order"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 

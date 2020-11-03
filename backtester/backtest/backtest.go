@@ -3,16 +3,17 @@ package backtest
 import (
 	"time"
 
-	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
-	"github.com/thrasher-corp/gocryptotrader/backtester/exchange"
-	"github.com/thrasher-corp/gocryptotrader/backtester/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
-	"github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/settings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
+
+	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/strategies"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -50,6 +51,10 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 		return nil, err
 	}
 
+	err = engine.Bot.OrderManager.Start()
+	if err != nil {
+		return nil, err
+	}
 	exch := engine.Bot.GetExchangeByName(s.ExchangeName)
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
@@ -134,6 +139,7 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 		MakerFee:     makerFee,
 		TakerFee:     takerFee,
 		CurrencyPair: fPair,
+		AssetType:    a,
 	}
 
 	statistic := statistics.Statistic{
@@ -176,7 +182,7 @@ func (b *BackTest) Run() error {
 	return nil
 }
 
-func (b *BackTest) nextEvent() (e datahandler.EventHandler, ok bool) {
+func (b *BackTest) nextEvent() (e interfaces.EventHandler, ok bool) {
 	if len(b.EventQueue) == 0 {
 		return e, false
 	}
@@ -187,9 +193,9 @@ func (b *BackTest) nextEvent() (e datahandler.EventHandler, ok bool) {
 	return e, true
 }
 
-func (b *BackTest) eventLoop(e datahandler.EventHandler) error {
+func (b *BackTest) eventLoop(e interfaces.EventHandler) error {
 	switch event := e.(type) {
-	case datahandler.DataEventHandler:
+	case interfaces.DataEventHandler:
 		b.Portfolio.Update(event)
 		b.Statistic.Update(event, b.Portfolio)
 		// verify strategy

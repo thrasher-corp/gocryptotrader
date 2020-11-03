@@ -1,8 +1,8 @@
 package data
 
 import (
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
+	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
 const (

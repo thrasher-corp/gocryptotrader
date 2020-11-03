@@ -1,7 +1,7 @@
 package backtest
 
 import (
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
+	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
 // CandleEvent for OHLCV tick data

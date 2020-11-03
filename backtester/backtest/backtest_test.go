@@ -10,12 +10,12 @@ import (
 	"github.com/thrasher-corp/gct-ta/indicators"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
-	"github.com/thrasher-corp/gocryptotrader/backtester/exchange"
-	"github.com/thrasher-corp/gocryptotrader/backtester/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/signal"
+	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -29,7 +29,7 @@ func (s *TestStrategy) Name() string {
 	return "TestStrategy"
 }
 
-func (s *TestStrategy) OnSignal(d datahandler.DataHandler, p portfolio.PortfolioHandler) (signal.SignalEvent, error) {
+func (s *TestStrategy) OnSignal(d interfaces.DataHandler, p portfolio.PortfolioHandler) (signal.SignalEvent, error) {
 	signal := signal.Signal{
 		Event: event.Event{Time: d.Latest().GetTime(),
 			CurrencyPair: d.Latest().Pair()},

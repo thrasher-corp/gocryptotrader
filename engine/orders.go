@@ -313,49 +313,76 @@ func (o *orderManager) GetOrderInfo(exchangeName, orderID string, cp currency.Pa
 	return result, nil
 }
 
-// Submit will take in an order struct, send it to the exchange and
-// populate it in the orderManager if successful
-func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
+func (o *orderManager) validate(newOrder *order.Submit) error {
 	if newOrder == nil {
-		return nil, errors.New("order cannot be nil")
+		return errors.New("order cannot be nil")
 	}
 
 	if newOrder.Exchange == "" {
-		return nil, errors.New("order exchange name must be specified")
+		return errors.New("order exchange name must be specified")
 	}
 
 	if err := newOrder.Validate(); err != nil {
-		return nil, err
+		return err
 	}
 
 	if o.cfg.EnforceLimitConfig {
 		if !o.cfg.AllowMarketOrders && newOrder.Type == order.Market {
-			return nil, errors.New("order market type is not allowed")
+			return errors.New("order market type is not allowed")
 		}
 
 		if o.cfg.LimitAmount > 0 && newOrder.Amount > o.cfg.LimitAmount {
-			return nil, errors.New("order limit exceeds allowed limit")
+			return errors.New("order limit exceeds allowed limit")
 		}
 
 		if len(o.cfg.AllowedExchanges) > 0 &&
 			!common.StringDataCompareInsensitive(o.cfg.AllowedExchanges, newOrder.Exchange) {
-			return nil, errors.New("order exchange not found in allowed list")
+			return errors.New("order exchange not found in allowed list")
 		}
 
 		if len(o.cfg.AllowedPairs) > 0 && !o.cfg.AllowedPairs.Contains(newOrder.Pair, true) {
-			return nil, errors.New("order pair not found in allowed list")
+			return errors.New("order pair not found in allowed list")
 		}
 	}
+	return nil
+}
 
+// Submit will take in an order struct, send it to the exchange and
+// populate it in the orderManager if successful
+func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
+	err := o.validate(newOrder)
+	if err != nil {
+		return nil, err
+	}
 	exch := Bot.GetExchangeByName(newOrder.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
-	result, err := exch.SubmitOrder(newOrder)
+	var result order.SubmitResponse
+	result, err = exch.SubmitOrder(newOrder)
 	if err != nil {
 		return nil, err
 	}
 
+	return o.processSubmittedOrder(newOrder, result, err)
+}
+
+// SubmitFakeOrder runs through the same process as order submission
+// but does not touch live endpoints
+func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse) (*orderSubmitResponse, error) {
+	err := o.validate(newOrder)
+	if err != nil {
+		return nil, err
+	}
+	exch := Bot.GetExchangeByName(newOrder.Exchange)
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+
+	return o.processSubmittedOrder(newOrder, resultingOrder, err)
+}
+
+func (o *orderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse, err error) (*orderSubmitResponse, error) {
 	if !result.IsOrderPlaced {
 		return nil, errors.New("order unable to be placed")
 	}

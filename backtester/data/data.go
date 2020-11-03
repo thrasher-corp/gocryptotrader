@@ -3,7 +3,7 @@ package data
 import (
 	"sort"
 
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/datahandler"
+	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
 // Load specified data into Candle format
