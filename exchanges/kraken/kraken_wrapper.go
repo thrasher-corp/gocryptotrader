@@ -529,10 +529,11 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp string
+		s.Pair.Delimiter = "/"
 		resp, err = k.wsAddOrder(&WsAddOrderRequest{
 			OrderType: strings.ToLower(s.Type.String()),
 			OrderSide: strings.ToLower(s.Side.String()),
-			Pair:      "BTC/USD", //s.Pair.String() @todo - format pair!
+			Pair:      s.Pair.String(),
 			Price:     fmt.Sprint(s.Price),
 			Volume:    fmt.Sprint(s.Amount),
 		})
@@ -543,7 +544,8 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.IsOrderPlaced = true
 	} else {
 		var response AddOrderResponse
-		response, err = k.AddOrder(s.Pair.String(),
+		response, err = k.AddOrder(
+			s.Pair.String(),
 			s.Side.String(),
 			s.Type.String(),
 			s.Amount,
@@ -680,6 +682,12 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 	if err != nil {
 		return orderDetail, err
 	}
+
+	price := orderInfo.Price
+	if orderInfo.Status == Open {
+		price = orderInfo.Description.Price
+	}
+
 	orderDetail = order.Detail{
 		Exchange:        k.Name,
 		ID:              orderID,
@@ -689,7 +697,7 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 		Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
 		CloseTime:       convert.TimeFromUnixTimestampDecimal(orderInfo.CloseTime),
 		Status:          status,
-		Price:           orderInfo.Price,
+		Price:           price,
 		Amount:          orderInfo.Volume,
 		ExecutedAmount:  orderInfo.VolumeExecuted,
 		RemainingAmount: orderInfo.Volume - orderInfo.VolumeExecuted,
@@ -788,7 +796,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
-	fmt, err := k.GetPairFormat(asset.Spot, true)
+	format, err := k.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -797,7 +805,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	for i := range resp.Open {
 		p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
 			avail,
-			fmt)
+			format)
 		if err != nil {
 			return nil, err
 		}
@@ -843,7 +851,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		return nil, err
 	}
 
-	fmt, err := k.GetPairFormat(asset.Spot, true)
+	format, err := k.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -857,7 +865,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 	for i := range resp.Closed {
 		p, err := currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair,
 			avail,
-			fmt)
+			format)
 		if err != nil {
 			return nil, err
 		}
