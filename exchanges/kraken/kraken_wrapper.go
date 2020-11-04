@@ -530,11 +530,11 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp string
 		resp, err = k.wsAddOrder(&WsAddOrderRequest{
-			OrderType: s.Type.String(),
-			OrderSide: s.Side.String(),
-			Pair:      s.Pair.String(),
-			Price:     s.Price,
-			Volume:    s.Amount,
+			OrderType: strings.ToLower(s.Type.String()),
+			OrderSide: strings.ToLower(s.Side.String()),
+			Pair:      "BTC/USD", //s.Pair.String() @todo - format pair!
+			Price:     fmt.Sprint(s.Price),
+			Volume:    fmt.Sprint(s.Amount),
 		})
 		if err != nil {
 			return submitOrderResponse, err
@@ -577,7 +577,14 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return k.wsCancelOrders([]string{o.ID})
+		var ordersList []string
+		orders := strings.Split(o.ID,",")
+		for _, orderID := range orders {
+			ordersList = append(ordersList, orderID)
+		}
+
+		err := k.wsCancelOrders(ordersList)
+		return err
 	}
 	_, err := k.CancelExistingOrder(o.ID)
 
@@ -588,6 +595,16 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 func (k *Kraken) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
+	}
+
+	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		resp, err := k.wsCancelAllOrders()
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
+		cancelAllOrdersResponse.Status["Count"] = fmt.Sprint(resp.Count)
+		return cancelAllOrdersResponse, err
 	}
 
 	var emptyOrderOptions OrderInfoOptions

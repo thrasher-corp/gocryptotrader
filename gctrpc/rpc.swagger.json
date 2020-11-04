@@ -2362,6 +2362,9 @@
           "items": {
             "$ref": "#/definitions/CancelAllOrdersResponseOrders"
           }
+        },
+        "count": {
+          "type": "string"
         }
       }
     },

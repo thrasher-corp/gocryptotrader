@@ -394,6 +394,7 @@ message CancelAllOrdersResponse {
         map<string, string> order_status = 2;
     }
     repeated Orders orders = 1;
+    string count = 2;
 }
 
 message GetEventsRequest {}
