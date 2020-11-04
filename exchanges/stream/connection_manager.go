@@ -98,6 +98,10 @@ subscriptions:
 			if err != nil {
 				return nil, err
 			}
+			err = conn.LoadSubscriptionManager(NewSubscriptionManager())
+			if err != nil {
+				return nil, err
+			}
 			reference[conn] = *v
 			continue
 		}
@@ -111,23 +115,15 @@ subscriptions:
 			if err != nil {
 				return nil, err
 			}
+			err = conn.LoadSubscriptionManager(NewSubscriptionManager())
+			if err != nil {
+				return nil, err
+			}
 			reference[conn] = append(reference[conn], (*v)[left:remaining]...)
 		}
 	}
 	return reference, nil
 }
-
-// // LoadConfiguration loads a connection configuration defining limitting
-// // paramaters for scalable streaming connections
-// func (c *ConnectionManager) LoadConfiguration(cfg ConnectionSetup) error {
-// 	// if cfg.DedicatedAuthenticatedConn {
-// 	// 	c.dedicatedAuthConfiguration = cfg
-// 	// 	return nil
-// 	// }
-// 	// c.generalConfigurations = append(c.generalConfigurations, cfg)
-// 	// return nil
-// 	return errors.New("not yet implemented")
-// }
 
 // FullConnect generates subscriptions, deploys new connections and subscribes
 // to channels

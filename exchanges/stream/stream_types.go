@@ -25,6 +25,7 @@ type Connection interface {
 	Shutdown() error
 	IsAuthenticated() bool
 
+	LoadSubscriptionManager(*SubscriptionManager) error
 	AddSuccessfulSubscriptions(subscriptions []ChannelSubscription) error
 	RemoveSuccessfulUnsubscriptions(subscriptions []ChannelSubscription) error
 	GetAllSubscriptions() []ChannelSubscription

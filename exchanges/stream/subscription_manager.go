@@ -3,28 +3,15 @@ package stream
 import (
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// Subscription defines a subscription type
-type Subscription int
-
-// Consts here define difference subscription types
-const (
-	Orderbook Subscription = iota + 1
-	Kline
-	Trade
-	Ticker
-)
-
-// SubscriptionManager defines a subscription system attached to an individual
-// connection
-type SubscriptionManager struct {
-	sync.Mutex
-	m map[Subscription]*[]ChannelSubscription
+// NewSubscriptionManager sets up a new subscription manager for use in the
+// connection manager
+func NewSubscriptionManager() *SubscriptionManager {
+	return &SubscriptionManager{m: make(map[Subscription]*[]ChannelSubscription)}
 }
 
 // AddSuccessfulSubscriptions adds a successful subscription
@@ -32,6 +19,9 @@ func (s *SubscriptionManager) AddSuccessfulSubscriptions(subscriptions []Channel
 	if subscriptions == nil {
 		return errors.New("subscriptions cannot be nil")
 	}
+
+	s.Lock()
+	defer s.Unlock()
 
 	for x := range subscriptions {
 		ptr, ok := s.m[subscriptions[x].SubscriptionType]
@@ -48,6 +38,9 @@ func (s *SubscriptionManager) AddSuccessfulSubscriptions(subscriptions []Channel
 // RemoveSuccessfulUnsubscriptions removes a subscription that was successfully
 // unsubscribed
 func (s *SubscriptionManager) RemoveSuccessfulUnsubscriptions(subscriptions []ChannelSubscription) error {
+	s.Lock()
+	defer s.Unlock()
+
 removals:
 	for x := range subscriptions {
 		slice, ok := s.m[subscriptions[x].SubscriptionType]
@@ -71,6 +64,9 @@ removals:
 // GetAllSubscriptions returns current subscriptions for our streaming
 // connections
 func (s *SubscriptionManager) GetAllSubscriptions() []ChannelSubscription {
+	s.Lock()
+	defer s.Unlock()
+
 	var subscriptions []ChannelSubscription
 	for _, subs := range s.m {
 		subscriptions = append(subscriptions, *subs...)
@@ -83,6 +79,9 @@ func (s *SubscriptionManager) GetAllSubscriptions() []ChannelSubscription {
 // are the same thing but have different functionality segregated by individual
 // connection
 func (s *SubscriptionManager) GetAssetsBySubscriptionType(t Subscription, pair currency.Pair) (asset.Items, error) {
+	s.Lock()
+	defer s.Unlock()
+
 	subscriptions, ok := s.m[t]
 	if !ok {
 		return nil,

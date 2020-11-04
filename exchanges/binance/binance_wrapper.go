@@ -166,7 +166,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	return b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -194,23 +194,6 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 			},
 		},
 	})
-	if err != nil {
-		return err
-	}
-
-	// err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-	// 	URL:             binanceDefaultWebsocketURL,
-	// 	AllowableAssets: asset.Items{asset.Spot, asset.Margin},
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-
-	// return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-	// 	URL:                        binanceDefaultWebsocketURL,
-	// 	DedicatedAuthenticatedConn: true,
-	// })
-	return nil
 }
 
 // Start starts the Binance go routine

@@ -133,5 +133,5 @@ type WebsocketConnection struct {
 	conf *ConnectionSetup
 
 	Authenticated bool
-	SubscriptionManager
+	*SubscriptionManager
 }

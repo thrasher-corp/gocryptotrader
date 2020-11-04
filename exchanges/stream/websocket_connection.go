@@ -5,6 +5,7 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -324,12 +325,12 @@ func (w *WebsocketConnection) GetConfiguration() *ConnectionSetup {
 	return w.conf
 }
 
-// // IsAssetAssociatedWithConnection returns if this connection handles this asset
-// func (w *WebsocketConnection) IsAssetAssociatedWithConnection(a asset.Item) bool {
-// 	return w.Assets.Contains(a)
-// }
+// LoadSubscriptionManager loads a subscription manager
+func (w *WebsocketConnection) LoadSubscriptionManager(man *SubscriptionManager) error {
+	if man == nil {
+		return errors.New("subscription manager cannot be nil")
+	}
 
-// // SetControllingAssets sets assets associated with this connection
-// func (w *WebsocketConnection) SetControllingAssets(assets asset.Items) {
-// 	w.Assets = assets
-// }
+	w.SubscriptionManager = man
+	return nil
+}
