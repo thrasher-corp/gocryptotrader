@@ -2132,7 +2132,7 @@ func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 // information
 func (b *Binance) GetPerpMarkets() (PerpsExchangeInfo, error) {
 	var resp PerpsExchangeInfo
-	return resp, b.SendHTTPRequest(defaultRest, perpExchangeInfo, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(uFutures, perpExchangeInfo, limitDefault, &resp)
 }
 
 // GetMarginMarkets returns exchange information. Check binance_types for more
@@ -2156,7 +2156,7 @@ func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixNano(), 10))
 	}
-	return resp, b.SendHTTPRequest(spot, fundingRate+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(uFutures, fundingRate+params.Encode(), limitDefault, &resp)
 }
 
 // Binance is the overarching type across the Bithumb package

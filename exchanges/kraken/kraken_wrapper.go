@@ -674,7 +674,6 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if err != nil {
 		return submitOrderResponse, err
 	}
-	fmt.Printf("BITCH WHAT THE FUCK")
 	switch s.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {

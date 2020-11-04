@@ -1916,7 +1916,7 @@ func (h *HUOBI) GetSwapFundingRates(contract string) (FundingRatesData, error) {
 		Data FundingRatesData `json:"data"`
 	}
 	var result response
-	err := h.SendHTTPRequest(futuresRest, common.EncodeURLValues(huobiSwapFunding, vals), &result)
+	err := h.SendHTTPRequest(futuresRest, huobiSwapFunding+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
 		return FundingRatesData{}, errors.New(result.ErrorMessage)
 	}
@@ -2583,6 +2583,7 @@ func (h *HUOBI) SendHTTPRequest(ep, path string, result interface{}) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println(endpoint + path)
 	return h.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
