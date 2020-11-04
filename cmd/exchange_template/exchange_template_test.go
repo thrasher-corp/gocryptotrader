@@ -68,7 +68,7 @@ func TestNewExchange(t *testing.T) {
 		t.Fatalf("unable to remove exchange config for %s, manual removal required\n",
 			testExchangeName)
 	}
-	if err := cfg.SaveConfig(exchangeConfigPath, false); err != nil {
+	if err := cfg.SaveConfigToFile(exchangeConfigPath); err != nil {
 		t.Fatal(err)
 	}
 }

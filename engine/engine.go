@@ -104,7 +104,7 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 	log.Printf("Loading config file %s..\n", filePath)
 
 	conf := &config.Cfg
-	err = conf.ReadConfig(filePath, settings.EnableDryRun)
+	err = conf.ReadConfigFromFile(filePath, settings.EnableDryRun)
 	if err != nil {
 		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
 	}
@@ -541,7 +541,7 @@ func (bot *Engine) Stop() {
 	}
 
 	if !bot.Settings.EnableDryRun {
-		err := bot.Config.SaveConfig(bot.Settings.ConfigFile, false)
+		err := bot.Config.SaveConfigToFile(bot.Settings.ConfigFile)
 		if err != nil {
 			gctlog.Errorln(gctlog.Global, "Unable to save config.")
 		} else {

@@ -194,3 +194,92 @@ func TestWriteAsCSV(t *testing.T) {
 		}
 	}
 }
+
+func TestWriter(t *testing.T) {
+	type args struct {
+		file string
+	}
+	tmp, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	testData := `data`
+
+	tests := []struct {
+		name    string
+		args    args
+		want    *os.File
+		wantErr bool
+	}{
+		{
+			name:    "invalid",
+			args:    args{"//invalid-nofile\\"},
+			wantErr: true,
+		},
+		{
+			name:    "empty",
+			args:    args{""},
+			wantErr: true,
+		},
+		{
+			name: "relative newfile",
+			args: args{"newfile"},
+		},
+		{
+			name: "deep file",
+			args: args{filepath.Join(tmp, "new", "file", "multiple", "sub", "paths")},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Writer(tt.args.file)
+			if err != nil {
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Writer() error = %v, wantErr %v", err, tt.wantErr)
+				}
+				return
+			}
+			defer os.Remove(got.Name())
+			fileInfo, err := os.Stat(got.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !fileInfo.Mode().IsRegular() {
+				t.Fatalf("Writer() error = expected to get a file %s", got.Name())
+			}
+			_, err = got.WriteString(testData)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = got.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if data, err := ioutil.ReadFile(got.Name()); err != nil || string(data) != testData {
+				t.Errorf("Could not write the file, or contents were wrong: expected = %s, got =%s", testData, string(data))
+			}
+		})
+	}
+}
+
+func TestWriterNoPermissionFails(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skip file permissions")
+	}
+	temp, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(temp)
+	err = os.Chmod(temp, 0555)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Writer(filepath.Join(temp, "path", "to", "somefile"))
+	if err == nil {
+		t.Error("Expected to fail when no permissions, but writer succeeded")
+	}
+}
