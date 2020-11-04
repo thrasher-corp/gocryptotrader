@@ -9,8 +9,8 @@ import (
 
 // USDT Margined Futures
 
-// UOBData stores ob data for umargined futures
-type UOBData struct {
+// OrderbookData stores ob data for umargined and cmargined futures
+type OrderbookData struct {
 	LastUpdateID int64      `json:"lastUpdateID"`
 	Timestamp    int64      `json:"T"`
 	Bids         [][]string `json:"bids"`
@@ -48,8 +48,8 @@ type UMarkPrice struct {
 	Time            int64   `json:"time"`
 }
 
-// UFundingRateHistory stores funding rate history
-type UFundingRateHistory struct {
+// FundingRateHistory stores funding rate history
+type FundingRateHistory struct {
 	Symbol      string  `json:"symbol"`
 	FundingRate float64 `json:"fundingRate,string"`
 	FundingTime int64   `json:"fundingTime"`
@@ -373,13 +373,6 @@ type UForceOrdersData struct {
 type Response struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
-}
-
-// FuturesOBData stores orderbook data for futures
-type FuturesOBData struct {
-	Time int64      `json:"T"`
-	Bids [][]string `json:"bids"`
-	Asks [][]string `json:"asks"`
 }
 
 // FuturesPublicTradesData stores recent public trades for futures

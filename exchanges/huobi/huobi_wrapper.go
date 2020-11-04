@@ -635,8 +635,9 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = h.Name
-	for x := range h.GetAssetTypes() {
-		switch h.GetAssetTypes()[x] {
+	assetTypes := h.GetAssetTypes()
+	for x := range assetTypes {
+		switch assetTypes[x] {
 		case asset.Spot:
 			if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				resp, err := h.wsGetAccountsList()

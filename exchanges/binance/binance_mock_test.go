@@ -43,7 +43,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Mock server error %s", err)
 	}
-
 	b.HTTPClient = newClient
 	for k := range b.API.Endpoints {
 		b.API.Endpoints[k] = serverDetails

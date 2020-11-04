@@ -553,7 +553,7 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 	info.Exchange = k.Name
 	assetTypes := k.GetAssetTypes()
 	for x := range assetTypes {
-		switch k.GetAssetTypes()[x] {
+		switch assetTypes[x] {
 		case asset.Spot:
 			bal, err := k.GetBalance()
 			if err != nil {
@@ -881,7 +881,7 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 			return orderDetail, err
 		}
 		for y := range orderInfo.Fills {
-			if !(orderInfo.Fills[y].OrderID == orderID) {
+			if orderInfo.Fills[y].OrderID != orderID {
 				continue
 			}
 			pair, err := currency.NewPairFromString(orderInfo.Fills[y].Symbol)

@@ -18,7 +18,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var b Binance
@@ -765,9 +765,7 @@ func TestFuturesNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesNewOrder(
-		"BTCUSD_200925", "BUY", "", "LIMIT", "GTC", "", "", "", "", "", 1, 1, 0, 0, 0,
-	)
+	_, err := b.FuturesNewOrder("BTCUSD_200925", "BUY", "", "LIMIT", "GTC", "", "", "", "", 1, 1, 0, 0, 0, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -799,7 +797,6 @@ func TestFuturesBatchCancelOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	t.Parallel()
 	_, err := b.FuturesBatchCancelOrders("BTCUSD_200925", []string{"123"}, []string{})
 	if err != nil {
 		t.Error(err)
@@ -975,6 +972,18 @@ func TestFuturesForceOrders(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	_, err := b.FuturesForceOrders("", "ADL", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUGetNotionalLeverage(t *testing.T) {
+	b.Verbose = true
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := b.FuturesNotionalBracket("BTCUSDT")
 	if err != nil {
 		t.Error(err)
 	}

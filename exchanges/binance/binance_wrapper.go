@@ -848,8 +848,8 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 		order, err := b.FuturesNewOrder(fPair.String(), reqSide,
 			"", oType, "GTC", "",
-			s.ClientOrderID, "", "", "",
-			s.Amount, s.Price, 0, 0, 0)
+			s.ClientOrderID, "", "",
+			s.Amount, s.Price, 0, 0, 0, false)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -890,8 +890,8 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 		order, err := b.UFuturesNewOrder(fPair.String(), reqSide,
 			"", oType, "GTC", "",
-			s.ClientOrderID, "", "", "",
-			s.Amount, s.Price, 0, 0, 0)
+			s.ClientOrderID, "", "",
+			s.Amount, s.Price, 0, 0, 0, false)
 		if err != nil {
 			return submitOrderResponse, err
 		}

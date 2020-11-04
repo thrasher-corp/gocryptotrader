@@ -22,6 +22,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// Binance is the overarching type across the Binance package
+type Binance struct {
+	exchange.Base
+	USDTWS              stream.WebsocketConnection
+	CoinMarginFuturesWS stream.WebsocketConnection
+	// Valid string list that is required by the exchange
+	validLimits []int
+}
+
 const (
 	apiURL         = "https://api.binance.com"
 	spotAPIURL     = "https://sapi.binance.com"
@@ -92,7 +101,6 @@ const (
 	// Authenticated endpoints
 
 	// coin margined futures
-	cfuturesCurrentPositionMode   = "/dapi/v1/positionSide/dual"
 	cfuturesOrder                 = "/dapi/v1/order"
 	cfuturesBatchOrder            = "/dapi/v1/batchOrders"
 	cfuturesCancelAllOrders       = "/dapi/v1/allOpenOrders"
@@ -114,7 +122,6 @@ const (
 	cfuturesADLQuantile           = "/dapi/v1/adlQuantile"
 
 	// usdt margined futures
-	ufuturesCurrentPositionMode   = "/fapi/v1/positionSide/dual"
 	ufuturesOrder                 = "/fapi/v1/order"
 	ufuturesBatchOrder            = "/fapi/v1/batchOrders"
 	ufuturesCancelAllOrders       = "/fapi/v1/allOpenOrders"
@@ -154,43 +161,43 @@ const (
 	undocumentedInterestHistory = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
 )
 
-var validFuturesIntervals = []string{
-	"1m", "3m", "5m", "15m", "30m",
-	"1h", "2h", "4h", "6h", "8h",
-	"12h", "1d", "3d", "1w", "1M",
-}
+var (
+	validFuturesIntervals = []string{
+		"1m", "3m", "5m", "15m", "30m",
+		"1h", "2h", "4h", "6h", "8h",
+		"12h", "1d", "3d", "1w", "1M",
+	}
 
-var validContractType = []string{
-	"ALL", "CURRENT_QUARTER", "NEXT_QUARTER",
-}
+	validContractType = []string{
+		"ALL", "CURRENT_QUARTER", "NEXT_QUARTER",
+	}
 
-var validOrderType = []string{
-	"LIMIT", "MARKET", "STOP", "TAKE_PROFIT",
-	"STOP_MARKET", "TAKE_PROFIT_MARKET", "TRAILING_STOP_MARKET",
-}
+	validOrderType = []string{
+		"LIMIT", "MARKET", "STOP", "TAKE_PROFIT",
+		"STOP_MARKET", "TAKE_PROFIT_MARKET", "TRAILING_STOP_MARKET",
+	}
 
-var validNewOrderRespType = []string{"ACK", "RESULT"}
+	validNewOrderRespType = []string{"ACK", "RESULT"}
 
-var validWorkingType = []string{"MARK_PRICE", "CONTRACT_TYPE"}
+	validWorkingType = []string{"MARK_PRICE", "CONTRACT_TYPE"}
 
-var validBoolString = []string{"true", "false"}
+	validPositionSide = []string{"BOTH", "LONG", "SHORT"}
 
-var validPositionSide = []string{"BOTH", "LONG", "SHORT"}
+	validMarginType = []string{"ISOLATED", "CROSSED"}
 
-var validMarginType = []string{"ISOLATED", "CROSSED"}
+	validIncomeType = []string{"TRANSFER", "WELCOME_BONUS", "REALIZED_PNL", "FUNDING_FEE", "COMMISSION", "INSURANCE_CLEAR"}
 
-var validIncomeType = []string{"TRANSFER", "WELCOME_BONUS", "REALIZED_PNL", "FUNDING_FEE", "COMMISSION", "INSURANCE_CLEAR"}
+	validAutoCloseTypes = []string{"LIQUIDATION", "ADL"}
 
-var validAutoCloseTypes = []string{"LIQUIDATION", "ADL"}
+	validMarginChange = map[string]int64{
+		"add":    1,
+		"reduce": 2,
+	}
 
-var validMarginChange = map[string]int64{
-	"add":    1,
-	"reduce": 2,
-}
+	uValidOBLimits = []string{"5", "10", "20", "50", "100", "500", "1000"}
 
-var uValidOBLimits = []string{"5", "10", "20", "50", "100", "500", "1000"}
-
-var uValidPeriods = []string{"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
+	uValidPeriods = []string{"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
+)
 
 // UExchangeInfo stores futures data
 func (b *Binance) UExchangeInfo() (UFuturesExchangeInfo, error) {
@@ -201,7 +208,7 @@ func (b *Binance) UExchangeInfo() (UFuturesExchangeInfo, error) {
 // UFuturesOrderbook gets orderbook data for uFutures
 func (b *Binance) UFuturesOrderbook(symbol string, limit int64) (OrderBook, error) {
 	var resp OrderBook
-	var data UOBData
+	var data OrderbookData
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	strLimit := strconv.FormatInt(limit, 10)
@@ -441,8 +448,8 @@ func (b *Binance) UGetMarkPrice(symbol string) ([]UMarkPrice, error) {
 }
 
 // UGetFundingHistory gets funding history for USDTMarginedFutures
-func (b *Binance) UGetFundingHistory(symbol string, limit int64, startTime, endTime time.Time) ([]UFundingRateHistory, error) {
-	var resp []UFundingRateHistory
+func (b *Binance) UGetFundingHistory(symbol string, limit int64, startTime, endTime time.Time) ([]FundingRateHistory, error) {
+	var resp []FundingRateHistory
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -685,13 +692,13 @@ func (b *Binance) UTakerBuySellVol(symbol, period string, limit int64, startTime
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(uFutures, ufuturesLongShortRatio+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(uFutures, ufuturesBuySellVolume+params.Encode(), limitDefault, &resp)
 }
 
 // UFuturesNewOrder sends a new order for USDTMarginedFutures
 func (b *Binance) UFuturesNewOrder(symbol, side, positionSide, orderType, timeInForce,
-	reduceOnly, newClientOrderID, closePosition, workingType, newOrderRespType string,
-	quantity, price, stopPrice, activationPrice, callbackRate float64) (UOrderData, error) {
+	newClientOrderID, closePosition, workingType, newOrderRespType string,
+	quantity, price, stopPrice, activationPrice, callbackRate float64, reduceOnly bool) (UOrderData, error) {
 	var resp UOrderData
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -704,11 +711,8 @@ func (b *Binance) UFuturesNewOrder(symbol, side, positionSide, orderType, timeIn
 	}
 	params.Set("type", orderType)
 	params.Set("timeInForce", timeInForce)
-	if reduceOnly != "" {
-		if !common.StringDataCompare(validBoolString, reduceOnly) {
-			return resp, errors.New("invalid reduceOnly")
-		}
-		params.Set("reduceOnly", reduceOnly)
+	if reduceOnly {
+		params.Set("reduceOnly", "true")
 	}
 	if newClientOrderID != "" {
 		params.Set("newClientOrderID", newClientOrderID)
@@ -754,11 +758,6 @@ func (b *Binance) UPlaceBatchOrders(data []PlaceBatchOrderData) ([]UOrderData, e
 		if data[x].PositionSide != "" {
 			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
 				return resp, errors.New("invalid positionSide")
-			}
-		}
-		if data[x].ReduceOnly != "" {
-			if !common.StringDataCompare(validBoolString, data[x].ReduceOnly) {
-				return resp, errors.New("invalid reduceOnly")
 			}
 		}
 		if data[x].WorkingType != "" {
@@ -879,6 +878,9 @@ func (b *Binance) UAllAccountOrders(symbol string, orderID, limit int64, startTi
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
+	}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 	if limit > 0 && limit < 500 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -1083,7 +1085,7 @@ func (b *Binance) FuturesExchangeInfo() (CExchangeInfo, error) {
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures
 func (b *Binance) GetFuturesOrderbook(symbol string, limit int64) (OrderBook, error) {
 	var resp OrderBook
-	var data FuturesOBData
+	var data OrderbookData
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if limit > 0 && limit <= 1000 {
@@ -1134,6 +1136,20 @@ func (b *Binance) GetFuturesPublicTrades(symbol string, limit int64) ([]FuturesP
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp, b.SendHTTPRequest(cmFutures, cfuturesRecentTrades+params.Encode(), limitDefault, &resp)
+}
+
+// GetFuturesHistoricalTrades gets historical public trades for CoinMarginedFutures
+func (b *Binance) GetFuturesHistoricalTrades(symbol, fromID string, limit int64) ([]UPublicTradesData, error) {
+	var resp []UPublicTradesData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if fromID != "" {
+		params.Set("fromID", fromID)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp, b.SendHTTPRequest(cfuturesHistoricalTrades, ufuturesHistoricalTrades+params.Encode(), limitDefault, &resp)
 }
 
 // GetPastPublicTrades gets past public trades for CoinMarginedFutures
@@ -1525,6 +1541,26 @@ func (b *Binance) GetFuturesSwapTickerChangeStats(symbol, pair string) ([]PriceC
 	return resp, b.SendHTTPRequest(cmFutures, cfuturesTickerPriceStats+params.Encode(), limitDefault, &resp)
 }
 
+// FuturesGetFundingHistory gets funding history for CoinMarginedFutures
+func (b *Binance) FuturesGetFundingHistory(symbol string, limit int64, startTime, endTime time.Time) ([]FundingRateHistory, error) {
+	var resp []FundingRateHistory
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, b.SendHTTPRequest(cmFutures, cfuturesFundingRateHistory+params.Encode(), limitDefault, &resp)
+}
+
 // GetFuturesSymbolPriceTicker gets price ticker for symbol
 func (b *Binance) GetFuturesSymbolPriceTicker(symbol, pair string) ([]SymbolPriceTicker, error) {
 	var resp []SymbolPriceTicker
@@ -1730,8 +1766,8 @@ func (b *Binance) GetFuturesBasisData(pair, contractType, period string, limit i
 
 // FuturesNewOrder sends a new futures order to the exchange
 func (b *Binance) FuturesNewOrder(symbol, side, positionSide, orderType, timeInForce,
-	reduceOnly, newClientOrderID, closePosition, workingType, newOrderRespType string,
-	quantity, price, stopPrice, activationPrice, callbackRate float64) (FuturesOrderPlaceData, error) {
+	newClientOrderID, closePosition, workingType, newOrderRespType string,
+	quantity, price, stopPrice, activationPrice, callbackRate float64, reduceOnly bool) (FuturesOrderPlaceData, error) {
 	var resp FuturesOrderPlaceData
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -1744,11 +1780,8 @@ func (b *Binance) FuturesNewOrder(symbol, side, positionSide, orderType, timeInF
 	}
 	params.Set("type", orderType)
 	params.Set("timeInForce", timeInForce)
-	if reduceOnly != "" {
-		if !common.StringDataCompare(validBoolString, reduceOnly) {
-			return resp, errors.New("invalid reduceOnly")
-		}
-		params.Set("reduceOnly", reduceOnly)
+	if reduceOnly {
+		params.Set("reduceOnly", "true")
 	}
 	if newClientOrderID != "" {
 		params.Set("newClientOrderID", newClientOrderID)
@@ -1794,11 +1827,6 @@ func (b *Binance) FuturesBatchOrder(data []PlaceBatchOrderData) ([]FuturesOrderP
 		if data[x].PositionSide != "" {
 			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
 				return resp, errors.New("invalid positionSide")
-			}
-		}
-		if data[x].ReduceOnly != "" {
-			if !common.StringDataCompare(validBoolString, data[x].ReduceOnly) {
-				return resp, errors.New("invalid reduceOnly")
 			}
 		}
 		if data[x].WorkingType != "" {
@@ -2106,6 +2134,13 @@ func (b *Binance) FuturesForceOrders(symbol, autoCloseType string, startTime, en
 		}
 		params.Set("autoCloseType", autoCloseType)
 	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
 	return resp, b.SendAuthHTTPRequest(cmFutures, http.MethodGet, cfuturesUsersForceOrders, params, limitDefault, &resp)
 }
 
@@ -2157,15 +2192,6 @@ func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.
 		params.Set("endTime", strconv.FormatInt(endTime.UnixNano(), 10))
 	}
 	return resp, b.SendHTTPRequest(uFutures, fundingRate+params.Encode(), limitDefault, &resp)
-}
-
-// Binance is the overarching type across the Bithumb package
-type Binance struct {
-	exchange.Base
-	USDTWS              stream.WebsocketConnection
-	CoinMarginFuturesWS stream.WebsocketConnection
-	// Valid string list that is required by the exchange
-	validLimits []int
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
