@@ -621,5 +621,5 @@ type WsCancelOrderResponse struct {
 	Status       string `json:"status"`
 	ErrorMessage string `json:"errorMessage"`
 	RequestID    int64  `json:"reqid"`
-	Count		 int64  `json:"count"`
+	Count        int64  `json:"count"`
 }

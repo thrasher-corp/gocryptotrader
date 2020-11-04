@@ -529,7 +529,7 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp string
-		s.Pair.Delimiter = "/"
+		s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
 		resp, err = k.wsAddOrder(&WsAddOrderRequest{
 			OrderType: strings.ToLower(s.Type.String()),
 			OrderSide: strings.ToLower(s.Side.String()),
@@ -580,7 +580,7 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 	}
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var ordersList []string
-		orders := strings.Split(o.ID,",")
+		orders := strings.Split(o.ID, ",")
 		for _, orderID := range orders {
 			ordersList = append(ordersList, orderID)
 		}
