@@ -569,12 +569,13 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp string
+		s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
 		resp, err = k.wsAddOrder(&WsAddOrderRequest{
-			OrderType: s.Type.String(),
-			OrderSide: s.Side.String(),
+			OrderType: strings.ToLower(s.Type.String()),
+			OrderSide: strings.ToLower(s.Side.String()),
 			Pair:      s.Pair.String(),
-			Price:     s.Price,
-			Volume:    s.Amount,
+			Price:     fmt.Sprint(s.Price),
+			Volume:    fmt.Sprint(s.Amount),
 		})
 		if err != nil {
 			return submitOrderResponse, err
@@ -621,7 +622,14 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return k.wsCancelOrders([]string{o.ID})
+		var ordersList []string
+		orders := strings.Split(o.ID, ",")
+		for _, orderID := range orders {
+			ordersList = append(ordersList, orderID)
+		}
+
+		err := k.wsCancelOrders(ordersList)
+		return err
 	}
 	_, err := k.CancelExistingOrder(o.ID)
 
@@ -632,6 +640,16 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 func (k *Kraken) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
+	}
+
+	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		resp, err := k.wsCancelAllOrders()
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
+		cancelAllOrdersResponse.Status["Count"] = fmt.Sprint(resp.Count)
+		return cancelAllOrdersResponse, err
 	}
 
 	var emptyOrderOptions OrderInfoOptions
@@ -707,6 +725,12 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 	if err != nil {
 		return orderDetail, err
 	}
+
+	price := orderInfo.Price
+	if orderInfo.Status == Open {
+		price = orderInfo.Description.Price
+	}
+
 	orderDetail = order.Detail{
 		Exchange:        k.Name,
 		ID:              orderID,
@@ -716,7 +740,7 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 		Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
 		CloseTime:       convert.TimeFromUnixTimestampDecimal(orderInfo.CloseTime),
 		Status:          status,
-		Price:           orderInfo.Price,
+		Price:           price,
 		Amount:          orderInfo.Volume,
 		ExecutedAmount:  orderInfo.VolumeExecuted,
 		RemainingAmount: orderInfo.Volume - orderInfo.VolumeExecuted,
@@ -815,7 +839,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
-	fmt, err := k.GetPairFormat(asset.Spot, true)
+	format, err := k.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -824,7 +848,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	for i := range resp.Open {
 		p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
 			avail,
-			fmt)
+			format)
 		if err != nil {
 			return nil, err
 		}
@@ -870,7 +894,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		return nil, err
 	}
 
-	fmt, err := k.GetPairFormat(asset.Spot, true)
+	format, err := k.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -884,7 +908,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 	for i := range resp.Closed {
 		p, err := currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair,
 			avail,
-			fmt)
+			format)
 		if err != nil {
 			return nil, err
 		}

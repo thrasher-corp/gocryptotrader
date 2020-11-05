@@ -1021,7 +1021,23 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 
 // CancelAllOrders cancels all orders, filterable by exchange
 func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrdersRequest) (*gctrpc.CancelAllOrdersResponse, error) {
-	return &gctrpc.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
+	if r.Exchange != "kraken" { // at the moment implemented only on the Kraken
+		return &gctrpc.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
+	}
+
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return &gctrpc.CancelAllOrdersResponse{}, errExchangeNotLoaded
+	}
+
+	resp, err := exch.CancelAllOrders(nil)
+	if err != nil {
+		return &gctrpc.CancelAllOrdersResponse{}, err
+	}
+
+	return &gctrpc.CancelAllOrdersResponse{
+		Count: resp.Status["Count"], // count of deleted orders
+	}, nil
 }
 
 // GetEvents returns the stored events list

@@ -763,7 +763,7 @@ func TestWsAddOrder(t *testing.T) {
 		OrderType: order.Limit.Lower(),
 		OrderSide: order.Buy.Lower(),
 		Pair:      "XBT/USD",
-		Price:     -100,
+		Price:     "-100",
 	})
 	if err != nil {
 		t.Error(err)
@@ -773,6 +773,14 @@ func TestWsAddOrder(t *testing.T) {
 func TestWsCancelOrder(t *testing.T) {
 	setupWsTests(t)
 	err := k.wsCancelOrders([]string{"1337"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCancelAllOrders(t *testing.T) {
+	setupWsTests(t)
+	_, err := k.wsCancelAllOrders()
 	if err != nil {
 		t.Error(err)
 	}

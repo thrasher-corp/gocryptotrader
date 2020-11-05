@@ -55,6 +55,9 @@ const (
 	// Rate limit consts
 	krakenRateInterval = time.Second
 	krakenRequestRate  = 1
+
+	// Status consts
+	Open = "open"
 )
 
 var (

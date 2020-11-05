@@ -13,7 +13,7 @@
   "paths": {
     "/v1/addevent": {
       "post": {
-        "operationId": "AddEvent",
+        "operationId": "GoCryptoTrader_AddEvent",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -45,7 +45,7 @@
     },
     "/v1/addportfolioaddress": {
       "post": {
-        "operationId": "AddPortfolioAddress",
+        "operationId": "GoCryptoTrader_AddPortfolioAddress",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -77,7 +77,7 @@
     },
     "/v1/cancelallorders": {
       "post": {
-        "operationId": "CancelAllOrders",
+        "operationId": "GoCryptoTrader_CancelAllOrders",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -109,7 +109,7 @@
     },
     "/v1/cancelorder": {
       "post": {
-        "operationId": "CancelOrder",
+        "operationId": "GoCryptoTrader_CancelOrder",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -141,7 +141,7 @@
     },
     "/v1/converttradestocandles": {
       "get": {
-        "operationId": "ConvertTradesToCandles",
+        "operationId": "GoCryptoTrader_ConvertTradesToCandles",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -228,7 +228,7 @@
     },
     "/v1/disableexchange": {
       "post": {
-        "operationId": "DisableExchange",
+        "operationId": "GoCryptoTrader_DisableExchange",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -260,7 +260,7 @@
     },
     "/v1/disablesubsystem": {
       "get": {
-        "operationId": "DisableSubsystem",
+        "operationId": "GoCryptoTrader_DisableSubsystem",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -290,7 +290,7 @@
     },
     "/v1/enableexchange": {
       "post": {
-        "operationId": "EnableExchange",
+        "operationId": "GoCryptoTrader_EnableExchange",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -322,7 +322,7 @@
     },
     "/v1/enablesubsystem": {
       "get": {
-        "operationId": "EnableSubsystem",
+        "operationId": "GoCryptoTrader_EnableSubsystem",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -352,7 +352,7 @@
     },
     "/v1/findmissingsavedcandleintervals": {
       "get": {
-        "operationId": "FindMissingSavedCandleIntervals",
+        "operationId": "GoCryptoTrader_FindMissingSavedCandleIntervals",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -425,7 +425,7 @@
     },
     "/v1/findmissingsavedtradeintervals": {
       "get": {
-        "operationId": "FindMissingSavedTradeIntervals",
+        "operationId": "GoCryptoTrader_FindMissingSavedTradeIntervals",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -491,7 +491,7 @@
     },
     "/v1/gctscript/autoload": {
       "post": {
-        "operationId": "GCTScriptAutoLoadToggle",
+        "operationId": "GoCryptoTrader_GCTScriptAutoLoadToggle",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -523,7 +523,7 @@
     },
     "/v1/gctscript/execute": {
       "get": {
-        "operationId": "GCTScriptExecute",
+        "operationId": "GoCryptoTrader_GCTScriptExecute",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -571,7 +571,7 @@
     },
     "/v1/gctscript/query": {
       "get": {
-        "operationId": "GCTScriptQuery",
+        "operationId": "GoCryptoTrader_GCTScriptQuery",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -619,7 +619,7 @@
     },
     "/v1/gctscript/read": {
       "post": {
-        "operationId": "GCTScriptReadScript",
+        "operationId": "GoCryptoTrader_GCTScriptReadScript",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -651,7 +651,7 @@
     },
     "/v1/gctscript/status": {
       "get": {
-        "operationId": "GCTScriptStatus",
+        "operationId": "GoCryptoTrader_GCTScriptStatus",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -673,7 +673,7 @@
     },
     "/v1/gctscript/stop": {
       "post": {
-        "operationId": "GCTScriptListAll",
+        "operationId": "GoCryptoTrader_GCTScriptListAll",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -705,7 +705,7 @@
     },
     "/v1/gctscript/upload": {
       "post": {
-        "operationId": "GCTScriptUpload",
+        "operationId": "GoCryptoTrader_GCTScriptUpload",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -737,7 +737,7 @@
     },
     "/v1/getaccountinfo": {
       "get": {
-        "operationId": "GetAccountInfo",
+        "operationId": "GoCryptoTrader_GetAccountInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -767,7 +767,7 @@
     },
     "/v1/getaccountinfostream": {
       "get": {
-        "operationId": "GetAccountInfoStream",
+        "operationId": "GoCryptoTrader_GetAccountInfoStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -806,7 +806,7 @@
     },
     "/v1/getauditevent": {
       "get": {
-        "operationId": "GetAuditEvent",
+        "operationId": "GoCryptoTrader_GetAuditEvent",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -862,7 +862,7 @@
     },
     "/v1/getcommunicationrelayers": {
       "get": {
-        "operationId": "GetCommunicationRelayers",
+        "operationId": "GoCryptoTrader_GetCommunicationRelayers",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -884,7 +884,7 @@
     },
     "/v1/getconfig": {
       "get": {
-        "operationId": "GetConfig",
+        "operationId": "GoCryptoTrader_GetConfig",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -906,7 +906,7 @@
     },
     "/v1/getcryptodepositaddress": {
       "post": {
-        "operationId": "GetCryptocurrencyDepositAddress",
+        "operationId": "GoCryptoTrader_GetCryptocurrencyDepositAddress",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -938,7 +938,7 @@
     },
     "/v1/getcryptodepositaddresses": {
       "post": {
-        "operationId": "GetCryptocurrencyDepositAddresses",
+        "operationId": "GoCryptoTrader_GetCryptocurrencyDepositAddresses",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -970,7 +970,7 @@
     },
     "/v1/getevents": {
       "get": {
-        "operationId": "GetEvents",
+        "operationId": "GoCryptoTrader_GetEvents",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -992,7 +992,7 @@
     },
     "/v1/getexchangeassets": {
       "get": {
-        "operationId": "GetExchangeAssets",
+        "operationId": "GoCryptoTrader_GetExchangeAssets",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1022,7 +1022,7 @@
     },
     "/v1/getexchangeinfo": {
       "get": {
-        "operationId": "GetExchangeInfo",
+        "operationId": "GoCryptoTrader_GetExchangeInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1052,7 +1052,7 @@
     },
     "/v1/getexchangeorderbookstream": {
       "get": {
-        "operationId": "GetExchangeOrderbookStream",
+        "operationId": "GoCryptoTrader_GetExchangeOrderbookStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -1091,7 +1091,7 @@
     },
     "/v1/getexchangeotp": {
       "get": {
-        "operationId": "GetExchangeOTPCode",
+        "operationId": "GoCryptoTrader_GetExchangeOTPCode",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1121,7 +1121,7 @@
     },
     "/v1/getexchangeotps": {
       "get": {
-        "operationId": "GetExchangeOTPCodes",
+        "operationId": "GoCryptoTrader_GetExchangeOTPCodes",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1143,7 +1143,7 @@
     },
     "/v1/getexchangepairs": {
       "post": {
-        "operationId": "GetExchangePairs",
+        "operationId": "GoCryptoTrader_GetExchangePairs",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1175,7 +1175,7 @@
     },
     "/v1/getexchanges": {
       "get": {
-        "operationId": "GetExchanges",
+        "operationId": "GoCryptoTrader_GetExchanges",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1206,7 +1206,7 @@
     },
     "/v1/getexchangetickerstream": {
       "get": {
-        "operationId": "GetExchangeTickerStream",
+        "operationId": "GoCryptoTrader_GetExchangeTickerStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -1245,7 +1245,7 @@
     },
     "/v1/getforexproviders": {
       "get": {
-        "operationId": "GetForexProviders",
+        "operationId": "GoCryptoTrader_GetForexProviders",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1267,7 +1267,7 @@
     },
     "/v1/getforexrates": {
       "get": {
-        "operationId": "GetForexRates",
+        "operationId": "GoCryptoTrader_GetForexRates",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1289,7 +1289,7 @@
     },
     "/v1/gethistoriccandles": {
       "get": {
-        "operationId": "GetHistoricCandles",
+        "operationId": "GoCryptoTrader_GetHistoricCandles",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1397,7 +1397,7 @@
     },
     "/v1/getinfo": {
       "get": {
-        "operationId": "GetInfo",
+        "operationId": "GoCryptoTrader_GetInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1419,7 +1419,7 @@
     },
     "/v1/getloggerdetails": {
       "get": {
-        "operationId": "GetLoggerDetails",
+        "operationId": "GoCryptoTrader_GetLoggerDetails",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1449,7 +1449,7 @@
     },
     "/v1/getorder": {
       "post": {
-        "operationId": "GetOrder",
+        "operationId": "GoCryptoTrader_GetOrder",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1481,7 +1481,7 @@
     },
     "/v1/getorderbook": {
       "post": {
-        "operationId": "GetOrderbook",
+        "operationId": "GoCryptoTrader_GetOrderbook",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1513,7 +1513,7 @@
     },
     "/v1/getorderbooks": {
       "get": {
-        "operationId": "GetOrderbooks",
+        "operationId": "GoCryptoTrader_GetOrderbooks",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1535,7 +1535,7 @@
     },
     "/v1/getorderbookstream": {
       "get": {
-        "operationId": "GetOrderbookStream",
+        "operationId": "GoCryptoTrader_GetOrderbookStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -1598,7 +1598,7 @@
     },
     "/v1/getorders": {
       "post": {
-        "operationId": "GetOrders",
+        "operationId": "GoCryptoTrader_GetOrders",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1630,7 +1630,7 @@
     },
     "/v1/getportfolio": {
       "get": {
-        "operationId": "GetPortfolio",
+        "operationId": "GoCryptoTrader_GetPortfolio",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1652,7 +1652,7 @@
     },
     "/v1/getportfoliosummary": {
       "get": {
-        "operationId": "GetPortfolioSummary",
+        "operationId": "GoCryptoTrader_GetPortfolioSummary",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1674,7 +1674,7 @@
     },
     "/v1/getrpcendpoints": {
       "get": {
-        "operationId": "GetRPCEndpoints",
+        "operationId": "GoCryptoTrader_GetRPCEndpoints",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1696,7 +1696,7 @@
     },
     "/v1/getsavedtrades": {
       "get": {
-        "operationId": "GetSavedTrades",
+        "operationId": "GoCryptoTrader_GetSavedTrades",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1762,7 +1762,7 @@
     },
     "/v1/getsubsystems": {
       "get": {
-        "operationId": "GetSubsystems",
+        "operationId": "GoCryptoTrader_GetSubsystems",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1784,7 +1784,7 @@
     },
     "/v1/getticker": {
       "post": {
-        "operationId": "GetTicker",
+        "operationId": "GoCryptoTrader_GetTicker",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1816,7 +1816,7 @@
     },
     "/v1/gettickers": {
       "get": {
-        "operationId": "GetTickers",
+        "operationId": "GoCryptoTrader_GetTickers",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1838,7 +1838,7 @@
     },
     "/v1/gettickerstream": {
       "get": {
-        "operationId": "GetTickerStream",
+        "operationId": "GoCryptoTrader_GetTickerStream",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -1901,7 +1901,7 @@
     },
     "/v1/removeevent": {
       "post": {
-        "operationId": "RemoveEvent",
+        "operationId": "GoCryptoTrader_RemoveEvent",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1933,7 +1933,7 @@
     },
     "/v1/removeportfolioaddress": {
       "post": {
-        "operationId": "RemovePortfolioAddress",
+        "operationId": "GoCryptoTrader_RemovePortfolioAddress",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1965,7 +1965,7 @@
     },
     "/v1/setallexchangepairs": {
       "get": {
-        "operationId": "SetAllExchangePairs",
+        "operationId": "GoCryptoTrader_SetAllExchangePairs",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2002,7 +2002,7 @@
     },
     "/v1/setexchangeasset": {
       "get": {
-        "operationId": "SetExchangeAsset",
+        "operationId": "GoCryptoTrader_SetExchangeAsset",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2045,7 +2045,7 @@
     },
     "/v1/setexchangepair": {
       "post": {
-        "operationId": "SetExchangePair",
+        "operationId": "GoCryptoTrader_SetExchangePair",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2077,7 +2077,7 @@
     },
     "/v1/setexchangetradeprocessing": {
       "get": {
-        "operationId": "SetExchangeTradeProcessing",
+        "operationId": "GoCryptoTrader_SetExchangeTradeProcessing",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2114,7 +2114,7 @@
     },
     "/v1/setloggerdetails": {
       "post": {
-        "operationId": "SetLoggerDetails",
+        "operationId": "GoCryptoTrader_SetLoggerDetails",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2146,7 +2146,7 @@
     },
     "/v1/simulateorder": {
       "post": {
-        "operationId": "SimulateOrder",
+        "operationId": "GoCryptoTrader_SimulateOrder",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2178,7 +2178,7 @@
     },
     "/v1/submitorder": {
       "post": {
-        "operationId": "SubmitOrder",
+        "operationId": "GoCryptoTrader_SubmitOrder",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2210,7 +2210,7 @@
     },
     "/v1/updateexchangesupportedpairs": {
       "get": {
-        "operationId": "UpdateExchangeSupportedPairs",
+        "operationId": "GoCryptoTrader_UpdateExchangeSupportedPairs",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2240,7 +2240,7 @@
     },
     "/v1/websocketgetinfo": {
       "get": {
-        "operationId": "WebsocketGetInfo",
+        "operationId": "GoCryptoTrader_WebsocketGetInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2270,7 +2270,7 @@
     },
     "/v1/websocketgetsubscriptions": {
       "get": {
-        "operationId": "WebsocketGetSubscriptions",
+        "operationId": "GoCryptoTrader_WebsocketGetSubscriptions",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2300,7 +2300,7 @@
     },
     "/v1/websocketsetenabled": {
       "get": {
-        "operationId": "WebsocketSetEnabled",
+        "operationId": "GoCryptoTrader_WebsocketSetEnabled",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2337,7 +2337,7 @@
     },
     "/v1/websocketsetproxy": {
       "get": {
-        "operationId": "WebsocketSetProxy",
+        "operationId": "GoCryptoTrader_WebsocketSetProxy",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2373,7 +2373,7 @@
     },
     "/v1/websocketseturl": {
       "get": {
-        "operationId": "WebsocketSetURL",
+        "operationId": "GoCryptoTrader_WebsocketSetURL",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2409,7 +2409,7 @@
     },
     "/v1/whalebomb": {
       "post": {
-        "operationId": "WhaleBomb",
+        "operationId": "GoCryptoTrader_WhaleBomb",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2441,7 +2441,7 @@
     },
     "/v1/withdrawaleventbydate": {
       "post": {
-        "operationId": "WithdrawalEventsByDate",
+        "operationId": "GoCryptoTrader_WithdrawalEventsByDate",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2473,7 +2473,7 @@
     },
     "/v1/withdrawaleventbyid": {
       "post": {
-        "operationId": "WithdrawalEventsByExchange",
+        "operationId": "GoCryptoTrader_WithdrawalEventsByExchange",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2505,7 +2505,7 @@
     },
     "/v1/withdrawfiatfunds": {
       "post": {
-        "operationId": "WithdrawFiatFunds",
+        "operationId": "GoCryptoTrader_WithdrawFiatFunds",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2537,7 +2537,7 @@
     },
     "/v1/withdrawithdrawcryptofundswfiatfunds": {
       "post": {
-        "operationId": "WithdrawCryptocurrencyFunds",
+        "operationId": "GoCryptoTrader_WithdrawCryptocurrencyFunds",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -2703,6 +2703,9 @@
           "items": {
             "$ref": "#/definitions/CancelAllOrdersResponseOrders"
           }
+        },
+        "count": {
+          "type": "string"
         }
       }
     },
