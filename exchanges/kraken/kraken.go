@@ -334,7 +334,6 @@ func (k *Kraken) GetFuturesMarkets() (FuturesInstrumentData, error) {
 // GetFuturesTickers gets a list of futures tickers and their data
 func (k *Kraken) GetFuturesTickers() (FuturesTickerData, error) {
 	var resp FuturesTickerData
-
 	return resp, k.SendHTTPRequest(futuresRest, futuresTickers, &resp)
 }
 

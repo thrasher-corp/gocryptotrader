@@ -172,7 +172,7 @@ func (k *Kraken) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
 	k.API.Endpoints = make(map[string]string)
 	k.API.Endpoints[defaultRest] = krakenAPIURL
-	k.API.Endpoints[futuresRest] = futuresRest
+	k.API.Endpoints[futuresRest] = futuresURL
 	k.Websocket = stream.New()
 	k.API.Endpoints[defaultWS] = krakenWSURL
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

@@ -326,6 +326,7 @@ func TestGetFuturesMarkets(t *testing.T) {
 }
 
 func TestGetFuturesTickers(t *testing.T) {
+	k.Verbose = true
 	t.Parallel()
 	_, err := k.GetFuturesTickers()
 	if err != nil {

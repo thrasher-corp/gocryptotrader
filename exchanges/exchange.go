@@ -1122,7 +1122,7 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 // GetEndpoint gets endpoint
 func (e *Base) GetEndpoint(lookup string) (string, error) {
 	if e.API.Endpoints == nil {
-		return "", errors.New("effed")
+		return "", errors.New("no endpoint available for the given lookup string")
 	}
 
 	v, ok := e.API.Endpoints[lookup]
