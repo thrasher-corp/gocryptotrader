@@ -202,7 +202,7 @@ type GetOrdersRequest struct {
 	OrderID    string
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
-	Pairs     []currency.Pair
+	Pairs     currency.Pairs
 	AssetType asset.Item
 }
 

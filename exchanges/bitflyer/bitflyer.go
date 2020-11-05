@@ -3,7 +3,6 @@ package bitflyer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -118,9 +117,8 @@ func (b *Bitflyer) GetOrderBook(symbol string) (Orderbook, error) {
 	var resp Orderbook
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	path := fmt.Sprintf("%s?%s", pubGetBoard, v.Encode())
 
-	return resp, b.SendHTTPRequest(defaultRest, path, &resp)
+	return resp, b.SendHTTPRequest(defaultRest, pubGetBoard+"?"+v.Encode(), &resp)
 }
 
 // GetTicker returns ticker information
@@ -128,8 +126,7 @@ func (b *Bitflyer) GetTicker(symbol string) (Ticker, error) {
 	var resp Ticker
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	path := fmt.Sprintf("%s?%s", pubGetTicker, v.Encode())
-	return resp, b.SendHTTPRequest(defaultRest, path, &resp)
+	return resp, b.SendHTTPRequest(defaultRest, pubGetTicker+"?"+v.Encode(), &resp)
 }
 
 // GetExecutionHistory returns past trades that were executed on the market
@@ -137,9 +134,8 @@ func (b *Bitflyer) GetExecutionHistory(symbol string) ([]ExecutedTrade, error) {
 	var resp []ExecutedTrade
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	path := fmt.Sprintf("%s?%s", pubGetExecutionHistory, v.Encode())
 
-	return resp, b.SendHTTPRequest(defaultRest, path, &resp)
+	return resp, b.SendHTTPRequest(defaultRest, pubGetExecutionHistory+"?"+v.Encode(), &resp)
 }
 
 // GetExchangeStatus returns exchange status information
@@ -170,8 +166,7 @@ func (b *Bitflyer) GetChats(fromDate string) ([]ChatLog, error) {
 	var resp []ChatLog
 	v := url.Values{}
 	v.Set("from_date", fromDate)
-	path := fmt.Sprintf("%s?%s", pubGetChats, v.Encode())
-	return resp, b.SendHTTPRequest(defaultRest, path, &resp)
+	return resp, b.SendHTTPRequest(defaultRest, pubGetChats+"?"+v.Encode(), &resp)
 }
 
 // GetPermissions returns current permissions for associated with your API

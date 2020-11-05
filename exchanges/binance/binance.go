@@ -2268,7 +2268,7 @@ func (b *Binance) GetMostRecentTrades(rtr RecentTradeRequestParams) ([]RecentTra
 	params.Set("symbol", strings.ToUpper(rtr.Symbol))
 	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
 
-	path := fmt.Sprintf("%s?%s", recentTrades, params.Encode())
+	path := recentTrades + "?" + params.Encode()
 
 	return resp, b.SendHTTPRequest(defaultRest, path, limitDefault, &resp)
 }
@@ -2331,7 +2331,7 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime, 10))
 	}
 
-	path := fmt.Sprintf("%s?%s", candleStick, params.Encode())
+	path := candleStick + "?" + params.Encode()
 
 	if err := b.SendHTTPRequest(defaultRest, path, limitDefault, &resp); err != nil {
 		return klineData, err
@@ -2387,9 +2387,7 @@ func (b *Binance) GetAveragePrice(symbol string) (AveragePrice, error) {
 	resp := AveragePrice{}
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
-
-	path := fmt.Sprintf("%s?%s", averagePrice, params.Encode())
-
+	path := averagePrice + "?" + params.Encode()
 	return resp, b.SendHTTPRequest(defaultRest, path, limitDefault, &resp)
 }
 
@@ -2400,9 +2398,7 @@ func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
 	resp := PriceChangeStats{}
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
-
-	path := fmt.Sprintf("%s?%s", priceChange, params.Encode())
-
+	path := priceChange + "?" + params.Encode()
 	return resp, b.SendHTTPRequest(defaultRest, path, limitDefault, &resp)
 }
 
@@ -2419,8 +2415,7 @@ func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
 	resp := SymbolPrice{}
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
-
-	path := fmt.Sprintf("%s?%s", symbolPrice, params.Encode())
+	path := symbolPrice + "?" + params.Encode()
 
 	return resp, b.SendHTTPRequest(defaultRest, path, symbolPriceLimit(symbol), &resp)
 }
@@ -2432,9 +2427,7 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 	resp := BestPrice{}
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
-
-	path := fmt.Sprintf("%s?%s", bestPrice, params.Encode())
-
+	path := bestPrice + "?" + params.Encode()
 	return resp, b.SendHTTPRequest(defaultRest, path, bestPriceLimit(symbol), &resp)
 }
 

@@ -66,7 +66,7 @@ func (k *Kraken) SetDefaults() {
 	k.API.CredentialsValidator.RequiresSecret = true
 	k.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
-	meow := currency.PairStore{
+	pairStore := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Separator: ",",
@@ -88,7 +88,7 @@ func (k *Kraken) SetDefaults() {
 		},
 	}
 
-	err := k.StoreAssetPairFormat(asset.Spot, meow)
+	err := k.StoreAssetPairFormat(asset.Spot, pairStore)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -739,7 +739,6 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	default:
 		return submitOrderResponse, fmt.Errorf("invalid assetType")
 	}
-	fmt.Printf("HELOOOOOOOOOOOO\n\n\n")
 	return submitOrderResponse, nil
 }
 
@@ -1044,7 +1043,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				return orders, err
 			}
 			for a := range activeOrders.OpenOrders {
-				if !(activeOrders.OpenOrders[a].Symbol == fPair.String()) {
+				if activeOrders.OpenOrders[a].Symbol != fPair.String() {
 					continue
 				}
 				vars, err := compatibleVars(activeOrders.OpenOrders[a].Side, "", activeOrders.OpenOrders[a].OrderType, "")

@@ -1318,7 +1318,7 @@ type QueryOrderData struct {
 	CummulativeQuoteQty float64 `json:"cummulativeQuoteQty,string"`
 	OrderListID         int64   `json:"orderListId"`
 	OrigQuoteOrderQty   float64 `json:"origQuoteOrderQty,string"`
-	UpdateTime          int64   `json:"updateTime"`
+	UpdateTime          float64 `json:"updateTime,int64"`
 }
 
 // Balance holds query order data

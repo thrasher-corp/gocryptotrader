@@ -778,7 +778,6 @@ func (b *Bitmex) GetWalletSummary(currency string) ([]TransactionInfo, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitmex) SendHTTPRequest(ep, path string, params Parameter, result interface{}) error {
-	fmt.Println("MEOW!")
 	var respCheck interface{}
 	endpoint, err := b.GetEndpoint(ep)
 	if err != nil {
@@ -803,7 +802,6 @@ func (b *Bitmex) SendHTTPRequest(ep, path string, params Parameter, result inter
 			if err != nil {
 				return err
 			}
-			fmt.Println("MOOOOOOOOOOOOOOOO")
 			return b.CaptureError(respCheck, result)
 		}
 	}
@@ -821,7 +819,6 @@ func (b *Bitmex) SendHTTPRequest(ep, path string, params Parameter, result inter
 	if err != nil {
 		return err
 	}
-	fmt.Println("HEADER RESPONSE:", wow)
 
 	return b.CaptureError(respCheck, result)
 }

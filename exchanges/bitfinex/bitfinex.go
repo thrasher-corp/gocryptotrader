@@ -137,11 +137,11 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, errors.New("failed rate")
+		return response, errors.New("failed type assertion for rate")
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, errors.New("failed rate")
+		return response, errors.New("failed type assertion for amount")
 	}
 	response.Symbol = symbol
 	response.RateAverage = avgRate
@@ -166,11 +166,11 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 	}
 	avgRate, ok := resp[0].(float64)
 	if !ok {
-		return response, errors.New("failed rate")
+		return response, errors.New("failed type assertion for rate")
 	}
 	avgAmount, ok := resp[1].(float64)
 	if !ok {
-		return response, errors.New("failed rate")
+		return response, errors.New("failed type assertion for amount")
 	}
 	response.RateAverage = avgRate
 	response.AmountAverage = avgAmount
@@ -193,27 +193,27 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 	var tempString string
 	var tempFloat float64
 	if tempFloat, ok = data[0].(float64); !ok {
-		return resp, errors.New("type conversion failed for id, check for api updates")
+		return resp, errors.New("type assertion failed for id, check for api updates")
 	}
 	resp.ID = int64(tempFloat)
 	if tempString, ok = data[1].(string); !ok {
-		return resp, errors.New("type conversion failed for email, check for api updates")
+		return resp, errors.New("type assertion failed for email, check for api updates")
 	}
 	resp.Email = tempString
 	if tempString, ok = data[2].(string); !ok {
-		return resp, errors.New("type conversion failed for username, check for api updates")
+		return resp, errors.New("type assertion failed for username, check for api updates")
 	}
 	resp.Username = tempString
 	if tempFloat, ok = data[3].(float64); !ok {
-		return resp, errors.New("type conversion failed for accountcreate, check for api updates")
+		return resp, errors.New("type assertion failed for accountcreate, check for api updates")
 	}
 	resp.MTSAccountCreate = int64(tempFloat)
 	if tempFloat, ok = data[4].(float64); !ok {
-		return resp, errors.New("type conversion failed for verified, check for api updates")
+		return resp, errors.New("type assertion failed for verified, check for api updates")
 	}
 	resp.Verified = int64(tempFloat)
 	if tempString, ok = data[7].(string); !ok {
-		return resp, errors.New("type conversion failed for timezone, check for api updates")
+		return resp, errors.New("type assertion failed for timezone, check for api updates")
 	}
 	resp.Timezone = tempString
 	return resp, nil
@@ -234,19 +234,19 @@ func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	for x := range data {
 		wType, ok := data[x][0].(string)
 		if !ok {
-			return resp, errors.New("type conversion failed for walletType, check for api updates")
+			return resp, errors.New("type assertion failed for walletType, check for api updates")
 		}
 		curr, ok := data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type conversion failed for currency, check for api updates")
+			return resp, errors.New("type assertion failed for currency, check for api updates")
 		}
 		bal, ok := data[x][2].(float64)
 		if !ok {
-			return resp, errors.New("type conversion failed for balance, check for api updates")
+			return resp, errors.New("type assertion failed for balance, check for api updates")
 		}
 		unsettledInterest, ok := data[x][3].(float64)
 		if !ok {
-			return resp, errors.New("type conversion failed for unsettledInterest, check for api updates")
+			return resp, errors.New("type assertion failed for unsettledInterest, check for api updates")
 		}
 		resp = append(resp, WalletDataV2{
 			WalletType:        wType,
@@ -300,51 +300,54 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 	if len(result) != 1 {
 		return response, errors.New("invalid response")
 	}
+	if len(result[0]) != 19 {
+		return response, errors.New("invalid response")
+	}
 	var floatData float64
 	var stringData string
 	var ok bool
 	if stringData, ok = result[0][0].(string); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.Key = stringData
 	if floatData, ok = result[0][1].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.MTS = floatData
 	if floatData, ok = result[0][3].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.DerivPrice = floatData
 	if floatData, ok = result[0][4].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.SpotPrice = floatData
 	if floatData, ok = result[0][6].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.InsuranceFundBalance = floatData
 	if floatData, ok = result[0][8].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.NextFundingEventTS = floatData
 	if floatData, ok = result[0][9].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.NextFundingAccured = floatData
 	if floatData, ok = result[0][10].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.NextFundingStep = floatData
 	if floatData, ok = result[0][12].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.CurrentFunding = floatData
 	if floatData, ok = result[0][15].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.MarkPrice = floatData
 	if floatData, ok = result[0][18].(float64); !ok {
-		return response, errors.New("type conversion failed, check for api updates")
+		return response, errors.New("type assertion failed, check for api updates")
 	}
 	response.OpenInterest = floatData
 	return response, nil

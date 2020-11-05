@@ -147,13 +147,7 @@ func (b *Bitstamp) GetTicker(currency string, hourly bool) (*Ticker, error) {
 	if hourly {
 		tickerEndpoint = bitstampAPITickerHourly
 	}
-
-	path := fmt.Sprintf(
-		"/v%s/%s/%s/",
-		bitstampAPIVersion,
-		tickerEndpoint,
-		strings.ToLower(currency),
-	)
+	path := "/v" + bitstampAPIVersion + "/" + tickerEndpoint + "/" + strings.ToLower(currency) + "/"
 	return &response, b.SendHTTPRequest(defaultRest, path, &response)
 }
 
@@ -167,14 +161,7 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 		Asks      [][]string `json:"asks"`
 	}
 	resp := response{}
-
-	path := fmt.Sprintf(
-		"/v%s/%s/%s/",
-		bitstampAPIVersion,
-		bitstampAPIOrderbook,
-		strings.ToLower(currency),
-	)
-
+	path := "/v" + bitstampAPIVersion + "/" + bitstampAPIOrderbook + "/" + strings.ToLower(currency) + "/"
 	err := b.SendHTTPRequest(defaultRest, path, &resp)
 	if err != nil {
 		return Orderbook{}, err
@@ -218,11 +205,7 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 // currently supports
 func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
 	var result []TradingPair
-
-	path := fmt.Sprintf("/v%s/%s",
-		bitstampAPIVersion,
-		bitstampAPITradingPairsInfo)
-
+	path := "/v" + bitstampAPIVersion + "/" + bitstampAPITradingPairsInfo
 	return result, b.SendHTTPRequest(defaultRest, path, &result)
 }
 
@@ -231,24 +214,17 @@ func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
 // response into time intervals.
 func (b *Bitstamp) GetTransactions(currencyPair, timePeriod string) ([]Transactions, error) {
 	var transactions []Transactions
-	requestURL := fmt.Sprintf(
-		"/v%s/%s/%s/",
-		bitstampAPIVersion,
-		bitstampAPITransactions,
-		strings.ToLower(currencyPair),
-	)
+	requestURL := "/v" + bitstampAPIVersion + "/" + bitstampAPITransactions + "/" + strings.ToLower(currencyPair) + "/"
 	if timePeriod != "" {
 		requestURL += "?time=" + url.QueryEscape(timePeriod)
 	}
-
 	return transactions, b.SendHTTPRequest(defaultRest, requestURL, &transactions)
 }
 
 // GetEURUSDConversionRate returns the conversion rate between Euro and USD
 func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 	rate := EURUSDConversionRate{}
-	path := fmt.Sprintf("/%s", bitstampAPIEURUSD)
-
+	path := "/" + bitstampAPIEURUSD
 	return rate, b.SendHTTPRequest(defaultRest, path, &rate)
 }
 
@@ -259,7 +235,6 @@ func (b *Bitstamp) GetBalance() (Balances, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	balances := make(map[string]Balance)
 	for k := range balance {
 		curr := k[0:3]
@@ -362,10 +337,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 // GetOpenOrders returns all open orders on the exchange
 func (b *Bitstamp) GetOpenOrders(currencyPair string) ([]Order, error) {
 	var resp []Order
-	path := fmt.Sprintf(
-		"%s/%s", bitstampAPIOpenOrders, strings.ToLower(currencyPair),
-	)
-
+	path := bitstampAPIOpenOrders + "/" + strings.ToLower(currencyPair)
 	return resp, b.SendAuthenticatedHTTPRequest(defaultRest, path, true, nil, &resp)
 }
 
@@ -415,9 +387,9 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price, amount float64, buy, m
 
 	var path string
 	if market {
-		path = fmt.Sprintf("%s/%s/%s", orderType, bitstampAPIMarket, strings.ToLower(currencyPair))
+		path = orderType + "/" + bitstampAPIMarket + strings.ToLower(currencyPair)
 	} else {
-		path = fmt.Sprintf("%s/%s", orderType, strings.ToLower(currencyPair))
+		path = orderType + "/" + orderType + strings.ToLower(currencyPair)
 	}
 
 	return response,
@@ -659,9 +631,9 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ep, path string, v2 bool, values
 	values.Set("signature", strings.ToUpper(crypto.HexEncodeToString(hmac)))
 
 	if v2 {
-		path = fmt.Sprintf("%s/v%s/%s/", endpoint, bitstampAPIVersion, path)
+		path = endpoint + "/v" + bitstampAPIVersion + "/" + path + "/"
 	} else {
-		path = fmt.Sprintf("%s/%s/", endpoint, path)
+		path = endpoint + "/" + path + "/"
 	}
 
 	if b.Verbose {
