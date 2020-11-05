@@ -33,8 +33,6 @@ func New() *Websocket {
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
 		TrafficAlert:      make(chan struct{}),
 		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []ChannelSubscription),
-		Unsubscribe:       make(chan []ChannelSubscription),
 		Match:             NewMatch(),
 	}
 }
@@ -441,9 +439,7 @@ func (w *Websocket) Shutdown() error {
 	}
 
 	// flush any subscriptions from last connection if needed
-	w.subscriptionMutex.Lock()
-	w.subscriptions = nil
-	w.subscriptionMutex.Unlock()
+	w.Connections.FlushSubscriptions()
 
 	close(w.ShutdownC)
 	w.Wg.Wait()
@@ -814,8 +810,8 @@ func (w *Websocket) GetName() string {
 // GetChannelDifference finds the difference between the subscribed channels
 // and the new subscription list when pairs are disabled or enabled.
 func (w *Websocket) GetChannelDifference(subs []SubscriptionParameters) (sub, unsub []SubscriptionParameters) {
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
+	// w.subscriptionMutex.Lock()
+	// defer w.subscriptionMutex.Unlock()
 
 	// oldsubs:
 	// 	for x := range w.subscriptions {
@@ -870,12 +866,11 @@ func (w *Websocket) UnsubscribeChannels(unsub []SubscriptionParameters) error {
 
 // ResubscribeToChannel resubscribes to channel
 func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription) error {
-	// err := w.UnsubscribeChannels([]ChannelSubscription{*subscribedChannel})
-	// if err != nil {
-	// 	return err
-	// }
-	// return w.SubscribeToChannels([]ChannelSubscription{*subscribedChannel})
-	return nil
+	err := w.Connections.Unsub(subscribedChannel)
+	if err != nil {
+		return err
+	}
+	return w.Connections.Sub(subscribedChannel)
 }
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
@@ -904,51 +899,54 @@ func (w *Websocket) SubscribeToChannels(sub []SubscriptionParameters) error {
 // AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
 // has been successfully subscribed
 func (w *Websocket) AddSuccessfulSubscriptions(channels ...ChannelSubscription) {
-	w.subscriptions = append(w.subscriptions, channels...)
+	// w.subscriptions = append(w.subscriptions, channels...)
 }
 
 // RemoveSuccessfulUnsubscriptions removes subscriptions from the subscription
 // list that has been successfulling unsubscribed
 func (w *Websocket) RemoveSuccessfulUnsubscriptions(channels ...ChannelSubscription) {
-	for x := range channels {
-		for y := range w.subscriptions {
-			if channels[x].Equal(&w.subscriptions[y]) {
-				w.subscriptions[y] = w.subscriptions[len(w.subscriptions)-1]
-				w.subscriptions[len(w.subscriptions)-1] = ChannelSubscription{}
-				w.subscriptions = w.subscriptions[:len(w.subscriptions)-1]
-				break
-			}
-		}
-	}
+	// for x := range channels {
+	// 	for y := range w.subscriptions {
+	// 		if channels[x].Equal(&w.subscriptions[y]) {
+	// 			w.subscriptions[y] = w.subscriptions[len(w.subscriptions)-1]
+	// 			w.subscriptions[len(w.subscriptions)-1] = ChannelSubscription{}
+	// 			w.subscriptions = w.subscriptions[:len(w.subscriptions)-1]
+	// 			break
+	// 		}
+	// 	}
+	// }
 }
 
 // Equal two WebsocketChannelSubscription to determine equality
 func (w *ChannelSubscription) Equal(s *ChannelSubscription) bool {
 	return strings.EqualFold(w.Channel, s.Channel) &&
-		w.Currency.Equal(s.Currency)
+		w.Currency.Equal(s.Currency) &&
+		w.Asset == w.Asset &&
+		w.SubscriptionType == s.SubscriptionType
 }
 
 // GetSubscriptions returns a copied list of subscriptions
 // subscriptions is a private member and cannot be manipulated
 func (w *Websocket) GetSubscriptions() []ChannelSubscription {
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
-	return append(w.subscriptions[:0:0], w.subscriptions...)
+	// w.subscriptionMutex.Lock()
+	// defer w.subscriptionMutex.Unlock()
+	// return append(w.subscriptions[:0:0], w.subscriptions...)
+	return nil
 }
 
 // SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in
 // a thread safe manner
 func (w *Websocket) SetCanUseAuthenticatedEndpoints(val bool) {
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
+	// w.subscriptionMutex.Lock()
+	// defer w.subscriptionMutex.Unlock()
 	w.canUseAuthenticatedEndpoints = val
 }
 
 // CanUseAuthenticatedEndpoints gets canUseAuthenticatedEndpoints val in
 // a thread safe manner
 func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
+	// w.subscriptionMutex.Lock()
+	// defer w.subscriptionMutex.Unlock()
 	return w.canUseAuthenticatedEndpoints
 }
 

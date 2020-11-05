@@ -108,3 +108,13 @@ func (s *SubscriptionManager) GetAssetsBySubscriptionType(t Subscription, pair c
 
 	return assets, nil
 }
+
+// FlushSubscriptions removes all subscriptions associated with the connection
+func (s *SubscriptionManager) FlushSubscriptions() {
+	s.Lock()
+	for _, p := range s.m {
+		// TODO: Check leakage
+		*p = []ChannelSubscription{}
+	}
+	s.Unlock()
+}

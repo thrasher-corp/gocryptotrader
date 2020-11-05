@@ -67,7 +67,7 @@ var defaultSetup = &WebsocketSetup{
 	// 		{Channel: "TestSub3"},
 	// 		{Channel: "TestSub4"},
 	// 	}, nil
-	},
+	// },
 	Features: &protocol.Features{Subscribe: true, Unsubscribe: true},
 }
 
@@ -565,11 +565,11 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 // TestSliceCopyDoesntImpactBoth logic test
 func TestGetSubscriptions(t *testing.T) {
 	w := Websocket{
-		subscriptions: []ChannelSubscription{
-			{
-				Channel: "hello3",
-			},
-		},
+		// subscriptions: []ChannelSubscription{
+		// 	{
+		// 		Channel: "hello3",
+		// 	},
+		// },
 	}
 	if !strings.EqualFold("hello3", w.GetSubscriptions()[0].Channel) {
 		t.Error("Subscriptions was not copied properly")

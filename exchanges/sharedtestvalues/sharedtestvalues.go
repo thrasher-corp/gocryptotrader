@@ -42,8 +42,6 @@ func NewTestWebsocket() *stream.Websocket {
 		ToRoutine:         make(chan interface{}, 1000),
 		TrafficAlert:      make(chan struct{}),
 		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []stream.ChannelSubscription, 10),
-		Unsubscribe:       make(chan []stream.ChannelSubscription, 10),
 		Match:             stream.NewMatch(),
 	}
 }

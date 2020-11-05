@@ -260,3 +260,109 @@ func TestGenerateConnections(t *testing.T) {
 		})
 	}
 }
+
+func TestGetChannelDifference(t *testing.T) {
+	configurableFn := func(s SubscriptionOptions) ([]ChannelSubscription, error) {
+		var newChannels []ChannelSubscription
+		if s.Features.TickerFetching {
+			newChannels = append(newChannels, ChannelSubscription{SubscriptionType: Ticker})
+		}
+		if s.Features.KlineFetching {
+			newChannels = append(newChannels, ChannelSubscription{SubscriptionType: Kline})
+		}
+		if s.Features.OrderbookFetching {
+			newChannels = append(newChannels, ChannelSubscription{SubscriptionType: Orderbook})
+		}
+		if s.Features.TradeHistory {
+			newChannels = append(newChannels, ChannelSubscription{SubscriptionType: Trade})
+		}
+		return newChannels, nil
+	}
+
+	tests := []struct {
+		Name                string
+		State1              *protocol.Features
+		State2              *protocol.Features
+		Subscriptions       []SubscriptionParameters
+		Unsubscriptions     []SubscriptionParameters
+		SubscriptionCount   int
+		UnsubscriptionCount int
+		Error               error
+	}{
+		{
+			Name:                "No difference",
+			State1:              &protocol.Features{TickerFetching: true},
+			State2:              &protocol.Features{TickerFetching: true},
+			SubscriptionCount:   0,
+			UnsubscriptionCount: 0,
+			Error:               nil,
+		},
+		{
+			Name:                "Orderbook Subscription",
+			State1:              &protocol.Features{TickerFetching: true},
+			State2:              &protocol.Features{TickerFetching: true, OrderbookFetching: true},
+			SubscriptionCount:   1,
+			UnsubscriptionCount: 0,
+			Error:               nil,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.Name, func(t *testing.T) {
+			man, err := NewConnectionManager(&ConnectionManagerConfig{
+				ExchangeConnector:             passConnectionFunc,
+				ExchangeGenerateSubscriptions: configurableFn,
+				ExchangeSubscriber:            passSubscription,
+				ExchangeUnsubscriber:          passSubscription,
+				ExchangeGenerateConnection:    passGenerateConnection,
+				Features:                      tt.State1,
+				Configurations:                []ConnectionSetup{{URL: "TEST URL"}},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			subs, err := man.GenerateSubscriptions()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			connection := &WebsocketConnection{}
+			connection.SubscriptionManager = NewSubscriptionManager()
+			connection.conf = &ConnectionSetup{URL: "TEST URL"}
+			err = connection.SubscriptionManager.AddSuccessfulSubscriptions(subs)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			man.connections = append(man.connections, connection)
+
+			// Change protocol feature set
+
+			man.features = tt.State2
+
+			subs, err = man.GenerateSubscriptions()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			newsubs, unsubs, err := man.GetChannelDifference(subs)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(newsubs) != tt.SubscriptionCount {
+				t.Fatalf("expected %d subscriptions but receievd %d",
+					tt.SubscriptionCount,
+					len(newsubs))
+			}
+
+			if len(unsubs) != tt.UnsubscriptionCount {
+				t.Fatalf("expected %d unsubscriptions but receievd %d",
+					tt.UnsubscriptionCount,
+					len(unsubs))
+			}
+		})
+	}
+}

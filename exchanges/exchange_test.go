@@ -1158,7 +1158,7 @@ func TestSetupDefaults(t *testing.T) {
 		DefaultURL:        "ws://something.com",
 		RunningURL:        "ws://something.com",
 		ExchangeName:      "test",
-		Connector:         func() error { return nil },
+		// Connector:         func() error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1572,7 +1572,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		DefaultURL:        "ws://something.com",
 		RunningURL:        "ws://something.com",
 		ExchangeName:      "test",
-		Connector:         func() error { return nil },
+		// Connector:         func() error { return nil },
 	})
 	if err != nil {
 		t.Error(err)

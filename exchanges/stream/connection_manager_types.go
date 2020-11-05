@@ -15,6 +15,20 @@ type ConnectionSetup struct {
 	MaxSubscriptions           uint16
 }
 
+// SubscriptionConforms checks to see if the subscription conforms to the
+// configuration
+func (c *ConnectionSetup) SubscriptionConforms(sub *ChannelSubscription, currentSubLength int) bool {
+	if len(c.AllowableAssets) != 0 && !c.AllowableAssets.Contains(sub.Asset) {
+		return false
+	}
+
+	if c.MaxSubscriptions != 0 && currentSubLength+1 > int(c.MaxSubscriptions) {
+		return false
+	}
+
+	return true
+}
+
 // ConnectionManager manages connections
 type ConnectionManager struct {
 	sync.Mutex
@@ -26,7 +40,7 @@ type ConnectionManager struct {
 	unsubscriber       func(unsub SubscriptionParameters) error
 	generateConnection func(url string, auth bool) (Connection, error)
 
-	generalConfigurations []ConnectionSetup
+	configurations []ConnectionSetup
 }
 
 // ConnectionManagerConfig defines the needed variables for stream connections
@@ -43,9 +57,8 @@ type ConnectionManagerConfig struct {
 
 // SubscriptionParameters defines payload for subscribing and unsibscribing
 type SubscriptionParameters struct {
-	Items   []ChannelSubscription
-	Conn    Connection
-	Manager *ConnectionManager
+	Items []ChannelSubscription
+	Conn  Connection
 }
 
 // SubscriptionOptions defines subscriber options and updates

@@ -15,6 +15,7 @@ var (
 	errNoFeatures                   = errors.New("exchange features cannot be nil")
 	errNoGenerateSubsFunc           = errors.New("exchange generate subscription function cannot be nil")
 	errMissingURLInConfig           = errors.New("connection URL must be supplied")
+	errNoAssociation                = errors.New("could not associate a subscription with a configuration")
 )
 
 // NewConnectionManager returns a new connection manager
@@ -50,23 +51,23 @@ func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, err
 	}
 
 	return &ConnectionManager{
-		connector:             cfg.ExchangeConnector,
-		generator:             cfg.ExchangeGenerateSubscriptions,
-		subscriber:            cfg.ExchangeSubscriber,
-		unsubscriber:          cfg.ExchangeUnsubscriber,
-		generateConnection:    cfg.ExchangeGenerateConnection,
-		features:              cfg.Features,
-		generalConfigurations: cfg.Configurations,
+		connector:          cfg.ExchangeConnector,
+		generator:          cfg.ExchangeGenerateSubscriptions,
+		subscriber:         cfg.ExchangeSubscriber,
+		unsubscriber:       cfg.ExchangeUnsubscriber,
+		generateConnection: cfg.ExchangeGenerateConnection,
+		features:           cfg.Features,
+		configurations:     cfg.Configurations,
 	}, nil
 }
 
 // GenerateConnections returns generated connections from the service
 func (c *ConnectionManager) GenerateConnections(subs []ChannelSubscription) (map[Connection][]ChannelSubscription, error) {
 	subscriptionsToConfig := make(map[*ConnectionSetup]*[]ChannelSubscription)
-	for y := range c.generalConfigurations {
+	for y := range c.configurations {
 		// Populate configurations in map
-		if _, ok := subscriptionsToConfig[&c.generalConfigurations[y]]; !ok {
-			subscriptionsToConfig[&c.generalConfigurations[y]] = &[]ChannelSubscription{}
+		if _, ok := subscriptionsToConfig[&c.configurations[y]]; !ok {
+			subscriptionsToConfig[&c.configurations[y]] = &[]ChannelSubscription{}
 		}
 	}
 
@@ -196,6 +197,22 @@ func (c *ConnectionManager) Connect(conn Connection) error {
 	return c.connector(conn)
 }
 
+// Sub temp sub associates with a connection
+func (c *ConnectionManager) Sub(sub *ChannelSubscription) error {
+	c.Lock()
+	for i := range c.connections {
+		subs := c.connections[i].GetAllSubscriptions()
+		for j := range subs {
+			if subs[j].Equal(sub) {
+				c.Unlock()
+				return c.Subscribe(c.connections[i], []ChannelSubscription{*sub})
+			}
+		}
+	}
+	c.Unlock()
+	return errors.New("could not find subscription to unsubscribe from across all connections")
+}
+
 // Subscribe subscribes and sets subscription by stream connection
 func (c *ConnectionManager) Subscribe(conn Connection, subs []ChannelSubscription) error {
 	c.Lock()
@@ -210,10 +227,30 @@ func (c *ConnectionManager) Subscribe(conn Connection, subs []ChannelSubscriptio
 	}
 
 	return c.subscriber(SubscriptionParameters{
-		Items:   subs,
-		Conn:    conn,
-		Manager: c,
+		Items: subs,
+		Conn:  conn,
 	})
+}
+
+// Unsub temp associates subscription with connection
+func (c *ConnectionManager) Unsub(sub *ChannelSubscription) error {
+	c.Lock()
+	for i := range c.connections {
+		subs := c.connections[i].GetAllSubscriptions()
+		for j := range subs {
+			if subs[j].Equal(sub) {
+				c.Unlock()
+				return c.Unsubscribe([]SubscriptionParameters{
+					{
+						Items: []ChannelSubscription{*sub},
+						Conn:  c.connections[i],
+					},
+				})
+			}
+		}
+	}
+	c.Unlock()
+	return errors.New("could not find subscription to unsubscribe from across all connections")
 }
 
 // Unsubscribe unsubscribes and removes subscription by stream connection
@@ -236,4 +273,117 @@ func (c *ConnectionManager) Unsubscribe(unsubs []SubscriptionParameters) error {
 		}
 	}
 	return nil
+}
+
+// FlushSubscriptions removes all subscriptions associated with all connections
+func (c *ConnectionManager) FlushSubscriptions() {
+	c.Lock()
+	for i := range c.connections {
+		c.connections[i].FlushSubscriptions()
+	}
+	c.Unlock()
+}
+
+// GetChannelDifference finds the difference between the subscribed channels
+// and the new subscription list when pairs are disabled or enabled.
+func (c *ConnectionManager) GetChannelDifference(newSubs []ChannelSubscription) (subscribe, unsubscribe []SubscriptionParameters, err error) {
+	c.Lock()
+	defer c.Unlock()
+
+	currentlySubscribed := make(map[Connection][]ChannelSubscription)
+	for x := range c.connections {
+		currentlySubscribed[c.connections[x]] = append(currentlySubscribed[c.connections[x]],
+			c.connections[x].GetAllSubscriptions()...)
+	}
+
+	fmt.Println("currentlySubscribed:", currentlySubscribed)
+	fmt.Println("newSubs:", newSubs)
+
+	var newSubscribes []ChannelSubscription
+	// Check connections to see if new subscription is not already subscribed
+subscriptionCheck:
+	for i := range newSubs {
+		for _, subs := range currentlySubscribed {
+			for j := range subs {
+				if subs[j].Equal(&newSubs[i]) {
+					continue subscriptionCheck
+				}
+			}
+		}
+		newSubscribes = append(newSubscribes, newSubs[i])
+	}
+
+	fmt.Println("newSubscribes", newSubscribes)
+
+	var unsubscribeMe = make(map[Connection][]ChannelSubscription)
+	// Check connections to see what needs to be removed in difference to the
+	// newly generated subscriptions
+	for conn, subs := range currentlySubscribed {
+	unsubscriptionCheck:
+		for x := range subs {
+			for y := range newSubs {
+				if subs[x].Equal(&newSubs[y]) {
+					continue unsubscriptionCheck
+				}
+			}
+
+			// Remove instance from currently subscribed so as to determine the
+			// max connection allowance for new subscriptions
+			subs[x] = subs[len(subs)-1]
+			subs[len(subs)-1] = ChannelSubscription{}
+			subs = subs[:len(subs)-1]
+
+			unsubscribeMe[conn] = append(unsubscribeMe[conn], subs[x])
+		}
+	}
+
+	fmt.Println("unsubscribeMe", unsubscribeMe)
+	fmt.Println("currentlySubscribed again:", currentlySubscribed)
+
+	var subscribeMe = make(map[Connection][]ChannelSubscription)
+subbies:
+	for i := range newSubscribes {
+		for conn, subs := range currentlySubscribed {
+			cfg := conn.GetConfiguration()
+			if cfg.SubscriptionConforms(&newSubscribes[i], len(subs)) {
+				continue
+			}
+
+			// Add to currently subscribed
+			addSubs := append(subs, newSubscribes[i])
+			currentlySubscribed[conn] = addSubs
+			subscribeMe[conn] = append(subscribeMe[conn], newSubscribes[i])
+			continue subbies
+		}
+
+		// Spawn new connection
+		for j := range c.configurations {
+			if !c.configurations[j].SubscriptionConforms(&newSubscribes[i], 0) {
+				continue
+			}
+			var conn Connection
+			conn, err = c.generateConnection("", false)
+			if err != nil {
+				return
+			}
+
+			subscribeMe[conn] = append(subscribeMe[conn], newSubscribes[i])
+			continue subbies
+		}
+
+		err = errNoAssociation
+		return
+	}
+	// package everything
+	for k, v := range subscribeMe {
+		subscribe = append(subscribe, SubscriptionParameters{v, k})
+	}
+
+	for k, v := range unsubscribeMe {
+		unsubscribe = append(unsubscribe, SubscriptionParameters{v, k})
+	}
+
+	fmt.Println("subscribeMe:", subscribeMe)
+
+	return
 }

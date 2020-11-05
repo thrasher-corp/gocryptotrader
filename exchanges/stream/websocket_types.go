@@ -42,14 +42,8 @@ type Websocket struct {
 	exchangeName                 string
 	m                            sync.Mutex
 	connectionMutex              sync.RWMutex
-	// connector                    func(conn Connection) error
 
 	Connections *ConnectionManager
-
-	subscriptionMutex sync.Mutex
-	subscriptions     []ChannelSubscription
-	Subscribe         chan []ChannelSubscription
-	Unsubscribe       chan []ChannelSubscription
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -70,10 +64,12 @@ type Websocket struct {
 	ReadMessageErrors chan error
 	features          *protocol.Features
 
+	// RM ---------------------------------------
 	// Standard stream connection
 	Conn Connection
 	// Authenticated stream connection
 	AuthConn Connection
+	// RM ---------------------------------------
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection
