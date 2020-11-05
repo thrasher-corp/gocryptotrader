@@ -297,11 +297,11 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 	if err != nil {
 		return response, err
 	}
-	if len(result) != 1 {
-		return response, errors.New("invalid response")
+	if len(result) < 1 {
+		return response, errors.New("invalid response, array length too small, check api docs for updates")
 	}
-	if len(result[0]) != 19 {
-		return response, errors.New("invalid response")
+	if len(result[0]) < 19 {
+		return response, errors.New("invalid response, array length too small, check api docs for updates")
 	}
 	var floatData float64
 	var stringData string

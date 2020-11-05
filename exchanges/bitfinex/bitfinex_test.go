@@ -103,6 +103,7 @@ func TestGetV2Balances(t *testing.T) {
 }
 
 func TestGetDerivativeData(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
 	_, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
 	if err != nil {
@@ -155,7 +156,9 @@ func TestGetPlatformStatus(t *testing.T) {
 
 func TestGetTickerBatch(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTickerBatch()
+	b.Verbose = true
+	a, err := b.GetTickerBatch()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
