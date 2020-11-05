@@ -17,7 +17,7 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func New(initialFunds, defaultAmount, maximumAmount float64, isPercentage bool) (*Portfolio, error) {
+func New(initialFunds, defaultAmount, maximumAmount, feeRate float64) (*Portfolio, error) {
 	if defaultAmount == 0 && maximumAmount == 0 {
 		return nil, errors.New("requires funding guidance")
 	}
@@ -28,9 +28,9 @@ func New(initialFunds, defaultAmount, maximumAmount float64, isPercentage bool) 
 		InitialFunds: initialFunds,
 		RiskManager:  &risk.Risk{},
 		SizeManager: &size.Size{
-			DefaultSize:       defaultAmount,
-			MaxSize:           maximumAmount,
-			IsPercentageBased: isPercentage,
+			DefaultSize: defaultAmount,
+			MaxSize:     maximumAmount,
+			FeeRate:     feeRate,
 		},
 	}, nil
 }
@@ -46,21 +46,18 @@ func (p *Portfolio) Reset() {
 }
 
 func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandler) (*order.Order, error) {
-	var limit float64
-
 	if signal.GetDirection() == "" {
 		return &order.Order{}, errors.New("invalid Direction")
 	}
 
 	currAmount := p.Holdings[signal.Pair()].Amount
 	currFunds := p.GetFunds()
-	//currPrice := data.Latest().LatestPrice()
 
 	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && currAmount <= signal.GetAmount() {
 		return &order.Order{}, errors.New("no holdings to sell")
 	}
 
-	if (signal.GetDirection() == gctorder.Buy || signal.GetDirection() == gctorder.Bid) && currFunds == 0 {
+	if (signal.GetDirection() == gctorder.Buy || signal.GetDirection() == gctorder.Bid) && currFunds <= 0 {
 		return &order.Order{}, errors.New("not enough funds to buy")
 	}
 
@@ -75,11 +72,9 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 		Price:     signal.GetPrice(),
 		Amount:    signal.GetAmount(),
 		OrderType: gctorder.Market,
-		Limit:     limit,
 	}
-
 	latest := data.Latest()
-	sizedOrder, err := p.SizeManager.SizeOrder(initialOrder, latest)
+	sizedOrder, err := p.SizeManager.SizeOrder(initialOrder, latest, currFunds, p.)
 	if err != nil {
 		return nil, err
 	}

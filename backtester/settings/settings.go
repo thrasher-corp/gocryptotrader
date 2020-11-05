@@ -10,7 +10,6 @@ type Settings struct {
 	EndTime                    string
 	Interval                   time.Duration
 	InitialFunds               float64
-	OrderSize                  float64
 	MaximumOrderSize           float64
 	IsOrderSizePercentageBased bool
 	ExchangeName               string
@@ -21,6 +20,7 @@ type Settings struct {
 	DataSource                 string
 	DataPath                   string
 	DataType                   string
+	ConfigPath                 string
 }
 
 type DataSource string

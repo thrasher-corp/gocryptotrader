@@ -1,8 +1,10 @@
 package backtest
 
 import (
+	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/strategies"
@@ -28,12 +30,102 @@ func New() *BackTest {
 	return &BackTest{}
 }
 
+func NewFromConfig(c *config.Config) (*BackTest, error) {
+	bt := New()
+	var err error
+
+	bt.Portfolio, err = portfolio.New(c.Funding.InitialFunds, c.Funding.MaximumOrderSize)
+	if err != nil {
+		return nil, err
+	}
+
+	engine.Bot, err = engine.NewFromSettings(&engine.Settings{
+		EnableDryRun:   true,
+		EnableAllPairs: true,
+	}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = engine.Bot.OrderManager.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	var errs common.Errors
+	for i := range c.ExchangePairs {
+		go func(exchName string) {
+			err = engine.Bot.LoadExchange(exchName, true, &wg)
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
+	for i := range c.ExchangePairs {
+		lookup := c.ExchangePairs[i]
+		var cp, fPair currency.Pair
+		cp, err = currency.NewPairFromStrings(lookup.Base, lookup.Quote)
+		if err != nil {
+			return nil, err
+		}
+
+		var a asset.Item
+		a, err = asset.New(lookup.Asset)
+		if err != nil {
+			return nil, err
+		}
+
+		base := exch.GetBase()
+		if !base.ValidateAPICredentials() {
+			log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", base.Name)
+		}
+
+		fPair, err = base.FormatExchangeCurrency(cp, a)
+		if err != nil {
+			return nil, err
+		}
+		var tStart, tEnd time.Time
+		tStart, err = time.Parse(common.SimpleTimeFormat, s.StartTime)
+		if err != nil {
+			return nil, err
+		}
+
+		tEnd, err = time.Parse(common.SimpleTimeFormat, s.EndTime)
+		if err != nil {
+			return nil, err
+		}
+
+		// load the data
+		var candles kline.Item
+		candles, err = exch.GetHistoricCandlesExtended(fPair, a, tStart, tEnd, kline.Interval(s.Interval))
+		if err != nil {
+			return nil, err
+		}
+
+		bt.Data = &kline2.DataFromKline{
+			Item: candles,
+		}
+		err = bt.Data.Load()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, nil
+}
+
 // NewFromSettings creates a new backtester from cmd or config settings
 func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 	bt := New()
 	var err error
 
-	bt.Portfolio, err = portfolio.New(s.InitialFunds, s.OrderSize, s.MaximumOrderSize, s.IsOrderSizePercentageBased)
+	bt.Portfolio, err = portfolio.New(s.InitialFunds, s.MaximumOrderSize, s.MaximumOrderSize, s.IsOrderSizePercentageBased)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +166,7 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 
 	base := exch.GetBase()
 	if !base.ValidateAPICredentials() {
-		log.Warnf(log.Global, "no credentials set for %v, this is theoretical only", base.Name)
+		log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", base.Name)
 	}
 
 	fPair, err = base.FormatExchangeCurrency(cp, a)
@@ -136,10 +228,12 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 	}
 
 	bt.Exchange = &exchange.Exchange{
-		MakerFee:     makerFee,
-		TakerFee:     takerFee,
 		CurrencyPair: fPair,
 		AssetType:    a,
+		ExchangeFee:  takerFee,
+		MakerFee:     makerFee,
+		TakerFee:     takerFee,
+		Orders:       orders.Orders{},
 	}
 
 	statistic := statistics.Statistic{
@@ -201,7 +295,7 @@ func (b *BackTest) eventLoop(e interfaces.EventHandler) error {
 		// verify strategy
 		s, err := b.Strategy.OnSignal(b.Data, b.Portfolio)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Error(log.BackTester, err)
 			break
 		}
 		b.EventQueue = append(b.EventQueue, s)
@@ -209,7 +303,7 @@ func (b *BackTest) eventLoop(e interfaces.EventHandler) error {
 	case signal.SignalEvent:
 		o, err := b.Portfolio.OnSignal(event, b.Data)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Error(log.BackTester, err)
 			break
 		}
 		b.EventQueue = append(b.EventQueue, o)
@@ -217,15 +311,14 @@ func (b *BackTest) eventLoop(e interfaces.EventHandler) error {
 	case orders.OrderEvent:
 		f, err := b.Exchange.ExecuteOrder(event, b.Data)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Error(log.BackTester, err)
 			break
 		}
-		b.Orders.Add(event)
 		b.EventQueue = append(b.EventQueue, f)
 	case fill.FillEvent:
 		t, err := b.Portfolio.OnFill(event, b.Data)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Error(log.BackTester, err)
 			break
 		}
 		b.Statistic.TrackTransaction(t)

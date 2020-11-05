@@ -3,6 +3,7 @@ package exchange
 import (
 	"github.com/gofrs/uuid"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
@@ -19,14 +20,17 @@ func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler)
 			CurrencyPair: o.Pair(),
 			AssetType:    o.GetAssetType(),
 		},
-		Direction:   "",
+		Direction:   o.GetDirection(),
 		Amount:      o.GetAmount(),
 		Price:       data.Latest().LatestPrice(),
-		ExchangeFee: 0,
+		ExchangeFee: e.ExchangeFee, // defaulting to just using taker fee right now without orderbook
 	}
-
+	if o.GetAmount() <= 0 {
+		f.Direction = common.DoNothing
+		return f, nil
+	}
 	f.Direction = o.GetDirection()
-	f.ExchangeFee = e.calculateExchangeFee()
+	f.ExchangeFee = e.calculateExchangeFee(data.Latest().LatestPrice(), o.GetAmount())
 	u, _ := uuid.NewV4()
 	o2 := &order.Submit{
 		Price:       f.Price,
@@ -57,6 +61,6 @@ func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler)
 	return f, nil
 }
 
-func (e *Exchange) calculateExchangeFee() float64 {
-	return e.ExchangeFee
+func (e *Exchange) calculateExchangeFee(price, amount float64) float64 {
+	return e.ExchangeFee * price * amount
 }

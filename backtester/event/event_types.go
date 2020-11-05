@@ -12,4 +12,7 @@ type Event struct {
 	Time         time.Time
 	CurrencyPair currency.Pair
 	AssetType    asset.Item
+	MakerFee     float64
+	TakerFee     float64
+	FeeRate      float64
 }

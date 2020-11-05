@@ -11,6 +11,3 @@ func LoadConfig(data []byte) (Config, error) {
 func SaveConfig() error {
 	return nil
 }
-
-type Config struct {
-}

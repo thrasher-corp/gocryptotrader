@@ -37,5 +37,5 @@ type PortfolioHandler interface {
 }
 
 type SizeHandler interface {
-	SizeOrder(orders.OrderEvent, interfaces.DataEventHandler) (*order.Order, error)
+	SizeOrder(orders.OrderEvent, interfaces.DataEventHandler, float64, float64) (*order.Order, error)
 }
