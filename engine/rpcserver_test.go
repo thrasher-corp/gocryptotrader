@@ -95,7 +95,7 @@ func CleanRPCTest(t *testing.T, engerino *Engine) {
 func TestGetSavedTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	s := RPCServer{engerino}
+	s := RPCServer{Engine: engerino}
 	_, err := s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
 		t.Fatal(unexpectedLackOfError)
