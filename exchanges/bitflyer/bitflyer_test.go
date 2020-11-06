@@ -93,9 +93,17 @@ func TestGetAddressInfoCA(t *testing.T) {
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarkets()
+	markets, err := b.GetMarkets()
 	if err != nil {
 		t.Error("Bitflyer - GetMarkets() error:", err)
+	}
+	for _, market := range markets {
+		if market.ProductCode == "" {
+			t.Error("Bitflyer - ProductCode is empty in GetMarkets()")
+		}
+		if market.MarketType == "" {
+			t.Error("Bitflyer - MarketType is empty in GetMarkets()")
+		}
 	}
 }
 
