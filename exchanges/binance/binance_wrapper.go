@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	defaultRest             = "defaultURL"
+	// ADD RUNNING REST AND more descriptive strings
+	defaultRest             = "DefaultRESTURL"
 	spot                    = "spotURL"
 	uFutures                = "ufuturesURL"
 	cmFutures               = "cfuturesURL"

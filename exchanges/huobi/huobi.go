@@ -170,157 +170,159 @@ const (
 	huobiMarginRates           = "margin/loan-info"
 )
 
-var validPeriods = []string{"5min", "15min", "30min", "60min", "4hour", "1day"}
+var (
+	validPeriods = []string{"5min", "15min", "30min", "60min", "4hour", "1day"}
 
-var validBasisPriceTypes = []string{"open", "close", "high", "low", "average"}
+	validBasisPriceTypes = []string{"open", "close", "high", "low", "average"}
 
-var validAmountType = map[string]int64{
-	"cont":           1,
-	"cryptocurrency": 2,
-}
+	validAmountType = map[string]int64{
+		"cont":           1,
+		"cryptocurrency": 2,
+	}
 
-var validTransferType = []string{
-	"master_to_sub", "sub_to_master",
-}
+	validTransferType = []string{
+		"master_to_sub", "sub_to_master",
+	}
 
-var validTradeTypes = map[string]int64{
-	"filled": 0,
-	"closed": 5,
-	"open":   6,
-}
+	validTradeTypes = map[string]int64{
+		"filled": 0,
+		"closed": 5,
+		"open":   6,
+	}
 
-var validOrderType = map[string]int64{
-	"quotation":         1,
-	"cancelledOrder":    2,
-	"forcedLiquidation": 3,
-	"deliveryOrder":     4,
-}
+	validOrderType = map[string]int64{
+		"quotation":         1,
+		"cancelledOrder":    2,
+		"forcedLiquidation": 3,
+		"deliveryOrder":     4,
+	}
 
-var validOrderTypes = []string{
-	"limit", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
-	"fok", "ioc", "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
-	"optimal_10_ioc", "optimal_20_ioc", "opponent_fok", "optimal_20_fok",
-}
+	validOrderTypes = []string{
+		"limit", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
+		"fok", "ioc", "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
+		"optimal_10_ioc", "optimal_20_ioc", "opponent_fok", "optimal_20_fok",
+	}
 
-var validTriggerType = map[string]string{
-	"greaterOrEqual": "ge",
-	"smallerOrEqual": "le",
-}
+	validTriggerType = map[string]string{
+		"greaterOrEqual": "ge",
+		"smallerOrEqual": "le",
+	}
 
-var validOrderPriceType = []string{
-	"limit", "optimal_5", "optimal_10", "optimal_20",
-}
+	validOrderPriceType = []string{
+		"limit", "optimal_5", "optimal_10", "optimal_20",
+	}
 
-var validLightningOrderPriceType = []string{
-	"lightning", "lightning_fok", "lightning_ioc",
-}
+	validLightningOrderPriceType = []string{
+		"lightning", "lightning_fok", "lightning_ioc",
+	}
 
-var validTradeType = map[string]int64{
-	"all":            0,
-	"openLong":       1,
-	"openShort":      2,
-	"closeShort":     3,
-	"closeLong":      4,
-	"liquidateLong":  5,
-	"liquidateShort": 6,
-}
+	validTradeType = map[string]int64{
+		"all":            0,
+		"openLong":       1,
+		"openShort":      2,
+		"closeShort":     3,
+		"closeLong":      4,
+		"liquidateLong":  5,
+		"liquidateShort": 6,
+	}
 
-var validFuturesTradeType = map[string]int64{
-	"all":            0,
-	"openLong":       1,
-	"openShort":      2,
-	"closeShort":     3,
-	"closeLong":      4,
-	"liquidateLong":  5,
-	"liquidateShort": 6,
-	"deliveryLong":   7,
-	"deliveryShort":  8,
-	"reduceLong":     11,
-	"reduceShort":    12,
-}
+	validFuturesTradeType = map[string]int64{
+		"all":            0,
+		"openLong":       1,
+		"openShort":      2,
+		"closeShort":     3,
+		"closeLong":      4,
+		"liquidateLong":  5,
+		"liquidateShort": 6,
+		"deliveryLong":   7,
+		"deliveryShort":  8,
+		"reduceLong":     11,
+		"reduceShort":    12,
+	}
 
-var validContractTypes = []string{
-	"this_week", "next_week", "quarter", "next_quarter",
-}
+	validContractTypes = []string{
+		"this_week", "next_week", "quarter", "next_quarter",
+	}
 
-var validFuturesPeriods = []string{
-	"1min", "5min", "15min", "30min", "60min", "1hour", "4hour", "1day",
-}
+	validFuturesPeriods = []string{
+		"1min", "5min", "15min", "30min", "60min", "1hour", "4hour", "1day",
+	}
 
-var validFuturesOrderPriceTypes = []string{
-	"limit", "opponent", "lightning", "optimal_5", "optimal_10",
-	"optimal_20", "fok", "ioc", "opponent_ioc", "lightning_ioc",
-	"optimal_5_ioc", "optimal_10_ioc", "optimal_20_ioc", "opponent_fok",
-	"lightning_fok", "optimal_5_fok", "optimal_10_fok", "optimal_20_fok",
-}
+	validFuturesOrderPriceTypes = []string{
+		"limit", "opponent", "lightning", "optimal_5", "optimal_10",
+		"optimal_20", "fok", "ioc", "opponent_ioc", "lightning_ioc",
+		"optimal_5_ioc", "optimal_10_ioc", "optimal_20_ioc", "opponent_fok",
+		"lightning_fok", "optimal_5_fok", "optimal_10_fok", "optimal_20_fok",
+	}
 
-var validFuturesRecordTypes = map[string]string{
-	"closeLong":                   "3",
-	"closeShort":                  "4",
-	"openOpenPositionsTakerFees":  "5",
-	"openPositionsMakerFees":      "6",
-	"closePositionsTakerFees":     "7",
-	"closePositionsMakerFees":     "8",
-	"closeLongDelivery":           "9",
-	"closeShortDelivery":          "10",
-	"deliveryFee":                 "11",
-	"longLiquidationClose":        "12",
-	"shortLiquidationClose":       "13",
-	"transferFromSpotToContracts": "14",
-	"transferFromContractsToSpot": "15",
-	"settleUnrealizedLongPNL":     "16",
-	"settleUnrealizedShortPNL":    "17",
-	"clawback":                    "19",
-	"system":                      "26",
-	"activityPrizeRewards":        "28",
-	"rebate":                      "29",
-	"transferToSub":               "34",
-	"transferFromSub":             "35",
-	"transferToMaster":            "36",
-	"transferFromMaster":          "37",
-}
+	validFuturesRecordTypes = map[string]string{
+		"closeLong":                   "3",
+		"closeShort":                  "4",
+		"openOpenPositionsTakerFees":  "5",
+		"openPositionsMakerFees":      "6",
+		"closePositionsTakerFees":     "7",
+		"closePositionsMakerFees":     "8",
+		"closeLongDelivery":           "9",
+		"closeShortDelivery":          "10",
+		"deliveryFee":                 "11",
+		"longLiquidationClose":        "12",
+		"shortLiquidationClose":       "13",
+		"transferFromSpotToContracts": "14",
+		"transferFromContractsToSpot": "15",
+		"settleUnrealizedLongPNL":     "16",
+		"settleUnrealizedShortPNL":    "17",
+		"clawback":                    "19",
+		"system":                      "26",
+		"activityPrizeRewards":        "28",
+		"rebate":                      "29",
+		"transferToSub":               "34",
+		"transferFromSub":             "35",
+		"transferToMaster":            "36",
+		"transferFromMaster":          "37",
+	}
 
-var validOffsetTypes = []string{
-	"open", "close",
-}
+	validOffsetTypes = []string{
+		"open", "close",
+	}
 
-var validOPTypes = []string{
-	"lightning", "lightning_fok", "lightning_ioc",
-}
+	validOPTypes = []string{
+		"lightning", "lightning_fok", "lightning_ioc",
+	}
 
-var validFuturesReqType = map[string]int64{
-	"all":            1,
-	"finishedStatus": 2,
-}
+	validFuturesReqType = map[string]int64{
+		"all":            1,
+		"finishedStatus": 2,
+	}
 
-var validFuturesOrderTypes = map[string]int64{
-	"limit":        1,
-	"opponent":     3,
-	"lightning":    4,
-	"triggerOrder": 5,
-	"postOnly":     6,
-	"optimal_5":    7,
-	"optimal_10":   8,
-	"optimal_20":   9,
-	"fok":          10,
-	"ioc":          11,
-}
+	validFuturesOrderTypes = map[string]int64{
+		"limit":        1,
+		"opponent":     3,
+		"lightning":    4,
+		"triggerOrder": 5,
+		"postOnly":     6,
+		"optimal_5":    7,
+		"optimal_10":   8,
+		"optimal_20":   9,
+		"fok":          10,
+		"ioc":          11,
+	}
 
-var validOrderStatus = map[order.Status]int64{
-	order.AnyStatus:          0,
-	order.Active:             3,
-	order.PartiallyFilled:    4,
-	order.PartiallyCancelled: 5,
-	order.Filled:             6,
-	order.Cancelled:          7,
-}
+	validOrderStatus = map[order.Status]int64{
+		order.AnyStatus:          0,
+		order.Active:             3,
+		order.PartiallyFilled:    4,
+		order.PartiallyCancelled: 5,
+		order.Filled:             6,
+		order.Cancelled:          7,
+	}
 
-var validStatusTypes = map[string]int64{
-	"all":       0,
-	"success":   4,
-	"failed":    5,
-	"cancelled": 6,
-}
+	validStatusTypes = map[string]int64{
+		"all":       0,
+		"success":   4,
+		"failed":    5,
+		"cancelled": 6,
+	}
+)
 
 // HUOBI is the overarching type across this package
 type HUOBI struct {

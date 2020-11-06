@@ -87,25 +87,25 @@ const (
 
 var (
 	assetTranslator assetTranslatorStore
+
+	validOrderTypes = map[order.Type]string{
+		order.ImmediateOrCancel: "ioc",
+		order.Limit:             "lmt",
+		order.Stop:              "stp",
+		order.PostOnly:          "post",
+		order.TakeProfit:        "take_profit",
+	}
+
+	validSide = []string{"buy", "sell"}
+
+	validTriggerSignal = []string{"mark", "index", "last"}
+
+	validReduceOnly = []string{"true", "false"}
+
+	validBatchOrderType = []string{
+		"edit", "cancel", "send",
+	}
 )
-
-var validOrderTypes = map[order.Type]string{
-	order.ImmediateOrCancel: "ioc",
-	order.Limit:             "lmt",
-	order.Stop:              "stp",
-	order.PostOnly:          "post",
-	order.TakeProfit:        "take_profit",
-}
-
-var validSide = []string{"buy", "sell"}
-
-var validTriggerSignal = []string{"mark", "index", "last"}
-
-var validReduceOnly = []string{"true", "false"}
-
-var validBatchOrderType = []string{
-	"edit", "cancel", "send",
-}
 
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
