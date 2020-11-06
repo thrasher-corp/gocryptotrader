@@ -7,6 +7,7 @@ import (
 )
 
 type Positions struct {
+	InitialFunds       float64
 	Timestamp          time.Time
 	Pair               currency.Pair
 	Amount             float64

@@ -21,7 +21,7 @@ func (s *Strategy) Name() string {
 func (s *Strategy) OnSignal(d interfaces.DataHandler, p portfolio.PortfolioHandler) (signal.SignalEvent, error) {
 	es := s.GetBase(d)
 
-	es.SetPrice(d.Latest().LatestPrice())
+	es.SetPrice(d.Latest().Price())
 	es.SetDirection(order.Buy)
 
 	return &es, nil

@@ -5,35 +5,15 @@ import (
 
 	"github.com/shopspring/decimal"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
 	fill2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/signal"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
-	"github.com/thrasher-corp/gocryptotrader/backtester/risk"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
-
-func New(initialFunds, defaultAmount, maximumAmount, feeRate float64) (*Portfolio, error) {
-	if defaultAmount == 0 && maximumAmount == 0 {
-		return nil, errors.New("requires funding guidance")
-	}
-	if initialFunds == 0 {
-		return nil, errors.New("can't hope to buy anything without money")
-	}
-	return &Portfolio{
-		InitialFunds: initialFunds,
-		RiskManager:  &risk.Risk{},
-		SizeManager: &size.Size{
-			DefaultSize: defaultAmount,
-			MaxSize:     maximumAmount,
-			FeeRate:     feeRate,
-		},
-	}, nil
-}
 
 func (p *Portfolio) SetSizeManager(size SizeHandler) {
 	p.SizeManager = size
@@ -51,7 +31,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 	}
 
 	currAmount := p.Holdings[signal.Pair()].Amount
-	currFunds := p.GetFunds()
+	currFunds := p.GetFunds(signal.Pair())
 
 	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && currAmount <= signal.GetAmount() {
 		return &order.Order{}, errors.New("no holdings to sell")
@@ -74,7 +54,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 		OrderType: gctorder.Market,
 	}
 	latest := data.Latest()
-	sizedOrder, err := p.SizeManager.SizeOrder(initialOrder, latest, currFunds, p.)
+	sizedOrder, err := p.SizeManagerPerCurrency[signal.Pair()].SizeOrder(initialOrder, latest, currFunds, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -151,12 +131,16 @@ func (p *Portfolio) GetInitialFunds() float64 {
 	return p.InitialFunds
 }
 
-func (p *Portfolio) SetFunds(funds float64) {
-	p.Funds = funds
+func (p *Portfolio) SetFunds(cp currency.Pair, funds float64) {
+	p.FundsPerCurrency[cp] = funds
 }
 
-func (p *Portfolio) GetFunds() float64 {
-	return p.Funds
+func (p *Portfolio) GetFunds(cp currency.Pair) float64 {
+	lookup, ok := p.FundsPerCurrency[cp]
+	if !ok {
+		return 0
+	}
+	return lookup
 }
 
 func (p *Portfolio) Value() float64 {

@@ -1,0 +1,16 @@
+{
+    "strategy": "buyandhold",
+    "exchange-pairs": {
+     "BTCUSDT": {
+      "asset": "spot",
+      "initial-funds": 1337,
+      "maximum-order-size": 100
+     }
+    },
+    "start-date": "2020-10-30T13:34:16.8751547+11:00",
+    "end-date": "2020-11-06T13:34:16.8751547+11:00",
+    "data-source": "candle",
+    "candle-data": {
+     "interval": 3600000000000
+    }
+}

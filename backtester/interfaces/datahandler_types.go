@@ -48,7 +48,7 @@ type EventHandler interface {
 type DataEventHandler interface {
 	EventHandler
 	DataType() DataType
-	LatestPrice() float64
+	Price() float64
 }
 
 type DataType uint8

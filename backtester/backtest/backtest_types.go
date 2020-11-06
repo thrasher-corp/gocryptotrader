@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
@@ -10,10 +11,12 @@ import (
 
 type BackTest struct {
 	Data       interfaces.DataHandler
+	Datas      []interfaces.DataHandler
 	Strategy   strategies.StrategyHandler
 	Portfolio  portfolio.PortfolioHandler
 	Orders     datahandler2.Orders
-	Exchange   datahandler2.ExecutionHandler
+	Exchange   exchange.ExecutionHandler
+	Exchanges  map[string]exchange.ExecutionHandler
 	Statistic  statistics.StatisticHandler
 	EventQueue []interfaces.EventHandler
 }

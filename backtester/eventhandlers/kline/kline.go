@@ -9,6 +9,6 @@ func (k *Kline) DataType() portfolio.DataType {
 	return data.DataTypeCandle
 }
 
-func (k *Kline) LatestPrice() float64 {
+func (k *Kline) Price() float64 {
 	return k.Close
 }

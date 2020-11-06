@@ -20,14 +20,14 @@ import (
 // Update Statistic for event
 func (s *Statistic) Update(d portfolio.DataEventHandler, p portfolio2.PortfolioHandler) {
 	if s.InitialBuy == 0 {
-		s.InitialBuy = p.GetInitialFunds() / d.LatestPrice()
+		s.InitialBuy = p.GetInitialFunds() / d.Price()
 	}
 
 	e := EquityPoint{}
 	e.Timestamp = d.GetTime()
 	e.Equity = p.Value()
 
-	e.BuyAndHoldValue = s.InitialBuy * d.LatestPrice()
+	e.BuyAndHoldValue = s.InitialBuy * d.Price()
 
 	if len(s.Equity) > 0 {
 		e = s.calcEquityReturn(e)
@@ -83,7 +83,6 @@ func (s *Statistic) ReturnResults() results2.Results {
 		TotalTransactions: len(s.Transactions()),
 		SharpieRatio:      s.SharpeRatio(0),
 		StrategyName:      s.StrategyName,
-		Pair:              s.Pair,
 	}
 	for v := range s.Transactions() {
 		results.Transactions = append(results.Transactions, results2.ResultTransactions{

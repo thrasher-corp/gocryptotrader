@@ -12,12 +12,14 @@ import (
 )
 
 type Portfolio struct {
-	InitialFunds float64
-	Funds        float64
-	Holdings     map[currency.Pair]positions.Positions
-	Transactions []fill.FillEvent
-	SizeManager  SizeHandler
-	RiskManager  risk.RiskHandler
+	InitialFunds           float64
+	Funds                  float64
+	FundsPerCurrency       map[currency.Pair]float64
+	Holdings               map[currency.Pair]positions.Positions
+	Transactions           []fill.FillEvent
+	SizeManager            SizeHandler
+	SizeManagerPerCurrency map[currency.Pair]SizeHandler
+	RiskManager            risk.RiskHandler
 }
 
 type PortfolioHandler interface {
@@ -27,8 +29,8 @@ type PortfolioHandler interface {
 
 	SetInitialFunds(float64)
 	GetInitialFunds() float64
-	SetFunds(float64)
-	GetFunds() float64
+	SetFunds(currency.Pair, float64)
+	GetFunds(currency.Pair) float64
 
 	Value() float64
 	ViewHoldings() map[currency.Pair]positions.Positions

@@ -8,7 +8,7 @@ import (
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
-func (t *Tick) LatestPrice() float64 {
+func (t *Tick) Price() float64 {
 	bid := decimal.NewFromFloat(t.Bid)
 	ask := decimal.NewFromFloat(t.Ask)
 	diff := decimal.New(2, 0)

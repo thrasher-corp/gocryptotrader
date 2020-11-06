@@ -1,18 +1,29 @@
 package exchange
 
 import (
+	"time"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
+	order2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/order"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler) (*fill.Fill, error) {
+	var curr Currency
+	for i := range e.Currencies {
+		if e.Currencies[i].CurrencyPair.Equal(o.Pair()) {
+			curr = e.Currencies[i]
+		}
+	}
+
 	f := &fill.Fill{
 		Event: event.Event{
 			Exchange:     o.GetExchange(),
@@ -22,15 +33,16 @@ func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler)
 		},
 		Direction:   o.GetDirection(),
 		Amount:      o.GetAmount(),
-		Price:       data.Latest().LatestPrice(),
-		ExchangeFee: e.ExchangeFee, // defaulting to just using taker fee right now without orderbook
+		Price:       data.Latest().Price(),
+		ExchangeFee: curr.ExchangeFee, // defaulting to just using taker fee right now without orderbook
 	}
 	if o.GetAmount() <= 0 {
 		f.Direction = common.DoNothing
 		return f, nil
 	}
+	data.Latest().Price()
 	f.Direction = o.GetDirection()
-	f.ExchangeFee = e.calculateExchangeFee(data.Latest().LatestPrice(), o.GetAmount())
+	f.ExchangeFee = e.calculateExchangeFee(data.Latest().Price(), o.GetAmount(), curr.ExchangeFee)
 	u, _ := uuid.NewV4()
 	o2 := &order.Submit{
 		Price:       f.Price,
@@ -53,14 +65,32 @@ func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler)
 		Cost:          f.Price,
 		Trades:        nil,
 	}
-	_, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
+	res, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
 	if err != nil {
 		return nil, err
 	}
-
+	e.Orders.Add(&order2.Order{
+		Event: event.Event{
+			Exchange:     "",
+			Time:         time.Time{},
+			CurrencyPair: currency.Pair{},
+			AssetType:    "",
+			MakerFee:     0,
+			TakerFee:     0,
+			FeeRate:      0,
+		},
+		ID:        0,
+		Direction: "",
+		Status:    "",
+		Price:     0,
+		Amount:    0,
+		OrderType: "",
+		Limit:     0,
+		Leverage:  0,
+	})
 	return f, nil
 }
 
-func (e *Exchange) calculateExchangeFee(price, amount float64) float64 {
-	return e.ExchangeFee * price * amount
+func (e *Exchange) calculateExchangeFee(price, amount, fee float64) float64 {
+	return fee * price * amount
 }

@@ -25,7 +25,7 @@ func (p *Positions) Update(fill fill.FillEvent) {
 func (p *Positions) UpdateValue(data portfolio.DataEventHandler) {
 	p.Timestamp = data.GetTime()
 
-	latest := data.LatestPrice()
+	latest := data.Price()
 	p.updateValue(latest)
 }
 

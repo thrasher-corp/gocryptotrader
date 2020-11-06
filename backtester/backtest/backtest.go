@@ -2,17 +2,14 @@ package backtest
 
 import (
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
-	"github.com/thrasher-corp/gocryptotrader/backtester/settings"
 
 	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
@@ -30,13 +27,20 @@ func New() *BackTest {
 	return &BackTest{}
 }
 
-func NewFromConfig(c *config.Config) (*BackTest, error) {
+func NewFromConfig(configPath string) (*BackTest, error) {
 	bt := New()
-	var err error
-
-	bt.Portfolio, err = portfolio.New(c.Funding.InitialFunds, c.Funding.MaximumOrderSize)
+	cfg, err := config.ReadConfigFromFile(configPath)
 	if err != nil {
 		return nil, err
+	}
+
+	bt.Portfolio = &portfolio.Portfolio{
+		FundsPerCurrency:       nil,
+		Holdings:               nil,
+		Transactions:           nil,
+		SizeManager:            nil,
+		SizeManagerPerCurrency: nil,
+		RiskManager:            nil,
 	}
 
 	engine.Bot, err = engine.NewFromSettings(&engine.Settings{
@@ -54,7 +58,7 @@ func NewFromConfig(c *config.Config) (*BackTest, error) {
 
 	var wg sync.WaitGroup
 	var errs common.Errors
-	for i := range c.ExchangePairs {
+	for i := range cfg.ExchangePairSettings {
 		go func(exchName string) {
 			err = engine.Bot.LoadExchange(exchName, true, &wg)
 			if err != nil {
@@ -67,65 +71,100 @@ func NewFromConfig(c *config.Config) (*BackTest, error) {
 		return nil, errs
 	}
 
-	for i := range c.ExchangePairs {
-		lookup := c.ExchangePairs[i]
-		var cp, fPair currency.Pair
-		cp, err = currency.NewPairFromStrings(lookup.Base, lookup.Quote)
-		if err != nil {
-			return nil, err
+	for exchangeName := range cfg.ExchangePairSettings {
+		exch := engine.Bot.GetExchangeByName(exchangeName)
+		if exch == nil {
+			return nil, engine.ErrExchangeNotFound
+		}
+		exchangeCurrencies, ok := cfg.ExchangePairSettings[exchangeName]
+		if !ok {
+			return nil, engine.ErrExchangeNotFound
 		}
 
-		var a asset.Item
-		a, err = asset.New(lookup.Asset)
-		if err != nil {
-			return nil, err
-		}
+		for i := range exchangeCurrencies {
+			var cp, fPair currency.Pair
+			cp, err = currency.NewPairFromStrings(exchangeCurrencies[i].Base, exchangeCurrencies[i].Quote)
+			if err != nil {
+				return nil, err
+			}
 
-		base := exch.GetBase()
-		if !base.ValidateAPICredentials() {
-			log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", base.Name)
-		}
+			var a asset.Item
+			a, err = asset.New(exchangeCurrencies[i].Asset)
+			if err != nil {
+				return nil, err
+			}
 
-		fPair, err = base.FormatExchangeCurrency(cp, a)
-		if err != nil {
-			return nil, err
-		}
-		var tStart, tEnd time.Time
-		tStart, err = time.Parse(common.SimpleTimeFormat, s.StartTime)
-		if err != nil {
-			return nil, err
-		}
+			base := exch.GetBase()
+			if !base.ValidateAPICredentials() {
+				log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", base.Name)
+			}
 
-		tEnd, err = time.Parse(common.SimpleTimeFormat, s.EndTime)
-		if err != nil {
-			return nil, err
-		}
+			fPair, err = base.FormatExchangeCurrency(cp, a)
+			if err != nil {
+				return nil, err
+			}
+			// load the data
+			var candles kline.Item
+			candles, err = exch.GetHistoricCandlesExtended(fPair, a, cfg.StartDate, cfg.EndDate, kline.Interval(cfg.CandleData.Interval))
+			if err != nil {
+				return nil, err
+			}
 
-		// load the data
-		var candles kline.Item
-		candles, err = exch.GetHistoricCandlesExtended(fPair, a, tStart, tEnd, kline.Interval(s.Interval))
-		if err != nil {
-			return nil, err
-		}
+			bt.Datas = append(bt.Datas, &kline2.DataFromKline{
+				Item: candles,
+			})
+			err = bt.Datas[len(bt.Datas)-1].Load()
+			if err != nil {
+				return nil, err
+			}
 
-		bt.Data = &kline2.DataFromKline{
-			Item: candles,
-		}
-		err = bt.Data.Load()
-		if err != nil {
-			return nil, err
+			var makerFee, takerFee float64
+			takerFee, err = exch.GetFeeByType(&exchange2.FeeBuilder{
+				FeeType:       exchange2.CryptocurrencyTradeFee,
+				Pair:          fPair,
+				IsMaker:       false,
+				PurchasePrice: 1,
+				Amount:        1,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			makerFee, err = exch.GetFeeByType(&exchange2.FeeBuilder{
+				FeeType:       exchange2.CryptocurrencyTradeFee,
+				Pair:          fPair,
+				IsMaker:       true,
+				PurchasePrice: 1,
+				Amount:        1,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			if bt.Exchanges[exchangeName] == nil {
+				bt.Exchanges[exchangeName] = &exchange.Exchange{
+					Orders: orders.Orders{},
+				}
+			}
+			bt.Exchanges[exchangeName] = append()
 		}
 	}
 
-	return nil, nil
+	statistic := statistics.Statistic{
+		StrategyName: cfg.StrategyToLoad,
+	}
+	bt.Statistic = &statistic
+
+	return bt, nil
 }
 
+/*
 // NewFromSettings creates a new backtester from cmd or config settings
 func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 	bt := New()
 	var err error
 
-	bt.Portfolio, err = portfolio.New(s.InitialFunds, s.MaximumOrderSize, s.MaximumOrderSize, s.IsOrderSizePercentageBased)
+	bt.Portfolio, err = portfolio.New()
 	if err != nil {
 		return nil, err
 	}
@@ -238,13 +277,12 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 
 	statistic := statistics.Statistic{
 		StrategyName: s.StrategyName,
-		Pair:         fPair.String(),
 	}
 	bt.Statistic = &statistic
 
 	return bt, nil
 }
-
+*/
 // Reset BackTest values to default
 func (b *BackTest) Reset() {
 	b.EventQueue = nil
@@ -255,7 +293,6 @@ func (b *BackTest) Reset() {
 
 // Run executes Backtest
 func (b *BackTest) Run() error {
-	b.Portfolio.SetFunds(b.Portfolio.GetInitialFunds())
 	for event, ok := b.nextEvent(); true; event, ok = b.nextEvent() {
 		if !ok {
 			data, ok := b.Data.Next()
