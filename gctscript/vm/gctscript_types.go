@@ -5,7 +5,11 @@ import (
 	"time"
 )
 
-const gctScript = "GCT Script"
+const (
+	gctScript = "GCT Script"
+	// ErrScriptFailedValidation message to display when a script fails its validation
+	ErrScriptFailedValidation = "validation failed"
+)
 
 // Config user configurable options for gctscript
 type Config struct {
@@ -25,8 +29,6 @@ type Error struct {
 }
 
 var (
-	// GCTScriptConfig initialised global copy of Config{}
-	GCTScriptConfig = &Config{}
 	// ScriptPath path to load/save scripts
 	ScriptPath string
 )

@@ -227,7 +227,7 @@ func makeExchange(exch *exchange) error {
 	}
 
 	configTestFile.Exchanges = append(configTestFile.Exchanges, newExchConfig)
-	err = configTestFile.SaveConfig(exchangeConfigPath, false)
+	err = configTestFile.SaveConfigToFile(exchangeConfigPath)
 	if err != nil {
 		return err
 	}
