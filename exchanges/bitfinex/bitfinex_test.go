@@ -103,7 +103,6 @@ func TestGetV2Balances(t *testing.T) {
 }
 
 func TestGetDerivativeData(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	_, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
 	if err != nil {
@@ -156,9 +155,7 @@ func TestGetPlatformStatus(t *testing.T) {
 
 func TestGetTickerBatch(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
-	a, err := b.GetTickerBatch()
-	t.Log(a)
+	_, err := b.GetTickerBatch()
 	if err != nil {
 		t.Error(err)
 	}
@@ -1527,7 +1524,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 
 	// longer term test
-	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*24*100), time.Now().Add(-time.Hour*24*99))
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*100), time.Now().Add(-time.Hour*99))
 	if err != nil {
 		t.Error(err)
 	}
