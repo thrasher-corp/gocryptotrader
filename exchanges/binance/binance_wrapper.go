@@ -179,6 +179,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		Unsubscriber:                     b.Unsubscribe,
 		GenerateSubscriptions:            b.GenerateSubscriptions,
 		GenerateConnection:               b.spawnConnection,
+		HandleStreamData:                 b.wsHandleData,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		SortBuffer:                       true,

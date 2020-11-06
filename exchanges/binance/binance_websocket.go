@@ -42,52 +42,6 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 
 	var dialer websocket.Dialer
 	var err error
-	if conn.IsAuthenticated() {
-		if b.Websocket.CanUseAuthenticatedEndpoints() {
-			listenKey, err = b.GetWsAuthStreamKey()
-			if err != nil {
-				b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Errorf(log.ExchangeSys,
-					"%v unable to connect to authenticated Websocket. Error: %s",
-					b.Name,
-					err)
-			} else {
-				// cleans on failed connection
-				clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
-				authPayload := clean[0] + "?streams=" + listenKey
-				err = b.Websocket.SetWebsocketURL(authPayload, false, false)
-				if err != nil {
-					return err
-				}
-			}
-
-			fmt.Println("Authconn:", conn)
-
-			err = conn.Dial(&dialer, http.Header{})
-			if err != nil {
-				return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
-					b.Name,
-					err)
-			}
-
-			if b.Websocket.CanUseAuthenticatedEndpoints() {
-				b.Websocket.Wg.Add(1)
-				go b.KeepAuthKeyAlive()
-			}
-
-			conn.SetupPingHandler(stream.PingHandler{
-				UseGorillaHandler: true,
-				MessageType:       websocket.PongMessage,
-				Delay:             pingDelay,
-			})
-
-			b.Websocket.Wg.Add(1)
-			go b.wsReadData(conn)
-
-			return nil
-		}
-		return nil
-	}
 
 	err = conn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -103,9 +57,48 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 	})
 
 	b.preConnectionSetup()
+	return nil
+}
 
-	b.Websocket.Wg.Add(1)
-	go b.wsReadData(conn)
+// WsConnectAuth authenticates connection
+func (b *Binance) WsConnectAuth(conn stream.Connection) error {
+	var dialer websocket.Dialer
+	var err error
+	listenKey, err = b.GetWsAuthStreamKey()
+	if err != nil {
+		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		log.Errorf(log.ExchangeSys,
+			"%v unable to connect to authenticated Websocket. Error: %s",
+			b.Name,
+			err)
+	} else {
+		// cleans on failed connection
+		clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
+		authPayload := clean[0] + "?streams=" + listenKey
+		err = b.Websocket.SetWebsocketURL(authPayload, false, false)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = conn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
+			b.Name,
+			err)
+	}
+
+	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		b.Websocket.Wg.Add(1)
+		go b.KeepAuthKeyAlive()
+	}
+
+	conn.SetupPingHandler(stream.PingHandler{
+		UseGorillaHandler: true,
+		MessageType:       websocket.PongMessage,
+		Delay:             pingDelay,
+	})
+
 	return nil
 }
 
@@ -164,26 +157,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 	}
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (b *Binance) wsReadData(conn stream.Connection) {
-	defer b.Websocket.Wg.Done()
-
-	for {
-		resp := conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		go func() {
-			err := b.wsHandleData(resp.Raw, conn)
-			if err != nil {
-				b.Websocket.DataHandler <- err
-			}
-		}()
-	}
-}
-
 func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
-	// fmt.Println("Incoming:", string(respRaw))
 	var multiStreamData map[string]interface{}
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -667,8 +641,8 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 					continue
 				}
 
-				// immediatly apply the buffer updates so we don't
-				// wait for a new update to initiate this.
+				// Immediatly apply the buffer updates so we don't wait for a
+				// new update to initiate this.
 				for i := range assets {
 					err = b.obm.stopFetchingBook(job.Pair, assets[i])
 					if err != nil {
@@ -756,7 +730,6 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 
 // Subscribe subscribes to a set of channels
 func (b *Binance) Subscribe(sub stream.SubscriptionParameters) error {
-	// fmt.Printf("Subscribing connection: %p, with how many subs %d\n", sub.Conn, len(sub.Items))
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -793,7 +766,6 @@ func (b *Binance) Subscribe(sub stream.SubscriptionParameters) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -810,12 +782,13 @@ func (b *Binance) Unsubscribe(unsub stream.SubscriptionParameters) error {
 		if (i+1)%maxBatchedPayloads != 0 {
 			continue
 		}
+
 		err := unsub.Conn.SendJSONMessage(payload)
 		if err != nil {
 			return err
 		}
 
-		err = unsub.Conn.RemoveSuccessfulUnsubscriptions(unsubbed)
+		err = unsub.Conn.AddSuccessfulSubscriptions(unsubbed)
 		if err != nil {
 			return err
 		}
@@ -823,6 +796,17 @@ func (b *Binance) Unsubscribe(unsub stream.SubscriptionParameters) error {
 		unsubbed = nil
 	}
 
+	if payload.Params != nil {
+		err := unsub.Conn.SendJSONMessage(payload)
+		if err != nil {
+			return err
+		}
+
+		err = unsub.Conn.AddSuccessfulSubscriptions(unsubbed)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -849,7 +833,7 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 		// updates for the currency.
 		o.buffer[pair.Base][pair.Quote][a] = ch
 
-		// set init and fetching tables
+		// Set init and fetching tables.
 		_, ok := o.fetchingBook[pair.Base]
 		if !ok {
 			o.fetchingBook[pair.Base] = make(map[currency.Code]map[asset.Item]*bool)
@@ -971,7 +955,6 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair, a asset.Item, co
 
 	select {
 	case o.jobs <- orderbookWsJob{pair, conn}:
-		// fmt.Printf("%s %s count on buffered chan %d\n", pair, a, len(o.jobs))
 		return nil
 	default:
 		return errors.New("book synchronisation channel blocked up")

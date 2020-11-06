@@ -32,6 +32,7 @@ func (c *ConnectionSetup) SubscriptionConforms(sub *ChannelSubscription, current
 // ConnectionManager manages connections
 type ConnectionManager struct {
 	sync.Mutex
+	wg                 *sync.WaitGroup
 	connections        []Connection
 	features           *protocol.Features
 	connector          func(conn Connection) error
@@ -39,18 +40,25 @@ type ConnectionManager struct {
 	subscriber         func(sub SubscriptionParameters) error
 	unsubscriber       func(unsub SubscriptionParameters) error
 	generateConnection func(url string, auth bool) (Connection, error)
+	responseHandler    func([]byte, Connection) error
+
+	dataHandler chan interface{}
 
 	configurations []ConnectionSetup
 }
 
 // ConnectionManagerConfig defines the needed variables for stream connections
 type ConnectionManagerConfig struct {
+	Wg                            *sync.WaitGroup
 	ExchangeConnector             func(conn Connection) error
 	ExchangeGenerateSubscriptions func(options SubscriptionOptions) ([]ChannelSubscription, error)
 	ExchangeSubscriber            func(sub SubscriptionParameters) error
 	ExchangeUnsubscriber          func(unsub SubscriptionParameters) error
 	ExchangeGenerateConnection    func(url string, auth bool) (Connection, error)
+	ExchangeReadConnection        func([]byte, Connection) error
 	Features                      *protocol.Features
+
+	dataHandler chan interface{}
 
 	Configurations []ConnectionSetup
 }

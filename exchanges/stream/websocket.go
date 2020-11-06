@@ -106,13 +106,16 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.SetCanUseAuthenticatedEndpoints(s.AuthenticatedWebsocketAPISupport)
 
 	w.Connections, err = NewConnectionManager(&ConnectionManagerConfig{
+		Wg:                            w.Wg,
 		ExchangeConnector:             s.Connector,
 		ExchangeGenerateSubscriptions: s.GenerateSubscriptions,
 		ExchangeSubscriber:            s.Subscriber,
 		ExchangeUnsubscriber:          s.Unsubscriber,
 		ExchangeGenerateConnection:    s.GenerateConnection,
+		ExchangeReadConnection:        s.HandleStreamData,
 		Features:                      w.features,
 		Configurations:                s.ConnectionConfigurations,
+		dataHandler:                   w.DataHandler,
 	})
 	if err != nil {
 		return err
@@ -199,63 +202,19 @@ func (w *Websocket) Connect() error {
 			w.exchangeName)
 	}
 
+	// Flush any subscriptions from last connection if needed.
+	w.Connections.FlushSubscriptions()
+
 	w.dataMonitor()
 	w.trafficMonitor()
 	w.setConnectingStatus(true)
 
-	// // flush any subscriptions from last connection if needed
-	// w.subscriptionMutex.Lock()
-	// w.subscriptions = nil
-	// w.subscriptionMutex.Unlock()
-
-	// err := w.Connections.FullConnect()
-	// if err != nil {
-	// 	w.setConnectingStatus(false)
-	// 	return fmt.Errorf("%v Error connecting %s", w.exchangeName, err)
-	// }
-
-	subs, err := w.Connections.GenerateSubscriptions()
+	err := w.Connections.FullConnect()
 	if err != nil {
-		return err
+		w.setConnectingStatus(false)
+		return fmt.Errorf("%v error connecting %s", w.exchangeName, err)
 	}
 
-	// fmt.Println("generated subs:", subs)
-
-	connections, err := w.Connections.GenerateConnections(subs)
-	if err != nil {
-		return err
-	}
-
-	// fmt.Println("generated cons:", len(connections))
-
-	for conn, subs := range connections {
-		// fmt.Println("CONN SUB LENGTH", len(subs))
-		err = w.Connections.LoadNewConnection(conn)
-		if err != nil {
-			return err
-		}
-		// fmt.Println("CONNECTION LOADED CONNECTING")
-
-		err = w.Connections.Connect(conn)
-		if err != nil {
-			w.setConnectingStatus(false)
-			return fmt.Errorf("%v Error connecting %s", w.exchangeName, err)
-		}
-
-		// fmt.Println("Connected and now subbin")
-
-		err = w.Connections.Subscribe(conn, subs)
-		if err != nil {
-			return err
-		}
-	}
-
-	// err := w.connector(nil)
-	// if err != nil {
-	// 	w.setConnectingStatus(false)
-	// 	return fmt.Errorf("%v Error connecting %s",
-	// 		w.exchangeName, err)
-	// }
 	w.setConnectedStatus(true)
 	w.setConnectingStatus(false)
 	w.setInit(true)
@@ -263,7 +222,6 @@ func (w *Websocket) Connect() error {
 	if !w.IsConnectionMonitorRunning() {
 		w.connectionMonitor()
 	}
-
 	return nil
 }
 
@@ -426,16 +384,11 @@ func (w *Websocket) Shutdown() error {
 
 	defer w.Orderbook.FlushBuffer()
 
-	if w.Conn != nil {
-		if err := w.Conn.Shutdown(); err != nil {
-			return err
-		}
-	}
-
-	if w.AuthConn != nil {
-		if err := w.AuthConn.Shutdown(); err != nil {
-			return err
-		}
+	err := w.Connections.Shutdown()
+	if err != nil {
+		return fmt.Errorf("%v websocket: could not close down connection: %w ",
+			w.exchangeName,
+			err)
 	}
 
 	// flush any subscriptions from last connection if needed
@@ -465,44 +418,44 @@ func (w *Websocket) FlushChannels() error {
 	}
 
 	if w.features.Subscribe {
-		// newsubs, err := w.GenerateSubs(SubscriptionOptions{})
-		// if err != nil {
-		// 	return err
-		// }
+		newsubs, err := w.Connections.GenerateSubscriptions()
+		if err != nil {
+			return err
+		}
 
-		// subs, unsubs := w.GetChannelDifference(newsubs)
-		// if w.features.Unsubscribe {
-		// 	if len(unsubs) != 0 {
-		// 		err := w.UnsubscribeChannels(unsubs)
-		// 		if err != nil {
-		// 			return err
-		// 		}
-		// 	}
-		// }
+		subs, unsubs, err := w.Connections.GetChannelDifference(newsubs)
+		if err != nil {
+			return fmt.Errorf("%s websocket: error %v", w.exchangeName, err)
+		}
 
-		// if len(subs) < 1 {
-		// 	return nil
-		// }
-		// return w.SubscribeToChannels(subs)
+		if w.features.Unsubscribe && len(unsubs) != 0 {
+			err := w.Connections.UnsubscribeChannels(unsubs)
+			if err != nil {
+				return err
+			}
+		}
+
+		if len(subs) != 0 {
+			return w.Connections.SubscribeToChannels(subs)
+		}
+		return nil
 	} else if w.features.FullPayloadSubscribe {
 		// FullPayloadSubscribe means that the endpoint requires all
 		// subscriptions to be sent via the websocket connection e.g. if you are
 		// subscribed to ticker and orderbook but require trades as well, you
 		// would need to send ticker, orderbook and trades channel subscription
 		// messages.
-		// newsubs, err := w.GenerateSubs(SubscriptionOptions{})
-		// if err != nil {
-		// 	return err
-		// }
+		newsubs, err := w.Connections.GenerateSubscriptions()
+		if err != nil {
+			return err
+		}
 
-		// if len(newsubs) != 0 {
-		// 	// Purge subscription list as there will be conflicts
-		// 	w.subscriptionMutex.Lock()
-		// 	w.subscriptions = nil
-		// 	w.subscriptionMutex.Unlock()
-		// 	return w.SubscribeToChannels(newsubs)
-		// }
-		// return nil
+		if len(newsubs) != 0 {
+			// Purge subscription list as there will be conflicts.
+			w.Connections.FlushSubscriptions()
+			return w.SubscribeToChannels(newsubs)
+		}
+		return nil
 	}
 
 	err := w.Shutdown()
@@ -807,63 +760,6 @@ func (w *Websocket) GetName() string {
 	return w.exchangeName
 }
 
-// GetChannelDifference finds the difference between the subscribed channels
-// and the new subscription list when pairs are disabled or enabled.
-func (w *Websocket) GetChannelDifference(subs []SubscriptionParameters) (sub, unsub []SubscriptionParameters) {
-	// w.subscriptionMutex.Lock()
-	// defer w.subscriptionMutex.Unlock()
-
-	// oldsubs:
-	// 	for x := range w.subscriptions {
-	// 		for y := range subs {
-	// 			// if w.subscriptions[x].Equal(&genSubs[y]) {
-	// 			// 	continue oldsubs
-	// 			// }
-	// 		}
-	// 		// unsub = append(unsub, w.subscriptions[x])
-	// 	}
-
-	// newsubs:
-	// 	for x := range subs {
-	// 		for y := range w.subscriptions {
-	// 			// if genSubs[x].Equal(&w.subscriptions[y]) {
-	// 			// 	continue newsubs
-	// 			// }
-	// 		}
-	// 		// sub = append(sub, genSubs[x])
-	// 	}
-	return
-}
-
-// UnsubscribeChannels unsubscribes from a websocket channel
-func (w *Websocket) UnsubscribeChannels(unsub []SubscriptionParameters) error {
-	// for i := range unsub {
-	// 	if len(unsub[i].Items) == 0 {
-	// 		return fmt.Errorf("%s websocket: channels not populated cannot remove",
-	// 			w.exchangeName)
-	// 	}
-	// 	w.subscriptionMutex.Lock()
-	// 	defer w.subscriptionMutex.Unlock()
-
-	// channels:
-	// 	for x := range unsub[i].Items {
-	// 		for y := range w.subscriptions {
-	// 			if unsub[i].Items[x].Equal(&w.subscriptions[y]) {
-	// 				continue channels
-	// 			}
-	// 		}
-	// 		return fmt.Errorf("%s websocket: subscription not found in list: %+v",
-	// 			w.exchangeName,
-	// 			unsub[i].Items[x])
-	// 	}
-	// 	err := w.Unsubscriber(unsub[i])
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	return nil
-}
-
 // ResubscribeToChannel resubscribes to channel
 func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription) error {
 	err := w.Connections.Unsub(subscribedChannel)
@@ -871,50 +767,6 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription)
 		return err
 	}
 	return w.Connections.Sub(subscribedChannel)
-}
-
-// SubscribeToChannels appends supplied channels to channelsToSubscribe
-func (w *Websocket) SubscribeToChannels(sub []SubscriptionParameters) error {
-	// for i := range sub {
-	// 	if len(sub[i].Items) == 0 {
-	// 		return fmt.Errorf("%s websocket: cannot subscribe no channels supplied",
-	// 			w.exchangeName)
-	// 	}
-	// 	w.subscriptionMutex.Lock()
-	// 	defer w.subscriptionMutex.Unlock()
-	// 	for x := range sub[i].Items {
-	// 		for y := range w.subscriptions {
-	// 			if sub[i].Items[x].Equal(&w.subscriptions[y]) {
-	// 				return fmt.Errorf("%s websocket: %v already subscribed",
-	// 					w.exchangeName,
-	// 					sub[i].Items[x])
-	// 			}
-	// 		}
-	// 	}
-	// 	return w.Subscriber(sub[i])
-	// }
-	return nil
-}
-
-// AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
-// has been successfully subscribed
-func (w *Websocket) AddSuccessfulSubscriptions(channels ...ChannelSubscription) {
-	// w.subscriptions = append(w.subscriptions, channels...)
-}
-
-// RemoveSuccessfulUnsubscriptions removes subscriptions from the subscription
-// list that has been successfulling unsubscribed
-func (w *Websocket) RemoveSuccessfulUnsubscriptions(channels ...ChannelSubscription) {
-	// for x := range channels {
-	// 	for y := range w.subscriptions {
-	// 		if channels[x].Equal(&w.subscriptions[y]) {
-	// 			w.subscriptions[y] = w.subscriptions[len(w.subscriptions)-1]
-	// 			w.subscriptions[len(w.subscriptions)-1] = ChannelSubscription{}
-	// 			w.subscriptions = w.subscriptions[:len(w.subscriptions)-1]
-	// 			break
-	// 		}
-	// 	}
-	// }
 }
 
 // Equal two WebsocketChannelSubscription to determine equality

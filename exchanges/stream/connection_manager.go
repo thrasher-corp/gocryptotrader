@@ -3,6 +3,8 @@ package stream
 import (
 	"errors"
 	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 var (
@@ -16,6 +18,8 @@ var (
 	errNoGenerateSubsFunc           = errors.New("exchange generate subscription function cannot be nil")
 	errMissingURLInConfig           = errors.New("connection URL must be supplied")
 	errNoAssociation                = errors.New("could not associate a subscription with a configuration")
+	errNoResponseDataHandler        = errors.New("exchange response data handler not set")
+	errNoDataHandler                = errors.New("websocket data handler not set")
 )
 
 // NewConnectionManager returns a new connection manager
@@ -38,8 +42,14 @@ func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, err
 	if cfg.ExchangeGenerateConnection == nil {
 		return nil, errNoGenerateConnFunc
 	}
+	if cfg.ExchangeReadConnection == nil {
+		return nil, errNoResponseDataHandler
+	}
 	if cfg.Features == nil {
 		return nil, errNoFeatures
+	}
+	if cfg.dataHandler == nil {
+		return nil, errNoDataHandler
 	}
 	if len(cfg.Configurations) < 1 {
 		return nil, errNoConfigurations
@@ -51,13 +61,16 @@ func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, err
 	}
 
 	return &ConnectionManager{
+		wg:                 cfg.Wg,
 		connector:          cfg.ExchangeConnector,
 		generator:          cfg.ExchangeGenerateSubscriptions,
 		subscriber:         cfg.ExchangeSubscriber,
 		unsubscriber:       cfg.ExchangeUnsubscriber,
 		generateConnection: cfg.ExchangeGenerateConnection,
+		responseHandler:    cfg.ExchangeReadConnection,
 		features:           cfg.Features,
 		configurations:     cfg.Configurations,
+		dataHandler:        cfg.dataHandler,
 	}, nil
 }
 
@@ -129,38 +142,32 @@ subscriptions:
 // FullConnect generates subscriptions, deploys new connections and subscribes
 // to channels
 func (c *ConnectionManager) FullConnect() error {
-	// subscriptions, err := c.GenerateSubscriptions()
-	// if err != nil {
-	// 	return err
-	// }
+	subs, err := c.GenerateSubscriptions()
+	if err != nil {
+		return err
+	}
 
-	// fmt.Println("generated subs:", subscriptions)
+	connections, err := c.GenerateConnections(subs)
+	if err != nil {
+		return err
+	}
 
-	// connections, subs, err := c.GenerateConnections(authEnabled, subscriptions)
-	// if err != nil {
-	// 	return err
-	// }
+	for conn, subs := range connections {
+		err = c.LoadNewConnection(conn)
+		if err != nil {
+			return err
+		}
 
-	// fmt.Println("generated cons:", connections)
+		err = c.Connect(conn)
+		if err != nil {
+			return err
+		}
 
-	// fmt.Println("SUBS BRA:", subs)
-
-	// for i := range connections {
-	// 	err = c.LoadNewConnection(connections[i])
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-
-	// err = c.Connect()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = c.Subscribe(subscriptions)
-	// if err != nil {
-	// 	return err
-	// }
+		err = c.Subscribe(conn, subs)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -194,27 +201,32 @@ func (c *ConnectionManager) LoadNewConnection(conn Connection) error {
 func (c *ConnectionManager) Connect(conn Connection) error {
 	c.Lock()
 	defer c.Unlock()
-	return c.connector(conn)
+	err := c.connector(conn)
+	if err != nil {
+		return err
+	}
+	return c.ReadStream(conn, c.responseHandler)
 }
 
-// Sub temp sub associates with a connection
-func (c *ConnectionManager) Sub(sub *ChannelSubscription) error {
+// AssociateAndSubscribe associates the subscription with a connection and
+// subscribes
+func (c *ConnectionManager) AssociateAndSubscribe(subs []ChannelSubscription) error {
 	c.Lock()
-	for i := range c.connections {
-		subs := c.connections[i].GetAllSubscriptions()
-		for j := range subs {
-			if subs[j].Equal(sub) {
-				c.Unlock()
-				return c.Subscribe(c.connections[i], []ChannelSubscription{*sub})
-			}
-		}
-	}
+	// for i := range c.connections {
+	// 	subs := c.connections[i].GetAllSubscriptions()
+	// 	for j := range subs {
+	// 		if subs[j].Equal(sub) {
+	// 			c.Unlock()
+	// 			return c.sub(c.connections[i], []ChannelSubscription{*sub})
+	// 		}
+	// 	}
+	// }
 	c.Unlock()
 	return errors.New("could not find subscription to unsubscribe from across all connections")
 }
 
 // Subscribe subscribes and sets subscription by stream connection
-func (c *ConnectionManager) Subscribe(conn Connection, subs []ChannelSubscription) error {
+func (c *ConnectionManager) Subscribe(cs []SubscriptionParameters) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -222,39 +234,49 @@ func (c *ConnectionManager) Subscribe(conn Connection, subs []ChannelSubscriptio
 		return errors.New("exchange subscriber functionality not set, cannot subscribe")
 	}
 
-	if subs == nil {
+	if cs == nil {
 		return errors.New("no subscription data cannot subscribe")
 	}
 
-	return c.subscriber(SubscriptionParameters{
-		Items: subs,
-		Conn:  conn,
-	})
-}
-
-// Unsub temp associates subscription with connection
-func (c *ConnectionManager) Unsub(sub *ChannelSubscription) error {
-	c.Lock()
-	for i := range c.connections {
-		subs := c.connections[i].GetAllSubscriptions()
-		for j := range subs {
-			if subs[j].Equal(sub) {
-				c.Unlock()
-				return c.Unsubscribe([]SubscriptionParameters{
-					{
-						Items: []ChannelSubscription{*sub},
-						Conn:  c.connections[i],
-					},
-				})
-			}
+	var errs common.Errors
+	for i := range cs {
+		err := c.subscriber(cs[i])
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
+
+	if errs != nil {
+		return errs
+	}
+
+	return nil
+}
+
+// AssociateUnsubscribe associates subscriptions that need to be unsubscribed
+// with their respective connections
+func (c *ConnectionManager) AssociateUnsubscribe(sub *ChannelSubscription) error {
+	c.Lock()
+	// for i := range c.connections {
+	// 	subs := c.connections[i].GetAllSubscriptions()
+	// 	for j := range subs {
+	// 		if subs[j].Equal(sub) {
+	// 			c.Unlock()
+	// 			return c.unsub([]SubscriptionParameters{
+	// 				{
+	// 					Items: []ChannelSubscription{*sub},
+	// 					Conn:  c.connections[i],
+	// 				},
+	// 			})
+	// 		}
+	// 	}
+	// }
 	c.Unlock()
 	return errors.New("could not find subscription to unsubscribe from across all connections")
 }
 
 // Unsubscribe unsubscribes and removes subscription by stream connection
-func (c *ConnectionManager) Unsubscribe(unsubs []SubscriptionParameters) error {
+func (c *ConnectionManager) Unsubscribe(cs []SubscriptionParameters) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -262,15 +284,19 @@ func (c *ConnectionManager) Unsubscribe(unsubs []SubscriptionParameters) error {
 		return errors.New("exchange unsubscriber functionality not set, cannot unsubscribe")
 	}
 
-	if unsubs == nil {
+	if cs == nil {
 		return errors.New("no subscription data cannot unsubscribe")
 	}
 
-	for i := range unsubs {
-		err := c.unsubscriber(unsubs[i])
+	var errs common.Errors
+	for i := range cs {
+		err := c.unsubscriber(cs[i])
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }
@@ -386,4 +412,53 @@ subbies:
 	fmt.Println("subscribeMe:", subscribeMe)
 
 	return
+}
+
+// ReadStream handles reading from the streaming end point
+func (c *ConnectionManager) ReadStream(conn Connection, respHandler func([]byte, Connection) error) error {
+	if conn == nil {
+		return errors.New("connection cannot be nil")
+	}
+
+	if respHandler == nil {
+		return errors.New("response handler cannot be nil")
+	}
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+
+		for {
+			resp := conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			go func() {
+				err := respHandler(resp.Raw, conn)
+				if err != nil {
+					c.dataHandler <- err
+				}
+			}()
+		}
+	}()
+	return nil
+}
+
+// Shutdown shuts down all associated connections
+func (c *ConnectionManager) Shutdown() error {
+	c.Lock()
+	defer c.Unlock()
+
+	var errs common.Errors
+	for i := range c.connections {
+		err := c.connections[i].Shutdown()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
+	}
+	return nil
 }

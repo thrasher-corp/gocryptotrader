@@ -96,6 +96,7 @@ type WebsocketSetup struct {
 	Unsubscriber             func(SubscriptionParameters) error
 	GenerateSubscriptions    func(SubscriptionOptions) ([]ChannelSubscription, error)
 	GenerateConnection       func(url string, auth bool) (Connection, error)
+	HandleStreamData         func(resp []byte, conn Connection) error
 	Features                 *protocol.Features
 	ResponseCheckTimeout     time.Duration
 	ResponseMaxLimit         time.Duration
