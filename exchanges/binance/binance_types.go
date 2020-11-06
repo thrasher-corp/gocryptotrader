@@ -200,6 +200,18 @@ type HistoricalTrade struct {
 	IsBestMatch  bool    `json:"isBestMatch"`
 }
 
+// AggregatedTradeRequestParams holds request params
+type AggregatedTradeRequestParams struct {
+	Symbol currency.Pair // Required field; example LTCBTC, BTCUSDT
+	// The first trade to retrieve
+	FromID int64
+	// The API seems to accept (start and end time) or FromID and no other combinations
+	StartTime time.Time
+	EndTime   time.Time
+	// Default 500; max 1000.
+	Limit int
+}
+
 // AggregatedTrade holds aggregated trade information
 type AggregatedTrade struct {
 	ATradeID       int64   `json:"a"`

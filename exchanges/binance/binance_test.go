@@ -93,7 +93,10 @@ func TestGetHistoricalTrades(t *testing.T) {
 
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAggregatedTrades("BTCUSDT", 5)
+	_, err := b.GetAggregatedTrades(&AggregatedTradeRequestParams{
+		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+		Limit:  5,
+	})
 	if err != nil {
 		t.Error("Binance GetAggregatedTrades() error", err)
 	}
@@ -391,6 +394,31 @@ func TestNewOrderTest(t *testing.T) {
 		t.Error("NewOrderTest() expecting an error when no keys are set")
 	case mockTests && err != nil:
 		t.Error("Mock NewOrderTest() error", err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start, err := time.Parse(time.RFC3339, "2020-01-02T15:04:05Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := b.GetHistoricTrades(currencyPair, asset.Spot, start, start.Add(15*time.Minute))
+	if err != nil {
+		t.Error(err)
+	}
+	var expected int
+	if mockTests {
+		expected = 5
+	} else {
+		expected = 2134
+	}
+	if len(result) != expected {
+		t.Errorf("GetHistoricTrades() expected %v entries, got %v", expected, len(result))
 	}
 }
 
@@ -986,18 +1014,6 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 	_, err = b.GetRecentTrades(currencyPair, asset.Spot)
 	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetHistoricTrades(t *testing.T) {
-	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
 }

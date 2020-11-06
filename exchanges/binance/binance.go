@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -161,25 +162,87 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetAggregatedTrades returns aggregated trade activity
-//
-// symbol: string of currency pair
-// limit: Optional. Default 500; max 1000.
-func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTrade, error) {
-	var resp []AggregatedTrade
-
-	if err := b.CheckLimit(limit); err != nil {
-		return resp, err
-	}
-
+// GetAggregatedTrades returns aggregated trade activity.
+// If more than one hour of data is requested with no limit, the trades are collected with multiple backend requests.
+// https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
+func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(symbol))
-	if limit > 0 {
-		params.Set("limit", strconv.Itoa(limit))
+	symbol := arg.Symbol
+	symbol.Delimiter = ""
+	params.Set("symbol", strings.ToUpper(symbol.String()))
+	if arg.Limit > 0 {
+		if err := b.CheckLimit(arg.Limit); err != nil {
+			return nil, err
+		}
+		params.Set("limit", strconv.Itoa(arg.Limit))
+	}
+	if arg.FromID != 0 {
+		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
+	}
+	if !arg.StartTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(convert.UnixMillis(arg.StartTime), 10))
+	}
+	if !arg.EndTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(convert.UnixMillis(arg.EndTime), 10))
+	}
+	// If startTime and endTime are sent, time between startTime and endTime must be less than 1 hour.
+	if arg.Limit == 0 && !arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour {
+		// Split the request into multiple
+		return batchAggregateTrades(b, arg, params)
 	}
 
+	var resp []AggregatedTrade
 	path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
+}
+
+// batchAggregateTrades fetches trades in multiple requests
+// first phase, hourly requests until the first trade (or end time) is reached
+// second phase, limit requests from previous trade until end time is reached
+func batchAggregateTrades(b *Binance, arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
+	var resp []AggregatedTrade
+	// prepare first request with only first hour and max limit
+	params.Set("limit", "1000")
+
+	for start := arg.StartTime; len(resp) == 0; start = start.Add(time.Hour) {
+		if !start.Before(arg.EndTime) {
+			// All requests returned empty
+			return nil, nil
+		}
+		params.Set("startTime", strconv.FormatInt(convert.UnixMillis(start), 10))
+		params.Set("endTime", strconv.FormatInt(convert.UnixMillis(start.Add(time.Hour)), 10))
+		path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
+		err := b.SendHTTPRequest(path, limitDefault, &resp)
+		if err != nil {
+			log.Warn(log.ExchangeSys, err.Error())
+			return resp, err
+		}
+	}
+
+	// other requests follow from the last aggregate trade id and have no time window
+	params.Del("startTime")
+	params.Del("endTime")
+	for {
+		// Keep requesting new data after last retrieved trade
+		params.Add("fromId", strconv.FormatInt(resp[len(resp)-1].ATradeID, 10))
+		path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
+		var additionalTrades []AggregatedTrade
+		err := b.SendHTTPRequest(path, limitDefault, &additionalTrades)
+		if err != nil {
+			return resp, err
+		}
+		lastIndex := sort.Search(len(additionalTrades), func(i int) bool {
+			return convert.UnixMillis(arg.EndTime) < additionalTrades[i].TimeStamp
+		})
+		// don't include the first as the request was inclusive from last ATradeID
+		resp = append(resp, additionalTrades[1:lastIndex]...)
+		// If only the starting trade is returned or if we received trades after end time
+		if len(additionalTrades) == 1 || lastIndex < len(additionalTrades) {
+			// We found the end
+			break
+		}
+	}
+	return resp, nil
 }
 
 // GetSpotKline returns kline data
