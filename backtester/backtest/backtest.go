@@ -1,21 +1,16 @@
 package backtest
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
-	"github.com/thrasher-corp/gocryptotrader/backtester/settings"
 
 	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange2 "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -98,10 +93,10 @@ func NewFromConfig(configPath string) (*BackTest, error) {
 			return nil, err
 		}
 
-		bt.Datas = append(bt.Datas, &kline2.DataFromKline{
+		bt.Data = &kline2.DataFromKline{
 			Item: candles,
-		})
-		err = bt.Datas[len(bt.Datas)-1].Load()
+		}
+		err = bt.Data.Load()
 		if err != nil {
 			return nil, err
 		}
@@ -130,13 +125,16 @@ func NewFromConfig(configPath string) (*BackTest, error) {
 		return nil, err
 	}
 
-	bt.Exchange.SetCurrency(exchange.Currency{
-		CurrencyPair: fPair,
-		AssetType:    a,
-		ExchangeFee:  takerFee,
-		MakerFee:     takerFee,
-		TakerFee:     makerFee,
-	})
+	bt.Exchange = &exchange.Exchange{
+		Currency: exchange.Currency{
+			CurrencyPair: fPair,
+			AssetType:    a,
+			ExchangeFee:  takerFee,
+			MakerFee:     takerFee,
+			TakerFee:     makerFee,
+		},
+		Orders: orders.Orders{},
+	}
 
 	statistic := statistics.Statistic{
 		StrategyName: cfg.StrategyToLoad,
@@ -146,6 +144,7 @@ func NewFromConfig(configPath string) (*BackTest, error) {
 	return bt, nil
 }
 
+/*
 // NewFromSettings creates a new backtester from cmd or config settings
 func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 	bt := New()
@@ -264,6 +263,7 @@ func NewFromSettings(s *settings.Settings) (*BackTest, error) {
 
 	return bt, nil
 }
+*/
 
 // Reset BackTest values to default
 func (b *BackTest) Reset() {

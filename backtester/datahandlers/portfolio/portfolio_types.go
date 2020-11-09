@@ -36,7 +36,7 @@ type PortfolioHandler interface {
 	SetHoldings(string, asset.Item, currency.Pair, positions.Positions)
 	ViewHoldings(string, asset.Item, currency.Pair) positions.Positions
 	SetFee(string, asset.Item, currency.Pair, float64)
-	GetFee(string, asset.Item, currency.Pair)
+	GetFee(string, asset.Item, currency.Pair) float64
 	Reset()
 }
 

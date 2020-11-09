@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
 	"github.com/thrasher-corp/gocryptotrader/backtester/settings"
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func main() {
@@ -28,7 +26,7 @@ func main() {
 		flag.StringVar(&s.RunName, "runname", "backtest"+time.Now().Format(common.SimpleTimeFormat), "a name reference for the resulting backtest run")
 		flag.StringVar(&s.StrategyName, "strategy", "buyandhold", "the strategy to use for the backtesting run")
 	*/
-	flag.StringVar(&s.ConfigPath, "configpath", filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "buy-and-hold.strat"), "the config containing strategy params")
+	flag.StringVar(&s.ConfigPath, "configpath", filepath.Join(".", "buy-and-hold.strat"), "the config containing strategy params")
 
 	flag.Parse()
 

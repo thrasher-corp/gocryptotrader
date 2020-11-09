@@ -73,7 +73,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 		OrderType: gctorder.Market,
 	}
 	latest := data.Latest()
-	sizedOrder, err := p.SizeManager.SizeOrder(initialOrder, latest, currFunds, p.GetFee(signal.GetExchange(), signal.Pair(), signal.GetAssetType()))
+	sizedOrder, err := p.SizeManager.SizeOrder(initialOrder, latest, currFunds, p.GetFee(signal.GetExchange(), signal.GetAssetType(), signal.Pair()))
 	if err != nil {
 		return nil, err
 	}

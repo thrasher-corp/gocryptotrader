@@ -14,6 +14,7 @@ func TestButts(t *testing.T) {
 	cfg := new(Config)
 	cfg.StrategyToLoad = "buyandhold"
 	cfg.ExchangeSettings = ExchangeSettings{
+		Name:             "binance",
 		Base:             currency.BTC.String(),
 		Quote:            currency.USDT.String(),
 		Asset:            asset.Spot.String(),

@@ -11,7 +11,6 @@ import (
 
 type BackTest struct {
 	Data       interfaces.DataHandler
-	Datas      []interfaces.DataHandler
 	Strategy   strategies.StrategyHandler
 	Portfolio  portfolio.PortfolioHandler
 	Orders     datahandler2.Orders
