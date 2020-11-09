@@ -1119,16 +1119,16 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 	}
 }
 
-// GetEndpoint gets endpoint
-func (e *Base) GetEndpoint(lookup string) (string, error) {
-	if e.API.Endpoints == nil {
-		return "", errors.New("no endpoint available for the given lookup string")
-	}
+// // GetEndpoint gets endpoint
+// func (e *Base) GetEndpoint(lookup string) (string, error) {
+// 	if e.API.Endpoints == nil {
+// 		return "", errors.New("no endpoint available for the given lookup string")
+// 	}
 
-	v, ok := e.API.Endpoints[lookup]
-	if !ok {
-		return "", errors.New("not found")
-	}
+// 	v, ok := e.API.Endpoints[lookup]
+// 	if !ok {
+// 		return "", errors.New("not found")
+// 	}
 
-	return v, nil
-}
+// 	return v, nil
+// }

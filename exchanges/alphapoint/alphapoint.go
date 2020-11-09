@@ -522,7 +522,7 @@ func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (a *Alphapoint) SendHTTPRequest(ep, method, path string, data map[string]interface{}, result interface{}) error {
-	endpoint, err := a.GetEndpoint(ep)
+	endpoint, err := a.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -552,7 +552,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ep, method, path string, data 
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
 	}
 
-	endpoint, err := a.GetEndpoint(ep)
+	endpoint, err := a.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

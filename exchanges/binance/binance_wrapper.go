@@ -95,7 +95,8 @@ func (b *Binance) SetDefaults() {
 			Uppercase: true,
 		},
 	}
-	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
+	var err error
+	err = b.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -183,14 +184,31 @@ func (b *Binance) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	b.API.Endpoints = make(map[string]string)
-	b.API.Endpoints[defaultRest] = apiURL
-	b.API.Endpoints[spot] = spotAPIURL
-	b.API.Endpoints[uFutures] = ufuturesAPIURL
-	b.API.Endpoints[cmFutures] = cfuturesAPIURL
-	b.API.Endpoints[interestHistoryEdgeCase] = "https://www.binance.com"
+	err = b.API.Endpoints.Set(defaultRest, apiURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = b.API.Endpoints.Set(spot, spotAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = b.API.Endpoints.Set(uFutures, ufuturesAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = b.API.Endpoints.Set(cmFutures, cfuturesAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = b.API.Endpoints.Set(interestHistoryEdgeCase, "https://www.binance.com", false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	b.Websocket = stream.New()
-	b.API.Endpoints[websocketDefault] = binanceDefaultWebsocketURL
+	err = b.API.Endpoints.Set(websocketDefault, binanceDefaultWebsocketURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -207,13 +225,16 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-
+	epoint, err := b.API.Endpoints.Get(websocketDefault)
+	if err != nil {
+		return err
+	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       b.API.Endpoints[websocketDefault],
+		DefaultURL:                       epoint,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        b.WsConnect,
