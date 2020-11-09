@@ -3,7 +3,7 @@ import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 
 package gctrpc;
-option go_package = ".;gctrpc";
+option go_package = "github.com/thrasher-corp/gocryptotrader/gctrpc";
 
 message GetInfoRequest {}
 
