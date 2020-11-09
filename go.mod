@@ -31,7 +31,7 @@ require (
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
-	github.com/urfave/cli v1.22.4
+	github.com/urfave/cli v1.22.5
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/null v8.0.0+incompatible
