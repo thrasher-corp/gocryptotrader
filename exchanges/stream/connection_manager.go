@@ -163,7 +163,7 @@ func (c *ConnectionManager) FullConnect() error {
 			return err
 		}
 
-		err = c.Subscribe(conn, subs)
+		err = c.Subscribe([]SubscriptionParameters{{subs, conn}})
 		if err != nil {
 			return err
 		}
@@ -211,6 +211,10 @@ func (c *ConnectionManager) Connect(conn Connection) error {
 // AssociateAndSubscribe associates the subscription with a connection and
 // subscribes
 func (c *ConnectionManager) AssociateAndSubscribe(subs []ChannelSubscription) error {
+	if subs == nil {
+		return errors.New("no subscription data cannot subscribe")
+	}
+
 	c.Lock()
 	// for i := range c.connections {
 	// 	subs := c.connections[i].GetAllSubscriptions()
@@ -255,7 +259,7 @@ func (c *ConnectionManager) Subscribe(cs []SubscriptionParameters) error {
 
 // AssociateUnsubscribe associates subscriptions that need to be unsubscribed
 // with their respective connections
-func (c *ConnectionManager) AssociateUnsubscribe(sub *ChannelSubscription) error {
+func (c *ConnectionManager) AssociateAndUnsubscribe(sub []ChannelSubscription) error {
 	c.Lock()
 	// for i := range c.connections {
 	// 	subs := c.connections[i].GetAllSubscriptions()

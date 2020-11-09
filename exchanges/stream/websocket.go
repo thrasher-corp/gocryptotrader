@@ -429,14 +429,14 @@ func (w *Websocket) FlushChannels() error {
 		}
 
 		if w.features.Unsubscribe && len(unsubs) != 0 {
-			err := w.Connections.UnsubscribeChannels(unsubs)
+			err := w.Connections.Unsubscribe(unsubs)
 			if err != nil {
 				return err
 			}
 		}
 
 		if len(subs) != 0 {
-			return w.Connections.SubscribeToChannels(subs)
+			return w.Connections.Subscribe(subs)
 		}
 		return nil
 	} else if w.features.FullPayloadSubscribe {
@@ -453,7 +453,7 @@ func (w *Websocket) FlushChannels() error {
 		if len(newsubs) != 0 {
 			// Purge subscription list as there will be conflicts.
 			w.Connections.FlushSubscriptions()
-			return w.SubscribeToChannels(newsubs)
+			return w.Connections.AssociateAndSubscribe(newsubs)
 		}
 		return nil
 	}
@@ -762,11 +762,11 @@ func (w *Websocket) GetName() string {
 
 // ResubscribeToChannel resubscribes to channel
 func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription) error {
-	err := w.Connections.Unsub(subscribedChannel)
+	err := w.Connections.AssociateAndUnsubscribe([]ChannelSubscription{*subscribedChannel})
 	if err != nil {
 		return err
 	}
-	return w.Connections.Sub(subscribedChannel)
+	return w.Connections.AssociateAndSubscribe([]ChannelSubscription{*subscribedChannel})
 }
 
 // Equal two WebsocketChannelSubscription to determine equality
