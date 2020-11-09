@@ -3,7 +3,6 @@ package indicators
 import (
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
@@ -69,7 +68,7 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	r.Period = inTimePeriod
 	ret := indicators.SMA(ohlcvClose, inTimePeriod)
 	for x := range ret {
-		r.Value = append(r.Value, &objects.Float{Value: math.Round(ret[x]*100) / 100})
+		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
 	}
 
 	return r, nil

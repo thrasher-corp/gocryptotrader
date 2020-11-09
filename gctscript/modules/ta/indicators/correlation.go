@@ -3,7 +3,6 @@ package indicators
 import (
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
@@ -84,7 +83,7 @@ func correlationCoefficient(args ...objects.Object) (objects.Object, error) {
 
 	ret := indicators.CorrelationCoefficient(closures1, closures2, inTimePeriod)
 	for x := range ret {
-		r.Value = append(r.Value, &objects.Float{Value: math.Round(ret[x]*100) / 100})
+		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
 	}
 
 	return r, nil
