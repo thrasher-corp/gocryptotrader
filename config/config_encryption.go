@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -39,6 +40,11 @@ func promptForConfigEncryption() (bool, error) {
 	}
 
 	return common.YesOrNo(input), nil
+}
+
+// Unencrypted provides the default key provider implementation for unencrypted files
+func Unencrypted() ([]byte, error) {
+	return nil, errors.New("encryption key was requested, no key provided")
 }
 
 // PromptForConfigKey asks for configuration key
@@ -94,7 +100,7 @@ func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 	return c.encryptConfigFile(configData)
 }
 
-// EncryptConfigFile encrypts configuration data that is parsed in with a key
+// encryptConfigFile encrypts configuration data that is parsed in with a key
 // and returns it as a byte array with an error
 func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
 	block, err := aes.NewCipher(c.sessionDK)
@@ -120,26 +126,33 @@ func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
 // DecryptConfigFile decrypts configuration data with the supplied key and
 // returns the un-encrypted data as a byte array with an error
 func DecryptConfigFile(configData, key []byte) ([]byte, error) {
-	return (&Config{}).decryptConfigData(configData, key)
+	reader := bytes.NewReader(configData)
+	return (&Config{}).decryptConfigData(reader, key)
 }
 
 // decryptConfigData decrypts configuration data with the supplied key and
 // returns the un-encrypted data as a byte array with an error
-func (c *Config) decryptConfigData(configData, key []byte) ([]byte, error) {
-	configData = removeECS(configData)
+func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, error) {
+	err := skipECS(configReader)
+	if err != nil {
+		return nil, err
+	}
 	origKey := key
+	configData, err := ioutil.ReadAll(configReader)
+	if err != nil {
+		return nil, err
+	}
 
 	if ConfirmSalt(configData) {
 		salt := make([]byte, len(SaltPrefix)+SaltRandomLength)
 		salt = configData[0:len(salt)]
 
-		dk, err := getScryptDK(key, salt)
+		key, err = getScryptDK(key, salt)
 		if err != nil {
 			return nil, err
 		}
 
 		configData = configData[len(salt):]
-		key = dk
 	}
 
 	blockDecrypt, err := aes.NewCipher(key)
@@ -177,9 +190,18 @@ func ConfirmECS(file []byte) bool {
 	return bytes.Contains(file, []byte(EncryptConfirmString))
 }
 
-// removeECS removes encryption confirmation string
-func removeECS(file []byte) []byte {
-	return bytes.Trim(file, EncryptConfirmString)
+// skipECS skips encryption confirmation string
+// or errors, if the prefix wasn't found
+func skipECS(file io.Reader) error {
+	buf := make([]byte, len(EncryptConfirmString))
+	_, err := io.ReadFull(file, buf)
+	if err != nil {
+		return err
+	}
+	if string(buf) != EncryptConfirmString {
+		return errors.New("data does not start with ECS")
+	}
+	return nil
 }
 
 func getScryptDK(key, salt []byte) ([]byte, error) {

@@ -33,7 +33,7 @@ type Engine struct {
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
 	DatabaseManager             databaseManager
-	GctScriptManager            gctScriptManager
+	GctScriptManager            *gctscript.GctScriptManager
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
@@ -57,6 +57,10 @@ func New() (*Engine, error) {
 	err := b.Config.LoadConfig("", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
+	}
+	b.GctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
 	}
 
 	return &b, nil
@@ -91,7 +95,13 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
 	}
 
+	b.GctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
+	}
+
 	validateSettings(&b, settings, flagSet)
+
 	return &b, nil
 }
 
@@ -104,7 +114,7 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 	log.Printf("Loading config file %s..\n", filePath)
 
 	conf := &config.Cfg
-	err = conf.ReadConfig(filePath, settings.EnableDryRun)
+	err = conf.ReadConfigFromFile(filePath, settings.EnableDryRun)
 	if err != nil {
 		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
 	}
@@ -129,7 +139,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings.EnableAllPairs = s.EnableAllPairs
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
-	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager
+	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager && (flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
 	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
 	b.Settings.EnableDispatcher = s.EnableDispatcher
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
@@ -166,12 +176,9 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		b.Settings.EnableDeprecatedRPC = b.Config.RemoteControl.DeprecatedRPC.Enabled
 	}
 
-	if flagSet["gctscriptmanager"] {
-		gctscript.GCTScriptConfig.Enabled = s.EnableGCTScriptManager
-	}
-
 	if flagSet["maxvirtualmachines"] {
-		gctscript.GCTScriptConfig.MaxVirtualMachines = uint8(s.MaxVirtualMachines)
+		maxMachines := uint8(s.MaxVirtualMachines)
+		b.GctScriptManager.MaxVirtualMachines = &maxMachines
 	}
 
 	if flagSet["withdrawcachesize"] {
@@ -471,10 +478,8 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGCTScriptManager {
-		if bot.Config.GCTScript.Enabled {
-			if err := bot.GctScriptManager.Start(); err != nil {
-				gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %v", err)
-			}
+		if err := bot.GctScriptManager.Start(&bot.ServicesWG); err != nil {
+			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %v", err)
 		}
 	}
 
@@ -541,7 +546,7 @@ func (bot *Engine) Stop() {
 	}
 
 	if !bot.Settings.EnableDryRun {
-		err := bot.Config.SaveConfig(bot.Settings.ConfigFile, false)
+		err := bot.Config.SaveConfigToFile(bot.Settings.ConfigFile)
 		if err != nil {
 			gctlog.Errorln(gctlog.Global, "Unable to save config.")
 		} else {
