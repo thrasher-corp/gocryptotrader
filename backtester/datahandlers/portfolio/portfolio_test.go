@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
-	"github.com/thrasher-corp/gocryptotrader/backtester/risk"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 

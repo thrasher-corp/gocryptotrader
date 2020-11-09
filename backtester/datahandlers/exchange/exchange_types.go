@@ -9,12 +9,13 @@ import (
 )
 
 type ExecutionHandler interface {
+	SetCurrency(Currency)
 	ExecuteOrder(orders.OrderEvent, interfaces.DataHandler) (*fill.Fill, error)
 }
 
 type Exchange struct {
-	Currencies []Currency
-	Orders     orders.Orders
+	Currency Currency
+	Orders   orders.Orders
 }
 
 type Currency struct {

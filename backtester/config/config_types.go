@@ -4,21 +4,22 @@ import "time"
 
 // Config defines what is in an individual strategy config
 type Config struct {
-	StrategyToLoad       string                `json:"strategy"`
-	ExchangePairSettings map[string][]Currency `json:"exchange-pairs"`
-	StartDate            time.Time             `json:"start-date"`
-	EndDate              time.Time             `json:"end-date"`
-	DataSource           string                `json:"data-source"`
-	CandleData           *CandleData           `json:"candle-data,omitempty"`
+	StrategyToLoad   string           `json:"strategy"`
+	ExchangeSettings ExchangeSettings `json:"exchange-settings"`
+	DataSource       string           `json:"data-source"`
+	CandleData       *CandleData      `json:"candle-data,omitempty"`
 }
 
 // CandleData defines candle based variables
 type CandleData struct {
-	Interval time.Duration `json:"interval"`
+	StartDate time.Time     `json:"start-date"`
+	EndDate   time.Time     `json:"end-date"`
+	Interval  time.Duration `json:"interval"`
 }
 
-// Currency stores pair based variables
-type Currency struct {
+// ExchangeSettings stores pair based variables
+type ExchangeSettings struct {
+	Name             string  `json:"exchange-name"`
 	Base             string  `json:"base"`
 	Quote            string  `json:"quote"`
 	Asset            string  `json:"asset"`

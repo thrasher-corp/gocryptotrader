@@ -887,7 +887,7 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 				log.Printf("%v Result: %v", exchangeResponses[i].ExchangeName, k)
 				log.Printf("Function:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Function)
 				log.Printf("AssetType:\t%v", exchangeResponses[i].AssetPairResponses[j].AssetType)
-				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].Pair)
+				log.Printf("ExchangeSettings:\t%v\n", exchangeResponses[i].AssetPairResponses[j].Pair)
 				log.Printf("Wrapper Params:\t%s\n", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].SentParams)
 				if exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error != "" {
 					totalErrors++

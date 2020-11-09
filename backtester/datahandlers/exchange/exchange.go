@@ -16,14 +16,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+func (e *Exchange) SetCurrency(c Currency) {
+	e.Currency = c
+}
+
 func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler) (*fill.Fill, error) {
 	var curr Currency
-	for i := range e.Currencies {
-		if e.Currencies[i].CurrencyPair.Equal(o.Pair()) {
-			curr = e.Currencies[i]
-		}
-	}
-
 	f := &fill.Fill{
 		Event: event.Event{
 			Exchange:     o.GetExchange(),
@@ -40,7 +38,6 @@ func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler)
 		f.Direction = common.DoNothing
 		return f, nil
 	}
-	data.Latest().Price()
 	f.Direction = o.GetDirection()
 	f.ExchangeFee = e.calculateExchangeFee(data.Latest().Price(), o.GetAmount(), curr.ExchangeFee)
 	u, _ := uuid.NewV4()
@@ -65,7 +62,7 @@ func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler)
 		Cost:          f.Price,
 		Trades:        nil,
 	}
-	res, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
+	_, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
 	if err != nil {
 		return nil, err
 	}

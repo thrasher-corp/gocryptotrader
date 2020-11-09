@@ -16,7 +16,6 @@ type BackTest struct {
 	Portfolio  portfolio.PortfolioHandler
 	Orders     datahandler2.Orders
 	Exchange   exchange.ExecutionHandler
-	Exchanges  map[string]exchange.ExecutionHandler
 	Statistic  statistics.StatisticHandler
 	EventQueue []interfaces.EventHandler
 }

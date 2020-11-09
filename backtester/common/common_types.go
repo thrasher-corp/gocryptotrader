@@ -1,6 +1,8 @@
 package common
 
-import "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
 
 // DecimalPlaces is a lovely little holder
 // for the amount of decimal places we want to allow

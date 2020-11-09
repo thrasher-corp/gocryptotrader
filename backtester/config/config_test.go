@@ -11,25 +11,24 @@ import (
 )
 
 func TestButts(t *testing.T) {
-	hi := new(Config)
-	hi.StrategyToLoad = "buyandhold"
-	hi.ExchangePairSettings = make(map[string][]Currency)
-	hi.ExchangePairSettings["binance"] = []Currency{
-		{
-			Base:             currency.BTC.String(),
-			Quote:            currency.USDT.String(),
-			Asset:            asset.Spot.String(),
-			MakerFee:         0.01,
-			TakerFee:         0.02,
-			InitialFunds:     1337,
-			MaximumOrderSize: 100,
-		},
+	cfg := new(Config)
+	cfg.StrategyToLoad = "buyandhold"
+	cfg.ExchangeSettings = ExchangeSettings{
+		Base:             currency.BTC.String(),
+		Quote:            currency.USDT.String(),
+		Asset:            asset.Spot.String(),
+		MakerFee:         0.01,
+		TakerFee:         0.02,
+		InitialFunds:     1337,
+		MaximumOrderSize: 100,
 	}
-	hi.StartDate = time.Now().Add(-time.Hour * 24 * 7)
-	hi.EndDate = time.Now()
-	hi.DataSource = "candle"
-	hi.CandleData = &CandleData{Interval: kline.OneHour.Duration()}
-	result, err := json.MarshalIndent(hi, "", " ")
+	cfg.CandleData = &CandleData{
+		StartDate: time.Now().Add(-time.Hour * 24 * 7),
+		EndDate:   time.Now(),
+		Interval:  kline.OneHour.Duration(),
+	}
+	cfg.DataSource = "candle"
+	result, err := json.MarshalIndent(cfg, "", " ")
 	if err != nil {
 		t.Error(err)
 	}
