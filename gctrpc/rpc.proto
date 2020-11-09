@@ -799,8 +799,8 @@ message WebsocketSetURLRequest {
 }
 
 message FindMissingCandlePeriodsRequest {
-    string exchangeName = 1;
-    string assetType = 2;
+    string exchange_name = 1;
+    string asset_type = 2;
     CurrencyPair pair = 3;
     int64 interval = 4;
     string start = 5;
@@ -808,18 +808,18 @@ message FindMissingCandlePeriodsRequest {
 }
 
 message FindMissingTradePeriodsRequest {
-    string exchangeName = 1;
-    string assetType = 2;
+    string exchange_name = 1;
+    string asset_type = 2;
     CurrencyPair pair = 3;
     string start = 4;
     string end = 5;
 }
 
 message FindMissingIntervalsResponse {
-    string exchangeName = 1;
-    string assetType = 2;
+    string exchange_name = 1;
+    string asset_type = 2;
     CurrencyPair pair = 3;
-    repeated string missingPeriods = 4;
+    repeated string missing_periods = 4;
     string status = 5;
 }
 

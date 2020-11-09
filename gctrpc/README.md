@@ -37,7 +37,7 @@ Then use `go get` to download the following packages:
 
 ```bash
 go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
-go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
 go get google.golang.org/protobuf/cmd/protoc-gen-go
 go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
 ```
@@ -45,7 +45,7 @@ go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
 This will place three binaries in your `$GOBIN`;
 
 * `protoc-gen-grpc-gateway`
-* `protoc-gen-openapiv2`
+* `protoc-gen-swagger`
 * `protoc-gen-go`
 * `protoc-gen-go-grpc`
 
