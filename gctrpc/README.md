@@ -33,12 +33,13 @@ manager or by downloading one of the releases from the official repository:
 
 [protoc releases](https://github.com/protocolbuffers/protobuf/releases)
 
-Then use `go get -u` to download the following packages:
+Then use `go get` to download the following packages:
 
 ```bash
-go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-go get -u github.com/golang/protobuf/protoc-gen-go
+go get github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
+go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+go get google.golang.org/protobuf/cmd/protoc-gen-go
+go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
 ```
 
 This will place three binaries in your `$GOBIN`;
@@ -46,6 +47,7 @@ This will place three binaries in your `$GOBIN`;
 * `protoc-gen-grpc-gateway`
 * `protoc-gen-swagger`
 * `protoc-gen-go`
+* `protoc-gen-go-grpc`
 
 Make sure that your `$GOBIN` is in your `$PATH`.
 
