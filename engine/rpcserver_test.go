@@ -172,7 +172,7 @@ func TestGetSavedTrades(t *testing.T) {
 func TestConvertTradesToCandles(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	s := RPCServer{engerino}
+	s := RPCServer{Engine: engerino}
 	// bad param test
 	_, err := s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{})
 	if err == nil {
@@ -325,7 +325,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	s := RPCServer{engerino}
+	s := RPCServer{Engine: engerino}
 	// error checks
 	_, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "",
@@ -453,7 +453,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	s := RPCServer{engerino}
+	s := RPCServer{Engine: engerino}
 	// bad request checks
 	_, err := s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{})
 	if err == nil {
@@ -555,7 +555,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	s := RPCServer{engerino}
+	s := RPCServer{Engine: engerino}
 	// bad request checks
 	_, err := s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{})
 	if err == nil {
@@ -668,7 +668,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 func TestSetExchangeTradeProcessing(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	s := RPCServer{engerino}
+	s := RPCServer{Engine: engerino}
 	_, err := s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
 	if err != nil {
 		t.Error(err)
@@ -695,7 +695,7 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 func TestGetRecentTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	s := RPCServer{engerino}
+	s := RPCServer{Engine: engerino}
 	_, err := s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{})
 	if err == nil {
 		t.Error(unexpectedLackOfError)
@@ -739,7 +739,7 @@ func TestGetRecentTrades(t *testing.T) {
 func TestGetHistoricTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
-	s := RPCServer{engerino}
+	s := RPCServer{Engine: engerino}
 	err := s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{}, nil)
 	if err == nil {
 		t.Error(unexpectedLackOfError)
