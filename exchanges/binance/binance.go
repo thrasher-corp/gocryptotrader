@@ -163,7 +163,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 }
 
 // GetAggregatedTrades returns aggregated trade activity.
-// If more than one hour of data is requested with no limit, the trades are collected with multiple backend requests.
+// If more than one hour of data is requested, the trades are collected with multiple backend requests.
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
@@ -186,9 +186,9 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 		params.Set("endTime", strconv.FormatInt(convert.UnixMillis(arg.EndTime), 10))
 	}
 	// If startTime and endTime are sent, time between startTime and endTime must be less than 1 hour.
-	if arg.Limit == 0 && !arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour {
+	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour {
 		// Split the request into multiple
-		return batchAggregateTrades(b, arg, params)
+		return b.batchAggregateTrades(arg, params)
 	}
 
 	var resp []AggregatedTrade
@@ -199,10 +199,13 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 // batchAggregateTrades fetches trades in multiple requests
 // first phase, hourly requests until the first trade (or end time) is reached
 // second phase, limit requests from previous trade until end time is reached
-func batchAggregateTrades(b *Binance, arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
+func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
 	var resp []AggregatedTrade
 	// prepare first request with only first hour and max limit
-	params.Set("limit", "1000")
+	if arg.Limit == 0 {
+		// Extend from the default of 500
+		params.Set("limit", "1000")
+	}
 
 	for start := arg.StartTime; len(resp) == 0; start = start.Add(time.Hour) {
 		if !start.Before(arg.EndTime) {
@@ -222,9 +225,10 @@ func batchAggregateTrades(b *Binance, arg *AggregatedTradeRequestParams, params 
 	// other requests follow from the last aggregate trade id and have no time window
 	params.Del("startTime")
 	params.Del("endTime")
-	for {
+	// while we haven't reached the limit
+	for arg.Limit == 0 || len(resp) < arg.Limit {
 		// Keep requesting new data after last retrieved trade
-		params.Add("fromId", strconv.FormatInt(resp[len(resp)-1].ATradeID, 10))
+		params.Set("fromId", strconv.FormatInt(resp[len(resp)-1].ATradeID, 10))
 		path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
 		var additionalTrades []AggregatedTrade
 		err := b.SendHTTPRequest(path, limitDefault, &additionalTrades)
@@ -241,6 +245,10 @@ func batchAggregateTrades(b *Binance, arg *AggregatedTradeRequestParams, params 
 			// We found the end
 			break
 		}
+	}
+	// Truncate if necessary
+	if arg.Limit > 0 && len(resp) > arg.Limit {
+		resp = resp[:arg.Limit]
 	}
 	return resp, nil
 }

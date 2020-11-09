@@ -422,6 +422,46 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 }
 
+func TestGetAggregatedTradesBatched(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start, err := time.Parse(time.RFC3339, "2020-01-02T15:04:05Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := b.GetAggregatedTrades(&AggregatedTradeRequestParams{
+		Symbol:    currencyPair,
+		StartTime: start,
+		EndTime:   start.Add(75 * time.Minute),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	var expected int
+	var expectTime time.Time
+	if mockTests {
+		expected = 3
+		expectTime, err = time.Parse(time.RFC3339, "2020-01-02T16:19:04.8Z")
+	} else {
+		expected = 4303
+		expectTime, err = time.Parse(time.RFC3339Nano, "2020-01-02T16:19:04.831Z")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != expected {
+		t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", expected, len(result))
+	}
+	lastTrade := result[len(result)-1]
+	lastTradeTime := time.Unix(0, lastTrade.TimeStamp*int64(time.Millisecond))
+	if !lastTradeTime.Equal(expectTime) {
+		t.Errorf("last trade expected %v, got %v", expectTime, lastTradeTime)
+	}
+}
+
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // -----------------------------------------------------------------------------------------------------------------------------
 
