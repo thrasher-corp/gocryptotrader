@@ -133,10 +133,18 @@ func (g *Gateio) SetDefaults() {
 	}
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	g.API.Endpoints = make(map[string]string)
-	g.API.Endpoints[defaultRest] = gateioTradeURL
-	g.API.Endpoints[secondaryRest] = gateioMarketURL
-	g.API.Endpoints[defaultWS] = gateioWebsocketEndpoint
+	err = g.API.Endpoints.Set(defaultRest, gateioTradeURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = g.API.Endpoints.Set(secondaryRest, gateioMarketURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = g.API.Endpoints.Set(defaultWS, gateioWebsocketEndpoint, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

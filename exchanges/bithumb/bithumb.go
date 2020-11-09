@@ -451,7 +451,7 @@ func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, e
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bithumb) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := b.GetEndpoint(ep)
+	endpoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -470,7 +470,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ep, path string, params url.Value
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
-	endpoint, err := b.GetEndpoint(ep)
+	endpoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

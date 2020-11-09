@@ -550,8 +550,10 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
-	g.API.Endpoints[defaultWS] = geminiWebsocketSandboxEndpoint
-
+	err := g.API.Endpoints.Set(defaultWS, geminiWebsocketSandboxEndpoint, true)
+	if err != nil {
+		t.Error(err)
+	}
 	if !g.Websocket.IsEnabled() &&
 		!g.API.AuthenticatedWebsocketSupport ||
 		!areTestAPIKeysSet() {
@@ -559,7 +561,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	var dialer websocket.Dialer
 	go g.wsReadData()
-	err := g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
+	err = g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
 	if err != nil {
 		t.Error(err)
 	}

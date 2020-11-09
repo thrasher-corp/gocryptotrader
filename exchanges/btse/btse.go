@@ -439,7 +439,7 @@ func (b *BTSE) TradeHistory(symbol string, start, end time.Time, beforeSerialID,
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(ep, method, endpoint string, result interface{}, spotEndpoint bool, f request.EndpointLimit) error {
-	epoint, err := b.GetEndpoint(ep)
+	epoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -465,7 +465,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep, method, endpoint string, isSpot 
 			b.Name)
 	}
 
-	epoint, err := b.GetEndpoint(ep)
+	epoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

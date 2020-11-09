@@ -2581,7 +2581,7 @@ func (h *HUOBI) QueryWithdrawQuotas(cryptocurrency string) (WithdrawQuota, error
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := h.GetEndpoint(ep)
+	endpoint, err := h.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -2601,7 +2601,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest2(ep, method, endpoint string, value
 	if !h.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}
-	epoint, err := h.GetEndpoint(ep)
+	epoint, err := h.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

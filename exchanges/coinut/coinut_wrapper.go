@@ -118,9 +118,14 @@ func (c *COINUT) SetDefaults() {
 
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	c.API.Endpoints = make(map[string]string)
-	c.API.Endpoints[defaultRest] = coinutAPIURL
-	c.API.Endpoints[defaultWS] = coinutWebsocketURL
+	err = c.API.Endpoints.Set(defaultRest, coinutAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = c.API.Endpoints.Set(defaultWS, coinutWebsocketURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

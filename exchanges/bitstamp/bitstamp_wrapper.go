@@ -134,9 +134,11 @@ func (b *Bitstamp) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate)))
-	b.API.Endpoints = make(map[string]string)
-	b.API.Endpoints[defaultRest] = bitstampAPIURL
-	b.API.Endpoints[defaultWS] = bitstampWSURL
+
+	b.API.Endpoints.CreateMap(map[string]string{
+		defaultRest: bitstampAPIURL,
+		defaultWS:   bitstampWSURL,
+	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

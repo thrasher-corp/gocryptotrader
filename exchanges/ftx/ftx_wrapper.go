@@ -147,8 +147,10 @@ func (f *FTX) SetDefaults() {
 	f.Requester = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
-	f.API.Endpoints = make(map[string]string)
-	f.API.Endpoints[defaultRest] = ftxAPIURL
+	err = f.API.Endpoints.Set(defaultRest, ftxAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	f.Websocket = stream.New()
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	f.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

@@ -686,7 +686,7 @@ func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := c.GetEndpoint(ep)
+	endpoint, err := c.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -706,7 +706,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ep, method, path string, para
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			c.Name)
 	}
-	endpoint, err := c.GetEndpoint(ep)
+	endpoint, err := c.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

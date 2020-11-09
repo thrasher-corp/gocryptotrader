@@ -287,7 +287,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(ep, method, params string, result
 	if !l.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
-	endpoint, err := l.GetEndpoint(ep)
+	endpoint, err := l.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

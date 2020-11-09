@@ -1074,7 +1074,7 @@ func (c *Coinbene) GetSwapFundingRates(pageNum, pageSize int) ([]SwapFundingRate
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *Coinbene) SendHTTPRequest(ep, path string, f request.EndpointLimit, result interface{}) error {
-	endpoint, err := c.GetEndpoint(ep)
+	endpoint, err := c.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -1111,7 +1111,7 @@ func (c *Coinbene) SendAuthHTTPRequest(ep, method, path, epPath string, isSwap b
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			c.Name)
 	}
-	endpoint, err := c.GetEndpoint(ep)
+	endpoint, err := c.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

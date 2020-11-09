@@ -1351,7 +1351,7 @@ func (b *Bitfinex) CloseMarginFunding(swapID int64) (Offer, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(ep, path string, result interface{}, e request.EndpointLimit) error {
-	endpoint, err := b.GetEndpoint(ep)
+	endpoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -1373,7 +1373,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ep, method, path string, params 
 			b.Name)
 	}
 
-	epoint, err := b.GetEndpoint(ep)
+	epoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -1425,7 +1425,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest2(ep, method, path string, params
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
-	epoint, err := b.GetEndpoint(ep)
+	epoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

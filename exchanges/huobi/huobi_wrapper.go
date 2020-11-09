@@ -164,10 +164,18 @@ func (h *HUOBI) SetDefaults() {
 	h.Requester = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	h.API.Endpoints = make(map[string]string)
-	h.API.Endpoints[defaultRest] = huobiAPIURL
-	h.API.Endpoints[defaultWS] = wsMarketURL
-	h.API.Endpoints[futuresRest] = huobiURL
+	err = h.API.Endpoints.Set(defaultRest, huobiAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = h.API.Endpoints.Set(defaultWS, wsMarketURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = h.API.Endpoints.Set(futuresRest, huobiURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

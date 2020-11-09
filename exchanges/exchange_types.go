@@ -158,6 +158,17 @@ type Endpoints struct {
 	sync.Mutex
 }
 
+// CreateMap creates map
+func (e *Endpoints) CreateMap(m map[string]string) {
+	e = &Endpoints{
+		m: make(map[string]string),
+	}
+
+	for k, v := range m {
+		e.m[k] = v
+	}
+}
+
 // Set sets
 func (e *Endpoints) Set(key, val string, overwrite bool) error {
 	e.Lock()

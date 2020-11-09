@@ -233,7 +233,7 @@ func (f *FTX) GetIndexWeights(index string) (IndexWeights, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (f *FTX) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := f.GetEndpoint(ep)
+	endpoint, err := f.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -839,7 +839,7 @@ func (f *FTX) GetOptionsFills(startTime, endTime time.Time, limit string) ([]Opt
 
 // SendAuthHTTPRequest sends an authenticated request
 func (f *FTX) SendAuthHTTPRequest(ep, method, path string, data, result interface{}) error {
-	endpoint, err := f.GetEndpoint(ep)
+	endpoint, err := f.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

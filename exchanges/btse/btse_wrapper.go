@@ -154,8 +154,10 @@ func (b *BTSE) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	b.API.Endpoints = make(map[string]string)
-	b.API.Endpoints[defaultRest] = btseAPIURL
+	err = b.API.Endpoints.Set(defaultRest, btseAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

@@ -103,9 +103,14 @@ func (y *Yobit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// Server responses are cached every 2 seconds.
 		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1)))
-	y.API.Endpoints = make(map[string]string)
-	y.API.Endpoints[defaultRest] = apiPublicURL
-	y.API.Endpoints[secondaryRest] = apiPrivateURL
+	err = y.API.Endpoints.Set(defaultRest, apiPublicURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = y.API.Endpoints.Set(secondaryRest, apiPrivateURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 }
 
 // Setup sets exchange configuration parameters for Yobit

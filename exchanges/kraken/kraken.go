@@ -1197,7 +1197,7 @@ func GetError(apiErrors []string) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
 func (k *Kraken) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := k.GetEndpoint(ep)
+	endpoint, err := k.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -1217,7 +1217,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep, method string, params url.Valu
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			k.Name)
 	}
-	endpoint, err := k.GetEndpoint(ep)
+	endpoint, err := k.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

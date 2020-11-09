@@ -265,7 +265,7 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (y *Yobit) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := y.GetEndpoint(ep)
+	endpoint, err := y.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

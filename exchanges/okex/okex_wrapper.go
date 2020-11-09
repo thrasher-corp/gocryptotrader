@@ -202,9 +202,14 @@ func (o *OKEX) SetDefaults() {
 		// TODO: Specify each individual endpoint rate limits as per docs
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
-	o.API.Endpoints = make(map[string]string)
-	o.API.Endpoints[defaultRest] = okExAPIURL
-	o.API.Endpoints[defaultWS] = OkExWebsocketURL
+	err = o.API.Endpoints.Set(defaultRest, okExAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = o.API.Endpoints.Set(defaultWS, OkExWebsocketURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -224,11 +229,15 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
+		wsEndpoint, err := o.API.Endpoints.Get(defaultWS)
+		if err != nil {
+			log.Error(log.Global, err)
+		}
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
 			o.Name,
 			common.IsEnabled(o.Websocket.IsEnabled()),
-			o.API.Endpoints[defaultWS])
+			wsEndpoint)
 	}
 
 	format, err := o.GetPairFormat(asset.Spot, false)

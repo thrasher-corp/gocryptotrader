@@ -98,8 +98,10 @@ func (i *ItBit) SetDefaults() {
 
 	i.Requester = request.New(i.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	i.API.Endpoints = make(map[string]string)
-	i.API.Endpoints[defaultRest] = itbitAPIURL
+	err = i.API.Endpoints.Set(defaultRest, itbitAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 }
 
 // Setup sets the exchange parameters from exchange config

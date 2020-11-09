@@ -125,9 +125,14 @@ func (b *Bitmex) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	b.API.Endpoints = make(map[string]string)
-	b.API.Endpoints[defaultRest] = bitmexAPIURL
-	b.API.Endpoints[defaultWS] = bitmexWSURL
+	err = b.API.Endpoints.Set(defaultRest, bitmexAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = b.API.Endpoints.Set(defaultWS, bitmexWSURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -184,11 +189,15 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
+		wsEndpoint, err := b.API.Endpoints.Get(defaultWS)
+		if err != nil {
+			log.Error(log.Global, err)
+		}
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
 			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()),
-			b.API.Endpoints[defaultWS])
+			wsEndpoint)
 		b.PrintEnabledPairs()
 	}
 

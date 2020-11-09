@@ -48,9 +48,10 @@ func TestMain(m *testing.M) {
 
 	b.HTTPClient = newClient
 	fmt.Println(serverDetails)
-	for k := range b.API.Endpoints {
-		b.API.Endpoints[k] = serverDetails + "/api"
+	endpointMap := b.API.Endpoints.GetAll()
+	for k := range endpointMap {
+		endpointMap[k] = serverDetails + "/api"
 	}
-	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints)
+	log.Printf(sharedtestvalues.MockTesting, b.Name, endpointMap)
 	os.Exit(m.Run())
 }

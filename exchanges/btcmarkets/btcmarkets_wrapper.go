@@ -63,11 +63,13 @@ func (b *BTCMarkets) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	b.API.Endpoints = make(map[string]string)
-	b.API.Endpoints[defaultRest] = btcMarketsAPIURL
+	err := b.API.Endpoints.Set(defaultRest, btcMarketsAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
-	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err = b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -127,7 +129,10 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	b.API.Endpoints[defaultRest] = btcMarketsWSURL
+	err = b.API.Endpoints.Set(defaultWS, btcMarketsWSURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

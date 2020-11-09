@@ -282,7 +282,7 @@ func (z *ZB) GetCryptoAddress(currency currency.Code) (UserAddress, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (z *ZB) SendHTTPRequest(ep, path string, result interface{}, f request.EndpointLimit) error {
-	endpoint, err := z.GetEndpoint(ep)
+	endpoint, err := z.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -302,7 +302,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ep, httpMethod string, params url.Valu
 	if !z.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, z.Name)
 	}
-	endpoint, err := z.GetEndpoint(ep)
+	endpoint, err := z.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

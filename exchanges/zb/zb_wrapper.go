@@ -137,10 +137,18 @@ func (z *ZB) SetDefaults() {
 	z.Requester = request.New(z.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	z.API.Endpoints = make(map[string]string)
-	z.API.Endpoints[defaultRest] = zbTradeURL
-	z.API.Endpoints[secondaryRest] = zbMarketURL
-	z.API.Endpoints[defaultWS] = zbWebsocketAPI
+	err = z.API.Endpoints.Set(defaultRest, zbTradeURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = z.API.Endpoints.Set(secondaryRest, zbMarketURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = z.API.Endpoints.Set(defaultWS, zbWebsocketAPI, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

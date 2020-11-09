@@ -120,8 +120,10 @@ func (b *Bithumb) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	b.API.Endpoints = make(map[string]string)
-	b.API.Endpoints[defaultRest] = apiURL
+	err = b.API.Endpoints.Set(defaultRest, apiURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

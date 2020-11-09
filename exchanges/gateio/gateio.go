@@ -316,7 +316,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (g *Gateio) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := g.GetEndpoint(ep)
+	endpoint, err := g.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -408,7 +408,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep, method, endpoint, param string
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			g.Name)
 	}
-	epoint, err := g.GetEndpoint(ep)
+	epoint, err := g.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

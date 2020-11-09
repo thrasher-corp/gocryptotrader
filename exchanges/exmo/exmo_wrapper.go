@@ -112,8 +112,10 @@ func (e *EXMO) SetDefaults() {
 	e.Requester = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
-	e.API.Endpoints = make(map[string]string)
-	e.API.Endpoints[defaultRest] = exmoAPIURL
+	err = e.API.Endpoints.Set(defaultRest, exmoAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

@@ -401,7 +401,7 @@ func (b *Bittrex) GetDepositHistory(currency string) (DepositHistory, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bittrex) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := b.GetEndpoint(ep)
+	endpoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -421,7 +421,7 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(ep, path string, values url.Value
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
-	endpoint, err := b.GetEndpoint(ep)
+	endpoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

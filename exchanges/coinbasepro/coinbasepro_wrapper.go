@@ -137,10 +137,18 @@ func (c *CoinbasePro) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	c.API.Endpoints = make(map[string]string)
-	c.API.Endpoints[defaultRest] = coinbaseproAPIURL
-	c.API.Endpoints[sandboxURL] = coinbaseproSandboxAPIURL
-	c.API.Endpoints[defaultWS] = coinbaseproWebsocketURL
+	err = c.API.Endpoints.Set(defaultRest, coinbaseproAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = c.API.Endpoints.Set(sandboxURL, coinbaseproSandboxAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = c.API.Endpoints.Set(defaultWS, coinbaseproWebsocketURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

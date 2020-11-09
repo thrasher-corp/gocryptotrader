@@ -113,8 +113,10 @@ func (l *Lbank) SetDefaults() {
 
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	l.API.Endpoints = make(map[string]string)
-	l.API.Endpoints[defaultRest] = lbankAPIURL
+	err = l.API.Endpoints.Set(defaultRest, lbankAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 }
 
 // Setup sets exchange configuration profile

@@ -266,7 +266,7 @@ func (c *COINUT) SendHTTPRequest(ep, apiRequest string, params map[string]interf
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
 	}
 
-	endpoint, err := c.GetEndpoint(ep)
+	endpoint, err := c.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

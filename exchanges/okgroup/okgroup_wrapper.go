@@ -40,13 +40,16 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-
+	wsEndpoint, err := o.API.Endpoints.Get(defaultWS)
+	if err != nil {
+		return err
+	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       o.API.Endpoints[defaultWS],
+		DefaultURL:                       wsEndpoint,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        o.WsConnect,

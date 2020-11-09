@@ -107,10 +107,15 @@ func (l *LakeBTC) SetDefaults() {
 
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	l.API.Endpoints[defaultRest] = lakeBTCAPIURL
+	err = l.API.Endpoints.Set(defaultRest, lakeBTCAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = l.API.Endpoints.Set(defaultWS, lakeBTCWSURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	l.Websocket = stream.New()
-	l.API.Endpoints[defaultWS] = lakeBTCWSURL
 	l.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	l.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	l.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit

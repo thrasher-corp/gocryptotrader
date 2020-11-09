@@ -594,7 +594,7 @@ func (b *Bitstamp) TransferAccountBalance(amount float64, currency, subAccount s
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitstamp) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := b.GetEndpoint(ep)
+	endpoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}
@@ -613,7 +613,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ep, path string, v2 bool, values
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
-	endpoint, err := b.GetEndpoint(ep)
+	endpoint, err := b.API.Endpoints.Get(ep)
 	if err != nil {
 		return err
 	}

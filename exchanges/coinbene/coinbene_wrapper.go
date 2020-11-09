@@ -152,10 +152,18 @@ func (c *Coinbene) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	c.API.Endpoints = make(map[string]string)
-	c.API.Endpoints[defaultRest] = coinbeneAPIURL
-	c.API.Endpoints[swapRest] = coinbeneSwapAPIURL
-	c.API.Endpoints[defaultWS] = wsContractURL
+	err = c.API.Endpoints.Set(defaultRest, coinbeneAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = c.API.Endpoints.Set(swapRest, coinbeneSwapAPIURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = c.API.Endpoints.Set(defaultWS, wsContractURL, false)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
