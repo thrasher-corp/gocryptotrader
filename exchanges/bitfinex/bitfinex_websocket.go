@@ -983,7 +983,10 @@ func (b *Bitfinex) Subscribe(sub stream.SubscriptionParameters) error {
 			errs = append(errs, err)
 			continue
 		}
-		b.Websocket.AddSuccessfulSubscriptions(sub.Items[i])
+		err = sub.Conn.AddSuccessfulSubscriptions([]stream.ChannelSubscription{sub.Items[i]})
+		if err != nil {
+			return err
+		}
 	}
 	if errs != nil {
 		return errs
@@ -1008,7 +1011,10 @@ func (b *Bitfinex) Unsubscribe(unsub stream.SubscriptionParameters) error {
 			errs = append(errs, err)
 			continue
 		}
-		b.Websocket.RemoveSuccessfulUnsubscriptions(unsub.Items[i])
+		err = unsub.Conn.RemoveSuccessfulUnsubscriptions([]stream.ChannelSubscription{unsub.Items[i]})
+		if err != nil {
+			return err
+		}
 	}
 	if errs != nil {
 		return errs

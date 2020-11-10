@@ -265,7 +265,11 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	if bot.Settings.EnableExchangeAutoPairUpdates {
 		dryrunParamInteraction("exchangeautopairupdates")
 		if exchCfg.Features != nil {
-			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
+			rest, err := exchCfg.Features.Supports.RESTCapabilities.Supported()
+			if err != nil {
+				return err
+			}
+			if rest.AutoPairUpdates {
 				exchCfg.Features.Enabled.AutoPairUpdates = true
 			}
 		}

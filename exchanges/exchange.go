@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -106,56 +105,55 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 	return nil
 }
 
-// SetFeatureDefaults sets the exchanges default feature
-// support set
+// SetFeatureDefaults sets the exchanges default feature support set
 func (e *Base) SetFeatureDefaults() {
-	if e.Config.Features == nil {
-		s := &config.FeaturesConfig{
-			Supports: config.FeaturesSupportedConfig{
-				Websocket: e.Features.Supports.Websocket,
-				REST:      e.Features.Supports.REST,
-				RESTCapabilities: protocol.Features{
-					AutoPairUpdates: e.Features.Supports.RESTCapabilities.AutoPairUpdates,
-				},
-			},
-		}
+	// if e.Config.Features == nil {
+	// 	s := &config.FeaturesConfig{
+	// 		Supports: config.FeaturesSupportedConfig{
+	// 			Websocket: e.Features.Supports.Websocket,
+	// 			REST:      e.Features.Supports.REST,
+	// 			RESTCapabilities: protocol.Features{
+	// 				AutoPairUpdates: e.Features.Supports.RESTCapabilities.AutoPairUpdates,
+	// 			},
+	// 		},
+	// 	}
 
-		if e.Config.SupportsAutoPairUpdates != nil {
-			s.Supports.RESTCapabilities.AutoPairUpdates = *e.Config.SupportsAutoPairUpdates
-			s.Enabled.AutoPairUpdates = *e.Config.SupportsAutoPairUpdates
-		} else {
-			s.Supports.RESTCapabilities.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
-			s.Enabled.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
-			if !s.Supports.RESTCapabilities.AutoPairUpdates {
-				e.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
-				e.CurrencyPairs.LastUpdated = e.Config.CurrencyPairs.LastUpdated
-			}
-		}
-		e.Config.Features = s
-		e.Config.SupportsAutoPairUpdates = nil
-	} else {
-		if e.Features.Supports.RESTCapabilities.AutoPairUpdates != e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
-			e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
+	// 	if e.Config.SupportsAutoPairUpdates != nil {
+	// 		s.Supports.RESTCapabilities.AutoPairUpdates = *e.Config.SupportsAutoPairUpdates
+	// 		s.Enabled.AutoPairUpdates = *e.Config.SupportsAutoPairUpdates
+	// 	} else {
+	// 		s.Supports.RESTCapabilities.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
+	// 		s.Enabled.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
+	// 		if !s.Supports.RESTCapabilities.AutoPairUpdates {
+	// 			e.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
+	// 			e.CurrencyPairs.LastUpdated = e.Config.CurrencyPairs.LastUpdated
+	// 		}
+	// 	}
+	// 	e.Config.Features = s
+	// 	e.Config.SupportsAutoPairUpdates = nil
+	// } else {
+	// 	if e.Features.Supports.RESTCapabilities.AutoPairUpdates != e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	// 		e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates = e.Features.Supports.RESTCapabilities.AutoPairUpdates
 
-			if !e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
-				e.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
-			}
-		}
+	// 		if !e.Config.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	// 			e.Config.CurrencyPairs.LastUpdated = time.Now().Unix()
+	// 		}
+	// 	}
 
-		if e.Features.Supports.REST != e.Config.Features.Supports.REST {
-			e.Config.Features.Supports.REST = e.Features.Supports.REST
-		}
+	// 	if e.Features.Supports.REST != e.Config.Features.Supports.REST {
+	// 		e.Config.Features.Supports.REST = e.Features.Supports.REST
+	// 	}
 
-		if e.Features.Supports.RESTCapabilities.TickerBatching != e.Config.Features.Supports.RESTCapabilities.TickerBatching {
-			e.Config.Features.Supports.RESTCapabilities.TickerBatching = e.Features.Supports.RESTCapabilities.TickerBatching
-		}
+	// 	if e.Features.Supports.RESTCapabilities.TickerBatching != e.Config.Features.Supports.RESTCapabilities.TickerBatching {
+	// 		e.Config.Features.Supports.RESTCapabilities.TickerBatching = e.Features.Supports.RESTCapabilities.TickerBatching
+	// 	}
 
-		if e.Features.Supports.Websocket != e.Config.Features.Supports.Websocket {
-			e.Config.Features.Supports.Websocket = e.Features.Supports.Websocket
-		}
+	// 	if e.Features.Supports.Websocket != e.Config.Features.Supports.Websocket {
+	// 		e.Config.Features.Supports.Websocket = e.Features.Supports.Websocket
+	// 	}
 
-		e.Features.Enabled.AutoPairUpdates = e.Config.Features.Enabled.AutoPairUpdates
-	}
+	// 	e.Features.Enabled.AutoPairUpdates = e.Config.Features.Enabled.AutoPairUpdates
+	// }
 }
 
 // SetAPICredentialDefaults sets the API Credential validator defaults
@@ -187,18 +185,28 @@ func (e *Base) SetAPICredentialDefaults() {
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
 // exhange supports REST batch ticker fetching
-func (e *Base) SupportsRESTTickerBatchUpdates() bool {
-	return e.Features.Supports.RESTCapabilities.TickerBatching
+func (e *Base) SupportsRESTTickerBatchUpdates() (bool, error) {
+	supports, err := e.Features.Supports.RESTCapabilities.Supported()
+	if err != nil {
+		return false, err
+	}
+	return supports.TickerBatching, nil
 }
 
 // SupportsAutoPairUpdates returns whether or not the exchange supports
 // auto currency pair updating
-func (e *Base) SupportsAutoPairUpdates() bool {
-	if e.Features.Supports.RESTCapabilities.AutoPairUpdates ||
-		e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
-		return true
+func (e *Base) SupportsAutoPairUpdates() (bool, error) {
+	restSupports, err := e.Features.Supports.RESTCapabilities.Supported()
+	if err != nil {
+		return false, err
 	}
-	return false
+
+	wsSupports, err := e.Features.Supports.WebsocketCapabilities.Supported()
+	if err != nil {
+		return false, err
+	}
+
+	return restSupports.AutoPairUpdates || wsSupports.AutoPairUpdates, nil
 }
 
 // GetLastPairsUpdateTime returns the unix timestamp of when the exchanges
@@ -1037,9 +1045,7 @@ func (e *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscriptio
 	if e.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return e.Websocket.SubscribeToChannels([]stream.SubscriptionParameters{
-		{Items: channels},
-	})
+	return e.Websocket.Connections.AssociateAndSubscribe(channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
@@ -1048,9 +1054,7 @@ func (e *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscript
 	if e.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return e.Websocket.UnsubscribeChannels([]stream.SubscriptionParameters{
-		{Items: channels},
-	})
+	return e.Websocket.Connections.AssociateAndUnsubscribe(channels)
 }
 
 // GetSubscriptions returns a copied list of subscriptions

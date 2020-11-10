@@ -850,15 +850,15 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].WebsocketURL = nil
 		}
 
-		if c.Exchanges[i].Features == nil {
-			c.Exchanges[i].Features = &FeaturesConfig{}
-		}
+		// if c.Exchanges[i].Features == nil {
+		// 	c.Exchanges[i].Features = &FeaturesConfig{}
+		// }
 
-		if c.Exchanges[i].SupportsAutoPairUpdates != nil {
-			c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates = *c.Exchanges[i].SupportsAutoPairUpdates
-			c.Exchanges[i].Features.Enabled.AutoPairUpdates = *c.Exchanges[i].SupportsAutoPairUpdates
-			c.Exchanges[i].SupportsAutoPairUpdates = nil
-		}
+		// if c.Exchanges[i].SupportsAutoPairUpdates != nil {
+		// 	c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates = *c.Exchanges[i].SupportsAutoPairUpdates
+		// 	c.Exchanges[i].Features.Enabled.AutoPairUpdates = *c.Exchanges[i].SupportsAutoPairUpdates
+		// 	c.Exchanges[i].SupportsAutoPairUpdates = nil
+		// }
 
 		if c.Exchanges[i].Websocket != nil {
 			c.Exchanges[i].Features.Enabled.Websocket = *c.Exchanges[i].Websocket
@@ -998,8 +998,9 @@ func (c *Config) CheckExchangeConfigValues() error {
 					log.Warnf(log.ConfigMgr, WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
 				}
 			}
-			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates &&
-				!c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
+
+			if !*c.Exchanges[i].Protocol.REST.AutoPairUpdates &&
+				!*c.Exchanges[i].Protocol.Websocket.AutoPairUpdates {
 				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
 				lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
@@ -1009,6 +1010,18 @@ func (c *Config) CheckExchangeConfigValues() error {
 						pairsLastUpdatedWarningThreshold)
 				}
 			}
+
+			// if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates &&
+			// 	!c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
+			// 	lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
+			// 	lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
+			// 	if lastUpdated.Unix() <= time.Now().Unix() {
+			// 		log.Warnf(log.ConfigMgr,
+			// 			WarningPairsLastUpdatedThresholdExceeded,
+			// 			c.Exchanges[i].Name,
+			// 			pairsLastUpdatedWarningThreshold)
+			// 	}
+			// }
 			if c.Exchanges[i].HTTPTimeout <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s HTTP Timeout value not set, defaulting to %v.\n",

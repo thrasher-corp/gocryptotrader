@@ -31,6 +31,8 @@ var (
 	blankConfig               = []ConnectionSetup{{}}
 	OneConfigNoMax            = []ConnectionSetup{{URL: "TEST URL"}}
 	OneConfigMaxSub           = []ConnectionSetup{{URL: "TEST URL", MaxSubscriptions: 3}}
+
+	readConnection = func(_ []byte, _ Connection) error { return nil }
 )
 
 func TestNewConnectionManager(t *testing.T) {
@@ -84,7 +86,7 @@ func TestNewConnectionManager(t *testing.T) {
 			Error: errNoGenerateConnFunc,
 		},
 		{
-			Name: "No Feature Set",
+			Name: "No Exchange Read Connection Set",
 			ConnectionSetup: &ConnectionManagerConfig{
 				ExchangeConnector:             passConnectionFunc,
 				ExchangeGenerateSubscriptions: passGenerateSubscriptions,
@@ -92,7 +94,32 @@ func TestNewConnectionManager(t *testing.T) {
 				ExchangeUnsubscriber:          passSubscription,
 				ExchangeGenerateConnection:    passGenerateConnection,
 			},
+			Error: errNoResponseDataHandler,
+		},
+		{
+			Name: "No Feature Set",
+			ConnectionSetup: &ConnectionManagerConfig{
+				ExchangeConnector:             passConnectionFunc,
+				ExchangeGenerateSubscriptions: passGenerateSubscriptions,
+				ExchangeSubscriber:            passSubscription,
+				ExchangeUnsubscriber:          passSubscription,
+				ExchangeGenerateConnection:    passGenerateConnection,
+				ExchangeReadConnection:        readConnection,
+			},
 			Error: errNoFeatures,
+		},
+		{
+			Name: "No Data Channel Set",
+			ConnectionSetup: &ConnectionManagerConfig{
+				ExchangeConnector:             passConnectionFunc,
+				ExchangeGenerateSubscriptions: passGenerateSubscriptions,
+				ExchangeSubscriber:            passSubscription,
+				ExchangeUnsubscriber:          passSubscription,
+				ExchangeGenerateConnection:    passGenerateConnection,
+				ExchangeReadConnection:        readConnection,
+				Features:                      &protocol.Features{},
+			},
+			Error: errNoDataHandler,
 		},
 		{
 			Name: "No General Configurations Set",
@@ -102,7 +129,9 @@ func TestNewConnectionManager(t *testing.T) {
 				ExchangeSubscriber:            passSubscription,
 				ExchangeUnsubscriber:          passSubscription,
 				ExchangeGenerateConnection:    passGenerateConnection,
+				ExchangeReadConnection:        readConnection,
 				Features:                      &protocol.Features{},
+				dataHandler:                   make(chan interface{}),
 			},
 			Error: errNoConfigurations,
 		},
@@ -114,7 +143,9 @@ func TestNewConnectionManager(t *testing.T) {
 				ExchangeSubscriber:            passSubscription,
 				ExchangeUnsubscriber:          passSubscription,
 				ExchangeGenerateConnection:    passGenerateConnection,
+				ExchangeReadConnection:        readConnection,
 				Features:                      &protocol.Features{},
+				dataHandler:                   make(chan interface{}),
 				Configurations:                []ConnectionSetup{{}},
 			},
 			Error: errMissingURLInConfig,
@@ -127,7 +158,9 @@ func TestNewConnectionManager(t *testing.T) {
 				ExchangeSubscriber:            passSubscription,
 				ExchangeUnsubscriber:          passSubscription,
 				ExchangeGenerateConnection:    passGenerateConnection,
+				ExchangeReadConnection:        readConnection,
 				Features:                      &protocol.Features{},
+				dataHandler:                   make(chan interface{}),
 				Configurations: []ConnectionSetup{{
 					URL: "test",
 				}},
@@ -213,8 +246,10 @@ func TestGenerateConnections(t *testing.T) {
 				ExchangeSubscriber:            passSubscription,
 				ExchangeUnsubscriber:          passSubscription,
 				ExchangeGenerateConnection:    tt.GenerateConnection,
+				ExchangeReadConnection:        readConnection,
 				Configurations:                tt.ConfigurationSet,
 				Features:                      &protocol.Features{},
+				dataHandler:                   make(chan interface{}),
 			})
 			if err != nil {
 				if !errors.Is(err, tt.Error) {

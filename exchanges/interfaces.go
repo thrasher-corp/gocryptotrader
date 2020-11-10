@@ -40,8 +40,8 @@ type IBotExchange interface {
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes() asset.Items
 	GetExchangeHistory(p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]TradeHistory, error)
-	SupportsAutoPairUpdates() bool
-	SupportsRESTTickerBatchUpdates() bool
+	SupportsAutoPairUpdates() (bool, error)
+	SupportsRESTTickerBatchUpdates() (bool, error)
 	GetFeeByType(f *FeeBuilder) (float64, error)
 	GetLastPairsUpdateTime() int64
 	GetWithdrawPermissions() uint32
