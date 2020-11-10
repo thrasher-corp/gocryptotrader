@@ -828,6 +828,7 @@ func (e *Base) SetAPIURL() error {
 	// 	checkInsecureEndpoint(e.API.Endpoints.URLSecondary)
 	// }
 	// ________________________________________________________________________________
+
 	// some stuff
 	// wow := e.API.Endpoints.GetAll()
 	// for k, v := range wow {

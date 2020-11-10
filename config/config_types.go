@@ -6,7 +6,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -381,5 +380,5 @@ type APIConfig struct {
 
 	// deprecated mate
 	OldEndPoints *APIEndpointsConfig `json:"endpoints,omitempty"`
-	Endpoints    exchange.Endpoints  `json:"urlEndpoints"`
+	Endpoints    map[string]string   `json:"urlEndpoints"`
 }
