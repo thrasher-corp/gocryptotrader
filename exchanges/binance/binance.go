@@ -163,16 +163,19 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 }
 
 // GetAggregatedTrades returns aggregated trade activity.
-// If more than one hour of data is requested, the trades are collected with multiple backend requests.
+// If more than one hour of data is requested or asked limit is not supported by exchange
+// then the trades are collected with multiple backend requests.
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
+	limitSupported := true
 	if arg.Limit > 0 {
 		if err := b.CheckLimit(arg.Limit); err != nil {
-			return nil, err
+			limitSupported = false
+		} else {
+			params.Set("limit", strconv.Itoa(arg.Limit))
 		}
-		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
 	if arg.FromID != 0 {
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
@@ -183,8 +186,10 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 	if !arg.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(convert.UnixMillis(arg.EndTime), 10))
 	}
-	// If startTime and endTime are sent, time between startTime and endTime must be less than 1 hour.
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour {
+	// Fall back to batch requests
+	// if the requested limit is not supported by exchange or
+	// if startTime and endTime are set and time between startTime and endTime is more than 1 hour
+	if !limitSupported || (!arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour) {
 		// Split the request into multiple
 		return b.batchAggregateTrades(arg, params)
 	}
