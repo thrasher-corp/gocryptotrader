@@ -94,7 +94,7 @@ func TestGetHistoricalTrades(t *testing.T) {
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetAggregatedTrades(&AggregatedTradeRequestParams{
-		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+		Symbol: currency.NewPair(currency.BTC, currency.USDT).String(),
 		Limit:  5,
 	})
 	if err != nil {
@@ -433,7 +433,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := b.GetAggregatedTrades(&AggregatedTradeRequestParams{
-		Symbol:    currencyPair,
+		Symbol:    currencyPair.String(),
 		StartTime: start,
 		EndTime:   start.Add(75 * time.Minute),
 	})

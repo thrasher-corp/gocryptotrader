@@ -167,9 +167,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	symbol := arg.Symbol
-	symbol.Delimiter = ""
-	params.Set("symbol", strings.ToUpper(symbol.String()))
+	params.Set("symbol", arg.Symbol)
 	if arg.Limit > 0 {
 		if err := b.CheckLimit(arg.Limit); err != nil {
 			return nil, err

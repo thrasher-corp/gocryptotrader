@@ -202,7 +202,7 @@ type HistoricalTrade struct {
 
 // AggregatedTradeRequestParams holds request params
 type AggregatedTradeRequestParams struct {
-	Symbol currency.Pair // Required field; example LTCBTC, BTCUSDT
+	Symbol string // Required field; example LTCBTC, BTCUSDT
 	// The first trade to retrieve
 	FromID int64
 	// The API seems to accept (start and end time) or FromID and no other combinations

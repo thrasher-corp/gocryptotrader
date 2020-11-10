@@ -535,8 +535,12 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *Binance) GetHistoricTrades(p currency.Pair, a asset.Item, from, to time.Time) ([]trade.Data, error) {
+	p, err := b.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
 	req := AggregatedTradeRequestParams{
-		Symbol:    p,
+		Symbol:    p.String(),
 		StartTime: from,
 		EndTime:   to,
 	}
@@ -547,15 +551,15 @@ func (b *Binance) GetHistoricTrades(p currency.Pair, a asset.Item, from, to time
 	var result []trade.Data
 	exName := b.GetName()
 	for i := range trades {
-		t := trades[i].toTradeData(&req, exName, a)
+		t := trades[i].toTradeData(p, exName, a)
 		result = append(result, *t)
 	}
 	return result, nil
 }
 
-func (a *AggregatedTrade) toTradeData(req *AggregatedTradeRequestParams, exchange string, aType asset.Item) *trade.Data {
+func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType asset.Item) *trade.Data {
 	return &trade.Data{
-		CurrencyPair: req.Symbol,
+		CurrencyPair: p,
 		TID:          strconv.FormatInt(a.ATradeID, 10),
 		Amount:       a.Quantity,
 		Exchange:     exchange,
