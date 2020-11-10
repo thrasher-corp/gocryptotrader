@@ -152,7 +152,7 @@ func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
 // GetAccountInformation returns your current account information
 func (l *LakeBTC) GetAccountInformation() (AccountInfo, error) {
 	resp := AccountInfo{}
-	return resp, l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCGetAccountInfo, "", &resp)
+	return resp, l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCGetAccountInfo, "", &resp)
 }
 
 // Trade executes an order on the exchange and returns trade inforamtion or an
@@ -162,11 +162,11 @@ func (l *LakeBTC) Trade(isBuyOrder bool, amount, price float64, currency string)
 	params := strconv.FormatFloat(price, 'f', -1, 64) + "," + strconv.FormatFloat(amount, 'f', -1, 64) + "," + currency
 
 	if isBuyOrder {
-		if err := l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCBuyOrder, params, &resp); err != nil {
+		if err := l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCBuyOrder, params, &resp); err != nil {
 			return resp, err
 		}
 	} else {
-		if err := l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCSellOrder, params, &resp); err != nil {
+		if err := l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCSellOrder, params, &resp); err != nil {
 			return resp, err
 		}
 	}
@@ -182,7 +182,7 @@ func (l *LakeBTC) Trade(isBuyOrder bool, amount, price float64, currency string)
 func (l *LakeBTC) GetOpenOrders() ([]OpenOrders, error) {
 	var orders []OpenOrders
 
-	return orders, l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCOpenOrders, "", &orders)
+	return orders, l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCOpenOrders, "", &orders)
 }
 
 // GetOrders returns your orders
@@ -194,7 +194,7 @@ func (l *LakeBTC) GetOrders(orders []int64) ([]Orders, error) {
 
 	var resp []Orders
 	return resp,
-		l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCGetOrders, strings.Join(ordersStr, ","), &resp)
+		l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCGetOrders, strings.Join(ordersStr, ","), &resp)
 }
 
 // CancelExistingOrder cancels an order by ID number and returns an error
@@ -205,7 +205,7 @@ func (l *LakeBTC) CancelExistingOrder(orderID int64) error {
 
 	resp := Response{}
 	params := strconv.FormatInt(orderID, 10)
-	err := l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCCancelOrder, params, &resp)
+	err := l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCCancelOrder, params, &resp)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (l *LakeBTC) CancelExistingOrders(orderIDs []string) error {
 
 	resp := Response{}
 	params := strings.Join(orderIDs, ",")
-	err := l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCCancelOrder, params, &resp)
+	err := l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCCancelOrder, params, &resp)
 	if err != nil {
 		return err
 	}
@@ -243,14 +243,14 @@ func (l *LakeBTC) GetTrades(timestamp int64) ([]AuthenticatedTradeHistory, error
 	}
 
 	var trades []AuthenticatedTradeHistory
-	return trades, l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCGetTrades, params, &trades)
+	return trades, l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCGetTrades, params, &trades)
 }
 
 // GetExternalAccounts returns your external accounts WARNING: Only for BTC!
 func (l *LakeBTC) GetExternalAccounts() ([]ExternalAccounts, error) {
 	var resp []ExternalAccounts
 
-	return resp, l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCGetExternalAccounts, "", &resp)
+	return resp, l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCGetExternalAccounts, "", &resp)
 }
 
 // CreateWithdraw allows your to withdraw to external account WARNING: Only for
@@ -259,7 +259,7 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, er
 	resp := Withdraw{}
 	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc," + accountID
 
-	err := l.SendAuthenticatedHTTPRequest(defaultRest, lakeBTCCreateWithdraw, params, &resp)
+	err := l.SendAuthenticatedHTTPRequest(exchange.DefaultRest, lakeBTCCreateWithdraw, params, &resp)
 	if err != nil {
 		return Withdraw{}, err
 	}

@@ -26,11 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	defaultRest = "defaultURL"
-	defaultWS   = "defaultWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (f *FTX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	f.SetDefaults()
@@ -147,10 +142,10 @@ func (f *FTX) SetDefaults() {
 	f.Requester = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
-	err = f.API.Endpoints.Set(defaultRest, ftxAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	f.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: ftxAPIURL,
+		exchange.DefaultWS:   ftxWSURL,
+	})
 	f.Websocket = stream.New()
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	f.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -169,12 +164,17 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsEndpoint, err := f.API.Endpoints.Get(exchange.DefaultWS)
+	if err != nil {
+		return err
+	}
+
 	err = f.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       ftxWSURL,
+		DefaultURL:                       wsEndpoint,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        f.WsConnect,

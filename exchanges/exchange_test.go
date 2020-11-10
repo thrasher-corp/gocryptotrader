@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -56,9 +57,89 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	}
 }
 
+func TestCreateMap(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELOOOOOOOO",
+	}
+	b.API.Endpoints.CreateMap(map[string]string{
+		"test1": "test1url",
+		"test2": "test2url",
+	})
+	fmt.Println(b.API.Endpoints.GetAll())
+	_, ok := b.API.Endpoints.m["test1"]
+	if !ok {
+		t.Errorf("CreateMap failed, no value for for the given key")
+	}
+}
+
+func TestSet(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELOOOOOOOO",
+	}
+	b.API.Endpoints.CreateMap(map[string]string{
+		"test1": "test1url",
+		"test2": "test2url",
+	})
+	err := b.API.Endpoints.Set("test1", "OVERWRITTEN BRO", true)
+	if err != nil {
+		t.Error(err)
+	}
+	val, ok := b.API.Endpoints.m["test1"]
+	if !ok {
+		t.Error("set method or createmap failed")
+	}
+	fmt.Println(val)
+	if val != "OVERWRITTEN BRO" {
+		t.Error("overwriting failed")
+	}
+}
+
+func TestGet(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELAAAAAOOOOOOOOO",
+	}
+	b.API.Endpoints.CreateMap(map[string]string{
+		"test1": "test1url",
+		"test2": "test2url",
+	})
+	getVal, err := b.API.Endpoints.Get("test1")
+	if err != nil {
+		t.Error(err)
+	}
+	if getVal != "test1url" {
+		t.Errorf("getVal failed")
+	}
+	err = b.API.Endpoints.Set("test2", "OVERWRITTEN BRO", true)
+	if err != nil {
+		t.Error(err)
+	}
+	getChangedVal, err := b.API.Endpoints.Get("test2")
+	if err != nil {
+		t.Error(err)
+	}
+	if getChangedVal != "OVERWRITTEN BRO" {
+		t.Error("couldnt get changed val")
+	}
+}
+
+func TestGetAll(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELLLLLLO",
+	}
+	b.API.Endpoints.CreateMap(map[string]string{
+		"test1": "test1url",
+		"test2": "test2url",
+	})
+	all := b.API.Endpoints.GetAll()
+	fmt.Println(all)
+}
+
 func TestHTTPClient(t *testing.T) {
 	t.Parallel()
-
 	r := Base{Name: "asdf"}
 	r.SetHTTPClientTimeout(time.Second * 5)
 
@@ -1509,26 +1590,26 @@ func TestSetAPIURL(t *testing.T) {
 	// }
 }
 
-func BenchmarkSetAPIURL(b *testing.B) {
-	// tester := Base{Name: "test"}
+// func BenchmarkSetAPIURL(b *testing.B) {
+// 	tester := Base{Name: "test"}
 
-	// test := config.ExchangeConfig{}
+// 	test := config.ExchangeConfig{}
 
-	// test.API.Endpoints.URL = "https://api.something.com"
-	// test.API.Endpoints.URLSecondary = "https://api.somethingelse.com"
+// 	test.API.Endpoints.URL = "https://api.something.com"
+// 	test.API.Endpoints.URLSecondary = "https://api.somethingelse.com"
 
-	// tester.API.Endpoints.URLDefault = "https://api.defaultsomething.com"
-	// tester.API.Endpoints.URLDefault = "https://api.defaultsomethingelse.com"
+// 	tester.API.Endpoints.URLDefault = "https://api.defaultsomething.com"
+// 	tester.API.Endpoints.URLDefault = "https://api.defaultsomethingelse.com"
 
-	// tester.Config = &test
+// 	tester.Config = &test
 
-	// for i := 0; i < b.N; i++ {
-	// 	err := tester.SetAPIURL()
-	// 	if err != nil {
-	// 		b.Errorf("Benchmark failed %v", err)
-	// 	}
-	// }
-}
+// 	for i := 0; i < b.N; i++ {
+// 		err := tester.SetAPIURL()
+// 		if err != nil {
+// 			b.Errorf("Benchmark failed %v", err)
+// 		}
+// 	}
+// }
 
 func TestSupportsWebsocket(t *testing.T) {
 	t.Parallel()

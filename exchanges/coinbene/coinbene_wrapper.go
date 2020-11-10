@@ -28,9 +28,7 @@ import (
 )
 
 const (
-	defaultRest = "defaultURL"
-	defaultWS   = "defaultWSURL"
-	swapRest    = "swapURL"
+	swapRest = "swapURL"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -152,18 +150,11 @@ func (c *Coinbene) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	err = c.API.Endpoints.Set(defaultRest, coinbeneAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = c.API.Endpoints.Set(swapRest, coinbeneSwapAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = c.API.Endpoints.Set(defaultWS, wsContractURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	c.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: coinbeneAPIURL,
+		swapRest:             coinbeneSwapAPIURL,
+		exchange.DefaultWS:   wsContractURL,
+	})
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

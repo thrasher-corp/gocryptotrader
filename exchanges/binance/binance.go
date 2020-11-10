@@ -2198,7 +2198,7 @@ func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.
 // information
 func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 	var resp ExchangeInfo
-	return resp, b.SendHTTPRequest(defaultRest, exchangeInfo, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultRest, exchangeInfo, limitDefault, &resp)
 }
 
 // GetOrderBook returns full orderbook information
@@ -2217,7 +2217,7 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
 
 	var resp OrderBookData
-	if err := b.SendHTTPRequest(defaultRest, orderBookDepth+"?"+params.Encode(), orderbookLimit(obd.Limit), &resp); err != nil {
+	if err := b.SendHTTPRequest(exchange.DefaultRest, orderBookDepth+"?"+params.Encode(), orderbookLimit(obd.Limit), &resp); err != nil {
 		return orderbook, err
 	}
 
@@ -2270,7 +2270,7 @@ func (b *Binance) GetMostRecentTrades(rtr RecentTradeRequestParams) ([]RecentTra
 
 	path := recentTrades + "?" + params.Encode()
 
-	return resp, b.SendHTTPRequest(defaultRest, path, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultRest, path, limitDefault, &resp)
 }
 
 // GetHistoricalTrades returns historical trade activity
@@ -2303,7 +2303,7 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTra
 	}
 
 	path := aggregatedTrades + "?" + params.Encode()
-	return resp, b.SendHTTPRequest(defaultRest, path, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultRest, path, limitDefault, &resp)
 }
 
 // GetSpotKline returns kline data
@@ -2333,7 +2333,7 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 
 	path := candleStick + "?" + params.Encode()
 
-	if err := b.SendHTTPRequest(defaultRest, path, limitDefault, &resp); err != nil {
+	if err := b.SendHTTPRequest(exchange.DefaultRest, path, limitDefault, &resp); err != nil {
 		return klineData, err
 	}
 
@@ -2388,7 +2388,7 @@ func (b *Binance) GetAveragePrice(symbol string) (AveragePrice, error) {
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
 	path := averagePrice + "?" + params.Encode()
-	return resp, b.SendHTTPRequest(defaultRest, path, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultRest, path, limitDefault, &resp)
 }
 
 // GetPriceChangeStats returns price change statistics for the last 24 hours
@@ -2399,13 +2399,13 @@ func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
 	path := priceChange + "?" + params.Encode()
-	return resp, b.SendHTTPRequest(defaultRest, path, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultRest, path, limitDefault, &resp)
 }
 
 // GetTickers returns the ticker data for the last 24 hrs
 func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
-	return resp, b.SendHTTPRequest(defaultRest, priceChange, limitPriceChangeAll, &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultRest, priceChange, limitPriceChangeAll, &resp)
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
@@ -2417,7 +2417,7 @@ func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
 	params.Set("symbol", strings.ToUpper(symbol))
 	path := symbolPrice + "?" + params.Encode()
 
-	return resp, b.SendHTTPRequest(defaultRest, path, symbolPriceLimit(symbol), &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultRest, path, symbolPriceLimit(symbol), &resp)
 }
 
 // GetBestPrice returns the latest best price for symbol
@@ -2428,7 +2428,7 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
 	path := bestPrice + "?" + params.Encode()
-	return resp, b.SendHTTPRequest(defaultRest, path, bestPriceLimit(symbol), &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultRest, path, bestPriceLimit(symbol), &resp)
 }
 
 // NewOrder sends a new order to Binance
@@ -2484,7 +2484,7 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 	if o.NewOrderRespType != "" {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
-	return b.SendAuthHTTPRequest(defaultRest, http.MethodPost, api, params, limitOrder, resp)
+	return b.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, api, params, limitOrder, resp)
 }
 
 // CancelExistingOrder sends a cancel order to Binance
@@ -2501,7 +2501,7 @@ func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOr
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	return resp, b.SendAuthHTTPRequest(defaultRest, http.MethodDelete, orderEndpoint, params, limitOrder, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodDelete, orderEndpoint, params, limitOrder, &resp)
 }
 
 // OpenOrders Current open orders. Get all open orders on a symbol.
@@ -2516,7 +2516,7 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 		params.Set("symbol", strings.ToUpper(symbol))
 	}
 
-	if err := b.SendAuthHTTPRequest(defaultRest, http.MethodGet, openOrders, params, openOrdersLimit(symbol), &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, openOrders, params, openOrdersLimit(symbol), &resp); err != nil {
 		return resp, err
 	}
 
@@ -2537,7 +2537,7 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	if err := b.SendAuthHTTPRequest(defaultRest, http.MethodGet, allOrders, params, limitOrdersAll, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, allOrders, params, limitOrdersAll, &resp); err != nil {
 		return resp, err
 	}
 
@@ -2557,7 +2557,7 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 
-	if err := b.SendAuthHTTPRequest(defaultRest, http.MethodGet, orderEndpoint, params, limitOrder, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, orderEndpoint, params, limitOrder, &resp); err != nil {
 		return resp, err
 	}
 
@@ -2577,7 +2577,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 	var resp response
 	params := url.Values{}
 
-	if err := b.SendAuthHTTPRequest(defaultRest, http.MethodGet, accountInfo, params, request.Unset, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, accountInfo, params, request.Unset, &resp); err != nil {
 		return &resp.Account, err
 	}
 
@@ -2743,7 +2743,7 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 		params.Set("addressTag", addressTag)
 	}
 
-	if err := b.SendAuthHTTPRequest(defaultRest, http.MethodPost, withdrawEndpoint, params, request.Unset, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, withdrawEndpoint, params, request.Unset, &resp); err != nil {
 		return "", err
 	}
 
@@ -2767,12 +2767,12 @@ func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) 
 	params.Set("status", "true")
 
 	return resp.Address,
-		b.SendAuthHTTPRequest(defaultRest, http.MethodGet, depositAddress, params, request.Unset, &resp)
+		b.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, depositAddress, params, request.Unset, &resp)
 }
 
 // GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming
 func (b *Binance) GetWsAuthStreamKey() (string, error) {
-	endpointPath, err := b.API.Endpoints.Get(defaultRest)
+	endpointPath, err := b.API.Endpoints.Get(exchange.DefaultRest)
 	if err != nil {
 		return "", err
 	}
@@ -2799,7 +2799,7 @@ func (b *Binance) GetWsAuthStreamKey() (string, error) {
 
 // MaintainWsAuthStreamKey will keep the key alive
 func (b *Binance) MaintainWsAuthStreamKey() error {
-	endpointPath, err := b.API.Endpoints.Get(defaultRest)
+	endpointPath, err := b.API.Endpoints.Get(exchange.DefaultRest)
 	if err != nil {
 		return err
 	}

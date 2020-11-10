@@ -58,7 +58,7 @@ func (a *Alphapoint) GetTicker(currencyPair string) (Ticker, error) {
 	req["productPair"] = currencyPair
 	response := Ticker{}
 
-	err := a.SendHTTPRequest(defaultRest, http.MethodPost, alphapointTicker, req, &response)
+	err := a.SendHTTPRequest(exchange.DefaultRest, http.MethodPost, alphapointTicker, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -81,7 +81,7 @@ func (a *Alphapoint) GetTrades(currencyPair string, startIndex, count int) (Trad
 	req["Count"] = count
 	response := Trades{}
 
-	err := a.SendHTTPRequest(defaultRest, http.MethodPost, alphapointTrades, req, &response)
+	err := a.SendHTTPRequest(exchange.DefaultRest, http.MethodPost, alphapointTrades, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -102,7 +102,7 @@ func (a *Alphapoint) GetTradesByDate(currencyPair string, startDate, endDate int
 	req["endDate"] = endDate
 	response := Trades{}
 
-	err := a.SendHTTPRequest(defaultRest, http.MethodPost, alphapointTradesByDate, req, &response)
+	err := a.SendHTTPRequest(exchange.DefaultRest, http.MethodPost, alphapointTradesByDate, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -119,7 +119,7 @@ func (a *Alphapoint) GetOrderbook(currencyPair string) (Orderbook, error) {
 	req["productPair"] = currencyPair
 	response := Orderbook{}
 
-	err := a.SendHTTPRequest(defaultRest, http.MethodPost, alphapointOrderbook, req, &response)
+	err := a.SendHTTPRequest(exchange.DefaultRest, http.MethodPost, alphapointOrderbook, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -133,7 +133,7 @@ func (a *Alphapoint) GetOrderbook(currencyPair string) (Orderbook, error) {
 func (a *Alphapoint) GetProductPairs() (ProductPairs, error) {
 	response := ProductPairs{}
 
-	err := a.SendHTTPRequest(defaultRest, http.MethodPost, alphapointProductPairs, nil, &response)
+	err := a.SendHTTPRequest(exchange.DefaultRest, http.MethodPost, alphapointProductPairs, nil, &response)
 	if err != nil {
 		return response, err
 	}
@@ -147,7 +147,7 @@ func (a *Alphapoint) GetProductPairs() (ProductPairs, error) {
 func (a *Alphapoint) GetProducts() (Products, error) {
 	response := Products{}
 
-	err := a.SendHTTPRequest(defaultRest, http.MethodPost, alphapointProducts, nil, &response)
+	err := a.SendHTTPRequest(exchange.DefaultRest, http.MethodPost, alphapointProducts, nil, &response)
 	if err != nil {
 		return response, err
 	}
@@ -178,7 +178,7 @@ func (a *Alphapoint) CreateAccount(firstName, lastName, email, phone, password s
 	req["password"] = password
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost, alphapointCreateAccount, req, &response)
+	err := a.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, alphapointCreateAccount, req, &response)
 	if err != nil {
 		return fmt.Errorf("unable to create account. Reason: %s", err)
 	}
@@ -192,7 +192,7 @@ func (a *Alphapoint) CreateAccount(firstName, lastName, email, phone, password s
 func (a *Alphapoint) GetUserInfo() (UserInfo, error) {
 	response := UserInfo{}
 
-	err := a.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost, alphapointUserInfo, map[string]interface{}{}, &response)
+	err := a.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, alphapointUserInfo, map[string]interface{}{}, &response)
 	if err != nil {
 		return UserInfo{}, err
 	}
@@ -245,7 +245,7 @@ func (a *Alphapoint) SetUserInfo(firstName, lastName, cell2FACountryCode, cell2F
 	req["userInfoKVP"] = userInfoKVPs
 
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointUserInfo,
 		req,
@@ -265,7 +265,7 @@ func (a *Alphapoint) GetAccountInformation() (AccountInfo, error) {
 	response := AccountInfo{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointAccountInfo,
 		map[string]interface{}{},
@@ -292,7 +292,7 @@ func (a *Alphapoint) GetAccountTrades(currencyPair string, startIndex, count int
 	response := Trades{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointAccountTrades,
 		req,
@@ -311,7 +311,7 @@ func (a *Alphapoint) GetAccountTrades(currencyPair string, startIndex, count int
 func (a *Alphapoint) GetDepositAddresses() ([]DepositAddresses, error) {
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(defaultRest, http.MethodPost, alphapointDepositAddresses,
+	err := a.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, alphapointDepositAddresses,
 		map[string]interface{}{}, &response,
 	)
 	if err != nil {
@@ -337,7 +337,7 @@ func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount float
 
 	response := Response{}
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointWithdraw,
 		req,
@@ -377,7 +377,7 @@ func (a *Alphapoint) CreateOrder(symbol, side, orderType string, quantity, price
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointCreateOrder,
 		req,
@@ -408,7 +408,7 @@ func (a *Alphapoint) ModifyExistingOrder(symbol string, orderID, action int64) (
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointModifyOrder,
 		req,
@@ -433,7 +433,7 @@ func (a *Alphapoint) CancelExistingOrder(orderID int64, omsid string) (int64, er
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointCancelOrder,
 		req,
@@ -456,7 +456,7 @@ func (a *Alphapoint) CancelAllExistingOrders(omsid string) error {
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointCancelAllOrders,
 		req,
@@ -476,7 +476,7 @@ func (a *Alphapoint) GetOrders() ([]OpenOrders, error) {
 	response := OrderInfo{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointOpenOrders,
 		map[string]interface{}{},
@@ -505,7 +505,7 @@ func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(
-		defaultRest,
+		exchange.DefaultRest,
 		http.MethodPost,
 		alphapointOrderFee,
 		req,

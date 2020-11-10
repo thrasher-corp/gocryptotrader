@@ -29,8 +29,6 @@ import (
 )
 
 const (
-	defaultRest = "defaultURL"
-	defaultWS   = "defaultWS"
 	futuresRest = "futuresURL"
 )
 
@@ -73,7 +71,7 @@ func (k *Kraken) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
+			Delimiter: currency.UnderscoreDelimiter,
 			Separator: ",",
 		},
 	}
@@ -84,7 +82,7 @@ func (k *Kraken) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
+			Delimiter: currency.UnderscoreDelimiter,
 		},
 	}
 
@@ -170,18 +168,11 @@ func (k *Kraken) SetDefaults() {
 	k.Requester = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
-	err = k.API.Endpoints.Set(defaultRest, krakenAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = k.API.Endpoints.Set(futuresRest, futuresURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = k.API.Endpoints.Set(defaultWS, krakenWSURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	k.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: krakenAPIURL,
+		futuresRest:          futuresURL,
+		exchange.DefaultWS:   krakenWSURL,
+	})
 	k.Websocket = stream.New()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

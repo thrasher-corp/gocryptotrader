@@ -28,8 +28,6 @@ import (
 )
 
 const (
-	defaultRest = "defaultURL"
-	defaultWS   = "defaultWSURL"
 	futuresRest = "futuresURL" // (expiry and coinmargined futures use this URL)
 )
 
@@ -164,18 +162,11 @@ func (h *HUOBI) SetDefaults() {
 	h.Requester = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	err = h.API.Endpoints.Set(defaultRest, huobiAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = h.API.Endpoints.Set(defaultWS, wsMarketURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = h.API.Endpoints.Set(futuresRest, huobiURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	h.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: huobiAPIURL,
+		futuresRest:          huobiURL,
+		exchange.DefaultWS:   wsMarketURL,
+	})
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

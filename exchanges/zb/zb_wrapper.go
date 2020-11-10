@@ -29,8 +29,6 @@ import (
 )
 
 const (
-	defaultRest   = "defaultURL"
-	defaultWS     = "defaultWSURL"
 	secondaryRest = "secondaryURL"
 )
 
@@ -137,18 +135,11 @@ func (z *ZB) SetDefaults() {
 	z.Requester = request.New(z.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	err = z.API.Endpoints.Set(defaultRest, zbTradeURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = z.API.Endpoints.Set(secondaryRest, zbMarketURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = z.API.Endpoints.Set(defaultWS, zbWebsocketAPI, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	z.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: zbTradeURL,
+		secondaryRest:        zbMarketURL,
+		exchange.DefaultWS:   zbWebsocketAPI,
+	})
 	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

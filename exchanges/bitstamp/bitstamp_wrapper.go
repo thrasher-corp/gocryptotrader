@@ -26,11 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	defaultRest = "defaultURL"
-	defaultWS   = "defaultWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (b *Bitstamp) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -136,8 +131,8 @@ func (b *Bitstamp) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate)))
 
 	b.API.Endpoints.CreateMap(map[string]string{
-		defaultRest: bitstampAPIURL,
-		defaultWS:   bitstampWSURL,
+		exchange.DefaultRest: bitstampAPIURL,
+		exchange.DefaultWS:   bitstampWSURL,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

@@ -29,9 +29,7 @@ import (
 )
 
 const (
-	defaultRest   = "defaultURL"
 	secondaryRest = "secondaryURL"
-	defaultWS     = "defaultWSURL"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -133,18 +131,11 @@ func (g *Gateio) SetDefaults() {
 	}
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	err = g.API.Endpoints.Set(defaultRest, gateioTradeURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = g.API.Endpoints.Set(secondaryRest, gateioMarketURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = g.API.Endpoints.Set(defaultWS, gateioWebsocketEndpoint, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	g.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: gateioTradeURL,
+		secondaryRest:        gateioMarketURL,
+		exchange.DefaultWS:   gateioWebsocketEndpoint,
+	})
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

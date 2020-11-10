@@ -28,9 +28,7 @@ import (
 )
 
 const (
-	defaultRest = "defaultURL"
-	sandboxURL  = "sandbox"
-	defaultWS   = "defaultWSURL"
+	sandboxURL = "sandbox"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -137,18 +135,11 @@ func (c *CoinbasePro) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	err = c.API.Endpoints.Set(defaultRest, coinbaseproAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = c.API.Endpoints.Set(sandboxURL, coinbaseproSandboxAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = c.API.Endpoints.Set(defaultWS, coinbaseproWebsocketURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	c.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: coinbaseproAPIURL,
+		sandboxURL:           coinbaseproSandboxAPIURL,
+		exchange.DefaultWS:   coinbaseproWebsocketURL,
+	})
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

@@ -28,9 +28,7 @@ import (
 )
 
 const (
-	defaultRest = "defaultURL"
-	testnetURL  = "testnetURL"
-	defaultWS   = "defaultWSURL"
+	testnetURL = "testnetURL"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -125,14 +123,10 @@ func (b *Bitmex) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	err = b.API.Endpoints.Set(defaultRest, bitmexAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = b.API.Endpoints.Set(defaultWS, bitmexWSURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	b.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: bitmexAPIURL,
+		exchange.DefaultWS:   bitmexWSURL,
+	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -189,7 +183,7 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		wsEndpoint, err := b.API.Endpoints.Get(defaultWS)
+		wsEndpoint, err := b.API.Endpoints.Get(exchange.DefaultWS)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

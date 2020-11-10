@@ -17,13 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-)
-
-const (
-	defaultRest = "defaultRest"
-	defaultWS   = "defaultWS"
 )
 
 // GetDefaultConfig returns a default exchange config for Alphapoint
@@ -36,15 +30,10 @@ func (a *Alphapoint) SetDefaults() {
 	a.Name = "Alphapoint"
 	a.Enabled = true
 	a.Verbose = true
-	var err error
-	err = a.API.Endpoints.Set(defaultWS, alphapointDefaultWebsocketURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = a.API.Endpoints.Set(defaultRest, alphapointDefaultAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	a.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: alphapointDefaultAPIURL,
+		exchange.DefaultWS:   alphapointDefaultWebsocketURL,
+	})
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
 

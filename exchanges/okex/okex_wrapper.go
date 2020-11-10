@@ -25,11 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	defaultRest = "defaultURL"
-	defaultWS   = "defaultWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (o *OKEX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	o.SetDefaults()
@@ -202,14 +197,10 @@ func (o *OKEX) SetDefaults() {
 		// TODO: Specify each individual endpoint rate limits as per docs
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
-	err = o.API.Endpoints.Set(defaultRest, okExAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = o.API.Endpoints.Set(defaultWS, OkExWebsocketURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	o.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: okExAPIURL,
+		exchange.DefaultWS:   OkExWebsocketURL,
+	})
 	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -229,7 +220,7 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
-		wsEndpoint, err := o.API.Endpoints.Get(defaultWS)
+		wsEndpoint, err := o.API.Endpoints.Get(exchange.DefaultWS)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

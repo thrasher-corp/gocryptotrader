@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -375,7 +376,10 @@ type APIConfig struct {
 	AuthenticatedWebsocketSupport bool `json:"authenticatedWebsocketApiSupport"`
 	PEMKeySupport                 bool `json:"pemKeySupport,omitempty"`
 
-	Endpoints            APIEndpointsConfig             `json:"endpoints"`
 	Credentials          APICredentialsConfig           `json:"credentials"`
 	CredentialsValidator *APICredentialsValidatorConfig `json:"credentialsValidator,omitempty"`
+
+	// deprecated mate
+	OldEndPoints *APIEndpointsConfig `json:"endpoints,omitempty"`
+	Endpoints    exchange.Endpoints  `json:"urlEndpoints"`
 }

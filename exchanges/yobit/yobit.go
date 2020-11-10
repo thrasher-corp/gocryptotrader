@@ -49,7 +49,7 @@ func (y *Yobit) GetInfo() (Info, error) {
 	resp := Info{}
 	path := fmt.Sprintf("/%s/%s/", apiPublicVersion, publicInfo)
 
-	return resp, y.SendHTTPRequest(defaultRest, path, &resp)
+	return resp, y.SendHTTPRequest(exchange.DefaultRest, path, &resp)
 }
 
 // GetTicker returns a ticker for a specific currency
@@ -61,7 +61,7 @@ func (y *Yobit) GetTicker(symbol string) (map[string]Ticker, error) {
 	response := Response{}
 	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
 
-	return response.Data, y.SendHTTPRequest(defaultRest, path, &response.Data)
+	return response.Data, y.SendHTTPRequest(exchange.DefaultRest, path, &response.Data)
 }
 
 // GetDepth returns the depth for a specific currency
@@ -74,7 +74,7 @@ func (y *Yobit) GetDepth(symbol string) (Orderbook, error) {
 	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicDepth, symbol)
 
 	return response.Data[symbol],
-		y.SendHTTPRequest(defaultRest, path, &response.Data)
+		y.SendHTTPRequest(exchange.DefaultRest, path, &response.Data)
 }
 
 // GetTrades returns the trades for a specific currency
@@ -85,7 +85,7 @@ func (y *Yobit) GetTrades(symbol string) ([]Trade, error) {
 
 	var dataHolder respDataHolder
 	path := "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol
-	err := y.SendHTTPRequest(defaultRest, path, &dataHolder.Data)
+	err := y.SendHTTPRequest(exchange.DefaultRest, path, &dataHolder.Data)
 	if err != nil {
 		return nil, err
 	}

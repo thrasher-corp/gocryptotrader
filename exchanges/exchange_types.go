@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -156,54 +155,6 @@ type FeaturesSupported struct {
 type Endpoints struct {
 	m map[string]string
 	sync.Mutex
-}
-
-// CreateMap creates map
-func (e *Endpoints) CreateMap(m map[string]string) {
-	e = &Endpoints{
-		m: make(map[string]string),
-	}
-
-	for k, v := range m {
-		e.m[k] = v
-	}
-}
-
-// Set sets
-func (e *Endpoints) Set(key, val string, overwrite bool) error {
-	e.Lock()
-	defer e.Unlock()
-	if !overwrite {
-		_, ok := e.m[key]
-		if ok {
-			return fmt.Errorf("given key is already being used")
-		}
-		for x := range e.m {
-			if e.m[x] == val {
-				return fmt.Errorf("given val is already set by the following key: %v", x)
-			}
-		}
-	}
-	e.m[key] = val
-	return nil
-}
-
-// Get Gets bra
-func (e *Endpoints) Get(key string) (string, error) {
-	e.Lock()
-	defer e.Unlock()
-	val, ok := e.m[key]
-	if !ok {
-		return "", fmt.Errorf("no method found for the given key: %v", key)
-	}
-	return val, nil
-}
-
-// GetAll gets all
-func (e *Endpoints) GetAll() map[string]string {
-	e.Lock()
-	defer e.Unlock()
-	return e.m
 }
 
 // API stores the exchange API settings

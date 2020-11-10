@@ -67,7 +67,7 @@ func (l *Lbank) GetTicker(symbol string) (TickerResponse, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion, lbankTicker, params.Encode())
-	return t, l.SendHTTPRequest(defaultRest, path, &t)
+	return t, l.SendHTTPRequest(exchange.DefaultRest, path, &t)
 }
 
 // GetTickers returns all tickers
@@ -76,7 +76,7 @@ func (l *Lbank) GetTickers() ([]TickerResponse, error) {
 	params := url.Values{}
 	params.Set("symbol", "all")
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion, lbankTicker, params.Encode())
-	return t, l.SendHTTPRequest(defaultRest, path, &t)
+	return t, l.SendHTTPRequest(exchange.DefaultRest, path, &t)
 }
 
 // GetCurrencyPairs returns a list of supported currency pairs by the exchange
@@ -84,7 +84,7 @@ func (l *Lbank) GetCurrencyPairs() ([]string, error) {
 	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion,
 		lbankCurrencyPairs)
 	var result []string
-	return result, l.SendHTTPRequest(defaultRest, path, &result)
+	return result, l.SendHTTPRequest(exchange.DefaultRest, path, &result)
 }
 
 // GetMarketDepths returns arrays of asks, bids and timestamp
@@ -95,7 +95,7 @@ func (l *Lbank) GetMarketDepths(symbol, size, merge string) (MarketDepthResponse
 	params.Set("size", size)
 	params.Set("merge", merge)
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion2, lbankMarketDepths, params.Encode())
-	return m, l.SendHTTPRequest(defaultRest, path, &m)
+	return m, l.SendHTTPRequest(exchange.DefaultRest, path, &m)
 }
 
 // GetTrades returns an array of available trades regarding a particular exchange
@@ -110,7 +110,7 @@ func (l *Lbank) GetTrades(symbol string, limit, time int64) ([]TradeResponse, er
 		params.Set("time", strconv.FormatInt(time, 10))
 	}
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion, lbankTrades, params.Encode())
-	return g, l.SendHTTPRequest(defaultRest, path, &g)
+	return g, l.SendHTTPRequest(exchange.DefaultRest, path, &g)
 }
 
 // GetKlines returns kline data
@@ -123,7 +123,7 @@ func (l *Lbank) GetKlines(symbol, size, klineType, time string) ([]KlineResponse
 	params.Set("type", klineType)
 	params.Set("time", time)
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion, lbankKlines, params.Encode())
-	err := l.SendHTTPRequest(defaultRest, path, &klineTemp)
+	err := l.SendHTTPRequest(exchange.DefaultRest, path, &klineTemp)
 	if err != nil {
 		return k, err
 	}
@@ -322,7 +322,7 @@ func (l *Lbank) QueryOrderHistory(pair, pageNumber, pageLength string) (OrderHis
 func (l *Lbank) GetPairInfo() ([]PairInfoResponse, error) {
 	var resp []PairInfoResponse
 	path := fmt.Sprintf("/v%s/%s?", lbankAPIVersion, lbankPairInfo)
-	return resp, l.SendHTTPRequest(defaultRest, path, &resp)
+	return resp, l.SendHTTPRequest(exchange.DefaultRest, path, &resp)
 }
 
 // OrderTransactionDetails gets info about transactions
@@ -406,7 +406,7 @@ func (l *Lbank) GetOpenOrders(pair, pageNumber, pageLength string) (OpenOrderFin
 func (l *Lbank) USD2RMBRate() (ExchangeRateResponse, error) {
 	var resp ExchangeRateResponse
 	path := fmt.Sprintf("/v%s/%s", lbankAPIVersion, lbankUSD2CNYRate)
-	return resp, l.SendHTTPRequest(defaultRest, path, &resp)
+	return resp, l.SendHTTPRequest(exchange.DefaultRest, path, &resp)
 }
 
 // GetWithdrawConfig gets information about withdrawals
@@ -415,7 +415,7 @@ func (l *Lbank) GetWithdrawConfig(assetCode string) ([]WithdrawConfigResponse, e
 	params := url.Values{}
 	params.Set("assetCode", assetCode)
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion, lbankWithdrawConfig, params.Encode())
-	return resp, l.SendHTTPRequest(defaultRest, path, &resp)
+	return resp, l.SendHTTPRequest(exchange.DefaultRest, path, &resp)
 }
 
 // Withdraw sends a withdrawal request

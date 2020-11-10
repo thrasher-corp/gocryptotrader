@@ -36,6 +36,11 @@ const (
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
+
+	// DefaultRest stores default rest string for endpoint lookup
+	DefaultRest = "defaultURL"
+	// DefaultWS stores default websocket string for endpoint lookup
+	DefaultWS = "defaultWSURL"
 )
 
 func (e *Base) checkAndInitRequester() {
@@ -780,6 +785,25 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL() error {
+	if e.Config.API.OldEndPoints != nil {
+		// Apply old config to exchange struct
+		// e.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.URL)
+		// e.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.URLSECONDARY)
+		// err =e.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.WEBSOCK)
+
+		// Apply old config to new endpoint struct in config
+		// e.Config.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.URL)
+		// e.Config.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.URLSECONDARY)
+		// err =e.Config.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.WEBSOCK)
+
+		// purge oldEndpoint
+		e.Config.API.OldEndPoints = nil
+	} else {
+		// for loop over e.Config.API.Endpoints
+		// err = e.API.Endpoints.Set(k,v)
+	}
+
+	// OLD UPDATE ________________________________________________
 	// if e.Config.API.Endpoints.URL == "" || e.Config.API.Endpoints.URLSecondary == "" {
 	// 	return fmt.Errorf("exchange %s: SetAPIURL error. URL vals are empty", e.Name)
 	// }
@@ -803,6 +827,16 @@ func (e *Base) SetAPIURL() error {
 	// 	e.API.Endpoints.URLSecondary = e.Config.API.Endpoints.URLSecondary
 	// 	checkInsecureEndpoint(e.API.Endpoints.URLSecondary)
 	// }
+	// ________________________________________________________________________________
+	// some stuff
+	// wow := e.API.Endpoints.GetAll()
+	// for k, v := range wow {
+	// 	err := e.Config.API.Endpoints.Set(k, v, false)
+	// 	if err != nil {
+	// 		return meow
+	// 	}
+	// }
+
 	return nil
 }
 
@@ -1119,16 +1153,50 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 	}
 }
 
-// // GetEndpoint gets endpoint
-// func (e *Base) GetEndpoint(lookup string) (string, error) {
-// 	if e.API.Endpoints == nil {
-// 		return "", errors.New("no endpoint available for the given lookup string")
-// 	}
+// CreateMap creates map
+func (e *Endpoints) CreateMap(m map[string]string) {
+	*e = Endpoints{
+		m: make(map[string]string),
+	}
 
-// 	v, ok := e.API.Endpoints[lookup]
-// 	if !ok {
-// 		return "", errors.New("not found")
-// 	}
+	for k, v := range m {
+		e.m[k] = v
+	}
+}
 
-// 	return v, nil
-// }
+// Set sets
+func (e *Endpoints) Set(key, val string, overwrite bool) error {
+	e.Lock()
+	defer e.Unlock()
+	if !overwrite {
+		_, ok := e.m[key]
+		if ok {
+			return fmt.Errorf("given key is already being used")
+		}
+		for x := range e.m {
+			if e.m[x] == val {
+				return fmt.Errorf("given val is already set by the following key: %v", x)
+			}
+		}
+	}
+	e.m[key] = val
+	return nil
+}
+
+// Get Gets bra
+func (e *Endpoints) Get(key string) (string, error) {
+	e.Lock()
+	defer e.Unlock()
+	val, ok := e.m[key]
+	if !ok {
+		return "", fmt.Errorf("no method found for the given key: %v", key)
+	}
+	return val, nil
+}
+
+// GetAll gets all
+func (e *Endpoints) GetAll() map[string]string {
+	e.Lock()
+	defer e.Unlock()
+	return e.m
+}

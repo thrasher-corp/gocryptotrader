@@ -28,11 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	defaultRest = "defaultURL"
-	defaultWS   = "defaultWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (b *Bitfinex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -168,18 +163,10 @@ func (b *Bitfinex) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	err = b.API.Endpoints.Set(defaultRest, bitfinexAPIURLBase, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = b.API.Endpoints.Set(defaultRest, bitfinexAPIURLBase, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = b.API.Endpoints.Set(defaultWS, publicBitfinexWebsocketEndpoint, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	b.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: bitfinexAPIURLBase,
+		exchange.DefaultWS:   publicBitfinexWebsocketEndpoint,
+	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

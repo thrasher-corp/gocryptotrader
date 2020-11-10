@@ -106,7 +106,7 @@ func (f *FTX) GetMarkets() ([]MarketData, error) {
 	resp := struct {
 		Data []MarketData `json:"result"`
 	}{}
-	return resp.Data, f.SendHTTPRequest(defaultRest, getMarkets, &resp)
+	return resp.Data, f.SendHTTPRequest(exchange.DefaultRest, getMarkets, &resp)
 }
 
 // GetMarket gets market data for a provided asset type
@@ -114,7 +114,7 @@ func (f *FTX) GetMarket(marketName string) (MarketData, error) {
 	resp := struct {
 		Data MarketData `json:"result"`
 	}{}
-	return resp.Data, f.SendHTTPRequest(defaultRest, getMarket+marketName,
+	return resp.Data, f.SendHTTPRequest(exchange.DefaultRest, getMarket+marketName,
 		&resp)
 }
 
@@ -125,7 +125,7 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 	}{}
 	strDepth := strconv.FormatInt(depth, 10)
 	var resp OrderbookData
-	err := f.SendHTTPRequest(defaultRest, fmt.Sprintf(getOrderbook, marketName, strDepth), &result)
+	err := f.SendHTTPRequest(exchange.DefaultRest, fmt.Sprintf(getOrderbook, marketName, strDepth), &result)
 	if err != nil {
 		return resp, err
 	}
@@ -158,7 +158,7 @@ func (f *FTX) GetTrades(marketName string, startTime, endTime, limit int64) ([]T
 		params.Set("start_time", strconv.FormatInt(startTime, 10))
 		params.Set("end_time", strconv.FormatInt(endTime, 10))
 	}
-	return resp.Data, f.SendHTTPRequest(defaultRest, fmt.Sprintf(getTrades, marketName)+params.Encode(),
+	return resp.Data, f.SendHTTPRequest(exchange.DefaultRest, fmt.Sprintf(getTrades, marketName)+params.Encode(),
 		&resp)
 }
 
@@ -179,7 +179,7 @@ func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTim
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp.Data, f.SendHTTPRequest(defaultRest, fmt.Sprintf(getHistoricalData, marketName)+params.Encode(), &resp)
+	return resp.Data, f.SendHTTPRequest(exchange.DefaultRest, fmt.Sprintf(getHistoricalData, marketName)+params.Encode(), &resp)
 }
 
 // GetFutures gets data on futures
@@ -187,7 +187,7 @@ func (f *FTX) GetFutures() ([]FuturesData, error) {
 	resp := struct {
 		Data []FuturesData `json:"result"`
 	}{}
-	return resp.Data, f.SendHTTPRequest(defaultRest, getFutures, &resp)
+	return resp.Data, f.SendHTTPRequest(exchange.DefaultRest, getFutures, &resp)
 }
 
 // GetFuture gets data on a given future
@@ -195,7 +195,7 @@ func (f *FTX) GetFuture(futureName string) (FuturesData, error) {
 	resp := struct {
 		Data FuturesData `json:"result"`
 	}{}
-	return resp.Data, f.SendHTTPRequest(defaultRest, getFuture+futureName, &resp)
+	return resp.Data, f.SendHTTPRequest(exchange.DefaultRest, getFuture+futureName, &resp)
 }
 
 // GetFutureStats gets data on a given future's stats
@@ -203,7 +203,7 @@ func (f *FTX) GetFutureStats(futureName string) (FutureStatsData, error) {
 	resp := struct {
 		Data FutureStatsData `json:"result"`
 	}{}
-	return resp.Data, f.SendHTTPRequest(defaultRest, fmt.Sprintf(getFutureStats, futureName), &resp)
+	return resp.Data, f.SendHTTPRequest(exchange.DefaultRest, fmt.Sprintf(getFutureStats, futureName), &resp)
 }
 
 // GetFundingRates gets data on funding rates
@@ -222,13 +222,13 @@ func (f *FTX) GetFundingRates(startTime, endTime time.Time, future string) ([]Fu
 	if future != "" {
 		params.Set("future", future)
 	}
-	return resp.Data, f.SendHTTPRequest(defaultRest, getFundingRates+params.Encode(), &resp)
+	return resp.Data, f.SendHTTPRequest(exchange.DefaultRest, getFundingRates+params.Encode(), &resp)
 }
 
 // GetIndexWeights gets index weights
 func (f *FTX) GetIndexWeights(index string) (IndexWeights, error) {
 	var resp IndexWeights
-	return resp, f.SendHTTPRequest(defaultRest, fmt.Sprintf(getIndexWeights, index), &resp)
+	return resp, f.SendHTTPRequest(exchange.DefaultRest, fmt.Sprintf(getIndexWeights, index), &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -252,7 +252,7 @@ func (f *FTX) GetAccountInfo() (AccountInfoData, error) {
 	resp := struct {
 		Data AccountInfoData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getAccountInfo, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getAccountInfo, nil, &resp)
 }
 
 // GetPositions gets the users positions
@@ -260,14 +260,14 @@ func (f *FTX) GetPositions() ([]PositionData, error) {
 	resp := struct {
 		Data []PositionData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getPositions, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getPositions, nil, &resp)
 }
 
 // ChangeAccountLeverage changes default leverage used by account
 func (f *FTX) ChangeAccountLeverage(leverage float64) error {
 	req := make(map[string]interface{})
 	req["leverage"] = leverage
-	return f.SendAuthHTTPRequest(defaultRest, http.MethodPost, setLeverage, req, nil)
+	return f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, setLeverage, req, nil)
 }
 
 // GetCoins gets coins' data in the account wallet
@@ -275,7 +275,7 @@ func (f *FTX) GetCoins() ([]WalletCoinsData, error) {
 	resp := struct {
 		Data []WalletCoinsData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getCoins, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getCoins, nil, &resp)
 }
 
 // GetBalances gets balances of the account
@@ -283,7 +283,7 @@ func (f *FTX) GetBalances() ([]BalancesData, error) {
 	resp := struct {
 		Data []BalancesData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getBalances, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getBalances, nil, &resp)
 }
 
 // GetAllWalletBalances gets all wallets' balances
@@ -291,7 +291,7 @@ func (f *FTX) GetAllWalletBalances() (AllWalletAccountData, error) {
 	resp := struct {
 		Data AllWalletAccountData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getAllWalletBalances, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getAllWalletBalances, nil, &resp)
 }
 
 // FetchDepositAddress gets deposit address for a given coin
@@ -299,7 +299,7 @@ func (f *FTX) FetchDepositAddress(coin string) (DepositData, error) {
 	resp := struct {
 		Data DepositData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getDepositAddress+coin, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getDepositAddress+coin, nil, &resp)
 }
 
 // FetchDepositHistory gets deposit history
@@ -307,7 +307,7 @@ func (f *FTX) FetchDepositHistory() ([]TransactionData, error) {
 	resp := struct {
 		Data []TransactionData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getDepositHistory, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getDepositHistory, nil, &resp)
 }
 
 // FetchWithdrawalHistory gets withdrawal history
@@ -315,7 +315,7 @@ func (f *FTX) FetchWithdrawalHistory() ([]TransactionData, error) {
 	resp := struct {
 		Data []TransactionData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getWithdrawalHistory, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getWithdrawalHistory, nil, &resp)
 }
 
 // Withdraw sends a withdrawal request
@@ -336,7 +336,7 @@ func (f *FTX) Withdraw(coin, address, tag, password, code string, size float64) 
 	resp := struct {
 		Data TransactionData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, withdrawRequest, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, withdrawRequest, req, &resp)
 }
 
 // GetOpenOrders gets open orders
@@ -348,7 +348,7 @@ func (f *FTX) GetOpenOrders(marketName string) ([]OrderData, error) {
 	resp := struct {
 		Data []OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getOpenOrders+params.Encode(), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getOpenOrders+params.Encode(), nil, &resp)
 }
 
 // FetchOrderHistory gets order history
@@ -370,7 +370,7 @@ func (f *FTX) FetchOrderHistory(marketName string, startTime, endTime time.Time,
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getOrderHistory+params.Encode(), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getOrderHistory+params.Encode(), nil, &resp)
 }
 
 // GetOpenTriggerOrders gets trigger orders that are currently open
@@ -385,7 +385,7 @@ func (f *FTX) GetOpenTriggerOrders(marketName, orderType string) ([]TriggerOrder
 	resp := struct {
 		Data []TriggerOrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getOpenTriggerOrders+params.Encode(), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getOpenTriggerOrders+params.Encode(), nil, &resp)
 }
 
 // GetTriggerOrderTriggers gets trigger orders that are currently open
@@ -393,7 +393,7 @@ func (f *FTX) GetTriggerOrderTriggers(orderID string) ([]TriggerData, error) {
 	resp := struct {
 		Data []TriggerData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, fmt.Sprintf(getTriggerOrderTriggers, orderID), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, fmt.Sprintf(getTriggerOrderTriggers, orderID), nil, &resp)
 }
 
 // GetTriggerOrderHistory gets trigger orders that are currently open
@@ -421,7 +421,7 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
 }
 
 // Order places an order
@@ -447,7 +447,7 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, placeOrder, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, placeOrder, req, &resp)
 }
 
 // TriggerOrder places an order
@@ -477,7 +477,7 @@ func (f *FTX) TriggerOrder(marketName, side, orderType, reduceOnly, retryUntilFi
 	resp := struct {
 		Data TriggerOrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, placeTriggerOrder, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, placeTriggerOrder, req, &resp)
 }
 
 // ModifyPlacedOrder modifies a placed order
@@ -491,7 +491,7 @@ func (f *FTX) ModifyPlacedOrder(orderID, clientID string, price, size float64) (
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, fmt.Sprintf(modifyOrder, orderID), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, fmt.Sprintf(modifyOrder, orderID), req, &resp)
 }
 
 // ModifyOrderByClientID modifies a placed order via clientOrderID
@@ -505,7 +505,7 @@ func (f *FTX) ModifyOrderByClientID(clientOrderID, clientID string, price, size 
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, fmt.Sprintf(modifyOrderByClientID, clientOrderID), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, fmt.Sprintf(modifyOrderByClientID, clientOrderID), req, &resp)
 }
 
 // ModifyTriggerOrder modifies an existing trigger order
@@ -527,7 +527,7 @@ func (f *FTX) ModifyTriggerOrder(orderID, orderType string, size, triggerPrice, 
 	resp := struct {
 		Data TriggerOrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, fmt.Sprintf(modifyTriggerOrder, orderID), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, fmt.Sprintf(modifyTriggerOrder, orderID), req, &resp)
 }
 
 // GetOrderStatus gets the order status of a given orderID
@@ -535,7 +535,7 @@ func (f *FTX) GetOrderStatus(orderID string) (OrderData, error) {
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getOrderStatus+orderID, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getOrderStatus+orderID, nil, &resp)
 }
 
 // GetOrderStatusByClientID gets the order status of a given clientOrderID
@@ -543,7 +543,7 @@ func (f *FTX) GetOrderStatusByClientID(clientOrderID string) (OrderData, error) 
 	resp := struct {
 		Data OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getOrderStatusByClientID+clientOrderID, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getOrderStatusByClientID+clientOrderID, nil, &resp)
 }
 
 // DeleteOrder deletes an order
@@ -552,7 +552,7 @@ func (f *FTX) DeleteOrder(orderID string) (string, error) {
 		Result  string `json:"result"`
 		Success bool   `json:"success"`
 	}{}
-	if err := f.SendAuthHTTPRequest(defaultRest, http.MethodDelete, deleteOrder+orderID, nil, &resp); err != nil {
+	if err := f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodDelete, deleteOrder+orderID, nil, &resp); err != nil {
 		return "", err
 	}
 	if !resp.Success {
@@ -568,7 +568,7 @@ func (f *FTX) DeleteOrderByClientID(clientID string) (string, error) {
 		Success bool   `json:"success"`
 	}{}
 
-	if err := f.SendAuthHTTPRequest(defaultRest, http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp); err != nil {
+	if err := f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodDelete, deleteOrderByClientID+clientID, nil, &resp); err != nil {
 		return "", err
 	}
 	if !resp.Success {
@@ -584,7 +584,7 @@ func (f *FTX) DeleteTriggerOrder(orderID string) (string, error) {
 		Success bool   `json:"success"`
 	}{}
 
-	if err := f.SendAuthHTTPRequest(defaultRest, http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp); err != nil {
+	if err := f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp); err != nil {
 		return "", err
 	}
 	if !resp.Success {
@@ -612,7 +612,7 @@ func (f *FTX) GetFills(market, limit string, startTime, endTime time.Time) ([]Fi
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getFills+params.Encode(), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getFills+params.Encode(), nil, &resp)
 }
 
 // GetFundingPayments gets funding payments
@@ -631,7 +631,7 @@ func (f *FTX) GetFundingPayments(startTime, endTime time.Time, future string) ([
 	if future != "" {
 		params.Set("future", future)
 	}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getFundingPayments+params.Encode(), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getFundingPayments+params.Encode(), nil, &resp)
 }
 
 // ListLeveragedTokens lists leveraged tokens
@@ -639,7 +639,7 @@ func (f *FTX) ListLeveragedTokens() ([]LeveragedTokensData, error) {
 	resp := struct {
 		Data []LeveragedTokensData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getLeveragedTokens, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getLeveragedTokens, nil, &resp)
 }
 
 // GetTokenInfo gets token info
@@ -647,7 +647,7 @@ func (f *FTX) GetTokenInfo(tokenName string) ([]LeveragedTokensData, error) {
 	resp := struct {
 		Data []LeveragedTokensData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getTokenInfo+tokenName, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getTokenInfo+tokenName, nil, &resp)
 }
 
 // ListLTBalances gets leveraged tokens' balances
@@ -655,7 +655,7 @@ func (f *FTX) ListLTBalances() ([]LTBalanceData, error) {
 	resp := struct {
 		Data []LTBalanceData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getLTBalances, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getLTBalances, nil, &resp)
 }
 
 // ListLTCreations lists the leveraged tokens' creation requests
@@ -663,7 +663,7 @@ func (f *FTX) ListLTCreations() ([]LTCreationData, error) {
 	resp := struct {
 		Data []LTCreationData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getLTCreations, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getLTCreations, nil, &resp)
 }
 
 // RequestLTCreation sends a request to create a leveraged token
@@ -673,7 +673,7 @@ func (f *FTX) RequestLTCreation(tokenName string, size float64) (RequestTokenCre
 	resp := struct {
 		Data RequestTokenCreationData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, fmt.Sprintf(requestLTCreation, tokenName), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, fmt.Sprintf(requestLTCreation, tokenName), req, &resp)
 }
 
 // ListLTRedemptions lists the leveraged tokens' redemption requests
@@ -681,7 +681,7 @@ func (f *FTX) ListLTRedemptions() ([]LTRedemptionData, error) {
 	resp := struct {
 		Data []LTRedemptionData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getLTRedemptions, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getLTRedemptions, nil, &resp)
 }
 
 // RequestLTRedemption sends a request to redeem a leveraged token
@@ -691,7 +691,7 @@ func (f *FTX) RequestLTRedemption(tokenName string, size float64) (LTRedemptionR
 	resp := struct {
 		Data LTRedemptionRequestData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, fmt.Sprintf(requestLTRedemption, tokenName), req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, fmt.Sprintf(requestLTRedemption, tokenName), req, &resp)
 }
 
 // GetQuoteRequests gets a list of quote requests
@@ -699,7 +699,7 @@ func (f *FTX) GetQuoteRequests() ([]QuoteRequestData, error) {
 	resp := struct {
 		Data []QuoteRequestData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getListQuotes, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getListQuotes, nil, &resp)
 }
 
 // GetYourQuoteRequests gets a list of your quote requests
@@ -707,7 +707,7 @@ func (f *FTX) GetYourQuoteRequests() ([]PersonalQuotesData, error) {
 	resp := struct {
 		Data []PersonalQuotesData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getMyQuotesRequests, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getMyQuotesRequests, nil, &resp)
 }
 
 // CreateQuoteRequest sends a request to create a quote
@@ -732,7 +732,7 @@ func (f *FTX) CreateQuoteRequest(underlying, optionType, side string, expiry int
 	resp := struct {
 		Data CreateQuoteRequestData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, createQuoteRequest, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, createQuoteRequest, req, &resp)
 }
 
 // DeleteQuote sends request to cancel a quote
@@ -740,13 +740,13 @@ func (f *FTX) DeleteQuote(requestID string) (CancelQuoteRequestData, error) {
 	resp := struct {
 		Data CancelQuoteRequestData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodDelete, deleteQuote+requestID, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodDelete, deleteQuote+requestID, nil, &resp)
 }
 
 // GetQuotesForYourQuote gets a list of quotes for your quote
 func (f *FTX) GetQuotesForYourQuote(requestID string) (QuoteForQuoteData, error) {
 	var resp QuoteForQuoteData
-	return resp, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, fmt.Sprintf(endpointQuote, requestID), nil, &resp)
+	return resp, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, fmt.Sprintf(endpointQuote, requestID), nil, &resp)
 }
 
 // MakeQuote makes a quote for a quote
@@ -756,7 +756,7 @@ func (f *FTX) MakeQuote(requestID, price string) ([]QuoteForQuoteData, error) {
 	resp := struct {
 		Data []QuoteForQuoteData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, fmt.Sprintf(endpointQuote, requestID), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, fmt.Sprintf(endpointQuote, requestID), nil, &resp)
 }
 
 // MyQuotes gets a list of my quotes for quotes
@@ -764,7 +764,7 @@ func (f *FTX) MyQuotes() ([]QuoteForQuoteData, error) {
 	resp := struct {
 		Data []QuoteForQuoteData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getMyQuotes, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getMyQuotes, nil, &resp)
 }
 
 // DeleteMyQuote deletes my quote for quotes
@@ -772,7 +772,7 @@ func (f *FTX) DeleteMyQuote(quoteID string) ([]QuoteForQuoteData, error) {
 	resp := struct {
 		Data []QuoteForQuoteData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodDelete, deleteMyQuote+quoteID, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodDelete, deleteMyQuote+quoteID, nil, &resp)
 }
 
 // AcceptQuote accepts the quote for quote
@@ -780,7 +780,7 @@ func (f *FTX) AcceptQuote(quoteID string) ([]QuoteForQuoteData, error) {
 	resp := struct {
 		Data []QuoteForQuoteData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, fmt.Sprintf(acceptQuote, quoteID), nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, fmt.Sprintf(acceptQuote, quoteID), nil, &resp)
 }
 
 // GetAccountOptionsInfo gets account's options' info
@@ -788,7 +788,7 @@ func (f *FTX) GetAccountOptionsInfo() (AccountOptionsInfoData, error) {
 	resp := struct {
 		Data AccountOptionsInfoData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getOptionsInfo, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getOptionsInfo, nil, &resp)
 }
 
 // GetOptionsPositions gets options' positions
@@ -796,7 +796,7 @@ func (f *FTX) GetOptionsPositions() ([]OptionsPositionsData, error) {
 	resp := struct {
 		Data []OptionsPositionsData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getOptionsPositions, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getOptionsPositions, nil, &resp)
 }
 
 // GetPublicOptionsTrades gets options' trades from public
@@ -815,7 +815,7 @@ func (f *FTX) GetPublicOptionsTrades(startTime, endTime time.Time, limit string)
 	if limit != "" {
 		req["limit"] = limit
 	}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getPublicOptionsTrades, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getPublicOptionsTrades, req, &resp)
 }
 
 // GetOptionsFills gets fills data for options
@@ -834,7 +834,7 @@ func (f *FTX) GetOptionsFills(startTime, endTime time.Time, limit string) ([]Opt
 	if limit != "" {
 		req["limit"] = limit
 	}
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getOptionsFills, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getOptionsFills, req, &resp)
 }
 
 // SendAuthHTTPRequest sends an authenticated request
@@ -957,7 +957,7 @@ func (f *FTX) RequestForQuotes(base, quote string, amount float64) (RequestQuote
 	req["fromCoin"] = base
 	req["toCoin"] = quote
 	req["size"] = amount
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodPost, requestOTCQuote, req, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, requestOTCQuote, req, &resp)
 }
 
 // GetOTCQuoteStatus gets quote status of a quote
@@ -967,10 +967,10 @@ func (f *FTX) GetOTCQuoteStatus(marketName, quoteID string) ([]QuoteStatusData, 
 	}{}
 	params := url.Values{}
 	params.Set("market", marketName)
-	return resp.Data, f.SendAuthHTTPRequest(defaultRest, http.MethodGet, getOTCQuoteStatus+quoteID, params, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodGet, getOTCQuoteStatus+quoteID, params, &resp)
 }
 
 // AcceptOTCQuote requests for otc quotes
 func (f *FTX) AcceptOTCQuote(quoteID string) error {
-	return f.SendAuthHTTPRequest(defaultRest, http.MethodPost, fmt.Sprintf(acceptOTCQuote, quoteID), nil, nil)
+	return f.SendAuthHTTPRequest(exchange.DefaultRest, http.MethodPost, fmt.Sprintf(acceptOTCQuote, quoteID), nil, nil)
 }

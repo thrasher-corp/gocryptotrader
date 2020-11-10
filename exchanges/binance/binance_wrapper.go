@@ -30,12 +30,10 @@ import (
 
 const (
 	// ADD RUNNING REST AND more descriptive strings
-	defaultRest             = "DefaultRESTURL"
 	spot                    = "spotURL"
 	uFutures                = "ufuturesURL"
 	cmFutures               = "cfuturesURL"
 	interestHistoryEdgeCase = "edgecase1"
-	websocketDefault        = "websocket"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -184,31 +182,15 @@ func (b *Binance) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	err = b.API.Endpoints.Set(defaultRest, apiURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = b.API.Endpoints.Set(spot, spotAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = b.API.Endpoints.Set(uFutures, ufuturesAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = b.API.Endpoints.Set(cmFutures, cfuturesAPIURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = b.API.Endpoints.Set(interestHistoryEdgeCase, "https://www.binance.com", false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	b.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest:    apiURL,
+		spot:                    spotAPIURL,
+		uFutures:                ufuturesAPIURL,
+		cmFutures:               cfuturesAPIURL,
+		interestHistoryEdgeCase: "https://www.binance.com",
+		exchange.DefaultWS:      binanceDefaultWebsocketURL,
+	})
 	b.Websocket = stream.New()
-	err = b.API.Endpoints.Set(websocketDefault, binanceDefaultWebsocketURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -225,7 +207,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	epoint, err := b.API.Endpoints.Get(websocketDefault)
+	epoint, err := b.API.Endpoints.Get(exchange.DefaultWS)
 	if err != nil {
 		return err
 	}

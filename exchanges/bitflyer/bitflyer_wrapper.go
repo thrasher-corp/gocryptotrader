@@ -25,7 +25,6 @@ import (
 )
 
 const (
-	defaultRest      = "defaultURL"
 	chainAnalysisURL = "chainAnalysis"
 )
 
@@ -99,14 +98,10 @@ func (b *Bitflyer) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-	err = b.API.Endpoints.Set(defaultRest, japanURL, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
-	err = b.API.Endpoints.Set(chainAnalysisURL, chainAnalysis, false)
-	if err != nil {
-		log.Error(log.Global, err)
-	}
+	b.API.Endpoints.CreateMap(map[string]string{
+		exchange.DefaultRest: japanURL,
+		chainAnalysisURL:     chainAnalysis,
+	})
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
