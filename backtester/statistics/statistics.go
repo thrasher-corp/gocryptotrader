@@ -5,16 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"gonum.org/v1/gonum/stat"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/fill"
+	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	results2 "github.com/thrasher-corp/gocryptotrader/backtester/results"
 )
 
 // Update Statistic for event
@@ -59,6 +59,9 @@ func (s *Statistic) Events() []portfolio.EventHandler {
 
 // TrackTransaction add current transaction (trade) to History for Statistic
 func (s *Statistic) TrackTransaction(f fill.FillEvent) {
+	if f == nil {
+		return
+	}
 	s.TransactionHistory = append(s.TransactionHistory, f)
 }
 
@@ -77,23 +80,24 @@ func (s *Statistic) Reset() {
 }
 
 // ReturnResults will return Results for current backtest run
-func (s *Statistic) ReturnResults() results2.Results {
-	results := results2.Results{
+func (s *Statistic) ReturnResults() Results {
+	results := Results{
 		TotalEvents:       len(s.Events()),
 		TotalTransactions: len(s.Transactions()),
 		SharpieRatio:      s.SharpeRatio(0),
 		StrategyName:      s.StrategyName,
 	}
 	for v := range s.Transactions() {
-		results.Transactions = append(results.Transactions, results2.ResultTransactions{
+		results.Transactions = append(results.Transactions, ResultTransactions{
 			Time:      s.Transactions()[v].GetTime(),
 			Direction: s.Transactions()[v].GetDirection(),
 			Price:     s.Transactions()[v].GetPrice(),
 			Amount:    s.Transactions()[v].GetAmount(),
+			Why:       s.Transactions()[v].GetWhy(),
 		})
 	}
 	for v := range s.Events() {
-		results.Events = append(results.Events, results2.ResultEvent{
+		results.Events = append(results.Events, ResultEvent{
 			Time: s.Events()[v].GetTime(),
 		})
 	}
@@ -104,16 +108,25 @@ func (s *Statistic) PrintResult() {
 	fmt.Printf("Counted %d total events.\n", len(s.Events()))
 
 	fmt.Printf("Counted %d total transactions:\n", len(s.Transactions()))
-	for k, v := range s.Transactions() {
-		fmt.Printf("%d. Transaction: %v Action: %v Price: %f Amount: %f ExchangeFee: %v \n",
-			k+1,
-			v.GetTime().Format(time.RFC3339Nano),
-			v.GetDirection(),
-			v.GetPrice(),
-			v.GetAmount())
-		v.GetExchangeFee()
-	}
+	sb := strings.Builder{}
 
+	for k, v := range s.Transactions() {
+		sb.WriteString(fmt.Sprintf("%v. ", k+1))
+		sb.WriteString(fmt.Sprintf("Time: %v\t", v.GetTime().Format(time.RFC822)))
+		sb.WriteString(fmt.Sprintf("Price: %v\t", v.GetPrice()))
+		sb.WriteString(fmt.Sprintf("Action: %v\t", v.GetDirection()))
+		if v.GetDirection() != common.DoNothing {
+			sb.WriteString(fmt.Sprintf("Amount: %v\t", v.GetAmount()))
+			sb.WriteString(fmt.Sprintf("Fee: %v\t", v.GetExchangeFee()))
+		} else {
+			sb.WriteString("\t\t\t\t")
+		}
+		if v.GetWhy() != "" {
+			sb.WriteString(fmt.Sprintf("Why: %v\t", v.GetWhy()))
+		}
+		sb.WriteString("\n")
+	}
+	fmt.Print(sb.String())
 	result, _ := s.TotalEquityReturn()
 
 	fmt.Println("TotalEquity:", result, "MaxDrawdown:", s.MaxDrawdown())

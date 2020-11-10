@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	"github.com/thrasher-corp/gocryptotrader/backtester/event"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	kline2 "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )

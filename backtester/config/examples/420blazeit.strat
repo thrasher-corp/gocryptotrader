@@ -1,0 +1,19 @@
+{
+ "strategy": "rsi420blazeit",
+ "exchange-settings": {
+  "exchange-name": "binance",
+  "base": "BTC",
+  "quote": "USDT",
+  "asset": "spot",
+  "initial-funds": 100000,
+  "maximum-order-size": 0.5,
+  "minimum-order-size": 0.000001,
+  "default-order-size": 0.5
+ },
+ "data-source": "candle",
+ "candle-data": {
+  "start-date": "2020-11-03T10:38:49.7751799+11:00",
+  "end-date": "2020-11-10T10:38:49.7751799+11:00",
+  "interval": 3600000000000
+ }
+}

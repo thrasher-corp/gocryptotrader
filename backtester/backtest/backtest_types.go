@@ -1,9 +1,9 @@
 package backtest
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/exchange"
-	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	datahandler2 "github.com/thrasher-corp/gocryptotrader/backtester/orders"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"

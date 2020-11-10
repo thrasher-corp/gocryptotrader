@@ -3,7 +3,6 @@ package orders
 import (
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/direction"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -11,12 +10,12 @@ import (
 // OrderEvent
 type OrderEvent interface {
 	interfaces.EventHandler
-	direction.Directioner
+	interfaces.Directioner
 
 	SetAmount(float64)
 	GetAmount() float64
 	IsOrder() bool
-
+	GetWhy() string
 	GetStatus() order.Status
 	SetID(id int)
 	GetID() int

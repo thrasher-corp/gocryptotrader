@@ -1,7 +1,7 @@
 package data
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/backtester/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
