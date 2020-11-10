@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/strategies/RSI420BlazeIt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/strategies/buyandhold"
+	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/strategies/dollarcostaverage"
 )
 
 func LoadStrategyByName(name string) (StrategyHandler, error) {
@@ -21,7 +21,7 @@ func LoadStrategyByName(name string) (StrategyHandler, error) {
 
 func getStrategies() []StrategyHandler {
 	var strats []StrategyHandler
-	strats = append(strats, new(buyandhold.Strategy))
+	strats = append(strats, new(dollarcostaverage.Strategy))
 	strats = append(strats, new(RSI420BlazeIt.Strategy))
 
 	return strats

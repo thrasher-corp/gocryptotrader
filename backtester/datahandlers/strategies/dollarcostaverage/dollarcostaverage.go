@@ -1,4 +1,4 @@
-package buyandhold
+package dollarcostaverage
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/datahandlers/portfolio"
@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const name = "buyandhold"
+const name = "dollarcostaverage"
 
 type Strategy struct {
 	base.Strategy
