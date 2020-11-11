@@ -5,7 +5,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
 func (t *Tick) Price() float64 {

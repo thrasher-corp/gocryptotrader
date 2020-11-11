@@ -10,23 +10,38 @@ import (
 type Config struct {
 	StrategyToLoad   string           `json:"strategy"`
 	ExchangeSettings ExchangeSettings `json:"exchange-settings"`
-	CandleData       *CandleData      `json:"candle-data,omitempty"`
-	DatabaseData     *DatabaseData    `json:"database-data,omitempty"`
-	LiveData         *LiveData        `json:"live-data,omitempty"`
+	// Unsupported so far, but will move to having multiple currencies
+	ExchangeSettingsButWithPassionAndLust []ExchangeSettings `json:"lustful-exchange-settings,omitempty"`
+	// data source definitions:
+	CandleData   *CandleData   `json:"candle-data,omitempty"`
+	DatabaseData *DatabaseData `json:"database-data,omitempty"`
+	LiveData     *LiveData     `json:"live-data,omitempty"`
 }
 
 // ExchangeSettings stores pair based variables
+// It contains rules about the specific currency pair
+// you wish to trade with
 type ExchangeSettings struct {
-	Name             string  `json:"exchange-name"`
-	Base             string  `json:"base"`
-	Quote            string  `json:"quote"`
-	Asset            string  `json:"asset"`
-	InitialFunds     float64 `json:"initial-funds"`
-	MinimumOrderSize float64 `json:"minimum-order-size"` // will not place an order if under this amount
-	MaximumOrderSize float64 `json:"maximum-order-size"` // can only place an order up to this amount
-	DefaultOrderSize float64 `json:"default-order-size"`
-	MakerFee         float64 `json:"-"`
-	TakerFee         float64 `json:"-"`
+	Name  string `json:"exchange-name"`
+	Asset string `json:"asset"`
+	Base  string `json:"base"`
+	Quote string `json:"quote"`
+
+	InitialFunds float64 `json:"initial-funds"`
+
+	MinimumBuySize float64 `json:"minimum-buy-size"` // will not place an order if under this amount
+	MaximumBuySize float64 `json:"maximum-buy-size"` // can only place an order up to this amount
+	DefaultBuySize float64 `json:"default-buy-size"`
+
+	MinimumSellSize float64 `json:"minimum-sell-size"` // will not sell an order if under this amount
+	MaximumSellSize float64 `json:"maximum-sell-size"` // can only sell an order up to this amount
+	DefaultSellSize float64 `json:"default-sell-size"`
+
+	CanUseLeverage  bool    `json:"can-use-leverage"`
+	MaximumLeverage float64 `json:"maximum-leverage"`
+
+	MakerFee float64 `json:"-"`
+	TakerFee float64 `json:"-"`
 }
 
 // CandleData defines candle based variables

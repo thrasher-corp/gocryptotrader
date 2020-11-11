@@ -14,11 +14,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	common2 "github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // Update Statistic for event
-func (s *Statistic) Update(d portfolio.DataEventHandler, p portfolio2.PortfolioHandler) {
+func (s *Statistic) Update(d interfaces.DataEventHandler, p portfolio2.PortfolioHandler) {
 	if s.InitialBuy == 0 {
 		s.InitialBuy = p.GetInitialFunds() / d.Price()
 	}
@@ -48,12 +49,12 @@ func (s *Statistic) Update(d portfolio.DataEventHandler, p portfolio2.PortfolioH
 }
 
 // TrackEvent event adds current event to History for Statistic calculation
-func (s *Statistic) TrackEvent(e portfolio.EventHandler) {
+func (s *Statistic) TrackEvent(e interfaces.EventHandler) {
 	s.EventHistory = append(s.EventHistory, e)
 }
 
 // Events returns list of events
-func (s *Statistic) Events() []portfolio.EventHandler {
+func (s *Statistic) Events() []interfaces.EventHandler {
 	return s.EventHistory
 }
 
@@ -113,15 +114,15 @@ func (s *Statistic) PrintResult() {
 	butts := s.Transactions()
 	for k, v := range butts {
 		sb.WriteString(fmt.Sprintf("%v. ", k+1))
-		sb.WriteString(fmt.Sprintf("Time: %v\t", v.GetTime().Format(time.RFC822)))
-		sb.WriteString(fmt.Sprintf("Price: %v\t", v.GetPrice()))
-		sb.WriteString(fmt.Sprintf("Action: %v\t", v.GetDirection()))
+		sb.WriteString(fmt.Sprintf("%v\t", v.GetTime().Format(common2.SimpleTimeFormat)))
+		sb.WriteString(fmt.Sprintf("%v\t", v.GetDirection()))
 		if v.GetDirection() != common.DoNothing {
-			sb.WriteString(fmt.Sprintf("Amount: %v\t", v.GetAmount()))
-			sb.WriteString(fmt.Sprintf("Fee: %v\t", v.GetExchangeFee()))
+			sb.WriteString(fmt.Sprintf("%v @ ", v.GetAmount()))
+			sb.WriteString(fmt.Sprintf("$%v\t", v.GetPrice()))
+			sb.WriteString(fmt.Sprintf("Fee: $%v\t", v.GetExchangeFee()))
 			sb.WriteString(fmt.Sprintf("Cost Basis: %v\t", v.GetPrice()*v.GetAmount()+v.GetExchangeFee()))
 		} else {
-			sb.WriteString("\t\t\t\t\t\t")
+			sb.WriteString("\t\t\t")
 		}
 		if v.GetWhy() != "" {
 			sb.WriteString(fmt.Sprintf("Why: %v\t", v.GetWhy()))

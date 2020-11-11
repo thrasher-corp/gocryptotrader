@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/ticker"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	ticker2 "github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
@@ -20,7 +20,7 @@ func (d *DataFromTick) Load() error {
 		return errors.New("no tick data provided")
 	}
 
-	loadedData := make([]portfolio.DataEventHandler, len(d.ticks))
+	loadedData := make([]interfaces.DataEventHandler, len(d.ticks))
 	for i := range d.ticks {
 		loadedData[i] = &ticker.Tick{
 			Event: event.Event{

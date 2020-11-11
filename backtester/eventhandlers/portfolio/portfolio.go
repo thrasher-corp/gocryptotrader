@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -45,7 +45,7 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 	return p.Fees[exchangeName][a][cp]
 }
 
-func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandler) (*order.Order, error) {
+func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHandler) (*order.Order, error) {
 	if signal.GetDirection() == "" {
 		return &order.Order{}, errors.New("invalid Direction")
 	}
@@ -110,7 +110,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 	return o, nil
 }
 
-func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ portfolio.DataHandler) (*fill.Fill, error) {
+func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (*fill.Fill, error) {
 	if fillEvent.GetDirection() == common.DoNothing {
 		what := fillEvent.(*fill.Fill)
 		what.ExchangeFee = 0
@@ -160,7 +160,7 @@ func (p *Portfolio) IsShort(exchangeName string, a asset.Item, cp currency.Pair)
 	return pos, false
 }
 
-func (p *Portfolio) Update(d portfolio.DataEventHandler) {
+func (p *Portfolio) Update(d interfaces.DataEventHandler) {
 	if pos, ok := p.IsInvested(d.GetExchange(), d.GetAssetType(), d.Pair()); ok {
 		pos.UpdateValue(d)
 		p.SetHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), pos)

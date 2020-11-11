@@ -5,7 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -22,7 +22,7 @@ func (p *Positions) Update(fill fill.FillEvent) {
 	p.update(fill)
 }
 
-func (p *Positions) UpdateValue(data portfolio.DataEventHandler) {
+func (p *Positions) UpdateValue(data interfaces.DataEventHandler) {
 	p.Timestamp = data.GetTime()
 
 	latest := data.Price()

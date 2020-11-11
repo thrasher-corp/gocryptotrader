@@ -1,8 +1,10 @@
 package risk
 
 import (
+	"fmt"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -11,20 +13,23 @@ import (
 	order2 "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// TODO implement risk manager
-func (r *Risk) EvaluateOrder(o internalordermanager.OrderEvent, _ portfolio.DataEventHandler, currenntPosition positions.Positions, allPositions map[string]map[asset.Item]map[currency.Pair]positions.Positions) (*order.Order, error) {
+// EvaluateOrder goes through a standard list of evaluations to make to ensure that
+// we are in a position to follow through with an order
+func (r *Risk) EvaluateOrder(o internalordermanager.OrderEvent, _ interfaces.DataEventHandler, _ positions.Positions, allPositions map[string]map[asset.Item]map[currency.Pair]positions.Positions) (*order.Order, error) {
 	retOrder := o.(*order.Order)
-
 	if o.IsLeveraged() {
 		ratio := existingLeverageRatio()
 
 		if ratio > r.MaxLeverageRatio[o.GetExchange()][o.GetAssetType()][o.Pair()] {
-			return nil, nil
+			return nil, fmt.Errorf("leveraged ratio over maximum threshold for order %v", o)
 		}
 		if retOrder.GetLeverage() > r.MaxLeverageRate[o.GetExchange()][o.GetAssetType()][o.Pair()] {
-			return nil, nil
+			return nil, fmt.Errorf("leverage level over maximum for order %v", o)
 		}
-
+	}
+	err := areWeAllIn(o)
+	if err != nil {
+		return nil, err
 	}
 	return retOrder, nil
 }
@@ -43,6 +48,13 @@ func existingLeverageRatio() float64 {
 	return ordersWithLeverage / float64(len(os))
 }
 
-func AreWeAllIn() {
-
+func areWeAllIn(o internalordermanager.OrderEvent) error {
+	os, _ := engine.Bot.OrderManager.GetOrdersSnapshot(order2.AnyStatus)
+	if len(os) == 0 {
+		return nil
+	}
+	// in this setion of code, we'd want to calculate the total value of holdins per currency
+	// then once we know how much everything is worth, we can get a ratio and check it against
+	// our limits
+	return nil
 }

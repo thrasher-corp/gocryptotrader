@@ -3,7 +3,7 @@ package data
 import (
 	"sort"
 
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
 // Load specified data into Candle format
@@ -20,7 +20,7 @@ func (d *Data) Reset() {
 }
 
 // Stream will return entire data list
-func (d *Data) GetStream() []portfolio.DataEventHandler {
+func (d *Data) GetStream() []interfaces.DataEventHandler {
 	return d.stream
 }
 
@@ -28,12 +28,12 @@ func (d *Data) GetOffset() int {
 	return d.offset
 }
 
-func (d *Data) SetStream(s []portfolio.DataEventHandler) {
+func (d *Data) SetStream(s []interfaces.DataEventHandler) {
 	d.stream = s
 }
 
 // Next will return the next event in the list and also shift the offset one
-func (d *Data) Next() (dh portfolio.DataEventHandler, ok bool) {
+func (d *Data) Next() (dh interfaces.DataEventHandler, ok bool) {
 	if len(d.stream) <= d.offset {
 		return nil, false
 	}
@@ -45,16 +45,16 @@ func (d *Data) Next() (dh portfolio.DataEventHandler, ok bool) {
 }
 
 // History will return all previous data events that have happened
-func (d *Data) History() []portfolio.DataEventHandler {
+func (d *Data) History() []interfaces.DataEventHandler {
 	return d.stream[:d.offset]
 }
 
 // Latest will return latest data event
-func (d *Data) Latest() portfolio.DataEventHandler {
+func (d *Data) Latest() interfaces.DataEventHandler {
 	return d.latest
 }
 
-func (d *Data) List() []portfolio.DataEventHandler {
+func (d *Data) List() []interfaces.DataEventHandler {
 	return d.stream[d.offset:]
 }
 

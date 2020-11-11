@@ -14,15 +14,15 @@ func TestButts(t *testing.T) {
 	cfg := new(Config)
 	cfg.StrategyToLoad = "dollarcostaverage"
 	cfg.ExchangeSettings = ExchangeSettings{
-		Name:             "binance",
-		Base:             currency.BTC.String(),
-		Quote:            currency.USDT.String(),
-		Asset:            asset.Spot.String(),
-		MakerFee:         0.01,
-		TakerFee:         0.02,
-		InitialFunds:     1337,
-		MaximumOrderSize: 1,
-		DefaultOrderSize: 0.5,
+		Name:           "binance",
+		Base:           currency.BTC.String(),
+		Quote:          currency.USDT.String(),
+		Asset:          asset.Spot.String(),
+		MakerFee:       0.01,
+		TakerFee:       0.02,
+		InitialFunds:   1337,
+		MaximumBuySize: 1,
+		DefaultBuySize: 0.5,
 	}
 	cfg.CandleData = &CandleData{
 		StartDate: time.Now().Add(-time.Hour * 24 * 7),

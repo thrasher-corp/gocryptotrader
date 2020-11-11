@@ -2,7 +2,7 @@ package data
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
 const (
@@ -17,8 +17,8 @@ type Orderbook struct {
 }
 
 type Data struct {
-	latest portfolio.DataEventHandler
-	stream []portfolio.DataEventHandler
+	latest interfaces.DataEventHandler
+	stream []interfaces.DataEventHandler
 
 	offset int
 }

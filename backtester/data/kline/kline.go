@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	kline2 "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -20,7 +20,7 @@ func (d *DataFromKline) Load() error {
 		return errors.New("no candle data provided")
 	}
 
-	klineData := make([]portfolio.DataEventHandler, len(d.Item.Candles))
+	klineData := make([]interfaces.DataEventHandler, len(d.Item.Candles))
 	for i := range d.Item.Candles {
 		klineData[i] = &kline.Kline{
 			Event: event.Event{

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange2 "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -77,8 +78,8 @@ func NewFromConfig(configPath string) (*BackTest, error) {
 	bt.Portfolio = &portfolio.Portfolio{
 		InitialFunds: cfg.ExchangeSettings.InitialFunds,
 		SizeManager: &size.Size{
-			DefaultSize: cfg.ExchangeSettings.DefaultOrderSize,
-			MaxSize:     cfg.ExchangeSettings.MaximumOrderSize,
+			DefaultSize: cfg.ExchangeSettings.DefaultBuySize,
+			MaxSize:     cfg.ExchangeSettings.MaximumBuySize,
 		},
 		Funds:       cfg.ExchangeSettings.InitialFunds,
 		RiskManager: &risk.Risk{},
@@ -313,7 +314,7 @@ func (b *BackTest) eventLoop(e interfaces.EventHandler) error {
 		b.Statistic.Update(event, b.Portfolio)
 		s, err := b.Strategy.OnSignal(b.Data, b.Portfolio)
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
 			break
 		}
 		b.EventQueue = append(b.EventQueue, s)
@@ -321,7 +322,7 @@ func (b *BackTest) eventLoop(e interfaces.EventHandler) error {
 	case signal.SignalEvent:
 		o, err := b.Portfolio.OnSignal(event, b.Data)
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
 			break
 		}
 		b.EventQueue = append(b.EventQueue, o)
@@ -329,14 +330,14 @@ func (b *BackTest) eventLoop(e interfaces.EventHandler) error {
 	case internalordermanager.OrderEvent:
 		f, err := b.Exchange.ExecuteOrder(event, b.Data)
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
 			break
 		}
 		b.EventQueue = append(b.EventQueue, f)
 	case fill.FillEvent:
 		t, err := b.Portfolio.OnFill(event, b.Data)
 		if err != nil {
-			log.Error(log.BackTester, err)
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
 			break
 		}
 		b.Statistic.TrackTransaction(t)

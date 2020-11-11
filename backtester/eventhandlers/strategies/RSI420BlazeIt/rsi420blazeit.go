@@ -9,7 +9,6 @@ import (
 	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 

@@ -3,7 +3,6 @@ package base
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
 type Strategy struct {

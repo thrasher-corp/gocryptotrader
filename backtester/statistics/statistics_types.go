@@ -5,13 +5,13 @@ import (
 
 	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
-	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Statistic
 type Statistic struct {
-	EventHistory       []portfolio.EventHandler
+	EventHistory       []interfaces.EventHandler
 	TransactionHistory []fill.FillEvent
 	Equity             []EquityPoint
 	High               EquityPoint
@@ -31,10 +31,10 @@ type EquityPoint struct {
 
 // StatisticHandler interface handles
 type StatisticHandler interface {
-	TrackEvent(portfolio.EventHandler)
-	Events() []portfolio.EventHandler
+	TrackEvent(interfaces.EventHandler)
+	Events() []interfaces.EventHandler
 
-	Update(portfolio.DataEventHandler, portfolio2.PortfolioHandler)
+	Update(interfaces.DataEventHandler, portfolio2.PortfolioHandler)
 	TrackTransaction(fill.FillEvent)
 	Transactions() []fill.FillEvent
 
