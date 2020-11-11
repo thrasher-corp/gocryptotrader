@@ -185,6 +185,11 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := h.API.Endpoints.Get(exchange.RunningWS)
+	if err != nil {
+		return err
+	}
+
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -192,7 +197,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       wsMarketURL,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        h.WsConnect,
 		Subscriber:                       h.Subscribe,
 		UnSubscriber:                     h.Unsubscribe,

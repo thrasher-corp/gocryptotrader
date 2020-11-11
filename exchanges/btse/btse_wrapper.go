@@ -172,7 +172,12 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsEndpoint, err := b.API.Endpoints.Get(exchange.DefaultWS)
+	wsDefaultEndpoint, err := b.API.Endpoints.Get(exchange.DefaultWS)
+	if err != nil {
+		return err
+	}
+
+	wsRunningURL, err := b.API.Endpoints.Get(exchange.RunningWS)
 	if err != nil {
 		return err
 	}
@@ -182,9 +187,9 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsEndpoint,
+		DefaultURL:                       wsDefaultEndpoint,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsURL,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
 		UnSubscriber:                     b.Unsubscribe,

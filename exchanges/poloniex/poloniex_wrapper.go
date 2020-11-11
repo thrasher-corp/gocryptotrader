@@ -153,6 +153,11 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := p.API.Endpoints.Get(exchange.RunningWS)
+	if err != nil {
+		return err
+	}
+
 	err = p.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -160,7 +165,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       poloniexWebsocketAddress,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        p.WsConnect,
 		Subscriber:                       p.Subscribe,
 		UnSubscriber:                     p.Unsubscribe,

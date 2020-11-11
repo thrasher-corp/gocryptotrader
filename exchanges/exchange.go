@@ -41,6 +41,12 @@ const (
 	DefaultRest = "defaultURL"
 	// DefaultWS stores default websocket string for endpoint lookup
 	DefaultWS = "defaultWSURL"
+	// RunningRest stores the running URL for rest endpoints
+	RunningRest = "runningURL"
+	// RunningWS stores the running URL for websocket endpoints
+	RunningWS = "runningWSURL"
+	// SecondaryRest stores secondary rest URL for endpoint lookup (mainly for old config)
+	SecondaryRest = "secondaryURL"
 )
 
 func (e *Base) checkAndInitRequester() {
@@ -774,7 +780,6 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 					e.Name,
 					strings.ToUpper(assetType.String()),
 					remove)
-
 				e.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
 				e.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
 			}
@@ -785,22 +790,41 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL() error {
+	var err error
 	if e.Config.API.OldEndPoints != nil {
-		// Apply old config to exchange struct
-		// e.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.URL)
-		// e.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.URLSECONDARY)
-		// err =e.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.WEBSOCK)
-
-		// Apply old config to new endpoint struct in config
-		// e.Config.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.URL)
-		// e.Config.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.URLSECONDARY)
-		// err =e.Config.API.Endpoints.Set(RUNNINGURL, e.Config.API.OldEndPoints.WEBSOCK)
-
-		// purge oldEndpoint
+		fmt.Printf("hi im here\n\n\n\n\n")
+		var tempEndpoints Endpoints
+		tempEndpoints.CreateMap(map[string]string{})
+		tempEndpoints.m = e.Config.API.Endpoints
+		if e.Config.API.OldEndPoints.URL != "" && e.Config.API.OldEndPoints.URL != "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" {
+			err = e.API.Endpoints.Set(RunningRest, e.Config.API.OldEndPoints.URL, true)
+			if err != nil {
+				return err
+			}
+			tempEndpoints.Set(RunningRest, e.Config.API.OldEndPoints.URL, true)
+			if err != nil {
+				return err
+			}
+		}
+		if e.Config.API.OldEndPoints.WebsocketURL != "" && e.Config.API.OldEndPoints.WebsocketURL != "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
+			err = e.API.Endpoints.Set(RunningWS, e.Config.API.OldEndPoints.WebsocketURL, true)
+			if err != nil {
+				return err
+			}
+			tempEndpoints.Set(RunningWS, e.Config.API.OldEndPoints.WebsocketURL, true)
+			if err != nil {
+				return err
+			}
+		}
+		e.Config.API.Endpoints = tempEndpoints.m
 		e.Config.API.OldEndPoints = nil
 	} else {
-		// for loop over e.Config.API.Endpoints
-		// err = e.API.Endpoints.Set(k,v)
+		for a := range e.Config.API.Endpoints {
+			err = e.API.Endpoints.Set(a, e.Config.API.Endpoints[a], true)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// OLD UPDATE ________________________________________________
@@ -1159,6 +1183,7 @@ func (e *Endpoints) CreateMap(m map[string]string) {
 	*e = Endpoints{
 		m: make(map[string]string),
 	}
+	fmt.Printf("HI1\n\n\n\n")
 
 	for k, v := range m {
 		e.m[k] = v

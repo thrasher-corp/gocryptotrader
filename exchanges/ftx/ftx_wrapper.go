@@ -176,7 +176,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       wsEndpoint,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       "",
 		Connector:                        f.WsConnect,
 		Subscriber:                       f.Subscribe,
 		UnSubscriber:                     f.Unsubscribe,

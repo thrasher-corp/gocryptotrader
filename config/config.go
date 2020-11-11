@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -833,11 +834,11 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 
 			if c.Exchanges[i].WebsocketURL != nil {
-				c.Exchanges[i].API.Endpoints.WebsocketURL = *c.Exchanges[i].WebsocketURL
+				c.Exchanges[i].API.Endpoints[exchange.RunningWS] = *c.Exchanges[i].WebsocketURL
 			}
 
-			c.Exchanges[i].API.Endpoints.URL = *c.Exchanges[i].APIURL
-			c.Exchanges[i].API.Endpoints.URLSecondary = *c.Exchanges[i].APIURLSecondary
+			c.Exchanges[i].API.Endpoints[exchange.RunningRest] = *c.Exchanges[i].APIURL
+			// c.Exchanges[i].API.Endpoints.URLSecondary = *c.Exchanges[i].APIURLSecondary
 
 			// Flush settings
 			c.Exchanges[i].AuthenticatedAPISupport = nil
@@ -867,21 +868,21 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].Websocket = nil
 		}
 
-		if c.Exchanges[i].API.Endpoints.URL != APIURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints.URL == "" {
+		if c.Exchanges[i].API.Endpoints[exchange.RunningRest] != APIURLNonDefaultMessage {
+			if c.Exchanges[i].API.Endpoints[exchange.RunningRest] == "" {
 				// Set default if nothing set
 				c.Exchanges[i].API.Endpoints.URL = APIURLNonDefaultMessage
 			}
 		}
 
-		if c.Exchanges[i].API.Endpoints.URLSecondary != APIURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints.URLSecondary == "" {
+		if c.Exchanges[i].API.Endpoints[exchange.SecondaryRest] != APIURLNonDefaultMessage {
+			if c.Exchanges[i].API.Endpoints[exchange.SecondaryRest] == "" {
 				// Set default if nothing set
-				c.Exchanges[i].API.Endpoints.URLSecondary = APIURLNonDefaultMessage
+				c.Exchanges[i].API.Endpoints[exchange.SecondaryRest] = APIURLNonDefaultMessage
 			}
 		}
 
-		if c.Exchanges[i].API.Endpoints.WebsocketURL != WebsocketURLNonDefaultMessage {
+		if c.Exchanges[i].API.Endpoints[exchange.RunningRest] != WebsocketURLNonDefaultMessage {
 			if c.Exchanges[i].API.Endpoints.WebsocketURL == "" {
 				c.Exchanges[i].API.Endpoints.WebsocketURL = WebsocketURLNonDefaultMessage
 			}
