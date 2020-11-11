@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
+	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -71,7 +71,7 @@ func NewFromConfig(configPath string) (*BackTest, error) {
 			MakerFee:     takerFee,
 			TakerFee:     makerFee,
 		},
-		Orders: orders.Orders{},
+		Orders: internalordermanager.Orders{},
 	}
 
 	bt.Portfolio = &portfolio.Portfolio{
@@ -326,7 +326,7 @@ func (b *BackTest) eventLoop(e interfaces.EventHandler) error {
 		}
 		b.EventQueue = append(b.EventQueue, o)
 
-	case orders.OrderEvent:
+	case internalordermanager.OrderEvent:
 		f, err := b.Exchange.ExecuteOrder(event, b.Data)
 		if err != nil {
 			log.Error(log.BackTester, err)

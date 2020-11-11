@@ -110,7 +110,8 @@ func (s *Statistic) PrintResult() {
 	fmt.Printf("Counted %d total transactions:\n", len(s.Transactions()))
 	sb := strings.Builder{}
 
-	for k, v := range s.Transactions() {
+	butts := s.Transactions()
+	for k, v := range butts {
 		sb.WriteString(fmt.Sprintf("%v. ", k+1))
 		sb.WriteString(fmt.Sprintf("Time: %v\t", v.GetTime().Format(time.RFC822)))
 		sb.WriteString(fmt.Sprintf("Price: %v\t", v.GetPrice()))
@@ -118,14 +119,16 @@ func (s *Statistic) PrintResult() {
 		if v.GetDirection() != common.DoNothing {
 			sb.WriteString(fmt.Sprintf("Amount: %v\t", v.GetAmount()))
 			sb.WriteString(fmt.Sprintf("Fee: %v\t", v.GetExchangeFee()))
+			sb.WriteString(fmt.Sprintf("Cost Basis: %v\t", v.GetPrice()*v.GetAmount()+v.GetExchangeFee()))
 		} else {
-			sb.WriteString("\t\t\t\t")
+			sb.WriteString("\t\t\t\t\t\t")
 		}
 		if v.GetWhy() != "" {
 			sb.WriteString(fmt.Sprintf("Why: %v\t", v.GetWhy()))
 		}
 		sb.WriteString("\n")
 	}
+
 	fmt.Print(sb.String())
 	result, _ := s.TotalEquityReturn()
 

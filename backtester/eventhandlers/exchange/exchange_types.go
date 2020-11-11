@@ -3,19 +3,19 @@ package exchange
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
+	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 type ExecutionHandler interface {
 	SetCurrency(Currency)
-	ExecuteOrder(orders.OrderEvent, interfaces.DataHandler) (*fill.Fill, error)
+	ExecuteOrder(internalordermanager.OrderEvent, interfaces.DataHandler) (*fill.Fill, error)
 }
 
 type Exchange struct {
 	Currency Currency
-	Orders   orders.Orders
+	Orders   internalordermanager.Orders
 }
 
 type Currency struct {

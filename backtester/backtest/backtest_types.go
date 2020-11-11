@@ -5,7 +5,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	datahandler2 "github.com/thrasher-corp/gocryptotrader/backtester/orders"
+	datahandler2 "github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
 )
 

@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
+	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -41,5 +41,5 @@ type PortfolioHandler interface {
 }
 
 type SizeHandler interface {
-	SizeOrder(orders.OrderEvent, interfaces.DataEventHandler, float64, float64) (*order.Order, error)
+	SizeOrder(internalordermanager.OrderEvent, interfaces.DataEventHandler, float64, float64) (*order.Order, error)
 }

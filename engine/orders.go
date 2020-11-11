@@ -382,6 +382,61 @@ func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 	return o.processSubmittedOrder(newOrder, resultingOrder, err)
 }
 
+// GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It optionally filters any orders that don't match the status
+// but a status of "" or ANY will include all
+// the time adds contexts for the when the snapshot is relevant for
+func (o *orderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.Time) {
+	var os []order.Detail
+	var latestUpdate time.Time
+	for _, v := range o.orderStore.Orders {
+		for i := range v {
+			if s != v[i].Status &&
+				s != order.AnyStatus &&
+				s != "" {
+				continue
+			}
+			if v[i].LastUpdated.After(latestUpdate) {
+				latestUpdate = v[i].LastUpdated
+			}
+			os = append(os, order.Detail{
+				ImmediateOrCancel: v[i].ImmediateOrCancel,
+				HiddenOrder:       v[i].HiddenOrder,
+				FillOrKill:        v[i].FillOrKill,
+				PostOnly:          v[i].PostOnly,
+				Leverage:          v[i].Leverage,
+				Price:             v[i].Price,
+				Amount:            v[i].Amount,
+				LimitPriceUpper:   v[i].LimitPriceUpper,
+				LimitPriceLower:   v[i].LimitPriceLower,
+				TriggerPrice:      v[i].TriggerPrice,
+				TargetAmount:      v[i].TargetAmount,
+				ExecutedAmount:    v[i].ExecutedAmount,
+				RemainingAmount:   v[i].RemainingAmount,
+				Cost:              v[i].Cost,
+				Fee:               v[i].Fee,
+				Exchange:          v[i].Exchange,
+				InternalOrderID:   v[i].InternalOrderID,
+				ID:                v[i].ID,
+				ClientOrderID:     v[i].ClientOrderID,
+				AccountID:         v[i].AccountID,
+				ClientID:          v[i].ClientID,
+				WalletAddress:     v[i].WalletAddress,
+				Type:              v[i].Type,
+				Side:              v[i].Side,
+				Status:            v[i].Status,
+				AssetType:         v[i].AssetType,
+				Date:              v[i].Date,
+				CloseTime:         v[i].CloseTime,
+				LastUpdated:       v[i].LastUpdated,
+				Pair:              v[i].Pair,
+				Trades:            v[i].Trades,
+			})
+		}
+	}
+
+	return os, latestUpdate
+}
+
 func (o *orderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse, err error) (*orderSubmitResponse, error) {
 	if !result.IsOrderPlaced {
 		return nil, errors.New("order unable to be placed")
@@ -440,6 +495,7 @@ func (o *orderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 		Date:              time.Now(),
 		LastUpdated:       time.Now(),
 		Pair:              newOrder.Pair,
+		Leverage:          newOrder.Leverage,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s", newOrder.Exchange, result.OrderID, err)

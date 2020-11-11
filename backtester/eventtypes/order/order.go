@@ -37,11 +37,11 @@ func (o *Order) GetStatus() order.Status {
 	return o.Status
 }
 
-func (o *Order) SetID(id int) {
+func (o *Order) SetID(id string) {
 	o.ID = id
 }
 
-func (o *Order) GetID() int {
+func (o *Order) GetID() string {
 	return o.ID
 }
 

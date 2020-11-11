@@ -1,4 +1,4 @@
-package orders
+package internalordermanager
 
 import (
 	"fmt"
@@ -12,13 +12,14 @@ import (
 func (ob *Orders) Add(order OrderEvent) {
 	ob.M.Lock()
 	ob.Counter++
-	order.SetID(ob.Counter)
+	// why on earth?
+	// order.SetID(fmt.Sprintf("%v", ob.Counter))
 	ob.Orders = append(ob.Orders, order)
 	ob.M.Unlock()
 }
 
 // Remove order from order book by ID
-func (ob *Orders) Remove(id int) error {
+func (ob *Orders) Remove(id string) error {
 	ob.M.Lock()
 	defer ob.M.Unlock()
 	for i, order := range ob.Orders {

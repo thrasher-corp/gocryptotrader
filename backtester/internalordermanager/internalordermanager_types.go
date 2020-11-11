@@ -1,4 +1,4 @@
-package orders
+package internalordermanager
 
 import (
 	"sync"
@@ -17,8 +17,8 @@ type OrderEvent interface {
 	IsOrder() bool
 	GetWhy() string
 	GetStatus() order.Status
-	SetID(id int)
-	GetID() int
+	SetID(id string)
+	GetID() string
 	GetLimit() float64
 	IsLeveraged() bool
 }

@@ -7,7 +7,7 @@ import (
 
 type Order struct {
 	event.Event
-	ID        int
+	ID        string
 	Direction order.Side
 	Status    order.Status
 	Price     float64

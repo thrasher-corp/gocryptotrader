@@ -50,7 +50,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 		return &order.Order{}, errors.New("invalid Direction")
 	}
 
-	holdings := p.ViewHoldings(signal.GetExchange(), signal.GetAssetType(), signal.Pair())
+	exchangeAssetPairHoldings := p.ViewHoldings(signal.GetExchange(), signal.GetAssetType(), signal.Pair())
 	currFunds := p.GetFunds()
 
 	if signal.GetDirection() == common.DoNothing {
@@ -66,7 +66,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 		}, nil
 	}
 
-	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && holdings.Amount <= signal.GetAmount() {
+	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && exchangeAssetPairHoldings.Amount <= signal.GetAmount() {
 		return nil, errors.New("no holdings to sell")
 	}
 
@@ -102,7 +102,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data portfolio.DataHandl
 		return nil, err
 	}
 
-	o, err := p.RiskManager.EvaluateOrder(sizedOrder, latest, holdings)
+	o, err := p.RiskManager.EvaluateOrder(sizedOrder, latest, exchangeAssetPairHoldings, p.Holdings)
 	if err != nil {
 		return nil, err
 	}

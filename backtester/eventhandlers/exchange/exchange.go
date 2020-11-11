@@ -1,8 +1,6 @@
 package exchange
 
 import (
-	"time"
-
 	"github.com/gofrs/uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -10,8 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	order2 "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	portfolio "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/orders"
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -20,7 +17,7 @@ func (e *Exchange) SetCurrency(c Currency) {
 	e.Currency = c
 }
 
-func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data portfolio.DataHandler) (*fill.Fill, error) {
 	fillEvent := &fill.Fill{
 		Event: event.Event{
 			Exchange:     o.GetExchange(),
@@ -60,31 +57,31 @@ func (e *Exchange) ExecuteOrder(o orders.OrderEvent, data portfolio.DataHandler)
 		Rate:          fillEvent.Amount,
 		Fee:           fillEvent.ExchangeFee,
 		Cost:          fillEvent.Price,
-		Trades:        nil,
+		FullyMatched:  true,
 	}
-	_, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
+
+	resp, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
+
 	if err != nil {
 		return nil, err
 	}
 	e.Orders.Add(&order2.Order{
 		Event: event.Event{
-			Exchange:     "",
-			Time:         time.Time{},
-			CurrencyPair: currency.Pair{},
-			AssetType:    "",
-			MakerFee:     0,
-			TakerFee:     0,
-			FeeRate:      0,
+			Exchange:     o.GetExchange(),
+			Time:         o.GetTime(),
+			CurrencyPair: o.Pair(),
+			AssetType:    o.GetAssetType(),
+			MakerFee:     e.Currency.MakerFee,
+			TakerFee:     e.Currency.TakerFee,
+			FeeRate:      e.Currency.ExchangeFee,
 		},
 		Why:       o.GetWhy(),
-		ID:        0,
-		Direction: "",
-		Status:    "",
-		Price:     0,
-		Amount:    0,
-		OrderType: "",
-		Limit:     0,
-		Leverage:  0,
+		ID:        resp.OrderID,
+		Direction: fillEvent.Direction,
+		Status:    o.GetStatus(),
+		Price:     fillEvent.Price,
+		Amount:    fillEvent.Amount,
+		OrderType: order.Market,
 	})
 
 	return fillEvent, nil

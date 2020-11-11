@@ -1,4 +1,4 @@
-package orders
+package internalordermanager
 
 import (
 	"reflect"
