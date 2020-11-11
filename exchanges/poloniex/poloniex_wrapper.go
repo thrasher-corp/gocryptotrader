@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -37,7 +38,12 @@ func (p *Poloniex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if p.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	update, err := p.Protocol.REST.Supports(protocol.AutoPairUpdates)
+	if err != nil {
+		return nil, err
+	}
+
+	if update {
 		err = p.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -70,61 +76,106 @@ func (p *Poloniex) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	p.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrder:         true,
-				CancelOrders:        true,
-				SubmitOrder:         true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				CryptoWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				TickerFetching:         true,
-				TradeFetching:          true,
-				OrderbookFetching:      true,
-				Subscribe:              true,
-				Unsubscribe:            true,
-				AuthenticatedEndpoints: true,
-				GetOrders:              true,
-				GetOrder:               true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
-				exchange.NoFiatWithdrawals,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				Intervals: true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.OneDay.Word():     true,
-				},
-			},
-		},
+	err = p.Protocol.REST.SetFunctionality(protocol.State{
+		ProtocolEnabled:       true,
+		AuthenticationEnabled: true,
+		TickerBatching:        convert.BoolPtrT,
+		TickerFetching:        convert.BoolPtrT,
+		KlineFetching:         convert.BoolPtrT,
+		TradeFetching:         convert.BoolPtrT,
+		OrderbookFetching:     convert.BoolPtrT,
+		AutoPairUpdates:       convert.BoolPtrT,
+		AccountInfo:           convert.BoolPtrT,
+		GetOrder:              convert.BoolPtrT,
+		GetOrders:             convert.BoolPtrT,
+		CancelOrder:           convert.BoolPtrT,
+		CancelOrders:          convert.BoolPtrT,
+		SubmitOrder:           convert.BoolPtrT,
+		DepositHistory:        convert.BoolPtrT,
+		WithdrawalHistory:     convert.BoolPtrT,
+		UserTradeHistory:      convert.BoolPtrT,
+		CryptoDeposit:         convert.BoolPtrT,
+		CryptoWithdrawal:      convert.BoolPtrT,
+		TradeFee:              convert.BoolPtrT,
+		CryptoWithdrawalFee:   convert.BoolPtrT,
+
+		WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission | exchange.NoFiatWithdrawals,
+	})
+
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = p.Protocol.WS.SetFunctionality(protocol.State{
+		ProtocolEnabled:        true,
+		AuthenticationEnabled:  true,
+		TickerFetching:         convert.BoolPtrT,
+		TradeFetching:          convert.BoolPtrT,
+		OrderbookFetching:      convert.BoolPtrT,
+		Subscribe:              convert.BoolPtrT,
+		Unsubscribe:            convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		GetOrders:              convert.BoolPtrT,
+		GetOrder:               convert.BoolPtrT,
+
+		WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission | exchange.NoFiatWithdrawals,
+	})
+
+	// p.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:      true,
+	// 		Websocket: true,
+	// 		RESTCapabilities: protocol.Features{
+	// 			TickerBatching:      true,
+	// 			TickerFetching:      true,
+	// 			KlineFetching:       true,
+	// 			TradeFetching:       true,
+	// 			OrderbookFetching:   true,
+	// 			AutoPairUpdates:     true,
+	// 			AccountInfo:         true,
+	// 			GetOrder:            true,
+	// 			GetOrders:           true,
+	// 			CancelOrder:         true,
+	// 			CancelOrders:        true,
+	// 			SubmitOrder:         true,
+	// 			DepositHistory:      true,
+	// 			WithdrawalHistory:   true,
+	// 			UserTradeHistory:    true,
+	// 			CryptoDeposit:       true,
+	// 			CryptoWithdrawal:    true,
+	// 			TradeFee:            true,
+	// 			CryptoWithdrawalFee: true,
+	// 		},
+	// 		WebsocketCapabilities: protocol.Features{
+	// 			TickerFetching:         true,
+	// 			TradeFetching:          true,
+	// 			OrderbookFetching:      true,
+	// 			Subscribe:              true,
+	// 			Unsubscribe:            true,
+	// 			AuthenticatedEndpoints: true,
+	// 			GetOrders:              true,
+	// 			GetOrder:               true,
+	// 		},
+	// 		WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
+	// 			exchange.NoFiatWithdrawals,
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			Intervals: true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+	// 				kline.FiveMin.Word():    true,
+	// 				kline.FifteenMin.Word(): true,
+	// 				kline.ThirtyMin.Word():  true,
+	// 				kline.TwoHour.Word():    true,
+	// 				kline.FourHour.Word():   true,
+	// 				kline.OneDay.Word():     true,
+	// 			},
+	// 		},
+	// 	},
+	// }
 
 	p.Requester = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),

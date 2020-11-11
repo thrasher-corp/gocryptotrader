@@ -59,11 +59,16 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 
 	w.features = s.Features
 
-	if w.features.Subscribe && s.Subscriber == nil {
+	enabled, err := w.features.Functionality()
+	if err != nil {
+		return err
+	}
+
+	if enabled.Subscribe && s.Subscriber == nil {
 		return errors.New("features have been set yet channel subscriber is not set")
 	}
 
-	if w.features.Unsubscribe && s.Unsubscriber == nil {
+	if enabled.Unsubscribe && s.Unsubscriber == nil {
 		return errors.New("features have been set yet channel unsubscriber is not set")
 	}
 
@@ -75,7 +80,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if s.RunningURL == "" {
 		return errors.New("running URL cannot be nil")
 	}
-	err := w.SetWebsocketURL(s.RunningURL, false, false)
+	err = w.SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {
 		return err
 	}
@@ -417,7 +422,12 @@ func (w *Websocket) FlushChannels() error {
 		return fmt.Errorf("%s websocket: service not connected", w.exchangeName)
 	}
 
-	if w.features.Subscribe {
+	enabled, err := w.features.Functionality()
+	if err != nil {
+		return fmt.Errorf("%s websocket: cannot flush channels %s", w.exchangeName, err)
+	}
+
+	if enabled.Subscribe {
 		newsubs, err := w.Connections.GenerateSubscriptions()
 		if err != nil {
 			return err
@@ -428,7 +438,7 @@ func (w *Websocket) FlushChannels() error {
 			return fmt.Errorf("%s websocket: error %v", w.exchangeName, err)
 		}
 
-		if w.features.Unsubscribe && len(unsubs) != 0 {
+		if enabled.Unsubscribe && len(unsubs) != 0 {
 			err := w.Connections.Unsubscribe(unsubs)
 			if err != nil {
 				return err
@@ -439,7 +449,7 @@ func (w *Websocket) FlushChannels() error {
 			return w.Connections.Subscribe(subs)
 		}
 		return nil
-	} else if w.features.FullPayloadSubscribe {
+	} else if enabled.FullPayloadSubscribe {
 		// FullPayloadSubscribe means that the endpoint requires all
 		// subscriptions to be sent via the websocket connection e.g. if you are
 		// subscribed to ticker and orderbook but require trades as well, you
@@ -458,7 +468,7 @@ func (w *Websocket) FlushChannels() error {
 		return nil
 	}
 
-	err := w.Shutdown()
+	err = w.Shutdown()
 	if err != nil {
 		return err
 	}

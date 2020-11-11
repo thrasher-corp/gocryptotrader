@@ -265,22 +265,22 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	if bot.Settings.EnableExchangeAutoPairUpdates {
 		dryrunParamInteraction("exchangeautopairupdates")
 		if exchCfg.Features != nil {
-			rest, err := exchCfg.Features.Supports.RESTCapabilities.Supported()
-			if err != nil {
-				return err
-			}
-			if rest.AutoPairUpdates {
-				exchCfg.Features.Enabled.AutoPairUpdates = true
-			}
+			// rest, err := exchCfg.Features.Supports.RESTCapabilities.Supported()
+			// if err != nil {
+			// 	return err
+			// }
+			// if rest.AutoPairUpdates {
+			// 	exchCfg.Features.Enabled.AutoPairUpdates = true
+			// }
 		}
 	}
 
 	if bot.Settings.DisableExchangeAutoPairUpdates {
 		dryrunParamInteraction("exchangedisableautopairupdates")
 		if exchCfg.Features != nil {
-			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
-				exchCfg.Features.Enabled.AutoPairUpdates = false
-			}
+			// if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
+			// 	exchCfg.Features.Enabled.AutoPairUpdates = false
+			// }
 		}
 	}
 

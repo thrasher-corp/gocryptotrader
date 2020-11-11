@@ -298,7 +298,10 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			exchangeName := exchanges[x].GetName()
 			assetTypes := exchanges[x].GetAssetTypes()
 			supportsREST := exchanges[x].SupportsREST()
-			supportsRESTTickerBatching := exchanges[x].SupportsRESTTickerBatchUpdates()
+			supportsRESTTickerBatching, err := exchanges[x].SupportsRESTTickerBatchUpdates()
+			if err != nil {
+				log.Errorf(log.SyncMgr, "%s. Err: %s\n", exchangeName, err)
+			}
 			var usingREST bool
 			var usingWebsocket bool
 			var switchedToRest bool

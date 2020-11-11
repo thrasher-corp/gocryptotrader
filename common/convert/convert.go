@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+// Exported pointer bool values to be shared
+var (
+	BoolPtrT = BoolPtr(true)
+	BoolPtrF = BoolPtr(false)
+)
+
 // FloatFromString format
 func FloatFromString(raw interface{}) (float64, error) {
 	str, ok := raw.(string)

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -186,27 +187,23 @@ func (e *Base) SetAPICredentialDefaults() {
 // SupportsRESTTickerBatchUpdates returns whether or not the
 // exhange supports REST batch ticker fetching
 func (e *Base) SupportsRESTTickerBatchUpdates() (bool, error) {
-	supports, err := e.Features.Supports.RESTCapabilities.Supported()
-	if err != nil {
-		return false, err
-	}
-	return supports.TickerBatching, nil
+	return e.Protocol.RESTSupports(protocol.TickerBatching)
 }
 
 // SupportsAutoPairUpdates returns whether or not the exchange supports
 // auto currency pair updating
 func (e *Base) SupportsAutoPairUpdates() (bool, error) {
-	restSupports, err := e.Features.Supports.RESTCapabilities.Supported()
+	restSupports, err := e.Protocol.RESTSupports(protocol.AutoPairUpdates)
 	if err != nil {
 		return false, err
 	}
 
-	wsSupports, err := e.Features.Supports.WebsocketCapabilities.Supported()
+	wsSupports, err := e.Protocol.WebsocketSupports(protocol.AutoPairUpdates)
 	if err != nil {
 		return false, err
 	}
 
-	return restSupports.AutoPairUpdates || wsSupports.AutoPairUpdates, nil
+	return restSupports || wsSupports, nil
 }
 
 // GetLastPairsUpdateTime returns the unix timestamp of when the exchanges
@@ -341,13 +338,15 @@ func (e *Base) GetName() string {
 }
 
 // GetEnabledFeatures returns the exchanges enabled features
-func (e *Base) GetEnabledFeatures() FeaturesEnabled {
-	return e.Features.Enabled
+func (e *Base) GetEnabledFeatures() (protocol.Functionality, error) {
+	// Add websocket
+	return e.Protocol.REST.Functionality()
 }
 
 // GetSupportedFeatures returns the exchanges supported features
-func (e *Base) GetSupportedFeatures() FeaturesSupported {
-	return e.Features.Supports
+func (e *Base) GetSupportedFeatures() (protocol.Functionality, error) {
+	// Add websocket
+	return e.Protocol.REST.Supported()
 }
 
 // GetPairFormat returns the pair format based on the exchange and
@@ -826,71 +825,72 @@ func (e *Base) GetAPIURLSecondaryDefault() string {
 	return e.API.Endpoints.URLSecondaryDefault
 }
 
-// SupportsREST returns whether or not the exchange supports
-// REST
+// SupportsREST returns whether or not the exchange supports REST
 func (e *Base) SupportsREST() bool {
-	return e.Features.Supports.REST
+	return e.Protocol.IsRESTSupported()
 }
 
 // GetWithdrawPermissions passes through the exchange's withdraw permissions
 func (e *Base) GetWithdrawPermissions() uint32 {
-	return e.Features.Supports.WithdrawPermissions
+	return e.Protocol.GetWithdrawalPermissions()
 }
 
-// SupportsWithdrawPermissions compares the supplied permissions with the exchange's to verify they're supported
+// SupportsWithdrawPermissions compares the supplied permissions with the
+// exchange's to verify they're supported
 func (e *Base) SupportsWithdrawPermissions(permissions uint32) bool {
-	exchangePermissions := e.GetWithdrawPermissions()
-	return permissions&exchangePermissions == permissions
+	return permissions&e.GetWithdrawPermissions() == permissions
 }
 
 // FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
 func (e *Base) FormatWithdrawPermissions() string {
 	var services []string
+	perm := e.GetWithdrawPermissions()
 	for i := 0; i < 32; i++ {
 		var check uint32 = 1 << uint32(i)
-		if e.GetWithdrawPermissions()&check != 0 {
-			switch check {
-			case AutoWithdrawCrypto:
-				services = append(services, AutoWithdrawCryptoText)
-			case AutoWithdrawCryptoWithAPIPermission:
-				services = append(services, AutoWithdrawCryptoWithAPIPermissionText)
-			case AutoWithdrawCryptoWithSetup:
-				services = append(services, AutoWithdrawCryptoWithSetupText)
-			case WithdrawCryptoWith2FA:
-				services = append(services, WithdrawCryptoWith2FAText)
-			case WithdrawCryptoWithSMS:
-				services = append(services, WithdrawCryptoWithSMSText)
-			case WithdrawCryptoWithEmail:
-				services = append(services, WithdrawCryptoWithEmailText)
-			case WithdrawCryptoWithWebsiteApproval:
-				services = append(services, WithdrawCryptoWithWebsiteApprovalText)
-			case WithdrawCryptoWithAPIPermission:
-				services = append(services, WithdrawCryptoWithAPIPermissionText)
-			case AutoWithdrawFiat:
-				services = append(services, AutoWithdrawFiatText)
-			case AutoWithdrawFiatWithAPIPermission:
-				services = append(services, AutoWithdrawFiatWithAPIPermissionText)
-			case AutoWithdrawFiatWithSetup:
-				services = append(services, AutoWithdrawFiatWithSetupText)
-			case WithdrawFiatWith2FA:
-				services = append(services, WithdrawFiatWith2FAText)
-			case WithdrawFiatWithSMS:
-				services = append(services, WithdrawFiatWithSMSText)
-			case WithdrawFiatWithEmail:
-				services = append(services, WithdrawFiatWithEmailText)
-			case WithdrawFiatWithWebsiteApproval:
-				services = append(services, WithdrawFiatWithWebsiteApprovalText)
-			case WithdrawFiatWithAPIPermission:
-				services = append(services, WithdrawFiatWithAPIPermissionText)
-			case WithdrawCryptoViaWebsiteOnly:
-				services = append(services, WithdrawCryptoViaWebsiteOnlyText)
-			case WithdrawFiatViaWebsiteOnly:
-				services = append(services, WithdrawFiatViaWebsiteOnlyText)
-			case NoFiatWithdrawals:
-				services = append(services, NoFiatWithdrawalsText)
-			default:
-				services = append(services, fmt.Sprintf("%s[1<<%v]", UnknownWithdrawalTypeText, i))
-			}
+		if perm&check == 0 {
+			continue
+		}
+		switch check {
+		case AutoWithdrawCrypto:
+			services = append(services, AutoWithdrawCryptoText)
+		case AutoWithdrawCryptoWithAPIPermission:
+			services = append(services, AutoWithdrawCryptoWithAPIPermissionText)
+		case AutoWithdrawCryptoWithSetup:
+			services = append(services, AutoWithdrawCryptoWithSetupText)
+		case WithdrawCryptoWith2FA:
+			services = append(services, WithdrawCryptoWith2FAText)
+		case WithdrawCryptoWithSMS:
+			services = append(services, WithdrawCryptoWithSMSText)
+		case WithdrawCryptoWithEmail:
+			services = append(services, WithdrawCryptoWithEmailText)
+		case WithdrawCryptoWithWebsiteApproval:
+			services = append(services, WithdrawCryptoWithWebsiteApprovalText)
+		case WithdrawCryptoWithAPIPermission:
+			services = append(services, WithdrawCryptoWithAPIPermissionText)
+		case AutoWithdrawFiat:
+			services = append(services, AutoWithdrawFiatText)
+		case AutoWithdrawFiatWithAPIPermission:
+			services = append(services, AutoWithdrawFiatWithAPIPermissionText)
+		case AutoWithdrawFiatWithSetup:
+			services = append(services, AutoWithdrawFiatWithSetupText)
+		case WithdrawFiatWith2FA:
+			services = append(services, WithdrawFiatWith2FAText)
+		case WithdrawFiatWithSMS:
+			services = append(services, WithdrawFiatWithSMSText)
+		case WithdrawFiatWithEmail:
+			services = append(services, WithdrawFiatWithEmailText)
+		case WithdrawFiatWithWebsiteApproval:
+			services = append(services, WithdrawFiatWithWebsiteApprovalText)
+		case WithdrawFiatWithAPIPermission:
+			services = append(services, WithdrawFiatWithAPIPermissionText)
+		case WithdrawCryptoViaWebsiteOnly:
+			services = append(services, WithdrawCryptoViaWebsiteOnlyText)
+		case WithdrawFiatViaWebsiteOnly:
+			services = append(services, WithdrawFiatViaWebsiteOnlyText)
+		case NoFiatWithdrawals:
+			services = append(services, NoFiatWithdrawalsText)
+		default:
+			services = append(services, fmt.Sprintf("%s[1<<%v]", UnknownWithdrawalTypeText, i))
 		}
 	}
 	if len(services) > 0 {
@@ -1018,24 +1018,18 @@ func (e *Base) GetWebsocket() (*stream.Websocket, error) {
 // SupportsWebsocket returns whether or not the exchange supports
 // websocket
 func (e *Base) SupportsWebsocket() bool {
-	return e.Features.Supports.Websocket
+	return e.Protocol.IsWebsocketSupported()
 }
 
 // IsWebsocketEnabled returns whether or not the exchange has its
 // websocket client enabled
-func (e *Base) IsWebsocketEnabled() bool {
-	if e.Websocket == nil {
-		return false
-	}
-	return e.Websocket.IsEnabled()
+func (e *Base) IsWebsocketEnabled() (bool, error) {
+	return e.Protocol.IsWebsocketEnabled()
 }
 
 // FlushWebsocketChannels refreshes websocket channel subscriptions based on
 // websocket features. Used in the event of a pair/asset or subscription change.
 func (e *Base) FlushWebsocketChannels() error {
-	if e.Websocket == nil {
-		return nil
-	}
 	return e.Websocket.FlushChannels()
 }
 
@@ -1072,7 +1066,8 @@ func (e *Base) AuthenticateWebsocket() error {
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
 func (e *Base) klineIntervalEnabled(in kline.Interval) bool {
-	return e.Features.Enabled.Kline.Intervals[in.Word()]
+	return false
+	// return e.Features.Enabled.Kline.Intervals[in.Word()]
 }
 
 // FormatExchangeKlineInterval returns Interval to string

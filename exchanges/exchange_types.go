@@ -142,9 +142,16 @@ type FundHistory struct {
 // Features stores the supported and enabled features
 // for the exchange
 type Features struct {
-	Supports FeaturesSupported
-	Enabled  FeaturesEnabled
+	REST *protocol.Features
+	WS   *protocol.Features
 }
+
+// // Features stores the supported and enabled features
+// // for the exchange
+// type Features struct {
+// 	Supports FeaturesSupported
+// 	Enabled  FeaturesEnabled
+// }
 
 // FeaturesEnabled stores the exchange enabled features
 type FeaturesEnabled struct {
@@ -196,15 +203,16 @@ type API struct {
 
 // Base stores the individual exchange information
 type Base struct {
-	Name                          string
-	Enabled                       bool
-	Verbose                       bool
-	LoadedByConfig                bool
-	SkipAuthCheck                 bool
-	API                           API
-	BaseCurrencies                currency.Currencies
-	CurrencyPairs                 currency.PairsManager
-	Features                      Features
+	Name           string
+	Enabled        bool
+	Verbose        bool
+	LoadedByConfig bool
+	SkipAuthCheck  bool
+	API            API
+	BaseCurrencies currency.Currencies
+	CurrencyPairs  currency.PairsManager
+	// Features                      Features
+	Protocol                      *protocol.Features
 	HTTPTimeout                   time.Duration
 	HTTPUserAgent                 string
 	HTTPRecording                 bool
