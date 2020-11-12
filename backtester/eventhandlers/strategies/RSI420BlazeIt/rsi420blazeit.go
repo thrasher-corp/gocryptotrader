@@ -9,6 +9,7 @@ import (
 	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -22,7 +23,7 @@ func (s *Strategy) Name() string {
 	return name
 }
 
-func (s *Strategy) OnSignal(d portfolio.DataHandler, _ portfolio2.PortfolioHandler) (signal.SignalEvent, error) {
+func (s *Strategy) OnSignal(d interfaces.DataHandler, _ portfolio2.PortfolioHandler) (signal.SignalEvent, error) {
 	es := s.GetBase(d)
 	if d.Offset() <= 14 {
 		return &es, nil

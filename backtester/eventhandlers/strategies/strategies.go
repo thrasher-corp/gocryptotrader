@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 )
 
+// LoadStrategyByName returns the strategy by its name
 func LoadStrategyByName(name string) (StrategyHandler, error) {
 	strats := getStrategies()
 	for i := range strats {

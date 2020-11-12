@@ -10,24 +10,44 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-func TestButts(t *testing.T) {
-	cfg := new(Config)
-	cfg.StrategyToLoad = "dollarcostaverage"
-	cfg.ExchangeSettings = ExchangeSettings{
-		Name:           "binance",
-		Base:           currency.BTC.String(),
-		Quote:          currency.USDT.String(),
-		Asset:          asset.Spot.String(),
-		MakerFee:       0.01,
-		TakerFee:       0.02,
-		InitialFunds:   1337,
-		MaximumBuySize: 1,
-		DefaultBuySize: 0.5,
-	}
-	cfg.CandleData = &CandleData{
-		StartDate: time.Now().Add(-time.Hour * 24 * 7),
-		EndDate:   time.Now(),
-		Interval:  kline.OneHour.Duration(),
+func TestGenerateDCAConfig(t *testing.T) {
+	cfg := Config{
+		StrategyToLoad: "dollarcostaverage",
+		ExchangeSettings: ExchangeSettings{
+			Name:            "binance",
+			Asset:           asset.Spot.String(),
+			Base:            currency.BTC.String(),
+			Quote:           currency.USDT.String(),
+			InitialFunds:    1337,
+			MinimumBuySize:  0.1,
+			MaximumBuySize:  1,
+			DefaultBuySize:  0.5,
+			MinimumSellSize: 0.1,
+			MaximumSellSize: 2,
+			DefaultSellSize: 0.5,
+			CanUseLeverage:  false,
+			MaximumLeverage: 0,
+			MakerFee:        0.01,
+			TakerFee:        0.02,
+		},
+		CandleData: &CandleData{
+			StartDate: time.Now().Add(-time.Hour * 24 * 7),
+			EndDate:   time.Now(),
+			Interval:  kline.OneHour.Duration(),
+		},
+		DatabaseData: nil,
+		LiveData:     nil,
+		PortfolioSettings: PortfolioSettings{
+			DiversificationSomething: 0,
+			CanUseLeverage:           false,
+			MaximumLeverage:          0,
+			MinimumBuySize:           0.1,
+			MaximumBuySize:           1,
+			DefaultBuySize:           0.5,
+			MinimumSellSize:          0.1,
+			MaximumSellSize:          2,
+			DefaultSellSize:          0.5,
+		},
 	}
 	result, err := json.MarshalIndent(cfg, "", " ")
 	if err != nil {

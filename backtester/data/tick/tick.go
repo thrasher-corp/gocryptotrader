@@ -10,6 +10,8 @@ import (
 	ticker2 "github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
+// This code isn't usable
+
 type DataFromTick struct {
 	ticks []*ticker2.Price
 	data.Data

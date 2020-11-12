@@ -10,6 +10,7 @@ import (
 )
 
 type BackTest struct {
+	shutdown   chan struct{}
 	Data       interfaces.DataHandler
 	Strategy   strategies.StrategyHandler
 	Portfolio  portfolio.PortfolioHandler

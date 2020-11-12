@@ -6,6 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -17,35 +18,13 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (p *Portfolio) SetSizeManager(size SizeHandler) {
-	p.SizeManager = size
-}
-
 func (p *Portfolio) Reset() {
 	p.Funds = 0
 	p.Holdings = nil
 	p.Transactions = nil
 }
 
-func (p *Portfolio) SetFee(exchangeName string, a asset.Item, cp currency.Pair, fee float64) {
-	if p.Fees == nil {
-		p.Fees = make(map[string]map[asset.Item]map[currency.Pair]float64)
-	}
-	if p.Fees[exchangeName] == nil {
-		p.Fees[exchangeName] = make(map[asset.Item]map[currency.Pair]float64)
-	}
-	if p.Fees[exchangeName][a] == nil {
-		p.Fees[exchangeName][a] = make(map[currency.Pair]float64)
-	}
-	p.Fees[exchangeName][a][cp] = fee
-}
-
-// GetFee can panic for bad requests, but why are you getting things that don't exist?
-func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) float64 {
-	return p.Fees[exchangeName][a][cp]
-}
-
-func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHandler) (*order.Order, error) {
+func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHandler, c *exchange.CurrencySettings) (*order.Order, error) {
 	if signal.GetDirection() == "" {
 		return &order.Order{}, errors.New("invalid Direction")
 	}
@@ -67,11 +46,11 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 	}
 
 	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && exchangeAssetPairHoldings.Amount <= signal.GetAmount() {
-		return nil, errors.New("no holdings to sell")
+		return nil, NoHoldingsToSellErr
 	}
 
 	if (signal.GetDirection() == gctorder.Buy || signal.GetDirection() == gctorder.Bid) && currFunds <= 0 {
-		return nil, errors.New("not enough funds to buy")
+		return nil, NotEnoughFundsErr
 	}
 
 	initialOrder := &order.Order{
@@ -92,11 +71,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 		initialOrder,
 		latest,
 		currFunds,
-		p.GetFee(
-			signal.GetExchange(),
-			signal.GetAssetType(),
-			signal.Pair(),
-		),
+		c,
 	)
 	if err != nil {
 		return nil, err
@@ -134,6 +109,28 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (
 	p.Transactions = append(p.Transactions, fillEvent)
 
 	return fillEvent.(*fill.Fill), nil
+}
+
+func (p *Portfolio) SetSizeManager(size SizeHandler) {
+	p.SizeManager = size
+}
+
+func (p *Portfolio) SetFee(exchangeName string, a asset.Item, cp currency.Pair, fee float64) {
+	if p.Fees == nil {
+		p.Fees = make(map[string]map[asset.Item]map[currency.Pair]float64)
+	}
+	if p.Fees[exchangeName] == nil {
+		p.Fees[exchangeName] = make(map[asset.Item]map[currency.Pair]float64)
+	}
+	if p.Fees[exchangeName][a] == nil {
+		p.Fees[exchangeName][a] = make(map[currency.Pair]float64)
+	}
+	p.Fees[exchangeName][a][cp] = fee
+}
+
+// GetFee can panic for bad requests, but why are you getting things that don't exist?
+func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) float64 {
+	return p.Fees[exchangeName][a][cp]
 }
 
 func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (pos positions.Positions, ok bool) {

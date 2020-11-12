@@ -7,11 +7,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	kline2 "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 type DataFromKline struct {
-	Item kline2.Item
+	Item gctkline.Item
 	data.Data
 }
 

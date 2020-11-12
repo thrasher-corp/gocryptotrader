@@ -13,9 +13,28 @@ type Config struct {
 	// Unsupported so far, but will move to having multiple currencies
 	ExchangeSettingsButWithPassionAndLust []ExchangeSettings `json:"lustful-exchange-settings,omitempty"`
 	// data source definitions:
-	CandleData   *CandleData   `json:"candle-data,omitempty"`
-	DatabaseData *DatabaseData `json:"database-data,omitempty"`
-	LiveData     *LiveData     `json:"live-data,omitempty"`
+	CandleData        *CandleData       `json:"candle-data,omitempty"`
+	DatabaseData      *DatabaseData     `json:"database-data,omitempty"`
+	LiveData          *LiveData         `json:"live-data,omitempty"`
+	PortfolioSettings PortfolioSettings `json:"portfolio"`
+}
+
+// PortfolioSettings act as a global protector for strategies
+// these settings will override ExchangeSettings that go against it
+// and assess the bigger picture
+type PortfolioSettings struct {
+	DiversificationSomething float64 `json:"diversification-something"`
+
+	CanUseLeverage  bool    `json:"can-use-leverage"`
+	MaximumLeverage float64 `json:"maximum-leverage"`
+
+	MinimumBuySize float64 `json:"minimum-buy-size"` // will not place an order if under this amount
+	MaximumBuySize float64 `json:"maximum-buy-size"` // can only place an order up to this amount
+	DefaultBuySize float64 `json:"default-buy-size"`
+
+	MinimumSellSize float64 `json:"minimum-sell-size"` // will not sell an order if under this amount
+	MaximumSellSize float64 `json:"maximum-sell-size"` // can only sell an order up to this amount
+	DefaultSellSize float64 `json:"default-sell-size"`
 }
 
 // ExchangeSettings stores pair based variables
@@ -68,5 +87,5 @@ type LiveData struct {
 	APISecretOverride   string        `json:"api-secret-override"`
 	APIClientIDOverride string        `json:"api-client-id-override"`
 	API2FAOverride      string        `json:"api-2fa-override"`
-	FakeOrders          bool          `json:"fake-orders"`
+	RealOrders          bool          `json:"fake-orders"`
 }

@@ -17,6 +17,7 @@ type Statistic struct {
 	High               EquityPoint
 	Low                EquityPoint
 	InitialBuy         float64
+	InitialFunds       float64
 
 	StrategyName string
 }

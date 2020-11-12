@@ -132,8 +132,12 @@ func (s *Statistic) PrintResult() {
 
 	fmt.Print(sb.String())
 	result, _ := s.TotalEquityReturn()
-
-	fmt.Println("TotalEquity:", result, "MaxDrawdown:", s.MaxDrawdown())
+	fmt.Printf("Initial funds: $%v\nValue at enddate %v:\t$%v\n",
+		s.InitialFunds,
+		s.Equity[len(s.Equity)-1].Timestamp.Format(common2.SimpleTimeFormat),
+		s.Equity[len(s.Equity)-1].BuyAndHoldValue)
+	fmt.Printf("Difference: $%v\n", s.Equity[len(s.Equity)-1].BuyAndHoldValue-s.InitialFunds)
+	fmt.Printf("TotalEquity: %v\nMaxDrawdown: %v", result, s.MaxDrawdown())
 }
 
 func (s *Statistic) TotalEquityReturn() (r float64, err error) {

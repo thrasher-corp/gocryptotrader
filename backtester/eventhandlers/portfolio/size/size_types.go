@@ -1,6 +1,12 @@
 package size
 
 type Size struct {
-	DefaultSize float64
-	MaxSize     float64
+	MinimumBuySize  float64
+	MaximumBuySize  float64
+	DefaultBuySize  float64
+	MinimumSellSize float64
+	MaximumSellSize float64
+	DefaultSellSize float64
+	CanUseLeverage  bool
+	MaximumLeverage float64
 }

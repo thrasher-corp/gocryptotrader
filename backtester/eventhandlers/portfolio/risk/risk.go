@@ -1,6 +1,7 @@
 package risk
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -10,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	order2 "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // EvaluateOrder goes through a standard list of evaluations to make to ensure that
@@ -18,6 +19,9 @@ import (
 func (r *Risk) EvaluateOrder(o internalordermanager.OrderEvent, _ interfaces.DataEventHandler, _ positions.Positions, allPositions map[string]map[asset.Item]map[currency.Pair]positions.Positions) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 	if o.IsLeveraged() {
+		if !r.CanUseLeverage {
+			return nil, errors.New("order says to use leverage, but its not allowed damnit")
+		}
 		ratio := existingLeverageRatio()
 
 		if ratio > r.MaxLeverageRatio[o.GetExchange()][o.GetAssetType()][o.Pair()] {
@@ -35,7 +39,7 @@ func (r *Risk) EvaluateOrder(o internalordermanager.OrderEvent, _ interfaces.Dat
 }
 
 func existingLeverageRatio() float64 {
-	os, _ := engine.Bot.OrderManager.GetOrdersSnapshot(order2.AnyStatus)
+	os, _ := engine.Bot.OrderManager.GetOrdersSnapshot(gctorder.AnyStatus)
 	if len(os) == 0 {
 		return 0
 	}
@@ -49,7 +53,7 @@ func existingLeverageRatio() float64 {
 }
 
 func areWeAllIn(o internalordermanager.OrderEvent) error {
-	os, _ := engine.Bot.OrderManager.GetOrdersSnapshot(order2.AnyStatus)
+	os, _ := engine.Bot.OrderManager.GetOrdersSnapshot(gctorder.AnyStatus)
 	if len(os) == 0 {
 		return nil
 	}

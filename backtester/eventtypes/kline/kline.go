@@ -2,9 +2,10 @@ package kline
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
-func (k *Kline) DataType() portfolio.DataType {
+func (k *Kline) DataType() interfaces.DataType {
 	return data.DataTypeCandle
 }
 

@@ -1,6 +1,9 @@
 package portfolio
 
 import (
+	"errors"
+
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -11,6 +14,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+var NotEnoughFundsErr = errors.New("not enough funds to buy")
+var NoHoldingsToSellErr = errors.New("no holdings to sell")
 
 type Portfolio struct {
 	InitialFunds float64
@@ -23,7 +29,7 @@ type Portfolio struct {
 }
 
 type PortfolioHandler interface {
-	OnSignal(signal.SignalEvent, interfaces.DataHandler) (*order.Order, error)
+	OnSignal(signal.SignalEvent, interfaces.DataHandler, *exchange.CurrencySettings) (*order.Order, error)
 	OnFill(fill.FillEvent, interfaces.DataHandler) (*fill.Fill, error)
 	Update(interfaces.DataEventHandler)
 
@@ -41,5 +47,5 @@ type PortfolioHandler interface {
 }
 
 type SizeHandler interface {
-	SizeOrder(internalordermanager.OrderEvent, interfaces.DataEventHandler, float64, float64) (*order.Order, error)
+	SizeOrder(internalordermanager.OrderEvent, interfaces.DataEventHandler, float64, *exchange.CurrencySettings) (*order.Order, error)
 }

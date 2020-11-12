@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	DataTypeCandle portfolio.DataType = iota
+	DataTypeCandle interfaces.DataType = iota
 	DataTypeTick
 )
 

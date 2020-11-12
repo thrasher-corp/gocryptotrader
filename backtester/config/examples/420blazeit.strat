@@ -2,18 +2,34 @@
  "strategy": "rsi420blazeit",
  "exchange-settings": {
   "exchange-name": "binance",
+  "asset": "spot",
   "base": "BTC",
   "quote": "USDT",
-  "asset": "spot",
-  "initial-funds": 100000,
-  "maximum-order-size": 0.5,
-  "minimum-order-size": 0.000001,
-  "default-order-size": 0.5
+  "initial-funds": 13371337,
+  "minimum-buy-size": 0.1,
+  "maximum-buy-size": 1,
+  "default-buy-size": 0.5,
+  "minimum-sell-size": 0.1,
+  "maximum-sell-size": 2,
+  "default-sell-size": 0.5,
+  "can-use-leverage": false,
+  "maximum-leverage": 0
  },
- "data-source": "candle",
  "candle-data": {
-  "start-date": "2020-11-03T10:38:49.7751799+11:00",
-  "end-date": "2020-11-10T10:38:49.7751799+11:00",
+  "start-date": "2020-11-05T14:35:42.1143073+11:00",
+  "end-date": "2020-11-12T14:35:42.1143073+11:00",
   "interval": 3600000000000
+ },
+ "portfolio": {
+  "diversification-something": 0,
+  "can-use-leverage": false,
+  "maximum-leverage": 0,
+  "minimum-buy-size": 0.1,
+  "maximum-buy-size": 1,
+  "default-buy-size": 0.5,
+  "minimum-sell-size": 0.1,
+  "maximum-sell-size": 2,
+  "default-sell-size": 0.5
  }
 }
+

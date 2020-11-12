@@ -3,6 +3,7 @@ package backtest
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -28,18 +29,145 @@ import (
 
 // New returns a new BackTest instance
 func New() *BackTest {
-	return &BackTest{}
+	return &BackTest{
+		shutdown: make(chan struct{}),
+	}
+}
+
+func (b *BackTest) Stop() {
+	b.shutdown <- struct{}{}
+}
+
+// Run will iterate over loaded data events
+// save them and then handle the event based on its type
+func (b *BackTest) Run() error {
+	for event, ok := b.nextEvent(); true; event, ok = b.nextEvent() {
+		if !ok {
+			data, ok := b.Data.Next()
+			if !ok {
+				break
+			}
+			b.EventQueue = append(b.EventQueue, data)
+			continue
+		}
+
+		err := b.handleEvent(event)
+		if err != nil {
+			return err
+		}
+		b.Statistic.TrackEvent(event)
+	}
+
+	return nil
+}
+
+func (b *BackTest) RunLive() error {
+	timerino := time.NewTimer(time.Minute * 5)
+	for {
+		select {
+		case <-b.shutdown:
+			return nil
+		case <-timerino.C:
+			return errors.New("no data returned in 5 minutes, shutting down")
+		default:
+			//
+			// Go get latest candle of interval X, verify that it hasn't been run before, then append the event
+			//
+			doneARun := false
+			for event, ok := b.nextEvent(); true; event, ok = b.nextEvent() {
+				doneARun = true
+				if !ok {
+					data, ok := b.Data.Next()
+					if !ok {
+						break
+					}
+					b.EventQueue = append(b.EventQueue, data)
+					continue
+				}
+
+				err := b.handleEvent(event)
+				if err != nil {
+					return err
+				}
+				b.Statistic.TrackEvent(event)
+			}
+			if doneARun {
+				timerino = time.NewTimer(time.Minute * 5)
+			}
+		}
+	}
+}
+
+func (b *BackTest) nextEvent() (e interfaces.EventHandler, ok bool) {
+	if len(b.EventQueue) == 0 {
+		return e, false
+	}
+
+	e = b.EventQueue[0]
+	b.EventQueue = b.EventQueue[1:]
+
+	return e, true
+}
+
+// handleEvent switches based on the eventHandler type
+// it will then act on the event and if needed, will add more events to the queue to be handled
+func (b *BackTest) handleEvent(e interfaces.EventHandler) error {
+	switch event := e.(type) {
+	case interfaces.DataEventHandler:
+		b.Portfolio.Update(event)
+		b.Statistic.Update(event, b.Portfolio)
+		s, err := b.Strategy.OnSignal(b.Data, b.Portfolio)
+		if err != nil {
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
+			break
+		}
+		b.EventQueue = append(b.EventQueue, s)
+
+	case signal.SignalEvent:
+		cs := b.Exchange.GetCurrency()
+		o, err := b.Portfolio.OnSignal(event, b.Data, &cs)
+		if err != nil {
+			if errors.Is(err, portfolio.NoHoldingsToSellErr) || errors.Is(err, portfolio.NotEnoughFundsErr) {
+				log.Warnf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
+			} else {
+				log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
+			}
+			break
+		}
+		b.EventQueue = append(b.EventQueue, o)
+
+	case internalordermanager.OrderEvent:
+
+		f, err := b.Exchange.ExecuteOrder(event, b.Data)
+		if err != nil {
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
+			break
+		}
+		b.EventQueue = append(b.EventQueue, f)
+	case fill.FillEvent:
+		t, err := b.Portfolio.OnFill(event, b.Data)
+		if err != nil {
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
+			break
+		}
+		b.Statistic.TrackTransaction(t)
+	}
+
+	return nil
+}
+
+// Reset BackTest values to default
+func (b *BackTest) Reset() {
+	b.EventQueue = nil
+	b.Data.Reset()
+	b.Portfolio.Reset()
+	b.Statistic.Reset()
 }
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
-func NewFromConfig(configPath string) (*BackTest, error) {
+func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	bt := New()
-	cfg, err := config.ReadConfigFromFile(configPath)
-	if err != nil {
-		return nil, err
-	}
-
-	err = botSetup(cfg)
+	err := engineBotSetup(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -65,12 +193,20 @@ func NewFromConfig(configPath string) (*BackTest, error) {
 	}
 
 	bt.Exchange = &exchange.Exchange{
-		Currency: exchange.Currency{
-			CurrencyPair: fPair,
-			AssetType:    a,
-			ExchangeFee:  takerFee,
-			MakerFee:     takerFee,
-			TakerFee:     makerFee,
+		CurrencySettings: exchange.CurrencySettings{
+			CurrencyPair:    fPair,
+			AssetType:       a,
+			ExchangeFee:     takerFee,
+			MakerFee:        takerFee,
+			TakerFee:        makerFee,
+			MinimumBuySize:  cfg.ExchangeSettings.MinimumBuySize,
+			MaximumBuySize:  cfg.ExchangeSettings.MinimumBuySize,
+			DefaultBuySize:  cfg.ExchangeSettings.DefaultBuySize,
+			MinimumSellSize: cfg.ExchangeSettings.MinimumSellSize,
+			MaximumSellSize: cfg.ExchangeSettings.MaximumSellSize,
+			DefaultSellSize: cfg.ExchangeSettings.DefaultSellSize,
+			CanUseLeverage:  cfg.ExchangeSettings.CanUseLeverage,
+			MaximumLeverage: cfg.ExchangeSettings.MaximumLeverage,
 		},
 		Orders: internalordermanager.Orders{},
 	}
@@ -78,11 +214,21 @@ func NewFromConfig(configPath string) (*BackTest, error) {
 	bt.Portfolio = &portfolio.Portfolio{
 		InitialFunds: cfg.ExchangeSettings.InitialFunds,
 		SizeManager: &size.Size{
-			DefaultSize: cfg.ExchangeSettings.DefaultBuySize,
-			MaxSize:     cfg.ExchangeSettings.MaximumBuySize,
+			MinimumBuySize:  cfg.PortfolioSettings.MinimumBuySize,
+			MaximumBuySize:  cfg.PortfolioSettings.MinimumBuySize,
+			DefaultBuySize:  cfg.PortfolioSettings.DefaultBuySize,
+			MinimumSellSize: cfg.PortfolioSettings.MinimumSellSize,
+			MaximumSellSize: cfg.PortfolioSettings.MaximumSellSize,
+			DefaultSellSize: cfg.PortfolioSettings.DefaultSellSize,
+			CanUseLeverage:  cfg.PortfolioSettings.CanUseLeverage,
+			MaximumLeverage: cfg.PortfolioSettings.MaximumLeverage,
 		},
-		Funds:       cfg.ExchangeSettings.InitialFunds,
-		RiskManager: &risk.Risk{},
+		Funds: cfg.ExchangeSettings.InitialFunds,
+		RiskManager: &risk.Risk{
+			MaxLeverageRatio:             nil,
+			MaxLeverageRate:              nil,
+			MaxDiversificationPercentage: nil,
+		},
 	}
 
 	// TODO: more nuanced maker/take fees
@@ -95,6 +241,7 @@ func NewFromConfig(configPath string) (*BackTest, error) {
 
 	bt.Statistic = &statistics.Statistic{
 		StrategyName: cfg.StrategyToLoad,
+		InitialFunds: cfg.ExchangeSettings.InitialFunds,
 	}
 
 	return bt, nil
@@ -131,7 +278,7 @@ func loadExchangePairAssetBase(cfg *config.Config) (exchange2.IBotExchange, curr
 	return exch, fPair, a, base, nil
 }
 
-func botSetup(cfg *config.Config) error {
+func engineBotSetup(cfg *config.Config) error {
 	var err error
 	engine.Bot, err = engine.NewFromSettings(&engine.Settings{
 		EnableDryRun:   true,
@@ -218,7 +365,7 @@ func loadData(cfg *config.Config, exch exchange2.IBotExchange, fPair currency.Pa
 		base.API.AuthenticatedSupport = validated
 		if !validated {
 			log.Warn(log.BackTester, "bad credentials received, no live trading for run")
-			cfg.LiveData.FakeOrders = true
+			cfg.LiveData.RealOrders = false
 		}
 	} else if cfg.DatabaseData != nil {
 		if cfg.DatabaseData.ConfigOverride != nil {
@@ -229,13 +376,7 @@ func loadData(cfg *config.Config, exch exchange2.IBotExchange, fPair currency.Pa
 			}
 		}
 		if cfg.DatabaseData.DataType == "kline" {
-			datarino, err := kline.LoadFromDatabase(
-				cfg.ExchangeSettings.Name,
-				fPair,
-				a,
-				kline.Interval(cfg.DatabaseData.Interval),
-				cfg.DatabaseData.StartDate,
-				cfg.DatabaseData.EndDate)
+			datarino, err := getCandleDatabaseData(cfg, fPair, a)
 			if err != nil {
 				return nil, err
 			}
@@ -266,82 +407,16 @@ func loadData(cfg *config.Config, exch exchange2.IBotExchange, fPair currency.Pa
 	return resp, nil
 }
 
-// Reset BackTest values to default
-func (b *BackTest) Reset() {
-	b.EventQueue = nil
-	b.Data.Reset()
-	b.Portfolio.Reset()
-	b.Statistic.Reset()
-}
-
-// Run executes Backtest
-func (b *BackTest) Run() error {
-	for event, ok := b.nextEvent(); true; event, ok = b.nextEvent() {
-		if !ok {
-			data, ok := b.Data.Next()
-			if !ok {
-				break
-			}
-			b.EventQueue = append(b.EventQueue, data)
-			continue
-		}
-
-		err := b.eventLoop(event)
-		if err != nil {
-			return err
-		}
-		b.Statistic.TrackEvent(event)
+func getCandleDatabaseData(cfg *config.Config, fPair currency.Pair, a asset.Item) (kline.Item, error) {
+	datarino, err := kline.LoadFromDatabase(
+		cfg.ExchangeSettings.Name,
+		fPair,
+		a,
+		kline.Interval(cfg.DatabaseData.Interval),
+		cfg.DatabaseData.StartDate,
+		cfg.DatabaseData.EndDate)
+	if err != nil {
+		return kline.Item{}, err
 	}
-
-	return nil
-}
-
-func (b *BackTest) nextEvent() (e interfaces.EventHandler, ok bool) {
-	if len(b.EventQueue) == 0 {
-		return e, false
-	}
-
-	e = b.EventQueue[0]
-	b.EventQueue = b.EventQueue[1:]
-
-	return e, true
-}
-
-func (b *BackTest) eventLoop(e interfaces.EventHandler) error {
-	switch event := e.(type) {
-	case interfaces.DataEventHandler:
-		b.Portfolio.Update(event)
-		b.Statistic.Update(event, b.Portfolio)
-		s, err := b.Strategy.OnSignal(b.Data, b.Portfolio)
-		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
-			break
-		}
-		b.EventQueue = append(b.EventQueue, s)
-
-	case signal.SignalEvent:
-		o, err := b.Portfolio.OnSignal(event, b.Data)
-		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
-			break
-		}
-		b.EventQueue = append(b.EventQueue, o)
-
-	case internalordermanager.OrderEvent:
-		f, err := b.Exchange.ExecuteOrder(event, b.Data)
-		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
-			break
-		}
-		b.EventQueue = append(b.EventQueue, f)
-	case fill.FillEvent:
-		t, err := b.Portfolio.OnFill(event, b.Data)
-		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
-			break
-		}
-		b.Statistic.TrackTransaction(t)
-	}
-
-	return nil
+	return datarino, nil
 }

@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 func main() {
@@ -19,8 +22,14 @@ func main() {
 
 	var bt *backtest.BackTest
 	var err error
+	var cfg *config.Config
 	if configSource == "file" {
-		bt, err = backtest.NewFromConfig(configPath)
+		cfg, err = config.ReadConfigFromFile(configPath)
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+		bt, err = backtest.NewFromConfig(cfg)
 		if err != nil {
 			fmt.Print(err)
 			os.Exit(1)
@@ -29,10 +38,25 @@ func main() {
 		// this is where one would check a 'config' database table which just contains
 		// data like {{strategyName}} {{jsonContentsOfStrategy}}
 	}
-	err = bt.Run()
-	if err != nil {
-		fmt.Print(err)
-		os.Exit(1)
+
+	if cfg.LiveData != nil {
+		go func() {
+			err = bt.RunLive()
+			if err != nil {
+				fmt.Print(err)
+				os.Exit(-1)
+			}
+		}()
+		interrupt := signaler.WaitForInterrupt()
+		gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
+		bt.Stop()
+		bt.Statistic.PrintResult()
+	} else {
+		err := bt.Run()
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
 	}
 
 	bt.Statistic.PrintResult()
