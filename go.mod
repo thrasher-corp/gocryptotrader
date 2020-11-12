@@ -5,7 +5,6 @@ go 1.13
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/d5/tengo/v2 v2.6.2
-	github.com/ericlagergren/decimal v0.0.0-20180907214518-0bb163153a5d // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gofrs/uuid v3.3.0+incompatible
@@ -14,6 +13,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
+	github.com/grpc-ecosystem/grpc-gateway v1.9.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.0.1
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/kr/text v0.2.0 // indirect
@@ -43,7 +43,8 @@ require (
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gonum.org/v1/gonum v0.8.1
 	google.golang.org/genproto v0.0.0-20201019141844-1ed22bb0c154
-	google.golang.org/grpc v1.33.2	google.golang.org/grpc/examples v0.0.0-20200825214159-c4ba4cc6af4a // indirect
+	google.golang.org/grpc v1.33.2
+	google.golang.org/grpc/examples v0.0.0-20200825214159-c4ba4cc6af4a // indirect
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.60.0 // indirect
