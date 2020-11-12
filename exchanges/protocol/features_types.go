@@ -1,11 +1,18 @@
 package protocol
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+)
 
 // Features holds all variables for the exchanges supported features for a
 // protocol (e.g REST or Websocket)
 type Features struct {
 	Protocols
+	withdrawalPermissions   uint32
+	autoPairUpdate          *bool
+	klineSupportedIntervals map[kline.Interval]bool
 	sync.RWMutex
 }
 
@@ -105,3 +112,42 @@ const (
 	MessageSequenceNumbers
 	CandleHistory
 )
+
+var components = []Component{
+	TickerBatching,
+	AutoPairUpdates,
+	AccountBalance,
+	CryptoDeposit,
+	CryptoWithdrawal,
+	FiatWithdraw,
+	GetOrder,
+	GetOrders,
+	CancelOrders,
+	CancelOrder,
+	SubmitOrder,
+	SubmitOrders,
+	ModifyOrder,
+	DepositHistory,
+	WithdrawalHistory,
+	TradeHistory,
+	UserTradeHistory,
+	TradeFee,
+	FiatDepositFee,
+	FiatWithdrawalFee,
+	CryptoDepositFee,
+	CryptoWithdrawalFee,
+	TickerFetching,
+	KlineFetching,
+	TradeFetching,
+	OrderbookFetching,
+	AccountInfo,
+	FiatDeposit,
+	DeadMansSwitch,
+	FullPayloadSubscribe,
+	Subscribe,
+	Unsubscribe,
+	AuthenticatedEndpoints,
+	MessageCorrelation,
+	MessageSequenceNumbers,
+	CandleHistory,
+}

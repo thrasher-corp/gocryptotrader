@@ -120,7 +120,7 @@ func TestWithdrawalPermissions(t *testing.T) {
 	}
 }
 
-func TestIsSupported(t *testing.T) {
+func TestIsProtocolSupported(t *testing.T) {
 	f := &Features{}
 	if f.IsWebsocketSupported() {
 		t.Fatal("websocket should not be supported")
@@ -144,7 +144,7 @@ func TestIsSupported(t *testing.T) {
 	}
 }
 
-func TestIsEnabled(t *testing.T) {
+func TestIsProtocolEnabled(t *testing.T) {
 	f := &Features{}
 	_, err := f.IsWebsocketEnabled()
 	if err == nil {
@@ -214,7 +214,7 @@ func TestCheckAuthentication(t *testing.T) {
 	}
 }
 
-func TestCheckComponent(t *testing.T) {
+func TestEnabled(t *testing.T) {
 	f := &Features{}
 	_, err := f.RESTEnabled(TickerBatching)
 	if err == nil {

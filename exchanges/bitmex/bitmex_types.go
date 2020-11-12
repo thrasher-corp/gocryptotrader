@@ -120,7 +120,7 @@ type Funding struct {
 	Timestamp        time.Time `json:"timestamp"`
 }
 
-// Instrument Tradeable Contracts, Indices, and History
+// Instrument Tradable Contracts, Indices, and History
 type Instrument struct {
 	AskPrice                       float64       `json:"askPrice"`
 	BankruptLimitDownPrice         float64       `json:"bankruptLimitDownPrice"`

@@ -25,6 +25,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const krakenWithdrawalPermissions = exchange.AutoWithdrawCryptoWithSetup |
+	exchange.WithdrawCryptoWith2FA |
+	exchange.AutoWithdrawFiatWithSetup |
+	exchange.WithdrawFiatWith2FA
+
 // GetDefaultConfig returns a default exchange config
 func (k *Kraken) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	k.SetDefaults()
@@ -38,7 +43,7 @@ func (k *Kraken) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if k.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if k.Protocol.AutoPairUpdateEnabled() {
 		err = k.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -71,74 +76,95 @@ func (k *Kraken) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	k.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				FiatDeposit:         true,
-				FiatWithdraw:        true,
-				TradeFee:            true,
-				FiatDepositFee:      true,
-				FiatWithdrawalFee:   true,
-				CryptoDepositFee:    true,
-				CryptoWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				TickerFetching:     true,
-				TradeFetching:      true,
-				KlineFetching:      true,
-				OrderbookFetching:  true,
-				Subscribe:          true,
-				Unsubscribe:        true,
-				MessageCorrelation: true,
-				SubmitOrder:        true,
-				CancelOrder:        true,
-				CancelOrders:       true,
-				GetOrders:          true,
-				GetOrder:           true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
-				exchange.WithdrawCryptoWith2FA |
-				exchange.AutoWithdrawFiatWithSetup |
-				exchange.WithdrawFiatWith2FA,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				DateRanges: true,
-				Intervals:  true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.OneDay.Word():     true,
-					kline.FifteenDay.Word(): true,
-					kline.OneWeek.Word():    true,
-				},
-			},
-		},
+	err = k.Protocol.SetupREST(&protocol.State{
+		TickerBatching:      convert.BoolPtrT,
+		TickerFetching:      convert.BoolPtrT,
+		KlineFetching:       convert.BoolPtrT,
+		TradeFetching:       convert.BoolPtrT,
+		OrderbookFetching:   convert.BoolPtrT,
+		AccountInfo:         convert.BoolPtrT,
+		GetOrder:            convert.BoolPtrT,
+		GetOrders:           convert.BoolPtrT,
+		CancelOrder:         convert.BoolPtrT,
+		SubmitOrder:         convert.BoolPtrT,
+		UserTradeHistory:    convert.BoolPtrT,
+		CryptoDeposit:       convert.BoolPtrT,
+		CryptoWithdrawal:    convert.BoolPtrT,
+		FiatDeposit:         convert.BoolPtrT,
+		FiatWithdraw:        convert.BoolPtrT,
+		TradeFee:            convert.BoolPtrT,
+		FiatDepositFee:      convert.BoolPtrT,
+		FiatWithdrawalFee:   convert.BoolPtrT,
+		CryptoDepositFee:    convert.BoolPtrT,
+		CryptoWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = k.Protocol.SetupWebsocket(&protocol.State{
+		TickerFetching:     convert.BoolPtrT,
+		TradeFetching:      convert.BoolPtrT,
+		KlineFetching:      convert.BoolPtrT,
+		OrderbookFetching:  convert.BoolPtrT,
+		Subscribe:          convert.BoolPtrT,
+		Unsubscribe:        convert.BoolPtrT,
+		MessageCorrelation: convert.BoolPtrT,
+		SubmitOrder:        convert.BoolPtrT,
+		CancelOrder:        convert.BoolPtrT,
+		CancelOrders:       convert.BoolPtrT,
+		GetOrders:          convert.BoolPtrT,
+		GetOrder:           convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = k.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: krakenWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.ThreeMin:   true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.ThirtyMin:  true,
+			kline.OneHour:    true,
+			kline.FourHour:   true,
+			kline.OneDay:     true,
+			kline.FifteenDay: true,
+			kline.OneWeek:    true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	// k.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:      true,
+	// 		Websocket: true,
+	// 		RESTCapabilities: protocol.Features{
+
+	// 		},
+	// 		WebsocketCapabilities: protocol.Features{
+
+	// 		},
+	// 		WithdrawPermissions:
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			DateRanges: true,
+	// 			Intervals:  true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+
+	// 			},
+	// 		},
+	// 	},
+	// }
 
 	k.Requester = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -182,7 +208,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       k.Subscribe,
 		Unsubscriber:                     k.Unsubscribe,
 		GenerateSubscriptions:            k.GenerateDefaultSubscriptions,
-		Features:                         &k.Features.Supports.WebsocketCapabilities,
+		Features:                         k.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
@@ -278,7 +304,7 @@ func (k *Kraken) Run() {
 		}
 	}
 
-	if !k.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+	if !k.Protocol.AutoPairUpdateEnabled() && !forceUpdate {
 		return
 	}
 

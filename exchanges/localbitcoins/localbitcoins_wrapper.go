@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -25,6 +26,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const localBtcWithdrawalPermissions = exchange.AutoWithdrawCrypto |
+	exchange.WithdrawFiatViaWebsiteOnly
+
 // GetDefaultConfig returns a default exchange config
 func (l *LocalBitcoins) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	l.SetDefaults()
@@ -38,7 +42,7 @@ func (l *LocalBitcoins) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if l.Protocol.AutoPairUpdateEnabled() {
 		err = l.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -63,30 +67,29 @@ func (l *LocalBitcoins) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	l.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: false,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:    true,
-				TickerFetching:    true,
-				AutoPairUpdates:   true,
-				AccountInfo:       true,
-				GetOrder:          true,
-				CancelOrder:       true,
-				SubmitOrder:       true,
-				DepositHistory:    true,
-				WithdrawalHistory: true,
-				UserTradeHistory:  true,
-				CryptoDeposit:     true,
-				CryptoWithdrawal:  true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.WithdrawFiatViaWebsiteOnly,
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-		},
+	err = l.Protocol.SetupREST(&protocol.State{
+		TickerBatching:    convert.BoolPtrT,
+		TickerFetching:    convert.BoolPtrT,
+		AccountInfo:       convert.BoolPtrT,
+		GetOrder:          convert.BoolPtrT,
+		CancelOrder:       convert.BoolPtrT,
+		SubmitOrder:       convert.BoolPtrT,
+		DepositHistory:    convert.BoolPtrT,
+		WithdrawalHistory: convert.BoolPtrT,
+		UserTradeHistory:  convert.BoolPtrT,
+		CryptoDeposit:     convert.BoolPtrT,
+		CryptoWithdrawal:  convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = l.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: localBtcWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	l.Requester = request.New(l.Name,
@@ -120,7 +123,7 @@ func (l *LocalBitcoins) Run() {
 		l.PrintEnabledPairs()
 	}
 
-	if !l.GetEnabledFeatures().AutoPairUpdates {
+	if !l.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 

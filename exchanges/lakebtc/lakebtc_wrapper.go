@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -25,6 +26,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const lakeBTCWithdrawalPermissions = exchange.AutoWithdrawCrypto |
+	exchange.WithdrawFiatViaWebsiteOnly
+
 // GetDefaultConfig returns a default exchange config
 func (l *LakeBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	l.SetDefaults()
@@ -38,7 +42,7 @@ func (l *LakeBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if l.Protocol.AutoPairUpdateEnabled() {
 		err = l.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -63,39 +67,42 @@ func (l *LakeBTC) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	l.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:    true,
-				TickerFetching:    true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				AutoPairUpdates:   true,
-				AccountInfo:       true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrders:      true,
-				CancelOrder:       true,
-				SubmitOrder:       true,
-				UserTradeHistory:  true,
-				CryptoWithdrawal:  true,
-				TradeFee:          true,
-				CryptoDepositFee:  true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				Subscribe:         true,
-				Unsubscribe:       true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.WithdrawFiatViaWebsiteOnly,
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-		},
+	err = l.Protocol.SetupREST(&protocol.State{
+		TickerBatching:    convert.BoolPtrT,
+		TickerFetching:    convert.BoolPtrT,
+		TradeFetching:     convert.BoolPtrT,
+		OrderbookFetching: convert.BoolPtrT,
+		AccountInfo:       convert.BoolPtrT,
+		GetOrder:          convert.BoolPtrT,
+		GetOrders:         convert.BoolPtrT,
+		CancelOrders:      convert.BoolPtrT,
+		CancelOrder:       convert.BoolPtrT,
+		SubmitOrder:       convert.BoolPtrT,
+		UserTradeHistory:  convert.BoolPtrT,
+		CryptoWithdrawal:  convert.BoolPtrT,
+		TradeFee:          convert.BoolPtrT,
+		CryptoDepositFee:  convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = l.Protocol.SetupWebsocket(&protocol.State{
+		TradeFetching:     convert.BoolPtrT,
+		OrderbookFetching: convert.BoolPtrT,
+		Subscribe:         convert.BoolPtrT,
+		Unsubscribe:       convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = l.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: lakeBTCWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	l.Requester = request.New(l.Name,
@@ -134,7 +141,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       l.Subscribe,
 		Unsubscriber:                     l.Unsubscribe,
 		GenerateSubscriptions:            l.GenerateDefaultSubscriptions,
-		Features:                         &l.Features.Supports.WebsocketCapabilities,
+		Features:                         l.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 	})
 }
@@ -154,7 +161,7 @@ func (l *LakeBTC) Run() {
 		l.PrintEnabledPairs()
 	}
 
-	if !l.GetEnabledFeatures().AutoPairUpdates {
+	if !l.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 

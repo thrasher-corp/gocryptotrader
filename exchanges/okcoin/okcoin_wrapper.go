@@ -20,6 +20,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+const okCoinKlineLimit = 1440
+const okcoinWithdrawalPermissions = exchange.AutoWithdrawCrypto |
+	exchange.NoFiatWithdrawals
+
 // GetDefaultConfig returns a default exchange config
 func (o *OKCoin) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	o.SetDefaults()
@@ -33,7 +37,7 @@ func (o *OKCoin) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if o.Protocol.AutoPairUpdateEnabled() {
 		err = o.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -59,74 +63,139 @@ func (o *OKCoin) SetDefaults() {
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	o.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin)
 
-	o.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrder:         true,
-				CancelOrders:        true,
-				SubmitOrder:         true,
-				SubmitOrders:        true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				CryptoWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				TickerFetching:         true,
-				TradeFetching:          true,
-				KlineFetching:          true,
-				OrderbookFetching:      true,
-				Subscribe:              true,
-				Unsubscribe:            true,
-				AuthenticatedEndpoints: true,
-				MessageCorrelation:     true,
-				GetOrders:              true,
-				GetOrder:               true,
-				AccountBalance:         true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.NoFiatWithdrawals,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				DateRanges: true,
-				Intervals:  true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-					kline.OneWeek.Word():    true,
-				},
-				ResultLimit: 1440,
-			},
-		},
+	err := o.Protocol.SetupREST(&protocol.State{
+		TickerBatching:      convert.BoolPtrT,
+		TickerFetching:      convert.BoolPtrT,
+		KlineFetching:       convert.BoolPtrT,
+		TradeFetching:       convert.BoolPtrT,
+		OrderbookFetching:   convert.BoolPtrT,
+		AccountInfo:         convert.BoolPtrT,
+		GetOrder:            convert.BoolPtrT,
+		GetOrders:           convert.BoolPtrT,
+		CancelOrder:         convert.BoolPtrT,
+		CancelOrders:        convert.BoolPtrT,
+		SubmitOrder:         convert.BoolPtrT,
+		SubmitOrders:        convert.BoolPtrT,
+		DepositHistory:      convert.BoolPtrT,
+		WithdrawalHistory:   convert.BoolPtrT,
+		UserTradeHistory:    convert.BoolPtrT,
+		CryptoDeposit:       convert.BoolPtrT,
+		CryptoWithdrawal:    convert.BoolPtrT,
+		TradeFee:            convert.BoolPtrT,
+		CryptoWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = o.Protocol.SetupWebsocket(&protocol.State{
+		TickerFetching:         convert.BoolPtrT,
+		TradeFetching:          convert.BoolPtrT,
+		KlineFetching:          convert.BoolPtrT,
+		OrderbookFetching:      convert.BoolPtrT,
+		Subscribe:              convert.BoolPtrT,
+		Unsubscribe:            convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		MessageCorrelation:     convert.BoolPtrT,
+		GetOrders:              convert.BoolPtrT,
+		GetOrder:               convert.BoolPtrT,
+		AccountBalance:         convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = o.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: okcoinWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.ThreeMin:   true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.ThirtyMin:  true,
+			kline.OneHour:    true,
+			kline.TwoHour:    true,
+			kline.FourHour:   true,
+			kline.SixHour:    true,
+			kline.TwelveHour: true,
+			kline.OneDay:     true,
+			kline.ThreeDay:   true,
+			kline.OneWeek:    true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	// o.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:      true,
+	// 		Websocket: true,
+	// 		RESTCapabilities: protocol.Features{
+	// 			TickerBatching:      true,
+	// 			TickerFetching:      true,
+	// 			KlineFetching:       true,
+	// 			TradeFetching:       true,
+	// 			OrderbookFetching:   true,
+	// 			AutoPairUpdates:     true,
+	// 			AccountInfo:         true,
+	// 			GetOrder:            true,
+	// 			GetOrders:           true,
+	// 			CancelOrder:         true,
+	// 			CancelOrders:        true,
+	// 			SubmitOrder:         true,
+	// 			SubmitOrders:        true,
+	// 			DepositHistory:      true,
+	// 			WithdrawalHistory:   true,
+	// 			UserTradeHistory:    true,
+	// 			CryptoDeposit:       true,
+	// 			CryptoWithdrawal:    true,
+	// 			TradeFee:            true,
+	// 			CryptoWithdrawalFee: true,
+	// 		},
+	// 		WebsocketCapabilities: protocol.Features{
+	// 			TickerFetching:         true,
+	// 			TradeFetching:          true,
+	// 			KlineFetching:          true,
+	// 			OrderbookFetching:      true,
+	// 			Subscribe:              true,
+	// 			Unsubscribe:            true,
+	// 			AuthenticatedEndpoints: true,
+	// 			MessageCorrelation:     true,
+	// 			GetOrders:              true,
+	// 			GetOrder:               true,
+	// 			AccountBalance:         true,
+	// 		},
+	// 		WithdrawPermissions: exchange.AutoWithdrawCrypto |
+	// 			exchange.NoFiatWithdrawals,
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			DateRanges: true,
+	// 			Intervals:  true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+	// 				kline.OneMin.Word():     true,
+	// 				kline.ThreeMin.Word():   true,
+	// 				kline.FiveMin.Word():    true,
+	// 				kline.FifteenMin.Word(): true,
+	// 				kline.ThirtyMin.Word():  true,
+	// 				kline.OneHour.Word():    true,
+	// 				kline.TwoHour.Word():    true,
+	// 				kline.FourHour.Word():   true,
+	// 				kline.SixHour.Word():    true,
+	// 				kline.TwelveHour.Word(): true,
+	// 				kline.OneDay.Word():     true,
+	// 				kline.ThreeDay.Word():   true,
+	// 				kline.OneWeek.Word():    true,
+	// 			},
+	// 			ResultLimit: 1440,
+	// 		},
+	// 	},
+	// }
 
 	o.Requester = request.New(o.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -217,7 +286,7 @@ func (o *OKCoin) Run() {
 		}
 	}
 
-	if !o.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+	if !o.Protocol.AutoPairUpdateEnabled() && !forceUpdate {
 		return
 	}
 
@@ -398,7 +467,7 @@ func (o *OKCoin) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcDateRanges(start, end, interval, okCoinKlineLimit)
 	formattedPair, err := o.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err

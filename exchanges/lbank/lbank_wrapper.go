@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -23,6 +24,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const lbankKlineResultLimit = 2880
+const lbankWithdrawalPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+	exchange.NoFiatWithdrawals
+
 // GetDefaultConfig returns a default exchange config
 func (l *Lbank) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	l.SetDefaults()
@@ -36,7 +41,7 @@ func (l *Lbank) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if l.Protocol.AutoPairUpdateEnabled() {
 		err = l.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -61,48 +66,45 @@ func (l *Lbank) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	l.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST: true,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				WithdrawalHistory:   true,
-				UserTradeHistory:    true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				CryptoWithdrawalFee: true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
-				exchange.NoFiatWithdrawals,
+	err = l.Protocol.SetupREST(&protocol.State{
+		TickerBatching:      convert.BoolPtrT,
+		TickerFetching:      convert.BoolPtrT,
+		KlineFetching:       convert.BoolPtrT,
+		TradeFetching:       convert.BoolPtrT,
+		OrderbookFetching:   convert.BoolPtrT,
+		AccountInfo:         convert.BoolPtrT,
+		GetOrder:            convert.BoolPtrT,
+		GetOrders:           convert.BoolPtrT,
+		CancelOrder:         convert.BoolPtrT,
+		SubmitOrder:         convert.BoolPtrT,
+		WithdrawalHistory:   convert.BoolPtrT,
+		UserTradeHistory:    convert.BoolPtrT,
+		CryptoWithdrawal:    convert.BoolPtrT,
+		TradeFee:            convert.BoolPtrT,
+		CryptoWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = l.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: lbankWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.ThirtyMin:  true,
+			kline.OneHour:    true,
+			kline.FourHour:   true,
+			kline.EightHour:  true,
+			kline.TwelveHour: true,
+			kline.OneDay:     true,
+			kline.OneWeek:    true,
 		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.EightHour.Word():  true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.OneWeek.Word():    true,
-				},
-				ResultLimit: 2880,
-			},
-		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	l.Requester = request.New(l.Name,
@@ -149,7 +151,7 @@ func (l *Lbank) Run() {
 		l.PrintEnabledPairs()
 	}
 
-	if !l.GetEnabledFeatures().AutoPairUpdates {
+	if !l.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 
@@ -801,7 +803,7 @@ func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 	}
 
 	data, err := l.GetKlines(formattedPair.String(),
-		strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+		strconv.FormatInt(lbankKlineResultLimit, 10),
 		l.FormatExchangeKlineInterval(interval),
 		strconv.FormatInt(start.Unix(), 10))
 	if err != nil {
@@ -843,7 +845,7 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, l.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcDateRanges(start, end, interval, lbankKlineResultLimit)
 	formattedPair, err := l.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
@@ -851,7 +853,7 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 
 	for x := range dates {
 		data, err := l.GetKlines(formattedPair.String(),
-			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+			strconv.FormatInt(lbankKlineResultLimit, 10),
 			l.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(dates[x].Start.UTC().Unix(), 10))
 		if err != nil {

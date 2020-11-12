@@ -3,6 +3,10 @@ package protocol
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 var (
@@ -56,6 +60,82 @@ func (f *Features) SetWebsocket(s State) error {
 	f.Lock()
 	defer f.Unlock()
 	return f.Websocket.SetFunctionality(s)
+}
+
+// Globals define shared functionality accross protocols
+type Globals struct {
+	WithdrawalPermissions   uint32                  `json:"withdrawalPermissions,omitempty"`
+	AutoPairUpdate          *bool                   `json:"autoPairUpdates,omitempty"`
+	KlineSupportedIntervals map[kline.Interval]bool `json:"supportedKlineIntervals,omitempty"`
+}
+
+// SetGlobals sets global values that act across protocol functionality
+func (f *Features) SetGlobals(g *Globals) error {
+	if g == nil {
+		return errors.New("globals cannot be nil")
+	}
+	f.Lock()
+	f.autoPairUpdate = g.AutoPairUpdate
+	f.withdrawalPermissions = g.WithdrawalPermissions
+	f.klineSupportedIntervals = g.KlineSupportedIntervals
+	f.Unlock()
+	return nil
+}
+
+// GetEnabledKlineIntervals returns a slice of all enabled intervals
+func (f *Features) GetEnabledKlineIntervals() ([]kline.Interval, error) {
+	f.RLock()
+	defer f.RUnlock()
+
+	var newMap []kline.Interval
+	for k, v := range f.klineSupportedIntervals {
+		if v {
+			newMap = append(newMap, k)
+		}
+	}
+	return newMap, nil
+}
+
+// SetKlineSupportedIntervals sets if a kline interval is enabled
+func (f *Features) SetKlineSupportedIntervals(nv map[kline.Interval]bool) error {
+	if nv == nil {
+		return errors.New("new values cannot be nil")
+	}
+
+	f.Lock()
+	defer f.Unlock()
+
+	for k, v := range nv {
+		_, ok := f.klineSupportedIntervals[k]
+		if !ok {
+			return fmt.Errorf("kline interval [%s] not supported by exchange", k)
+		}
+		f.klineSupportedIntervals[k] = v
+	}
+	return nil
+}
+
+// AutoPairUpdateEnabled returns if pairs can be automatically updated
+func (f *Features) AutoPairUpdateEnabled() bool {
+	f.RLock()
+	defer f.RUnlock()
+	return isEnabled(f.autoPairUpdate)
+}
+
+// SetAutoPairUpdate sets if auto pair updates are enabled
+func (f *Features) SetAutoPairUpdate(enabled bool) error {
+	f.Lock()
+	defer f.Unlock()
+	if f.autoPairUpdate == nil {
+		return errors.New("autopair updates are not supported")
+	}
+
+	if enabled {
+		f.autoPairUpdate = convert.BoolPtrT
+	} else {
+		f.autoPairUpdate = convert.BoolPtrF
+	}
+	return nil
 }
 
 // SetWithdrawalPermissions sets withdrawal permisions into shared protocol

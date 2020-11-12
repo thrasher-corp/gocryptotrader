@@ -26,6 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const zbKlineResultLimit = 1000
+const zbWithdrawalPermissions = exchange.AutoWithdrawCrypto |
+	exchange.NoFiatWithdrawals
+
 // GetDefaultConfig returns a default exchange config
 func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	z.SetDefaults()
@@ -39,7 +43,7 @@ func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if z.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if z.Protocol.AutoPairUpdateEnabled() {
 		err = z.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -64,67 +68,129 @@ func (z *ZB) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	z.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrder:         true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				CryptoDepositFee:    true,
-				CryptoWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				TickerFetching:         true,
-				TradeFetching:          true,
-				OrderbookFetching:      true,
-				Subscribe:              true,
-				AuthenticatedEndpoints: true,
-				AccountInfo:            true,
-				CancelOrder:            true,
-				SubmitOrder:            true,
-				MessageCorrelation:     true,
-				GetOrders:              true,
-				GetOrder:               true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.NoFiatWithdrawals,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				Intervals: true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-					kline.OneWeek.Word():    true,
-				},
-				ResultLimit: 1000,
-			},
-		},
+	err = z.Protocol.SetupREST(&protocol.State{
+		ProtocolEnabled:       true,
+		AuthenticationEnabled: true,
+		TickerBatching:        convert.BoolPtrT,
+		TickerFetching:        convert.BoolPtrT,
+		KlineFetching:         convert.BoolPtrT,
+		OrderbookFetching:     convert.BoolPtrT,
+		AccountInfo:           convert.BoolPtrT,
+		GetOrder:              convert.BoolPtrT,
+		GetOrders:             convert.BoolPtrT,
+		CancelOrder:           convert.BoolPtrT,
+		CryptoDeposit:         convert.BoolPtrT,
+		CryptoWithdrawal:      convert.BoolPtrT,
+		TradeFee:              convert.BoolPtrT,
+		CryptoDepositFee:      convert.BoolPtrT,
+		CryptoWithdrawalFee:   convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = z.Protocol.SetupWebsocket(&protocol.State{
+		ProtocolEnabled:        true,
+		AuthenticationEnabled:  true,
+		TickerFetching:         convert.BoolPtrT,
+		TradeFetching:          convert.BoolPtrT,
+		OrderbookFetching:      convert.BoolPtrT,
+		Subscribe:              convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		AccountInfo:            convert.BoolPtrT,
+		CancelOrder:            convert.BoolPtrT,
+		SubmitOrder:            convert.BoolPtrT,
+		MessageCorrelation:     convert.BoolPtrT,
+		GetOrders:              convert.BoolPtrT,
+		GetOrder:               convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = z.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: zbWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.ThreeMin:   true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.ThirtyMin:  true,
+			kline.OneHour:    true,
+			kline.TwoHour:    true,
+			kline.FourHour:   true,
+			kline.SixHour:    true,
+			kline.TwelveHour: true,
+			kline.OneDay:     true,
+			kline.ThreeDay:   true,
+			kline.OneWeek:    true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	// z.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:      true,
+	// 		Websocket: true,
+	// 		RESTCapabilities: protocol.Features{
+	// 			TickerBatching:      true,
+	// 			TickerFetching:      true,
+	// 			KlineFetching:       true,
+	// 			OrderbookFetching:   true,
+	// 			AutoPairUpdates:     true,
+	// 			AccountInfo:         true,
+	// 			GetOrder:            true,
+	// 			GetOrders:           true,
+	// 			CancelOrder:         true,
+	// 			CryptoDeposit:       true,
+	// 			CryptoWithdrawal:    true,
+	// 			TradeFee:            true,
+	// 			CryptoDepositFee:    true,
+	// 			CryptoWithdrawalFee: true,
+	// 		},
+	// 		WebsocketCapabilities: protocol.Features{
+	// 			TickerFetching:         true,
+	// 			TradeFetching:          true,
+	// 			OrderbookFetching:      true,
+	// 			Subscribe:              true,
+	// 			AuthenticatedEndpoints: true,
+	// 			AccountInfo:            true,
+	// 			CancelOrder:            true,
+	// 			SubmitOrder:            true,
+	// 			MessageCorrelation:     true,
+	// 			GetOrders:              true,
+	// 			GetOrder:               true,
+	// 		},
+	// 		WithdrawPermissions:
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			Intervals: true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+	// 				kline.OneMin.Word():     true,
+	// 				kline.ThreeMin.Word():   true,
+	// 				kline.FiveMin.Word():    true,
+	// 				kline.FifteenMin.Word(): true,
+	// 				kline.ThirtyMin.Word():  true,
+	// 				kline.OneHour.Word():    true,
+	// 				kline.TwoHour.Word():    true,
+	// 				kline.FourHour.Word():   true,
+	// 				kline.SixHour.Word():    true,
+	// 				kline.TwelveHour.Word(): true,
+	// 				kline.OneDay.Word():     true,
+	// 				kline.ThreeDay.Word():   true,
+	// 				kline.OneWeek.Word():    true,
+	// 			},
+	// 			ResultLimit: 1000,
+	// 		},
+	// 	},
+	// }
 
 	z.Requester = request.New(z.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -152,7 +218,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = z.Websocket.Setup(&stream.WebsocketSetup{
+	return z.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -163,20 +229,12 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		Connector:                        z.WsConnect,
 		GenerateSubscriptions:            z.GenerateDefaultSubscriptions,
 		Subscriber:                       z.Subscribe,
-		Features:                         &z.Features.Supports.WebsocketCapabilities,
+		Features:                         z.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		RateLimit:                        zbWebsocketRateLimit,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
-	if err != nil {
-		return err
-	}
-
-	// return z.Websocket.SetupNewConnection(stream.ConnectionSetup{
-	// 	URL: z.Websocket.GetWebsocketURL(),
-	// })
-	return nil
 }
 
 // Start starts the OKEX go routine
@@ -194,7 +252,7 @@ func (z *ZB) Run() {
 		z.PrintEnabledPairs()
 	}
 
-	if !z.GetEnabledFeatures().AutoPairUpdates {
+	if !z.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 
@@ -787,7 +845,7 @@ func (z *ZB) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.T
 		Type:   z.FormatExchangeKlineInterval(interval),
 		Symbol: p.String(),
 		Since:  convert.UnixMillis(start),
-		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
+		Size:   zbKlineResultLimit,
 	}
 	var candles KLineResponse
 	candles, err = z.GetSpotKline(klineParams)
@@ -832,7 +890,7 @@ allKlines:
 			Type:   z.FormatExchangeKlineInterval(interval),
 			Symbol: p.String(),
 			Since:  convert.UnixMillis(startTime),
-			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
+			Size:   zbKlineResultLimit,
 		}
 
 		candles, err := z.GetSpotKline(klineParams)
@@ -860,7 +918,7 @@ allKlines:
 				startTime = candles.Data[x].KlineTime
 			}
 		}
-		if len(candles.Data) != int(z.Features.Enabled.Kline.ResultLimit) {
+		if len(candles.Data) != zbKlineResultLimit {
 			break allKlines
 		}
 	}

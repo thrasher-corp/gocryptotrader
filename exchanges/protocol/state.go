@@ -18,7 +18,6 @@ func (s *State) Functionality() (Functionality, error) {
 		ProtocolEnabled:        s.ProtocolEnabled,
 		AuthenticationEnabled:  s.AuthenticationEnabled,
 		TickerBatching:         isEnabled(s.TickerBatching),
-		AutoPairUpdates:        isEnabled(s.AutoPairUpdates),
 		AccountBalance:         isEnabled(s.AccountBalance),
 		CryptoDeposit:          isEnabled(s.CryptoDeposit),
 		CryptoWithdrawal:       isEnabled(s.CryptoWithdrawal),
@@ -65,7 +64,6 @@ func (s *State) Supported() (Functionality, error) {
 		ProtocolEnabled:        s.ProtocolEnabled,
 		AuthenticationEnabled:  s.AuthenticationEnabled,
 		TickerBatching:         isSupported(s.TickerBatching),
-		AutoPairUpdates:        isSupported(s.AutoPairUpdates),
 		AccountBalance:         isSupported(s.AccountBalance),
 		CryptoDeposit:          isSupported(s.CryptoDeposit),
 		CryptoWithdrawal:       isSupported(s.CryptoWithdrawal),
@@ -109,184 +107,182 @@ func (s *State) SetFunctionality(newState State) error {
 		return errStateIsNil
 	}
 
+	s.ProtocolEnabled = newState.ProtocolEnabled
+	s.AuthenticationEnabled = newState.AuthenticationEnabled
+
 	err := functionalityTranslate(s.TickerBatching, newState.TickerBatching)
 	if err != nil {
-		return fmt.Errorf("ticker batching error: %s", err)
-	}
-
-	err = functionalityTranslate(s.AutoPairUpdates, newState.AutoPairUpdates)
-	if err != nil {
-		return fmt.Errorf("AutoPairUpdates error: %s", err)
+		return fmt.Errorf("ticker batching error: %w", err)
 	}
 
 	err = functionalityTranslate(s.AccountBalance, newState.AccountBalance)
 	if err != nil {
-		return fmt.Errorf("AccountBalance error: %s", err)
+		return fmt.Errorf("AccountBalance error: %w", err)
 	}
 
 	err = functionalityTranslate(s.CryptoDeposit, newState.CryptoDeposit)
 	if err != nil {
-		return fmt.Errorf("CryptoDeposit error: %s", err)
+		return fmt.Errorf("CryptoDeposit error: %w", err)
 	}
 
 	err = functionalityTranslate(s.CryptoWithdrawal, newState.CryptoWithdrawal)
 	if err != nil {
-		return fmt.Errorf("CryptoWithdrawal error: %s", err)
+		return fmt.Errorf("CryptoWithdrawal error: %w", err)
 	}
 
 	err = functionalityTranslate(s.FiatWithdraw, newState.FiatWithdraw)
 	if err != nil {
-		return fmt.Errorf("FiatWithdraw error: %s", err)
+		return fmt.Errorf("FiatWithdraw error: %w", err)
 	}
 
 	err = functionalityTranslate(s.GetOrder, newState.GetOrder)
 	if err != nil {
-		return fmt.Errorf("GetOrder error: %s", err)
+		return fmt.Errorf("GetOrder error: %w", err)
 	}
 
 	err = functionalityTranslate(s.GetOrders, newState.GetOrders)
 	if err != nil {
-		return fmt.Errorf("GetOrders error: %s", err)
+		return fmt.Errorf("GetOrders error: %w", err)
 	}
 
 	err = functionalityTranslate(s.CancelOrders, newState.CancelOrders)
 	if err != nil {
-		return fmt.Errorf("CancelOrders error: %s", err)
+		return fmt.Errorf("CancelOrders error: %w", err)
 	}
 
 	err = functionalityTranslate(s.CancelOrder, newState.CancelOrder)
 	if err != nil {
-		return fmt.Errorf("CancelOrder error: %s", err)
+		return fmt.Errorf("CancelOrder error: %w", err)
 	}
 
 	err = functionalityTranslate(s.SubmitOrder, newState.SubmitOrder)
 	if err != nil {
-		return fmt.Errorf("SubmitOrder error: %s", err)
+		return fmt.Errorf("SubmitOrder error: %w", err)
 	}
 
 	err = functionalityTranslate(s.SubmitOrders, newState.SubmitOrders)
 	if err != nil {
-		return fmt.Errorf("SubmitOrders error: %s", err)
+		return fmt.Errorf("SubmitOrders error: %w", err)
 	}
 
 	err = functionalityTranslate(s.ModifyOrder, newState.ModifyOrder)
 	if err != nil {
-		return fmt.Errorf("ModifyOrder error: %s", err)
+		return fmt.Errorf("ModifyOrder error: %w", err)
 	}
 
 	err = functionalityTranslate(s.DepositHistory, newState.DepositHistory)
 	if err != nil {
-		return fmt.Errorf("DepositHistory error: %s", err)
+		return fmt.Errorf("DepositHistory error: %w", err)
 	}
 
 	err = functionalityTranslate(s.WithdrawalHistory, newState.WithdrawalHistory)
 	if err != nil {
-		return fmt.Errorf("WithdrawalHistory error: %s", err)
+		return fmt.Errorf("WithdrawalHistory error: %w", err)
 	}
 
 	err = functionalityTranslate(s.TradeHistory, newState.TradeHistory)
 	if err != nil {
-		return fmt.Errorf("TradeHistory error: %s", err)
+		return fmt.Errorf("TradeHistory error: %w", err)
 	}
 
 	err = functionalityTranslate(s.UserTradeHistory, newState.UserTradeHistory)
 	if err != nil {
-		return fmt.Errorf("UserTradeHistory error: %s", err)
+		return fmt.Errorf("UserTradeHistory error: %w", err)
 	}
 
 	err = functionalityTranslate(s.TradeFee, newState.TradeFee)
 	if err != nil {
-		return fmt.Errorf("TradeFee error: %s", err)
+		return fmt.Errorf("TradeFee error: %w", err)
 	}
 
 	err = functionalityTranslate(s.FiatDepositFee, newState.FiatDepositFee)
 	if err != nil {
-		return fmt.Errorf("FiatDepositFee error: %s", err)
+		return fmt.Errorf("FiatDepositFee error: %w", err)
 	}
 
 	err = functionalityTranslate(s.FiatWithdrawalFee, newState.FiatWithdrawalFee)
 	if err != nil {
-		return fmt.Errorf("FiatWithdrawalFee error: %s", err)
+		return fmt.Errorf("FiatWithdrawalFee error: %w", err)
 	}
 
 	err = functionalityTranslate(s.CryptoDepositFee, newState.CryptoDepositFee)
 	if err != nil {
-		return fmt.Errorf("CryptoDepositFee error: %s", err)
+		return fmt.Errorf("CryptoDepositFee error: %w", err)
 	}
 
 	err = functionalityTranslate(s.CryptoWithdrawalFee, newState.CryptoWithdrawalFee)
 	if err != nil {
-		return fmt.Errorf("CryptoWithdrawalFee error: %s", err)
+		return fmt.Errorf("CryptoWithdrawalFee error: %w", err)
 	}
 
 	err = functionalityTranslate(s.TickerFetching, newState.TickerFetching)
 	if err != nil {
-		return fmt.Errorf("TickerFetching error: %s", err)
+		return fmt.Errorf("TickerFetching error: %w", err)
 	}
 
 	err = functionalityTranslate(s.KlineFetching, newState.KlineFetching)
 	if err != nil {
-		return fmt.Errorf("KlineFetching error: %s", err)
+		return fmt.Errorf("KlineFetching error: %w", err)
 	}
 
 	err = functionalityTranslate(s.TradeFetching, newState.TradeFetching)
 	if err != nil {
-		return fmt.Errorf("TradeFetching error: %s", err)
+		return fmt.Errorf("TradeFetching error: %w", err)
 	}
 
 	err = functionalityTranslate(s.OrderbookFetching, newState.OrderbookFetching)
 	if err != nil {
-		return fmt.Errorf("OrderbookFetching error: %s", err)
+		return fmt.Errorf("OrderbookFetching error: %w", err)
 	}
 
 	err = functionalityTranslate(s.AccountInfo, newState.AccountInfo)
 	if err != nil {
-		return fmt.Errorf("AccountInfo error: %s", err)
+		return fmt.Errorf("AccountInfo error: %w", err)
 	}
 
 	err = functionalityTranslate(s.FiatDeposit, newState.FiatDeposit)
 	if err != nil {
-		return fmt.Errorf("FiatDeposit error: %s", err)
+		return fmt.Errorf("FiatDeposit error: %w", err)
 	}
 
 	err = functionalityTranslate(s.DeadMansSwitch, newState.DeadMansSwitch)
 	if err != nil {
-		return fmt.Errorf("DeadMansSwitch error: %s", err)
+		return fmt.Errorf("DeadMansSwitch error: %w", err)
 	}
 
 	err = functionalityTranslate(s.FullPayloadSubscribe, newState.FullPayloadSubscribe)
 	if err != nil {
-		return fmt.Errorf("FullPayloadSubscribe error: %s", err)
+		return fmt.Errorf("FullPayloadSubscribe error: %w", err)
 	}
 
 	err = functionalityTranslate(s.Subscribe, newState.Subscribe)
 	if err != nil {
-		return fmt.Errorf("Subscribe error: %s", err)
+		return fmt.Errorf("Subscribe error: %w", err)
 	}
 
 	err = functionalityTranslate(s.Unsubscribe, newState.Unsubscribe)
 	if err != nil {
-		return fmt.Errorf("Unsubscribe error: %s", err)
+		return fmt.Errorf("Unsubscribe error: %w", err)
 	}
 
 	err = functionalityTranslate(s.AuthenticatedEndpoints, newState.AuthenticatedEndpoints)
 	if err != nil {
-		return fmt.Errorf("AuthenticatedEndpoints error: %s", err)
+		return fmt.Errorf("AuthenticatedEndpoints error: %w", err)
 	}
 
 	err = functionalityTranslate(s.MessageCorrelation, newState.MessageCorrelation)
 	if err != nil {
-		return fmt.Errorf("MessageCorrelation error: %s", err)
+		return fmt.Errorf("MessageCorrelation error: %w", err)
 	}
 
 	err = functionalityTranslate(s.MessageSequenceNumbers, newState.MessageSequenceNumbers)
 	if err != nil {
-		return fmt.Errorf("MessageSequenceNumbers error: %s", err)
+		return fmt.Errorf("MessageSequenceNumbers error: %w", err)
 	}
 
 	err = functionalityTranslate(s.CandleHistory, newState.CandleHistory)
 	if err != nil {
-		return fmt.Errorf("CandleHistory error: %s", err)
+		return fmt.Errorf("CandleHistory error: %w", err)
 	}
 
 	return nil
@@ -318,8 +314,6 @@ func (s *State) checkComponent(component Component, checkSupported bool) (bool, 
 	switch component {
 	case TickerBatching:
 		check = s.TickerBatching
-	case AutoPairUpdates:
-		check = s.AutoPairUpdates
 	case AccountBalance:
 		check = s.AccountBalance
 	case CryptoDeposit:

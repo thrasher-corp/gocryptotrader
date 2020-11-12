@@ -5,7 +5,6 @@ type State struct {
 	ProtocolEnabled       bool  `json:"protocolEnabled"`
 	AuthenticationEnabled bool  `json:"authenticationEnabled"`
 	TickerBatching        *bool `json:"tickerBatching,omitempty"`
-	AutoPairUpdates       *bool `json:"autoPairUpdates,omitempty"`
 	AccountBalance        *bool `json:"accountBalance,omitempty"`
 	CryptoDeposit         *bool `json:"cryptoDeposit,omitempty"`
 	CryptoWithdrawal      *bool `json:"cryptoWithdrawal,omitempty"`
