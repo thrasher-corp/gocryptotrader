@@ -17,7 +17,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/ptypes"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -67,6 +67,7 @@ var (
 // RPCServer struct
 type RPCServer struct {
 	*Engine
+	gctrpc.UnimplementedGoCryptoTraderServer
 }
 
 func (bot *Engine) authenticateClient(ctx context.Context) (context.Context, error) {
@@ -126,7 +127,7 @@ func StartRPCServer(engine *Engine) {
 		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(engine.authenticateClient)),
 	}
 	server := grpc.NewServer(opts...)
-	s := RPCServer{engine}
+	s := RPCServer{Engine: engine}
 	gctrpc.RegisterGoCryptoTraderServer(server, &s)
 
 	go func() {
@@ -154,7 +155,7 @@ func (s *RPCServer) StartRPCRESTProxy() {
 		return
 	}
 
-	mux := grpcruntime.NewServeMux()
+	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
 			Username: s.Config.RemoteControl.Username,
