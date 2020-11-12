@@ -424,6 +424,11 @@ func (y *Yobit) CancelOrder(o *order.Cancel) error {
 	return y.CancelExistingOrder(orderIDInt)
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (y *Yobit) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (y *Yobit) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{

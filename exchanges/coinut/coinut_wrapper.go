@@ -676,6 +676,11 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 	return nil
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (c *COINUT) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse, error) {
 	if err := details.Validate(); err != nil {

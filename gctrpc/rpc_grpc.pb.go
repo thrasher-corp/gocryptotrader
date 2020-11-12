@@ -48,6 +48,7 @@ type GoCryptoTraderClient interface {
 	SimulateOrder(ctx context.Context, in *SimulateOrderRequest, opts ...grpc.CallOption) (*SimulateOrderResponse, error)
 	WhaleBomb(ctx context.Context, in *WhaleBombRequest, opts ...grpc.CallOption) (*SimulateOrderResponse, error)
 	CancelOrder(ctx context.Context, in *CancelOrderRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	CancelBatchOrders(ctx context.Context, in *CancelBatchOrdersRequest, opts ...grpc.CallOption) (*CancelBatchOrdersResponse, error)
 	CancelAllOrders(ctx context.Context, in *CancelAllOrdersRequest, opts ...grpc.CallOption) (*CancelAllOrdersResponse, error)
 	GetEvents(ctx context.Context, in *GetEventsRequest, opts ...grpc.CallOption) (*GetEventsResponse, error)
 	AddEvent(ctx context.Context, in *AddEventRequest, opts ...grpc.CallOption) (*AddEventResponse, error)
@@ -400,6 +401,15 @@ func (c *goCryptoTraderClient) WhaleBomb(ctx context.Context, in *WhaleBombReque
 func (c *goCryptoTraderClient) CancelOrder(ctx context.Context, in *CancelOrderRequest, opts ...grpc.CallOption) (*GenericResponse, error) {
 	out := new(GenericResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CancelOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) CancelBatchOrders(ctx context.Context, in *CancelBatchOrdersRequest, opts ...grpc.CallOption) (*CancelBatchOrdersResponse, error) {
+	out := new(CancelBatchOrdersResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/CancelBatchOrders", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -970,6 +980,7 @@ type GoCryptoTraderServer interface {
 	SimulateOrder(context.Context, *SimulateOrderRequest) (*SimulateOrderResponse, error)
 	WhaleBomb(context.Context, *WhaleBombRequest) (*SimulateOrderResponse, error)
 	CancelOrder(context.Context, *CancelOrderRequest) (*GenericResponse, error)
+	CancelBatchOrders(context.Context, *CancelBatchOrdersRequest) (*CancelBatchOrdersResponse, error)
 	CancelAllOrders(context.Context, *CancelAllOrdersRequest) (*CancelAllOrdersResponse, error)
 	GetEvents(context.Context, *GetEventsRequest) (*GetEventsResponse, error)
 	AddEvent(context.Context, *AddEventRequest) (*AddEventResponse, error)
@@ -1115,6 +1126,9 @@ func (UnimplementedGoCryptoTraderServer) WhaleBomb(context.Context, *WhaleBombRe
 }
 func (UnimplementedGoCryptoTraderServer) CancelOrder(context.Context, *CancelOrderRequest) (*GenericResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CancelOrder not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) CancelBatchOrders(context.Context, *CancelBatchOrdersRequest) (*CancelBatchOrdersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelBatchOrders not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) CancelAllOrders(context.Context, *CancelAllOrdersRequest) (*CancelAllOrdersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CancelAllOrders not implemented")
@@ -1824,6 +1838,24 @@ func _GoCryptoTrader_CancelOrder_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GoCryptoTraderServer).CancelOrder(ctx, req.(*CancelOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_CancelBatchOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelBatchOrdersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).CancelBatchOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/CancelBatchOrders",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).CancelBatchOrders(ctx, req.(*CancelBatchOrdersRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2794,6 +2826,10 @@ var _GoCryptoTrader_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelOrder",
 			Handler:    _GoCryptoTrader_CancelOrder_Handler,
+		},
+		{
+			MethodName: "CancelBatchOrders",
+			Handler:    _GoCryptoTrader_CancelBatchOrders_Handler,
 		},
 		{
 			MethodName: "CancelAllOrders",
