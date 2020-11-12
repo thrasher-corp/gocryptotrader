@@ -583,9 +583,9 @@ type WsAddOrderRequest struct {
 	OrderType       string  `json:"ordertype"`
 	OrderSide       string  `json:"type"`
 	Pair            string  `json:"pair"`
-	Price           string  `json:"price,omitempty"`  // optional
-	Price2          string  `json:"price2,omitempty"` // optional
-	Volume          string  `json:"volume,omitempty"`
+	Price           float64 `json:"price,string,omitempty"`  // optional
+	Price2          float64 `json:"price2,string,omitempty"` // optional
+	Volume          float64 `json:"volume,string,omitempty"`
 	Leverage        float64 `json:"leverage,omitempty"`         // optional
 	OFlags          string  `json:"oflags,omitempty"`           // optional
 	StartTime       string  `json:"starttm,omitempty"`          // optional

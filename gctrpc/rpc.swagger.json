@@ -107,6 +107,38 @@
         ]
       }
     },
+    "/v1/cancelbatchorders": {
+      "post": {
+        "operationId": "GoCryptoTrader_CancelBatchOrders",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcCancelBatchOrdersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcCancelBatchOrdersRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/cancelorder": {
       "post": {
         "operationId": "GoCryptoTrader_CancelOrder",
@@ -2569,20 +2601,6 @@
     }
   },
   "definitions": {
-    "CancelAllOrdersResponseOrders": {
-      "type": "object",
-      "properties": {
-        "exchange": {
-          "type": "string"
-        },
-        "order_status": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "gctrpcAccount": {
       "type": "object",
       "properties": {
@@ -2701,11 +2719,74 @@
         "orders": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/CancelAllOrdersResponseOrders"
+            "$ref": "#/definitions/gctrpcCancelAllOrdersResponseOrders"
           }
         },
         "count": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "gctrpcCancelAllOrdersResponseOrders": {
+      "type": "object",
+      "properties": {
+        "exchange": {
           "type": "string"
+        },
+        "order_status": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "gctrpcCancelBatchOrdersRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "account_id": {
+          "type": "string"
+        },
+        "orders_id": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "wallet_address": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcCancelBatchOrdersResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCancelBatchOrdersResponseOrders"
+          }
+        }
+      }
+    },
+    "gctrpcCancelBatchOrdersResponseOrders": {
+      "type": "object",
+      "properties": {
+        "order_status": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },

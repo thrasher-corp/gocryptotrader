@@ -101,3 +101,8 @@ func New(input string) (Item, error) {
 		input,
 		supported)
 }
+
+// UseDefault returns defuault asset type
+func UseDefault() Item {
+	return Spot
+}

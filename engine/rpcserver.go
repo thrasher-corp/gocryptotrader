@@ -1019,12 +1019,39 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 		Data: fmt.Sprintf("order %s cancelled", r.OrderId)}, nil
 }
 
-// CancelAllOrders cancels all orders, filterable by exchange
-func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrdersRequest) (*gctrpc.CancelAllOrdersResponse, error) {
-	if r.Exchange != "kraken" { // at the moment implemented only on the Kraken
-		return &gctrpc.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
+// CancelBatchOrders cancels an orders specified by exchange, currency pair and asset type
+func (s *RPCServer) CancelBatchOrders(_ context.Context, r *gctrpc.CancelBatchOrdersRequest) (*gctrpc.CancelBatchOrdersResponse, error) {
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
 	}
 
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.CancelOrder(&order.Cancel{
+		AccountID:     r.AccountId,
+		ID:            r.OrdersId,
+		Side:          order.Side(r.Side),
+		WalletAddress: r.WalletAddress,
+		Pair:          p,
+		AssetType:     a,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.CancelBatchOrdersResponse{}, nil
+}
+
+// CancelAllOrders cancels all orders, filterable by exchange
+func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrdersRequest) (*gctrpc.CancelAllOrdersResponse, error) {
 	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return &gctrpc.CancelAllOrdersResponse{}, errExchangeNotLoaded
@@ -1036,7 +1063,7 @@ func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrders
 	}
 
 	return &gctrpc.CancelAllOrdersResponse{
-		Count: resp.Status["Count"], // count of deleted orders
+		Count: resp.Count, // count of deleted orders
 	}, nil
 }
 

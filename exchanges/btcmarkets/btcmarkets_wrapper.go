@@ -527,6 +527,11 @@ func (b *BTCMarkets) CancelOrder(o *order.Cancel) error {
 	return err
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (b *BTCMarkets) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
@@ -541,7 +546,7 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 	}
 	splitOrders := common.SplitStringSliceByLimit(orderIDs, 20)
 	for z := range splitOrders {
-		tempResp, err := b.CancelBatchOrders(splitOrders[z])
+		tempResp, err := b.CancelBatch(splitOrders[z])
 		if err != nil {
 			return resp, err
 		}

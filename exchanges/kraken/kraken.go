@@ -57,7 +57,7 @@ const (
 	krakenRequestRate  = 1
 
 	// Status consts
-	Open = "open"
+	StatusOpen = "open"
 )
 
 var (

@@ -543,6 +543,26 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
+// TestCancelExchangeOrder wrapper test
+func TestCancelBatchExchangeOrder(t *testing.T) {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var orderCancellation = &order.Cancel{
+		ID:        "OGEX6P-B5Q74-IGZ72R,OGEX6P-B5Q74-IGZ722",
+		AssetType: asset.Spot,
+	}
+
+	_, err := k.CancelBatchOrders(orderCancellation)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not cancel orders: %v", err)
+	}
+}
+
 // TestCancelAllExchangeOrders wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -763,7 +783,7 @@ func TestWsAddOrder(t *testing.T) {
 		OrderType: order.Limit.Lower(),
 		OrderSide: order.Buy.Lower(),
 		Pair:      "XBT/USD",
-		Price:     "-100",
+		Price:     -100,
 	})
 	if err != nil {
 		t.Error(err)
