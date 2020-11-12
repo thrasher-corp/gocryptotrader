@@ -164,8 +164,8 @@ func (b *Bitfinex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: bitfinexAPIURLBase,
-		exchange.DefaultWS:   publicBitfinexWebsocketEndpoint,
+		exchange.DefaultSpot:   bitfinexAPIURLBase,
+		exchange.DefaultSpotWS: publicBitfinexWebsocketEndpoint,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

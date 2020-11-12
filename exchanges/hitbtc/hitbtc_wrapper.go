@@ -131,8 +131,8 @@ func (h *HitBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	h.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: apiURL,
-		exchange.DefaultWS:   hitbtcWebsocketAddress,
+		exchange.DefaultSpot:   apiURL,
+		exchange.DefaultSpotWS: hitbtcWebsocketAddress,
 	})
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

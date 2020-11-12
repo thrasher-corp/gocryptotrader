@@ -198,8 +198,8 @@ func (o *OKEX) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
 	o.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: okExAPIURL,
-		exchange.DefaultWS:   OkExWebsocketURL,
+		exchange.DefaultSpot:   okExAPIURL,
+		exchange.DefaultSpotWS: OkExWebsocketURL,
 	})
 	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
@@ -220,7 +220,7 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
-		wsEndpoint, err := o.API.Endpoints.Get(exchange.DefaultWS)
+		wsEndpoint, err := o.API.Endpoints.Get(exchange.DefaultSpotWS)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

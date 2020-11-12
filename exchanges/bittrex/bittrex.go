@@ -69,7 +69,7 @@ type Bittrex struct {
 func (b *Bittrex) GetMarkets() (Market, error) {
 	var markets Market
 
-	if err := b.SendHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetMarkets+"/", &markets); err != nil {
+	if err := b.SendHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetMarkets+"/", &markets); err != nil {
 		return markets, err
 	}
 
@@ -83,7 +83,7 @@ func (b *Bittrex) GetMarkets() (Market, error) {
 func (b *Bittrex) GetCurrencies() (Currency, error) {
 	var currencies Currency
 
-	if err := b.SendHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetCurrencies+"/", &currencies); err != nil {
+	if err := b.SendHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetCurrencies+"/", &currencies); err != nil {
 		return currencies, err
 	}
 
@@ -99,7 +99,7 @@ func (b *Bittrex) GetTicker(currencyPair string) (Ticker, error) {
 	tick := Ticker{}
 	path := "/" + bittrexAPIGetTicker + "?market=" + strings.ToUpper(currencyPair)
 
-	if err := b.SendHTTPRequest(exchange.DefaultRest, path, &tick); err != nil {
+	if err := b.SendHTTPRequest(exchange.DefaultSpot, path, &tick); err != nil {
 		return tick, err
 	}
 
@@ -114,7 +114,7 @@ func (b *Bittrex) GetTicker(currencyPair string) (Ticker, error) {
 func (b *Bittrex) GetMarketSummaries() (MarketSummary, error) {
 	var summaries MarketSummary
 
-	if err := b.SendHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetMarketSummaries+"/", &summaries); err != nil {
+	if err := b.SendHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetMarketSummaries+"/", &summaries); err != nil {
 		return summaries, err
 	}
 
@@ -128,7 +128,7 @@ func (b *Bittrex) GetMarketSummaries() (MarketSummary, error) {
 // exchanges by currency pair (btc-ltc).
 func (b *Bittrex) GetMarketSummary(currencyPair string) (MarketSummary, error) {
 	var summary MarketSummary
-	if err := b.SendHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetMarketSummary+"?market="+strings.ToLower(currencyPair), &summary); err != nil {
+	if err := b.SendHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetMarketSummary+"?market="+strings.ToLower(currencyPair), &summary); err != nil {
 		return summary, err
 	}
 
@@ -148,7 +148,7 @@ func (b *Bittrex) GetMarketSummary(currencyPair string) (MarketSummary, error) {
 func (b *Bittrex) GetOrderbook(currencyPair string) (OrderBooks, error) {
 	var orderbooks OrderBooks
 	path := "/" + bittrexAPIGetOrderbook + "?market=" + strings.ToLower(currencyPair) + "&type=both&depth=50"
-	if err := b.SendHTTPRequest(exchange.DefaultRest, path, &orderbooks); err != nil {
+	if err := b.SendHTTPRequest(exchange.DefaultSpot, path, &orderbooks); err != nil {
 		return orderbooks, err
 	}
 
@@ -163,7 +163,7 @@ func (b *Bittrex) GetOrderbook(currencyPair string) (OrderBooks, error) {
 func (b *Bittrex) GetMarketHistory(currencyPair string) (MarketHistory, error) {
 	var marketHistoriae MarketHistory
 	path := "/" + bittrexAPIGetMarketHistory + "?market=" + strings.ToUpper(currencyPair)
-	if err := b.SendHTTPRequest(exchange.DefaultRest, path, &marketHistoriae); err != nil {
+	if err := b.SendHTTPRequest(exchange.DefaultSpot, path, &marketHistoriae); err != nil {
 		return marketHistoriae, err
 	}
 
@@ -185,7 +185,7 @@ func (b *Bittrex) PlaceBuyLimit(currencyPair string, quantity, rate float64) (UU
 	values.Set("market", currencyPair)
 	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
 	values.Set("rate", strconv.FormatFloat(rate, 'E', -1, 64))
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIBuyLimit, values, &id); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIBuyLimit, values, &id); err != nil {
 		return id, err
 	}
 
@@ -207,7 +207,7 @@ func (b *Bittrex) PlaceSellLimit(currencyPair string, quantity, rate float64) (U
 	values.Set("market", currencyPair)
 	values.Set("quantity", strconv.FormatFloat(quantity, 'E', -1, 64))
 	values.Set("rate", strconv.FormatFloat(rate, 'E', -1, 64))
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPISellLimit, values, &id); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPISellLimit, values, &id); err != nil {
 		return id, err
 	}
 
@@ -226,7 +226,7 @@ func (b *Bittrex) GetOpenOrders(currencyPair string) (Order, error) {
 		values.Set("market", currencyPair)
 	}
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetOpenOrders, values, &orders); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetOpenOrders, values, &orders); err != nil {
 		return orders, err
 	}
 
@@ -242,7 +242,7 @@ func (b *Bittrex) CancelExistingOrder(uuid string) (Balances, error) {
 	values := url.Values{}
 	values.Set("uuid", uuid)
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPICancel, values, &balances); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPICancel, values, &balances); err != nil {
 		return balances, err
 	}
 
@@ -256,7 +256,7 @@ func (b *Bittrex) CancelExistingOrder(uuid string) (Balances, error) {
 func (b *Bittrex) GetAccountBalances() (Balances, error) {
 	var balances Balances
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetBalances, url.Values{}, &balances); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetBalances, url.Values{}, &balances); err != nil {
 		return balances, err
 	}
 
@@ -273,7 +273,7 @@ func (b *Bittrex) GetAccountBalanceByCurrency(currency string) (Balance, error) 
 	values := url.Values{}
 	values.Set("currency", currency)
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetBalance, values, &balance); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetBalance, values, &balance); err != nil {
 		return balance, err
 	}
 
@@ -291,7 +291,7 @@ func (b *Bittrex) GetCryptoDepositAddress(currency string) (DepositAddress, erro
 	values := url.Values{}
 	values.Set("currency", currency)
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetDepositAddress, values, &address); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetDepositAddress, values, &address); err != nil {
 		return address, err
 	}
 
@@ -313,7 +313,7 @@ func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity float64
 		values.Set("paymentid", paymentID)
 	}
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIWithdraw, values, &id); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIWithdraw, values, &id); err != nil {
 		return id, err
 	}
 
@@ -329,7 +329,7 @@ func (b *Bittrex) GetOrder(uuid string) (Order, error) {
 	values := url.Values{}
 	values.Set("uuid", uuid)
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetOrder, values, &order); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetOrder, values, &order); err != nil {
 		return order, err
 	}
 
@@ -349,7 +349,7 @@ func (b *Bittrex) GetOrderHistoryForCurrency(currencyPair string) (Order, error)
 		values.Set("market", currencyPair)
 	}
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetOrderHistory, values, &orders); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetOrderHistory, values, &orders); err != nil {
 		return orders, err
 	}
 
@@ -369,7 +369,7 @@ func (b *Bittrex) GetWithdrawalHistory(currency string) (WithdrawalHistory, erro
 		values.Set("currency", currency)
 	}
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetWithdrawalHistory, values, &history); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetWithdrawalHistory, values, &history); err != nil {
 		return history, err
 	}
 
@@ -389,7 +389,7 @@ func (b *Bittrex) GetDepositHistory(currency string) (DepositHistory, error) {
 		values.Set("currency", currency)
 	}
 
-	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultRest, "/"+bittrexAPIGetDepositHistory, values, &history); err != nil {
+	if err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, "/"+bittrexAPIGetDepositHistory, values, &history); err != nil {
 		return history, err
 	}
 

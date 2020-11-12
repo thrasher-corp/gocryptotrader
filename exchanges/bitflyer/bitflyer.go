@@ -75,7 +75,7 @@ type Bitflyer struct {
 // analysis system
 func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	return resp, b.SendHTTPRequest(exchange.DefaultRest, latestBlock, &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultSpot, latestBlock, &resp)
 }
 
 // GetBlockCA returns block information by blockhash from bitflyer chain
@@ -109,7 +109,7 @@ func (b *Bitflyer) GetAddressInfoCA(addressln string) (ChainAnalysisAddress, err
 // GetMarkets returns market information
 func (b *Bitflyer) GetMarkets() ([]MarketInfo, error) {
 	var resp []MarketInfo
-	return resp, b.SendHTTPRequest(exchange.DefaultRest, pubGetMarkets, &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultSpot, pubGetMarkets, &resp)
 }
 
 // GetOrderBook returns market orderbook depth
@@ -118,7 +118,7 @@ func (b *Bitflyer) GetOrderBook(symbol string) (Orderbook, error) {
 	v := url.Values{}
 	v.Set("product_code", symbol)
 
-	return resp, b.SendHTTPRequest(exchange.DefaultRest, pubGetBoard+"?"+v.Encode(), &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultSpot, pubGetBoard+"?"+v.Encode(), &resp)
 }
 
 // GetTicker returns ticker information
@@ -126,7 +126,7 @@ func (b *Bitflyer) GetTicker(symbol string) (Ticker, error) {
 	var resp Ticker
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	return resp, b.SendHTTPRequest(exchange.DefaultRest, pubGetTicker+"?"+v.Encode(), &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultSpot, pubGetTicker+"?"+v.Encode(), &resp)
 }
 
 // GetExecutionHistory returns past trades that were executed on the market
@@ -135,13 +135,13 @@ func (b *Bitflyer) GetExecutionHistory(symbol string) ([]ExecutedTrade, error) {
 	v := url.Values{}
 	v.Set("product_code", symbol)
 
-	return resp, b.SendHTTPRequest(exchange.DefaultRest, pubGetExecutionHistory+"?"+v.Encode(), &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultSpot, pubGetExecutionHistory+"?"+v.Encode(), &resp)
 }
 
 // GetExchangeStatus returns exchange status information
 func (b *Bitflyer) GetExchangeStatus() (string, error) {
 	resp := make(map[string]string)
-	err := b.SendHTTPRequest(exchange.DefaultRest, pubGetHealth, &resp)
+	err := b.SendHTTPRequest(exchange.DefaultSpot, pubGetHealth, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -166,7 +166,7 @@ func (b *Bitflyer) GetChats(fromDate string) ([]ChatLog, error) {
 	var resp []ChatLog
 	v := url.Values{}
 	v.Set("from_date", fromDate)
-	return resp, b.SendHTTPRequest(exchange.DefaultRest, pubGetChats+"?"+v.Encode(), &resp)
+	return resp, b.SendHTTPRequest(exchange.DefaultSpot, pubGetChats+"?"+v.Encode(), &resp)
 }
 
 // GetPermissions returns current permissions for associated with your API

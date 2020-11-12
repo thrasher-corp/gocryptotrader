@@ -34,6 +34,9 @@ const (
 	uFutures                = "ufuturesURL"
 	cmFutures               = "cfuturesURL"
 	interestHistoryEdgeCase = "edgecase1"
+	uFuturesRunningRest     = "ufuturesRunningURL"
+	cmFuturesRunningRest    = "cmfuturesRunningURL"
+	edgecase1RunningURL     = "edgecase1RunningURL"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -183,13 +186,26 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest:    apiURL,
+		exchange.DefaultSpot:    apiURL,
 		spot:                    spotAPIURL,
 		uFutures:                ufuturesAPIURL,
 		cmFutures:               cfuturesAPIURL,
 		interestHistoryEdgeCase: "https://www.binance.com",
-		exchange.DefaultWS:      binanceDefaultWebsocketURL,
+		exchange.DefaultSpotWS:  binanceDefaultWebsocketURL,
 	})
+	defaultURLsMap := b.API.Endpoints.GetAll()
+	fmt.Println(defaultURLsMap)
+	for a, defURL := range defaultURLsMap {
+		if defURL == "" {
+			log.Warnf(log.Global, fmt.Sprintf("default url not set for: %v", a))
+			continue
+		}
+		err = b.API.Endpoints.Set(exchange.Running+a, defURL, true)
+		if err != nil {
+			log.Error(log.Global, err)
+		}
+	}
+	fmt.Println(b.API.Endpoints.GetAll())
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -207,7 +223,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	epoint, err := b.API.Endpoints.Get(exchange.DefaultWS)
+	epoint, err := b.API.Endpoints.Get(exchange.DefaultSpotWS)
 	if err != nil {
 		return err
 	}

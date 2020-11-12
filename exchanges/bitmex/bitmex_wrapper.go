@@ -124,8 +124,8 @@ func (b *Bitmex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: bitmexAPIURL,
-		exchange.DefaultWS:   bitmexWSURL,
+		exchange.DefaultSpot:   bitmexAPIURL,
+		exchange.DefaultSpotWS: bitmexWSURL,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -183,7 +183,7 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		wsEndpoint, err := b.API.Endpoints.Get(exchange.DefaultWS)
+		wsEndpoint, err := b.API.Endpoints.Get(exchange.DefaultSpotWS)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

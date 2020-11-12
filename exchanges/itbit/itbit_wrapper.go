@@ -95,7 +95,7 @@ func (i *ItBit) SetDefaults() {
 	i.Requester = request.New(i.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	i.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: itbitAPIURL,
+		exchange.DefaultSpot: itbitAPIURL,
 	})
 }
 

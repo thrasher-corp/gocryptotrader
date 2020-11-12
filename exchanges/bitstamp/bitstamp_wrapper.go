@@ -26,6 +26,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	runningSpotRest = "runningSpotRest"
+	runningSpotWS   = "runningSpotWS"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bitstamp) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -33,7 +38,6 @@ func (b *Bitstamp) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
-
 	err := b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
@@ -131,9 +135,26 @@ func (b *Bitstamp) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate)))
 
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: bitstampAPIURL,
-		exchange.DefaultWS:   bitstampWSURL,
+		exchange.DefaultSpot:   bitstampAPIURL,
+		exchange.DefaultSpotWS: bitstampWSURL,
 	})
+	runningRestURL, err := b.API.Endpoints.Get(exchange.DefaultSpot)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	runningWSURL, err := b.API.Endpoints.Get(exchange.DefaultSpotWS)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+
+	err = b.API.Endpoints.Set(runningSpotRest, runningRestURL, true)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
+	err = b.API.Endpoints.Set(runningSpotWS, runningWSURL, true)
+	if err != nil {
+		log.Error(log.Global, err)
+	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -152,7 +173,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsURL, err := b.API.Endpoints.Get(exchange.RunningWS)
+	wsURL, err := b.API.Endpoints.Get(runningSpotWS)
 	if err != nil {
 		return err
 	}

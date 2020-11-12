@@ -107,8 +107,8 @@ func (g *Gemini) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	g.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: geminiAPIURL,
-		exchange.DefaultWS:   geminiWebsocketEndpoint,
+		exchange.DefaultSpot:   geminiAPIURL,
+		exchange.DefaultSpotWS: geminiWebsocketEndpoint,
 	})
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -129,7 +129,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	if exch.UseSandbox {
-		err = g.API.Endpoints.Set(exchange.DefaultRest, geminiSandboxAPIURL, true)
+		err = g.API.Endpoints.Set(exchange.DefaultSpot, geminiSandboxAPIURL, true)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

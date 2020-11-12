@@ -35,7 +35,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	wsEndpoint, err := o.API.Endpoints.Get(exchange.DefaultWS)
+	wsEndpoint, err := o.API.Endpoints.Get(exchange.DefaultSpotWS)
 	if err != nil {
 		return err
 	}

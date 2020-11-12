@@ -109,7 +109,7 @@ func (e *EXMO) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
 	e.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: exmoAPIURL,
+		exchange.DefaultSpot: exmoAPIURL,
 	})
 }
 

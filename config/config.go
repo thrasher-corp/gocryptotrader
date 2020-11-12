@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -832,12 +831,14 @@ func (c *Config) CheckExchangeConfigValues() error {
 			if c.Exchanges[i].ClientID != nil {
 				c.Exchanges[i].API.Credentials.ClientID = *c.Exchanges[i].ClientID
 			}
-
+			fmt.Printf("WHATTTTTTTTTTT DO YOU WANTTTTTTTTTT\n\n\n\n")
+			fmt.Printf("%+v", c.Exchanges[i].API.Endpoints)
 			if c.Exchanges[i].WebsocketURL != nil {
-				c.Exchanges[i].API.Endpoints[exchange.RunningWS] = *c.Exchanges[i].WebsocketURL
+				fmt.Printf("HOW COULD THIS HAPPEN?!?!?!?!?!?!\n\n\n\n\n")
+				c.Exchanges[i].API.Endpoints["runningWSURL"] = *c.Exchanges[i].WebsocketURL
 			}
 
-			c.Exchanges[i].API.Endpoints[exchange.RunningRest] = *c.Exchanges[i].APIURL
+			// c.Exchanges[i].API.Endpoints["runningURL"] = *c.Exchanges[i].APIURL
 			// c.Exchanges[i].API.Endpoints.URLSecondary = *c.Exchanges[i].APIURLSecondary
 
 			// Flush settings
@@ -863,30 +864,33 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].SupportsAutoPairUpdates = nil
 		}
 
+		c.Exchanges[i].API.Endpoints = make(map[string]string)
+
 		if c.Exchanges[i].Websocket != nil {
 			c.Exchanges[i].Features.Enabled.Websocket = *c.Exchanges[i].Websocket
 			c.Exchanges[i].Websocket = nil
 		}
 
-		if c.Exchanges[i].API.Endpoints[exchange.RunningRest] != APIURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints[exchange.RunningRest] == "" {
-				// Set default if nothing set
-				c.Exchanges[i].API.Endpoints.URL = APIURLNonDefaultMessage
-			}
+		// if c.Exchanges[i].API.Endpoints["runningURL"] != APIURLNonDefaultMessage {
+		if c.Exchanges[i].API.Endpoints["runningURL"] == "" {
+			fmt.Printf("WHYYYYYYYYYYYYYYYYYYYYYYYYY IS THIS HAPPENINGGGGGGGGGGGGGGGGGG?!!?!?!?!\n\n\n")
+			// Set default if nothing set
+			c.Exchanges[i].API.Endpoints["defaultURL"] = APIURLNonDefaultMessage
 		}
+		// }
 
-		if c.Exchanges[i].API.Endpoints[exchange.SecondaryRest] != APIURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints[exchange.SecondaryRest] == "" {
-				// Set default if nothing set
-				c.Exchanges[i].API.Endpoints[exchange.SecondaryRest] = APIURLNonDefaultMessage
-			}
+		// if c.Exchanges[i].API.Endpoints["secondaryURL"] != APIURLNonDefaultMessage {
+		if c.Exchanges[i].API.Endpoints["secondaryURL"] == "" {
+			// Set default if nothing set
+			c.Exchanges[i].API.Endpoints["secondaryURL"] = APIURLNonDefaultMessage
 		}
+		// }
 
-		if c.Exchanges[i].API.Endpoints[exchange.RunningRest] != WebsocketURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints.WebsocketURL == "" {
-				c.Exchanges[i].API.Endpoints.WebsocketURL = WebsocketURLNonDefaultMessage
-			}
+		// if c.Exchanges[i].API.Endpoints["runningURL"] != WebsocketURLNonDefaultMessage {
+		if c.Exchanges[i].API.Endpoints["defaultWSURL"] == "" {
+			c.Exchanges[i].API.Endpoints["defaultWSURL"] = WebsocketURLNonDefaultMessage
 		}
+		// }
 
 		// Check if see if the new currency pairs format is empty and flesh it out if so
 		if c.Exchanges[i].CurrencyPairs == nil {
@@ -925,6 +929,8 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AssetTypes = nil
 			c.Exchanges[i].AvailablePairs = nil
 			c.Exchanges[i].EnabledPairs = nil
+			c.Exchanges[i].API.OldEndPoints = nil
+
 		} else {
 			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes()
 			var atLeastOne bool

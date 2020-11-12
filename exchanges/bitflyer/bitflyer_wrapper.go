@@ -99,7 +99,7 @@ func (b *Bitflyer) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: japanURL,
+		exchange.DefaultSpot: japanURL,
 		chainAnalysisURL:     chainAnalysis,
 	})
 }

@@ -121,8 +121,8 @@ func (b *BTCMarkets) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: btcMarketsAPIURL,
-		exchange.DefaultWS:   btcMarketsWSURL,
+		exchange.DefaultSpot:   btcMarketsAPIURL,
+		exchange.DefaultSpotWS: btcMarketsWSURL,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -142,7 +142,7 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := b.API.Endpoints.Get(exchange.DefaultWS)
+	defaultWSURL, err := b.API.Endpoints.Get(exchange.DefaultSpotWS)
 	if err != nil {
 		return err
 	}

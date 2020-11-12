@@ -37,16 +37,18 @@ const (
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
 
-	// DefaultRest stores default rest string for endpoint lookup
-	DefaultRest = "defaultURL"
-	// DefaultWS stores default websocket string for endpoint lookup
-	DefaultWS = "defaultWSURL"
+	// DefaultSpot stores default spot rest string for endpoint lookup
+	DefaultSpot = "spot"
+	// DefaultSpotWS stores default spot websocket string for endpoint lookup
+	DefaultSpotWS = "spotWSURL"
 	// RunningRest stores the running URL for rest endpoints
 	RunningRest = "runningURL"
 	// RunningWS stores the running URL for websocket endpoints
 	RunningWS = "runningWSURL"
 	// SecondaryRest stores secondary rest URL for endpoint lookup (mainly for old config)
 	SecondaryRest = "secondaryURL"
+	// Running is used to differentiate between default URLs and running URLS
+	Running = "running"
 )
 
 func (e *Base) checkAndInitRequester() {
@@ -792,7 +794,6 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 func (e *Base) SetAPIURL() error {
 	var err error
 	if e.Config.API.OldEndPoints != nil {
-		fmt.Printf("hi im here\n\n\n\n\n")
 		var tempEndpoints Endpoints
 		tempEndpoints.CreateMap(map[string]string{})
 		tempEndpoints.m = e.Config.API.Endpoints
@@ -819,49 +820,16 @@ func (e *Base) SetAPIURL() error {
 		e.Config.API.Endpoints = tempEndpoints.m
 		e.Config.API.OldEndPoints = nil
 	} else {
-		for a := range e.Config.API.Endpoints {
+		for a, meow := range e.Config.API.Endpoints {
+			if meow == "" || meow == "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" || meow == "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
+				continue
+			}
 			err = e.API.Endpoints.Set(a, e.Config.API.Endpoints[a], true)
 			if err != nil {
 				return err
 			}
 		}
 	}
-
-	// OLD UPDATE ________________________________________________
-	// if e.Config.API.Endpoints.URL == "" || e.Config.API.Endpoints.URLSecondary == "" {
-	// 	return fmt.Errorf("exchange %s: SetAPIURL error. URL vals are empty", e.Name)
-	// }
-
-	// checkInsecureEndpoint := func(endpoint string) {
-	// 	if strings.Contains(endpoint, "https") {
-	// 		return
-	// 	}
-	// 	log.Warnf(log.ExchangeSys,
-	// 		"%s is using HTTP instead of HTTPS [%s] for API functionality, an"+
-	// 			" attacker could eavesdrop on this connection. Use at your"+
-	// 			" own risk.",
-	// 		e.Name, endpoint)
-	// }
-
-	// if e.Config.API.Endpoints.URL != config.APIURLNonDefaultMessage {
-	// 	e.API.Endpoints.URL = e.Config.API.Endpoints.URL
-	// 	checkInsecureEndpoint(e.API.Endpoints.URL)
-	// }
-	// if e.Config.API.Endpoints.URLSecondary != config.APIURLNonDefaultMessage {
-	// 	e.API.Endpoints.URLSecondary = e.Config.API.Endpoints.URLSecondary
-	// 	checkInsecureEndpoint(e.API.Endpoints.URLSecondary)
-	// }
-	// ________________________________________________________________________________
-
-	// some stuff
-	// wow := e.API.Endpoints.GetAll()
-	// for k, v := range wow {
-	// 	err := e.Config.API.Endpoints.Set(k, v, false)
-	// 	if err != nil {
-	// 		return meow
-	// 	}
-	// }
-
 	return nil
 }
 
@@ -1183,8 +1151,6 @@ func (e *Endpoints) CreateMap(m map[string]string) {
 	*e = Endpoints{
 		m: make(map[string]string),
 	}
-	fmt.Printf("HI1\n\n\n\n")
-
 	for k, v := range m {
 		e.m[k] = v
 	}

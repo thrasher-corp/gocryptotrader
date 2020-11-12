@@ -109,7 +109,7 @@ func (l *Lbank) SetDefaults() {
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: lbankAPIURL,
+		exchange.DefaultSpot: lbankAPIURL,
 	})
 }
 

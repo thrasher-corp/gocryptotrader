@@ -169,9 +169,9 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
 	k.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: krakenAPIURL,
-		futuresRest:          futuresURL,
-		exchange.DefaultWS:   krakenWSURL,
+		exchange.DefaultSpot:   krakenAPIURL,
+		futuresRest:            futuresURL,
+		exchange.DefaultSpotWS: krakenWSURL,
 	})
 	k.Websocket = stream.New()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

@@ -31,8 +31,8 @@ func (a *Alphapoint) SetDefaults() {
 	a.Enabled = true
 	a.Verbose = true
 	a.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: alphapointDefaultAPIURL,
-		exchange.DefaultWS:   alphapointDefaultWebsocketURL,
+		exchange.DefaultSpot:   alphapointDefaultAPIURL,
+		exchange.DefaultSpotWS: alphapointDefaultWebsocketURL,
 	})
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true

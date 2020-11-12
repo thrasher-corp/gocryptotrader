@@ -151,8 +151,8 @@ func (b *BTSE) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: btseAPIURL,
-		exchange.DefaultWS:   btseWebsocket,
+		exchange.DefaultSpot:   btseAPIURL,
+		exchange.DefaultSpotWS: btseWebsocket,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -172,7 +172,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsDefaultEndpoint, err := b.API.Endpoints.Get(exchange.DefaultWS)
+	wsDefaultEndpoint, err := b.API.Endpoints.Get(exchange.DefaultSpotWS)
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       wsDefaultEndpoint,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       wsURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
 		UnSubscriber:                     b.Unsubscribe,

@@ -117,7 +117,7 @@ func (b *Bithumb) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultRest: apiURL,
+		exchange.DefaultSpot: apiURL,
 	})
 }
 

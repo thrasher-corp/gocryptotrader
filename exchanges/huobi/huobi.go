@@ -1934,7 +1934,7 @@ func (h *HUOBI) GetMarginRates(symbol string) (MarginRatesData, error) {
 		vals.Set("symbols", symbol)
 	}
 	var resp MarginRatesData
-	return resp, h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, huobiMarginRates, vals, nil, &resp, false)
+	return resp, h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, huobiMarginRates, vals, nil, &resp, false)
 }
 
 // GetSpotKline returns kline data
@@ -1956,7 +1956,7 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	var result response
 	urlPath := fmt.Sprintf("/%s", huobiMarketHistoryKline)
 
-	err := h.SendHTTPRequest(exchange.DefaultRest, common.EncodeURLValues(urlPath, vals), &result)
+	err := h.SendHTTPRequest(exchange.DefaultSpot, common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -1967,7 +1967,7 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 func (h *HUOBI) GetTickers() (Tickers, error) {
 	var result Tickers
 	urlPath := fmt.Sprintf("/%s", huobiMarketTickers)
-	return result, h.SendHTTPRequest(exchange.DefaultRest, urlPath, &result)
+	return result, h.SendHTTPRequest(exchange.DefaultSpot, urlPath, &result)
 }
 
 // GetMarketDetailMerged returns the ticker for the specified symbol
@@ -1983,7 +1983,7 @@ func (h *HUOBI) GetMarketDetailMerged(symbol string) (DetailMerged, error) {
 	var result response
 	urlPath := fmt.Sprintf("/%s", huobiMarketDetailMerged)
 
-	err := h.SendHTTPRequest(exchange.DefaultRest, common.EncodeURLValues(urlPath, vals), &result)
+	err := h.SendHTTPRequest(exchange.DefaultSpot, common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Tick, errors.New(result.ErrorMessage)
 	}
@@ -2007,7 +2007,7 @@ func (h *HUOBI) GetDepth(obd OrderBookDataRequestParams) (Orderbook, error) {
 	var result response
 	urlPath := fmt.Sprintf("/%s", huobiMarketDepth)
 
-	err := h.SendHTTPRequest(exchange.DefaultRest, common.EncodeURLValues(urlPath, vals), &result)
+	err := h.SendHTTPRequest(exchange.DefaultSpot, common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Depth, errors.New(result.ErrorMessage)
 	}
@@ -2029,7 +2029,7 @@ func (h *HUOBI) GetTrades(symbol string) ([]Trade, error) {
 	var result response
 	urlPath := fmt.Sprintf("/%s", huobiMarketTrade)
 
-	err := h.SendHTTPRequest(exchange.DefaultRest, common.EncodeURLValues(urlPath, vals), &result)
+	err := h.SendHTTPRequest(exchange.DefaultSpot, common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -2069,7 +2069,7 @@ func (h *HUOBI) GetTradeHistory(symbol string, size int64) ([]TradeHistory, erro
 	var result response
 	urlPath := fmt.Sprintf("/%s", huobiMarketTradeHistory)
 
-	err := h.SendHTTPRequest(exchange.DefaultRest, common.EncodeURLValues(urlPath, vals), &result)
+	err := h.SendHTTPRequest(exchange.DefaultSpot, common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -2089,7 +2089,7 @@ func (h *HUOBI) GetMarketDetail(symbol string) (Detail, error) {
 	var result response
 	urlPath := fmt.Sprintf("/%s", huobiMarketDetail)
 
-	err := h.SendHTTPRequest(exchange.DefaultRest, common.EncodeURLValues(urlPath, vals), &result)
+	err := h.SendHTTPRequest(exchange.DefaultSpot, common.EncodeURLValues(urlPath, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Tick, errors.New(result.ErrorMessage)
 	}
@@ -2106,7 +2106,7 @@ func (h *HUOBI) GetSymbols() ([]Symbol, error) {
 	var result response
 	urlPath := fmt.Sprintf("/v%s/%s", huobiAPIVersion, huobiSymbols)
 
-	err := h.SendHTTPRequest(exchange.DefaultRest, urlPath, &result)
+	err := h.SendHTTPRequest(exchange.DefaultSpot, urlPath, &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -2123,7 +2123,7 @@ func (h *HUOBI) GetCurrencies() ([]string, error) {
 	var result response
 	urlPath := fmt.Sprintf("/v%s/%s", huobiAPIVersion, huobiCurrencies)
 
-	err := h.SendHTTPRequest(exchange.DefaultRest, urlPath, &result)
+	err := h.SendHTTPRequest(exchange.DefaultSpot, urlPath, &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -2140,7 +2140,7 @@ func (h *HUOBI) GetTimestamp() (int64, error) {
 	var result response
 	urlPath := fmt.Sprintf("/v%s/%s", huobiAPIVersion, huobiTimestamp)
 
-	err := h.SendHTTPRequest(exchange.DefaultRest, urlPath, &result)
+	err := h.SendHTTPRequest(exchange.DefaultSpot, urlPath, &result)
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
 	}
@@ -2152,7 +2152,7 @@ func (h *HUOBI) GetAccounts() ([]Account, error) {
 	result := struct {
 		Accounts []Account `json:"data"`
 	}{}
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, huobiAccounts, url.Values{}, nil, &result, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, huobiAccounts, url.Values{}, nil, &result, false)
 	return result.Accounts, err
 }
 
@@ -2164,7 +2164,7 @@ func (h *HUOBI) GetAccountBalance(accountID string) ([]AccountBalanceDetail, err
 	endpoint := fmt.Sprintf(huobiAccountBalance, accountID)
 	v := url.Values{}
 	v.Set("account-id", accountID)
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, endpoint, v, nil, &result, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, endpoint, v, nil, &result, false)
 	return result.AccountBalanceData.AccountBalanceDetails, err
 }
 
@@ -2173,7 +2173,7 @@ func (h *HUOBI) GetAggregatedBalance() ([]AggregatedBalance, error) {
 	result := struct {
 		AggregatedBalances []AggregatedBalance `json:"data"`
 	}{}
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest,
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot,
 		http.MethodGet,
 		huobiAggregatedBalance,
 		nil,
@@ -2212,7 +2212,7 @@ func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	result := struct {
 		OrderID int64 `json:"data,string"`
 	}{}
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest,
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot,
 		http.MethodPost,
 		huobiOrderPlace,
 		nil,
@@ -2229,7 +2229,7 @@ func (h *HUOBI) CancelExistingOrder(orderID int64) (int64, error) {
 		OrderID int64 `json:"data,string"`
 	}{}
 	endpoint := fmt.Sprintf(huobiOrderCancel, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, endpoint, url.Values{}, nil, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, endpoint, url.Values{}, nil, &resp, false)
 	return resp.OrderID, err
 }
 
@@ -2241,7 +2241,7 @@ func (h *HUOBI) CancelOrderBatch(_ []int64) ([]CancelOrderBatch, error) {
 	}
 
 	var result response
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, huobiOrderCancelBatch, url.Values{}, nil, &result, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, huobiOrderCancelBatch, url.Values{}, nil, &result, false)
 
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
@@ -2264,7 +2264,7 @@ func (h *HUOBI) CancelOpenOrdersBatch(accountID, symbol string) (CancelOpenOrder
 		Symbol:    symbol,
 	}
 
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, huobiBatchCancelOpenOrders, url.Values{}, data, &result, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, huobiBatchCancelOpenOrders, url.Values{}, data, &result, false)
 	if result.Data.FailedCount > 0 {
 		return result, fmt.Errorf("there were %v failed order cancellations", result.Data.FailedCount)
 	}
@@ -2279,7 +2279,7 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 	}{}
 	urlVal := url.Values{}
 	urlVal.Set("clientOrderId", strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet,
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet,
 		huobiGetOrder,
 		urlVal,
 		nil,
@@ -2294,7 +2294,7 @@ func (h *HUOBI) GetOrderMatchResults(orderID int64) ([]OrderMatchInfo, error) {
 		Orders []OrderMatchInfo `json:"data"`
 	}{}
 	endpoint := fmt.Sprintf(huobiGetOrderMatch, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, endpoint, url.Values{}, nil, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, endpoint, url.Values{}, nil, &resp, false)
 	return resp.Orders, err
 }
 
@@ -2332,7 +2332,7 @@ func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size 
 		vals.Set("size", size)
 	}
 
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, huobiGetOrders, vals, nil, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, huobiGetOrders, vals, nil, &resp, false)
 	return resp.Orders, err
 }
 
@@ -2350,7 +2350,7 @@ func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int64) ([]Ord
 	}
 	vals.Set("size", strconv.FormatInt(size, 10))
 
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, huobiGetOpenOrders, vals, nil, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, huobiGetOpenOrders, vals, nil, &resp, false)
 	return resp.Orders, err
 }
 
@@ -2387,7 +2387,7 @@ func (h *HUOBI) GetOrdersMatch(symbol, types, start, end, from, direct, size str
 		vals.Set("size", size)
 	}
 
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, huobiGetOrdersMatch, vals, nil, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, huobiGetOrdersMatch, vals, nil, &resp, false)
 	return resp.Orders, err
 }
 
@@ -2411,7 +2411,7 @@ func (h *HUOBI) MarginTransfer(symbol, currency string, amount float64, in bool)
 	resp := struct {
 		TransferID int64 `json:"data"`
 	}{}
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, path, nil, data, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, path, nil, data, &resp, false)
 	return resp.TransferID, err
 }
 
@@ -2430,7 +2430,7 @@ func (h *HUOBI) MarginOrder(symbol, currency string, amount float64) (int64, err
 	resp := struct {
 		MarginOrderID int64 `json:"data"`
 	}{}
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, huobiMarginOrders, nil, data, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, huobiMarginOrders, nil, data, &resp, false)
 	return resp.MarginOrderID, err
 }
 
@@ -2447,7 +2447,7 @@ func (h *HUOBI) MarginRepayment(orderID int64, amount float64) (int64, error) {
 	}{}
 
 	endpoint := fmt.Sprintf(huobiMarginRepay, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, endpoint, nil, data, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, endpoint, nil, data, &resp, false)
 	return resp.MarginOrderID, err
 }
 
@@ -2484,7 +2484,7 @@ func (h *HUOBI) GetMarginLoanOrders(symbol, currency, start, end, states, from, 
 	resp := struct {
 		MarginLoanOrders []MarginOrder `json:"data"`
 	}{}
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, huobiMarginLoanOrders, vals, nil, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, huobiMarginLoanOrders, vals, nil, &resp, false)
 	return resp.MarginLoanOrders, err
 }
 
@@ -2497,7 +2497,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol string) ([]MarginAccountBalance, 
 	if symbol != "" {
 		vals.Set("symbol", symbol)
 	}
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, huobiMarginAccountBalance, vals, nil, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, huobiMarginAccountBalance, vals, nil, &resp, false)
 	return resp.Balances, err
 }
 
@@ -2527,7 +2527,7 @@ func (h *HUOBI) Withdraw(c currency.Code, address, addrTag string, amount, fee f
 		data.AddrTag = addrTag
 	}
 
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, huobiWithdrawCreate, nil, data, &resp.WithdrawID, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, huobiWithdrawCreate, nil, data, &resp.WithdrawID, false)
 	return resp.WithdrawID, err
 }
 
@@ -2540,7 +2540,7 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 	vals.Set("withdraw-id", strconv.FormatInt(withdrawID, 10))
 
 	endpoint := fmt.Sprintf(huobiWithdrawCancel, strconv.FormatInt(withdrawID, 10))
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodPost, endpoint, vals, nil, &resp, false)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, endpoint, vals, nil, &resp, false)
 	return resp.WithdrawID, err
 }
 
@@ -2553,7 +2553,7 @@ func (h *HUOBI) QueryDepositAddress(cryptocurrency string) (DepositAddress, erro
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency)
 
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, huobiAccountDepositAddress, vals, nil, &resp, true)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, huobiAccountDepositAddress, vals, nil, &resp, true)
 	if err != nil {
 		return DepositAddress{}, err
 	}
@@ -2572,7 +2572,7 @@ func (h *HUOBI) QueryWithdrawQuotas(cryptocurrency string) (WithdrawQuota, error
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency)
 
-	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultRest, http.MethodGet, huobiAccountWithdrawQuota, vals, nil, &resp, true)
+	err := h.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodGet, huobiAccountWithdrawQuota, vals, nil, &resp, true)
 	if err != nil {
 		return WithdrawQuota{}, err
 	}
