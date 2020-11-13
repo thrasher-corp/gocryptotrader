@@ -32,14 +32,6 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 		return nil, err
 	}
 
-	//switch request.(type) {
-	//case kraken.WsCancelOrderRequest:
-	//	r := request.(kraken.WsCancelOrderRequest)
-	//	if len(r.TransactionIDs) > 1 {
-	//
-	//	}
-	//}
-
 	timer := time.NewTimer(w.ResponseMaxLimit)
 
 	select {

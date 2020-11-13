@@ -532,7 +532,7 @@ func (z *ZB) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (z *ZB) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (z *ZB) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

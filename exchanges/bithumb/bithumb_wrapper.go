@@ -450,7 +450,7 @@ func (b *Bithumb) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bithumb) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (b *Bithumb) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

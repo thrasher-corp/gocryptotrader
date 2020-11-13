@@ -269,7 +269,7 @@ func (a *Alphapoint) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (a *Alphapoint) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (a *Alphapoint) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

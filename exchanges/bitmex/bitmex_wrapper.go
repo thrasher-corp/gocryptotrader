@@ -583,7 +583,7 @@ func (b *Bitmex) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitmex) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (b *Bitmex) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

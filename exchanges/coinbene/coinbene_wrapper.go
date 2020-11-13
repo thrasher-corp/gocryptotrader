@@ -599,7 +599,7 @@ func (c *Coinbene) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Coinbene) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (b *Coinbene) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

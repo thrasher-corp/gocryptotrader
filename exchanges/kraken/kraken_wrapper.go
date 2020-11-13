@@ -622,7 +622,7 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return k.wsCancelOrders(strings.Split(o.ID, ","))
+		return k.wsCancelOrders([]string{o.ID})
 	}
 	_, err := k.CancelExistingOrder(o.ID)
 
@@ -630,13 +630,18 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
-	if err := o.Validate(o.StandardCancel()); err != nil {
-		return order.CancelBatchResponse{}, err
+func (k *Kraken) CancelBatchOrders(orders []*order.Cancel) (order.CancelBatchResponse, error) {
+	var ordersList []string
+	for i := range orders {
+		if err := orders[i].Validate(orders[i].StandardCancel()); err != nil {
+			return order.CancelBatchResponse{}, err
+		}
+		ordersList = append(ordersList, orders[i].ID)
 	}
+
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		k.wsCancelOrders(strings.Split(o.ID, ","))
-		return order.CancelBatchResponse{}, nil
+		err := k.wsCancelOrders(ordersList)
+		return order.CancelBatchResponse{}, err
 	}
 
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented

@@ -370,7 +370,7 @@ func (b *Bitflyer) CancelOrder(_ *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitflyer) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (b *Bitflyer) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

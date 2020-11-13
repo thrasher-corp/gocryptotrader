@@ -582,7 +582,7 @@ func (h *HitBTC) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (h *HitBTC) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (h *HitBTC) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

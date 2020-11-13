@@ -668,7 +668,7 @@ func (h *HUOBI) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (h *HUOBI) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (h *HUOBI) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

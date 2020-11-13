@@ -415,7 +415,7 @@ func (l *LocalBitcoins) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (l *LocalBitcoins) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (l *LocalBitcoins) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

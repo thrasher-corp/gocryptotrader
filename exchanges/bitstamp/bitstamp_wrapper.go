@@ -496,7 +496,7 @@ func (b *Bitstamp) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitstamp) CancelBatchOrders(o *order.Cancel) (order.CancelBatchResponse, error) {
+func (b *Bitstamp) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

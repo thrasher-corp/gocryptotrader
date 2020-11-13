@@ -1027,28 +1027,41 @@ func (s *RPCServer) CancelBatchOrders(_ context.Context, r *gctrpc.CancelBatchOr
 		return nil, errExchangeNotLoaded
 	}
 
-	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
 		return nil, err
 	}
 
-	a, err := asset.New(r.AssetType)
+	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	err = exch.CancelOrder(&order.Cancel{
-		AccountID:     r.AccountId,
-		ID:            r.OrdersId,
-		Side:          order.Side(r.Side),
-		WalletAddress: r.WalletAddress,
-		Pair:          p,
-		AssetType:     a,
-	})
+	status := make(map[string]string)
+	var request []*order.Cancel
+	orders := strings.Split(r.OrdersId, ",")
+	for _, orderID := range orders {
+		status[orderID] = "canceled"
+		request = append(request, &order.Cancel{
+			AccountID:     r.AccountId,
+			ID:            orderID,
+			Side:          order.Side(r.Side),
+			WalletAddress: r.WalletAddress,
+			Pair:          pair,
+			AssetType:     assetType,
+		})
+	}
+
+	_, err = exch.CancelBatchOrders(request)
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.CancelBatchOrdersResponse{}, nil
+
+	return &gctrpc.CancelBatchOrdersResponse{
+		Orders: []*gctrpc.CancelBatchOrdersResponse_Orders{{
+			OrderStatus: status,
+		}},
+	}, nil
 }
 
 // CancelAllOrders cancels all orders, filterable by exchange
