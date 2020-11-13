@@ -357,7 +357,7 @@ func (k *Kraken) GetAssets() (map[string]*Asset, error) {
 		Result map[string]*Asset `json:"result"`
 	}
 
-	if err := k.SendHTTPRequest(exchange.DefaultSpot, path, &response); err != nil {
+	if err := k.SendHTTPRequest(spotURL, path, &response); err != nil {
 		return response.Result, err
 	}
 	return response.Result, GetError(response.Error)
@@ -383,7 +383,7 @@ func (k *Kraken) GetAssetPairs(assetPairs []string, info string) (map[string]Ass
 		}
 		params.Set("info", info)
 	}
-	if err := k.SendHTTPRequest(exchange.DefaultSpot, path+params.Encode(), &response); err != nil {
+	if err := k.SendHTTPRequest(spotURL, path+params.Encode(), &response); err != nil {
 		return response.Result, err
 	}
 	return response.Result, GetError(response.Error)
@@ -403,7 +403,7 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 	resp := Response{}
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTicker, values.Encode())
 
-	err := k.SendHTTPRequest(exchange.DefaultSpot, path, &resp)
+	err := k.SendHTTPRequest(spotURL, path, &resp)
 	if err != nil {
 		return tick, err
 	}
@@ -441,7 +441,7 @@ func (k *Kraken) GetTickers(pairList string) (map[string]Ticker, error) {
 	resp := Response{}
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTicker, values.Encode())
 
-	err := k.SendHTTPRequest(exchange.DefaultSpot, path, &resp)
+	err := k.SendHTTPRequest(spotURL, path, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -483,7 +483,7 @@ func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenOHLC, values.Encode())
 
-	err := k.SendHTTPRequest(exchange.DefaultSpot, path, &result)
+	err := k.SendHTTPRequest(spotURL, path, &result)
 	if err != nil {
 		return OHLC, err
 	}
@@ -533,7 +533,7 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	var orderBook Orderbook
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenDepth, values.Encode())
-	err := k.SendHTTPRequest(exchange.DefaultSpot, path, &result)
+	err := k.SendHTTPRequest(spotURL, path, &result)
 	if err != nil {
 		return orderBook, err
 	}
@@ -595,7 +595,7 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTrades, values.Encode())
 
-	err := k.SendHTTPRequest(exchange.DefaultSpot, path, &result)
+	err := k.SendHTTPRequest(spotURL, path, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -701,7 +701,7 @@ func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenSpread, values.Encode())
 
-	err := k.SendHTTPRequest(exchange.DefaultSpot, path, &response)
+	err := k.SendHTTPRequest(spotURL, path, &response)
 	if err != nil {
 		return peanutButter, err
 	}
@@ -733,7 +733,7 @@ func (k *Kraken) GetBalance() (map[string]float64, error) {
 		Result map[string]string `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenBalance, url.Values{}, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenBalance, url.Values{}, &response); err != nil {
 		return nil, err
 	}
 
@@ -759,7 +759,7 @@ func (k *Kraken) GetWithdrawInfo(currency string, amount float64) (WithdrawInfor
 	params.Set("key  ", "")
 	params.Set("amount ", fmt.Sprintf("%f", amount))
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenWithdrawInfo, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenWithdrawInfo, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -777,7 +777,7 @@ func (k *Kraken) Withdraw(asset, key string, amount float64) (string, error) {
 	params.Set("key", key)
 	params.Set("amount", fmt.Sprintf("%f", amount))
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenWithdraw, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenWithdraw, params, &response); err != nil {
 		return response.ReferenceID, err
 	}
 
@@ -793,7 +793,7 @@ func (k *Kraken) GetDepositMethods(currency string) ([]DepositMethods, error) {
 	params := url.Values{}
 	params.Set("asset", currency)
 
-	err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenDepositMethods, params, &response)
+	err := k.SendAuthenticatedHTTPRequest(spotURL, krakenDepositMethods, params, &response)
 	if err != nil {
 		return response.Result, err
 	}
@@ -820,7 +820,7 @@ func (k *Kraken) GetTradeBalance(args ...TradeBalanceOptions) (TradeBalanceInfo,
 		Result TradeBalanceInfo `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenTradeBalance, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenTradeBalance, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -844,7 +844,7 @@ func (k *Kraken) GetOpenOrders(args OrderInfoOptions) (OpenOrders, error) {
 		Result OpenOrders `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenOpenOrders, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenOpenOrders, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -884,7 +884,7 @@ func (k *Kraken) GetClosedOrders(args GetClosedOrdersOptions) (ClosedOrders, err
 		Result ClosedOrders `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenClosedOrders, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenClosedOrders, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -914,7 +914,7 @@ func (k *Kraken) QueryOrdersInfo(args OrderInfoOptions, txid string, txids ...st
 		Result map[string]OrderInfo `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenQueryOrders, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenQueryOrders, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -952,7 +952,7 @@ func (k *Kraken) GetTradesHistory(args ...GetTradesHistoryOptions) (TradesHistor
 		Result TradesHistory `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenTradeHistory, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenTradeHistory, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -978,7 +978,7 @@ func (k *Kraken) QueryTrades(trades bool, txid string, txids ...string) (map[str
 		Result map[string]TradeInfo `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenQueryTrades, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenQueryTrades, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -1002,7 +1002,7 @@ func (k *Kraken) OpenPositions(docalcs bool, txids ...string) (map[string]Positi
 		Result map[string]Position `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenOpenPositions, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenOpenPositions, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -1044,7 +1044,7 @@ func (k *Kraken) GetLedgers(args ...GetLedgersOptions) (Ledgers, error) {
 		Result Ledgers  `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenLedgers, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenLedgers, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -1066,7 +1066,7 @@ func (k *Kraken) QueryLedgers(id string, ids ...string) (map[string]LedgerInfo, 
 		Result map[string]LedgerInfo `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenQueryLedgers, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenQueryLedgers, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -1090,7 +1090,7 @@ func (k *Kraken) GetTradeVolume(feeinfo bool, symbol ...string) (TradeVolumeResp
 		Result TradeVolumeResponse `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenTradeVolume, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenTradeVolume, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -1151,7 +1151,7 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 		Result AddOrderResponse `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenOrderPlace, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenOrderPlace, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -1169,7 +1169,7 @@ func (k *Kraken) CancelExistingOrder(txid string) (CancelOrderResponse, error) {
 		Result CancelOrderResponse `json:"result"`
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenOrderCancel, values, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenOrderCancel, values, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -1197,7 +1197,7 @@ func GetError(apiErrors []string) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
 func (k *Kraken) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := k.API.Endpoints.Get(ep)
+	endpoint, err := k.API.Endpoints.GetRunning(ep)
 	if err != nil {
 		return err
 	}
@@ -1217,7 +1217,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep, method string, params url.Valu
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			k.Name)
 	}
-	endpoint, err := k.API.Endpoints.Get(ep)
+	endpoint, err := k.API.Endpoints.GetRunning(ep)
 	if err != nil {
 		return err
 	}
@@ -1382,7 +1382,7 @@ func (k *Kraken) GetCryptoDepositAddress(method, code string) (string, error) {
 	values.Set("asset", code)
 	values.Set("method", method)
 
-	err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenDepositAddresses, values, &resp)
+	err := k.SendAuthenticatedHTTPRequest(spotURL, krakenDepositAddresses, values, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -1407,7 +1407,7 @@ func (k *Kraken) WithdrawStatus(c currency.Code, method string) ([]WithdrawStatu
 		params.Set("method", method)
 	}
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenWithdrawStatus, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenWithdrawStatus, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -1425,7 +1425,7 @@ func (k *Kraken) WithdrawCancel(c currency.Code, refID string) (bool, error) {
 	params.Set("asset ", c.String())
 	params.Set("refid", refID)
 
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenWithdrawCancel, params, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenWithdrawCancel, params, &response); err != nil {
 		return response.Result, err
 	}
 
@@ -1435,7 +1435,7 @@ func (k *Kraken) WithdrawCancel(c currency.Code, refID string) (bool, error) {
 // GetWebsocketToken returns a websocket token
 func (k *Kraken) GetWebsocketToken() (string, error) {
 	var response WsTokenResponse
-	if err := k.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, krakenWebsocketToken, url.Values{}, &response); err != nil {
+	if err := k.SendAuthenticatedHTTPRequest(spotURL, krakenWebsocketToken, url.Values{}, &response); err != nil {
 		return "", err
 	}
 	if len(response.Error) > 0 {

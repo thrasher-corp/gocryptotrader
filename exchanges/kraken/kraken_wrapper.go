@@ -29,6 +29,8 @@ import (
 )
 
 const (
+	spotURL     = "spotAPIURL"
+	spotWSURL   = "spotWSURL"
 	futuresRest = "futuresURL"
 )
 
@@ -169,9 +171,9 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
 	k.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   krakenAPIURL,
-		futuresRest:            futuresURL,
-		exchange.DefaultSpotWS: krakenWSURL,
+		spotURL:     krakenAPIURL,
+		futuresRest: futuresURL,
+		spotWSURL:   krakenWSURL,
 	})
 	k.Websocket = stream.New()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -196,17 +198,24 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsRunningURL, err := k.API.Endpoints.Get(exchange.RunningWS)
+	defaultWSURL, err := k.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
 	if err != nil {
 		return err
 	}
+	fmt.Printf("HEYYYYYYYYYYYYYYYYYYY STOP %v\n\n\n\n", defaultWSURL)
+
+	wsRunningURL, err := k.API.Endpoints.GetRunning(spotWSURL)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("HEYYYYYYYYYYYYYYYYYYY STOP %v\n\n\n\n", wsRunningURL)
 
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       krakenWSURL,
+		DefaultURL:                       defaultWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        k.WsConnect,

@@ -27,6 +27,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	spotURL   = "spotAPIURL"
+	spotWSURL = "spotWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (h *HitBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	h.SetDefaults()
@@ -131,8 +136,8 @@ func (h *HitBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	h.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   apiURL,
-		exchange.DefaultSpotWS: hitbtcWebsocketAddress,
+		spotURL:   apiURL,
+		spotWSURL: hitbtcWebsocketAddress,
 	})
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -152,7 +157,12 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsRunningURL, err := h.API.Endpoints.Get(exchange.RunningWS)
+	defaultWSURL, err := h.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	if err != nil {
+		return err
+	}
+
+	wsRunningURL, err := h.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}
@@ -162,7 +172,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       hitbtcWebsocketAddress,
+		DefaultURL:                       defaultWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        h.WsConnect,

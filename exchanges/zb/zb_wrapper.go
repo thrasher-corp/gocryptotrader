@@ -29,6 +29,8 @@ import (
 )
 
 const (
+	spotURL       = "spotAPIURL"
+	spotWSURL     = "spotWSURL"
 	secondaryRest = "secondaryURL"
 )
 
@@ -136,9 +138,9 @@ func (z *ZB) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	z.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   zbTradeURL,
-		secondaryRest:          zbMarketURL,
-		exchange.DefaultSpotWS: zbWebsocketAPI,
+		spotURL:       zbTradeURL,
+		secondaryRest: zbMarketURL,
+		spotWSURL:     zbWebsocketAPI,
 	})
 	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -157,7 +159,12 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsRunningURL, err := z.API.Endpoints.Get(exchange.RunningWS)
+	defaultWSURL, err := z.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	if err != nil {
+		return err
+	}
+
+	wsRunningURL, err := z.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}
@@ -167,7 +174,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       zbWebsocketAPI,
+		DefaultURL:                       defaultWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        z.WsConnect,

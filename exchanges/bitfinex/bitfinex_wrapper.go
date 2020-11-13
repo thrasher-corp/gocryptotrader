@@ -28,6 +28,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	spotURL   = "spotAPIURL"
+	spotWSURL = "spotWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bitfinex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -164,8 +169,8 @@ func (b *Bitfinex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   bitfinexAPIURLBase,
-		exchange.DefaultSpotWS: publicBitfinexWebsocketEndpoint,
+		spotURL:   bitfinexAPIURLBase,
+		spotWSURL: publicBitfinexWebsocketEndpoint,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -184,15 +189,23 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
+	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	if err != nil {
+		return err
+	}
+	wsEndpoint, err := b.API.Endpoints.GetRunning(spotWSURL)
+	if err != nil {
+		return err
+	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       publicBitfinexWebsocketEndpoint,
+		DefaultURL:                       defaultEpoint,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       "",
+		RunningURL:                       wsEndpoint,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
 		UnSubscriber:                     b.Unsubscribe,
@@ -389,41 +402,45 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	if err != nil {
 		return nil, err
 	}
-	b.appendOptionalDelimiter(&fPair)
-	var prefix = "t"
-	if assetType == asset.MarginFunding {
-		prefix = "f"
+	switch assetType {
+	case asset.Spot, asset.Margin, asset.MarginFunding:
+		b.appendOptionalDelimiter(&fPair)
+		var prefix = "t"
+		if assetType == asset.MarginFunding {
+			prefix = "f"
+		}
+
+		orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "P0", 100)
+		if err != nil {
+			return nil, err
+		}
+
+		var o orderbook.Base
+		for x := range orderbookNew.Asks {
+			o.Asks = append(o.Asks, orderbook.Item{
+				Price:  orderbookNew.Asks[x].Price,
+				Amount: orderbookNew.Asks[x].Amount,
+			})
+		}
+
+		for x := range orderbookNew.Bids {
+			o.Bids = append(o.Bids, orderbook.Item{
+				Price:  orderbookNew.Bids[x].Price,
+				Amount: orderbookNew.Bids[x].Amount,
+			})
+		}
+
+		o.Pair = fPair
+		o.ExchangeName = b.Name
+		o.AssetType = assetType
+
+		err = o.Process()
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, nil
 	}
-
-	orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "P0", 100)
-	if err != nil {
-		return nil, err
-	}
-
-	var o orderbook.Base
-	for x := range orderbookNew.Asks {
-		o.Asks = append(o.Asks, orderbook.Item{
-			Price:  orderbookNew.Asks[x].Price,
-			Amount: orderbookNew.Asks[x].Amount,
-		})
-	}
-
-	for x := range orderbookNew.Bids {
-		o.Bids = append(o.Bids, orderbook.Item{
-			Price:  orderbookNew.Bids[x].Price,
-			Amount: orderbookNew.Bids[x].Amount,
-		})
-	}
-
-	o.Pair = fPair
-	o.ExchangeName = b.Name
-	o.AssetType = assetType
-
-	err = o.Process()
-	if err != nil {
-		return nil, err
-	}
-
 	return orderbook.Get(b.Name, fPair, assetType)
 }
 

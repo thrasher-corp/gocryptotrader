@@ -29,6 +29,8 @@ import (
 )
 
 const (
+	spotURL       = "spotAPIURL"
+	spotWSURL     = "spotWSURL"
 	secondaryRest = "secondaryURL"
 )
 
@@ -132,9 +134,9 @@ func (g *Gateio) SetDefaults() {
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	g.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   gateioTradeURL,
-		secondaryRest:          gateioMarketURL,
-		exchange.DefaultSpotWS: gateioWebsocketEndpoint,
+		spotURL:       gateioTradeURL,
+		secondaryRest: gateioMarketURL,
+		spotWSURL:     gateioWebsocketEndpoint,
 	})
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -154,7 +156,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsRunningURL, err := g.API.Endpoints.Get(exchange.RunningWS)
+	wsRunningURL, err := g.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}

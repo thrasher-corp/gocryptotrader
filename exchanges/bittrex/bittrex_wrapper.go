@@ -2,7 +2,6 @@ package bittrex
 
 import (
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -98,19 +97,8 @@ func (b *Bittrex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(bittrexRateInterval, bittrexRequestRate)))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot: bittrexAPIURL,
+		spotURL: bittrexAPIURL,
 	})
-	defaultURLsMap := b.API.Endpoints.GetAll()
-	for a, defURL := range defaultURLsMap {
-		if defURL == "" {
-			log.Warnf(log.Global, fmt.Sprintf("default url not set for: %v", a))
-			continue
-		}
-		err = b.API.Endpoints.Set(exchange.Running+a, defURL, true)
-		if err != nil {
-			log.Error(log.Global, err)
-		}
-	}
 }
 
 // Setup method sets current configuration details if enabled

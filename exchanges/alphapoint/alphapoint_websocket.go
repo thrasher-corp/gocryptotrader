@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -19,7 +18,7 @@ func (a *Alphapoint) WebsocketClient() {
 		var dialer websocket.Dialer
 		var err error
 		var httpResp *http.Response
-		endpoint, err := a.API.Endpoints.Get(exchange.DefaultSpotWS)
+		endpoint, err := a.API.Endpoints.GetRunning(spotWS)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

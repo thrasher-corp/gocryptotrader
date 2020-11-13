@@ -28,7 +28,9 @@ import (
 )
 
 const (
-	swapRest = "swapURL"
+	spotURL   = "spotAPIURL"
+	spotWSURL = "spotWSURL"
+	swapRest  = "swapURL"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -151,9 +153,9 @@ func (c *Coinbene) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	c.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   coinbeneAPIURL,
-		swapRest:               coinbeneSwapAPIURL,
-		exchange.DefaultSpotWS: wsContractURL,
+		spotURL:   coinbeneAPIURL,
+		swapRest:  coinbeneSwapAPIURL,
+		spotWSURL: wsContractURL,
 	})
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -173,12 +175,12 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsDefaultEndpoint, err := c.API.Endpoints.Get(exchange.DefaultSpotWS)
+	defaultWSURL, err := c.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := c.API.Endpoints.Get(exchange.RunningWS)
+	wsRunningURL, err := c.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}
@@ -188,7 +190,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsDefaultEndpoint,
+		DefaultURL:                       defaultWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        c.WsConnect,

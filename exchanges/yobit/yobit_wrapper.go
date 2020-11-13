@@ -27,6 +27,8 @@ import (
 )
 
 const (
+	spotURL       = "spotAPIURL"
+	spotWSURL     = "spotWSURL"
 	secondaryRest = "secondaryRestURL"
 )
 
@@ -103,8 +105,8 @@ func (y *Yobit) SetDefaults() {
 		// Server responses are cached every 2 seconds.
 		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1)))
 	y.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot: apiPublicURL,
-		secondaryRest:        apiPrivateURL,
+		spotURL:       apiPublicURL,
+		secondaryRest: apiPrivateURL,
 	})
 }
 

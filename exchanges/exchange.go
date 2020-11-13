@@ -37,18 +37,11 @@ const (
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
 
-	// DefaultSpot stores default spot rest string for endpoint lookup
-	DefaultSpot = "spot"
-	// DefaultSpotWS stores default spot websocket string for endpoint lookup
-	DefaultSpotWS = "spotWSURL"
-	// RunningRest stores the running URL for rest endpoints
-	RunningRest = "runningURL"
-	// RunningWS stores the running URL for websocket endpoints
-	RunningWS = "runningWSURL"
-	// SecondaryRest stores secondary rest URL for endpoint lookup (mainly for old config)
-	SecondaryRest = "secondaryURL"
-	// Running is used to differentiate between default URLs and running URLS
-	Running = "running"
+	oldURL          = "oldConfigURL"
+	oldSecondaryURL = "oldSecondaryConfigURL"
+	oldWSURL        = "oldWebsocketConfigURL"
+	// Default stores default string to append for default URLs lookup
+	Default = "Default"
 )
 
 func (e *Base) checkAndInitRequester() {
@@ -794,30 +787,31 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 func (e *Base) SetAPIURL() error {
 	var err error
 	if e.Config.API.OldEndPoints != nil {
+		fmt.Printf("HELAOOOOOOOOOOOOO WHERE AM I\n\n\n")
 		var tempEndpoints Endpoints
 		tempEndpoints.CreateMap(map[string]string{})
-		tempEndpoints.m = e.Config.API.Endpoints
+		tempEndpoints.running = e.Config.API.Endpoints
 		if e.Config.API.OldEndPoints.URL != "" && e.Config.API.OldEndPoints.URL != "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" {
-			err = e.API.Endpoints.Set(RunningRest, e.Config.API.OldEndPoints.URL, true)
+			err = e.API.Endpoints.Set(oldURL, e.Config.API.OldEndPoints.URL, true)
 			if err != nil {
 				return err
 			}
-			tempEndpoints.Set(RunningRest, e.Config.API.OldEndPoints.URL, true)
+			tempEndpoints.Set(oldURL, e.Config.API.OldEndPoints.URL, true)
 			if err != nil {
 				return err
 			}
 		}
 		if e.Config.API.OldEndPoints.WebsocketURL != "" && e.Config.API.OldEndPoints.WebsocketURL != "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
-			err = e.API.Endpoints.Set(RunningWS, e.Config.API.OldEndPoints.WebsocketURL, true)
+			err = e.API.Endpoints.Set(oldWSURL, e.Config.API.OldEndPoints.WebsocketURL, true)
 			if err != nil {
 				return err
 			}
-			tempEndpoints.Set(RunningWS, e.Config.API.OldEndPoints.WebsocketURL, true)
+			tempEndpoints.Set(oldWSURL, e.Config.API.OldEndPoints.WebsocketURL, true)
 			if err != nil {
 				return err
 			}
 		}
-		e.Config.API.Endpoints = tempEndpoints.m
+		e.Config.API.Endpoints = tempEndpoints.running
 		e.Config.API.OldEndPoints = nil
 	} else {
 		for a, meow := range e.Config.API.Endpoints {
@@ -1149,10 +1143,12 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 // CreateMap creates map
 func (e *Endpoints) CreateMap(m map[string]string) {
 	*e = Endpoints{
-		m: make(map[string]string),
+		defaults: make(map[string]string),
+		running:  make(map[string]string),
 	}
 	for k, v := range m {
-		e.m[k] = v
+		e.defaults[Default+k] = v
+		e.running[k] = v
 	}
 }
 
@@ -1161,34 +1157,43 @@ func (e *Endpoints) Set(key, val string, overwrite bool) error {
 	e.Lock()
 	defer e.Unlock()
 	if !overwrite {
-		_, ok := e.m[key]
-		if ok {
-			return fmt.Errorf("given key is already being used")
-		}
-		for x := range e.m {
-			if e.m[x] == val {
-				return fmt.Errorf("given val is already set by the following key: %v", x)
-			}
+		oldVal, ok := e.running[key]
+		if ok && oldVal == val {
+			return fmt.Errorf("given key and val are already set")
 		}
 	}
-	e.m[key] = val
+	e.running[key] = val
 	return nil
 }
 
-// Get Gets bra
-func (e *Endpoints) Get(key string) (string, error) {
+// GetRunning Gets bra
+func (e *Endpoints) GetRunning(key string) (string, error) {
 	e.Lock()
 	defer e.Unlock()
-	val, ok := e.m[key]
+	val, ok := e.running[key]
 	if !ok {
-		return "", fmt.Errorf("no method found for the given key: %v", key)
+		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
 	}
 	return val, nil
 }
 
-// GetAll gets all
-func (e *Endpoints) GetAll() map[string]string {
+// GetDefault Gets bra
+func (e *Endpoints) GetDefault(key string) (string, error) {
 	e.Lock()
 	defer e.Unlock()
-	return e.m
+	val, ok := e.defaults[key]
+	if !ok {
+		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
+	}
+	return val, nil
+}
+
+// GetURLMap gets all urls for either running or default map based on the bool value supplied
+func (e *Endpoints) GetURLMap(defaultMap bool) map[string]string {
+	e.Lock()
+	defer e.Unlock()
+	if !defaultMap {
+		return e.running
+	}
+	return e.defaults
 }

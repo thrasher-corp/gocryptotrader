@@ -28,6 +28,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	spotURL   = "spotURL"
+	spotWSURL = "websocketURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (b *BTSE) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -151,8 +156,8 @@ func (b *BTSE) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   btseAPIURL,
-		exchange.DefaultSpotWS: btseWebsocket,
+		spotURL:   btseAPIURL,
+		spotWSURL: btseWebsocket,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -172,12 +177,12 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsDefaultEndpoint, err := b.API.Endpoints.Get(exchange.DefaultSpotWS)
+	wsDefaultEndpoint, err := b.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := b.API.Endpoints.Get(exchange.RunningWS)
+	wsRunningURL, err := b.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}

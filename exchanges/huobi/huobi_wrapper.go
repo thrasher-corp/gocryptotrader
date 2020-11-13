@@ -28,6 +28,8 @@ import (
 )
 
 const (
+	spotURL     = "spotAPIURL"
+	spotWSURL   = "spotWSURL"
 	futuresRest = "futuresURL" // (expiry and coinmargined futures use this URL)
 )
 
@@ -163,9 +165,9 @@ func (h *HUOBI) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	h.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   huobiAPIURL,
-		futuresRest:            huobiURL,
-		exchange.DefaultSpotWS: wsMarketURL,
+		spotURL:     huobiAPIURL,
+		futuresRest: huobiURL,
+		spotWSURL:   wsMarketURL,
 	})
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -185,7 +187,12 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsRunningURL, err := h.API.Endpoints.Get(exchange.RunningWS)
+	defaultWSURL, err := h.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	if err != nil {
+		return err
+	}
+
+	wsRunningURL, err := h.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}
@@ -195,7 +202,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsMarketURL,
+		DefaultURL:                       defaultWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        h.WsConnect,

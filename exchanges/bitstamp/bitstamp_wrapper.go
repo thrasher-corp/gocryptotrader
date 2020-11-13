@@ -27,6 +27,8 @@ import (
 )
 
 const (
+	spotURL         = "spotAPIURL"
+	spotWSURL       = "spotWSURL"
 	runningSpotRest = "runningSpotRest"
 	runningSpotWS   = "runningSpotWS"
 )
@@ -135,14 +137,14 @@ func (b *Bitstamp) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate)))
 
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   bitstampAPIURL,
-		exchange.DefaultSpotWS: bitstampWSURL,
+		spotURL:   bitstampAPIURL,
+		spotWSURL: bitstampWSURL,
 	})
-	runningRestURL, err := b.API.Endpoints.Get(exchange.DefaultSpot)
+	runningRestURL, err := b.API.Endpoints.GetRunning(spotURL)
 	if err != nil {
 		log.Error(log.Global, err)
 	}
-	runningWSURL, err := b.API.Endpoints.Get(exchange.DefaultSpotWS)
+	runningWSURL, err := b.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		log.Error(log.Global, err)
 	}
@@ -173,7 +175,12 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsURL, err := b.API.Endpoints.Get(runningSpotWS)
+	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	if err != nil {
+		return err
+	}
+
+	wsURL, err := b.API.Endpoints.GetRunning(runningSpotWS)
 	if err != nil {
 		return err
 	}
@@ -183,7 +190,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       bitstampWSURL,
+		DefaultURL:                       defaultEpoint,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsURL,
 		Connector:                        b.WsConnect,

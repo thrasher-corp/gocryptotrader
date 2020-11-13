@@ -96,7 +96,7 @@ type Bitfinex struct {
 // GetPlatformStatus returns the Bifinex platform status
 func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	var response []int
-	err := b.SendHTTPRequest(exchange.DefaultSpot,
+	err := b.SendHTTPRequest(spotURL,
 		bitfinexAPIVersion2+
 			bitfinexPlatformStatus,
 		&response,
@@ -123,7 +123,7 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	params["symbol"] = symbol
 	params["period"] = period
 	params["amount"] = amount
-	err := b.SendAuthenticatedHTTPRequest2(exchange.DefaultSpot, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequest2(spotURL, http.MethodPost,
 		bitfinexV2MarginFunding,
 		params,
 		&resp,
@@ -152,7 +152,7 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 	var resp []interface{}
 	var response MarginV2FundingData
-	err := b.SendAuthenticatedHTTPRequest2(exchange.DefaultSpot, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequest2(spotURL, http.MethodPost,
 		fmt.Sprintf(bitfinexV2FundingInfo, key),
 		nil,
 		&resp,
@@ -180,7 +180,7 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 	var resp AccountV2Data
 	var data []interface{}
-	err := b.SendAuthenticatedHTTPRequest2(exchange.DefaultSpot, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequest2(spotURL, http.MethodPost,
 		bitfinexV2AccountInfo,
 		nil,
 		&data,
@@ -222,7 +222,7 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	var resp []WalletDataV2
 	var data [][]interface{}
-	err := b.SendAuthenticatedHTTPRequest2(exchange.DefaultSpot, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequest2(spotURL, http.MethodPost,
 		bitfinexV2Balances,
 		nil,
 		&data,
@@ -261,7 +261,7 @@ func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 func (b *Bitfinex) GetMarginPairs() ([]string, error) {
 	var resp [][]string
 	path := bitfinexAPIVersion2 + bitfinexMarginPairs
-	err := b.SendHTTPRequest(exchange.DefaultSpot, path, &resp, status)
+	err := b.SendHTTPRequest(spotURL, path, &resp, status)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 	}
 	path := bitfinexAPIVersion2 + bitfinexDerivativeData +
 		params.Encode()
-	err := b.SendHTTPRequest(exchange.DefaultSpot, path, &result, status)
+	err := b.SendHTTPRequest(spotURL, path, &result, status)
 	if err != nil {
 		return response, err
 	}
@@ -359,7 +359,7 @@ func (b *Bitfinex) GetTickerBatch() (map[string]Ticker, error) {
 	path := bitfinexAPIVersion2 + bitfinexTickerBatch +
 		"?symbols=ALL"
 
-	err := b.SendHTTPRequest(exchange.DefaultSpot, path, &response, tickerBatch)
+	err := b.SendHTTPRequest(spotURL, path, &response, tickerBatch)
 	if err != nil {
 		return nil, err
 	}
@@ -407,7 +407,7 @@ func (b *Bitfinex) GetTicker(symbol string) (Ticker, error) {
 
 	path := bitfinexAPIVersion2 + bitfinexTicker + symbol
 
-	err := b.SendHTTPRequest(exchange.DefaultSpot, path, &response, tickerFunction)
+	err := b.SendHTTPRequest(spotURL, path, &response, tickerFunction)
 	if err != nil {
 		return Ticker{}, err
 	}
@@ -472,7 +472,7 @@ func (b *Bitfinex) GetTrades(currencyPair string, limit, timestampStart, timesta
 	path := bitfinexAPIVersion2 + bitfinexTrades + currencyPair + "/hist" + "?" + v.Encode()
 
 	var resp [][]interface{}
-	err := b.SendHTTPRequest(exchange.DefaultSpot, path, &resp, tradeRateLimit)
+	err := b.SendHTTPRequest(spotURL, path, &resp, tradeRateLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +524,7 @@ func (b *Bitfinex) GetOrderbook(symbol, precision string, limit int64) (Orderboo
 	path := bitfinexAPIVersion2 + bitfinexOrderbook + symbol + "/" + precision + "?" + u.Encode()
 
 	var response [][]interface{}
-	err := b.SendHTTPRequest(exchange.DefaultSpot, path, &response, orderbookFunction)
+	err := b.SendHTTPRequest(spotURL, path, &response, orderbookFunction)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -596,7 +596,7 @@ func (b *Bitfinex) GetOrderbook(symbol, precision string, limit int64) (Orderboo
 func (b *Bitfinex) GetStats(symbol string) ([]Stat, error) {
 	var response []Stat
 	path := bitfinexAPIVersion + bitfinexStats + symbol
-	return response, b.SendHTTPRequest(exchange.DefaultSpot, path, &response, statsV1)
+	return response, b.SendHTTPRequest(spotURL, path, &response, statsV1)
 }
 
 // GetFundingBook the entire margin funding book for both bids and asks sides
@@ -608,7 +608,7 @@ func (b *Bitfinex) GetFundingBook(symbol string) (FundingBook, error) {
 	response := FundingBook{}
 	path := bitfinexAPIVersion + bitfinexLendbook + symbol
 
-	if err := b.SendHTTPRequest(exchange.DefaultSpot, path, &response, fundingbook); err != nil {
+	if err := b.SendHTTPRequest(spotURL, path, &response, fundingbook); err != nil {
 		return response, err
 	}
 
@@ -625,7 +625,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 		bitfinexLends+
 		symbol,
 		values)
-	return response, b.SendHTTPRequest(exchange.DefaultSpot, path, &response, lends)
+	return response, b.SendHTTPRequest(spotURL, path, &response, lends)
 }
 
 // GetCandles returns candle chart data
@@ -666,7 +666,7 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end int64, limit 
 		}
 
 		var response [][]interface{}
-		err := b.SendHTTPRequest(exchange.DefaultSpot, path, &response, candle)
+		err := b.SendHTTPRequest(spotURL, path, &response, candle)
 		if err != nil {
 			return nil, err
 		}
@@ -689,7 +689,7 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end int64, limit 
 	path += "/last"
 
 	var response []interface{}
-	err := b.SendHTTPRequest(exchange.DefaultSpot, path, &response, candle)
+	err := b.SendHTTPRequest(spotURL, path, &response, candle)
 	if err != nil {
 		return nil, err
 	}
@@ -769,7 +769,7 @@ func (b *Bitfinex) GetLeaderboard(key, timeframe, symbol string, sort, limit int
 	}
 	path = common.EncodeURLValues(path, vals)
 	var resp []interface{}
-	if err := b.SendHTTPRequest(exchange.DefaultSpot, path, &resp, leaderBoardReqRate); err != nil {
+	if err := b.SendHTTPRequest(spotURL, path, &resp, leaderBoardReqRate); err != nil {
 		return nil, err
 	}
 
@@ -809,7 +809,7 @@ func (b *Bitfinex) GetForeignExchangeRate() error {
 // GetAccountFees returns information about your account trading fees
 func (b *Bitfinex) GetAccountFees() ([]AccountInfo, error) {
 	var responses []AccountInfo
-	return responses, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return responses, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexAccountInfo,
 		nil,
 		&responses,
@@ -819,7 +819,7 @@ func (b *Bitfinex) GetAccountFees() ([]AccountInfo, error) {
 // GetWithdrawalFees - Gets all fee rates for withdrawals
 func (b *Bitfinex) GetWithdrawalFees() (AccountFees, error) {
 	response := AccountFees{}
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexAccountFees,
 		nil,
 		&response,
@@ -831,7 +831,7 @@ func (b *Bitfinex) GetWithdrawalFees() (AccountFees, error) {
 func (b *Bitfinex) GetAccountSummary() (AccountSummary, error) {
 	response := AccountSummary{}
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexAccountSummary,
 		nil,
 		&response,
@@ -857,7 +857,7 @@ func (b *Bitfinex) NewDeposit(method, walletName string, renew int) (DepositResp
 	req["wallet_name"] = walletName
 	req["renew"] = renew
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexDeposit,
 		req,
 		&response,
@@ -868,7 +868,7 @@ func (b *Bitfinex) NewDeposit(method, walletName string, renew int) (DepositResp
 // this request.
 func (b *Bitfinex) GetKeyPermissions() (KeyPermissions, error) {
 	response := KeyPermissions{}
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexKeyPermissions,
 		nil,
 		&response,
@@ -878,7 +878,7 @@ func (b *Bitfinex) GetKeyPermissions() (KeyPermissions, error) {
 // GetMarginInfo shows your trading wallet information for margin trading
 func (b *Bitfinex) GetMarginInfo() ([]MarginInfo, error) {
 	var response []MarginInfo
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexMarginInfo,
 		nil,
 		&response,
@@ -888,7 +888,7 @@ func (b *Bitfinex) GetMarginInfo() ([]MarginInfo, error) {
 // GetAccountBalance returns full wallet balance information
 func (b *Bitfinex) GetAccountBalance() ([]Balance, error) {
 	var response []Balance
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexBalances,
 		nil,
 		&response,
@@ -908,7 +908,7 @@ func (b *Bitfinex) WalletTransfer(amount float64, currency, walletFrom, walletTo
 	req["walletfrom"] = walletFrom
 	req["walletto"] = walletTo
 
-	err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexTransfer,
 		req,
 		&response,
@@ -936,7 +936,7 @@ func (b *Bitfinex) WithdrawCryptocurrency(wallet, address, paymentID string, amo
 		req["payment_id"] = paymentID
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexWithdrawal,
 		req,
 		&response,
@@ -981,7 +981,7 @@ func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawReque
 		req["intermediary_bank_swift"] = withdrawRequest.Fiat.IntermediarySwiftCode
 	}
 
-	err := b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexWithdrawal,
 		req,
 		&response,
@@ -1016,7 +1016,7 @@ func (b *Bitfinex) NewOrder(currencyPair, orderType string, amount, price float6
 		req["side"] = order.Buy.Lower()
 	}
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOrderNew,
 		req,
 		&response,
@@ -1029,7 +1029,7 @@ func (b *Bitfinex) NewOrderMulti(orders []PlaceOrder) (OrderMultiResponse, error
 	req := make(map[string]interface{})
 	req["orders"] = orders
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOrderNewMulti,
 		req,
 		&response,
@@ -1042,7 +1042,7 @@ func (b *Bitfinex) CancelExistingOrder(orderID int64) (Order, error) {
 	req := make(map[string]interface{})
 	req["order_id"] = orderID
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOrderCancel,
 		req,
 		&response,
@@ -1055,7 +1055,7 @@ func (b *Bitfinex) CancelMultipleOrders(orderIDs []int64) (string, error) {
 	req := make(map[string]interface{})
 	req["order_ids"] = orderIDs
 
-	return response.Result, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response.Result, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOrderCancelMulti,
 		req,
 		nil,
@@ -1066,7 +1066,7 @@ func (b *Bitfinex) CancelMultipleOrders(orderIDs []int64) (string, error) {
 func (b *Bitfinex) CancelAllExistingOrders() (string, error) {
 	response := GenericResponse{}
 
-	return response.Result, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response.Result, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOrderCancelAll,
 		nil,
 		nil,
@@ -1091,7 +1091,7 @@ func (b *Bitfinex) ReplaceOrder(orderID int64, symbol string, amount, price floa
 		req["side"] = order.Sell.Lower()
 	}
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOrderCancelReplace,
 		req,
 		&response,
@@ -1104,7 +1104,7 @@ func (b *Bitfinex) GetOrderStatus(orderID int64) (Order, error) {
 	req := make(map[string]interface{})
 	req["order_id"] = orderID
 
-	return orderStatus, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return orderStatus, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOrderStatus,
 		req,
 		&orderStatus,
@@ -1117,7 +1117,7 @@ func (b *Bitfinex) GetInactiveOrders() ([]Order, error) {
 	req := make(map[string]interface{})
 	req["limit"] = "100"
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexInactiveOrders,
 		req,
 		&response,
@@ -1127,7 +1127,7 @@ func (b *Bitfinex) GetInactiveOrders() ([]Order, error) {
 // GetOpenOrders returns all active orders and statuses
 func (b *Bitfinex) GetOpenOrders() ([]Order, error) {
 	var response []Order
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOrders,
 		nil,
 		&response,
@@ -1138,7 +1138,7 @@ func (b *Bitfinex) GetOpenOrders() ([]Order, error) {
 func (b *Bitfinex) GetActivePositions() ([]Position, error) {
 	var response []Position
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexPositions,
 		nil,
 		&response,
@@ -1151,7 +1151,7 @@ func (b *Bitfinex) ClaimPosition(positionID int) (Position, error) {
 	req := make(map[string]interface{})
 	req["position_id"] = positionID
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexClaimPosition,
 		nil,
 		nil,
@@ -1177,7 +1177,7 @@ func (b *Bitfinex) GetBalanceHistory(symbol string, timeSince, timeUntil time.Ti
 		req["wallet"] = wallet
 	}
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexHistory,
 		req,
 		&response,
@@ -1203,7 +1203,7 @@ func (b *Bitfinex) GetMovementHistory(symbol, method string, timeSince, timeUnti
 		req["limit"] = limit
 	}
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexHistoryMovements,
 		req,
 		&response,
@@ -1227,7 +1227,7 @@ func (b *Bitfinex) GetTradeHistory(currencyPair string, timestamp, until time.Ti
 		req["reverse"] = reverse
 	}
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexTradeHistory,
 		req,
 		&response,
@@ -1244,7 +1244,7 @@ func (b *Bitfinex) NewOffer(symbol string, amount, rate float64, period int64, d
 	req["period"] = period
 	req["direction"] = direction
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOfferNew,
 		req,
 		&response,
@@ -1257,7 +1257,7 @@ func (b *Bitfinex) CancelOffer(offerID int64) (Offer, error) {
 	req := make(map[string]interface{})
 	req["offer_id"] = offerID
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOfferCancel,
 		req,
 		&response,
@@ -1271,7 +1271,7 @@ func (b *Bitfinex) GetOfferStatus(offerID int64) (Offer, error) {
 	req := make(map[string]interface{})
 	req["offer_id"] = offerID
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOrderStatus,
 		req,
 		&response,
@@ -1282,7 +1282,7 @@ func (b *Bitfinex) GetOfferStatus(offerID int64) (Offer, error) {
 func (b *Bitfinex) GetActiveCredits() ([]Offer, error) {
 	var response []Offer
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexActiveCredits,
 		nil,
 		&response,
@@ -1293,7 +1293,7 @@ func (b *Bitfinex) GetActiveCredits() ([]Offer, error) {
 func (b *Bitfinex) GetActiveOffers() ([]Offer, error) {
 	var response []Offer
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexOffers,
 		nil,
 		&response,
@@ -1304,7 +1304,7 @@ func (b *Bitfinex) GetActiveOffers() ([]Offer, error) {
 func (b *Bitfinex) GetActiveMarginFunding() ([]MarginFunds, error) {
 	var response []MarginFunds
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexMarginActiveFunds,
 		nil,
 		&response,
@@ -1316,7 +1316,7 @@ func (b *Bitfinex) GetActiveMarginFunding() ([]MarginFunds, error) {
 func (b *Bitfinex) GetUnusedMarginFunds() ([]MarginFunds, error) {
 	var response []MarginFunds
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexMarginUnusedFunds,
 		nil,
 		&response,
@@ -1328,7 +1328,7 @@ func (b *Bitfinex) GetUnusedMarginFunds() ([]MarginFunds, error) {
 func (b *Bitfinex) GetMarginTotalTakenFunds() ([]MarginTotalTakenFunds, error) {
 	var response []MarginTotalTakenFunds
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexMarginTotalFunds,
 		nil,
 		&response,
@@ -1341,7 +1341,7 @@ func (b *Bitfinex) CloseMarginFunding(swapID int64) (Offer, error) {
 	req := make(map[string]interface{})
 	req["swap_id"] = swapID
 
-	return response, b.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost,
+	return response, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost,
 		bitfinexMarginClose,
 		req,
 		&response,
@@ -1350,7 +1350,7 @@ func (b *Bitfinex) CloseMarginFunding(swapID int64) (Offer, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(ep, path string, result interface{}, e request.EndpointLimit) error {
-	endpoint, err := b.API.Endpoints.Get(ep)
+	endpoint, err := b.API.Endpoints.GetRunning(ep)
 	if err != nil {
 		return err
 	}
@@ -1372,7 +1372,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ep, method, path string, params 
 			b.Name)
 	}
 
-	epoint, err := b.API.Endpoints.Get(ep)
+	epoint, err := b.API.Endpoints.GetRunning(ep)
 	if err != nil {
 		return err
 	}
@@ -1424,7 +1424,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest2(ep, method, path string, params
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
-	epoint, err := b.API.Endpoints.Get(ep)
+	epoint, err := b.API.Endpoints.GetRunning(ep)
 	if err != nil {
 		return err
 	}
@@ -1626,7 +1626,7 @@ func (b *Bitfinex) ConvertSymbolToDepositMethod(c currency.Code) (string, error)
 func (b *Bitfinex) PopulateAcceptableMethods() error {
 	if len(AcceptableMethods) == 0 {
 		var response [][][2]string
-		err := b.SendHTTPRequest(exchange.DefaultSpot,
+		err := b.SendHTTPRequest(spotURL,
 			bitfinexAPIVersion2+bitfinexDepositMethod,
 			&response,
 			configs)

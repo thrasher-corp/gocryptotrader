@@ -26,6 +26,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	spotURL   = "spotAPIURL"
+	spotWSURL = "spotWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (e *EXMO) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	e.SetDefaults()
@@ -109,7 +114,7 @@ func (e *EXMO) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
 	e.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot: exmoAPIURL,
+		spotURL: exmoAPIURL,
 	})
 }
 

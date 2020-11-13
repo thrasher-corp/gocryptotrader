@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 
 	b.HTTPClient = newClient
 	fmt.Println(serverDetails)
-	endpointMap := b.API.Endpoints.GetAll()
+	endpointMap := b.API.Endpoints.GetURLMap(false)
 	for k := range endpointMap {
 		endpointMap[k] = serverDetails + "/api"
 	}

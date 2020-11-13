@@ -66,8 +66,8 @@ func TestCreateMap(t *testing.T) {
 		"test1": "test1url",
 		"test2": "test2url",
 	})
-	fmt.Println(b.API.Endpoints.GetAll())
-	_, ok := b.API.Endpoints.m["test1"]
+	fmt.Println(b.API.Endpoints.GetURLMap(false))
+	_, ok := b.API.Endpoints.running["test1"]
 	if !ok {
 		t.Errorf("CreateMap failed, no value for for the given key")
 	}
@@ -86,7 +86,7 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	val, ok := b.API.Endpoints.m["test1"]
+	val, ok := b.API.Endpoints.running["test1"]
 	if !ok {
 		t.Error("set method or createmap failed")
 	}
@@ -105,7 +105,7 @@ func TestGet(t *testing.T) {
 		"test1": "test1url",
 		"test2": "test2url",
 	})
-	getVal, err := b.API.Endpoints.Get("test1")
+	getVal, err := b.API.Endpoints.GetRunning("test1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -116,7 +116,7 @@ func TestGet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	getChangedVal, err := b.API.Endpoints.Get("test2")
+	getChangedVal, err := b.API.Endpoints.GetRunning("test2")
 	if err != nil {
 		t.Error(err)
 	}
@@ -134,8 +134,9 @@ func TestGetAll(t *testing.T) {
 		"test1": "test1url",
 		"test2": "test2url",
 	})
-	all := b.API.Endpoints.GetAll()
-	fmt.Println(all)
+	allRunning := b.API.Endpoints.GetURLMap(false)
+	allDefault := b.API.Endpoints.GetURLMap(true)
+	fmt.Println(allRunning, allDefault)
 }
 
 func TestHTTPClient(t *testing.T) {

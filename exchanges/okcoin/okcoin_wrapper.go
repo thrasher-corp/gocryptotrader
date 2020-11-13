@@ -24,6 +24,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+const (
+	spotURL   = "spotAPIURL"
+	spotWSURL = "spotWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (o *OKCoin) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	o.SetDefaults()
@@ -138,8 +143,8 @@ func (o *OKCoin) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate)),
 	)
 	o.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   okCoinAPIURL,
-		exchange.DefaultSpotWS: okCoinWebsocketURL,
+		spotURL:   okCoinAPIURL,
+		spotWSURL: okCoinWebsocketURL,
 	})
 	o.APIVersion = okCoinAPIVersion
 	o.Websocket = stream.New()

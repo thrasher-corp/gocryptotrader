@@ -27,6 +27,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	spotURL   = "spotAPIURL"
+	spotWSURL = "spotWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (l *LakeBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	l.SetDefaults()
@@ -103,8 +108,8 @@ func (l *LakeBTC) SetDefaults() {
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   lakeBTCAPIURL,
-		exchange.DefaultSpotWS: lakeBTCWSURL,
+		spotURL:   lakeBTCAPIURL,
+		spotWSURL: lakeBTCWSURL,
 	})
 	l.Websocket = stream.New()
 	l.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -124,7 +129,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsRunningURL, err := l.API.Endpoints.Get(exchange.RunningWS)
+	wsRunningURL, err := l.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}

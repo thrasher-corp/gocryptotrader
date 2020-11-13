@@ -28,6 +28,8 @@ import (
 )
 
 const (
+	spotURL    = "spotAPIURL"
+	spotWSURL  = "spotWSURL"
 	testnetURL = "testnetURL"
 )
 
@@ -124,8 +126,8 @@ func (b *Bitmex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   bitmexAPIURL,
-		exchange.DefaultSpotWS: bitmexWSURL,
+		spotURL:   bitmexAPIURL,
+		spotWSURL: bitmexWSURL,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -145,14 +147,24 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	if err != nil {
+		return err
+	}
+
+	wsEndpoint, err := b.API.Endpoints.GetRunning(spotWSURL)
+	if err != nil {
+		return err
+	}
+
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       bitmexWSURL,
+		DefaultURL:                       defaultEpoint,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       "",
+		RunningURL:                       wsEndpoint,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
 		UnSubscriber:                     b.Unsubscribe,
@@ -183,7 +195,7 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		wsEndpoint, err := b.API.Endpoints.Get(exchange.DefaultSpotWS)
+		wsEndpoint, err := b.API.Endpoints.GetRunning(spotWSURL)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

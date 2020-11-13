@@ -269,7 +269,7 @@ func (g *Gateio) GetBalances() (BalancesResponse, error) {
 	var result BalancesResponse
 
 	return result,
-		g.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, gateioBalances, "", &result)
+		g.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, gateioBalances, "", &result)
 }
 
 // SpotNewOrder places a new order
@@ -284,7 +284,7 @@ func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 	)
 
 	urlPath := fmt.Sprintf("%s/%s", gateioOrder, arg.Type)
-	return result, g.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, urlPath, params, &result)
+	return result, g.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, urlPath, params, &result)
 }
 
 // CancelExistingOrder cancels an order given the supplied orderID and symbol
@@ -303,7 +303,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 		orderID,
 		symbol,
 	)
-	err := g.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, gateioCancelOrder, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, gateioCancelOrder, params, &result)
 	if err != nil {
 		return false, err
 	}
@@ -316,7 +316,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (g *Gateio) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := g.API.Endpoints.Get(ep)
+	endpoint, err := g.API.Endpoints.GetRunning(ep)
 	if err != nil {
 		return err
 	}
@@ -344,7 +344,7 @@ func (g *Gateio) CancelAllExistingOrders(orderType int64, symbol string) error {
 		orderType,
 		symbol,
 	)
-	err := g.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, gateioCancelAllOrders, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, gateioCancelAllOrders, params, &result)
 	if err != nil {
 		return err
 	}
@@ -365,7 +365,7 @@ func (g *Gateio) GetOpenOrders(symbol string) (OpenOrdersResponse, error) {
 		params = fmt.Sprintf("currencyPair=%s", symbol)
 	}
 
-	err := g.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, gateioOpenOrders, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, gateioOpenOrders, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -383,7 +383,7 @@ func (g *Gateio) GetTradeHistory(symbol string) (TradHistoryResponse, error) {
 	var result TradHistoryResponse
 	params = fmt.Sprintf("currencyPair=%s", symbol)
 
-	err := g.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, gateioTradeHistory, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, gateioTradeHistory, params, &result)
 	if err != nil {
 		return result, err
 	}
@@ -408,7 +408,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep, method, endpoint, param string
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			g.Name)
 	}
-	epoint, err := g.API.Endpoints.Get(ep)
+	epoint, err := g.API.Endpoints.GetRunning(ep)
 	if err != nil {
 		return err
 	}
@@ -524,7 +524,7 @@ func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (*with
 		address,
 		amount,
 	)
-	err := g.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, gateioWithdraw, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, gateioWithdraw, params, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -550,7 +550,7 @@ func (g *Gateio) GetCryptoDepositAddress(currency string) (string, error) {
 	params := fmt.Sprintf("currency=%s",
 		currency)
 
-	err := g.SendAuthenticatedHTTPRequest(exchange.DefaultSpot, http.MethodPost, gateioDepositAddress, params, &result)
+	err := g.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, gateioDepositAddress, params, &result)
 	if err != nil {
 		return "", err
 	}

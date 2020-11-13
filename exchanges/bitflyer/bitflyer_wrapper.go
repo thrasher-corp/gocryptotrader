@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	spotURL          = "spotAPIURL"
 	chainAnalysisURL = "chainAnalysis"
 )
 
@@ -99,8 +100,8 @@ func (b *Bitflyer) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot: japanURL,
-		chainAnalysisURL:     chainAnalysis,
+		spotURL:          japanURL,
+		chainAnalysisURL: chainAnalysis,
 	})
 }
 

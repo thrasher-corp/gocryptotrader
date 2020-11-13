@@ -61,7 +61,7 @@ func (h *HitBTC) GetCurrencies() (map[string]Currencies, error) {
 	path := fmt.Sprintf("/%s", apiV2Currency)
 
 	ret := make(map[string]Currencies)
-	err := h.SendHTTPRequest(exchange.DefaultSpot, path, &resp.Data)
+	err := h.SendHTTPRequest(spotURL, path, &resp.Data)
 	if err != nil {
 		return ret, err
 	}
@@ -81,7 +81,7 @@ func (h *HitBTC) GetCurrency(currency string) (Currencies, error) {
 	resp := Response{}
 	path := fmt.Sprintf("/%s/%s", apiV2Currency, currency)
 
-	return resp.Data, h.SendHTTPRequest(exchange.DefaultSpot, path, &resp.Data)
+	return resp.Data, h.SendHTTPRequest(spotURL, path, &resp.Data)
 }
 
 // GetSymbols Return the actual list of currency symbols (currency pairs) traded
@@ -94,7 +94,7 @@ func (h *HitBTC) GetSymbols(symbol string) ([]string, error) {
 	path := fmt.Sprintf("/%s/%s", apiV2Symbol, symbol)
 
 	ret := make([]string, 0, len(resp))
-	err := h.SendHTTPRequest(exchange.DefaultSpot, path, &resp)
+	err := h.SendHTTPRequest(spotURL, path, &resp)
 	if err != nil {
 		return ret, err
 	}
@@ -110,21 +110,21 @@ func (h *HitBTC) GetSymbols(symbol string) ([]string, error) {
 func (h *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
 	var resp []Symbol
 	path := fmt.Sprintf("/%s", apiV2Symbol)
-	return resp, h.SendHTTPRequest(exchange.DefaultSpot, path, &resp)
+	return resp, h.SendHTTPRequest(spotURL, path, &resp)
 }
 
 // GetTicker returns ticker information
 func (h *HitBTC) GetTicker(symbol string) (TickerResponse, error) {
 	var resp TickerResponse
 	path := fmt.Sprintf("/%s/%s", apiV2Ticker, symbol)
-	return resp, h.SendHTTPRequest(exchange.DefaultSpot, path, &resp)
+	return resp, h.SendHTTPRequest(spotURL, path, &resp)
 }
 
 // GetTickers returns ticker information
 func (h *HitBTC) GetTickers() ([]TickerResponse, error) {
 	var resp []TickerResponse
 	path := fmt.Sprintf("/%s/", apiV2Ticker)
-	return resp, h.SendHTTPRequest(exchange.DefaultSpot, path, &resp)
+	return resp, h.SendHTTPRequest(spotURL, path, &resp)
 }
 
 // GetTrades returns trades from hitbtc
@@ -154,7 +154,7 @@ func (h *HitBTC) GetTrades(currencyPair, by, sort string, from, till, limit, off
 		apiV2Trades,
 		currencyPair,
 		urlValues.Encode())
-	return resp, h.SendHTTPRequest(exchange.DefaultSpot, path, &resp)
+	return resp, h.SendHTTPRequest(spotURL, path, &resp)
 }
 
 // GetOrderbook an order book is an electronic list of buy and sell orders for a
@@ -173,7 +173,7 @@ func (h *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error)
 		currencyPair,
 		vals.Encode())
 
-	err := h.SendHTTPRequest(exchange.DefaultSpot, path, &resp)
+	err := h.SendHTTPRequest(spotURL, path, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -212,7 +212,7 @@ func (h *HitBTC) GetCandles(currencyPair, limit, period string, start, end time.
 
 	var resp []ChartData
 	path := fmt.Sprintf("/%s/%s?%s", apiV2Candles, currencyPair, vals.Encode())
-	return resp, h.SendHTTPRequest(exchange.DefaultSpot, path, &resp)
+	return resp, h.SendHTTPRequest(spotURL, path, &resp)
 }
 
 // Authenticated Market Data
@@ -521,7 +521,7 @@ func (h *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HitBTC) SendHTTPRequest(ep, path string, result interface{}) error {
-	endpoint, err := h.API.Endpoints.Get(ep)
+	endpoint, err := h.API.Endpoints.GetRunning(ep)
 	if err != nil {
 		return err
 	}

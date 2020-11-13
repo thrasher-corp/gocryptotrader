@@ -31,12 +31,14 @@ import (
 const (
 	// ADD RUNNING REST AND more descriptive strings
 	spot                    = "spotURL"
+	spot2                   = "spot2URL"
 	uFutures                = "ufuturesURL"
 	cmFutures               = "cfuturesURL"
 	interestHistoryEdgeCase = "edgecase1"
 	uFuturesRunningRest     = "ufuturesRunningURL"
 	cmFuturesRunningRest    = "cmfuturesRunningURL"
 	edgecase1RunningURL     = "edgecase1RunningURL"
+	spotWSURL               = "wsURL"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -186,26 +188,15 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:    apiURL,
 		spot:                    spotAPIURL,
+		spot2:                   apiURL,
 		uFutures:                ufuturesAPIURL,
 		cmFutures:               cfuturesAPIURL,
 		interestHistoryEdgeCase: "https://www.binance.com",
-		exchange.DefaultSpotWS:  binanceDefaultWebsocketURL,
+		spotWSURL:               binanceDefaultWebsocketURL,
 	})
-	defaultURLsMap := b.API.Endpoints.GetAll()
-	fmt.Println(defaultURLsMap)
-	for a, defURL := range defaultURLsMap {
-		if defURL == "" {
-			log.Warnf(log.Global, fmt.Sprintf("default url not set for: %v", a))
-			continue
-		}
-		err = b.API.Endpoints.Set(exchange.Running+a, defURL, true)
-		if err != nil {
-			log.Error(log.Global, err)
-		}
-	}
-	fmt.Println(b.API.Endpoints.GetAll())
+
+	fmt.Println(b.API.Endpoints.GetURLMap(false), len(b.API.Endpoints.GetURLMap(false)))
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -215,7 +206,6 @@ func (b *Binance) SetDefaults() {
 // Setup takes in the supplied exchange configuration details and sets params
 func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	if !exch.Enabled {
-		b.SetEnabled(false)
 		return nil
 	}
 
@@ -223,7 +213,11 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	epoint, err := b.API.Endpoints.Get(exchange.DefaultSpotWS)
+	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	if err != nil {
+		return err
+	}
+	epoint, err := b.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}
@@ -232,7 +226,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       epoint,
+		DefaultURL:                       defaultEpoint,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       epoint,
 		Connector:                        b.WsConnect,

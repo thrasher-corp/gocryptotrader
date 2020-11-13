@@ -153,7 +153,8 @@ type FeaturesSupported struct {
 
 // Endpoints bra
 type Endpoints struct {
-	m map[string]string
+	defaults map[string]string
+	running  map[string]string
 	sync.Mutex
 }
 

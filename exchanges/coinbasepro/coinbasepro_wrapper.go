@@ -28,6 +28,8 @@ import (
 )
 
 const (
+	spotURL    = "spotAPIURL"
+	spotWSURL  = "spotWSURL"
 	sandboxURL = "sandbox"
 )
 
@@ -136,9 +138,9 @@ func (c *CoinbasePro) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	c.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   coinbaseproAPIURL,
-		sandboxURL:             coinbaseproSandboxAPIURL,
-		exchange.DefaultSpotWS: coinbaseproWebsocketURL,
+		spotURL:    coinbaseproAPIURL,
+		sandboxURL: coinbaseproSandboxAPIURL,
+		spotWSURL:  coinbaseproWebsocketURL,
 	})
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -158,12 +160,12 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsDefaultEndpoint, err := c.API.Endpoints.Get(exchange.DefaultSpotWS)
+	wsDefaultEndpoint, err := c.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := c.API.Endpoints.Get(exchange.RunningWS)
+	wsRunningURL, err := c.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}

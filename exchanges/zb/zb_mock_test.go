@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	}
 
 	z.HTTPClient = newClient
-	endpoints := z.API.Endpoints.GetAll()
+	endpoints := z.API.Endpoints.GetURLMap(false)
 	for k := range endpoints {
 		endpoints[k] = serverDetails
 	}

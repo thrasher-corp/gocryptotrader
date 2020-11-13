@@ -28,6 +28,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	spotURL   = "spotAPIURL"
+	spotWSURL = "spotWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	c.SetDefaults()
@@ -114,8 +119,8 @@ func (c *COINUT) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   coinutAPIURL,
-		exchange.DefaultSpotWS: coinutWebsocketURL,
+		spotURL:   coinutAPIURL,
+		spotWSURL: coinutWebsocketURL,
 	})
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -136,7 +141,12 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsRunningURL, err := c.API.Endpoints.Get(exchange.RunningWS)
+	defaultWSURL, err := c.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	if err != nil {
+		return err
+	}
+
+	wsRunningURL, err := c.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}
@@ -146,7 +156,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       coinutWebsocketURL,
+		DefaultURL:                       defaultWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        c.WsConnect,

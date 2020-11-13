@@ -26,6 +26,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	spotURL   = "spotAPIURL"
+	spotWSURL = "spotWSURL"
+)
+
 // GetDefaultConfig returns a default exchange config
 func (p *Poloniex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	p.SetDefaults()
@@ -132,8 +137,8 @@ func (p *Poloniex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	p.API.Endpoints.CreateMap(map[string]string{
-		exchange.DefaultSpot:   poloniexAPIURL,
-		exchange.DefaultSpotWS: poloniexWebsocketAddress,
+		spotURL:   poloniexAPIURL,
+		spotWSURL: poloniexWebsocketAddress,
 	})
 	p.Websocket = stream.New()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -153,7 +158,12 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsRunningURL, err := p.API.Endpoints.Get(exchange.RunningWS)
+	defaultWSURL, err := p.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	if err != nil {
+		return err
+	}
+
+	wsRunningURL, err := p.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}
@@ -163,7 +173,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       poloniexWebsocketAddress,
+		DefaultURL:                       defaultWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        p.WsConnect,
