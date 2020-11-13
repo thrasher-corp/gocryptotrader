@@ -4,20 +4,33 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gct-ta/indicators"
+	"github.com/thrasher-corp/goose"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
-	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
+	config2 "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	exchange2 "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -55,7 +68,7 @@ func (s *TestStrategy) OnSignal(d interfaces.DataHandler, p portfolio.PortfolioH
 func TestBackTest(t *testing.T) {
 	bt := New()
 
-	data := kline2.DataFromKline{
+	data := &kline2.DataFromKline{
 		Item: genOHCLVData(),
 	}
 	err := data.Load()
@@ -63,16 +76,23 @@ func TestBackTest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bt.Data = &data
-	bt.Portfolio, err = portfolio.New(1000, 100, 1000, false)
-	if err != nil {
-		t.Fatal(err)
+	bt.Data = data
+	bt.Portfolio = &portfolio.Portfolio{
+		InitialFunds: 1337,
+		SizeManager:  &size.Size{},
+		RiskManager:  &risk.Risk{},
 	}
 
 	bt.Strategy = &TestStrategy{}
 	bt.Exchange = &exchange.Exchange{
-		MakerFee: 0.00,
-		TakerFee: 0.00,
+		CurrencySettings: exchange.CurrencySettings{
+			CurrencyPair: currency.Pair{
+				Delimiter: "-",
+				Base:      currency.BTC,
+				Quote:     currency.USD,
+			},
+			AssetType: asset.Spot,
+		},
 	}
 
 	statistic := statistics.Statistic{
@@ -123,4 +143,152 @@ func genOHCLVData() kline.Item {
 	}
 
 	return outItem
+}
+
+func TestLoadDataFromAPI(t *testing.T) {
+	cfg := config.Config{
+		StrategyToLoad: "dollarcostaverage",
+		ExchangeSettings: config.ExchangeSettings{
+			Name:            "binance",
+			Asset:           asset.Spot.String(),
+			Base:            currency.BTC.String(),
+			Quote:           currency.USDT.String(),
+			InitialFunds:    1337,
+			MinimumBuySize:  0.1,
+			MaximumBuySize:  1,
+			DefaultBuySize:  0.5,
+			MinimumSellSize: 0.1,
+			MaximumSellSize: 2,
+			DefaultSellSize: 0.5,
+			CanUseLeverage:  false,
+			MaximumLeverage: 0,
+			MakerFee:        0.01,
+			TakerFee:        0.02,
+		},
+		CandleData: &config.CandleData{
+			StartDate: time.Now().Add(-time.Hour * 24 * 7),
+			EndDate:   time.Now(),
+			Interval:  kline.OneHour.Duration(),
+		},
+		DatabaseData: nil,
+		LiveData:     nil,
+		PortfolioSettings: config.PortfolioSettings{
+			DiversificationSomething: 0,
+			CanUseLeverage:           false,
+			MaximumLeverage:          0,
+			MinimumBuySize:           0.1,
+			MaximumBuySize:           1,
+			DefaultBuySize:           0.5,
+			MinimumSellSize:          0.1,
+			MaximumSellSize:          2,
+			DefaultSellSize:          0.5,
+		},
+	}
+	bt, err := NewFromConfig(&cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(bt.Data.List()) == 0 {
+		t.Error("no data loaded")
+	}
+}
+
+func TestLoadDataFromCandleDatabase(t *testing.T) {
+	cfg := config.Config{
+		StrategyToLoad: "dollarcostaverage",
+		ExchangeSettings: config.ExchangeSettings{
+			Name:            "binance",
+			Asset:           asset.Spot.String(),
+			Base:            currency.BTC.String(),
+			Quote:           currency.USDT.String(),
+			InitialFunds:    1337,
+			MinimumBuySize:  0.1,
+			MaximumBuySize:  1,
+			DefaultBuySize:  0.5,
+			MinimumSellSize: 0.1,
+			MaximumSellSize: 2,
+			DefaultSellSize: 0.5,
+			CanUseLeverage:  false,
+			MaximumLeverage: 0,
+			MakerFee:        0.01,
+			TakerFee:        0.02,
+		},
+		DatabaseData: &config.DatabaseData{
+			DataType:  "candle",
+			StartDate: time.Now().Add(-time.Hour),
+			EndDate:   time.Now(),
+			Interval:  kline.OneMin.Duration(),
+			ConfigOverride: &database.Config{
+				Enabled: true,
+				Verbose: false,
+				Driver:  "sqlite",
+				ConnectionDetails: drivers.ConnectionDetails{
+					Host:     "localhost",
+					Database: "superbutts",
+				},
+			},
+		},
+		PortfolioSettings: config.PortfolioSettings{
+			DiversificationSomething: 0,
+			CanUseLeverage:           false,
+			MaximumLeverage:          0,
+			MinimumBuySize:           0.1,
+			MaximumBuySize:           1,
+			DefaultBuySize:           0.5,
+			MinimumSellSize:          0.1,
+			MaximumSellSize:          2,
+			DefaultSellSize:          0.5,
+		},
+	}
+	var err error
+	engine.Bot, err = engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine.Bot.Config = &config2.Config{}
+	err = engine.Bot.Config.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatalf("SetupTest: Failed to load config: %s", err)
+	}
+
+	if engine.Bot.GetExchangeByName("Bitstamp") == nil {
+		err = engine.Bot.LoadExchange("Bitstamp", false, nil)
+		if err != nil {
+			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
+		}
+	}
+	err = engine.Bot.DatabaseManager.Start(engine.Bot)
+	what := &database.Instance{
+		SQL:       nil,
+		DataPath:  "",
+		Config:    cfg.DatabaseData.ConfigOverride,
+		Connected: false,
+		Mu:        sync.RWMutex{},
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	path := filepath.Join("..", "..", "database", "migrations")
+	err = goose.Run("up", what.SQL, repository.GetSQLDialect(), path, "")
+	if err != nil {
+		t.Fatalf("failed to run migrations %v", err)
+	}
+	uuider, _ := uuid.NewV4()
+	err = exchange2.Insert(exchange2.Details{Name: "Bitstamp", UUID: uuider})
+	if err != nil {
+		t.Fatalf("failed to insert exchange %v", err)
+	}
+	bt, err := loadData(
+		&cfg,
+		engine.Bot.GetExchangeByName("Bitstamp"),
+		currency.NewPair(currency.BTC, currency.USD),
+		asset.Spot)
+
+	if err != nil {
+		t.Error(err)
+	}
+	if len(bt.Data.List()) == 0 {
+		t.Error("no data loaded")
+	}
 }
