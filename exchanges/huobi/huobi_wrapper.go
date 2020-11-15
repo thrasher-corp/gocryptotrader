@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -25,6 +26,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const huobiWithdrawalPermissions = exchange.AutoWithdrawCryptoWithSetup |
+	exchange.NoFiatWithdrawals
+
+// Not integrated for some reason
+const huobiKlineResultLimit = 2000
+
 // GetDefaultConfig returns a default exchange config
 func (h *HUOBI) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	h.SetDefaults()
@@ -38,7 +45,7 @@ func (h *HUOBI) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if h.Protocol.AutoPairUpdateEnabled() {
 		err = h.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -63,65 +70,84 @@ func (h *HUOBI) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	h.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:    true,
-				TickerFetching:    true,
-				KlineFetching:     true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				AutoPairUpdates:   true,
-				AccountInfo:       true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrders:      true,
-				CancelOrder:       true,
-				SubmitOrder:       true,
-				CryptoDeposit:     true,
-				CryptoWithdrawal:  true,
-				TradeFee:          true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				KlineFetching:          true,
-				OrderbookFetching:      true,
-				TradeFetching:          true,
-				Subscribe:              true,
-				Unsubscribe:            true,
-				AuthenticatedEndpoints: true,
-				AccountInfo:            true,
-				MessageCorrelation:     true,
-				GetOrder:               true,
-				GetOrders:              true,
-				TickerFetching:         true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
-				exchange.NoFiatWithdrawals,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				Intervals: true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.OneDay.Word():     true,
-					kline.OneWeek.Word():    true,
-					kline.OneMonth.Word():   true,
-					kline.OneYear.Word():    true,
-				},
-				ResultLimit: 2000,
-			},
-		},
+	err = h.Protocol.SetupREST(&protocol.State{
+		TickerBatching:    convert.BoolPtrT,
+		TickerFetching:    convert.BoolPtrT,
+		KlineFetching:     convert.BoolPtrT,
+		TradeFetching:     convert.BoolPtrT,
+		OrderbookFetching: convert.BoolPtrT,
+		AccountInfo:       convert.BoolPtrT,
+		GetOrder:          convert.BoolPtrT,
+		GetOrders:         convert.BoolPtrT,
+		CancelOrders:      convert.BoolPtrT,
+		CancelOrder:       convert.BoolPtrT,
+		SubmitOrder:       convert.BoolPtrT,
+		CryptoDeposit:     convert.BoolPtrT,
+		CryptoWithdrawal:  convert.BoolPtrT,
+		TradeFee:          convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = h.Protocol.SetupWebsocket(&protocol.State{
+		KlineFetching:          convert.BoolPtrT,
+		OrderbookFetching:      convert.BoolPtrT,
+		TradeFetching:          convert.BoolPtrT,
+		Subscribe:              convert.BoolPtrT,
+		Unsubscribe:            convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		AccountInfo:            convert.BoolPtrT,
+		MessageCorrelation:     convert.BoolPtrT,
+		GetOrder:               convert.BoolPtrT,
+		GetOrders:              convert.BoolPtrT,
+		TickerFetching:         convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = h.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: huobiWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.ThirtyMin:  true,
+			kline.OneHour:    true,
+			kline.FourHour:   true,
+			kline.OneDay:     true,
+			kline.OneWeek:    true,
+			kline.OneMonth:   true,
+			kline.OneYear:    true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	// h.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:                  true,
+	// 		Websocket:             true,
+	// 		RESTCapabilities:      protocol.Features{},
+	// 		WebsocketCapabilities: protocol.Features{},
+	// 		WithdrawPermissions: ,
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			Intervals: true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+
+	// 			},
+	// 			ResultLimit: 2000,
+	// 		},
+	// 	},
+	// }
 
 	h.Requester = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -148,7 +174,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = h.Websocket.Setup(&stream.WebsocketSetup{
+	return h.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -160,28 +186,12 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       h.Subscribe,
 		Unsubscriber:                     h.Unsubscribe,
 		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
-		Features:                         &h.Features.Supports.WebsocketCapabilities,
+		Features:                         h.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		RateLimit:                        rateLimit,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
-	if err != nil {
-		return err
-	}
-
-	// err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-	// 	URL: exch.API.Endpoints.WebsocketURL,
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-
-	// return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-	// 	URL:                        wsAccountsOrdersURL,
-	// 	DedicatedAuthenticatedConn: true,
-	// })
-	return nil
 }
 
 // Start starts the HUOBI go routine
@@ -270,7 +280,7 @@ func (h *HUOBI) Run() {
 		}
 	}
 
-	if !h.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+	if !h.Protocol.AutoPairUpdateEnabled() && !forceUpdate {
 		return
 	}
 

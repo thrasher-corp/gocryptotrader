@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -24,6 +25,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const itbitWithdrawalPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+	exchange.WithdrawFiatViaWebsiteOnly
+
 // GetDefaultConfig returns a default exchange config
 func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	i.SetDefaults()
@@ -37,7 +41,7 @@ func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if i.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if i.Protocol.AutoPairUpdateEnabled() {
 		err = i.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -62,32 +66,31 @@ func (i *ItBit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	i.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: false,
-			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				AccountInfo:       true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrder:       true,
-				SubmitOrder:       true,
-				DepositHistory:    true,
-				WithdrawalHistory: true,
-				UserTradeHistory:  true,
-				CryptoDeposit:     true,
-				TradeFee:          true,
-				FiatWithdrawalFee: true,
-			},
-			WithdrawPermissions: exchange.WithdrawCryptoViaWebsiteOnly |
-				exchange.WithdrawFiatViaWebsiteOnly,
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: false,
-		},
+	err = i.Protocol.SetupREST(&protocol.State{
+		TickerFetching:    convert.BoolPtrT,
+		TradeFetching:     convert.BoolPtrT,
+		OrderbookFetching: convert.BoolPtrT,
+		AccountInfo:       convert.BoolPtrT,
+		GetOrder:          convert.BoolPtrT,
+		GetOrders:         convert.BoolPtrT,
+		CancelOrder:       convert.BoolPtrT,
+		SubmitOrder:       convert.BoolPtrT,
+		DepositHistory:    convert.BoolPtrT,
+		WithdrawalHistory: convert.BoolPtrT,
+		UserTradeHistory:  convert.BoolPtrT,
+		CryptoDeposit:     convert.BoolPtrT,
+		TradeFee:          convert.BoolPtrT,
+		FiatWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = i.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: itbitWithdrawalPermissions,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	i.Requester = request.New(i.Name,

@@ -26,6 +26,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const gateioWithdrawalPermissions = exchange.AutoWithdrawCrypto |
+	exchange.NoFiatWithdrawals
+
 // GetDefaultConfig returns a default exchange config
 func (g *Gateio) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	g.SetDefaults()
@@ -39,7 +42,7 @@ func (g *Gateio) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if g.Protocol.AutoPairUpdateEnabled() {
 		err = g.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -64,65 +67,84 @@ func (g *Gateio) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	g.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				CryptoWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				TickerFetching:         true,
-				OrderbookFetching:      true,
-				TradeFetching:          true,
-				KlineFetching:          true,
-				FullPayloadSubscribe:   true,
-				AuthenticatedEndpoints: true,
-				MessageCorrelation:     true,
-				GetOrder:               true,
-				AccountBalance:         true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.NoFiatWithdrawals,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				Intervals: true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-				},
-			},
-		},
+	err = g.Protocol.SetupREST(&protocol.State{
+		TickerBatching:      convert.BoolPtrT,
+		TickerFetching:      convert.BoolPtrT,
+		KlineFetching:       convert.BoolPtrT,
+		TradeFetching:       convert.BoolPtrT,
+		OrderbookFetching:   convert.BoolPtrT,
+		AccountInfo:         convert.BoolPtrT,
+		GetOrder:            convert.BoolPtrT,
+		GetOrders:           convert.BoolPtrT,
+		CancelOrders:        convert.BoolPtrT,
+		CancelOrder:         convert.BoolPtrT,
+		SubmitOrder:         convert.BoolPtrT,
+		UserTradeHistory:    convert.BoolPtrT,
+		CryptoDeposit:       convert.BoolPtrT,
+		CryptoWithdrawal:    convert.BoolPtrT,
+		TradeFee:            convert.BoolPtrT,
+		CryptoWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = g.Protocol.SetupWebsocket(&protocol.State{
+		TickerFetching:         convert.BoolPtrT,
+		OrderbookFetching:      convert.BoolPtrT,
+		TradeFetching:          convert.BoolPtrT,
+		KlineFetching:          convert.BoolPtrT,
+		FullPayloadSubscribe:   convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		MessageCorrelation:     convert.BoolPtrT,
+		GetOrder:               convert.BoolPtrT,
+		AccountBalance:         convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = g.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: gateioWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.ThreeMin:   true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.ThirtyMin:  true,
+			kline.OneHour:    true,
+			kline.TwoHour:    true,
+			kline.FourHour:   true,
+			kline.SixHour:    true,
+			kline.TwelveHour: true,
+			kline.OneDay:     true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	// g.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:                  true,
+	// 		Websocket:             true,
+	// 		RESTCapabilities:      protocol.Features{},
+	// 		WebsocketCapabilities: protocol.Features{},
+	// 		WithdrawPermissions: ,
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			Intervals: true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+
+	// 			},
+	// 		},
+	// 	},
+	// }
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 
@@ -149,7 +171,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = g.Websocket.Setup(&stream.WebsocketSetup{
+	return g.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -160,21 +182,13 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		Connector:                        g.WsConnect,
 		Subscriber:                       g.Subscribe,
 		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
-		Features:                         &g.Features.Supports.WebsocketCapabilities,
+		Features:                         g.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		RateLimit:                        gateioWebsocketRateLimit,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
-	if err != nil {
-		return err
-	}
-
-	// return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-	// 	URL: exch.API.Endpoints.WebsocketURL,
-	// })
-	return nil
 }
 
 // Start starts the GateIO go routine
@@ -192,7 +206,7 @@ func (g *Gateio) Run() {
 		g.PrintEnabledPairs()
 	}
 
-	if !g.GetEnabledFeatures().AutoPairUpdates {
+	if !g.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 

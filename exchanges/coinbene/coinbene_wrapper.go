@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -25,6 +26,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const coinbeneWithdrawalPermission = exchange.NoFiatWithdrawals |
+	exchange.WithdrawCryptoViaWebsiteOnly
+
 // GetDefaultConfig returns a default exchange config
 func (c *Coinbene) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	c.SetDefaults()
@@ -38,7 +42,7 @@ func (c *Coinbene) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if c.Protocol.AutoPairUpdateEnabled() {
 		err = c.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -83,64 +87,83 @@ func (c *Coinbene) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	c.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				AccountBalance:    true,
-				AutoPairUpdates:   true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrder:       true,
-				CancelOrders:      true,
-				SubmitOrder:       true,
-				TradeFee:          true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				TickerFetching:         true,
-				AccountBalance:         true,
-				AccountInfo:            true,
-				OrderbookFetching:      true,
-				TradeFetching:          true,
-				KlineFetching:          true,
-				Subscribe:              true,
-				Unsubscribe:            true,
-				AuthenticatedEndpoints: true,
-				GetOrders:              true,
-				GetOrder:               true,
-			},
-			WithdrawPermissions: exchange.NoFiatWithdrawals |
-				exchange.WithdrawCryptoViaWebsiteOnly,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				DateRanges: true,
-				Intervals:  true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-					kline.OneWeek.Word():    true,
-				},
-			},
-		},
+	err = c.Protocol.SetupREST(&protocol.State{
+		TickerFetching:    convert.BoolPtrT,
+		TradeFetching:     convert.BoolPtrT,
+		OrderbookFetching: convert.BoolPtrT,
+		AccountBalance:    convert.BoolPtrT,
+		GetOrder:          convert.BoolPtrT,
+		GetOrders:         convert.BoolPtrT,
+		CancelOrder:       convert.BoolPtrT,
+		CancelOrders:      convert.BoolPtrT,
+		SubmitOrder:       convert.BoolPtrT,
+		TradeFee:          convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = c.Protocol.SetupWebsocket(&protocol.State{
+		TickerFetching:         convert.BoolPtrT,
+		AccountBalance:         convert.BoolPtrT,
+		AccountInfo:            convert.BoolPtrT,
+		OrderbookFetching:      convert.BoolPtrT,
+		TradeFetching:          convert.BoolPtrT,
+		KlineFetching:          convert.BoolPtrT,
+		Subscribe:              convert.BoolPtrT,
+		Unsubscribe:            convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		GetOrders:              convert.BoolPtrT,
+		GetOrder:               convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = c.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: coinbeneWithdrawalPermission,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.ThreeMin:   true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.ThirtyMin:  true,
+			kline.OneHour:    true,
+			kline.TwoHour:    true,
+			kline.FourHour:   true,
+			kline.SixHour:    true,
+			kline.TwelveHour: true,
+			kline.OneDay:     true,
+			kline.ThreeDay:   true,
+			kline.OneWeek:    true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	// c.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:                  true,
+	// 		Websocket:             true,
+	// 		RESTCapabilities:      protocol.Features{},
+	// 		WebsocketCapabilities: protocol.Features{},
+	// 		WithdrawPermissions: ,
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			DateRanges: true,
+	// 			Intervals:  true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+
+	// 			},
+	// 		},
+	// 	},
+	// }
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
@@ -166,7 +189,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = c.Websocket.Setup(&stream.WebsocketSetup{
+	return c.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -178,21 +201,13 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       c.Subscribe,
 		Unsubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
+		Features:                         c.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
 	})
-	if err != nil {
-		return err
-	}
-
-	// return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
-	// 	URL: exch.API.Endpoints.WebsocketURL,
-	// })
-	return nil
 }
 
 // Start starts the Coinbene go routine
@@ -216,7 +231,7 @@ func (c *Coinbene) Run() {
 		c.PrintEnabledPairs()
 	}
 
-	if !c.GetEnabledFeatures().AutoPairUpdates {
+	if !c.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 

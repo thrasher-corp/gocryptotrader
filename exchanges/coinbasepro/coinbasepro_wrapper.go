@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -25,6 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const coinbaseproWithdrawalPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+	exchange.AutoWithdrawFiatWithAPIPermission
+const coinbaseproKlineResultLimit = 300
+
 // GetDefaultConfig returns a default exchange config
 func (c *CoinbasePro) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	c.SetDefaults()
@@ -38,7 +43,7 @@ func (c *CoinbasePro) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if c.Protocol.AutoPairUpdateEnabled() {
 		err = c.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -65,66 +70,89 @@ func (c *CoinbasePro) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	c.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				KlineFetching:     true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				AutoPairUpdates:   true,
-				AccountInfo:       true,
-				GetOrder:          true,
-				GetOrders:         true,
-				CancelOrders:      true,
-				CancelOrder:       true,
-				SubmitOrder:       true,
-				DepositHistory:    true,
-				WithdrawalHistory: true,
-				UserTradeHistory:  true,
-				CryptoDeposit:     true,
-				CryptoWithdrawal:  true,
-				FiatDeposit:       true,
-				FiatWithdraw:      true,
-				TradeFee:          true,
-				FiatDepositFee:    true,
-				FiatWithdrawalFee: true,
-				CandleHistory:     true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				TickerFetching:         true,
-				OrderbookFetching:      true,
-				Subscribe:              true,
-				Unsubscribe:            true,
-				AuthenticatedEndpoints: true,
-				MessageSequenceNumbers: true,
-				GetOrders:              true,
-				GetOrder:               true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
-				exchange.AutoWithdrawFiatWithAPIPermission,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				DateRanges: true,
-				Intervals:  true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.OneHour.Word():    true,
-					kline.SixHour.Word():    true,
-					kline.OneDay.Word():     true,
-				},
-				ResultLimit: 300,
-			},
-		},
+	err = c.Protocol.SetupREST(&protocol.State{
+		TickerFetching:    convert.BoolPtrT,
+		KlineFetching:     convert.BoolPtrT,
+		TradeFetching:     convert.BoolPtrT,
+		OrderbookFetching: convert.BoolPtrT,
+		AccountInfo:       convert.BoolPtrT,
+		GetOrder:          convert.BoolPtrT,
+		GetOrders:         convert.BoolPtrT,
+		CancelOrders:      convert.BoolPtrT,
+		CancelOrder:       convert.BoolPtrT,
+		SubmitOrder:       convert.BoolPtrT,
+		DepositHistory:    convert.BoolPtrT,
+		WithdrawalHistory: convert.BoolPtrT,
+		UserTradeHistory:  convert.BoolPtrT,
+		CryptoDeposit:     convert.BoolPtrT,
+		CryptoWithdrawal:  convert.BoolPtrT,
+		FiatDeposit:       convert.BoolPtrT,
+		FiatWithdraw:      convert.BoolPtrT,
+		TradeFee:          convert.BoolPtrT,
+		FiatDepositFee:    convert.BoolPtrT,
+		FiatWithdrawalFee: convert.BoolPtrT,
+		CandleHistory:     convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = c.Protocol.SetupWebsocket(&protocol.State{
+		TickerFetching:         convert.BoolPtrT,
+		OrderbookFetching:      convert.BoolPtrT,
+		Subscribe:              convert.BoolPtrT,
+		Unsubscribe:            convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		MessageSequenceNumbers: convert.BoolPtrT,
+		GetOrders:              convert.BoolPtrT,
+		GetOrder:               convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = c.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: coinbaseproWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.OneHour:    true,
+			kline.SixHour:    true,
+			kline.OneDay:     true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	// c.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:      true,
+	// 		Websocket: true,
+	// 		RESTCapabilities: protocol.Features{
+
+	// 		},
+	// 		WebsocketCapabilities: protocol.Features{
+
+	// 		},
+	// 		WithdrawPermissions: ,
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			DateRanges: true,
+	// 			Intervals:  true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+
+	// 			},
+	// 			ResultLimit: 300,
+	// 		},
+	// 	},
+	// }
 
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -163,7 +191,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       c.Subscribe,
 		Unsubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
+		Features:                         c.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
@@ -253,7 +281,7 @@ func (c *CoinbasePro) Run() {
 		}
 	}
 
-	if !c.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+	if !c.Protocol.AutoPairUpdateEnabled() && !forceUpdate {
 		return
 	}
 
@@ -790,7 +818,7 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		return kline.Item{}, err
 	}
 
-	if kline.TotalCandlesPerInterval(start, end, interval) > c.Features.Enabled.Kline.ResultLimit {
+	if kline.TotalCandlesPerInterval(start, end, interval) > coinbaseproKlineResultLimit {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
@@ -851,7 +879,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 	if err != nil {
 		return kline.Item{}, err
 	}
-	dates := kline.CalcDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcDateRanges(start, end, interval, coinbaseproKlineResultLimit)
 
 	formattedPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -24,6 +25,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+// needs to be implemented
+const ftxKlineResultLimit = 5000
+
 // GetDefaultConfig returns a default exchange config
 func (f *FTX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	f.SetDefaults()
@@ -37,7 +41,7 @@ func (f *FTX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if f.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if f.Protocol.AutoPairUpdateEnabled() {
 		err = f.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -85,57 +89,79 @@ func (f *FTX) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	f.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				TradeFee:            true,
-				FiatDepositFee:      true,
-				FiatWithdrawalFee:   true,
-				CryptoWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				OrderbookFetching: true,
-				TradeFetching:     true,
-				Subscribe:         true,
-				Unsubscribe:       true,
-				GetOrders:         true,
-				GetOrder:          true,
-			},
-			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				DateRanges: true,
-				Intervals:  true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.FifteenSecond.Word(): true,
-					kline.OneMin.Word():        true,
-					kline.FiveMin.Word():       true,
-					kline.FifteenMin.Word():    true,
-					kline.OneHour.Word():       true,
-					kline.FourHour.Word():      true,
-					kline.OneDay.Word():        true,
-				},
-				ResultLimit: 5000,
-			},
-		},
+	err = f.Protocol.SetupREST(&protocol.State{
+		TickerFetching:      convert.BoolPtrT,
+		KlineFetching:       convert.BoolPtrT,
+		TradeFetching:       convert.BoolPtrT,
+		OrderbookFetching:   convert.BoolPtrT,
+		AccountInfo:         convert.BoolPtrT,
+		GetOrder:            convert.BoolPtrT,
+		GetOrders:           convert.BoolPtrT,
+		CancelOrders:        convert.BoolPtrT,
+		CancelOrder:         convert.BoolPtrT,
+		SubmitOrder:         convert.BoolPtrT,
+		TradeFee:            convert.BoolPtrT,
+		FiatDepositFee:      convert.BoolPtrT,
+		FiatWithdrawalFee:   convert.BoolPtrT,
+		CryptoWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = f.Protocol.SetupWebsocket(&protocol.State{
+		OrderbookFetching: convert.BoolPtrT,
+		TradeFetching:     convert.BoolPtrT,
+		Subscribe:         convert.BoolPtrT,
+		Unsubscribe:       convert.BoolPtrT,
+		GetOrders:         convert.BoolPtrT,
+		GetOrder:          convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = f.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: exchange.NoAPIWithdrawalMethods,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.FifteenSecond: true,
+			kline.OneMin:        true,
+			kline.FiveMin:       true,
+			kline.FifteenMin:    true,
+			kline.OneHour:       true,
+			kline.FourHour:      true,
+			kline.OneDay:        true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	// f.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:             true,
+	// 		Websocket:        true,
+	// 		RESTCapabilities: protocol.Features{},
+	// 		WebsocketCapabilities: protocol.Features{
+
+	// 		},
+	// 		WithdrawPermissions: ,
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			DateRanges: true,
+	// 			Intervals:  true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+
+	// 			},
+	// 			ResultLimit: 5000,
+	// 		},
+	// 	},
+	// }
 
 	f.Requester = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -173,7 +199,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       f.Subscribe,
 		Unsubscriber:                     f.Unsubscribe,
 		GenerateSubscriptions:            f.GenerateDefaultSubscriptions,
-		Features:                         &f.Features.Supports.WebsocketCapabilities,
+		Features:                         f.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,
@@ -206,7 +232,7 @@ func (f *FTX) Run() {
 		f.PrintEnabledPairs()
 	}
 
-	if !f.GetEnabledFeatures().AutoPairUpdates {
+	if !f.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 
@@ -971,7 +997,7 @@ func (f *FTX) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.
 
 	ohlcData, err := f.GetHistoricalData(formattedPair.String(),
 		f.FormatExchangeKlineInterval(interval),
-		strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
+		strconv.FormatInt(ftxKlineResultLimit, 10),
 		start, end)
 	if err != nil {
 		return kline.Item{}, err
@@ -1010,7 +1036,7 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcDateRanges(start, end, interval, ftxKlineResultLimit)
 
 	formattedPair, err := f.FormatExchangeCurrency(p, a)
 	if err != nil {
@@ -1020,7 +1046,7 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	for x := range dates {
 		ohlcData, err := f.GetHistoricalData(formattedPair.String(),
 			f.FormatExchangeKlineInterval(interval),
-			strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
+			strconv.FormatInt(ftxKlineResultLimit, 10),
 			dates[x].Start, dates[x].End)
 		if err != nil {
 			return kline.Item{}, err

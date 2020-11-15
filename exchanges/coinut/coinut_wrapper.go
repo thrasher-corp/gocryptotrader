@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -26,6 +27,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const coinutWithdrawalPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+	exchange.WithdrawFiatViaWebsiteOnly
+
 // GetDefaultConfig returns a default exchange config
 func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	c.SetDefaults()
@@ -39,7 +43,7 @@ func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if c.Protocol.AutoPairUpdateEnabled() {
 		err = c.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -64,49 +68,55 @@ func (c *COINUT) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	c.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				AutoPairUpdates:   true,
-				AccountInfo:       true,
-				GetOrders:         true,
-				CancelOrders:      true,
-				CancelOrder:       true,
-				SubmitOrder:       true,
-				SubmitOrders:      true,
-				UserTradeHistory:  true,
-				TradeFee:          true,
-				FiatDepositFee:    true,
-				FiatWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				AccountBalance:         true,
-				GetOrders:              true,
-				CancelOrders:           true,
-				CancelOrder:            true,
-				SubmitOrder:            true,
-				SubmitOrders:           true,
-				UserTradeHistory:       true,
-				TickerFetching:         true,
-				TradeFetching:          true,
-				OrderbookFetching:      true,
-				AccountInfo:            true,
-				Subscribe:              true,
-				Unsubscribe:            true,
-				AuthenticatedEndpoints: true,
-				MessageCorrelation:     true,
-			},
-			WithdrawPermissions: exchange.WithdrawCryptoViaWebsiteOnly |
-				exchange.WithdrawFiatViaWebsiteOnly,
+	err = c.Protocol.SetupREST(&protocol.State{
+		TickerFetching:    convert.BoolPtrT,
+		TradeFetching:     convert.BoolPtrT,
+		OrderbookFetching: convert.BoolPtrT,
+		AccountInfo:       convert.BoolPtrT,
+		GetOrders:         convert.BoolPtrT,
+		CancelOrders:      convert.BoolPtrT,
+		CancelOrder:       convert.BoolPtrT,
+		SubmitOrder:       convert.BoolPtrT,
+		SubmitOrders:      convert.BoolPtrT,
+		UserTradeHistory:  convert.BoolPtrT,
+		TradeFee:          convert.BoolPtrT,
+		FiatDepositFee:    convert.BoolPtrT,
+		FiatWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = c.Protocol.SetupWebsocket(&protocol.State{
+		AccountBalance:         convert.BoolPtrT,
+		GetOrders:              convert.BoolPtrT,
+		CancelOrders:           convert.BoolPtrT,
+		CancelOrder:            convert.BoolPtrT,
+		SubmitOrder:            convert.BoolPtrT,
+		SubmitOrders:           convert.BoolPtrT,
+		UserTradeHistory:       convert.BoolPtrT,
+		TickerFetching:         convert.BoolPtrT,
+		TradeFetching:          convert.BoolPtrT,
+		OrderbookFetching:      convert.BoolPtrT,
+		AccountInfo:            convert.BoolPtrT,
+		Subscribe:              convert.BoolPtrT,
+		Unsubscribe:            convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		MessageCorrelation:     convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = c.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions:   coinutWithdrawalPermissions,
+		AutoPairUpdate:          convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			// Needs to be implemented
 		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	c.Requester = request.New(c.Name,
@@ -146,7 +156,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       c.Subscribe,
 		Unsubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
+		Features:                         c.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
@@ -235,7 +245,7 @@ func (c *COINUT) Run() {
 		}
 	}
 
-	if !c.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+	if !c.Protocol.AutoPairUpdateEnabled() && !forceUpdate {
 		return
 	}
 

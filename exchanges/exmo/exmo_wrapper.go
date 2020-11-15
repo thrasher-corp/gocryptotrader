@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -24,6 +25,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const exmoWithdrawalPermissions = exchange.AutoWithdrawCryptoWithSetup |
+	exchange.NoFiatWithdrawals
+
 // GetDefaultConfig returns a default exchange config
 func (e *EXMO) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	e.SetDefaults()
@@ -37,7 +41,7 @@ func (e *EXMO) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if e.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if e.Protocol.AutoPairUpdateEnabled() {
 		err = e.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -69,38 +73,37 @@ func (e *EXMO) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	e.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: false,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				FiatDepositFee:      true,
-				FiatWithdrawalFee:   true,
-				CryptoDepositFee:    true,
-				CryptoWithdrawalFee: true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
-				exchange.NoFiatWithdrawals,
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-		},
+	err = e.Protocol.SetupREST(&protocol.State{
+		TickerBatching:      convert.BoolPtrT,
+		TickerFetching:      convert.BoolPtrT,
+		TradeFetching:       convert.BoolPtrT,
+		OrderbookFetching:   convert.BoolPtrT,
+		AccountInfo:         convert.BoolPtrT,
+		GetOrder:            convert.BoolPtrT,
+		GetOrders:           convert.BoolPtrT,
+		CancelOrder:         convert.BoolPtrT,
+		SubmitOrder:         convert.BoolPtrT,
+		DepositHistory:      convert.BoolPtrT,
+		WithdrawalHistory:   convert.BoolPtrT,
+		UserTradeHistory:    convert.BoolPtrT,
+		CryptoDeposit:       convert.BoolPtrT,
+		CryptoWithdrawal:    convert.BoolPtrT,
+		TradeFee:            convert.BoolPtrT,
+		FiatDepositFee:      convert.BoolPtrT,
+		FiatWithdrawalFee:   convert.BoolPtrT,
+		CryptoDepositFee:    convert.BoolPtrT,
+		CryptoWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = e.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: exmoWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	e.Requester = request.New(e.Name,
@@ -135,7 +138,7 @@ func (e *EXMO) Run() {
 		e.PrintEnabledPairs()
 	}
 
-	if !e.GetEnabledFeatures().AutoPairUpdates {
+	if !e.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 

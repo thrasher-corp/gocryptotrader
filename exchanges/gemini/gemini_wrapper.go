@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -25,6 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const geminiWithdrawalPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
+	exchange.AutoWithdrawCryptoWithSetup |
+	exchange.WithdrawFiatViaWebsiteOnly
+
 // GetDefaultConfig returns a default exchange config
 func (g *Gemini) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	g.SetDefaults()
@@ -38,7 +43,7 @@ func (g *Gemini) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if g.Protocol.AutoPairUpdateEnabled() {
 		err := g.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -63,41 +68,46 @@ func (g *Gemini) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	g.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerFetching:      true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				UserTradeHistory:    true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				TradeFee:            true,
-				FiatWithdrawalFee:   true,
-				CryptoWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				OrderbookFetching:      true,
-				TradeFetching:          true,
-				AuthenticatedEndpoints: true,
-				MessageSequenceNumbers: true,
-				KlineFetching:          true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
-				exchange.AutoWithdrawCryptoWithSetup |
-				exchange.WithdrawFiatViaWebsiteOnly,
+	err = g.Protocol.SetupREST(&protocol.State{
+		TickerFetching:      convert.BoolPtrT,
+		TradeFetching:       convert.BoolPtrT,
+		OrderbookFetching:   convert.BoolPtrT,
+		AccountInfo:         convert.BoolPtrT,
+		GetOrder:            convert.BoolPtrT,
+		CancelOrders:        convert.BoolPtrT,
+		CancelOrder:         convert.BoolPtrT,
+		SubmitOrder:         convert.BoolPtrT,
+		UserTradeHistory:    convert.BoolPtrT,
+		CryptoDeposit:       convert.BoolPtrT,
+		CryptoWithdrawal:    convert.BoolPtrT,
+		TradeFee:            convert.BoolPtrT,
+		FiatWithdrawalFee:   convert.BoolPtrT,
+		CryptoWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = g.Protocol.SetupWebsocket(&protocol.State{
+		OrderbookFetching:      convert.BoolPtrT,
+		TradeFetching:          convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		MessageSequenceNumbers: convert.BoolPtrT,
+		KlineFetching:          convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = g.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions:   geminiWithdrawalPermissions,
+		AutoPairUpdate:          convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			// This needs to be shelled out
 		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	g.Requester = request.New(g.Name,
@@ -138,7 +148,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        g.WsConnect,
-		Features:                         &g.Features.Supports.WebsocketCapabilities,
+		Features:                         g.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
@@ -160,7 +170,7 @@ func (g *Gemini) Run() {
 		g.PrintEnabledPairs()
 	}
 
-	if !g.GetEnabledFeatures().AutoPairUpdates {
+	if !g.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 
