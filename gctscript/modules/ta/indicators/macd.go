@@ -3,7 +3,6 @@ package indicators
 import (
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
@@ -85,12 +84,12 @@ func macd(args ...objects.Object) (objects.Object, error) {
 	macd, macdSignal, macdHist := indicators.MACD(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
 	for x := range macdHist {
 		tempMACD := &objects.Array{}
-		tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: math.Round(macdHist[x]*100) / 100})
+		tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macdHist[x]})
 		if macd != nil {
-			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: math.Round(macd[x]*100) / 100})
+			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macd[x]})
 		}
 		if macdSignal != nil {
-			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: math.Round(macdSignal[x]*100) / 100})
+			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macdSignal[x]})
 		}
 		r.Value = append(r.Value, tempMACD)
 	}

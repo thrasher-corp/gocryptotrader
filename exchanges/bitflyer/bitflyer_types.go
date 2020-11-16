@@ -52,6 +52,7 @@ type ChainAnalysisAddress struct {
 type MarketInfo struct {
 	ProductCode string `json:"product_code"`
 	Alias       string `json:"alias"`
+	MarketType  string `json:"market_type"`
 }
 
 // Orderbook holds orderbook information

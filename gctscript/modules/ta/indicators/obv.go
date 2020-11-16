@@ -3,7 +3,6 @@ package indicators
 import (
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
@@ -81,7 +80,7 @@ func obv(args ...objects.Object) (objects.Object, error) {
 
 	ret := indicators.OBV(ohlcvData[4], ohlcvData[5])
 	for x := range ret {
-		temp := &objects.Float{Value: math.Round(ret[x]*100) / 100}
+		temp := &objects.Float{Value: ret[x]}
 		r.Value = append(r.Value, temp)
 	}
 	return r, nil
