@@ -1357,7 +1357,12 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		pass = true
 	}
 
-	if exch.IsWebsocketEnabled() && pass && base.Websocket.IsConnected() {
+	wsEnabled, err := exch.IsWebsocketEnabled()
+	if err != nil {
+		return nil, err
+	}
+
+	if wsEnabled && pass && base.Websocket.IsConnected() {
 		err = exch.FlushWebsocketChannels()
 		if err != nil {
 			newErrors = append(newErrors, err)
@@ -2069,7 +2074,12 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 		}
 	}
 
-	if exch.IsWebsocketEnabled() && base.Websocket.IsConnected() {
+	wsEnabled, err := exch.IsWebsocketEnabled()
+	if err != nil {
+		return nil, err
+	}
+
+	if wsEnabled && base.Websocket.IsConnected() {
 		err = exch.FlushWebsocketChannels()
 		if err != nil {
 			return nil, err
@@ -2093,7 +2103,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 		return nil, errExchangeBaseNotFound
 	}
 
-	if !base.GetEnabledFeatures().AutoPairUpdates {
+	if !base.Protocol.AutoPairUpdateEnabled() {
 		return nil,
 			errors.New("cannot auto pair update for exchange, a manual update is needed")
 	}
@@ -2103,7 +2113,12 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 		return nil, err
 	}
 
-	if exch.IsWebsocketEnabled() {
+	wsEnabled, err := exch.IsWebsocketEnabled()
+	if err != nil {
+		return nil, err
+	}
+
+	if wsEnabled {
 		err = exch.FlushWebsocketChannels()
 		if err != nil {
 			return nil, err
@@ -2136,10 +2151,15 @@ func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetIn
 		return nil, err
 	}
 
+	wsEnabled, err := exch.IsWebsocketEnabled()
+	if err != nil {
+		return nil, err
+	}
+
 	return &gctrpc.WebsocketGetInfoResponse{
 		Exchange:      exch.GetName(),
 		Supported:     exch.SupportsWebsocket(),
-		Enabled:       exch.IsWebsocketEnabled(),
+		Enabled:       wsEnabled,
 		Authenticated: w.CanUseAuthenticatedEndpoints(),
 		RunningUrl:    w.GetWebsocketURL(),
 		ProxyAddress:  w.GetProxyAddress(),

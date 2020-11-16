@@ -189,7 +189,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       h.Subscribe,
 		Unsubscriber:                     h.Unsubscribe,
 		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
-		Features:                         h.Protocol,
+		Features:                         &h.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,

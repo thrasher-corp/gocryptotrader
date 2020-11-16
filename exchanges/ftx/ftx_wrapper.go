@@ -199,7 +199,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       f.Subscribe,
 		Unsubscriber:                     f.Unsubscribe,
 		GenerateSubscriptions:            f.GenerateDefaultSubscriptions,
-		Features:                         f.Protocol,
+		Features:                         &f.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,

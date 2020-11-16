@@ -229,7 +229,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		Connector:                        z.WsConnect,
 		GenerateSubscriptions:            z.GenerateDefaultSubscriptions,
 		Subscriber:                       z.Subscribe,
-		Features:                         z.Protocol,
+		Features:                         &z.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		RateLimit:                        zbWebsocketRateLimit,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,

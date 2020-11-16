@@ -999,17 +999,17 @@ func (c *Config) CheckExchangeConfigValues() error {
 				}
 			}
 
-			if !*c.Exchanges[i].Protocol.REST.AutoPairUpdates &&
-				!*c.Exchanges[i].Protocol.Websocket.AutoPairUpdates {
-				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
-				lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
-				if lastUpdated.Unix() <= time.Now().Unix() {
-					log.Warnf(log.ConfigMgr,
-						WarningPairsLastUpdatedThresholdExceeded,
-						c.Exchanges[i].Name,
-						pairsLastUpdatedWarningThreshold)
-				}
-			}
+			// if !*c.Exchanges[i].Protocol.REST.AutoPairUpdates &&
+			// 	!*c.Exchanges[i].Protocol.Websocket.AutoPairUpdates {
+			// 	lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
+			// 	lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
+			// 	if lastUpdated.Unix() <= time.Now().Unix() {
+			// 		log.Warnf(log.ConfigMgr,
+			// 			WarningPairsLastUpdatedThresholdExceeded,
+			// 			c.Exchanges[i].Name,
+			// 			pairsLastUpdatedWarningThreshold)
+			// 	}
+			// }
 
 			// if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates &&
 			// 	!c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {

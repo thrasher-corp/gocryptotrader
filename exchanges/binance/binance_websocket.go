@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -393,6 +394,7 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 					}
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
+
 					var kline KlineStream
 					err := json.Unmarshal(rawData, &kline)
 					if err != nil {
@@ -400,6 +402,8 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 							b.Name,
 							err)
 					}
+
+					fmt.Println("KLINE:", kline)
 
 					pair, err := currency.NewPairFromFormattedPairs(kline.Symbol, pairs, format)
 					if err != nil {
@@ -674,28 +678,46 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 // GenerateSubscriptions generates the default subscription set
 func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]stream.ChannelSubscription, error) {
 	var channels []WsChannel
-	if options.Features.TickerFetching {
+	enabled, err := options.Features.Websocket.Functionality()
+	if err != nil {
+		return nil, err
+	}
+	if enabled.TickerFetching {
 		channels = append(channels, WsChannel{
 			Definition: "@ticker",
 			Type:       stream.Ticker,
 		})
 	}
 
-	if options.Features.TradeFetching {
+	if enabled.TradeFetching {
 		channels = append(channels, WsChannel{
 			Definition: "@trade",
 			Type:       stream.Trade,
 		})
 	}
 
-	if options.Features.KlineFetching {
-		channels = append(channels, WsChannel{
-			Definition: "@kline_1m",
-			Type:       stream.Kline,
-		})
+	if enabled.KlineFetching {
+		var intervals []kline.Interval
+		intervals, err = options.Features.GetEnabledKlineIntervals()
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range intervals {
+			fmt.Println(intervals[i])
+			var fmtInterval string
+			fmtInterval, err = formatKlineInterval(intervals[i])
+			if err != nil {
+				return nil, err
+			}
+			channels = append(channels, WsChannel{
+				Definition: "@kline_" + fmtInterval,
+				Type:       stream.Kline,
+			})
+		}
 	}
 
-	if options.Features.OrderbookFetching {
+	if enabled.OrderbookFetching {
 		channels = append(channels, WsChannel{
 			Definition: "@depth@100ms",
 			Type:       stream.Orderbook,
@@ -725,7 +747,44 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 			}
 		}
 	}
+
+	fmt.Println(subscriptions)
 	return subscriptions, nil
+}
+
+func formatKlineInterval(k kline.Interval) (string, error) {
+	switch k {
+	case kline.OneMin:
+		return "1m", nil
+	case kline.ThreeMin:
+		return "3m", nil
+	case kline.FiveMin:
+		return "5m", nil
+	case kline.FifteenMin:
+		return "15m", nil
+	case kline.ThirtyMin:
+		return "30m", nil
+	case kline.OneHour:
+		return "1h", nil
+	case kline.TwoHour:
+		return "2h", nil
+	case kline.FourHour:
+		return "4h", nil
+	case kline.SixHour:
+		return "6h", nil
+	case kline.TwelveHour:
+		return "12h", nil
+	case kline.OneDay:
+		return "1d", nil
+	case kline.ThreeDay:
+		return "3d", nil
+	case kline.OneWeek:
+		return "1w", nil
+	case kline.OneMonth:
+		return "1M", nil
+	default:
+		return "", fmt.Errorf("kline interval %s unsupported by exchange", k)
+	}
 }
 
 // Subscribe subscribes to a set of channels

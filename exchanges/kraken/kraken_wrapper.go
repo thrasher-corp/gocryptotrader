@@ -208,7 +208,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       k.Subscribe,
 		Unsubscriber:                     k.Unsubscribe,
 		GenerateSubscriptions:            k.GenerateDefaultSubscriptions,
-		Features:                         k.Protocol,
+		Features:                         &k.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,

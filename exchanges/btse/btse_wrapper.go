@@ -110,7 +110,7 @@ func (b *BTSE) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = c.Protocol.SetupWebsocket(&protocol.State{
+	err = b.Protocol.SetupWebsocket(&protocol.State{
 		OrderbookFetching: convert.BoolPtrT,
 		TradeFetching:     convert.BoolPtrT,
 		Subscribe:         convert.BoolPtrT,
@@ -122,7 +122,7 @@ func (b *BTSE) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = c.Protocol.SetGlobals(&protocol.Globals{
+	err = b.Protocol.SetGlobals(&protocol.Globals{
 		WithdrawalPermissions: btseWithdrawalPermissions,
 		AutoPairUpdate:        convert.BoolPtrT,
 		KlineSupportedIntervals: map[kline.Interval]bool{
@@ -209,7 +209,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       b.Subscribe,
 		Unsubscriber:                     b.Unsubscribe,
 		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
-		Features:                         b.Protocol,
+		Features:                         &b.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:                 exch.WebsocketResponseMaxLimit,

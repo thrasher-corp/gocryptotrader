@@ -59,7 +59,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 
 	w.features = s.Features
 
-	enabled, err := w.features.Functionality()
+	enabled, err := w.features.Websocket.Functionality()
 	if err != nil {
 		return err
 	}
@@ -422,7 +422,7 @@ func (w *Websocket) FlushChannels() error {
 		return fmt.Errorf("%s websocket: service not connected", w.exchangeName)
 	}
 
-	enabled, err := w.features.Functionality()
+	enabled, err := w.features.Websocket.Functionality()
 	if err != nil {
 		return fmt.Errorf("%s websocket: cannot flush channels %s", w.exchangeName, err)
 	}

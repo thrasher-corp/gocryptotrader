@@ -174,7 +174,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       p.Subscribe,
 		Unsubscriber:                     p.Unsubscribe,
 		GenerateSubscriptions:            p.GenerateDefaultSubscriptions,
-		Features:                         p.Protocol,
+		Features:                         &p.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		SortBuffer:                       true,
 		SortBufferByUpdateIDs:            true,
@@ -230,16 +230,7 @@ func (p *Poloniex) Run() {
 		forceUpdate = true
 	}
 
-	features, err := p.GetEnabledFeatures()
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			p.Name,
-			err)
-		return
-	}
-
-	if !features.AutoPairUpdates && !forceUpdate {
+	if !p.Protocol.AutoPairUpdateEnabled() && !forceUpdate {
 		return
 	}
 

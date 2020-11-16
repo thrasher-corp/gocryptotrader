@@ -182,7 +182,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		Connector:                        g.WsConnect,
 		Subscriber:                       g.Subscribe,
 		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
-		Features:                         g.Protocol,
+		Features:                         &g.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		RateLimit:                        gateioWebsocketRateLimit,

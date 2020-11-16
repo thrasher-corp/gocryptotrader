@@ -191,7 +191,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       c.Subscribe,
 		Unsubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
-		Features:                         c.Protocol,
+		Features:                         &c.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:                    true,
 		SortBuffer:                       true,

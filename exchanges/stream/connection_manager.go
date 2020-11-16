@@ -257,7 +257,7 @@ func (c *ConnectionManager) Subscribe(cs []SubscriptionParameters) error {
 	return nil
 }
 
-// AssociateUnsubscribe associates subscriptions that need to be unsubscribed
+// AssociateAndUnsubscribe associates subscriptions that need to be unsubscribed
 // with their respective connections
 func (c *ConnectionManager) AssociateAndUnsubscribe(sub []ChannelSubscription) error {
 	c.Lock()

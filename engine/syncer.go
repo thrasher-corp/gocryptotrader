@@ -305,7 +305,13 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			var usingREST bool
 			var usingWebsocket bool
 			var switchedToRest bool
-			if exchanges[x].SupportsWebsocket() && exchanges[x].IsWebsocketEnabled() {
+
+			wsEnabled, err := exchanges[x].IsWebsocketEnabled()
+			if err != nil {
+				log.Errorf(log.SyncMgr, "%s. Err: %s\n", exchangeName, err)
+			}
+
+			if exchanges[x].SupportsWebsocket() && wsEnabled {
 				ws, err := exchanges[x].GetWebsocket()
 				if err != nil {
 					log.Errorf(log.SyncMgr,
@@ -521,7 +527,13 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 
 		var usingWebsocket bool
 		var usingREST bool
-		if supportsWebsocket && exchanges[x].IsWebsocketEnabled() {
+
+		wsEnabled, err := exchanges[x].IsWebsocketEnabled()
+		if err != nil {
+			log.Errorf(log.SyncMgr, "%s. Err: %s\n", exchangeName, err)
+		}
+
+		if supportsWebsocket && wsEnabled {
 			ws, err := exchanges[x].GetWebsocket()
 			if err != nil {
 				log.Errorf(log.SyncMgr,

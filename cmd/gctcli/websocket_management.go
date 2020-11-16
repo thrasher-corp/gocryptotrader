@@ -91,22 +91,6 @@ var websocketManagerCommand = cli.Command{
 			},
 			Action: setURL,
 		},
-		{
-			Name:  "setfunctionality",
-			Usage: "sets exchange websocket functionality",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:     "exchange",
-					Usage:    "the exchange to act on",
-					Required: true,
-				},
-				cli.BoolFlag{
-					Name:  "url",
-					Usage: "url string to change to, an empty string will set it back to the packaged defined default",
-				},
-			},
-			Action: setURL,
-		},
 	},
 }
 

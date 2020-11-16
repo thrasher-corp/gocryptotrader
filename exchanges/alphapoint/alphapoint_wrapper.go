@@ -6,18 +6,25 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
+
+const alphapointWithdrawalPermissions = exchange.WithdrawCryptoWith2FA |
+	exchange.AutoWithdrawCryptoWithAPIPermission |
+	exchange.NoFiatWithdrawals
 
 // GetDefaultConfig returns a default exchange config for Alphapoint
 func (a *Alphapoint) GetDefaultConfig() (*config.ExchangeConfig, error) {
@@ -34,36 +41,53 @@ func (a *Alphapoint) SetDefaults() {
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
 
-	a.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				AccountInfo:       true,
-				TickerFetching:    true,
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				GetOrders:         true,
-				CancelOrder:       true,
-				CancelOrders:      true,
-				SubmitOrder:       true,
-				ModifyOrder:       true,
-				UserTradeHistory:  true,
-				CryptoDeposit:     true,
-				CryptoWithdrawal:  true,
-				TradeFee:          true,
-			},
-
-			WebsocketCapabilities: protocol.Features{
-				AccountInfo: true,
-			},
-
-			WithdrawPermissions: exchange.WithdrawCryptoWith2FA |
-				exchange.AutoWithdrawCryptoWithAPIPermission |
-				exchange.NoFiatWithdrawals,
-		},
+	err := a.Protocol.SetupREST(&protocol.State{
+		AccountInfo:       convert.BoolPtrT,
+		TickerFetching:    convert.BoolPtrT,
+		TradeFetching:     convert.BoolPtrT,
+		OrderbookFetching: convert.BoolPtrT,
+		GetOrders:         convert.BoolPtrT,
+		CancelOrder:       convert.BoolPtrT,
+		CancelOrders:      convert.BoolPtrT,
+		SubmitOrder:       convert.BoolPtrT,
+		ModifyOrder:       convert.BoolPtrT,
+		UserTradeHistory:  convert.BoolPtrT,
+		CryptoDeposit:     convert.BoolPtrT,
+		CryptoWithdrawal:  convert.BoolPtrT,
+		TradeFee:          convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
+	err = a.Protocol.SetupWebsocket(&protocol.State{
+		AccountInfo: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = a.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: alphapointWithdrawalPermissions,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.ThreeMin:   true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.ThirtyMin:  true,
+			kline.OneHour:    true,
+			kline.TwoHour:    true,
+			kline.FourHour:   true,
+			kline.SixHour:    true,
+			kline.TwelveHour: true,
+			kline.OneDay:     true,
+			kline.ThreeDay:   true,
+			kline.OneWeek:    true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	a.Requester = request.New(a.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }

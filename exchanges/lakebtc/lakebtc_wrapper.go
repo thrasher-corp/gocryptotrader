@@ -141,7 +141,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       l.Subscribe,
 		Unsubscriber:                     l.Unsubscribe,
 		GenerateSubscriptions:            l.GenerateDefaultSubscriptions,
-		Features:                         l.Protocol,
+		Features:                         &l.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 	})
 }

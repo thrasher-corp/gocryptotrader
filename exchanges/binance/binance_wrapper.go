@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -24,6 +25,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const binanceWithdrawalPermissions = exchange.AutoWithdrawCrypto |
+	exchange.NoFiatWithdrawals
+
+const binanceKlineResultLimit = 1000
+
 // GetDefaultConfig returns a default exchange config
 func (b *Binance) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -37,7 +43,7 @@ func (b *Binance) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if b.Protocol.AutoPairUpdateEnabled() {
 		err = b.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -73,73 +79,96 @@ func (b *Binance) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	b.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
-				TickerFetching:      true,
-				KlineFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				CryptoDeposit:       true,
-				CryptoWithdrawal:    true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				DepositHistory:      true,
-				WithdrawalHistory:   true,
-				TradeFetching:       true,
-				UserTradeHistory:    true,
-				TradeFee:            true,
-				CryptoWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				TradeFetching:          true,
-				TickerFetching:         true,
-				KlineFetching:          true,
-				OrderbookFetching:      true,
-				AuthenticatedEndpoints: true,
-				AccountInfo:            true,
-				GetOrder:               true,
-				GetOrders:              true,
-				Subscribe:              true,
-				Unsubscribe:            true,
-			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.NoFiatWithdrawals,
-			Kline: kline.ExchangeCapabilitiesSupported{
-				DateRanges: true,
-				Intervals:  true,
-			},
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-			Kline: kline.ExchangeCapabilitiesEnabled{
-				Intervals: map[string]bool{
-					kline.OneMin.Word():     true,
-					kline.ThreeMin.Word():   true,
-					kline.FiveMin.Word():    true,
-					kline.FifteenMin.Word(): true,
-					kline.ThirtyMin.Word():  true,
-					kline.OneHour.Word():    true,
-					kline.TwoHour.Word():    true,
-					kline.FourHour.Word():   true,
-					kline.SixHour.Word():    true,
-					kline.TwelveHour.Word(): true,
-					kline.OneDay.Word():     true,
-					kline.ThreeDay.Word():   true,
-					kline.OneWeek.Word():    true,
-					kline.OneMonth.Word():   true,
-				},
-				ResultLimit: 1000,
-			},
-		},
+	err = b.Protocol.SetupREST(&protocol.State{
+		TickerBatching:      convert.BoolPtrT,
+		TickerFetching:      convert.BoolPtrT,
+		KlineFetching:       convert.BoolPtrT,
+		OrderbookFetching:   convert.BoolPtrT,
+		AccountInfo:         convert.BoolPtrT,
+		CryptoDeposit:       convert.BoolPtrT,
+		CryptoWithdrawal:    convert.BoolPtrT,
+		GetOrder:            convert.BoolPtrT,
+		GetOrders:           convert.BoolPtrT,
+		CancelOrders:        convert.BoolPtrT,
+		CancelOrder:         convert.BoolPtrT,
+		SubmitOrder:         convert.BoolPtrT,
+		DepositHistory:      convert.BoolPtrT,
+		WithdrawalHistory:   convert.BoolPtrT,
+		TradeFetching:       convert.BoolPtrT,
+		UserTradeHistory:    convert.BoolPtrT,
+		TradeFee:            convert.BoolPtrT,
+		CryptoWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
+
+	err = b.Protocol.SetupWebsocket(&protocol.State{
+		TradeFetching:          convert.BoolPtrT,
+		TickerFetching:         convert.BoolPtrT,
+		KlineFetching:          convert.BoolPtrT,
+		OrderbookFetching:      convert.BoolPtrT,
+		AuthenticatedEndpoints: convert.BoolPtrT,
+		AccountInfo:            convert.BoolPtrT,
+		GetOrder:               convert.BoolPtrT,
+		GetOrders:              convert.BoolPtrT,
+		Subscribe:              convert.BoolPtrT,
+		Unsubscribe:            convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = b.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: binanceWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+		KlineSupportedIntervals: map[kline.Interval]bool{
+			kline.OneMin:     true,
+			kline.ThreeMin:   true,
+			kline.FiveMin:    true,
+			kline.FifteenMin: true,
+			kline.ThirtyMin:  true,
+			kline.OneHour:    true,
+			kline.TwoHour:    true,
+			kline.FourHour:   true,
+			kline.SixHour:    true,
+			kline.TwelveHour: true,
+			kline.OneDay:     true,
+			kline.ThreeDay:   true,
+			kline.OneWeek:    true,
+			kline.OneMonth:   true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	// b.Features = exchange.Features{
+	// 	Supports: exchange.FeaturesSupported{
+	// 		REST:      true,
+	// 		Websocket: true,
+	// 		RESTCapabilities: protocol.Features{
+
+	// 		},
+	// 		WebsocketCapabilities: protocol.Features{
+
+	// 		},
+	// 		WithdrawPermissions: ,
+	// 		Kline: kline.ExchangeCapabilitiesSupported{
+	// 			DateRanges: true,
+	// 			Intervals:  true,
+	// 		},
+	// 	},
+	// 	Enabled: exchange.FeaturesEnabled{
+	// 		AutoPairUpdates: true,
+	// 		Kline: kline.ExchangeCapabilitiesEnabled{
+	// 			Intervals: map[string]bool{
+
+	// 			},
+	// 			ResultLimit: 1000,
+	// 		},
+	// 	},
+	// }
 
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -180,7 +209,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            b.GenerateSubscriptions,
 		GenerateConnection:               b.spawnConnection,
 		HandleStreamData:                 b.wsHandleData,
-		Features:                         &b.Features.Supports.WebsocketCapabilities,
+		Features:                         &b.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		SortBuffer:                       true,
 		SortBufferByUpdateIDs:            true,
@@ -267,7 +296,7 @@ func (b *Binance) Run() {
 		}
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+	if !b.Protocol.AutoPairUpdateEnabled() && !forceUpdate {
 		return
 	}
 	err = b.UpdateTradablePairs(forceUpdate)
@@ -797,7 +826,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		return kline.Item{}, err
 	}
 
-	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+	if kline.TotalCandlesPerInterval(start, end, interval) > binanceKlineResultLimit {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
@@ -810,7 +839,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		Symbol:    fpair.String(),
 		StartTime: start.Unix() * 1000,
 		EndTime:   end.Unix() * 1000,
-		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+		Limit:     binanceKlineResultLimit,
 	}
 
 	ret := kline.Item{
@@ -858,14 +887,14 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		return kline.Item{}, err
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcDateRanges(start, end, interval, binanceKlineResultLimit)
 	for x := range dates {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
 			Symbol:    formattedPair.String(),
 			StartTime: dates[x].Start.UTC().Unix() * 1000,
 			EndTime:   dates[x].End.UTC().Unix() * 1000,
-			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+			Limit:     binanceKlineResultLimit,
 		}
 
 		candles, err := b.GetSpotKline(req)

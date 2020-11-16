@@ -210,10 +210,16 @@ func WebsocketRoutine() {
 		go func(i int) {
 			if exchanges[i].SupportsWebsocket() {
 				if Bot.Settings.Verbose {
+					wsEnabled, err := exchanges[i].IsWebsocketEnabled()
+					if err != nil {
+						log.Errorf(log.WebsocketMgr, "%v. Error: %s\n",
+							exchanges[i].GetName(), err)
+					}
+
 					log.Debugf(log.WebsocketMgr,
 						"Exchange %s websocket support: Yes Enabled: %v\n",
 						exchanges[i].GetName(),
-						common.IsEnabled(exchanges[i].IsWebsocketEnabled()),
+						common.IsEnabled(wsEnabled),
 					)
 				}
 

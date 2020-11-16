@@ -47,7 +47,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       o.Subscribe,
 		Unsubscriber:                     o.Unsubscribe,
 		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
-		Features:                         o.Protocol,
+		Features:                         &o.Protocol,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		RateLimit:                        okGroupWsRateLimit,
 		ResponseCheckTimeout:             exch.WebsocketResponseCheckTimeout,

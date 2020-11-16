@@ -212,7 +212,7 @@ type Base struct {
 	BaseCurrencies currency.Currencies
 	CurrencyPairs  currency.PairsManager
 	// Features                      Features
-	Protocol                      *protocol.Features
+	Protocol                      protocol.Features
 	HTTPTimeout                   time.Duration
 	HTTPUserAgent                 string
 	HTTPRecording                 bool

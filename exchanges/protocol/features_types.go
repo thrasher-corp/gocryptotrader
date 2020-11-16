@@ -33,7 +33,6 @@ type Functionality struct {
 	ProtocolEnabled        bool
 	AuthenticationEnabled  bool
 	TickerBatching         bool
-	AutoPairUpdates        bool
 	AccountBalance         bool
 	CryptoDeposit          bool
 	CryptoWithdrawal       bool

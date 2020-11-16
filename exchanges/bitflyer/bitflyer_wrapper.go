@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -21,6 +22,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const bitflyerWithdrawalPermissions = exchange.WithdrawCryptoViaWebsiteOnly |
+	exchange.AutoWithdrawFiat
+
 // GetDefaultConfig returns a default exchange config
 func (b *Bitflyer) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -34,7 +38,7 @@ func (b *Bitflyer) GetDefaultConfig() (*config.ExchangeConfig, error) {
 		return nil, err
 	}
 
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if b.Protocol.AutoPairUpdateEnabled() {
 		err = b.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
@@ -68,24 +72,23 @@ func (b *Bitflyer) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	b.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: false,
-			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
-				AutoPairUpdates:   true,
-				TradeFee:          true,
-				FiatDepositFee:    true,
-				FiatWithdrawalFee: true,
-			},
-			WithdrawPermissions: exchange.WithdrawCryptoViaWebsiteOnly |
-				exchange.AutoWithdrawFiat,
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-		},
+	err = b.Protocol.SetupREST(&protocol.State{
+		TickerFetching:    convert.BoolPtrT,
+		OrderbookFetching: convert.BoolPtrT,
+		TradeFee:          convert.BoolPtrT,
+		FiatDepositFee:    convert.BoolPtrT,
+		FiatWithdrawalFee: convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = b.Protocol.SetGlobals(&protocol.Globals{
+		WithdrawalPermissions: bitflyerWithdrawalPermissions,
+		AutoPairUpdate:        convert.BoolPtrT,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	b.Requester = request.New(b.Name,
@@ -122,7 +125,7 @@ func (b *Bitflyer) Run() {
 		b.PrintEnabledPairs()
 	}
 
-	if !b.GetEnabledFeatures().AutoPairUpdates {
+	if !b.Protocol.AutoPairUpdateEnabled() {
 		return
 	}
 

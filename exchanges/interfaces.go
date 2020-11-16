@@ -75,7 +75,7 @@ type IBotExchange interface {
 	// Websocket specific wrapper functionality
 	// GetWebsocket returns a pointer to the websocket
 	GetWebsocket() (*stream.Websocket, error)
-	IsWebsocketEnabled() bool
+	IsWebsocketEnabled() (bool, error)
 	SupportsWebsocket() bool
 	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
