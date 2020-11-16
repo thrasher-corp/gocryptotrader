@@ -13,9 +13,10 @@ type Config struct {
 	// Unsupported so far, but will move to having multiple currencies
 	ExchangeSettingsButWithPassionAndLust []ExchangeSettings `json:"lustful-exchange-settings,omitempty"`
 	// data source definitions:
-	CandleData        *CandleData       `json:"candle-data,omitempty"`
+	APIData           *APIData          `json:"api-data,omitempty"`
 	DatabaseData      *DatabaseData     `json:"database-data,omitempty"`
 	LiveData          *LiveData         `json:"live-data,omitempty"`
+	CSVData           *CSVData          `json:"csv-data,omitempty"`
 	PortfolioSettings PortfolioSettings `json:"portfolio"`
 }
 
@@ -63,23 +64,31 @@ type ExchangeSettings struct {
 	TakerFee float64 `json:"-"`
 }
 
-// CandleData defines candle based variables
-type CandleData struct {
+// APIData defines all fields to configure API based data
+type APIData struct {
+	DataType  string        `json:"data-type"`
+	Interval  time.Duration `json:"interval"`
 	StartDate time.Time     `json:"start-date"`
 	EndDate   time.Time     `json:"end-date"`
-	Interval  time.Duration `json:"interval"`
 }
 
-// DatabaseData defines the database settings to use for the strategy
+// CSVData defines all fields to configure CSV based data
+type CSVData struct {
+	DataType string        `json:"data-type"`
+	Interval time.Duration `json:"interval"`
+	FullPath string        `json:"full-path"`
+}
+
+// DatabaseData defines all fields to configure database based data
 type DatabaseData struct {
 	DataType       string           `json:"data-type"`
+	Interval       time.Duration    `json:"interval"`
 	StartDate      time.Time        `json:"start-date"`
 	EndDate        time.Time        `json:"end-date"`
-	Interval       time.Duration    `json:"interval"`
 	ConfigOverride *database.Config `json:"config-override"`
 }
 
-// LiveData defines the live settings to use for the strategy
+// LiveData defines all fields to configure live data
 type LiveData struct {
 	DataType            string        `json:"data-type"`
 	Interval            time.Duration `json:"interval"`

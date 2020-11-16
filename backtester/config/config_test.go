@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-func TestGenerateDCAConfig(t *testing.T) {
+func TestGenerateAPIDCAConfig(t *testing.T) {
 	cfg := Config{
 		StrategyToLoad: "dollarcostaverage",
 		ExchangeSettings: ExchangeSettings{
@@ -30,7 +30,7 @@ func TestGenerateDCAConfig(t *testing.T) {
 			MakerFee:        0.01,
 			TakerFee:        0.02,
 		},
-		CandleData: &CandleData{
+		APIData: &APIData{
 			StartDate: time.Now().Add(-time.Hour * 24 * 7),
 			EndDate:   time.Now(),
 			Interval:  kline.OneHour.Duration(),

@@ -399,25 +399,31 @@ func (bot *Engine) Start() error {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}
-
-	err := currency.RunStorageUpdater(currency.BotOverrides{
-		Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
-		FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,
-		FxCurrencyLayer:     bot.Settings.EnableCurrencyLayer,
-		FxFixer:             bot.Settings.EnableFixer,
-		FxOpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
-	},
-		&currency.MainConfiguration{
-			ForexProviders:         bot.Config.GetForexProviders(),
-			CryptocurrencyProvider: coinmarketcap.Settings(bot.Config.Currency.CryptocurrencyProvider),
-			Cryptocurrencies:       bot.Config.Currency.Cryptocurrencies,
-			FiatDisplayCurrency:    bot.Config.Currency.FiatDisplayCurrency,
-			CurrencyDelay:          bot.Config.Currency.CurrencyFileUpdateDuration,
-			FxRateDelay:            bot.Config.Currency.ForeignExchangeUpdateDuration,
+	var err error
+	if bot.Settings.EnableCoinmarketcapAnalysis ||
+		bot.Settings.EnableCurrencyConverter ||
+		bot.Settings.EnableCurrencyLayer ||
+		bot.Settings.EnableFixer ||
+		bot.Settings.EnableOpenExchangeRates {
+		err = currency.RunStorageUpdater(currency.BotOverrides{
+			Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
+			FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,
+			FxCurrencyLayer:     bot.Settings.EnableCurrencyLayer,
+			FxFixer:             bot.Settings.EnableFixer,
+			FxOpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
 		},
-		bot.Settings.DataDir)
-	if err != nil {
-		gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %v", err)
+			&currency.MainConfiguration{
+				ForexProviders:         bot.Config.GetForexProviders(),
+				CryptocurrencyProvider: coinmarketcap.Settings(bot.Config.Currency.CryptocurrencyProvider),
+				Cryptocurrencies:       bot.Config.Currency.Cryptocurrencies,
+				FiatDisplayCurrency:    bot.Config.Currency.FiatDisplayCurrency,
+				CurrencyDelay:          bot.Config.Currency.CurrencyFileUpdateDuration,
+				FxRateDelay:            bot.Config.Currency.ForeignExchangeUpdateDuration,
+			},
+			bot.Settings.DataDir)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %v", err)
+		}
 	}
 
 	if bot.Settings.EnableGRPC {
@@ -540,9 +546,14 @@ func (bot *Engine) Stop() {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
 		}
 	}
-
-	if err := currency.ShutdownStorageUpdater(); err != nil {
-		gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
+	if bot.Settings.EnableCoinmarketcapAnalysis ||
+		bot.Settings.EnableCurrencyConverter ||
+		bot.Settings.EnableCurrencyLayer ||
+		bot.Settings.EnableFixer ||
+		bot.Settings.EnableOpenExchangeRates {
+		if err := currency.ShutdownStorageUpdater(); err != nil {
+			gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
+		}
 	}
 
 	if !bot.Settings.EnableDryRun {

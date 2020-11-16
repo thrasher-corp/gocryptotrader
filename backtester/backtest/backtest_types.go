@@ -9,6 +9,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
 )
 
+const (
+	candleStr = "candleStr"
+	tradeStr  = "trade"
+)
+
 type BackTest struct {
 	shutdown   chan struct{}
 	Data       interfaces.DataHandler

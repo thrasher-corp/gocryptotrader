@@ -1,8 +1,12 @@
 package backtest
 
 import (
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -23,6 +27,7 @@ import (
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -56,10 +61,6 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	}
 
 	bt.Data, err = loadData(cfg, exch, fPair, a)
-	if err != nil {
-		return nil, err
-	}
-	err = bt.Data.Load()
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +182,7 @@ func engineBotSetup(cfg *config.Config) error {
 
 func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float64, takerFee float64, err error) {
 	takerFee, err = exch.GetFeeByType(&gctexchange.FeeBuilder{
-		FeeType:       gctexchange.CryptocurrencyTradeFee,
+		FeeType:       gctexchange.OfflineTradeFee,
 		Pair:          fPair,
 		IsMaker:       false,
 		PurchasePrice: 1,
@@ -192,7 +193,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float
 	}
 
 	makerFee, err = exch.GetFeeByType(&gctexchange.FeeBuilder{
-		FeeType:       gctexchange.CryptocurrencyTradeFee,
+		FeeType:       gctexchange.OfflineTradeFee,
 		Pair:          fPair,
 		IsMaker:       true,
 		PurchasePrice: 1,
@@ -207,23 +208,174 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float
 
 func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline2.DataFromKline, error) {
 	base := exch.GetBase()
-	if cfg.DatabaseData == nil && cfg.LiveData == nil && cfg.CandleData == nil {
+	if cfg.DatabaseData == nil && cfg.LiveData == nil && cfg.APIData == nil && cfg.CSVData == nil {
 		return nil, errors.New("no data settings set in config")
 	}
 	// load the data
 	resp := &kline2.DataFromKline{}
 	var err error
-	if cfg.CandleData != nil && cfg.DatabaseData != nil ||
-		cfg.CandleData != nil && cfg.LiveData != nil ||
-		cfg.DatabaseData != nil && cfg.LiveData != nil {
+	if (cfg.APIData != nil && cfg.DatabaseData != nil) ||
+		(cfg.APIData != nil && cfg.LiveData != nil) ||
+		(cfg.APIData != nil && cfg.CSVData != nil) ||
+		(cfg.DatabaseData != nil && cfg.LiveData != nil) ||
+		(cfg.CSVData != nil && cfg.LiveData != nil) ||
+		(cfg.CSVData != nil && cfg.DatabaseData != nil) {
 		return nil, errors.New("ambiguous settings received. Only one data type can be set")
 	}
 
-	if cfg.CandleData != nil {
+	if cfg.CSVData != nil {
+		switch cfg.CSVData.DataType {
+		case candleStr:
+			// format: timestamp, volume, open, high, low, close
+			csvFile, err := os.Open(cfg.CSVData.FullPath)
+			if err != nil {
+				return nil, err
+			}
+
+			defer func() {
+				err = csvFile.Close()
+				if err != nil {
+					log.Errorln(log.Global, err)
+				}
+			}()
+
+			csvData := csv.NewReader(csvFile)
+			candles := kline.Item{
+				Exchange: cfg.ExchangeSettings.Name,
+				Pair:     fPair,
+				Asset:    a,
+				Interval: kline.Interval(cfg.CSVData.Interval),
+			}
+			for {
+				row, errCSV := csvData.Read()
+				if errCSV != nil {
+					if errCSV == io.EOF {
+						break
+					}
+					return nil, errCSV
+				}
+
+				candle := kline.Candle{}
+				v, errParse := strconv.ParseInt(row[0], 10, 32)
+				if errParse != nil {
+					return nil, errParse
+				}
+				candle.Time = time.Unix(v, 0).UTC()
+				if candle.Time.IsZero() {
+					err = fmt.Errorf("invalid timestamp received on row %v", row)
+					break
+				}
+
+				candle.Volume, err = strconv.ParseFloat(row[1], 64)
+				if err != nil {
+					break
+				}
+
+				candle.Open, err = strconv.ParseFloat(row[2], 64)
+				if err != nil {
+					break
+				}
+
+				candle.High, err = strconv.ParseFloat(row[3], 64)
+				if err != nil {
+					break
+				}
+
+				candle.Low, err = strconv.ParseFloat(row[4], 64)
+				if err != nil {
+					break
+				}
+
+				candle.Close, err = strconv.ParseFloat(row[5], 64)
+				if err != nil {
+					break
+				}
+
+				candles.Candles = append(candles.Candles, candle)
+			}
+
+			resp.Item = candles
+		case tradeStr:
+			// format: timestamp, price, amount, side
+			csvFile, err := os.Open(cfg.CSVData.FullPath)
+			if err != nil {
+				return nil, err
+			}
+
+			defer func() {
+				err = csvFile.Close()
+				if err != nil {
+					log.Errorln(log.Global, err)
+				}
+			}()
+
+			csvData := csv.NewReader(csvFile)
+			var trades []trade.Data
+			for {
+				row, errCSV := csvData.Read()
+				if errCSV != nil {
+					if errCSV == io.EOF {
+						break
+					}
+					return nil, errCSV
+				}
+
+				t := trade.Data{}
+				v, errParse := strconv.ParseInt(row[0], 10, 32)
+				if errParse != nil {
+					return nil, errParse
+				}
+				t.Timestamp = time.Unix(v, 0).UTC()
+				if t.Timestamp.IsZero() {
+					err = fmt.Errorf("invalid timestamp received on row %v", row)
+					break
+				}
+
+				t.Price, err = strconv.ParseFloat(row[1], 64)
+				if err != nil {
+					break
+				}
+
+				t.Amount, err = strconv.ParseFloat(row[2], 64)
+				if err != nil {
+					break
+				}
+
+				t.Side, err = order.StringToOrderSide(row[3])
+				if err != nil {
+					return nil, err
+				}
+
+				trades = append(trades, t)
+			}
+			resp.Item, err = trade.ConvertTradesToCandles(kline.Interval(cfg.CSVData.Interval), trades...)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("unrecognised csv datatype received: '%v'", cfg.CSVData.DataType)
+		}
+	} else if cfg.APIData != nil {
 		var candles kline.Item
-		candles, err = exch.GetHistoricCandlesExtended(fPair, a, cfg.CandleData.StartDate, cfg.CandleData.EndDate, kline.Interval(cfg.CandleData.Interval))
-		if err != nil {
-			return nil, err
+		switch cfg.APIData.DataType {
+		case candleStr:
+			candles, err = exch.GetHistoricCandlesExtended(fPair, a, cfg.APIData.StartDate, cfg.APIData.EndDate, kline.Interval(cfg.APIData.Interval))
+			if err != nil {
+				return nil, err
+			}
+		case tradeStr:
+			var trades []trade.Data
+			trades, err = exch.GetHistoricTrades(fPair, a, cfg.APIData.StartDate, cfg.APIData.EndDate)
+			if err != nil {
+				return nil, err
+			}
+
+			candles, err = trade.ConvertTradesToCandles(kline.Interval(cfg.APIData.Interval), trades...)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("unrecognised api datatype received: '%v'", cfg.APIData.DataType)
 		}
 
 		resp.Item = candles
@@ -254,13 +406,20 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 				return nil, err
 			}
 		}
-		if cfg.DatabaseData.DataType == "candle" {
+		defer func() {
+			err = engine.Bot.DatabaseManager.Stop()
+			if err != nil {
+				log.Error(log.BackTester, err)
+			}
+		}()
+		switch cfg.DatabaseData.DataType {
+		case candleStr:
 			datarino, err := getCandleDatabaseData(cfg, fPair, a)
 			if err != nil {
 				return nil, err
 			}
 			resp.Item = datarino
-		} else if cfg.DatabaseData.DataType == "trade" {
+		case tradeStr:
 			trades, err := trade.GetTradesInRange(
 				cfg.ExchangeSettings.Name,
 				cfg.ExchangeSettings.Asset,
@@ -278,9 +437,14 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 				return nil, err
 			}
 			resp.Item = datarino
-		} else {
-			return nil, fmt.Errorf("unexpected database datatype: %v", cfg.DatabaseData.DataType)
+		default:
+			return nil, fmt.Errorf("unexpected database datatype: '%v'", cfg.DatabaseData.DataType)
 		}
+	}
+
+	err = resp.Load()
+	if err != nil {
+		return nil, err
 	}
 
 	return resp, nil
@@ -337,7 +501,7 @@ func (b *BackTest) RunLive() error {
 			return errors.New("no data returned in 5 minutes, shutting down")
 		default:
 			//
-			// Go get latest candle of interval X, verify that it hasn't been run before, then append the event
+			// Go get latest candleStr of interval X, verify that it hasn't been run before, then append the event
 			//
 			doneARun := false
 			for event, ok := b.nextEvent(); true; event, ok = b.nextEvent() {
@@ -403,7 +567,6 @@ func (b *BackTest) handleEvent(e interfaces.EventHandler) error {
 		b.EventQueue = append(b.EventQueue, o)
 
 	case internalordermanager.OrderEvent:
-
 		f, err := b.Exchange.ExecuteOrder(event, b.Data)
 		if err != nil {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(common.SimpleTimeFormat), err.Error())
