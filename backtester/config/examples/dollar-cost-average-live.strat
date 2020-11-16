@@ -1,0 +1,37 @@
+{
+ "strategy": "dollarcostaverage",
+ "exchange-settings": {
+  "exchange-name": "binance",
+  "asset": "spot",
+  "base": "BTC",
+  "quote": "USDT",
+  "initial-funds": 1337,
+  "minimum-buy-size": 0.1,
+  "maximum-buy-size": 1,
+  "default-buy-size": 0.5,
+  "minimum-sell-size": 0.1,
+  "maximum-sell-size": 2,
+  "default-sell-size": 0.5,
+  "can-use-leverage": false,
+  "maximum-leverage": 0
+ },
+ "live-data": {
+  "interval": 60000000000,
+  "api-key-override": "",
+  "api-secret-override": "",
+  "api-client-id-override": "",
+  "api-2fa-override": "",
+  "fake-orders": false
+ },
+ "portfolio": {
+  "diversification-something": 0,
+  "can-use-leverage": false,
+  "maximum-leverage": 0,
+  "minimum-buy-size": 0.1,
+  "maximum-buy-size": 1,
+  "default-buy-size": 0.5,
+  "minimum-sell-size": 0.1,
+  "maximum-sell-size": 2,
+  "default-sell-size": 0.5
+ }
+}

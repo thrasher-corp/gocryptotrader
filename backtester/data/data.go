@@ -32,6 +32,20 @@ func (d *Data) SetStream(s []interfaces.DataEventHandler) {
 	d.stream = s
 }
 
+// AppendStream appends new datas onto the stream, however, will not
+// add duplicates. Used for live analysis
+func (d *Data) AppendStream(s ...interfaces.DataEventHandler) {
+	for i := range s {
+		for j := range d.stream {
+			if d.stream[j].GetTime().Before(s[i].GetTime()) ||
+				d.stream[j].GetTime().Equal(s[i].GetTime()) {
+				continue
+			}
+			d.stream = append(d.stream, s[i])
+		}
+	}
+}
+
 // Next will return the next event in the list and also shift the offset one
 func (d *Data) Next() (dh interfaces.DataEventHandler, ok bool) {
 	if len(d.stream) <= d.offset {

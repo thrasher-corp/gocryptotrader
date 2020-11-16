@@ -40,6 +40,32 @@ func (d *DataFromKline) Load() error {
 	return nil
 }
 
+func (d *DataFromKline) Append() error {
+	if len(d.Item.Candles) == 0 {
+		return errors.New("no candle data provided")
+	}
+
+	klineData := make([]interfaces.DataEventHandler, len(d.Item.Candles))
+	for i := range d.Item.Candles {
+		klineData[i] = &kline.Kline{
+			Event: event.Event{
+				Exchange: d.Item.Exchange,
+				Time:     d.Item.Candles[i].Time, CurrencyPair: d.Item.Pair,
+				AssetType: d.Item.Asset,
+			},
+			Open:   d.Item.Candles[i].Open,
+			High:   d.Item.Candles[i].High,
+			Low:    d.Item.Candles[i].Low,
+			Close:  d.Item.Candles[i].Close,
+			Volume: d.Item.Candles[i].Volume,
+		}
+	}
+	d.AppendStream(klineData...)
+	d.SortStream()
+
+	return nil
+}
+
 func (d *DataFromKline) StreamOpen() []float64 {
 	s := d.GetStream()
 	o := d.GetOffset()

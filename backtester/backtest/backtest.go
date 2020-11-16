@@ -395,9 +395,16 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 		validated := base.ValidateAPICredentials()
 		base.API.AuthenticatedSupport = validated
 		if !validated {
-			log.Warn(log.BackTester, "bad credentials received, no live trading for run")
+			log.Warn(log.BackTester, "bad credentials received, no live trading for you")
 			cfg.LiveData.RealOrders = false
 		}
+		go func() {
+			candles, err = exch.GetHistoricCandles(fPair, a, time.Now().Add(-cfg.LiveData.Interval), time.Now(), kline.Interval(cfg.LiveData.Interval))
+			if err != nil {
+				return
+			}
+
+		}()
 	} else if cfg.DatabaseData != nil {
 		if cfg.DatabaseData.ConfigOverride != nil {
 			engine.Bot.Config.Database = *cfg.DatabaseData.ConfigOverride

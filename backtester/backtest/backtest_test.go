@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -110,6 +111,55 @@ func TestLoadCandleDataFromAPI(t *testing.T) {
 	if len(bt.Data.List()) == 0 {
 		t.Error("no data loaded")
 	}
+}
+
+func TestWhatHAppensWhenLiveIsRun(t *testing.T) {
+	cfg := config.Config{
+		StrategyToLoad: "dollarcostaverage",
+		ExchangeSettings: config.ExchangeSettings{
+			Name:            "binance",
+			Asset:           asset.Spot.String(),
+			Base:            currency.BTC.String(),
+			Quote:           currency.USDT.String(),
+			InitialFunds:    1337,
+			MinimumBuySize:  0.1,
+			MaximumBuySize:  1,
+			DefaultBuySize:  0.5,
+			MinimumSellSize: 0.1,
+			MaximumSellSize: 2,
+			DefaultSellSize: 0.5,
+			CanUseLeverage:  false,
+			MaximumLeverage: 0,
+			MakerFee:        0.01,
+			TakerFee:        0.02,
+		},
+		LiveData: &config.LiveData{
+			Interval:   kline.OneMin.Duration(),
+			RealOrders: false,
+		},
+		PortfolioSettings: config.PortfolioSettings{
+			DiversificationSomething: 0,
+			CanUseLeverage:           false,
+			MaximumLeverage:          0,
+			MinimumBuySize:           0.1,
+			MaximumBuySize:           1,
+			DefaultBuySize:           0.5,
+			MinimumSellSize:          0.1,
+			MaximumSellSize:          2,
+			DefaultSellSize:          0.5,
+		},
+	}
+	bt, err := NewFromConfig(&cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	go func() {
+		err = bt.RunLive()
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(-1)
+		}
+	}()
 }
 
 func TestLoadTradeDataFromAPI(t *testing.T) {
