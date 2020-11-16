@@ -154,7 +154,6 @@ func TestGetFundingRates(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -166,7 +165,6 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestGetPositions(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -200,7 +198,6 @@ func TestGetCoins(t *testing.T) {
 }
 
 func TestGetBalances(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
