@@ -2707,11 +2707,10 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ep, method, endpoint string, values
 
 	var body []byte
 	if data != nil {
-		encoded, err := json.Marshal(data)
+		body, err = json.Marshal(data)
 		if err != nil {
 			return err
 		}
-		body = encoded
 	}
 
 	// Time difference between your timestamp and standard should be less than 1 minute.

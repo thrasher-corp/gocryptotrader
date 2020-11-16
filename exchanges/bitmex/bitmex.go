@@ -845,7 +845,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ep, verb, path string, params Para
 
 	var payload string
 	if params != nil {
-		err := params.VerifyData()
+		err = params.VerifyData()
 		if err != nil {
 			return err
 		}
