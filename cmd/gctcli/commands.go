@@ -1834,7 +1834,7 @@ func cancelOrder(c *cli.Context) error {
 
 var cancelBatchOrdersCommand = cli.Command{
 	Name:      "cancelbatchorders",
-	Usage:     "cancel batch orders cancels an list of exchange order (comma separated)",
+	Usage:     "cancel batch orders cancels an list of exchange orders (comma separated)",
 	ArgsUsage: "<exchange> <account_id> <orders_id> <pair> <asset> <wallet_address> <side>",
 	Action:    cancelBatchOrders,
 	Flags: []cli.Flag{
