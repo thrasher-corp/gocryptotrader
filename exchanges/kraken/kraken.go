@@ -289,7 +289,7 @@ func (k *Kraken) GetServerTime() (TimeResponse, error) {
 		Result TimeResponse `json:"result"`
 	}
 
-	if err := k.SendHTTPRequest(futuresRest, path, &response); err != nil {
+	if err := k.SendHTTPRequest(spotURL, path, &response); err != nil {
 		return response.Result, err
 	}
 

@@ -149,11 +149,11 @@ func (b *Bitstamp) SetDefaults() {
 		log.Error(log.Global, err)
 	}
 
-	err = b.API.Endpoints.Set(runningSpotRest, runningRestURL, true)
+	err = b.API.Endpoints.SetRunning(runningSpotRest, runningRestURL, true)
 	if err != nil {
 		log.Error(log.Global, err)
 	}
-	err = b.API.Endpoints.Set(runningSpotWS, runningWSURL, true)
+	err = b.API.Endpoints.SetRunning(runningSpotWS, runningWSURL, true)
 	if err != nil {
 		log.Error(log.Global, err)
 	}

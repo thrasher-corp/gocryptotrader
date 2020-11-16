@@ -202,14 +202,10 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("HEYYYYYYYYYYYYYYYYYYY STOP %v\n\n\n\n", defaultWSURL)
-
 	wsRunningURL, err := k.API.Endpoints.GetRunning(spotWSURL)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("HEYYYYYYYYYYYYYYYYYYY STOP %v\n\n\n\n", wsRunningURL)
-
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,

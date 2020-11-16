@@ -319,11 +319,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -421,11 +416,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -517,11 +507,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -597,11 +582,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -680,11 +660,6 @@
      "requiresSecret": true,
      "requiresClientID": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -760,11 +735,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -842,11 +812,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -944,11 +909,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -1026,11 +986,6 @@
      "requiresSecret": true,
      "requiresBase64DecodeSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -1106,11 +1061,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresClientID": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -1188,11 +1138,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -1274,11 +1219,6 @@
      "requiresClientID": true,
      "requiresBase64DecodeSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -1355,11 +1295,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -1435,11 +1370,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -1514,11 +1444,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -1626,11 +1551,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -1707,11 +1627,6 @@
     "credentialsValidator": {
      "requiresSecret": true,
      "requiresClientID": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -1802,11 +1717,6 @@
      "requiresSecret": true,
      "requiresBase64DecodeSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -1882,11 +1792,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -1961,11 +1866,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -2044,11 +1944,6 @@
      "requiresKey": true,
      "requiresSecret": true,
      "requiresClientID": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -2165,11 +2060,6 @@
      "requiresSecret": true,
      "requiresClientID": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -2246,11 +2136,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -2331,11 +2216,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -2412,11 +2292,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
@@ -2529,11 +2404,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -2622,11 +2492,6 @@
      "requiresKey": true,
      "requiresSecret": true
     },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
      "defaultWSURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
@@ -2710,11 +2575,6 @@
     "credentials": {
      "key": "Key",
      "secret": "Secret"
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
     },
     "urlEndpoints": {
      "defaultURL": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",

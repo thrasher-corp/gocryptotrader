@@ -45,7 +45,7 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 	response := make(map[string]TickerResponse)
 	path := fmt.Sprintf("/%s", lakeBTCTicker)
 
-	err := l.SendHTTPRequest(path, &response)
+	err := l.SendHTTPRequest(spotURL, path, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	}
 	path := fmt.Sprintf("/%s?symbol=%s", lakeBTCOrderbook, strings.ToLower(currency))
 	resp := Response{}
-	err := l.SendHTTPRequest(path, &resp)
+	err := l.SendHTTPRequest(spotURL, path, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -146,7 +146,7 @@ func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
 	v.Set("symbol", strings.ToLower(currency))
 	path := fmt.Sprintf("/%s?%s", lakeBTCTrades, v.Encode())
 	var resp []TradeHistory
-	return resp, l.SendHTTPRequest(path, &resp)
+	return resp, l.SendHTTPRequest(spotURL, path, &resp)
 }
 
 // GetAccountInformation returns your current account information
@@ -271,10 +271,14 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, er
 }
 
 // SendHTTPRequest sends an unauthenticated http request
-func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
+func (l *LakeBTC) SendHTTPRequest(endpoint, path string, result interface{}) error {
+	pathURL, err := l.API.Endpoints.GetRunning(endpoint)
+	if err != nil {
+		return err
+	}
 	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          path,
+		Path:          pathURL + path,
 		Result:        result,
 		Verbose:       l.Verbose,
 		HTTPDebugging: l.HTTPDebugging,

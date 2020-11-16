@@ -82,7 +82,7 @@ func TestSet(t *testing.T) {
 		"test1": "test1url",
 		"test2": "test2url",
 	})
-	err := b.API.Endpoints.Set("test1", "OVERWRITTEN BRO", true)
+	err := b.API.Endpoints.SetRunning("test1", "OVERWRITTEN BRO", true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -112,7 +112,7 @@ func TestGet(t *testing.T) {
 	if getVal != "test1url" {
 		t.Errorf("getVal failed")
 	}
-	err = b.API.Endpoints.Set("test2", "OVERWRITTEN BRO", true)
+	err = b.API.Endpoints.SetRunning("test2", "OVERWRITTEN BRO", true)
 	if err != nil {
 		t.Error(err)
 	}

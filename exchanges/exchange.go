@@ -786,43 +786,29 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL() error {
 	var err error
-	if e.Config.API.OldEndPoints != nil {
-		fmt.Printf("HELAOOOOOOOOOOOOO WHERE AM I\n\n\n")
-		var tempEndpoints Endpoints
-		tempEndpoints.CreateMap(map[string]string{})
-		tempEndpoints.running = e.Config.API.Endpoints
-		if e.Config.API.OldEndPoints.URL != "" && e.Config.API.OldEndPoints.URL != "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" {
-			err = e.API.Endpoints.Set(oldURL, e.Config.API.OldEndPoints.URL, true)
-			if err != nil {
-				return err
-			}
-			tempEndpoints.Set(oldURL, e.Config.API.OldEndPoints.URL, true)
-			if err != nil {
-				return err
-			}
-		}
-		if e.Config.API.OldEndPoints.WebsocketURL != "" && e.Config.API.OldEndPoints.WebsocketURL != "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
-			err = e.API.Endpoints.Set(oldWSURL, e.Config.API.OldEndPoints.WebsocketURL, true)
-			if err != nil {
-				return err
-			}
-			tempEndpoints.Set(oldWSURL, e.Config.API.OldEndPoints.WebsocketURL, true)
-			if err != nil {
-				return err
-			}
-		}
-		e.Config.API.Endpoints = tempEndpoints.running
-		e.Config.API.OldEndPoints = nil
-	} else {
+	e.Config.API.OldEndPoints = nil
+	if e.Config.API.Endpoints != nil {
 		for a, meow := range e.Config.API.Endpoints {
 			if meow == "" || meow == "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" || meow == "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
 				continue
 			}
-			err = e.API.Endpoints.Set(a, e.Config.API.Endpoints[a], true)
-			if err != nil {
-				return err
+			if strings.Contains(meow, Default) {
+				err = e.API.Endpoints.SetDefault(a, meow, true)
+				if err != nil {
+					return err
+				}
+			} else {
+				err = e.API.Endpoints.SetRunning(a, meow, true)
+				if err != nil {
+					return err
+				}
 			}
 		}
+	}
+	e.Config.API.Endpoints = e.API.Endpoints.GetURLMap(true)
+	runningMap := e.API.Endpoints.GetURLMap(false)
+	for r := range runningMap {
+		e.Config.API.Endpoints[r] = runningMap[r]
 	}
 	return nil
 }
@@ -1152,8 +1138,8 @@ func (e *Endpoints) CreateMap(m map[string]string) {
 	}
 }
 
-// Set sets
-func (e *Endpoints) Set(key, val string, overwrite bool) error {
+// SetRunning sets running
+func (e *Endpoints) SetRunning(key, val string, overwrite bool) error {
 	e.Lock()
 	defer e.Unlock()
 	if !overwrite {
@@ -1163,6 +1149,20 @@ func (e *Endpoints) Set(key, val string, overwrite bool) error {
 		}
 	}
 	e.running[key] = val
+	return nil
+}
+
+// SetDefault sets defaults
+func (e *Endpoints) SetDefault(key, val string, overwrite bool) error {
+	e.Lock()
+	defer e.Unlock()
+	if !overwrite {
+		oldVal, ok := e.defaults[key]
+		if ok && oldVal == val {
+			return fmt.Errorf("given key and val are already set")
+		}
+	}
+	e.defaults[key] = val
 	return nil
 }
 

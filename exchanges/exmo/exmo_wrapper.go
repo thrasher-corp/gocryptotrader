@@ -27,8 +27,7 @@ import (
 )
 
 const (
-	spotURL   = "spotAPIURL"
-	spotWSURL = "spotWSURL"
+	spotURL = "spotAPIURL"
 )
 
 // GetDefaultConfig returns a default exchange config

@@ -134,7 +134,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	if exch.UseSandbox {
-		err = g.API.Endpoints.Set(spotURL, geminiSandboxAPIURL, true)
+		err = g.API.Endpoints.SetRunning(spotURL, geminiSandboxAPIURL, true)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

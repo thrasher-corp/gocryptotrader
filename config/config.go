@@ -854,6 +854,8 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].WebsocketURL = nil
 		}
 
+		c.Exchanges[i].API.OldEndPoints = nil
+
 		if c.Exchanges[i].Features == nil {
 			c.Exchanges[i].Features = &FeaturesConfig{}
 		}
@@ -873,7 +875,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 		// if c.Exchanges[i].API.Endpoints["runningURL"] != APIURLNonDefaultMessage {
 		if c.Exchanges[i].API.Endpoints["runningURL"] == "" {
-			fmt.Printf("WHYYYYYYYYYYYYYYYYYYYYYYYYY IS THIS HAPPENINGGGGGGGGGGGGGGGGGG?!!?!?!?!\n\n\n")
 			// Set default if nothing set
 			c.Exchanges[i].API.Endpoints["defaultURL"] = APIURLNonDefaultMessage
 		}
@@ -929,8 +930,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AssetTypes = nil
 			c.Exchanges[i].AvailablePairs = nil
 			c.Exchanges[i].EnabledPairs = nil
-			c.Exchanges[i].API.OldEndPoints = nil
-
 		} else {
 			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes()
 			var atLeastOne bool
