@@ -394,7 +394,6 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 					}
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
-
 					var kline KlineStream
 					err := json.Unmarshal(rawData, &kline)
 					if err != nil {
@@ -402,8 +401,6 @@ func (b *Binance) wsHandleData(respRaw []byte, conn stream.Connection) error {
 							b.Name,
 							err)
 					}
-
-					fmt.Println("KLINE:", kline)
 
 					pair, err := currency.NewPairFromFormattedPairs(kline.Symbol, pairs, format)
 					if err != nil {
@@ -704,7 +701,6 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 		}
 
 		for i := range intervals {
-			fmt.Println(intervals[i])
 			var fmtInterval string
 			fmtInterval, err = formatKlineInterval(intervals[i])
 			if err != nil {
@@ -747,8 +743,6 @@ func (b *Binance) GenerateSubscriptions(options stream.SubscriptionOptions) ([]s
 			}
 		}
 	}
-
-	fmt.Println(subscriptions)
 	return subscriptions, nil
 }
 
