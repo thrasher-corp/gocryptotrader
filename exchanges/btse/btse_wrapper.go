@@ -155,6 +155,7 @@ func (b *BTSE) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[string]string{
 		spotURL:   btseAPIURL,
 		spotWSURL: btseWebsocket,

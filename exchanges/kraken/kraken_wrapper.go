@@ -170,6 +170,7 @@ func (k *Kraken) SetDefaults() {
 	k.Requester = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
+	k.API.Endpoints = k.NewEndpoints()
 	k.API.Endpoints.CreateMap(map[string]string{
 		spotURL:     krakenAPIURL,
 		futuresRest: futuresURL,

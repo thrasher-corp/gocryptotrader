@@ -147,6 +147,7 @@ func (f *FTX) SetDefaults() {
 	f.Requester = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
+	f.API.Endpoints = f.NewEndpoints()
 	f.API.Endpoints.CreateMap(map[string]string{
 		spotURL:   ftxAPIURL,
 		spotWSURL: ftxWSURL,

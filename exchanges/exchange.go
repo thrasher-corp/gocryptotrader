@@ -1126,12 +1126,16 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 	}
 }
 
-// CreateMap creates map
-func (e *Endpoints) CreateMap(m map[string]string) {
-	*e = Endpoints{
+// NewEndpoints bla bla
+func (e *Base) NewEndpoints() *Endpoints {
+	return &Endpoints{
 		defaults: make(map[string]string),
 		running:  make(map[string]string),
 	}
+}
+
+// CreateMap creates map
+func (e *Endpoints) CreateMap(m map[string]string) {
 	for k, v := range m {
 		e.defaults[Default+k] = v
 		e.running[k] = v

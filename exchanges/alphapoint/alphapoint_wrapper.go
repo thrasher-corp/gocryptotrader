@@ -35,6 +35,7 @@ func (a *Alphapoint) SetDefaults() {
 	a.Name = "Alphapoint"
 	a.Enabled = true
 	a.Verbose = true
+	a.API.Endpoints = a.NewEndpoints()
 	a.API.Endpoints.CreateMap(map[string]string{
 		spotURL: alphapointDefaultAPIURL,
 		spotWS:  alphapointDefaultWebsocketURL,

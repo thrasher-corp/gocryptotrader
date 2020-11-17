@@ -142,6 +142,7 @@ func (o *OKCoin) SetDefaults() {
 		// TODO: Specify each individual endpoint rate limits as per docs
 		request.WithLimiter(request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate)),
 	)
+	o.API.Endpoints = o.NewEndpoints()
 	o.API.Endpoints.CreateMap(map[string]string{
 		spotURL:   okCoinAPIURL,
 		spotWSURL: okCoinWebsocketURL,

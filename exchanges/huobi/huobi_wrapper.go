@@ -164,6 +164,7 @@ func (h *HUOBI) SetDefaults() {
 	h.Requester = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	h.API.Endpoints = h.NewEndpoints()
 	h.API.Endpoints.CreateMap(map[string]string{
 		spotURL:     huobiAPIURL,
 		futuresRest: huobiURL,

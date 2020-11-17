@@ -118,6 +118,7 @@ func (c *COINUT) SetDefaults() {
 
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	c.API.Endpoints = c.NewEndpoints()
 	c.API.Endpoints.CreateMap(map[string]string{
 		spotURL:   coinutAPIURL,
 		spotWSURL: coinutWebsocketURL,

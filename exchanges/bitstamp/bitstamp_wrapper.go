@@ -135,7 +135,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate)))
-
+	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[string]string{
 		spotURL:   bitstampAPIURL,
 		spotWSURL: bitstampWSURL,

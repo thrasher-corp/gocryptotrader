@@ -202,6 +202,7 @@ func (o *OKEX) SetDefaults() {
 		// TODO: Specify each individual endpoint rate limits as per docs
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
+	o.API.Endpoints = o.NewEndpoints()
 	o.API.Endpoints.CreateMap(map[string]string{
 		spotURL:   okExAPIURL,
 		spotWSURL: OkExWebsocketURL,

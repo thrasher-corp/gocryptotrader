@@ -125,6 +125,7 @@ func (b *Bitmex) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[string]string{
 		spotURL:   bitmexAPIURL,
 		spotWSURL: bitmexWSURL,
@@ -176,7 +177,6 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

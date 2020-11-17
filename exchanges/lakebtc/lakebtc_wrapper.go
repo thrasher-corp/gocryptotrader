@@ -107,6 +107,7 @@ func (l *LakeBTC) SetDefaults() {
 
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	l.API.Endpoints = l.NewEndpoints()
 	l.API.Endpoints.CreateMap(map[string]string{
 		spotURL:   lakeBTCAPIURL,
 		spotWSURL: lakeBTCWSURL,

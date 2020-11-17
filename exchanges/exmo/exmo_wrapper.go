@@ -112,6 +112,7 @@ func (e *EXMO) SetDefaults() {
 	e.Requester = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
+	e.API.Endpoints = e.NewEndpoints()
 	e.API.Endpoints.CreateMap(map[string]string{
 		spotURL: exmoAPIURL,
 	})

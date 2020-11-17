@@ -111,6 +111,7 @@ func (g *Gemini) SetDefaults() {
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
+	g.API.Endpoints = g.NewEndpoints()
 	g.API.Endpoints.CreateMap(map[string]string{
 		spotURL:   geminiAPIURL,
 		spotWSURL: geminiWebsocketEndpoint,

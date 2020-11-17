@@ -785,8 +785,9 @@ func (b *Bitmex) SendHTTPRequest(ep, path string, params Parameter, result inter
 	}
 	path = endpoint + path
 	if params != nil {
+		var encodedPath string
 		if !params.IsNil() {
-			encodedPath, err := params.ToURLVals(path)
+			encodedPath, err = params.ToURLVals(path)
 			if err != nil {
 				return err
 			}

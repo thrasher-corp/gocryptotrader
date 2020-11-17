@@ -133,6 +133,7 @@ func (g *Gateio) SetDefaults() {
 	}
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	g.API.Endpoints = g.NewEndpoints()
 	g.API.Endpoints.CreateMap(map[string]string{
 		spotURL:       gateioTradeURL,
 		secondaryRest: gateioMarketURL,
