@@ -2452,7 +2452,6 @@ func (b *Binance) NewOrderTest(o *NewOrderRequest) error {
 }
 
 func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderResponse) error {
-
 	params := url.Values{}
 	params.Set("symbol", o.Symbol)
 	params.Set("side", o.Side)

@@ -850,7 +850,8 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ep, verb, path string, params Para
 		if err != nil {
 			return err
 		}
-		data, err := json.Marshal(params)
+		var data []byte
+		data, err = json.Marshal(params)
 		if err != nil {
 			return err
 		}

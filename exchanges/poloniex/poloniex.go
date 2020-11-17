@@ -222,9 +222,7 @@ func (p *Poloniex) GetCurrencies() (map[string]Currencies, error) {
 		Data map[string]Currencies
 	}
 	resp := Response{}
-	path := fmt.Sprintf("/public?command=returnCurrencies")
-
-	return resp.Data, p.SendHTTPRequest(spotURL, path, &resp.Data)
+	return resp.Data, p.SendHTTPRequest(spotURL, "/public?command=returnCurrencies", &resp.Data)
 }
 
 // GetLoanOrders returns the list of loan offers and demands for a given
