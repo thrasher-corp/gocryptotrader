@@ -978,7 +978,6 @@ func TestFuturesForceOrders(t *testing.T) {
 }
 
 func TestUGetNotionalLeverage(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
