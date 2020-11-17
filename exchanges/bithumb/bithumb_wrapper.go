@@ -210,7 +210,6 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 				fmt.Errorf("enabled pair %s [%s] not found in returned ticker map %v",
 					pairs[i], pairs, tickers)
 		}
-
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         t.MaxPrice,
 			Low:          t.MinPrice,

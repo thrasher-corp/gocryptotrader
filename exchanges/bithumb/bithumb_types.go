@@ -8,18 +8,18 @@ import (
 
 // Ticker holds ticker data
 type Ticker struct {
-	OpeningPrice              float64 `json:"opening_price,string"`
-	ClosingPrice              float64 `json:"closing_price,string"`
-	MinPrice                  float64 `json:"min_price,string"`
-	MaxPrice                  float64 `json:"max_price,string"`
-	UnitsTraded               float64 `json:"units_traded,string"`
-	AccumulatedTradeValue     float64 `json:"acc_trade_value,string"`
-	PreviousClosingPrice      float64 `json:"prev_closing_price,string"`
-	UnitsTraded24Hr           float64 `json:"units_traded_24H,string"`
-	AccumulatedTradeValue24hr float64 `json:"acc_trade_value_24H,string"`
-	Fluctate24Hr              string  `json:"fluctate_24H"`
-	FluctateRate24hr          float64 `json:"fluctate_rate_24H,string"`
-	Date                      int64   `json:"date,string"`
+	OpeningPrice              float64     `json:"opening_price,string"`
+	ClosingPrice              float64     `json:"closing_price,string"`
+	MinPrice                  float64     `json:"min_price,string"`
+	MaxPrice                  float64     `json:"max_price,string"`
+	UnitsTraded               float64     `json:"units_traded,string"`
+	AccumulatedTradeValue     float64     `json:"acc_trade_value,string"`
+	PreviousClosingPrice      float64     `json:"prev_closing_price,string"`
+	UnitsTraded24Hr           float64     `json:"units_traded_24H,string"`
+	AccumulatedTradeValue24hr float64     `json:"acc_trade_value_24H,string"`
+	Fluctate24Hr              string      `json:"fluctate_24H"`
+	FluctateRate24hr          interface{} `json:"fluctate_rate_24H"`
+	Date                      int64       `json:"date,string"`
 }
 
 // TickerResponse holds the standard ticker response
