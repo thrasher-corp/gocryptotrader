@@ -75,7 +75,7 @@ type Bitflyer struct {
 // analysis system
 func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	return resp, b.SendHTTPRequest(spotURL, latestBlock, &resp)
+	return resp, b.SendHTTPRequest(chainAnalysisURL, latestBlock, &resp)
 }
 
 // GetBlockCA returns block information by blockhash from bitflyer chain
