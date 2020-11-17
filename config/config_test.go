@@ -1313,9 +1313,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		!cfg.Exchanges[0].API.PEMKeySupport ||
 		!cfg.Exchanges[0].API.AuthenticatedSupport ||
 		!cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
-		// cfg.Exchanges[0].API.Endpoints.WebsocketURL != "wss://1337" ||
-		// cfg.Exchanges[0].API.Endpoints.URL != APIURLNonDefaultMessage ||
-		// cfg.Exchanges[0].API.Endpoints.URLSecondary != APIURLNonDefaultMessage {
 		t.Error("unexpected values")
 	}
 
@@ -1336,9 +1333,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].Features = nil
 	cfg.Exchanges[0].SupportsAutoPairUpdates = convert.BoolPtr(true)
 	cfg.Exchanges[0].Websocket = convert.BoolPtr(true)
-	// cfg.Exchanges[0].API.Endpoints.URL = ""
-	// cfg.Exchanges[0].API.Endpoints.URLSecondary = ""
-	// cfg.Exchanges[0].API.Endpoints.WebsocketURL = ""
 
 	err = cfg.CheckExchangeConfigValues()
 	if err != nil {
@@ -1350,12 +1344,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		!cfg.Exchanges[0].Features.Supports.RESTCapabilities.AutoPairUpdates {
 		t.Error("unexpected values")
 	}
-
-	// if cfg.Exchanges[0].API.Endpoints.URL != APIURLNonDefaultMessage ||
-	// 	cfg.Exchanges[0].API.Endpoints.URLSecondary != APIURLNonDefaultMessage ||
-	// 	cfg.Exchanges[0].API.Endpoints.WebsocketURL != WebsocketURLNonDefaultMessage {
-	// 	t.Error("unexpected values")
-	// }
 
 	p1, err := currency.NewPairDelimiter(testPair, "-")
 	if err != nil {

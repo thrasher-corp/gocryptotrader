@@ -831,15 +831,9 @@ func (c *Config) CheckExchangeConfigValues() error {
 			if c.Exchanges[i].ClientID != nil {
 				c.Exchanges[i].API.Credentials.ClientID = *c.Exchanges[i].ClientID
 			}
-			fmt.Printf("WHATTTTTTTTTTT DO YOU WANTTTTTTTTTT\n\n\n\n")
-			fmt.Printf("%+v", c.Exchanges[i].API.Endpoints)
 			if c.Exchanges[i].WebsocketURL != nil {
-				fmt.Printf("HOW COULD THIS HAPPEN?!?!?!?!?!?!\n\n\n\n\n")
 				c.Exchanges[i].API.Endpoints["runningWSURL"] = *c.Exchanges[i].WebsocketURL
 			}
-
-			// c.Exchanges[i].API.Endpoints["runningURL"] = *c.Exchanges[i].APIURL
-			// c.Exchanges[i].API.Endpoints.URLSecondary = *c.Exchanges[i].APIURLSecondary
 
 			// Flush settings
 			c.Exchanges[i].AuthenticatedAPISupport = nil
