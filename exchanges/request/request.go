@@ -148,10 +148,16 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 		if retry, checkErr := r.retryPolicy(resp, err); checkErr != nil {
 			return checkErr
 		} else if retry {
+			meow, err := ioutil.ReadAll(resp.Body)
+
+			fmt.Println("THIS IS THE BODY BRA!", string(meow), err)
+
 			if err == nil {
 				// If the body isn't fully read, the connection cannot be re-used
 				r.drainBody(resp.Body)
 			}
+
+			fmt.Println("THIS IS THE ERROR BRA!", err)
 
 			// Can't currently regenerate nonce and signatures with fresh values for retries, so for now, we must not retry
 			if p.NonceEnabled {

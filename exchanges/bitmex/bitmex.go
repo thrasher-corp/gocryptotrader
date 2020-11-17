@@ -791,15 +791,17 @@ func (b *Bitmex) SendHTTPRequest(ep, path string, params Parameter, result inter
 			if err != nil {
 				return err
 			}
-
+			wow := new(http.Header)
 			err = b.SendPayload(context.Background(), &request.Item{
-				Method:        http.MethodGet,
-				Path:          encodedPath,
-				Result:        &respCheck,
-				Verbose:       b.Verbose,
-				HTTPDebugging: b.HTTPDebugging,
-				HTTPRecording: b.HTTPRecording,
+				Method:         http.MethodGet,
+				Path:           encodedPath,
+				Result:         &respCheck,
+				Verbose:        b.Verbose,
+				HTTPDebugging:  b.HTTPDebugging,
+				HTTPRecording:  b.HTTPRecording,
+				HeaderResponse: wow,
 			})
+			fmt.Println("give me head/ers:", wow)
 			if err != nil {
 				return err
 			}
@@ -817,6 +819,7 @@ func (b *Bitmex) SendHTTPRequest(ep, path string, params Parameter, result inter
 		HTTPRecording:  b.HTTPRecording,
 		HeaderResponse: &wow,
 	})
+	fmt.Println("give me head/ers:", wow)
 	if err != nil {
 		return err
 	}

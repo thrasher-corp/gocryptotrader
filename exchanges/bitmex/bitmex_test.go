@@ -207,6 +207,7 @@ func TestGetActiveIntervals(t *testing.T) {
 
 func TestGetCompositeIndex(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	_, err := b.GetCompositeIndex(&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetCompositeIndex() Expected error", err)
