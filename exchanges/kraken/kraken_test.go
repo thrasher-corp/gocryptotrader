@@ -551,13 +551,13 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 
 	pair := currency.Pair{
 		Delimiter: "/",
-		Base: currency.BTC,
-		Quote: currency.USD,
+		Base:      currency.BTC,
+		Quote:     currency.USD,
 	}
 
 	var ordersCancellation []order.Cancel
 	ordersCancellation = append(ordersCancellation, order.Cancel{
-		Pair: pair,
+		Pair:      pair,
 		ID:        "OGEX6P-B5Q74-IGZ72R,OGEX6P-B5Q74-IGZ722",
 		AssetType: asset.Spot,
 	})
