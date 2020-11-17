@@ -602,7 +602,7 @@ func (f *FTX) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (f *FTX) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
+func (f *FTX) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

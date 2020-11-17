@@ -443,7 +443,7 @@ func (l *LakeBTC) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (l *LakeBTC) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
+func (l *LakeBTC) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

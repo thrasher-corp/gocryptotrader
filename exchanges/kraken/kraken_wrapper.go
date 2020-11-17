@@ -630,7 +630,7 @@ func (k *Kraken) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(orders []*order.Cancel) (order.CancelBatchResponse, error) {
+func (k *Kraken) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchResponse, error) {
 	var ordersList []string
 	for i := range orders {
 		if err := orders[i].Validate(orders[i].StandardCancel()); err != nil {
@@ -644,7 +644,7 @@ func (k *Kraken) CancelBatchOrders(orders []*order.Cancel) (order.CancelBatchRes
 		return order.CancelBatchResponse{}, err
 	}
 
-	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+	return order.CancelBatchResponse{}, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

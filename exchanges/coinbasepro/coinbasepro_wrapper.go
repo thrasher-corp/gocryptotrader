@@ -547,7 +547,7 @@ func (c *CoinbasePro) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (c *CoinbasePro) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
+func (c *CoinbasePro) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

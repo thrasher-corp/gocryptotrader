@@ -587,8 +587,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{nil}),
 		})
 
-		var request []*order.Cancel
-		request = append(request, &order.Cancel{
+		var request []order.Cancel
+		request = append(request, order.Cancel{
 			Side:      testOrderSide,
 			Pair:      p,
 			ID:        config.OrderSubmission.OrderID,

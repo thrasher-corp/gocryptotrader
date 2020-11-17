@@ -425,7 +425,7 @@ func (y *Yobit) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (y *Yobit) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
+func (y *Yobit) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

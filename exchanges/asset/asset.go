@@ -102,7 +102,7 @@ func New(input string) (Item, error) {
 		supported)
 }
 
-// UseDefault returns defuault asset type
+// UseDefault returns default asset type
 func UseDefault() Item {
 	return Spot
 }

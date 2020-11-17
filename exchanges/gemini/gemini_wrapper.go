@@ -455,7 +455,7 @@ func (g *Gemini) CancelOrder(o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (g *Gemini) CancelBatchOrders(o []*order.Cancel) (order.CancelBatchResponse, error) {
+func (g *Gemini) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

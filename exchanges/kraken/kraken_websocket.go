@@ -172,7 +172,7 @@ func (k *Kraken) wsReadData(comms chan stream.Response) {
 
 // awaitForCancelOrderResponses used to wait until all responses will received for appropriate CancelOrder request
 // success param = was the response from Kraken successful or not
-func awaitForCancelOrderResponses(requestID int64, success bool) bool {
+func isAwaitingCancelOrderResponses(requestID int64, success bool) bool {
 	cancelOrdersStatusMutex.Lock()
 	if stat, ok := cancelOrdersStatus[requestID]; ok {
 		if success {
@@ -233,12 +233,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				}
 
 				if status.Status == "error" {
-					k.Websocket.DataHandler <- fmt.Errorf("%v Websocket status for RequestID %d: '%v'",
-						k.Name,
-						status.RequestID,
-						status.ErrorMessage)
-
-					if awaitForCancelOrderResponses(status.RequestID, false) {
+					if isAwaitingCancelOrderResponses(status.RequestID, false) {
 						return nil
 					}
 
@@ -250,7 +245,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 					return nil
 				}
 
-				if awaitForCancelOrderResponses(status.RequestID, true) {
+				if isAwaitingCancelOrderResponses(status.RequestID, true) {
 					return nil
 				}
 
@@ -1159,8 +1154,12 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 	successful := cancelOrdersStatus[id].Successful
 
 	if resp.ErrorMessage != "" || len(orderIDs) != successful { // strange Kraken logic ...
-		return fmt.Errorf("%s, has been cancelled %d orders of %d: %s",
-			k.Name, successful, len(orderIDs), resp.ErrorMessage)
+		var reason string
+		if resp.ErrorMessage != "" {
+			reason = fmt.Sprintf(" Reason: %s", resp.ErrorMessage)
+		}
+		return fmt.Errorf("%s cancelled %d out of %d orders.%s",
+			k.Name, successful, len(orderIDs), reason)
 	}
 	return nil
 }

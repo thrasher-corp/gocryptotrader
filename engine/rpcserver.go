@@ -1038,11 +1038,11 @@ func (s *RPCServer) CancelBatchOrders(_ context.Context, r *gctrpc.CancelBatchOr
 	}
 
 	status := make(map[string]string)
-	var request []*order.Cancel
+	var request []order.Cancel
 	orders := strings.Split(r.OrdersId, ",")
 	for _, orderID := range orders {
-		status[orderID] = "canceled"
-		request = append(request, &order.Cancel{
+		status[orderID] = order.Cancelled.String()
+		request = append(request, order.Cancel{
 			AccountID:     r.AccountId,
 			ID:            orderID,
 			Side:          order.Side(r.Side),

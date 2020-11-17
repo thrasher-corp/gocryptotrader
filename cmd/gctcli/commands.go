@@ -1834,8 +1834,8 @@ func cancelOrder(c *cli.Context) error {
 
 var cancelBatchOrdersCommand = cli.Command{
 	Name:      "cancelbatchorders",
-	Usage:     "cancel batch orders cancels an list of exchange orders (comma separated)",
-	ArgsUsage: "<exchange> <account_id> <orders_id> <pair> <asset> <wallet_address> <side>",
+	Usage:     "cancel batch orders cancels a list of exchange orders (comma separated)",
+	ArgsUsage: "<exchange> <account_id> <order_ids> <pair> <asset> <wallet_address> <side>",
 	Action:    cancelBatchOrders,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1847,7 +1847,7 @@ var cancelBatchOrdersCommand = cli.Command{
 			Usage: "the account id",
 		},
 		cli.StringFlag{
-			Name:  "orders_id",
+			Name:  "order_ids",
 			Usage: "the comma separated orders id-s",
 		},
 		cli.StringFlag{
@@ -1898,8 +1898,8 @@ func cancelBatchOrders(c *cli.Context) error {
 		accountID = c.Args().Get(1)
 	}
 
-	if c.IsSet("orders_id") {
-		orderID = c.String("orders_id")
+	if c.IsSet("order_ids") {
+		orderID = c.String("order_ids")
 	} else {
 		orderID = c.Args().Get(2)
 	}

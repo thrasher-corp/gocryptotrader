@@ -360,8 +360,8 @@ func ({{.Variable}} *{{.CapitalName}}) CancelOrder(ord *order.Cancel) error {
 	return common.ErrNotYetImplemented
 }
 
-// CancelBatchOrders cancels an orders by their corresponding ID numbers
-func ({{.Variable}} *{{.CapitalName}}) CancelBatchOrders(orders []*order.Cancel) (order.CancelBatchResponse, error) {
+// CancelBatchOrders cancels orders by their corresponding ID numbers
+func ({{.Variable}} *{{.CapitalName}}) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchResponse, error) {
     return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 

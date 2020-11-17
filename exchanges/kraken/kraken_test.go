@@ -549,8 +549,15 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var ordersCancellation []*order.Cancel
-	ordersCancellation = append(ordersCancellation, &order.Cancel{
+	pair := currency.Pair{
+		Delimiter: "/",
+		Base: currency.BTC,
+		Quote: currency.USD,
+	}
+
+	var ordersCancellation []order.Cancel
+	ordersCancellation = append(ordersCancellation, order.Cancel{
+		Pair: pair,
 		ID:        "OGEX6P-B5Q74-IGZ72R,OGEX6P-B5Q74-IGZ722",
 		AssetType: asset.Spot,
 	})

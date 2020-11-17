@@ -791,6 +791,6 @@ func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.D
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (o *OKEX) CancelBatchOrders(ord []*order.Cancel) (order.CancelBatchResponse, error) {
+func (o *OKEX) CancelBatchOrders(ord []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }

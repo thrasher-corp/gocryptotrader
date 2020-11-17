@@ -133,7 +133,7 @@ func (h *FakePassingExchange) SubmitOrder(_ *order.Submit) (order.SubmitResponse
 }
 func (h *FakePassingExchange) ModifyOrder(_ *order.Modify) (string, error) { return "", nil }
 func (h *FakePassingExchange) CancelOrder(_ *order.Cancel) error           { return nil }
-func (h *FakePassingExchange) CancelBatchOrders(_ []*order.Cancel) (order.CancelBatchResponse, error) {
+func (h *FakePassingExchange) CancelBatchOrders(_ []order.Cancel) (order.CancelBatchResponse, error) {
 	return order.CancelBatchResponse{}, nil
 }
 func (h *FakePassingExchange) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {

@@ -1,6 +1,5 @@
 {
  "name": "Skynet",
- "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
  "database": {
