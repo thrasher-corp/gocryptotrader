@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -62,11 +61,11 @@ func TestCreateMap(t *testing.T) {
 	b := Base{
 		Name: "HELOOOOOOOO",
 	}
+	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[string]string{
 		"test1": "test1url",
 		"test2": "test2url",
 	})
-	fmt.Println(b.API.Endpoints.GetURLMap(false))
 	_, ok := b.API.Endpoints.running["test1"]
 	if !ok {
 		t.Errorf("CreateMap failed, no value for for the given key")
@@ -90,7 +89,6 @@ func TestSet(t *testing.T) {
 	if !ok {
 		t.Error("set method or createmap failed")
 	}
-	fmt.Println(val)
 	if val != "OVERWRITTEN BRO" {
 		t.Error("overwriting failed")
 	}
@@ -136,7 +134,9 @@ func TestGetAll(t *testing.T) {
 	})
 	allRunning := b.API.Endpoints.GetURLMap(false)
 	allDefault := b.API.Endpoints.GetURLMap(true)
-	fmt.Println(allRunning, allDefault)
+	if len(allDefault) != len(allRunning) {
+		t.Errorf("number of defaultURLs should match the number of runningURLs")
+	}
 }
 
 func TestHTTPClient(t *testing.T) {
