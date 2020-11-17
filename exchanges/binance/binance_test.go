@@ -1175,7 +1175,6 @@ func TestOpenOrders(t *testing.T) {
 
 func TestAllOrders(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.AllOrders("BTCUSDT", "", "")
 	switch {
 	case areTestAPIKeysSet() && err != nil:

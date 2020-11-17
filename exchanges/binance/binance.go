@@ -80,7 +80,7 @@ const (
 	ufuturesTopAccountsRatio   = "/futures/data/topLongShortAccountRatio?"
 	ufuturesTopPositionsRatio  = "/futures/data/topLongShortPositionRatio?"
 	ufuturesLongShortRatio     = "/futures/data/globalLongShortAccountRatio?"
-	ufuturesBuySellVolume      = "/futures/data/takerBuySellVol?"
+	ufuturesBuySellVolume      = "/futures/data/takerlongshortRatio?"
 
 	// Spot
 	exchangeInfo      = "/api/v3/exchangeInfo"
