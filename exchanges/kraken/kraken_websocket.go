@@ -71,10 +71,10 @@ var authenticatedChannels = []string{krakenWsOwnTrades, krakenWsOpenOrders}
 
 var cancelOrdersStatusMutex sync.Mutex
 var cancelOrdersStatus = make(map[int64]*struct {
-	Total        int // total count of orders in wsCancelOrders request
-	Successful   int // numbers of Successfully canceled orders in wsCancelOrders request
-	Unsuccessful int // numbers of Unsuccessfully canceled orders in wsCancelOrders request
-	Error		 string // if at least one of requested order return fail, store error here
+	Total        int    // total count of orders in wsCancelOrders request
+	Successful   int    // numbers of Successfully canceled orders in wsCancelOrders request
+	Unsuccessful int    // numbers of Unsuccessfully canceled orders in wsCancelOrders request
+	Error        string // if at least one of requested order return fail, store error here
 })
 
 // WsConnect initiates a websocket connection
