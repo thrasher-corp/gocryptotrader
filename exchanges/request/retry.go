@@ -1,7 +1,6 @@
 package request
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -22,7 +21,6 @@ func DefaultRetryPolicy(resp *http.Response, err error) (bool, error) {
 	}
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		fmt.Printf("HEY\n\n\n\n")
 		return true, nil
 	}
 
