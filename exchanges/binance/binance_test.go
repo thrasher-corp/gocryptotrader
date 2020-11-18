@@ -462,6 +462,45 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 	}
 }
 
+func TestGetAggregatedTradesErrors(t *testing.T) {
+	t.Parallel()
+	start, err := time.Parse(time.RFC3339, "2020-01-02T15:04:05Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name string
+		args *AggregatedTradeRequestParams
+	}{
+		{
+			name: "get recent trades does not support custom limit",
+			args: &AggregatedTradeRequestParams{
+				Symbol: currency.NewPair(currency.BTC, currency.USDT).String(),
+				Limit:  1001,
+			},
+		},
+		{
+			name: "start time and fromId cannot be both set",
+			args: &AggregatedTradeRequestParams{
+				Symbol:    currency.NewPair(currency.BTC, currency.USDT).String(),
+				StartTime: start,
+				EndTime:   start.Add(75 * time.Minute),
+				FromID:    2,
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := b.GetAggregatedTrades(tt.args)
+			if err == nil {
+				t.Errorf("Binance.GetAggregatedTrades() error = %v, wantErr true", err)
+				return
+			}
+		})
+	}
+}
+
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // -----------------------------------------------------------------------------------------------------------------------------
 

@@ -169,10 +169,17 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
-	limitSupported := true
+	// fromId xor start time must be set
+	canBatch := arg.FromID == 0 != arg.StartTime.IsZero()
+	needBatch := false
 	if arg.Limit > 0 {
 		if err := b.CheckLimit(arg.Limit); err != nil {
-			limitSupported = false
+			// the requested limit is not supported by exchange
+			if canBatch {
+				needBatch = true
+			} else {
+				return nil, err
+			}
 		} else {
 			params.Set("limit", strconv.Itoa(arg.Limit))
 		}
@@ -186,12 +193,19 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 	if !arg.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(convert.UnixMillis(arg.EndTime), 10))
 	}
-	// Fall back to batch requests
-	// if the requested limit is not supported by exchange or
-	// if startTime and endTime are set and time between startTime and endTime is more than 1 hour
-	if !limitSupported || (!arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour) {
-		// Split the request into multiple
-		return b.batchAggregateTrades(arg, params)
+
+	// startTime and endTime are set and time between startTime and endTime is more than 1 hour
+	needBatch = needBatch || (!arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour)
+	// Fall back to batch requests, if possible and necessary
+	if needBatch {
+		if canBatch {
+			// Split the request into multiple
+			return b.batchAggregateTrades(arg, params)
+		}
+
+		// Can't handle this request locally or remotely
+		// We would receive {"code":-1128,"msg":"Combination of optional parameters invalid."}
+		return nil, errors.New("please set StartTime or FromId, but not both")
 	}
 
 	var resp []AggregatedTrade
@@ -210,37 +224,47 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 		params.Set("limit", "1000")
 	}
 
-	for start := arg.StartTime; len(resp) == 0; start = start.Add(time.Hour) {
-		if !start.Before(arg.EndTime) {
-			// All requests returned empty
-			return nil, nil
+	var fromID int64
+	if arg.FromID > 0 {
+		fromID = arg.FromID
+	} else {
+		for start := arg.StartTime; len(resp) == 0; start = start.Add(time.Hour) {
+			if !start.Before(arg.EndTime) {
+				// All requests returned empty
+				return nil, nil
+			}
+			params.Set("startTime", strconv.FormatInt(convert.UnixMillis(start), 10))
+			params.Set("endTime", strconv.FormatInt(convert.UnixMillis(start.Add(time.Hour)), 10))
+			path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
+			err := b.SendHTTPRequest(path, limitDefault, &resp)
+			if err != nil {
+				log.Warn(log.ExchangeSys, err.Error())
+				return resp, err
+			}
 		}
-		params.Set("startTime", strconv.FormatInt(convert.UnixMillis(start), 10))
-		params.Set("endTime", strconv.FormatInt(convert.UnixMillis(start.Add(time.Hour)), 10))
-		path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
-		err := b.SendHTTPRequest(path, limitDefault, &resp)
-		if err != nil {
-			log.Warn(log.ExchangeSys, err.Error())
-			return resp, err
-		}
+		fromID = resp[len(resp)-1].ATradeID
 	}
 
 	// other requests follow from the last aggregate trade id and have no time window
 	params.Del("startTime")
 	params.Del("endTime")
 	// while we haven't reached the limit
-	for arg.Limit == 0 || len(resp) < arg.Limit {
+	for ; arg.Limit == 0 || len(resp) < arg.Limit; fromID = resp[len(resp)-1].ATradeID {
 		// Keep requesting new data after last retrieved trade
-		params.Set("fromId", strconv.FormatInt(resp[len(resp)-1].ATradeID, 10))
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
 		path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
 		var additionalTrades []AggregatedTrade
 		err := b.SendHTTPRequest(path, limitDefault, &additionalTrades)
 		if err != nil {
 			return resp, err
 		}
-		lastIndex := sort.Search(len(additionalTrades), func(i int) bool {
-			return convert.UnixMillis(arg.EndTime) < additionalTrades[i].TimeStamp
-		})
+		lastIndex := len(additionalTrades)
+		if !arg.EndTime.IsZero() {
+			// get index for truncating to end time
+			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
+				return convert.UnixMillis(arg.EndTime) < additionalTrades[i].TimeStamp
+			})
+		}
 		// don't include the first as the request was inclusive from last ATradeID
 		resp = append(resp, additionalTrades[1:lastIndex]...)
 		// If only the starting trade is returned or if we received trades after end time
