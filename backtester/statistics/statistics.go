@@ -111,8 +111,8 @@ func (s *Statistic) PrintResult() {
 	fmt.Printf("Counted %d total transactions:\n", len(s.Transactions()))
 	sb := strings.Builder{}
 
-	butts := s.Transactions()
-	for k, v := range butts {
+	transactions := s.Transactions()
+	for k, v := range transactions {
 		sb.WriteString(fmt.Sprintf("%v. ", k+1))
 		sb.WriteString(fmt.Sprintf("%v\t", v.GetTime().Format(common2.SimpleTimeFormat)))
 		sb.WriteString(fmt.Sprintf("%v\t", v.GetDirection()))

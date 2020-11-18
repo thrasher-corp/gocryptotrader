@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -35,6 +36,7 @@ func TestGenerateCandleAPIConfig(t *testing.T) {
 			StartDate: time.Now().Add(-time.Hour * 24 * 7),
 			EndDate:   time.Now(),
 			Interval:  kline.OneHour.Duration(),
+			DataType:  common.CandleStr,
 		},
 		DatabaseData: nil,
 		LiveData:     nil,
@@ -78,8 +80,8 @@ func TestGenerateCandleLiveConfig(t *testing.T) {
 			TakerFee:        0.02,
 		},
 		LiveData: &LiveData{
-			Interval:   kline.OneMin.Duration(),
-			RealOrders: false,
+			Interval: kline.OneMin.Duration(),
+			DataType: common.CandleStr,
 		},
 		PortfolioSettings: PortfolioSettings{
 			DiversificationSomething: 0,

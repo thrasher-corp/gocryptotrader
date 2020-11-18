@@ -36,13 +36,7 @@ func (d *Data) SetStream(s []interfaces.DataEventHandler) {
 // add duplicates. Used for live analysis
 func (d *Data) AppendStream(s ...interfaces.DataEventHandler) {
 	for i := range s {
-		for j := range d.stream {
-			if d.stream[j].GetTime().Before(s[i].GetTime()) ||
-				d.stream[j].GetTime().Equal(s[i].GetTime()) {
-				continue
-			}
-			d.stream = append(d.stream, s[i])
-		}
+		d.stream = append(d.stream, s[i])
 	}
 }
 

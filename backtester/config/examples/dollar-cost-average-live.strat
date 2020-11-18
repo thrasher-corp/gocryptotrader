@@ -5,8 +5,8 @@
   "asset": "spot",
   "base": "BTC",
   "quote": "USDT",
-  "initial-funds": 1337,
-  "minimum-buy-size": 0.1,
+  "initial-funds": 13371337,
+  "minimum-buy-size": 0.075,
   "maximum-buy-size": 1,
   "default-buy-size": 0.5,
   "minimum-sell-size": 0.1,
@@ -17,6 +17,7 @@
  },
  "live-data": {
   "interval": 60000000000,
+  "data-type": "candle",
   "api-key-override": "",
   "api-secret-override": "",
   "api-client-id-override": "",

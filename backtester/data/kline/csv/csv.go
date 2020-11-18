@@ -9,18 +9,18 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	gctkline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	kline2 "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // LoadData is a basic csv reader which converts the found CSV file into a kline item
-func LoadData(filepath, dataType, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
-	resp := &kline.DataFromKline{}
+func LoadData(filepath, dataType, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item) (*gctkline.DataFromKline, error) {
+	resp := &gctkline.DataFromKline{}
 	csvFile, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
@@ -37,11 +37,11 @@ func LoadData(filepath, dataType, exchangeName string, interval time.Duration, f
 
 	switch dataType {
 	case common.CandleStr:
-		candles := kline2.Item{
+		candles := kline.Item{
 			Exchange: exchangeName,
 			Pair:     fPair,
 			Asset:    a,
-			Interval: kline2.Interval(interval),
+			Interval: kline.Interval(interval),
 		}
 
 		for {
@@ -53,7 +53,7 @@ func LoadData(filepath, dataType, exchangeName string, interval time.Duration, f
 				return nil, errCSV
 			}
 
-			candle := kline2.Candle{}
+			candle := kline.Candle{}
 			v, errParse := strconv.ParseInt(row[0], 10, 32)
 			if errParse != nil {
 				return nil, errParse
@@ -132,7 +132,7 @@ func LoadData(filepath, dataType, exchangeName string, interval time.Duration, f
 
 			trades = append(trades, t)
 		}
-		resp.Item, err = trade.ConvertTradesToCandles(kline2.Interval(interval), trades...)
+		resp.Item, err = trade.ConvertTradesToCandles(kline.Interval(interval), trades...)
 		if err != nil {
 			return nil, err
 		}

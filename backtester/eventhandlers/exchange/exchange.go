@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 func (e *Exchange) SetCurrency(c CurrencySettings) {
@@ -62,7 +63,7 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 		Cost:          fillEvent.Price,
 		FullyMatched:  true,
 	}
-
+	log.Debugf(log.BackTester, "submitting fake order for %v interval", o.GetTime())
 	_, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
 
 	if err != nil {

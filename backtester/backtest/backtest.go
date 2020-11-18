@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
-	kline2 "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
@@ -22,12 +23,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -205,14 +204,13 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float
 	return makerFee, takerFee, err
 }
 
-func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline2.DataFromKline, error) {
+func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	base := exch.GetBase()
 	if cfg.DatabaseData == nil && cfg.LiveData == nil && cfg.APIData == nil && cfg.CSVData == nil {
 		return nil, errors.New("no data settings set in config")
 	}
-	// load the data
-	resp := &kline2.DataFromKline{}
-	var candles kline.Item
+	resp := &kline.DataFromKline{}
+	var candles *gctkline.Item
 	var err error
 	if (cfg.APIData != nil && cfg.DatabaseData != nil) ||
 		(cfg.APIData != nil && cfg.LiveData != nil) ||
@@ -229,12 +227,14 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 			return nil, err
 		}
 	} else if cfg.APIData != nil {
-		candles, err := api.LoadData(cfg.APIData.DataType, cfg.APIData.StartDate, cfg.APIData.EndDate, cfg.APIData.Interval, exch, fPair, a)
+		candles, err = api.LoadData(cfg.APIData.DataType, cfg.APIData.StartDate, cfg.APIData.EndDate, cfg.APIData.Interval, exch, fPair, a)
 		if err != nil {
 			return nil, err
 		}
 
-		resp.Item = *candles
+		resp = &kline.DataFromKline{
+			Item: *candles,
+		}
 	} else if cfg.LiveData != nil {
 		if cfg.LiveData.APIKeyOverride != "" {
 			base.API.Credentials.Key = cfg.LiveData.APIKeyOverride
@@ -254,20 +254,26 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 			log.Warn(log.BackTester, "bad credentials received, no live trading for you")
 			cfg.LiveData.RealOrders = false
 		}
-		go func() {
-			candles, err = exch.GetHistoricCandles(fPair, a, time.Now().Add(-cfg.LiveData.Interval), time.Now(), kline.Interval(cfg.LiveData.Interval))
-			if err != nil {
-				return
-			}
 
-		}()
+		go constantlyLoadLiveDataKThanksGuy(resp, cfg, exch, fPair, a)
+		return resp, nil
 	} else if cfg.DatabaseData != nil {
-		resp, err = LoadDatabaseData(cfg.DatabaseData.ConfigOverride, fPair, a)
+		resp, err = database.LoadData(
+			cfg.DatabaseData.ConfigOverride,
+			cfg.DatabaseData.StartDate,
+			cfg.DatabaseData.EndDate,
+			cfg.DatabaseData.Interval,
+			cfg.ExchangeSettings.Name,
+			cfg.DatabaseData.DataType,
+			fPair,
+			a)
 		if err != nil {
 			return nil, err
 		}
 	}
-
+	if resp == nil {
+		return nil, fmt.Errorf("SOMEHOW ENDED UP IN THIS HOLE: %+v", cfg)
+	}
 	err = resp.Load()
 	if err != nil {
 		return nil, err
@@ -276,71 +282,25 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 	return resp, nil
 }
 
-func LoadDatabaseData(configOverride *database.Config, startDate, endDate time.Time, cfg *config.Config, fPair currency.Pair, a asset.Item) (*kline2.DataFromKline, error) {
-	var resp *kline2.DataFromKline
-	var err error
-	if configOverride != nil {
-		engine.Bot.Config.Database = *configOverride
-		err = engine.Bot.DatabaseManager.Start(engine.Bot)
-		if err != nil {
-			return nil, err
-		}
-	}
-	defer func() {
-		err = engine.Bot.DatabaseManager.Stop()
-		if err != nil {
-			log.Error(log.BackTester, err)
-		}
-	}()
-	switch cfg.DatabaseData.DataType {
-	case common.CandleStr:
-		datarino, err := getCandleDatabaseData(
-			cfg.DatabaseData.StartDate,
-			cfg.DatabaseData.EndDate,
-			cfg.DatabaseData.Interval,
-			cfg.ExchangeSettings.Name,
-			fPair,
-			a)
-		if err != nil {
-			return nil, err
-		}
-		resp.Item = datarino
-	case common.TradeStr:
-		trades, err := trade.GetTradesInRange(
-			cfg.ExchangeSettings.Name,
-			cfg.ExchangeSettings.Asset,
-			cfg.ExchangeSettings.Base,
-			cfg.ExchangeSettings.Quote,
-			cfg.DatabaseData.StartDate,
-			cfg.DatabaseData.EndDate)
-		if err != nil {
-			return nil, err
-		}
-		datarino, err := trade.ConvertTradesToCandles(
-			kline.Interval(cfg.DatabaseData.Interval),
-			trades...)
-		if err != nil {
-			return nil, err
-		}
-		resp.Item = datarino
-	default:
-		return nil, fmt.Errorf("unexpected database datatype: '%v'", cfg.DatabaseData.DataType)
-	}
-	return resp, nil
-}
-
-func getCandleDatabaseData(startDate, endDate time.Time, interval time.Duration, exchangeName string, fPair currency.Pair, a asset.Item) (kline.Item, error) {
-	datarino, err := kline.LoadFromDatabase(
-		exchangeName,
-		fPair,
-		a,
-		kline.Interval(interval),
-		startDate,
-		endDate)
+func constantlyLoadLiveDataKThanksGuy(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
+	candles, err := live.LoadData(exch, cfg.LiveData.DataType, cfg.LiveData.Interval, fPair, a)
 	if err != nil {
-		return kline.Item{}, err
+		log.Error(log.BackTester, err)
+		return
 	}
-	return datarino, nil
+	resp.Append(*candles)
+	timerino := time.NewTicker(time.Minute)
+	for {
+		select {
+		case <-timerino.C:
+			candles, err := live.LoadData(exch, cfg.LiveData.DataType, cfg.LiveData.Interval, fPair, a)
+			if err != nil {
+				log.Error(log.BackTester, err)
+				return
+			}
+			resp.Append(*candles)
+		}
+	}
 }
 
 func (b *BackTest) Stop() {
@@ -372,17 +332,18 @@ func (b *BackTest) Run() error {
 
 func (b *BackTest) RunLive() error {
 	timerino := time.NewTimer(time.Minute * 5)
+	tickerino := time.NewTicker(time.Second)
+	doneARun := false
 	for {
 		select {
 		case <-b.shutdown:
 			return nil
 		case <-timerino.C:
 			return errors.New("no data returned in 5 minutes, shutting down")
-		default:
+		case <-tickerino.C:
 			//
 			// Go get latest candle of interval X, verify that it hasn't been run before, then append the event
 			//
-			doneARun := false
 			for event, ok := b.nextEvent(); true; event, ok = b.nextEvent() {
 				doneARun = true
 				if !ok {

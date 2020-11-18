@@ -91,6 +91,7 @@ type DatabaseData struct {
 // LiveData defines all fields to configure live data
 type LiveData struct {
 	Interval            time.Duration `json:"interval"`
+	DataType            string        `json:"data-type"`
 	APIKeyOverride      string        `json:"api-key-override"`
 	APISecretOverride   string        `json:"api-secret-override"`
 	APIClientIDOverride string        `json:"api-client-id-override"`
