@@ -160,7 +160,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := z.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	defaultWSURL, err := z.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}

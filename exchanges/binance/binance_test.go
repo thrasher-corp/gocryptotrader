@@ -648,6 +648,33 @@ func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 	}
 }
 
+func TestFuturesGetFundingHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	_, err := b.FuturesGetFundingHistory("BTCUSD_PERP", 5, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.FuturesGetFundingHistory("BTCUSD_PERP", 50, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesHistoricalTrades(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFuturesHistoricalTrades("BTCUSD_PERP", "", 5)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetFuturesHistoricalTrades("BTCUSD_PERP", "", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetFuturesSymbolPriceTicker("BTCUSD_PERP", "")
@@ -818,7 +845,7 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.CancelAllOpenOrders("BTCUSD_PERP")
+	_, err := b.FuturesCancelAllOpenOrders("BTCUSD_PERP")
 	if err != nil {
 		t.Error(err)
 	}

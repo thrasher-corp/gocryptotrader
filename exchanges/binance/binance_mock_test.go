@@ -5,6 +5,7 @@
 package binance
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -16,7 +17,7 @@ import (
 
 const mockfile = "../../testdata/http_mock/binance/binance.json"
 
-var mockTests = true
+var mockTests = false
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
@@ -48,6 +49,7 @@ func TestMain(m *testing.M) {
 	for k := range endpointMap {
 		endpointMap[k] = serverDetails
 	}
+	fmt.Println(serverDetails, newClient)
 	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.GetURLMap(false))
 	os.Exit(m.Run())
 }

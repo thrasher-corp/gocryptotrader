@@ -123,7 +123,7 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 	params["symbol"] = symbol
 	params["period"] = period
 	params["amount"] = amount
-	err := b.SendAuthenticatedHTTPRequest2(spotURL, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequestV2(spotURL, http.MethodPost,
 		bitfinexV2MarginFunding,
 		params,
 		&resp,
@@ -152,7 +152,7 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 	var resp []interface{}
 	var response MarginV2FundingData
-	err := b.SendAuthenticatedHTTPRequest2(spotURL, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequestV2(spotURL, http.MethodPost,
 		fmt.Sprintf(bitfinexV2FundingInfo, key),
 		nil,
 		&resp,
@@ -180,7 +180,7 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 	var resp AccountV2Data
 	var data []interface{}
-	err := b.SendAuthenticatedHTTPRequest2(spotURL, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequestV2(spotURL, http.MethodPost,
 		bitfinexV2AccountInfo,
 		nil,
 		&data,
@@ -222,7 +222,7 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	var resp []WalletDataV2
 	var data [][]interface{}
-	err := b.SendAuthenticatedHTTPRequest2(spotURL, http.MethodPost,
+	err := b.SendAuthenticatedHTTPRequestV2(spotURL, http.MethodPost,
 		bitfinexV2Balances,
 		nil,
 		&data,
@@ -282,7 +282,7 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 		params.Set("start", startTime)
 	}
 	if endTime != "" {
-		params.Set("start", endTime)
+		params.Set("end", endTime)
 	}
 	if sort != 0 {
 		params.Set("sort", strconv.FormatInt(sort, 10))
@@ -1417,9 +1417,9 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ep, method, path string, params 
 		Endpoint:      endpoint})
 }
 
-// SendAuthenticatedHTTPRequest2 sends an autheticated http request and json
+// SendAuthenticatedHTTPRequestV2 sends an autheticated http request and json
 // unmarshals result to a supplied variable
-func (b *Bitfinex) SendAuthenticatedHTTPRequest2(ep, method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
+func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ep, method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)

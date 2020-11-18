@@ -148,7 +148,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	defaultEpoint, err := b.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}

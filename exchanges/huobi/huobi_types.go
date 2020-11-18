@@ -2081,7 +2081,7 @@ type InternalAccountTransferData struct {
 
 // InternalAccountTransferRecords stores data for transfer records within the account
 type InternalAccountTransferRecords struct {
-	Timestamp string `json:"ts"`
+	Timestamp int64 `json:"ts"`
 	Data      struct {
 		TransferRecord []struct {
 			ID             int64   `json:"id"`
@@ -2105,7 +2105,7 @@ type SwapOrderData struct {
 		OrderIDString string `json:"order_id_string"`
 		ClientOrderID int64  `json:"client_order_id"`
 	} `json:"data"`
-	Timestamp string `json:"ts"`
+	Timestamp int64 `json:"ts"`
 }
 
 // BatchOrderData stores data for batch orders
@@ -2149,7 +2149,7 @@ type CancelOrdersData struct {
 		ErrMsg  string `json:"err_msg"`
 	} `json:"errors"`
 	Successes string `json:"successes"`
-	Timestamp string `json:"ts"`
+	Timestamp int64  `json:"ts"`
 }
 
 // LightningCloseOrderData stores order data from a lightning close order
@@ -2159,7 +2159,7 @@ type LightningCloseOrderData struct {
 		OrderIDString string `json:"order_id_str"`
 		ClientOrderID int64  `json:"client_order_id"`
 	}
-	Timestamp string `json:"ts"`
+	Timestamp int64 `json:"ts"`
 }
 
 // SwapOrderInfo stores info for swap orders
@@ -3065,3 +3065,159 @@ type OrderVars struct {
 	OrderType order.Type
 	Fee       float64
 }
+
+// Variables below are used to check api requests being sent out
+
+var (
+	validPeriods = []string{"5min", "15min", "30min", "60min", "4hour", "1day"}
+
+	validBasisPriceTypes = []string{"open", "close", "high", "low", "average"}
+
+	validAmountType = map[string]int64{
+		"cont":           1,
+		"cryptocurrency": 2,
+	}
+
+	validTransferType = []string{
+		"master_to_sub", "sub_to_master",
+	}
+
+	validTradeTypes = map[string]int64{
+		"filled": 0,
+		"closed": 5,
+		"open":   6,
+	}
+
+	validOrderType = map[string]int64{
+		"quotation":         1,
+		"cancelledOrder":    2,
+		"forcedLiquidation": 3,
+		"deliveryOrder":     4,
+	}
+
+	validOrderTypes = []string{
+		"limit", "opponent", "lightning", "optimal_5", "optimal_10", "optimal_20",
+		"fok", "ioc", "opponent_ioc", "lightning_ioc", "optimal_5_ioc",
+		"optimal_10_ioc", "optimal_20_ioc", "opponent_fok", "optimal_20_fok",
+	}
+
+	validTriggerType = map[string]string{
+		"greaterOrEqual": "ge",
+		"smallerOrEqual": "le",
+	}
+
+	validOrderPriceType = []string{
+		"limit", "optimal_5", "optimal_10", "optimal_20",
+	}
+
+	validLightningOrderPriceType = []string{
+		"lightning", "lightning_fok", "lightning_ioc",
+	}
+
+	validTradeType = map[string]int64{
+		"all":            0,
+		"openLong":       1,
+		"openShort":      2,
+		"closeShort":     3,
+		"closeLong":      4,
+		"liquidateLong":  5,
+		"liquidateShort": 6,
+	}
+
+	validFuturesTradeType = map[string]int64{
+		"all":            0,
+		"openLong":       1,
+		"openShort":      2,
+		"closeShort":     3,
+		"closeLong":      4,
+		"liquidateLong":  5,
+		"liquidateShort": 6,
+		"deliveryLong":   7,
+		"deliveryShort":  8,
+		"reduceLong":     11,
+		"reduceShort":    12,
+	}
+
+	validContractTypes = []string{
+		"this_week", "next_week", "quarter", "next_quarter",
+	}
+
+	validFuturesPeriods = []string{
+		"1min", "5min", "15min", "30min", "60min", "1hour", "4hour", "1day",
+	}
+
+	validFuturesOrderPriceTypes = []string{
+		"limit", "opponent", "lightning", "optimal_5", "optimal_10",
+		"optimal_20", "fok", "ioc", "opponent_ioc", "lightning_ioc",
+		"optimal_5_ioc", "optimal_10_ioc", "optimal_20_ioc", "opponent_fok",
+		"lightning_fok", "optimal_5_fok", "optimal_10_fok", "optimal_20_fok",
+	}
+
+	validFuturesRecordTypes = map[string]string{
+		"closeLong":                   "3",
+		"closeShort":                  "4",
+		"openOpenPositionsTakerFees":  "5",
+		"openPositionsMakerFees":      "6",
+		"closePositionsTakerFees":     "7",
+		"closePositionsMakerFees":     "8",
+		"closeLongDelivery":           "9",
+		"closeShortDelivery":          "10",
+		"deliveryFee":                 "11",
+		"longLiquidationClose":        "12",
+		"shortLiquidationClose":       "13",
+		"transferFromSpotToContracts": "14",
+		"transferFromContractsToSpot": "15",
+		"settleUnrealizedLongPNL":     "16",
+		"settleUnrealizedShortPNL":    "17",
+		"clawback":                    "19",
+		"system":                      "26",
+		"activityPrizeRewards":        "28",
+		"rebate":                      "29",
+		"transferToSub":               "34",
+		"transferFromSub":             "35",
+		"transferToMaster":            "36",
+		"transferFromMaster":          "37",
+	}
+
+	validOffsetTypes = []string{
+		"open", "close",
+	}
+
+	validOPTypes = []string{
+		"lightning", "lightning_fok", "lightning_ioc",
+	}
+
+	validFuturesReqType = map[string]int64{
+		"all":            1,
+		"finishedStatus": 2,
+	}
+
+	validFuturesOrderTypes = map[string]int64{
+		"limit":        1,
+		"opponent":     3,
+		"lightning":    4,
+		"triggerOrder": 5,
+		"postOnly":     6,
+		"optimal_5":    7,
+		"optimal_10":   8,
+		"optimal_20":   9,
+		"fok":          10,
+		"ioc":          11,
+	}
+
+	validOrderStatus = map[order.Status]int64{
+		order.AnyStatus:          0,
+		order.Active:             3,
+		order.PartiallyFilled:    4,
+		order.PartiallyCancelled: 5,
+		order.Filled:             6,
+		order.Cancelled:          7,
+	}
+
+	validStatusTypes = map[string]int64{
+		"all":       0,
+		"success":   4,
+		"failed":    5,
+		"cancelled": 6,
+	}
+)

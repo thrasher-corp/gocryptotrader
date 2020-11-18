@@ -15,7 +15,7 @@ const (
 
 // FundingHistoryData stores funding history data
 type FundingHistoryData struct {
-	Time   int     `json:"time"`
+	Time   int64   `json:"time"`
 	Rate   float64 `json:"rate"`
 	Symbol string  `json:"symbol"`
 }

@@ -141,7 +141,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		}
 	}
 
-	defaultWSURL, err := g.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	defaultWSURL, err := g.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}

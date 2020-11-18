@@ -7,6 +7,46 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// Useful const vars for checking api requests being sent out
+
+var (
+	validFuturesIntervals = []string{
+		"1m", "3m", "5m", "15m", "30m",
+		"1h", "2h", "4h", "6h", "8h",
+		"12h", "1d", "3d", "1w", "1M",
+	}
+
+	validContractType = []string{
+		"ALL", "CURRENT_QUARTER", "NEXT_QUARTER",
+	}
+
+	validOrderType = []string{
+		"LIMIT", "MARKET", "STOP", "TAKE_PROFIT",
+		"STOP_MARKET", "TAKE_PROFIT_MARKET", "TRAILING_STOP_MARKET",
+	}
+
+	validNewOrderRespType = []string{"ACK", "RESULT"}
+
+	validWorkingType = []string{"MARK_PRICE", "CONTRACT_TYPE"}
+
+	validPositionSide = []string{"BOTH", "LONG", "SHORT"}
+
+	validMarginType = []string{"ISOLATED", "CROSSED"}
+
+	validIncomeType = []string{"TRANSFER", "WELCOME_BONUS", "REALIZED_PNL", "FUNDING_FEE", "COMMISSION", "INSURANCE_CLEAR"}
+
+	validAutoCloseTypes = []string{"LIQUIDATION", "ADL"}
+
+	validMarginChange = map[string]int64{
+		"add":    1,
+		"reduce": 2,
+	}
+
+	uValidOBLimits = []string{"5", "10", "20", "50", "100", "500", "1000"}
+
+	uValidPeriods = []string{"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
+)
+
 // USDT Margined Futures
 
 // OrderbookData stores ob data for umargined and cmargined futures

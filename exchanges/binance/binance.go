@@ -86,7 +86,6 @@ const (
 	exchangeInfo      = "/api/v3/exchangeInfo"
 	orderBookDepth    = "/api/v3/depth"
 	recentTrades      = "/api/v3/trades"
-	historicalTrades  = "/api/v3/historicalTrades"
 	aggregatedTrades  = "/api/v3/aggTrades"
 	candleStick       = "/api/v3/klines"
 	averagePrice      = "/api/v3/avgPrice"
@@ -161,51 +160,13 @@ const (
 	undocumentedInterestHistory = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
 )
 
-var (
-	validFuturesIntervals = []string{
-		"1m", "3m", "5m", "15m", "30m",
-		"1h", "2h", "4h", "6h", "8h",
-		"12h", "1d", "3d", "1w", "1M",
-	}
-
-	validContractType = []string{
-		"ALL", "CURRENT_QUARTER", "NEXT_QUARTER",
-	}
-
-	validOrderType = []string{
-		"LIMIT", "MARKET", "STOP", "TAKE_PROFIT",
-		"STOP_MARKET", "TAKE_PROFIT_MARKET", "TRAILING_STOP_MARKET",
-	}
-
-	validNewOrderRespType = []string{"ACK", "RESULT"}
-
-	validWorkingType = []string{"MARK_PRICE", "CONTRACT_TYPE"}
-
-	validPositionSide = []string{"BOTH", "LONG", "SHORT"}
-
-	validMarginType = []string{"ISOLATED", "CROSSED"}
-
-	validIncomeType = []string{"TRANSFER", "WELCOME_BONUS", "REALIZED_PNL", "FUNDING_FEE", "COMMISSION", "INSURANCE_CLEAR"}
-
-	validAutoCloseTypes = []string{"LIQUIDATION", "ADL"}
-
-	validMarginChange = map[string]int64{
-		"add":    1,
-		"reduce": 2,
-	}
-
-	uValidOBLimits = []string{"5", "10", "20", "50", "100", "500", "1000"}
-
-	uValidPeriods = []string{"5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"}
-)
-
-// UExchangeInfo stores futures data
+// UExchangeInfo stores usdt margined futures data
 func (b *Binance) UExchangeInfo() (UFuturesExchangeInfo, error) {
 	var resp UFuturesExchangeInfo
 	return resp, b.SendHTTPRequest(uFutures, ufuturesExchangeInfo, limitDefault, &resp)
 }
 
-// UFuturesOrderbook gets orderbook data for uFutures
+// UFuturesOrderbook gets orderbook data for usdt margined futures
 func (b *Binance) UFuturesOrderbook(symbol string, limit int64) (OrderBook, error) {
 	var resp OrderBook
 	var data OrderbookData
@@ -256,7 +217,7 @@ func (b *Binance) UFuturesOrderbook(symbol string, limit int64) (OrderBook, erro
 	return resp, nil
 }
 
-// URecentTrades gets recent trades for uFutures
+// URecentTrades gets recent trades for usdt margined futures
 func (b *Binance) URecentTrades(symbol, fromID string, limit int64) ([]UPublicTradesData, error) {
 	var resp []UPublicTradesData
 	params := url.Values{}
@@ -270,7 +231,7 @@ func (b *Binance) URecentTrades(symbol, fromID string, limit int64) ([]UPublicTr
 	return resp, b.SendHTTPRequest(uFutures, ufuturesRecentTrades+params.Encode(), limitDefault, &resp)
 }
 
-// UHistoricalTrades gets historical public trades for uFutures
+// UHistoricalTrades gets historical public trades for usdt margined futures
 func (b *Binance) UHistoricalTrades(symbol, fromID string, limit int64) ([]UPublicTradesData, error) {
 	var resp []UPublicTradesData
 	params := url.Values{}
@@ -284,7 +245,7 @@ func (b *Binance) UHistoricalTrades(symbol, fromID string, limit int64) ([]UPubl
 	return resp, b.SendHTTPRequest(uFutures, ufuturesHistoricalTrades+params.Encode(), limitDefault, &resp)
 }
 
-// UCompressedTrades gets compressed public trades for uFutures
+// UCompressedTrades gets compressed public trades for usdt margined futures
 func (b *Binance) UCompressedTrades(symbol, fromID string, limit int64, startTime, endTime time.Time) ([]UCompressedTradeData, error) {
 	var resp []UCompressedTradeData
 	params := url.Values{}
@@ -305,7 +266,7 @@ func (b *Binance) UCompressedTrades(symbol, fromID string, limit int64, startTim
 	return resp, b.SendHTTPRequest(uFutures, ufuturesCompressedTrades+params.Encode(), limitDefault, &resp)
 }
 
-// UKlineData gets kline data for uFutures
+// UKlineData gets kline data for usdt margined futures
 func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	var data [][]interface{}
 	var resp []FuturesCandleStick
@@ -882,7 +843,7 @@ func (b *Binance) UAllAccountOrders(symbol string, orderID, limit int64, startTi
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
-	if limit > 0 && limit < 500 {
+	if limit > 0 && limit < 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1149,7 +1110,7 @@ func (b *Binance) GetFuturesHistoricalTrades(symbol, fromID string, limit int64)
 	if limit > 0 && limit < 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp, b.SendHTTPRequest(cfuturesHistoricalTrades, ufuturesHistoricalTrades+params.Encode(), limitDefault, &resp)
+	return resp, b.SendHTTPRequest(cmFutures, cfuturesHistoricalTrades+params.Encode(), limitDefault, &resp)
 }
 
 // GetPastPublicTrades gets past public trades for CoinMarginedFutures
@@ -1898,8 +1859,8 @@ func (b *Binance) FuturesCancelOrder(symbol, orderID, origClientOrderID string) 
 	return resp, b.SendAuthHTTPRequest(cmFutures, http.MethodDelete, cfuturesOrder, params, limitDefault, &resp)
 }
 
-// CancelAllOpenOrders cancels a futures order
-func (b *Binance) CancelAllOpenOrders(symbol string) (GenericAuthResponse, error) {
+// FuturesCancelAllOpenOrders cancels a futures order
+func (b *Binance) FuturesCancelAllOpenOrders(symbol string) (GenericAuthResponse, error) {
 	var resp GenericAuthResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)

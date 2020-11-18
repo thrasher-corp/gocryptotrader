@@ -199,7 +199,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := k.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	defaultWSURL, err := k.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}

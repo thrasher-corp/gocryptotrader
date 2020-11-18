@@ -378,7 +378,6 @@ type APIConfig struct {
 	Credentials          APICredentialsConfig           `json:"credentials"`
 	CredentialsValidator *APICredentialsValidatorConfig `json:"credentialsValidator,omitempty"`
 
-	// deprecated mate
 	OldEndPoints *APIEndpointsConfig `json:"endpoints,omitempty"`
 	Endpoints    map[string]string   `json:"urlEndpoints"`
 }

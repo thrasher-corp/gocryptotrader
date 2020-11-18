@@ -788,17 +788,17 @@ func (e *Base) SetAPIURL() error {
 	var err error
 	e.Config.API.OldEndPoints = nil
 	if e.Config.API.Endpoints != nil {
-		for a, meow := range e.Config.API.Endpoints {
-			if meow == "" || meow == "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" || meow == "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
+		for a, aVal := range e.Config.API.Endpoints {
+			if aVal == "" || aVal == "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" || aVal == "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
 				continue
 			}
-			if strings.Contains(meow, Default) {
-				err = e.API.Endpoints.SetDefault(a, meow, true)
+			if strings.Contains(aVal, Default) {
+				err = e.API.Endpoints.SetDefault(a, aVal, true)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = e.API.Endpoints.SetRunning(a, meow, true)
+				err = e.API.Endpoints.SetRunning(a, aVal, true)
 				if err != nil {
 					return err
 				}
@@ -807,8 +807,8 @@ func (e *Base) SetAPIURL() error {
 	}
 	e.Config.API.Endpoints = e.API.Endpoints.GetURLMap(true)
 	runningMap := e.API.Endpoints.GetURLMap(false)
-	for r := range runningMap {
-		e.Config.API.Endpoints[r] = runningMap[r]
+	for r, s := range runningMap {
+		e.Config.API.Endpoints[r] = s
 	}
 	return nil
 }
@@ -1126,7 +1126,7 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 	}
 }
 
-// NewEndpoints bla bla
+// NewEndpoints declares default and running URLs maps
 func (e *Base) NewEndpoints() *Endpoints {
 	return &Endpoints{
 		defaults: make(map[string]string),
@@ -1134,7 +1134,7 @@ func (e *Base) NewEndpoints() *Endpoints {
 	}
 }
 
-// CreateMap creates map
+// CreateMap declares and sets running and default URLs maps
 func (e *Endpoints) CreateMap(m map[string]string) {
 	for k, v := range m {
 		e.defaults[Default+k] = v
@@ -1142,7 +1142,7 @@ func (e *Endpoints) CreateMap(m map[string]string) {
 	}
 }
 
-// SetRunning sets running
+// SetRunning populates running URLs map
 func (e *Endpoints) SetRunning(key, val string, overwrite bool) error {
 	e.Lock()
 	defer e.Unlock()
@@ -1156,7 +1156,7 @@ func (e *Endpoints) SetRunning(key, val string, overwrite bool) error {
 	return nil
 }
 
-// SetDefault sets defaults
+// SetDefault populates default URLs map
 func (e *Endpoints) SetDefault(key, val string, overwrite bool) error {
 	e.Lock()
 	defer e.Unlock()
@@ -1170,7 +1170,7 @@ func (e *Endpoints) SetDefault(key, val string, overwrite bool) error {
 	return nil
 }
 
-// GetRunning Gets bra
+// GetRunning gets running URLs map
 func (e *Endpoints) GetRunning(key string) (string, error) {
 	e.Lock()
 	defer e.Unlock()
@@ -1181,11 +1181,11 @@ func (e *Endpoints) GetRunning(key string) (string, error) {
 	return val, nil
 }
 
-// GetDefault Gets bra
+// GetDefault gets default URLs map
 func (e *Endpoints) GetDefault(key string) (string, error) {
 	e.Lock()
 	defer e.Unlock()
-	val, ok := e.defaults[key]
+	val, ok := e.defaults[Default+key]
 	if !ok {
 		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
 	}
@@ -1201,3 +1201,20 @@ func (e *Endpoints) GetURLMap(defaultMap bool) map[string]string {
 	}
 	return e.defaults
 }
+
+// // GetURLMap gets all urls for either running or default map based on the bool value supplied
+// func (e *Endpoints) GetURLMap(defaultMap bool) map[string]string {
+// 	e.Lock()
+// 	defer e.Unlock()
+// 	var meow = make(map[string]string)
+// 	if defaultMap {
+// 		for k, v := range e.defaults {
+// 			meow[k] = v
+// 		}
+// 	} else {
+// 		for k, v := range e.running {
+// 			meow[k] = v
+// 		}
+// 	}
+// 	return e.defaults
+// }

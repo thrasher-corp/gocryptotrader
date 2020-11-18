@@ -150,6 +150,7 @@ func TestFLastTradeData(t *testing.T) {
 }
 
 func TestFGetAccountInfo(t *testing.T) {
+	h.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -1276,7 +1277,6 @@ func TestGetAccountBalance(t *testing.T) {
 	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
 	}
-
 	result, err := h.GetAccounts()
 	if err != nil {
 		t.Errorf("Huobi GetAccounts: %s", err)

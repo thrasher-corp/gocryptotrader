@@ -130,7 +130,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := l.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	defaultWSURL, err := l.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}

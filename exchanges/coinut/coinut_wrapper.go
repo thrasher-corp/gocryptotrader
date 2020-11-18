@@ -142,7 +142,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := c.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	defaultWSURL, err := c.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}

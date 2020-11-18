@@ -157,7 +157,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := g.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	defaultWSURL, err := g.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}

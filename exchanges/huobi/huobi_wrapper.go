@@ -188,7 +188,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := h.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	defaultWSURL, err := h.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}

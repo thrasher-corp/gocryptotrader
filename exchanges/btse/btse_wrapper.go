@@ -178,7 +178,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsDefaultEndpoint, err := b.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	wsDefaultEndpoint, err := b.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}

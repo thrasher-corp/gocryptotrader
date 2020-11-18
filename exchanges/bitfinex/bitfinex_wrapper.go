@@ -190,7 +190,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.Default + spotWSURL)
+	defaultEpoint, err := b.API.Endpoints.GetDefault(spotWSURL)
 	if err != nil {
 		return err
 	}
@@ -440,7 +440,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 			return nil, err
 		}
 	default:
-		return nil, nil
+		return nil, errors.New("asset type not supported")
 	}
 	return orderbook.Get(b.Name, fPair, assetType)
 }

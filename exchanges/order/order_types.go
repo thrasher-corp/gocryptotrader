@@ -32,6 +32,7 @@ type Submit struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
+	ReduceOnly        bool
 	Leverage          float64
 	Price             float64
 	Amount            float64
