@@ -750,6 +750,67 @@ message WebsocketSetURLRequest {
     string url = 2;
 }
 
+message FunctionalityGetRequest {
+    string exchange = 1;
+    string protocol = 2;
+}
+
+message FunctionalityGetResponse {
+    string exchange = 1;
+    string protocol = 2;
+    functionality supported = 3;
+    functionality enabled = 4;
+}
+
+message functionality {
+    bool ProtocolEnabled        = 1;
+	bool AuthenticationEnabled  = 2;
+	bool TickerBatching         = 3;
+	bool AccountBalance         = 4;
+	bool CryptoDeposit          = 5;
+	bool CryptoWithdrawal       = 6;
+	bool FiatWithdraw           = 7;
+	bool GetOrder               = 8;
+	bool GetOrders              = 9;
+	bool CancelOrders           = 10;
+	bool CancelOrder            = 11;
+	bool SubmitOrder            = 12;
+	bool SubmitOrders           = 13;
+	bool ModifyOrder            = 14;
+	bool DepositHistory         = 15;
+	bool WithdrawalHistory      = 16;
+	bool TradeHistory           = 17;
+	bool UserTradeHistory       = 18;
+	bool TradeFee               = 19;
+	bool FiatDepositFee         = 20;
+	bool FiatWithdrawalFee      = 21;
+	bool CryptoDepositFee       = 22;
+	bool CryptoWithdrawalFee    = 23;
+	bool TickerFetching         = 24;
+	bool KlineFetching          = 25;
+	bool TradeFetching          = 26;
+	bool OrderbookFetching      = 27;
+	bool AccountInfo            = 28;
+	bool FiatDeposit            = 29;
+	bool DeadMansSwitch         = 30;
+	bool FullPayloadSubscribe   = 31;
+	bool Subscribe              = 32;
+	bool Unsubscribe            = 33;
+	bool AuthenticatedEndpoints = 34;
+	bool MessageCorrelation     = 35;
+	bool MessageSequenceNumbers = 36;
+	bool CandleHistory          = 37;
+}
+
+message FunctionalitySetRequest {
+    string exchange = 1;
+    string protocol = 2;
+    string ticker_fetching = 3;
+    string orderbook_fetching = 4;
+    string kling_fetching = 5;
+    string trade_fetching = 6;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1200,6 +1261,18 @@ service GoCryptoTrader {
     rpc WebsocketSetURL(WebsocketSetURLRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/websocketseturl"
+        };
+    }
+
+    rpc GetFunctionality(FunctionalityGetRequest) returns (FunctionalityGetResponse) {
+        option (google.api.http) = {
+            get: "/v1/getfunctionality"
+        };
+    }
+
+    rpc SetFunctionality(FunctionalitySetRequest) returns (GenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/setfunctionality"
         };
     }
 }

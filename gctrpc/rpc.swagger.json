@@ -1060,6 +1060,42 @@
         ]
       }
     },
+    "/v1/getfunctionality": {
+      "get": {
+        "operationId": "GoCryptoTrader_GetFunctionality",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcFunctionalityGetResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "protocol",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/gethistoriccandles": {
       "get": {
         "operationId": "GoCryptoTrader_GetHistoricCandles",
@@ -1758,6 +1794,66 @@
             "schema": {
               "$ref": "#/definitions/gctrpcSetExchangePairRequest"
             }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/setfunctionality": {
+      "get": {
+        "operationId": "GoCryptoTrader_SetFunctionality",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "protocol",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ticker_fetching",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "orderbook_fetching",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "kling_fetching",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "trade_fetching",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -2559,6 +2655,23 @@
         "inverse_rate": {
           "type": "number",
           "format": "double"
+        }
+      }
+    },
+    "gctrpcFunctionalityGetResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "string"
+        },
+        "supported": {
+          "$ref": "#/definitions/gctrpcfunctionality"
+        },
+        "enabled": {
+          "$ref": "#/definitions/gctrpcfunctionality"
         }
       }
     },
@@ -3834,6 +3947,122 @@
         },
         "status": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcfunctionality": {
+      "type": "object",
+      "properties": {
+        "ProtocolEnabled": {
+          "type": "boolean"
+        },
+        "AuthenticationEnabled": {
+          "type": "boolean"
+        },
+        "TickerBatching": {
+          "type": "boolean"
+        },
+        "AccountBalance": {
+          "type": "boolean"
+        },
+        "CryptoDeposit": {
+          "type": "boolean"
+        },
+        "CryptoWithdrawal": {
+          "type": "boolean"
+        },
+        "FiatWithdraw": {
+          "type": "boolean"
+        },
+        "GetOrder": {
+          "type": "boolean"
+        },
+        "GetOrders": {
+          "type": "boolean"
+        },
+        "CancelOrders": {
+          "type": "boolean"
+        },
+        "CancelOrder": {
+          "type": "boolean"
+        },
+        "SubmitOrder": {
+          "type": "boolean"
+        },
+        "SubmitOrders": {
+          "type": "boolean"
+        },
+        "ModifyOrder": {
+          "type": "boolean"
+        },
+        "DepositHistory": {
+          "type": "boolean"
+        },
+        "WithdrawalHistory": {
+          "type": "boolean"
+        },
+        "TradeHistory": {
+          "type": "boolean"
+        },
+        "UserTradeHistory": {
+          "type": "boolean"
+        },
+        "TradeFee": {
+          "type": "boolean"
+        },
+        "FiatDepositFee": {
+          "type": "boolean"
+        },
+        "FiatWithdrawalFee": {
+          "type": "boolean"
+        },
+        "CryptoDepositFee": {
+          "type": "boolean"
+        },
+        "CryptoWithdrawalFee": {
+          "type": "boolean"
+        },
+        "TickerFetching": {
+          "type": "boolean"
+        },
+        "KlineFetching": {
+          "type": "boolean"
+        },
+        "TradeFetching": {
+          "type": "boolean"
+        },
+        "OrderbookFetching": {
+          "type": "boolean"
+        },
+        "AccountInfo": {
+          "type": "boolean"
+        },
+        "FiatDeposit": {
+          "type": "boolean"
+        },
+        "DeadMansSwitch": {
+          "type": "boolean"
+        },
+        "FullPayloadSubscribe": {
+          "type": "boolean"
+        },
+        "Subscribe": {
+          "type": "boolean"
+        },
+        "Unsubscribe": {
+          "type": "boolean"
+        },
+        "AuthenticatedEndpoints": {
+          "type": "boolean"
+        },
+        "MessageCorrelation": {
+          "type": "boolean"
+        },
+        "MessageSequenceNumbers": {
+          "type": "boolean"
+        },
+        "CandleHistory": {
+          "type": "boolean"
         }
       }
     },

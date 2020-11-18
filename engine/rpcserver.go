@@ -17,7 +17,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/ptypes"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -33,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
@@ -62,6 +63,7 @@ var (
 // RPCServer struct
 type RPCServer struct {
 	*Engine
+	gctrpc.UnimplementedGoCryptoTraderServer
 }
 
 func (bot *Engine) authenticateClient(ctx context.Context) (context.Context, error) {
@@ -121,7 +123,7 @@ func StartRPCServer(engine *Engine) {
 		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(engine.authenticateClient)),
 	}
 	server := grpc.NewServer(opts...)
-	s := RPCServer{engine}
+	s := RPCServer{Engine: engine}
 	gctrpc.RegisterGoCryptoTraderServer(server, &s)
 
 	go func() {
@@ -2274,4 +2276,221 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 		Data: fmt.Sprintf("new URL has been set [%s] for %s websocket connection",
 			r.Exchange,
 			r.Url)}, nil
+}
+
+// GetFunctionality sets exchange protocol functionality
+func (s *RPCServer) GetFunctionality(_ context.Context, r *gctrpc.FunctionalityGetRequest) (*gctrpc.FunctionalityGetResponse, error) {
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+
+	b := exch.GetBase()
+	if b == nil {
+		return nil, fmt.Errorf("could not retrieve exchange base for %s", r.Exchange)
+	}
+
+	var supported gctrpc.Functionality
+	var enabled gctrpc.Functionality
+	var p string
+	if r.Protocol == "websocket" {
+		if !b.Protocol.IsWebsocketSupported() {
+			return nil, fmt.Errorf("websocket protocol not supported by exchange %s", r.Exchange)
+		}
+		p = "websocket"
+		sf, err := b.Protocol.Websocket.Supported()
+		if err != nil {
+			return nil, err
+		}
+
+		err = translateFunctionality(&supported, sf)
+		if err != nil {
+			return nil, err
+		}
+
+		ef, err := b.Protocol.Websocket.Functionality()
+		if err != nil {
+			return nil, err
+		}
+
+		err = translateFunctionality(&enabled, ef)
+		if err != nil {
+			return nil, err
+		}
+	} else if r.Protocol == "rest" {
+		if !b.Protocol.IsRESTSupported() {
+			return nil, fmt.Errorf("rest protocol not supported by exchange %s", r.Exchange)
+		}
+
+		p = "rest"
+		sf, err := b.Protocol.Websocket.Supported()
+		if err != nil {
+			return nil, err
+		}
+
+		err = translateFunctionality(&supported, sf)
+		if err != nil {
+			return nil, err
+		}
+
+		ef, err := b.Protocol.Websocket.Functionality()
+		if err != nil {
+			return nil, err
+		}
+
+		err = translateFunctionality(&enabled, ef)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("unhandled protocol string %s", r.Protocol)
+	}
+
+	return &gctrpc.FunctionalityGetResponse{
+		Exchange:  exch.GetName(),
+		Protocol:  p,
+		Supported: &supported,
+		Enabled:   &enabled,
+	}, nil
+}
+
+func translateFunctionality(p *gctrpc.Functionality, f protocol.Functionality) error {
+	if p == nil {
+		return errors.New("ptr cannot be nil")
+	}
+
+	p.AccountBalance = f.AccountBalance
+	p.AccountInfo = f.AccountInfo
+	p.AuthenticatedEndpoints = f.AuthenticatedEndpoints
+	p.AuthenticationEnabled = f.AuthenticationEnabled
+	p.CancelOrder = f.CancelOrder
+	p.CancelOrders = f.CancelOrders
+	p.CandleHistory = f.CandleHistory
+	p.CryptoDeposit = f.CryptoDeposit
+	p.CryptoDepositFee = f.CryptoDepositFee
+	p.CryptoWithdrawal = f.CryptoWithdrawal
+	p.FiatWithdraw = f.FiatWithdraw
+	p.GetOrder = f.GetOrder
+	p.GetOrders = f.GetOrders
+	p.CancelOrders = f.CancelOrders
+	p.CancelOrder = f.CancelOrder
+	p.SubmitOrder = f.SubmitOrder
+	p.SubmitOrders = f.SubmitOrders
+	p.ModifyOrder = f.ModifyOrder
+	p.DepositHistory = f.DepositHistory
+	p.WithdrawalHistory = f.WithdrawalHistory
+	p.TradeHistory = f.TradeHistory
+	p.UserTradeHistory = f.UserTradeHistory
+	p.TradeFee = f.TradeFee
+	p.FiatDepositFee = f.FiatDepositFee
+	p.FiatWithdrawalFee = f.FiatWithdrawalFee
+	p.CryptoDepositFee = f.CryptoDepositFee
+	p.CryptoWithdrawalFee = f.CryptoWithdrawalFee
+	p.TickerFetching = f.TickerFetching
+	p.KlineFetching = f.KlineFetching
+	p.TradeFetching = f.TradeFetching
+	p.OrderbookFetching = f.OrderbookFetching
+	p.AccountInfo = f.AccountInfo
+	p.FiatDeposit = f.FiatDeposit
+	p.DeadMansSwitch = f.DeadMansSwitch
+	p.FullPayloadSubscribe = f.FullPayloadSubscribe
+	p.Subscribe = f.Subscribe
+	p.Unsubscribe = f.Unsubscribe
+	p.AuthenticatedEndpoints = f.AuthenticatedEndpoints
+	p.MessageCorrelation = f.MessageCorrelation
+	p.MessageSequenceNumbers = f.MessageSequenceNumbers
+	p.CandleHistory = f.CandleHistory
+
+	return nil
+}
+
+// SetFunctionality sets exchange protocol functionality
+func (s *RPCServer) SetFunctionality(_ context.Context, r *gctrpc.FunctionalitySetRequest) (*gctrpc.GenericResponse, error) {
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+
+	b := exch.GetBase()
+	if b == nil {
+		return nil, fmt.Errorf("could not retrieve exchange base for %s", r.Exchange)
+	}
+
+	var klineFetching bool
+	var err error
+	if r.KlingFetching != "" {
+		klineFetching, err = stringToBool(r.KlingFetching)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var orderbookFetching bool
+	if r.OrderbookFetching != "" {
+		orderbookFetching, err = stringToBool(r.OrderbookFetching)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var tickerFetching bool
+	if r.TickerFetching != "" {
+		tickerFetching, err = stringToBool(r.TickerFetching)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var tradeFetching bool
+	if r.TradeFetching != "" {
+		tradeFetching, err = stringToBool(r.TradeFetching)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	newState := protocol.State{
+		KlineFetching:     &klineFetching,
+		OrderbookFetching: &orderbookFetching,
+		TickerFetching:    &tickerFetching,
+		TradeFetching:     &tradeFetching,
+	}
+
+	if r.Protocol == "websocket" {
+		if !b.Protocol.IsWebsocketSupported() {
+			return nil, fmt.Errorf("websocket protocol not supported by exchange %s", r.Exchange)
+		}
+
+		err := b.Protocol.Websocket.SetFunctionality(newState)
+		if err != nil {
+			return nil, err
+		}
+
+		err = b.FlushWebsocketChannels()
+		if err != nil {
+			return nil, err
+		}
+	} else if r.Protocol == "rest" {
+		if !b.Protocol.IsRESTSupported() {
+			return nil, fmt.Errorf("rest protocol not supported by exchange %s", r.Exchange)
+		}
+
+		err := b.Protocol.REST.SetFunctionality(newState)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("unhandled protocol string %s", r.Protocol)
+	}
+	return &gctrpc.GenericResponse{Status: "Functionality Set"}, nil
+}
+
+func stringToBool(char string) (bool, error) {
+	char = strings.ToLower(char)
+	if char == "true" {
+		return true, nil
+	} else if char == "false" {
+		return false, nil
+	}
+	return false, fmt.Errorf("cannot match string %s to boolean", char)
 }

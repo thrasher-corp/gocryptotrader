@@ -296,6 +296,9 @@ func functionalityTranslate(feature, newstate *bool) error {
 		}
 		return nil
 	}
+	if newstate == nil {
+		return nil
+	}
 	if *newstate {
 		feature = convert.BoolPtrT
 	} else {

@@ -143,6 +143,7 @@ func main() {
 		getHistoricCandlesExtendedCommand,
 		gctScriptCommand,
 		websocketManagerCommand,
+		functionalityManagerCommand,
 	}
 
 	err := app.Run(os.Args)

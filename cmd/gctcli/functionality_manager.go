@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli"
 )
 
@@ -88,21 +90,22 @@ func getProtocolFunctionality(c *cli.Context) error {
 		return fmt.Errorf("[%s] is not a valid exchange", exchange)
 	}
 
-	fmt.Println("Hello", protocolType)
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
-	// conn, err := setupClient()
-	// if err != nil {
-	// 	return err
-	// }
-	// defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetFunctionality(context.Background(), &gctrpc.FunctionalityGetRequest{
+		Exchange: exchange,
+		Protocol: protocolType,
+	})
 
-	// client := gctrpc.NewGoCryptoTraderClient(conn)
-	// result, err := client.WebsocketGetInfo(context.Background(),
-	// 	&gctrpc.WebsocketGetInfoRequest{Exchange: exchange})
-	// if err != nil {
-	// 	return err
-	// }
-	// jsonOutput(result)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
 	return nil
 }
 
@@ -111,29 +114,79 @@ func setProtocolFunctionality(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
+	var protocolType string
+	if c.IsSet("protocol") {
+		protocolType = c.String("protocol")
+	} else {
+		protocolType = c.Args().First()
+	}
+
 	var exchange string
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	} else {
-		exchange = c.Args().First()
+		exchange = c.Args().Get(1)
 	}
 
 	if !validExchange(exchange) {
 		return fmt.Errorf("[%s] is not a valid exchange", exchange)
 	}
 
-	// conn, err := setupClient()
-	// if err != nil {
-	// 	return err
-	// }
-	// defer conn.Close()
+	var tickerFetching string
+	if c.IsSet("tickerfetch") {
+		if c.Bool("tickerfetch") {
+			tickerFetching = "true"
+		} else {
+			tickerFetching = "false"
+		}
+	}
 
-	// client := gctrpc.NewGoCryptoTraderClient(conn)
-	// result, err := client.WebsocketGetInfo(context.Background(),
-	// 	&gctrpc.WebsocketGetInfoRequest{Exchange: exchange})
-	// if err != nil {
-	// 	return err
-	// }
-	// jsonOutput(result)
+	var orderbookFetching string
+	if c.IsSet("orderbookfetch") {
+		if c.Bool("orderbookfetch") {
+			orderbookFetching = "true"
+		} else {
+			orderbookFetching = "false"
+		}
+	}
+
+	var klineFetching string
+	if c.IsSet("klinefetch") {
+		if c.Bool("klinefetch") {
+			klineFetching = "true"
+		} else {
+			klineFetching = "false"
+		}
+	}
+
+	var tradeFetching string
+	if c.IsSet("tradefetch") {
+		if c.Bool("tradefetch") {
+			tradeFetching = "true"
+		} else {
+			tradeFetching = "false"
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.SetFunctionality(context.Background(),
+		&gctrpc.FunctionalitySetRequest{
+			Exchange:          exchange,
+			Protocol:          protocolType,
+			TickerFetching:    tickerFetching,
+			OrderbookFetching: orderbookFetching,
+			KlingFetching:     klineFetching,
+			TradeFetching:     tradeFetching,
+		})
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
 	return nil
 }

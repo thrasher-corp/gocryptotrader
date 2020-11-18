@@ -29,7 +29,7 @@ const (
 
 	// maxBatchedPayloads defines an upper restriction on outbound batched
 	// subscriptions. There seems to be a byte limit that is not documented.
-	// Max bytes == 4096
+	// Max bytes == 4096. 150 is arbitrary.
 	maxBatchedPayloads = 150
 )
 
@@ -909,6 +909,7 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 	}
 
 	select {
+	// Put update in the channel to be processed
 	case ch <- u:
 		return nil
 	default:
@@ -946,8 +947,7 @@ func (o *orderbookManager) checkInitialSync(pair currency.Pair, a asset.Item) (b
 	return *isInit, nil
 }
 
-// checkIsFetchingBook checks status if the book is currently being via the REST
-// protocol.
+// stopFetchingBook completes the book fetching.
 func (o *orderbookManager) stopFetchingBook(pair currency.Pair, a asset.Item) error {
 	o.fmtx.Lock()
 	defer o.fmtx.Unlock()
@@ -986,6 +986,8 @@ func (o *orderbookManager) completeInitialSync(pair currency.Pair, a asset.Item)
 	return nil
 }
 
+// fetchBookViaREST pushes a job of fetching the orderbook via the REST protocol
+// to get an initial full book that we can apply our buffered updates too.
 func (o *orderbookManager) fetchBookViaREST(pair currency.Pair, a asset.Item, conn stream.Connection) error {
 	o.fmtx.Lock()
 	defer o.fmtx.Unlock()
