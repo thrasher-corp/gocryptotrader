@@ -74,6 +74,7 @@ var cancelOrdersStatus = make(map[int64]*struct {
 	Total        int // total count of orders in wsCancelOrders request
 	Successful   int // numbers of Successfully canceled orders in wsCancelOrders request
 	Unsuccessful int // numbers of Unsuccessfully canceled orders in wsCancelOrders request
+	Error		 string // if at least one of requested order return fail, store error here
 })
 
 // WsConnect initiates a websocket connection
@@ -232,24 +233,24 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 						respRaw)
 				}
 
+				success := true
 				if status.Status == "error" {
-					if isAwaitingCancelOrderResponses(status.RequestID, false) {
-						return nil
+					success = false
+					cancelOrdersStatusMutex.Lock()
+					if _, ok := cancelOrdersStatus[status.RequestID]; ok {
+						if cancelOrdersStatus[status.RequestID].Error == "" { // save the first error, if any
+							cancelOrdersStatus[status.RequestID].Error = status.ErrorMessage
+						}
 					}
+					cancelOrdersStatusMutex.Unlock()
+				}
 
-					if !k.Websocket.Match.IncomingWithData(status.RequestID, respRaw) {
-						return fmt.Errorf("can't send ws error message to Matched channel with RequestID: %d, "+
-							"messge: %s", status.RequestID, status.ErrorMessage)
-					}
-
+				if isAwaitingCancelOrderResponses(status.RequestID, success) {
 					return nil
 				}
 
-				if isAwaitingCancelOrderResponses(status.RequestID, true) {
-					return nil
-				}
-
-				if !k.Websocket.Match.IncomingWithData(status.RequestID, respRaw) {
+				// all responses handled, return results stored in cancelOrdersStatus
+				if status.RequestID > 0 && !k.Websocket.Match.IncomingWithData(status.RequestID, respRaw) {
 					return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d",
 						status.RequestID)
 				}
@@ -263,20 +264,20 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 						respRaw)
 				}
 
+				var isChannelExist bool
+				if status.RequestID > 0 {
+					isChannelExist = k.Websocket.Match.IncomingWithData(status.RequestID, respRaw)
+				}
+
 				if status.Status == "error" {
 					k.Websocket.DataHandler <- fmt.Errorf("%v Websocket status for RequestID %d: '%v'",
 						k.Name,
 						status.RequestID,
 						status.ErrorMessage)
-
-					if !k.Websocket.Match.IncomingWithData(status.RequestID, respRaw) {
-						return fmt.Errorf("can't send ws error message to Matched channel with RequestID: %d, messge: %s",
-							status.RequestID, status.ErrorMessage)
-					}
 					return nil
 				}
 
-				if !k.Websocket.Match.IncomingWithData(status.RequestID, respRaw) {
+				if !isChannelExist && status.RequestID > 0 {
 					return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d",
 						status.RequestID)
 				}
@@ -310,11 +311,17 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 						err,
 						respRaw)
 				}
+
+				var isChannelExist bool
+				if status.RequestID > 0 {
+					isChannelExist = k.Websocket.Match.IncomingWithData(status.RequestID, respRaw)
+				}
+
 				if status.Status == "error" {
-					if !k.Websocket.Match.IncomingWithData(status.RequestID, respRaw) {
-						return fmt.Errorf("can't send ws error message to Matched channel with RequestID: %d, messge: %s",
-							status.RequestID, status.ErrorMessage)
-					}
+					k.Websocket.DataHandler <- fmt.Errorf("%v Websocket status for RequestID %d: '%v'",
+						k.Name,
+						status.RequestID,
+						status.ErrorMessage)
 					return nil
 				}
 
@@ -324,7 +331,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 					Status:   order.New,
 				}
 
-				if !k.Websocket.Match.IncomingWithData(status.RequestID, respRaw) {
+				if !isChannelExist && status.RequestID > 0 {
 					return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d",
 						status.RequestID)
 				}
@@ -1135,28 +1142,24 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 		Total        int
 		Successful   int
 		Unsuccessful int
+		Error        string
 	}{
 		Total: len(orderIDs),
 	}
 
 	defer delete(cancelOrdersStatus, id)
 
-	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
-	if err != nil {
-		return err
-	}
-	var resp WsCancelOrderResponse
-	err = json.Unmarshal(jsonResp, &resp)
+	_, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
 	if err != nil {
 		return err
 	}
 
 	successful := cancelOrdersStatus[id].Successful
 
-	if resp.ErrorMessage != "" || len(orderIDs) != successful { // strange Kraken logic ...
+	if cancelOrdersStatus[id].Error != "" || len(orderIDs) != successful { // strange Kraken logic ...
 		var reason string
-		if resp.ErrorMessage != "" {
-			reason = fmt.Sprintf(" Reason: %s", resp.ErrorMessage)
+		if cancelOrdersStatus[id].Error != "" {
+			reason = fmt.Sprintf(" Reason: %s", cancelOrdersStatus[id].Error)
 		}
 		return fmt.Errorf("%s cancelled %d out of %d orders.%s",
 			k.Name, successful, len(orderIDs), reason)
