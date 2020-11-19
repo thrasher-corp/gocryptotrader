@@ -207,3 +207,47 @@ type Base struct {
 	Config        *config.ExchangeConfig
 	settingsMutex sync.RWMutex
 }
+
+// url lookup consts
+const (
+	RestSpot URL = iota
+	RestSpotSupplementary
+	USDTMarginedFutures
+	CoinMarginedFutures
+	Futures
+	SpotWsURL
+	SpotWsSupplementaryURL
+	EdgeCase1
+	EdgeCase2
+	EdgeCase3
+)
+
+// URL stores uint conversions
+type URL uint32
+
+func (u URL) String() string {
+	switch u {
+	case RestSpot:
+		return "RESTSpotURL"
+	case RestSpotSupplementary:
+		return "RESTSpotURLSUPPLEMENTARY"
+	case USDTMarginedFutures:
+		return "RestUSDTMarginedFutures"
+	case CoinMarginedFutures:
+		return "RestCoinMarginedFutures"
+	case Futures:
+		return "RestFutures"
+	case SpotWsURL:
+		return "SpotWsURL"
+	case SpotWsSupplementaryURL:
+		return "SpotWsSupplementaryURL"
+	case EdgeCase1:
+		return "EdgeCase1"
+	case EdgeCase2:
+		return "EdgeCase2"
+	case EdgeCase3:
+		return "EdgeCase3"
+	default:
+		return ""
+	}
+}

@@ -1135,10 +1135,10 @@ func (e *Base) NewEndpoints() *Endpoints {
 }
 
 // CreateMap declares and sets running and default URLs maps
-func (e *Endpoints) CreateMap(m map[string]string) {
+func (e *Endpoints) CreateMap(m map[URL]string) {
 	for k, v := range m {
-		e.defaults[Default+k] = v
-		e.running[k] = v
+		e.defaults[Default+k.String()] = v
+		e.running[k.String()] = v
 	}
 }
 

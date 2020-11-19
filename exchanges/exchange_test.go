@@ -62,11 +62,11 @@ func TestCreateMap(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[string]string{
-		"test1": "test1url",
-		"test2": "test2url",
+	b.API.Endpoints.CreateMap(map[URL]string{
+		EdgeCase1: "test1url",
+		EdgeCase2: "test2url",
 	})
-	_, ok := b.API.Endpoints.running["test1"]
+	_, ok := b.API.Endpoints.running[EdgeCase1.String()]
 	if !ok {
 		t.Errorf("CreateMap failed, no value for for the given key")
 	}
@@ -77,15 +77,15 @@ func TestSet(t *testing.T) {
 	b := Base{
 		Name: "HELOOOOOOOO",
 	}
-	b.API.Endpoints.CreateMap(map[string]string{
-		"test1": "test1url",
-		"test2": "test2url",
+	b.API.Endpoints.CreateMap(map[URL]string{
+		EdgeCase1: "test1url",
+		EdgeCase2: "test2url",
 	})
-	err := b.API.Endpoints.SetRunning("test1", "OVERWRITTEN BRO", true)
+	err := b.API.Endpoints.SetRunning(EdgeCase2.String(), "OVERWRITTEN BRO", true)
 	if err != nil {
 		t.Error(err)
 	}
-	val, ok := b.API.Endpoints.running["test1"]
+	val, ok := b.API.Endpoints.running[EdgeCase1.String()]
 	if !ok {
 		t.Error("set method or createmap failed")
 	}
@@ -99,9 +99,9 @@ func TestGet(t *testing.T) {
 	b := Base{
 		Name: "HELAAAAAOOOOOOOOO",
 	}
-	b.API.Endpoints.CreateMap(map[string]string{
-		"test1": "test1url",
-		"test2": "test2url",
+	b.API.Endpoints.CreateMap(map[URL]string{
+		EdgeCase1: "test1url",
+		EdgeCase2: "test2url",
 	})
 	getVal, err := b.API.Endpoints.GetRunning("test1")
 	if err != nil {
@@ -128,9 +128,9 @@ func TestGetAll(t *testing.T) {
 	b := Base{
 		Name: "HELLLLLLO",
 	}
-	b.API.Endpoints.CreateMap(map[string]string{
-		"test1": "test1url",
-		"test2": "test2url",
+	b.API.Endpoints.CreateMap(map[URL]string{
+		EdgeCase1: "test1url",
+		EdgeCase2: "test2url",
 	})
 	allRunning := b.API.Endpoints.GetURLMap(false)
 	allDefault := b.API.Endpoints.GetURLMap(true)
