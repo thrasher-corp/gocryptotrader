@@ -14,7 +14,7 @@ type BackTest struct {
 	Data       interfaces.DataHandler
 	Strategy   strategies.StrategyHandler
 	Portfolio  portfolio.PortfolioHandler
-	Orders     datahandler2.Orders
+	Orders     datahandler2.InternalOrderManager
 	Exchange   exchange.ExecutionHandler
 	Statistic  statistics.StatisticHandler
 	EventQueue []interfaces.EventHandler

@@ -13,29 +13,33 @@ type Config struct {
 	// Unsupported so far, but will move to having multiple currencies
 	ExchangeSettingsButWithPassionAndLust []ExchangeSettings `json:"lustful-exchange-settings,omitempty"`
 	// data source definitions:
-	APIData           *APIData          `json:"api-data,omitempty"`
-	DatabaseData      *DatabaseData     `json:"database-data,omitempty"`
-	LiveData          *LiveData         `json:"live-data,omitempty"`
-	CSVData           *CSVData          `json:"csv-data,omitempty"`
-	PortfolioSettings PortfolioSettings `json:"portfolio"`
+	APIData           *APIData               `json:"api-data,omitempty"`
+	DatabaseData      *DatabaseData          `json:"database-data,omitempty"`
+	LiveData          *LiveData              `json:"live-data,omitempty"`
+	CSVData           *CSVData               `json:"csv-data,omitempty"`
+	StrategySettings  map[string]interface{} `json:"strategy-settings,omitempty"`
+	PortfolioSettings PortfolioSettings      `json:"portfolio"`
 }
 
 // PortfolioSettings act as a global protector for strategies
 // these settings will override ExchangeSettings that go against it
 // and assess the bigger picture
 type PortfolioSettings struct {
-	DiversificationSomething float64 `json:"diversification-something"`
+	DiversificationSomething float64  `json:"diversification-something"`
+	Leverage                 Leverage `json:"leverage"`
+	BuySide                  MinMax   `json:"buy-side"`
+	SellSide                 MinMax   `json:"sell-side"`
+}
 
+type Leverage struct {
 	CanUseLeverage  bool    `json:"can-use-leverage"`
 	MaximumLeverage float64 `json:"maximum-leverage"`
+}
 
-	MinimumBuySize float64 `json:"minimum-buy-size"` // will not place an order if under this amount
-	MaximumBuySize float64 `json:"maximum-buy-size"` // can only place an order up to this amount
-	DefaultBuySize float64 `json:"default-buy-size"`
-
-	MinimumSellSize float64 `json:"minimum-sell-size"` // will not sell an order if under this amount
-	MaximumSellSize float64 `json:"maximum-sell-size"` // can only sell an order up to this amount
-	DefaultSellSize float64 `json:"default-sell-size"`
+type MinMax struct {
+	MinimumSize  float64 `json:"minimum-size"` // will not place an order if under this amount
+	MaximumSize  float64 `json:"maximum-size"` // can only place an order up to this amount
+	MaximumTotal float64 `json:"maximum-total"`
 }
 
 // ExchangeSettings stores pair based variables
@@ -49,16 +53,9 @@ type ExchangeSettings struct {
 
 	InitialFunds float64 `json:"initial-funds"`
 
-	MinimumBuySize float64 `json:"minimum-buy-size"` // will not place an order if under this amount
-	MaximumBuySize float64 `json:"maximum-buy-size"` // can only place an order up to this amount
-	DefaultBuySize float64 `json:"default-buy-size"`
-
-	MinimumSellSize float64 `json:"minimum-sell-size"` // will not sell an order if under this amount
-	MaximumSellSize float64 `json:"maximum-sell-size"` // can only sell an order up to this amount
-	DefaultSellSize float64 `json:"default-sell-size"`
-
-	CanUseLeverage  bool    `json:"can-use-leverage"`
-	MaximumLeverage float64 `json:"maximum-leverage"`
+	Leverage Leverage `json:"leverage"`
+	BuySide  MinMax   `json:"buy-side"`
+	SellSide MinMax   `json:"sell-side"`
 
 	MakerFee float64 `json:"-"`
 	TakerFee float64 `json:"-"`

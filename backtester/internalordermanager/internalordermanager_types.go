@@ -23,7 +23,7 @@ type OrderEvent interface {
 	IsLeveraged() bool
 }
 
-type Orders struct {
+type InternalOrderManager struct {
 	Counter int
 	Orders  []OrderEvent
 	History []OrderEvent

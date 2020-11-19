@@ -9,7 +9,7 @@ import (
 )
 
 // Add order to order book
-func (ob *Orders) Add(order OrderEvent) {
+func (ob *InternalOrderManager) Add(order OrderEvent) {
 	ob.M.Lock()
 	ob.Counter++
 	// why on earth?
@@ -19,7 +19,7 @@ func (ob *Orders) Add(order OrderEvent) {
 }
 
 // Remove order from order book by ID
-func (ob *Orders) Remove(id string) error {
+func (ob *InternalOrderManager) Remove(id string) error {
 	ob.M.Lock()
 	defer ob.M.Unlock()
 	for i, order := range ob.Orders {
@@ -32,12 +32,12 @@ func (ob *Orders) Remove(id string) error {
 	return fmt.Errorf("order %v not found", id)
 }
 
-// GetOrders returns all Orders
-func (ob *Orders) GetOrders() []OrderEvent {
+// GetOrders returns all InternalOrderManager
+func (ob *InternalOrderManager) GetOrders() []OrderEvent {
 	return ob.Orders
 }
 
-func (ob *Orders) OrderBy(fn func(order OrderEvent) bool) ([]OrderEvent, bool) {
+func (ob *InternalOrderManager) OrderBy(fn func(order OrderEvent) bool) ([]OrderEvent, bool) {
 	var orders []OrderEvent
 
 	for x := range ob.Orders {
@@ -53,8 +53,8 @@ func (ob *Orders) OrderBy(fn func(order OrderEvent) bool) ([]OrderEvent, bool) {
 	return orders, true
 }
 
-// OrdersByPair returns all Orders by currency Pair
-func (ob *Orders) OrdersByPair(p currency.Pair) ([]OrderEvent, bool) {
+// OrdersByPair returns all InternalOrderManager by currency Pair
+func (ob *InternalOrderManager) OrdersByPair(p currency.Pair) ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		return order.Pair() != p
 	}
@@ -64,7 +64,7 @@ func (ob *Orders) OrdersByPair(p currency.Pair) ([]OrderEvent, bool) {
 }
 
 // OrdersBidByPair returns bids by pair
-func (ob *Orders) OrdersBidByPair(p currency.Pair) ([]OrderEvent, bool) {
+func (ob *InternalOrderManager) OrdersBidByPair(p currency.Pair) ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		return (order.Pair() != p) || (order.GetDirection() != gctorder.Buy)
 	}
@@ -81,7 +81,7 @@ func (ob *Orders) OrdersBidByPair(p currency.Pair) ([]OrderEvent, bool) {
 }
 
 //  OrdersAskByPair returns asks by pair
-func (ob *Orders) OrdersAskByPair(p currency.Pair) ([]OrderEvent, bool) {
+func (ob *InternalOrderManager) OrdersAskByPair(p currency.Pair) ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		return (order.Pair() != p) || (order.GetDirection() != gctorder.Sell)
 	}
@@ -90,8 +90,8 @@ func (ob *Orders) OrdersAskByPair(p currency.Pair) ([]OrderEvent, bool) {
 	return orders, ok
 }
 
-// OpenOrders retrieve all open Orders / PartiallyFilled Orders
-func (ob *Orders) OrdersOpen() ([]OrderEvent, bool) {
+// OpenOrders retrieve all open InternalOrderManager / PartiallyFilled InternalOrderManager
+func (ob *InternalOrderManager) OrdersOpen() ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		return (order.GetStatus() != gctorder.New) || (order.GetStatus() != gctorder.Open) || (order.GetStatus() != gctorder.PartiallyFilled)
 	}
@@ -100,8 +100,8 @@ func (ob *Orders) OrdersOpen() ([]OrderEvent, bool) {
 	return orders, ok
 }
 
-// OrdersCancelled retrieve all cancelled or pending cancel Orders
-func (ob *Orders) OrdersCanceled() ([]OrderEvent, bool) {
+// OrdersCancelled retrieve all cancelled or pending cancel InternalOrderManager
+func (ob *InternalOrderManager) OrdersCanceled() ([]OrderEvent, bool) {
 	var fn = func(order OrderEvent) bool {
 		return (order.GetStatus() == gctorder.Cancelled) || (order.GetStatus() == gctorder.PendingCancel)
 	}

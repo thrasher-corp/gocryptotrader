@@ -33,7 +33,7 @@ func TestOrderBook_Add(t *testing.T) {
 	for x := range tests {
 		test := &tests[x]
 		t.Run(test.name, func(t *testing.T) {
-			ob := &Orders{
+			ob := &InternalOrderManager{
 				Counter: test.fields.counter,
 				Orders:  test.fields.orders,
 				History: test.fields.history,
@@ -65,7 +65,7 @@ func TestOrderBook_OrderBy(t *testing.T) {
 	for x := range tests {
 		test := &tests[x]
 		t.Run(test.name, func(t *testing.T) {
-			ob := &Orders{
+			ob := &InternalOrderManager{
 				Counter: test.fields.counter,
 				Orders:  test.fields.orders,
 				History: test.fields.history,
@@ -98,7 +98,7 @@ func TestOrderBook_Orders(t *testing.T) {
 	for x := range tests {
 		test := &tests[x]
 		t.Run(test.name, func(t *testing.T) {
-			ob := &Orders{
+			ob := &InternalOrderManager{
 				Counter: test.fields.counter,
 				Orders:  test.fields.orders,
 				History: test.fields.history,
@@ -132,7 +132,7 @@ func TestOrderBook_OrdersAskBySymbol(t *testing.T) {
 	for x := range tests {
 		test := &tests[x]
 		t.Run(test.name, func(t *testing.T) {
-			ob := &Orders{
+			ob := &InternalOrderManager{
 				Counter: test.fields.counter,
 				Orders:  test.fields.orders,
 				History: test.fields.history,
@@ -169,7 +169,7 @@ func TestOrderBook_OrdersBidBySymbol(t *testing.T) {
 	for x := range tests {
 		test := &tests[x]
 		t.Run(test.name, func(t *testing.T) {
-			ob := &Orders{
+			ob := &InternalOrderManager{
 				Counter: test.fields.counter,
 				Orders:  test.fields.orders,
 				History: test.fields.history,
@@ -206,7 +206,7 @@ func TestOrderBook_OrdersBySymbol(t *testing.T) {
 	for x := range tests {
 		test := &tests[x]
 		t.Run(test.name, func(t *testing.T) {
-			ob := &Orders{
+			ob := &InternalOrderManager{
 				Counter: test.fields.counter,
 				Orders:  test.fields.orders,
 				History: test.fields.history,
@@ -239,7 +239,7 @@ func TestOrderBook_OrdersCanceled(t *testing.T) {
 	for x := range tests {
 		test := &tests[x]
 		t.Run(test.name, func(t *testing.T) {
-			ob := &Orders{
+			ob := &InternalOrderManager{
 				Counter: test.fields.counter,
 				Orders:  test.fields.orders,
 				History: test.fields.history,
@@ -272,7 +272,7 @@ func TestOrderBook_OrdersOpen(t *testing.T) {
 	for x := range tests {
 		test := &tests[x]
 		t.Run(test.name, func(t *testing.T) {
-			ob := &Orders{
+			ob := &InternalOrderManager{
 				Counter: test.fields.counter,
 				Orders:  test.fields.orders,
 				History: test.fields.history,
@@ -317,7 +317,7 @@ func TestOrderBook_Remove(t *testing.T) {
 	for x := range tests {
 		test := &tests[x]
 		t.Run(test.name, func(t *testing.T) {
-			ob := &Orders{
+			ob := &InternalOrderManager{
 				Counter: test.fields.counter,
 				Orders:  test.fields.orders,
 				History: test.fields.history,

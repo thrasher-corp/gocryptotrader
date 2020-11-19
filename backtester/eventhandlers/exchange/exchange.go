@@ -69,7 +69,7 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 	if err != nil {
 		return nil, err
 	}
-	//e.Orders.Add(&order2.Order{
+	//e.InternalOrderManager.Add(&order2.Order{
 	//	Event: event.Event{
 	//		Exchange:     o.GetExchange(),
 	//		Time:         o.GetTime(),

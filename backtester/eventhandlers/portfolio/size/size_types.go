@@ -1,12 +1,9 @@
 package size
 
+import "github.com/thrasher-corp/gocryptotrader/backtester/config"
+
 type Size struct {
-	MinimumBuySize  float64
-	MaximumBuySize  float64
-	DefaultBuySize  float64
-	MinimumSellSize float64
-	MaximumSellSize float64
-	DefaultSellSize float64
-	CanUseLeverage  bool
-	MaximumLeverage float64
+	Leverage config.Leverage
+	BuySide  config.MinMax
+	SellSide config.MinMax
 }

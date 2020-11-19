@@ -5,15 +5,21 @@
   "asset": "spot",
   "base": "BTC",
   "quote": "USDT",
-  "initial-funds": 13371337,
-  "minimum-buy-size": 0.075,
-  "maximum-buy-size": 1,
-  "default-buy-size": 0.5,
-  "minimum-sell-size": 0.1,
-  "maximum-sell-size": 2,
-  "default-sell-size": 0.5,
-  "can-use-leverage": false,
-  "maximum-leverage": 0
+  "initial-funds": 1337,
+  "leverage": {
+   "can-use-leverage": false,
+   "maximum-leverage": 102
+  },
+  "buy-side": {
+   "minimum-size": 0.1,
+   "maximum-size": 1,
+   "maximum-total": 10000
+  },
+  "sell-side": {
+   "minimum-size": 0.1,
+   "maximum-size": 1,
+   "maximum-total": 10000
+  }
  },
  "live-data": {
   "interval": 60000000000,
@@ -26,13 +32,19 @@
  },
  "portfolio": {
   "diversification-something": 0,
-  "can-use-leverage": false,
-  "maximum-leverage": 0,
-  "minimum-buy-size": 0.1,
-  "maximum-buy-size": 1,
-  "default-buy-size": 0.5,
-  "minimum-sell-size": 0.1,
-  "maximum-sell-size": 2,
-  "default-sell-size": 0.5
+  "leverage": {
+   "can-use-leverage": false,
+   "maximum-leverage": 102
+  },
+  "buy-side": {
+   "minimum-size": 0.1,
+   "maximum-size": 1,
+   "maximum-total": 10000
+  },
+  "sell-side": {
+   "minimum-size": 0.1,
+   "maximum-size": 1,
+   "maximum-total": 10000
+  }
  }
 }

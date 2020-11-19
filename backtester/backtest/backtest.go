@@ -71,34 +71,46 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 
 	bt.Exchange = &exchange.Exchange{
 		CurrencySettings: exchange.CurrencySettings{
-			CurrencyPair:    fPair,
-			AssetType:       a,
-			ExchangeFee:     takerFee,
-			MakerFee:        takerFee,
-			TakerFee:        makerFee,
-			MinimumBuySize:  cfg.ExchangeSettings.MinimumBuySize,
-			MaximumBuySize:  cfg.ExchangeSettings.MinimumBuySize,
-			DefaultBuySize:  cfg.ExchangeSettings.DefaultBuySize,
-			MinimumSellSize: cfg.ExchangeSettings.MinimumSellSize,
-			MaximumSellSize: cfg.ExchangeSettings.MaximumSellSize,
-			DefaultSellSize: cfg.ExchangeSettings.DefaultSellSize,
-			CanUseLeverage:  cfg.ExchangeSettings.CanUseLeverage,
-			MaximumLeverage: cfg.ExchangeSettings.MaximumLeverage,
+			CurrencyPair: fPair,
+			AssetType:    a,
+			ExchangeFee:  takerFee,
+			MakerFee:     takerFee,
+			TakerFee:     makerFee,
+			BuySide: config.MinMax{
+				MinimumSize:  cfg.ExchangeSettings.BuySide.MinimumSize,
+				MaximumSize:  cfg.ExchangeSettings.BuySide.MaximumSize,
+				MaximumTotal: cfg.ExchangeSettings.BuySide.MaximumTotal,
+			},
+			SellSide: config.MinMax{
+				MinimumSize:  cfg.ExchangeSettings.SellSide.MinimumSize,
+				MaximumSize:  cfg.ExchangeSettings.SellSide.MaximumSize,
+				MaximumTotal: cfg.ExchangeSettings.SellSide.MaximumTotal,
+			},
+			Leverage: config.Leverage{
+				CanUseLeverage:  cfg.ExchangeSettings.Leverage.CanUseLeverage,
+				MaximumLeverage: cfg.ExchangeSettings.Leverage.MaximumLeverage,
+			},
 		},
-		Orders: internalordermanager.Orders{},
+		Orders: internalordermanager.InternalOrderManager{},
 	}
 
 	bt.Portfolio = &portfolio.Portfolio{
 		InitialFunds: cfg.ExchangeSettings.InitialFunds,
 		SizeManager: &size.Size{
-			MinimumBuySize:  cfg.PortfolioSettings.MinimumBuySize,
-			MaximumBuySize:  cfg.PortfolioSettings.MinimumBuySize,
-			DefaultBuySize:  cfg.PortfolioSettings.DefaultBuySize,
-			MinimumSellSize: cfg.PortfolioSettings.MinimumSellSize,
-			MaximumSellSize: cfg.PortfolioSettings.MaximumSellSize,
-			DefaultSellSize: cfg.PortfolioSettings.DefaultSellSize,
-			CanUseLeverage:  cfg.PortfolioSettings.CanUseLeverage,
-			MaximumLeverage: cfg.PortfolioSettings.MaximumLeverage,
+			BuySide: config.MinMax{
+				MinimumSize:  cfg.ExchangeSettings.BuySide.MinimumSize,
+				MaximumSize:  cfg.ExchangeSettings.BuySide.MaximumSize,
+				MaximumTotal: cfg.ExchangeSettings.BuySide.MaximumTotal,
+			},
+			SellSide: config.MinMax{
+				MinimumSize:  cfg.ExchangeSettings.SellSide.MinimumSize,
+				MaximumSize:  cfg.ExchangeSettings.SellSide.MaximumSize,
+				MaximumTotal: cfg.ExchangeSettings.SellSide.MaximumTotal,
+			},
+			Leverage: config.Leverage{
+				CanUseLeverage:  cfg.ExchangeSettings.Leverage.CanUseLeverage,
+				MaximumLeverage: cfg.ExchangeSettings.Leverage.MaximumLeverage,
+			},
 		},
 		Funds: cfg.ExchangeSettings.InitialFunds,
 		RiskManager: &risk.Risk{

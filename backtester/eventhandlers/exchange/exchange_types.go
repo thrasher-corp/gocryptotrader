@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
@@ -16,7 +17,7 @@ type ExecutionHandler interface {
 
 type Exchange struct {
 	CurrencySettings CurrencySettings
-	Orders           internalordermanager.Orders
+	Orders           internalordermanager.InternalOrderManager
 }
 
 type CurrencySettings struct {
@@ -27,14 +28,8 @@ type CurrencySettings struct {
 	MakerFee    float64
 	TakerFee    float64
 
-	MinimumBuySize float64
-	MaximumBuySize float64
-	DefaultBuySize float64
+	BuySide  config.MinMax
+	SellSide config.MinMax
 
-	MinimumSellSize float64
-	MaximumSellSize float64
-	DefaultSellSize float64
-
-	CanUseLeverage  bool
-	MaximumLeverage float64
+	Leverage config.Leverage
 }
