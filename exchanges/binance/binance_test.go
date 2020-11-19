@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -665,6 +666,10 @@ func TestFuturesGetFundingHistory(t *testing.T) {
 
 func TestGetFuturesHistoricalTrades(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	t.Parallel()
 	_, err := b.GetFuturesHistoricalTrades("BTCUSD_PERP", "", 5)
 	if err != nil {
 		t.Error(err)
@@ -1188,14 +1193,16 @@ func TestQueryOrder(t *testing.T) {
 
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.OpenOrders("BTCUSDT")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
+		fmt.Printf("HIIIIIIIII\n\n\n")
 		t.Error("OpenOrders() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		fmt.Printf("BYEEEEEEE\n\n\n")
 		t.Error("OpenOrders() expecting an error when no keys are set")
 	case mockTests && err != nil:
+		fmt.Printf("WHHYYYYY\n\n\n")
 		t.Error("Mock OpenOrders() error", err)
 	}
 }
@@ -1998,7 +2005,11 @@ func TestWsOCO(t *testing.T) {
 }
 
 func TestGetWsAuthStreamKey(t *testing.T) {
+	b.Verbose = true
 	key, err := b.GetWsAuthStreamKey()
+	b.Verbose = false
+	fmt.Println("KEY:", key)
+	fmt.Println("err:", err)
 	switch {
 	case mockTests && err != nil,
 		!mockTests && areTestAPIKeysSet() && err != nil:
@@ -2007,7 +2018,7 @@ func TestGetWsAuthStreamKey(t *testing.T) {
 		t.Fatal("Expected error")
 	}
 
-	if key == "" {
+	if key == "" && (areTestAPIKeysSet() || mockTests) {
 		t.Error("Expected key")
 	}
 }

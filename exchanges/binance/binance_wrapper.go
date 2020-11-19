@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	spot                    = "spotURL"
+	RestSpot                = "RESTSpotURL"
 	spot2                   = "spot2URL"
 	uFutures                = "ufuturesURL"
 	cmFutures               = "cfuturesURL"
@@ -186,13 +186,13 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[string]string{
-		spot:                    spotAPIURL,
-		spot2:                   apiURL,
-		uFutures:                ufuturesAPIURL,
-		cmFutures:               cfuturesAPIURL,
-		interestHistoryEdgeCase: "https://www.binance.com",
-		spotWSURL:               binanceDefaultWebsocketURL,
+	b.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:              spotAPIURL,
+		exchange.RestSpotSupplementary: apiURL,
+		exchange.USDTMarginedFutures:   ufuturesAPIURL,
+		exchange.CoinMarginedFutures:   cfuturesAPIURL,
+		exchange.EdgeCase1:             "https://www.binance.com",
+		exchange.SpotWsURL:             binanceDefaultWebsocketURL,
 	})
 
 	b.Websocket = stream.New()
