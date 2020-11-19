@@ -1412,16 +1412,6 @@ func TestWsAddOrderJSON(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	pressXToJSON = []byte(`{
-  "errorMessage": "EOrder:Order minimum not met",
-  "event": "addOrderStatus",
-  "status": "error"
-}`)
-	err = k.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected error")
-	}
 }
 
 func TestWsCancelOrderJSON(t *testing.T) {

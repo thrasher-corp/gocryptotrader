@@ -270,11 +270,10 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				}
 
 				if status.Status == "error" {
-					k.Websocket.DataHandler <- fmt.Errorf("%v Websocket status for RequestID %d: '%v'",
+					return fmt.Errorf("%v Websocket status for RequestID %d: '%v'",
 						k.Name,
 						status.RequestID,
 						status.ErrorMessage)
-					return nil
 				}
 
 				if !isChannelExist && status.RequestID > 0 {
@@ -318,11 +317,10 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				}
 
 				if status.Status == "error" {
-					k.Websocket.DataHandler <- fmt.Errorf("%v Websocket status for RequestID %d: '%v'",
+					return fmt.Errorf("%v Websocket status for RequestID %d: '%v'",
 						k.Name,
 						status.RequestID,
 						status.ErrorMessage)
-					return nil
 				}
 
 				k.Websocket.DataHandler <- &order.Detail{
