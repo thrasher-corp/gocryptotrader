@@ -9,6 +9,8 @@ import (
 type StrategyHandler interface {
 	Name() string
 	OnSignal(interfaces.DataHandler, portfolio.PortfolioHandler) (signal.SignalEvent, error)
+	SetCustomSettings(map[string]interface{}) error
+	SetDefaults()
 }
 
 const errNotFound = "strategy %v not found"

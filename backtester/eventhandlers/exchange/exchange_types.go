@@ -16,6 +16,7 @@ type ExecutionHandler interface {
 }
 
 type Exchange struct {
+	UseRealOrders    bool
 	CurrencySettings CurrencySettings
 	Orders           internalordermanager.InternalOrderManager
 }

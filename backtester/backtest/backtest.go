@@ -45,6 +45,76 @@ func (b *BackTest) Reset() {
 	b.Statistic.Reset()
 }
 
+func (b *BackTest) PrintSettings(cfg *config.Config) {
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Info(log.BackTester, "------------------Backtester Settings------------------------")
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Info(log.BackTester, "------------------Strategy Settings--------------------------")
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Infof(log.BackTester, "Strategy: %s", b.Strategy.Name())
+	if len(cfg.StrategySettings) > 0 {
+		log.Info(log.BackTester, "Custom strategy variables:")
+		for k, v := range cfg.StrategySettings {
+			log.Infof(log.BackTester, "%s: %v", k, v)
+		}
+	} else {
+		log.Info(log.BackTester, "Custom strategy variables: unset")
+	}
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Info(log.BackTester, "------------------Exchange Settings--------------------------")
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Infof(log.BackTester, "Exchange: %s", cfg.ExchangeSettings.Name)
+	log.Infof(log.BackTester, "Asset type: %s", cfg.ExchangeSettings.Asset)
+	log.Infof(log.BackTester, "Currency: %s-%s", cfg.ExchangeSettings.Base, cfg.ExchangeSettings.Quote)
+	log.Infof(log.BackTester, "Initial funds: %v", cfg.ExchangeSettings.InitialFunds)
+	log.Infof(log.BackTester, "Maker fee: %v", cfg.ExchangeSettings.TakerFee)
+	log.Infof(log.BackTester, "Taker fee: %v", cfg.ExchangeSettings.MakerFee)
+	log.Infof(log.BackTester, "Buy rules: %+v", cfg.ExchangeSettings.BuySide)
+	log.Infof(log.BackTester, "Sell rules: %+v", cfg.ExchangeSettings.SellSide)
+	log.Infof(log.BackTester, "Leverage rules: %+v", cfg.ExchangeSettings.Leverage)
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Infof(log.BackTester, "Buy rules: %+v", cfg.PortfolioSettings.BuySide)
+	log.Infof(log.BackTester, "Sell rules: %+v", cfg.PortfolioSettings.SellSide)
+	log.Infof(log.BackTester, "Leverage rules: %+v", cfg.PortfolioSettings.Leverage)
+	if cfg.LiveData != nil {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------Live Settings------------------------------")
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Data type: %v", cfg.LiveData.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.LiveData.Interval)
+		log.Infof(log.BackTester, "REAL ORDERS: %v", cfg.LiveData.RealOrders)
+		log.Infof(log.BackTester, "Overriding GCT API settings: %v", cfg.LiveData.APIClientIDOverride != "")
+	}
+	if cfg.APIData != nil {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------API Settings-------------------------------")
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Data type: %v", cfg.APIData.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.APIData.Interval)
+		log.Infof(log.BackTester, "Start date: %v", cfg.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "End date: %v", cfg.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
+	}
+	if cfg.CSVData != nil {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------CSV Settings-------------------------------")
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Data type: %v", cfg.CSVData.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.CSVData.Interval)
+	}
+	if cfg.DatabaseData != nil {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------Database Settings--------------------------")
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Data type: %v", cfg.DatabaseData.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.DatabaseData.Interval)
+		log.Infof(log.BackTester, "Start date: %v", cfg.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "End date: %v", cfg.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
+	}
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+}
+
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	bt := New()
@@ -68,8 +138,19 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cfg.ExchangeSettings.MakerFee > 0 {
+		makerFee = cfg.ExchangeSettings.MakerFee
+	}
+	if cfg.ExchangeSettings.TakerFee > 0 {
+		takerFee = cfg.ExchangeSettings.TakerFee
+	}
 
+	var useRealOrders bool
+	if cfg.LiveData != nil {
+		useRealOrders = cfg.LiveData.RealOrders
+	}
 	bt.Exchange = &exchange.Exchange{
+		UseRealOrders: useRealOrders,
 		CurrencySettings: exchange.CurrencySettings{
 			CurrencyPair: fPair,
 			AssetType:    a,
@@ -127,11 +208,21 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cfg.StrategySettings != nil {
+		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		bt.Strategy.SetDefaults()
+	}
 
 	bt.Statistic = &statistics.Statistic{
 		StrategyName: cfg.StrategyToLoad,
 		InitialFunds: cfg.ExchangeSettings.InitialFunds,
 	}
+
+	bt.PrintSettings(cfg)
 
 	return bt, nil
 }

@@ -26,3 +26,12 @@ func (s *Strategy) OnSignal(d interfaces.DataHandler, p portfolio.PortfolioHandl
 	es.SetWhy("DCA purchases on every iteration")
 	return &es, nil
 }
+
+// SetCustomSettings not required for DCA
+func (s *Strategy) SetCustomSettings(_ map[string]interface{}) error {
+	return nil
+}
+
+// SetDefaults not required for DCA
+func (s *Strategy) SetDefaults() {
+}

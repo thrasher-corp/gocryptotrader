@@ -4,6 +4,7 @@ import (
 	"github.com/gofrs/uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
@@ -19,6 +20,24 @@ func (e *Exchange) SetCurrency(c CurrencySettings) {
 
 func (e *Exchange) GetCurrency() CurrencySettings {
 	return e.CurrencySettings
+}
+
+func (e *Exchange) ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (float64, float64) {
+	if slippagePrice < low {
+		slippagePrice = low
+	}
+	if slippagePrice > high {
+		slippagePrice = high
+	}
+
+	if amount*slippagePrice > volume {
+		// hey, this order is too big here
+		for amount*slippagePrice > volume {
+			amount *= 0.99999
+		}
+	}
+
+	return slippagePrice, amount
 }
 
 func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfaces.DataHandler) (*fill.Fill, error) {
@@ -40,11 +59,28 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 		return fillEvent, nil
 	}
 	fillEvent.Direction = o.GetDirection()
-	fillEvent.ExchangeFee = e.calculateExchangeFee(data.Latest().Price(), o.GetAmount(), e.CurrencySettings.ExchangeFee)
+	var slippageRate, estimatedPrice, amount float64
+	if e.UseRealOrders {
+		// get current orderbook
+		// calculate an estimated slippage rate
+		slippageRate = slippage.CalculateSlippage(nil)
+		estimatedPrice = fillEvent.Price * slippageRate
+	} else {
+		// provide n history and estimate volatility
+		slippageRate = slippage.EstimateSlippagePercentage()
+		estimatedPrice = fillEvent.Price * slippageRate
+		high := data.StreamHigh()
+		low := data.StreamLow()
+		volume := data.StreamVol()
+
+		estimatedPrice, amount = e.ensureOrderFitsWithinHLV(estimatedPrice, o.GetAmount(), high[len(high)-1], low[len(low)-1], volume[len(volume)-1])
+	}
+
+	fillEvent.ExchangeFee = e.calculateExchangeFee(estimatedPrice, amount, e.CurrencySettings.ExchangeFee)
 	u, _ := uuid.NewV4()
 	o2 := &order.Submit{
-		Price:       fillEvent.Price,
-		Amount:      o.GetAmount(),
+		Price:       estimatedPrice,
+		Amount:      amount,
 		Fee:         fillEvent.ExchangeFee,
 		Exchange:    fillEvent.Exchange,
 		ID:          u.String(),
@@ -55,20 +91,27 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 		Pair:        o.Pair(),
 		Type:        order.Market,
 	}
-	o2Response := order.SubmitResponse{
-		IsOrderPlaced: true,
-		OrderID:       u.String(),
-		Rate:          fillEvent.Amount,
-		Fee:           fillEvent.ExchangeFee,
-		Cost:          fillEvent.Price,
-		FullyMatched:  true,
+	if e.UseRealOrders {
+		_, err := engine.Bot.OrderManager.Submit(o2)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		o2Response := order.SubmitResponse{
+			IsOrderPlaced: true,
+			OrderID:       u.String(),
+			Rate:          fillEvent.Amount,
+			Fee:           fillEvent.ExchangeFee,
+			Cost:          estimatedPrice,
+			FullyMatched:  true,
+		}
+		log.Debugf(log.BackTester, "submitting fake order for %v interval", o.GetTime())
+		_, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
+		if err != nil {
+			return nil, err
+		}
 	}
-	log.Debugf(log.BackTester, "submitting fake order for %v interval", o.GetTime())
-	_, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
 
-	if err != nil {
-		return nil, err
-	}
 	//e.InternalOrderManager.Add(&order2.Order{
 	//	Event: event.Event{
 	//		Exchange:     o.GetExchange(),

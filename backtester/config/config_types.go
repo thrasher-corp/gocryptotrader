@@ -17,7 +17,7 @@ type Config struct {
 	DatabaseData      *DatabaseData          `json:"database-data,omitempty"`
 	LiveData          *LiveData              `json:"live-data,omitempty"`
 	CSVData           *CSVData               `json:"csv-data,omitempty"`
-	StrategySettings  map[string]interface{} `json:"strategy-settings,omitempty"`
+	StrategySettings  map[string]interface{} `json:"strategy-settings"`
 	PortfolioSettings PortfolioSettings      `json:"portfolio"`
 }
 
@@ -57,8 +57,8 @@ type ExchangeSettings struct {
 	BuySide  MinMax   `json:"buy-side"`
 	SellSide MinMax   `json:"sell-side"`
 
-	MakerFee float64 `json:"-"`
-	TakerFee float64 `json:"-"`
+	MakerFee float64 `json:"maker-fee-override"`
+	TakerFee float64 `json:"taker-fee-override"`
 }
 
 // APIData defines all fields to configure API based data
