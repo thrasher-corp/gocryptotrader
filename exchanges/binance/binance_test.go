@@ -2005,11 +2005,7 @@ func TestWsOCO(t *testing.T) {
 }
 
 func TestGetWsAuthStreamKey(t *testing.T) {
-	b.Verbose = true
 	key, err := b.GetWsAuthStreamKey()
-	b.Verbose = false
-	fmt.Println("KEY:", key)
-	fmt.Println("err:", err)
 	switch {
 	case mockTests && err != nil,
 		!mockTests && areTestAPIKeysSet() && err != nil:

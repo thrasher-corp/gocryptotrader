@@ -27,11 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL   = "spotAPIURL"
-	spotWSURL = "spotWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (h *HitBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	h.SetDefaults()
@@ -136,9 +131,9 @@ func (h *HitBTC) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	h.API.Endpoints = h.NewEndpoints()
-	h.API.Endpoints.CreateMap(map[string]string{
-		spotURL:   apiURL,
-		spotWSURL: hitbtcWebsocketAddress,
+	h.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  apiURL,
+		exchange.SpotWsURL: hitbtcWebsocketAddress,
 	})
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -158,12 +153,12 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := h.API.Endpoints.GetDefault(spotWSURL)
+	defaultWSURL, err := h.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := h.API.Endpoints.GetRunning(spotWSURL)
+	wsRunningURL, err := h.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

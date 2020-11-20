@@ -24,11 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL          = "spotAPIURL"
-	chainAnalysisURL = "chainAnalysis"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (b *Bitflyer) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -100,9 +95,9 @@ func (b *Bitflyer) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[string]string{
-		spotURL:          japanURL,
-		chainAnalysisURL: chainAnalysis,
+	b.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:      japanURL,
+		exchange.ChainAnalysis: chainAnalysis,
 	})
 }
 

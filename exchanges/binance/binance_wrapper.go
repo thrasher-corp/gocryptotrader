@@ -28,18 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	RestSpot                = "RESTSpotURL"
-	spot2                   = "spot2URL"
-	uFutures                = "ufuturesURL"
-	cmFutures               = "cfuturesURL"
-	interestHistoryEdgeCase = "edgecase1"
-	uFuturesRunningRest     = "ufuturesRunningURL"
-	cmFuturesRunningRest    = "cmfuturesRunningURL"
-	edgecase1RunningURL     = "edgecase1RunningURL"
-	spotWSURL               = "wsURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (b *Binance) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -211,11 +199,11 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	defaultEpoint, err := b.API.Endpoints.GetDefault(spotWSURL)
+	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
-	epoint, err := b.API.Endpoints.GetRunning(spotWSURL)
+	epoint, err := b.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

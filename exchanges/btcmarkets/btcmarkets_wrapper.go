@@ -27,11 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL   = "spotAPIURL"
-	spotWSURL = "spotWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (b *BTCMarkets) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -126,9 +121,9 @@ func (b *BTCMarkets) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[string]string{
-		spotURL:   btcMarketsAPIURL,
-		spotWSURL: btcMarketsWSURL,
+	b.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  btcMarketsAPIURL,
+		exchange.SpotWsURL: btcMarketsWSURL,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -148,12 +143,12 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := b.API.Endpoints.GetRunning(spotWSURL)
+	defaultWSURL, err := b.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsURL, err := b.API.Endpoints.GetRunning(spotWSURL)
+	wsURL, err := b.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

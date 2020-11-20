@@ -27,12 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL    = "spotAPIURL"
-	spotWSURL  = "spotWSURL"
-	sandboxURL = "sandbox"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (c *CoinbasePro) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	c.SetDefaults()
@@ -138,10 +132,10 @@ func (c *CoinbasePro) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	c.API.Endpoints = c.NewEndpoints()
-	c.API.Endpoints.CreateMap(map[string]string{
-		spotURL:    coinbaseproAPIURL,
-		sandboxURL: coinbaseproSandboxAPIURL,
-		spotWSURL:  coinbaseproWebsocketURL,
+	c.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  coinbaseproAPIURL,
+		exchange.Sandbox:   coinbaseproSandboxAPIURL,
+		exchange.SpotWsURL: coinbaseproWebsocketURL,
 	})
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -161,12 +155,12 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsDefaultEndpoint, err := c.API.Endpoints.GetRunning(spotWSURL)
+	wsDefaultEndpoint, err := c.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := c.API.Endpoints.GetRunning(spotWSURL)
+	wsRunningURL, err := c.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

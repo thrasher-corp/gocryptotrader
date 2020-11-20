@@ -28,12 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL       = "spotAPIURL"
-	spotWSURL     = "spotWSURL"
-	secondaryRest = "secondaryURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	z.SetDefaults()
@@ -138,10 +132,10 @@ func (z *ZB) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	z.API.Endpoints = z.NewEndpoints()
-	z.API.Endpoints.CreateMap(map[string]string{
-		spotURL:       zbTradeURL,
-		secondaryRest: zbMarketURL,
-		spotWSURL:     zbWebsocketAPI,
+	z.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:              zbTradeURL,
+		exchange.RestSpotSupplementary: zbMarketURL,
+		exchange.SpotWsURL:             zbWebsocketAPI,
 	})
 	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -160,12 +154,12 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := z.API.Endpoints.GetDefault(spotWSURL)
+	defaultWSURL, err := z.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := z.API.Endpoints.GetRunning(spotWSURL)
+	wsRunningURL, err := z.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

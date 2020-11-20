@@ -27,12 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL    = "spotAPIURL"
-	spotWSURL  = "spotWSURL"
-	testnetURL = "testnetURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (b *Bitmex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	b.SetDefaults()
@@ -126,9 +120,9 @@ func (b *Bitmex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[string]string{
-		spotURL:   bitmexAPIURL,
-		spotWSURL: bitmexWSURL,
+	b.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  bitmexAPIURL,
+		exchange.SpotWsURL: bitmexWSURL,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -148,12 +142,12 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultEpoint, err := b.API.Endpoints.GetDefault(spotWSURL)
+	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsEndpoint, err := b.API.Endpoints.GetRunning(spotWSURL)
+	wsEndpoint, err := b.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
@@ -195,7 +189,7 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		wsEndpoint, err := b.API.Endpoints.GetRunning(spotWSURL)
+		wsEndpoint, err := b.API.Endpoints.GetRunning(exchange.SpotWsURL)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

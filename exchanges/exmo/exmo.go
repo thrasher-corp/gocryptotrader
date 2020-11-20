@@ -58,7 +58,7 @@ func (e *EXMO) GetTrades(symbol string) (map[string][]Trades, error) {
 	v.Set("pair", symbol)
 	result := make(map[string][]Trades)
 	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoTrades)
-	return result, e.SendHTTPRequest(spotURL, common.EncodeURLValues(urlPath, v), &result)
+	return result, e.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues(urlPath, v), &result)
 }
 
 // GetOrderbook returns the orderbook for a symbol or symbols
@@ -67,7 +67,7 @@ func (e *EXMO) GetOrderbook(symbol string) (map[string]Orderbook, error) {
 	v.Set("pair", symbol)
 	result := make(map[string]Orderbook)
 	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoOrderbook)
-	return result, e.SendHTTPRequest(spotURL, common.EncodeURLValues(urlPath, v), &result)
+	return result, e.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues(urlPath, v), &result)
 }
 
 // GetTicker returns the ticker for a symbol or symbols
@@ -75,27 +75,27 @@ func (e *EXMO) GetTicker() (map[string]Ticker, error) {
 	v := url.Values{}
 	result := make(map[string]Ticker)
 	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoTicker)
-	return result, e.SendHTTPRequest(spotURL, common.EncodeURLValues(urlPath, v), &result)
+	return result, e.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues(urlPath, v), &result)
 }
 
 // GetPairSettings returns the pair settings for a symbol or symbols
 func (e *EXMO) GetPairSettings() (map[string]PairSettings, error) {
 	result := make(map[string]PairSettings)
 	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoPairSettings)
-	return result, e.SendHTTPRequest(spotURL, urlPath, &result)
+	return result, e.SendHTTPRequest(exchange.RestSpot, urlPath, &result)
 }
 
 // GetCurrency returns a list of currencies
 func (e *EXMO) GetCurrency() ([]string, error) {
 	var result []string
 	urlPath := fmt.Sprintf("/v%s/%s", exmoAPIVersion, exmoCurrency)
-	return result, e.SendHTTPRequest(spotURL, urlPath, &result)
+	return result, e.SendHTTPRequest(exchange.RestSpot, urlPath, &result)
 }
 
 // GetUserInfo returns the user info
 func (e *EXMO) GetUserInfo() (UserInfo, error) {
 	var result UserInfo
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoUserInfo, url.Values{}, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoUserInfo, url.Values{}, &result)
 	return result, err
 }
 
@@ -116,7 +116,7 @@ func (e *EXMO) CreateOrder(pair, orderType string, price, amount float64) (int64
 	v.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var resp response
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoOrderCreate, v, &resp)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoOrderCreate, v, &resp)
 	if !resp.Result {
 		return -1, errors.New(resp.Error)
 	}
@@ -132,7 +132,7 @@ func (e *EXMO) CancelExistingOrder(orderID int64) error {
 		Error  string `json:"error"`
 	}
 	var resp response
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoOrderCancel, v, &resp)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoOrderCancel, v, &resp)
 	if !resp.Result {
 		return errors.New(resp.Error)
 	}
@@ -142,7 +142,7 @@ func (e *EXMO) CancelExistingOrder(orderID int64) error {
 // GetOpenOrders returns the users open orders
 func (e *EXMO) GetOpenOrders() (map[string]OpenOrders, error) {
 	result := make(map[string]OpenOrders)
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoOpenOrders, url.Values{}, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoOpenOrders, url.Values{}, &result)
 	return result, err
 }
 
@@ -160,7 +160,7 @@ func (e *EXMO) GetUserTrades(pair, offset, limit string) (map[string][]UserTrade
 		v.Set("limit", limit)
 	}
 
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoUserTrades, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoUserTrades, v, &result)
 	return result, err
 }
 
@@ -177,7 +177,7 @@ func (e *EXMO) GetCancelledOrders(offset, limit string) ([]CancelledOrder, error
 		v.Set("limit", limit)
 	}
 
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoCancelledOrders, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoCancelledOrders, v, &result)
 	return result, err
 }
 
@@ -187,7 +187,7 @@ func (e *EXMO) GetOrderTrades(orderID int64) (OrderTrades, error) {
 	v := url.Values{}
 	v.Set("order_id", strconv.FormatInt(orderID, 10))
 
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoOrderTrades, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoOrderTrades, v, &result)
 	return result, err
 }
 
@@ -198,14 +198,14 @@ func (e *EXMO) GetRequiredAmount(pair string, amount float64) (RequiredAmount, e
 	v.Set("pair", pair)
 	v.Set("quantity", strconv.FormatFloat(amount, 'f', -1, 64))
 	var result RequiredAmount
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoRequiredAmount, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoRequiredAmount, v, &result)
 	return result, err
 }
 
 // GetCryptoDepositAddress returns a list of addresses for cryptocurrency deposits
 func (e *EXMO) GetCryptoDepositAddress() (map[string]string, error) {
 	var result interface{}
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoDepositAddress, url.Values{}, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoDepositAddress, url.Values{}, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func (e *EXMO) WithdrawCryptocurrency(currency, address, invoice string, amount 
 
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp response
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoWithdrawCrypt, v, &resp)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoWithdrawCrypt, v, &resp)
 	if err != nil {
 		return -1, err
 	}
@@ -264,7 +264,7 @@ func (e *EXMO) GetWithdrawTXID(taskID int64) (string, error) {
 	v.Set("task_id", strconv.FormatInt(taskID, 10))
 
 	var result response
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoGetWithdrawTXID, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoGetWithdrawTXID, v, &result)
 	return result.TXID, err
 }
 
@@ -275,7 +275,7 @@ func (e *EXMO) ExcodeCreate(currency string, amount float64) (ExcodeCreate, erro
 	v.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var result ExcodeCreate
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoExcodeCreate, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoExcodeCreate, v, &result)
 	return result, err
 }
 
@@ -285,7 +285,7 @@ func (e *EXMO) ExcodeLoad(excode string) (ExcodeLoad, error) {
 	v.Set("code", excode)
 
 	var result ExcodeLoad
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoExcodeLoad, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoExcodeLoad, v, &result)
 	return result, err
 }
 
@@ -295,12 +295,12 @@ func (e *EXMO) GetWalletHistory(date int64) (WalletHistory, error) {
 	v.Set("date", strconv.FormatInt(date, 10))
 
 	var result WalletHistory
-	err := e.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, exmoWalletHistory, v, &result)
+	err := e.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, exmoWalletHistory, v, &result)
 	return result, err
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (e *EXMO) SendHTTPRequest(endpoint, path string, result interface{}) error {
+func (e *EXMO) SendHTTPRequest(endpoint exchange.URL, path string, result interface{}) error {
 	urlPath, err := e.API.Endpoints.GetRunning(endpoint)
 	if err != nil {
 		return err
@@ -316,7 +316,7 @@ func (e *EXMO) SendHTTPRequest(endpoint, path string, result interface{}) error 
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (e *EXMO) SendAuthenticatedHTTPRequest(epath, method, endpoint string, vals url.Values, result interface{}) error {
+func (e *EXMO) SendAuthenticatedHTTPRequest(epath exchange.URL, method, endpoint string, vals url.Values, result interface{}) error {
 	if !e.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			e.Name)

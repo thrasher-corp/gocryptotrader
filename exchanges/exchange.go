@@ -587,6 +587,11 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 
 	e.SetFeatureDefaults()
+
+	if e.API.Endpoints == nil {
+		e.API.Endpoints = e.NewEndpoints()
+	}
+
 	err = e.SetAPIURL()
 	if err != nil {
 		return err
@@ -788,20 +793,15 @@ func (e *Base) SetAPIURL() error {
 	var err error
 	e.Config.API.OldEndPoints = nil
 	if e.Config.API.Endpoints != nil {
-		for a, aVal := range e.Config.API.Endpoints {
-			if aVal == "" || aVal == "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" || aVal == "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
+		for key, val := range e.Config.API.Endpoints {
+			if val == "" ||
+				val == "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" ||
+				val == "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
 				continue
 			}
-			if strings.Contains(aVal, Default) {
-				err = e.API.Endpoints.SetDefault(a, aVal, true)
-				if err != nil {
-					return err
-				}
-			} else {
-				err = e.API.Endpoints.SetRunning(a, aVal, true)
-				if err != nil {
-					return err
-				}
+			err = e.API.Endpoints.SetRunning(key, val, true)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -1156,25 +1156,11 @@ func (e *Endpoints) SetRunning(key, val string, overwrite bool) error {
 	return nil
 }
 
-// SetDefault populates default URLs map
-func (e *Endpoints) SetDefault(key, val string, overwrite bool) error {
-	e.Lock()
-	defer e.Unlock()
-	if !overwrite {
-		oldVal, ok := e.defaults[key]
-		if ok && oldVal == val {
-			return fmt.Errorf("given key and val are already set")
-		}
-	}
-	e.defaults[key] = val
-	return nil
-}
-
 // GetRunning gets running URLs map
-func (e *Endpoints) GetRunning(key string) (string, error) {
-	e.Lock()
-	defer e.Unlock()
-	val, ok := e.running[key]
+func (e *Endpoints) GetRunning(key URL) (string, error) {
+	e.RLock()
+	defer e.RUnlock()
+	val, ok := e.running[key.String()]
 	if !ok {
 		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
 	}
@@ -1182,10 +1168,10 @@ func (e *Endpoints) GetRunning(key string) (string, error) {
 }
 
 // GetDefault gets default URLs map
-func (e *Endpoints) GetDefault(key string) (string, error) {
-	e.Lock()
-	defer e.Unlock()
-	val, ok := e.defaults[Default+key]
+func (e *Endpoints) GetDefault(key URL) (string, error) {
+	e.RLock()
+	defer e.RUnlock()
+	val, ok := e.defaults[Default+key.String()]
 	if !ok {
 		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
 	}
@@ -1194,27 +1180,17 @@ func (e *Endpoints) GetDefault(key string) (string, error) {
 
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
 func (e *Endpoints) GetURLMap(defaultMap bool) map[string]string {
-	e.Lock()
-	defer e.Unlock()
-	if !defaultMap {
-		return e.running
+	e.RLock()
+	var urlMap = make(map[string]string)
+	if defaultMap {
+		for k, v := range e.defaults {
+			urlMap[k] = v
+		}
+	} else {
+		for k, v := range e.running {
+			urlMap[k] = v
+		}
 	}
+	e.RUnlock()
 	return e.defaults
 }
-
-// // GetURLMap gets all urls for either running or default map based on the bool value supplied
-// func (e *Endpoints) GetURLMap(defaultMap bool) map[string]string {
-// 	e.Lock()
-// 	defer e.Unlock()
-// 	var meow = make(map[string]string)
-// 	if defaultMap {
-// 		for k, v := range e.defaults {
-// 			meow[k] = v
-// 		}
-// 	} else {
-// 		for k, v := range e.running {
-// 			meow[k] = v
-// 		}
-// 	}
-// 	return e.defaults
-// }

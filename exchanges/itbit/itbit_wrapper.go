@@ -26,10 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL = "spotAPIURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	i.SetDefaults()
@@ -99,8 +95,8 @@ func (i *ItBit) SetDefaults() {
 	i.Requester = request.New(i.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	i.API.Endpoints = i.NewEndpoints()
-	i.API.Endpoints.CreateMap(map[string]string{
-		spotURL: itbitAPIURL,
+	i.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot: itbitAPIURL,
 	})
 }
 

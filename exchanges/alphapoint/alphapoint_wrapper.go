@@ -20,11 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL = "spotAPIURL"
-	spotWS  = "spotWS"
-)
-
 // GetDefaultConfig returns a default exchange config for Alphapoint
 func (a *Alphapoint) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	return nil, common.ErrFunctionNotSupported
@@ -36,9 +31,9 @@ func (a *Alphapoint) SetDefaults() {
 	a.Enabled = true
 	a.Verbose = true
 	a.API.Endpoints = a.NewEndpoints()
-	a.API.Endpoints.CreateMap(map[string]string{
-		spotURL: alphapointDefaultAPIURL,
-		spotWS:  alphapointDefaultWebsocketURL,
+	a.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  alphapointDefaultAPIURL,
+		exchange.SpotWsURL: alphapointDefaultWebsocketURL,
 	})
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true

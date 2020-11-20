@@ -27,11 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL   = "spotAPIURL"
-	spotWSURL = "spotWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (l *LocalBitcoins) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	l.SetDefaults()
@@ -99,8 +94,8 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.API.Endpoints = l.NewEndpoints()
-	l.API.Endpoints.CreateMap(map[string]string{
-		spotURL: localbitcoinsAPIURL,
+	l.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot: localbitcoinsAPIURL,
 	})
 }
 

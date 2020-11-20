@@ -26,11 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL   = "spotAPIURL"
-	spotWSURL = "spotWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (f *FTX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	f.SetDefaults()
@@ -148,9 +143,9 @@ func (f *FTX) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
 	f.API.Endpoints = f.NewEndpoints()
-	f.API.Endpoints.CreateMap(map[string]string{
-		spotURL:   ftxAPIURL,
-		spotWSURL: ftxWSURL,
+	f.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  ftxAPIURL,
+		exchange.SpotWsURL: ftxWSURL,
 	})
 	f.Websocket = stream.New()
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -170,12 +165,12 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := f.API.Endpoints.GetDefault(spotWSURL)
+	defaultWSURL, err := f.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsEndpoint, err := f.API.Endpoints.GetRunning(spotWSURL)
+	wsEndpoint, err := f.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

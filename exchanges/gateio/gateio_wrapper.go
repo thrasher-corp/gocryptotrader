@@ -28,12 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL       = "spotAPIURL"
-	spotWSURL     = "spotWSURL"
-	secondaryRest = "secondaryURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (g *Gateio) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	g.SetDefaults()
@@ -134,10 +128,10 @@ func (g *Gateio) SetDefaults() {
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	g.API.Endpoints = g.NewEndpoints()
-	g.API.Endpoints.CreateMap(map[string]string{
-		spotURL:       gateioTradeURL,
-		secondaryRest: gateioMarketURL,
-		spotWSURL:     gateioWebsocketEndpoint,
+	g.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:               gateioTradeURL,
+		exchange.SpotWsSupplementaryURL: gateioMarketURL,
+		exchange.SpotWsURL:              gateioWebsocketEndpoint,
 	})
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -157,12 +151,12 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := g.API.Endpoints.GetDefault(spotWSURL)
+	defaultWSURL, err := g.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := g.API.Endpoints.GetRunning(spotWSURL)
+	wsRunningURL, err := g.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

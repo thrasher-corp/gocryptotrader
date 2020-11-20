@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
-var mockTests = false
+var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()

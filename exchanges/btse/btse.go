@@ -77,13 +77,13 @@ func (b *BTSE) GetMarketSummary(symbol string, spot bool) (MarketSummary, error)
 	if symbol != "" {
 		path += "?symbol=" + url.QueryEscape(symbol)
 	}
-	return m, b.SendHTTPRequest(spotURL, http.MethodGet, path, &m, spot, queryFunc)
+	return m, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet, path, &m, spot, queryFunc)
 }
 
 // GetSpotMarkets returns a list of spot markets available on BTSE
 func (b *BTSE) GetSpotMarkets() ([]SpotMarket, error) {
 	var m []SpotMarket
-	return m, b.SendHTTPRequest(spotURL, http.MethodGet, btseMarkets, &m, true, queryFunc)
+	return m, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet, btseMarkets, &m, true, queryFunc)
 }
 
 // FetchOrderBook gets orderbook data for a given pair
@@ -100,7 +100,7 @@ func (b *BTSE) FetchOrderBook(symbol string, group, limitBids, limitAsks int, sp
 	if group > 0 {
 		urlValues.Add("group", strconv.Itoa(group))
 	}
-	return &o, b.SendHTTPRequest(spotURL, http.MethodGet,
+	return &o, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet,
 		common.EncodeURLValues(btseOrderbook, urlValues), &o, spot, queryFunc)
 }
 
@@ -111,7 +111,7 @@ func (b *BTSE) FetchOrderBookL2(symbol string, depth int) (*Orderbook, error) {
 	urlValues.Add("symbol", symbol)
 	urlValues.Add("depth", strconv.FormatInt(int64(depth), 10))
 	endpoint := common.EncodeURLValues(btseOrderbook+"/L2", urlValues)
-	return &o, b.SendHTTPRequest(spotURL, http.MethodGet, endpoint, &o, true, queryFunc)
+	return &o, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet, endpoint, &o, true, queryFunc)
 }
 
 // GetTrades returns a list of trades for the specified symbol
@@ -140,7 +140,7 @@ func (b *BTSE) GetTrades(symbol string, start, end time.Time, beforeSerialID, af
 	if includeOld {
 		urlValues.Add("includeOld", "true")
 	}
-	return t, b.SendHTTPRequest(spotURL, http.MethodGet,
+	return t, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet,
 		common.EncodeURLValues(btseTrades, urlValues), &t, spot, queryFunc)
 }
 
@@ -163,26 +163,26 @@ func (b *BTSE) OHLCV(symbol string, start, end time.Time, resolution int) (OHLCV
 	}
 	urlValues.Add("resolution", strconv.FormatInt(int64(res), 10))
 	endpoint := common.EncodeURLValues(btseOHLCV, urlValues)
-	return o, b.SendHTTPRequest(spotURL, http.MethodGet, endpoint, &o, true, queryFunc)
+	return o, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet, endpoint, &o, true, queryFunc)
 }
 
 // GetPrice get current price for requested symbol
 func (b *BTSE) GetPrice(symbol string) (Price, error) {
 	var p Price
 	path := btsePrice + "?symbol=" + url.QueryEscape(symbol)
-	return p, b.SendHTTPRequest(spotURL, http.MethodGet, path, &p, true, queryFunc)
+	return p, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet, path, &p, true, queryFunc)
 }
 
 // GetServerTime returns the exchanges server time
 func (b *BTSE) GetServerTime() (*ServerTime, error) {
 	var s ServerTime
-	return &s, b.SendHTTPRequest(spotURL, http.MethodGet, btseTime, &s, true, queryFunc)
+	return &s, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet, btseTime, &s, true, queryFunc)
 }
 
 // GetWalletInformation returns the users account balance
 func (b *BTSE) GetWalletInformation() ([]CurrencyBalance, error) {
 	var a []CurrencyBalance
-	return a, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodGet, btseWallet, true, nil, nil, &a, queryFunc)
+	return a, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, btseWallet, true, nil, nil, &a, queryFunc)
 }
 
 // GetFeeInformation retrieve fee's (maker/taker) for requested symbol
@@ -192,7 +192,7 @@ func (b *BTSE) GetFeeInformation(symbol string) ([]AccountFees, error) {
 	if symbol != "" {
 		urlValues.Add("symbol", symbol)
 	}
-	return resp, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodGet, btseUserFee, true, urlValues, nil, &resp, queryFunc)
+	return resp, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, btseUserFee, true, urlValues, nil, &resp, queryFunc)
 }
 
 // GetWalletHistory returns the users account balance
@@ -213,7 +213,7 @@ func (b *BTSE) GetWalletHistory(symbol string, start, end time.Time, count int) 
 	if count > 0 {
 		urlValues.Add("count", strconv.Itoa(count))
 	}
-	return resp, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodGet, btseWalletHistory, true, urlValues, nil, &resp, queryFunc)
+	return resp, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, btseWalletHistory, true, urlValues, nil, &resp, queryFunc)
 }
 
 // GetWalletAddress returns the users account balance
@@ -225,7 +225,7 @@ func (b *BTSE) GetWalletAddress(currency string) (WalletAddress, error) {
 		urlValues.Add("currency", currency)
 	}
 
-	return resp, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodGet, btseWalletAddress, true, urlValues, nil, &resp, queryFunc)
+	return resp, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, btseWalletAddress, true, urlValues, nil, &resp, queryFunc)
 }
 
 // CreateWalletAddress create new deposit address for requested currency
@@ -233,7 +233,7 @@ func (b *BTSE) CreateWalletAddress(currency string) (WalletAddress, error) {
 	var resp WalletAddress
 	req := make(map[string]interface{}, 1)
 	req["currency"] = currency
-	err := b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
+	err := b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
 	if err != nil {
 		errResp := ErrorResponse{}
 		errResponseStr := strings.Split(err.Error(), "raw response: ")
@@ -263,7 +263,7 @@ func (b *BTSE) WalletWithdrawal(currency, address, tag, amount string) (Withdraw
 	req["address"] = address
 	req["tag"] = tag
 	req["amount"] = amount
-	return resp, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, btseWalletWithdrawal, true, nil, req, &resp, queryFunc)
+	return resp, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, btseWalletWithdrawal, true, nil, req, &resp, queryFunc)
 }
 
 // CreateOrder creates an order
@@ -313,7 +313,7 @@ func (b *BTSE) CreateOrder(clOrderID string, deviation float64, postOnly bool, p
 	}
 
 	var r []Order
-	return r, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, btseOrder, true, url.Values{}, req, &r, orderFunc)
+	return r, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, btseOrder, true, url.Values{}, req, &r, orderFunc)
 }
 
 // GetOrders returns all pending orders
@@ -327,7 +327,7 @@ func (b *BTSE) GetOrders(symbol, orderID, clOrderID string) ([]OpenOrder, error)
 		req.Add("clOrderID", clOrderID)
 	}
 	var o []OpenOrder
-	return o, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodGet, btsePendingOrders, true, req, nil, &o, orderFunc)
+	return o, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, btsePendingOrders, true, req, nil, &o, orderFunc)
 }
 
 // CancelExistingOrder cancels an order
@@ -342,14 +342,14 @@ func (b *BTSE) CancelExistingOrder(orderID, symbol, clOrderID string) (CancelOrd
 		req.Add("clOrderID", clOrderID)
 	}
 
-	return c, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodDelete, btseOrder, true, req, nil, &c, orderFunc)
+	return c, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodDelete, btseOrder, true, req, nil, &c, orderFunc)
 }
 
 // CancelAllAfter cancels all orders after timeout
 func (b *BTSE) CancelAllAfter(timeout int) error {
 	req := make(map[string]interface{})
 	req["timeout"] = timeout
-	return b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
+	return b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
 }
 
 // IndexOrderPeg create peg order that will track a certain percentage above/below the index price
@@ -399,7 +399,7 @@ func (b *BTSE) IndexOrderPeg(clOrderID string, deviation float64, postOnly bool,
 		req["type"] = orderType
 	}
 
-	return o, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodPost, btsePegOrder, true, url.Values{}, req, nil, orderFunc)
+	return o, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, btsePegOrder, true, url.Values{}, req, nil, orderFunc)
 }
 
 // TradeHistory returns previous trades on exchange
@@ -434,11 +434,11 @@ func (b *BTSE) TradeHistory(symbol string, start, end time.Time, beforeSerialID,
 	if orderID != "" {
 		urlValues.Add("orderID", orderID)
 	}
-	return resp, b.SendAuthenticatedHTTPRequest(spotURL, http.MethodGet, btseExchangeHistory, true, urlValues, nil, &resp, queryFunc)
+	return resp, b.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, btseExchangeHistory, true, urlValues, nil, &resp, queryFunc)
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
-func (b *BTSE) SendHTTPRequest(ep, method, endpoint string, result interface{}, spotEndpoint bool, f request.EndpointLimit) error {
+func (b *BTSE) SendHTTPRequest(ep exchange.URL, method, endpoint string, result interface{}, spotEndpoint bool, f request.EndpointLimit) error {
 	epoint, err := b.API.Endpoints.GetRunning(ep)
 	if err != nil {
 		return err
@@ -459,7 +459,7 @@ func (b *BTSE) SendHTTPRequest(ep, method, endpoint string, result interface{}, 
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
-func (b *BTSE) SendAuthenticatedHTTPRequest(ep, method, endpoint string, isSpot bool, values url.Values, req map[string]interface{}, result interface{}, f request.EndpointLimit) error {
+func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]interface{}, result interface{}, f request.EndpointLimit) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)

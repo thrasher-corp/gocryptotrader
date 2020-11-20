@@ -20,11 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL   = "spotAPIURL"
-	spotWSURL = "spotWSURL"
-)
-
 // Note: GoCryptoTrader wrapper funcs currently only support SPOT trades.
 // Therefore this OKGroup_Wrapper can be shared between OKEX and OKCoin.
 // When circumstances change, wrapper funcs can be split appropriately
@@ -41,12 +36,12 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := o.API.Endpoints.GetDefault(spotWSURL)
+	defaultWSURL, err := o.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsEndpoint, err := o.API.Endpoints.GetRunning(spotWSURL)
+	wsEndpoint, err := o.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

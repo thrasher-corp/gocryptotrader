@@ -28,11 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL   = "spotAPIURL"
-	spotWSURL = "spotWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (g *Gemini) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	g.SetDefaults()
@@ -112,9 +107,9 @@ func (g *Gemini) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	g.API.Endpoints = g.NewEndpoints()
-	g.API.Endpoints.CreateMap(map[string]string{
-		spotURL:   geminiAPIURL,
-		spotWSURL: geminiWebsocketEndpoint,
+	g.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  geminiAPIURL,
+		exchange.SpotWsURL: geminiWebsocketEndpoint,
 	})
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -135,18 +130,18 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 	}
 
 	if exch.UseSandbox {
-		err = g.API.Endpoints.SetRunning(spotURL, geminiSandboxAPIURL, true)
+		err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL, true)
 		if err != nil {
 			log.Error(log.Global, err)
 		}
 	}
 
-	defaultWSURL, err := g.API.Endpoints.GetDefault(spotWSURL)
+	defaultWSURL, err := g.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := g.API.Endpoints.GetRunning(spotWSURL)
+	wsRunningURL, err := g.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

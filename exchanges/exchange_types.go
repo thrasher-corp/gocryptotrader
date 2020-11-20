@@ -155,7 +155,7 @@ type FeaturesSupported struct {
 type Endpoints struct {
 	defaults map[string]string
 	running  map[string]string
-	sync.Mutex
+	sync.RWMutex
 }
 
 // API stores the exchange API settings
@@ -215,8 +215,11 @@ const (
 	USDTMarginedFutures
 	CoinMarginedFutures
 	Futures
+	Swap
+	Sandbox
 	SpotWsURL
 	SpotWsSupplementaryURL
+	ChainAnalysis
 	EdgeCase1
 	EdgeCase2
 	EdgeCase3
@@ -230,23 +233,29 @@ func (u URL) String() string {
 	case RestSpot:
 		return "RESTSpotURL"
 	case RestSpotSupplementary:
-		return "RESTSpotURLSUPPLEMENTARY"
+		return "RESTSpotURLSUPPLEMENTARYURL"
 	case USDTMarginedFutures:
-		return "RestUSDTMarginedFutures"
+		return "RestUSDTMarginedFuturesURL"
 	case CoinMarginedFutures:
-		return "RestCoinMarginedFutures"
+		return "RestCoinMarginedFuturesURL"
 	case Futures:
-		return "RestFutures"
+		return "RestFuturesURL"
+	case Sandbox:
+		return "SandboxURL"
+	case Swap:
+		return "SwapURL"
 	case SpotWsURL:
-		return "SpotWsURL"
+		return "SpotWsURLURL"
 	case SpotWsSupplementaryURL:
 		return "SpotWsSupplementaryURL"
+	case ChainAnalysis:
+		return "ChainAnalysisURL"
 	case EdgeCase1:
-		return "EdgeCase1"
+		return "EdgeCase1URL"
 	case EdgeCase2:
-		return "EdgeCase2"
+		return "EdgeCase2URL"
 	case EdgeCase3:
-		return "EdgeCase3"
+		return "EdgeCase3URL"
 	default:
 		return ""
 	}

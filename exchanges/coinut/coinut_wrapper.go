@@ -28,11 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL   = "spotAPIURL"
-	spotWSURL = "spotWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	c.SetDefaults()
@@ -119,9 +114,9 @@ func (c *COINUT) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	c.API.Endpoints = c.NewEndpoints()
-	c.API.Endpoints.CreateMap(map[string]string{
-		spotURL:   coinutAPIURL,
-		spotWSURL: coinutWebsocketURL,
+	c.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  coinutAPIURL,
+		exchange.SpotWsURL: coinutWebsocketURL,
 	})
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -142,12 +137,12 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := c.API.Endpoints.GetDefault(spotWSURL)
+	defaultWSURL, err := c.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := c.API.Endpoints.GetRunning(spotWSURL)
+	wsRunningURL, err := c.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

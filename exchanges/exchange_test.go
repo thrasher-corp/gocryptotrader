@@ -77,6 +77,7 @@ func TestSet(t *testing.T) {
 	b := Base{
 		Name: "HELOOOOOOOO",
 	}
+	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[URL]string{
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
@@ -85,7 +86,7 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	val, ok := b.API.Endpoints.running[EdgeCase1.String()]
+	val, ok := b.API.Endpoints.running[EdgeCase2.String()]
 	if !ok {
 		t.Error("set method or createmap failed")
 	}
@@ -99,22 +100,23 @@ func TestGet(t *testing.T) {
 	b := Base{
 		Name: "HELAAAAAOOOOOOOOO",
 	}
+	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[URL]string{
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
 	})
-	getVal, err := b.API.Endpoints.GetRunning("test1")
+	getVal, err := b.API.Endpoints.GetRunning(EdgeCase1)
 	if err != nil {
 		t.Error(err)
 	}
 	if getVal != "test1url" {
 		t.Errorf("getVal failed")
 	}
-	err = b.API.Endpoints.SetRunning("test2", "OVERWRITTEN BRO", true)
+	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "OVERWRITTEN BRO", true)
 	if err != nil {
 		t.Error(err)
 	}
-	getChangedVal, err := b.API.Endpoints.GetRunning("test2")
+	getChangedVal, err := b.API.Endpoints.GetRunning(EdgeCase2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -128,6 +130,7 @@ func TestGetAll(t *testing.T) {
 	b := Base{
 		Name: "HELLLLLLO",
 	}
+	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[URL]string{
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
@@ -1198,14 +1201,21 @@ func TestSetupDefaults(t *testing.T) {
 			AuthenticatedSupport: true,
 		},
 	}
-	b.SetupDefaults(&cfg)
+
+	err := b.SetupDefaults(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.HTTPTimeout.String() != "15s" {
 		t.Error("HTTP timeout should be set to 15s")
 	}
 
 	// Test custom HTTP timeout is set
 	cfg.HTTPTimeout = time.Second * 30
-	b.SetupDefaults(&cfg)
+	err = b.SetupDefaults(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.HTTPTimeout.String() != "30s" {
 		t.Error("HTTP timeout should be set to 30s")
 	}

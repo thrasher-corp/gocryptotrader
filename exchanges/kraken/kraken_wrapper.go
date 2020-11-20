@@ -28,12 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL     = "spotAPIURL"
-	spotWSURL   = "spotWSURL"
-	futuresRest = "futuresURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (k *Kraken) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	k.SetDefaults()
@@ -171,10 +165,10 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
 	k.API.Endpoints = k.NewEndpoints()
-	k.API.Endpoints.CreateMap(map[string]string{
-		spotURL:     krakenAPIURL,
-		futuresRest: futuresURL,
-		spotWSURL:   krakenWSURL,
+	k.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  krakenAPIURL,
+		exchange.Futures:   futuresURL,
+		exchange.SpotWsURL: krakenWSURL,
 	})
 	k.Websocket = stream.New()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -199,11 +193,11 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := k.API.Endpoints.GetDefault(spotWSURL)
+	defaultWSURL, err := k.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
-	wsRunningURL, err := k.API.Endpoints.GetRunning(spotWSURL)
+	wsRunningURL, err := k.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

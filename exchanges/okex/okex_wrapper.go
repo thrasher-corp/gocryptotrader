@@ -25,11 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	spotURL   = "spotAPIURL"
-	spotWSURL = "spotWSURL"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (o *OKEX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	o.SetDefaults()
@@ -203,9 +198,9 @@ func (o *OKEX) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
 	o.API.Endpoints = o.NewEndpoints()
-	o.API.Endpoints.CreateMap(map[string]string{
-		spotURL:   okExAPIURL,
-		spotWSURL: OkExWebsocketURL,
+	o.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  okExAPIURL,
+		exchange.SpotWsURL: OkExWebsocketURL,
 	})
 	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
@@ -226,7 +221,7 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
-		wsEndpoint, err := o.API.Endpoints.GetRunning(spotWSURL)
+		wsEndpoint, err := o.API.Endpoints.GetRunning(exchange.SpotWsURL)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

@@ -27,12 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	spotURL     = "spotAPIURL"
-	spotWSURL   = "spotWSURL"
-	futuresRest = "futuresURL" // (expiry and coinmargined futures use this URL)
-)
-
 // GetDefaultConfig returns a default exchange config
 func (h *HUOBI) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	h.SetDefaults()
@@ -165,10 +159,10 @@ func (h *HUOBI) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	h.API.Endpoints = h.NewEndpoints()
-	h.API.Endpoints.CreateMap(map[string]string{
-		spotURL:     huobiAPIURL,
-		futuresRest: huobiURL,
-		spotWSURL:   wsMarketURL,
+	h.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  huobiAPIURL,
+		exchange.Futures:   huobiURL,
+		exchange.SpotWsURL: wsMarketURL,
 	})
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -188,12 +182,12 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := h.API.Endpoints.GetDefault(spotWSURL)
+	defaultWSURL, err := h.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := h.API.Endpoints.GetRunning(spotWSURL)
+	wsRunningURL, err := h.API.Endpoints.GetRunning(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
