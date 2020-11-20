@@ -432,33 +432,84 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := b.GetAggregatedTrades(&AggregatedTradeRequestParams{
-		Symbol:    currencyPair.String(),
-		StartTime: start,
-		EndTime:   start.Add(75 * time.Minute),
-	})
-	if err != nil {
-		t.Error(err)
-	}
-	var expected int
-	var expectTime time.Time
-	if mockTests {
-		expected = 3
-		expectTime, err = time.Parse(time.RFC3339, "2020-01-02T16:19:04.8Z")
-	} else {
-		expected = 4303
-		expectTime, err = time.Parse(time.RFC3339Nano, "2020-01-02T16:19:04.831Z")
-	}
+	mockExpectTime, err := time.Parse(time.RFC3339, "2020-01-02T16:19:04.8Z")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result) != expected {
-		t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", expected, len(result))
+	expectTime, err := time.Parse(time.RFC3339Nano, "2020-01-02T16:19:04.831Z")
+	if err != nil {
+		t.Fatal(err)
 	}
-	lastTrade := result[len(result)-1]
-	lastTradeTime := time.Unix(0, lastTrade.TimeStamp*int64(time.Millisecond))
-	if !lastTradeTime.Equal(expectTime) {
-		t.Errorf("last trade expected %v, got %v", expectTime, lastTradeTime)
+	tests := []struct {
+		name string
+		// mock test or live test
+		mock         bool
+		args         *AggregatedTradeRequestParams
+		numExpected  int
+		lastExpected time.Time
+	}{
+		{
+			name: "mock batch with timerange",
+			mock: true,
+			args: &AggregatedTradeRequestParams{
+				Symbol:    currencyPair.String(),
+				StartTime: start,
+				EndTime:   start.Add(75 * time.Minute),
+			},
+			numExpected:  3,
+			lastExpected: mockExpectTime,
+		},
+		{
+			name: "batch with timerange",
+			args: &AggregatedTradeRequestParams{
+				Symbol:    currencyPair.String(),
+				StartTime: start,
+				EndTime:   start.Add(75 * time.Minute),
+			},
+			numExpected:  4303,
+			lastExpected: expectTime,
+		},
+		{
+			name: "mock custom limit with start time set, no end time",
+			mock: true,
+			args: &AggregatedTradeRequestParams{
+				Symbol:    currency.NewPair(currency.BTC, currency.USDT).String(),
+				StartTime: start,
+				Limit:     1001,
+			},
+			numExpected:  4,
+			lastExpected: time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
+		},
+		{
+			name: "custom limit with start time set, no end time",
+			args: &AggregatedTradeRequestParams{
+				Symbol:    currency.NewPair(currency.BTC, currency.USDT).String(),
+				StartTime: time.Date(2020, 11, 18, 12, 0, 0, 0, time.UTC),
+				Limit:     1001,
+			},
+			numExpected:  1001,
+			lastExpected: time.Date(2020, 11, 18, 13, 0, 0, int(34*time.Millisecond), time.UTC),
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.mock != mockTests {
+				t.Skip()
+			}
+			result, err := b.GetAggregatedTrades(tt.args)
+			if err != nil {
+				t.Error(err)
+			}
+			if len(result) != tt.numExpected {
+				t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", tt.numExpected, len(result))
+			}
+			lastTrade := result[len(result)-1]
+			lastTradeTime := time.Unix(0, lastTrade.TimeStamp*int64(time.Millisecond))
+			if !lastTradeTime.Equal(tt.lastExpected) {
+				t.Errorf("last trade expected %v, got %v", tt.lastExpected, lastTradeTime)
+			}
+		})
 	}
 }
 
@@ -486,6 +537,13 @@ func TestGetAggregatedTradesErrors(t *testing.T) {
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 				FromID:    2,
+			},
+		},
+		{
+			name: "can't get most recent 5000 (more than 1000 not allowed)",
+			args: &AggregatedTradeRequestParams{
+				Symbol: currency.NewPair(currency.BTC, currency.USDT).String(),
+				Limit:  5000,
 			},
 		},
 	}

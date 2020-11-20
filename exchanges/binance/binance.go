@@ -173,14 +173,20 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 	canBatch := arg.FromID == 0 != arg.StartTime.IsZero()
 	needBatch := false
 	if arg.Limit > 0 {
-		if err := b.CheckLimit(arg.Limit); err != nil {
+		err := b.CheckLimit(arg.Limit)
+		switch {
+		case err != nil:
 			// the requested limit is not supported by exchange
 			if canBatch {
 				needBatch = true
 			} else {
 				return nil, err
 			}
-		} else {
+		case arg.Limit > 1000:
+			// Even when bigger values may be supported by the CheckLimit function,
+			// this particular remote call doesn't
+			needBatch = true
+		default:
 			params.Set("limit", strconv.Itoa(arg.Limit))
 		}
 	}
@@ -219,7 +225,7 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
 	var resp []AggregatedTrade
 	// prepare first request with only first hour and max limit
-	if arg.Limit == 0 {
+	if arg.Limit == 0 || arg.Limit > 500 {
 		// Extend from the default of 500
 		params.Set("limit", "1000")
 	}
@@ -229,7 +235,7 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 		fromID = arg.FromID
 	} else {
 		for start := arg.StartTime; len(resp) == 0; start = start.Add(time.Hour) {
-			if !start.Before(arg.EndTime) {
+			if !arg.EndTime.IsZero() && !start.Before(arg.EndTime) {
 				// All requests returned empty
 				return nil, nil
 			}
