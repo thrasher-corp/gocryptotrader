@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -105,6 +106,11 @@ func (s *Statistic) ReturnResults() Results {
 	return results
 }
 
+func roundIt(r float64) float64 {
+	return math.Round(r*100000000) / 100000000
+
+}
+
 func (s *Statistic) PrintResult() {
 	fmt.Printf("Counted %d total events.\n", len(s.Events()))
 
@@ -117,10 +123,10 @@ func (s *Statistic) PrintResult() {
 		sb.WriteString(fmt.Sprintf("%v\t", v.GetTime().Format(common2.SimpleTimeFormat)))
 		sb.WriteString(fmt.Sprintf("%v\t", v.GetDirection()))
 		if v.GetDirection() != common.DoNothing {
-			sb.WriteString(fmt.Sprintf("%v @ ", v.GetAmount()))
-			sb.WriteString(fmt.Sprintf("$%v\t", v.GetPrice()))
-			sb.WriteString(fmt.Sprintf("Fee: $%v\t", v.GetExchangeFee()))
-			sb.WriteString(fmt.Sprintf("Cost Basis: %v\t", v.GetPrice()*v.GetAmount()+v.GetExchangeFee()))
+			sb.WriteString(fmt.Sprintf("%f @ ", roundIt(v.GetAmount())))
+			sb.WriteString(fmt.Sprintf("$%f\t", roundIt(v.GetPrice())))
+			sb.WriteString(fmt.Sprintf("Fee: $%f\t", roundIt(v.GetExchangeFee())))
+			sb.WriteString(fmt.Sprintf("Cost Basis: %f\t", roundIt(v.GetPrice()*v.GetAmount()+v.GetExchangeFee())))
 		} else {
 			sb.WriteString("\t\t\t")
 		}
@@ -132,12 +138,12 @@ func (s *Statistic) PrintResult() {
 
 	fmt.Print(sb.String())
 	result, _ := s.TotalEquityReturn()
-	fmt.Printf("Initial funds: $%v\nValue at enddate %v:\t$%v\n",
-		s.InitialFunds,
+	fmt.Printf("Initial funds: $%f\nValue at enddate %v:\t$%f\n",
+		roundIt(s.InitialFunds),
 		s.Equity[len(s.Equity)-1].Timestamp.Format(common2.SimpleTimeFormat),
-		s.Equity[len(s.Equity)-1].BuyAndHoldValue)
-	fmt.Printf("Difference: $%v\n", s.Equity[len(s.Equity)-1].BuyAndHoldValue-s.InitialFunds)
-	fmt.Printf("TotalEquity: %v\nMaxDrawdown: %v", result, s.MaxDrawdown())
+		roundIt(s.Equity[len(s.Equity)-1].BuyAndHoldValue))
+	fmt.Printf("Difference: $%f\n", roundIt(s.Equity[len(s.Equity)-1].BuyAndHoldValue-s.InitialFunds))
+	fmt.Printf("TotalEquity: %f\nMaxDrawdown: %f", roundIt(result), roundIt(s.MaxDrawdown()))
 }
 
 func (s *Statistic) TotalEquityReturn() (r float64, err error) {

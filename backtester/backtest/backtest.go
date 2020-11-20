@@ -172,7 +172,7 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 				MaximumLeverage: cfg.ExchangeSettings.Leverage.MaximumLeverage,
 			},
 		},
-		Orders: internalordermanager.InternalOrderManager{},
+		InternalOrderManager: internalordermanager.InternalOrderManager{},
 	}
 
 	bt.Portfolio = &portfolio.Portfolio{

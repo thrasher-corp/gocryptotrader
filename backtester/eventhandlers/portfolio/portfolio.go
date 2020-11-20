@@ -24,7 +24,7 @@ func (p *Portfolio) Reset() {
 	p.Transactions = nil
 }
 
-func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHandler, c *exchange.CurrencySettings) (*order.Order, error) {
+func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHandler, cs *exchange.CurrencySettings) (*order.Order, error) {
 	if signal.GetDirection() == "" {
 		return &order.Order{}, errors.New("invalid Direction")
 	}
@@ -71,7 +71,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 		initialOrder,
 		latest,
 		currFunds,
-		c,
+		cs,
 	)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (
 	if !holdings.Timestamp.IsZero() {
 		holdings.Update(fillEvent)
 	} else {
-		holdings := positions.Positions{}
+		holdings = positions.Positions{}
 		holdings.Create(fillEvent)
 	}
 	p.SetHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), holdings)

@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -78,7 +78,8 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 
 	fillEvent.ExchangeFee = e.calculateExchangeFee(estimatedPrice, amount, e.CurrencySettings.ExchangeFee)
 	u, _ := uuid.NewV4()
-	o2 := &order.Submit{
+	var orderID string
+	o2 := &gctorder.Submit{
 		Price:       estimatedPrice,
 		Amount:      amount,
 		Fee:         fillEvent.ExchangeFee,
@@ -89,15 +90,16 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 		Date:        o.GetTime(),
 		LastUpdated: o.GetTime(),
 		Pair:        o.Pair(),
-		Type:        order.Market,
+		Type:        gctorder.Market,
 	}
 	if e.UseRealOrders {
-		_, err := engine.Bot.OrderManager.Submit(o2)
+		resp, err := engine.Bot.OrderManager.Submit(o2)
 		if err != nil {
 			return nil, err
 		}
+		orderID = resp.OrderID
 	} else {
-		o2Response := order.SubmitResponse{
+		o2Response := gctorder.SubmitResponse{
 			IsOrderPlaced: true,
 			OrderID:       u.String(),
 			Rate:          fillEvent.Amount,
@@ -106,31 +108,33 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 			FullyMatched:  true,
 		}
 		log.Debugf(log.BackTester, "submitting fake order for %v interval", o.GetTime())
-		_, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
+		resp, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
 		if err != nil {
 			return nil, err
 		}
+		orderID = resp.OrderID
 	}
-
-	//e.InternalOrderManager.Add(&order2.Order{
-	//	Event: event.Event{
-	//		Exchange:     o.GetExchange(),
-	//		Time:         o.GetTime(),
-	//		CurrencyPair: o.Pair(),
-	//		AssetType:    o.GetAssetType(),
-	//		MakerFee:     e.CurrencySettings.MakerFee,
-	//		TakerFee:     e.CurrencySettings.TakerFee,
-	//		FeeRate:      e.CurrencySettings.ExchangeFee,
-	//	},
-	//	Why:       o.GetWhy(),
-	//	ID:        resp.OrderID,
-	//	Direction: fillEvent.Direction,
-	//	Status:    o.GetStatus(),
-	//	Price:     fillEvent.Price,
-	//	Amount:    fillEvent.Amount,
-	//	OrderType: order.Market,
-	//})
-
+	_ = orderID
+	/*
+		e.InternalOrderManager.Add(&order.Order{
+			Event: event.Event{
+				Exchange:     o.GetExchange(),
+				Time:         o.GetTime(),
+				CurrencyPair: o.Pair(),
+				AssetType:    o.GetAssetType(),
+				MakerFee:     e.CurrencySettings.MakerFee,
+				TakerFee:     e.CurrencySettings.TakerFee,
+				FeeRate:      e.CurrencySettings.ExchangeFee,
+			},
+			Why:       o.GetWhy(),
+			ID:        orderID,
+			Direction: fillEvent.Direction,
+			Status:    o.GetStatus(),
+			Price:     fillEvent.Price,
+			Amount:    fillEvent.Amount,
+			OrderType: gctorder.Market,
+		})
+	*/
 	return fillEvent, nil
 }
 
