@@ -169,24 +169,14 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
-	// fromId xor start time must be set
-	canBatch := arg.FromID == 0 != arg.StartTime.IsZero()
+	// if the user request is directly not supported by the exchange, we might be able to fulfill it
+	// by merging results from multiple API requests
 	needBatch := false
 	if arg.Limit > 0 {
-		err := b.CheckLimit(arg.Limit)
-		switch {
-		case err != nil:
-			// the requested limit is not supported by exchange
-			if canBatch {
-				needBatch = true
-			} else {
-				return nil, err
-			}
-		case arg.Limit > 1000:
-			// Even when bigger values may be supported by the CheckLimit function,
-			// this particular remote call doesn't
+		if arg.Limit > 1000 {
+			// remote call doesn't support higher limits
 			needBatch = true
-		default:
+		} else {
 			params.Set("limit", strconv.Itoa(arg.Limit))
 		}
 	}
@@ -204,6 +194,8 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 	needBatch = needBatch || (!arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour)
 	// Fall back to batch requests, if possible and necessary
 	if needBatch {
+		// fromId xor start time must be set
+		canBatch := arg.FromID == 0 != arg.StartTime.IsZero()
 		if canBatch {
 			// Split the request into multiple
 			return b.batchAggregateTrades(arg, params)
@@ -221,11 +213,11 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 
 // batchAggregateTrades fetches trades in multiple requests
 // first phase, hourly requests until the first trade (or end time) is reached
-// second phase, limit requests from previous trade until end time is reached
+// second phase, limit requests from previous trade until end time (or limit) is reached
 func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
 	var resp []AggregatedTrade
 	// prepare first request with only first hour and max limit
-	if arg.Limit == 0 || arg.Limit > 500 {
+	if arg.Limit == 0 || arg.Limit > 1000 {
 		// Extend from the default of 500
 		params.Set("limit", "1000")
 	}

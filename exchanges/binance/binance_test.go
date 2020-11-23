@@ -490,6 +490,16 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			numExpected:  1001,
 			lastExpected: time.Date(2020, 11, 18, 13, 0, 0, int(34*time.Millisecond), time.UTC),
 		},
+		{
+			name: "mock recent trades",
+			mock: true,
+			args: &AggregatedTradeRequestParams{
+				Symbol: currency.NewPair(currency.BTC, currency.USDT).String(),
+				Limit:  3,
+			},
+			numExpected:  3,
+			lastExpected: time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
