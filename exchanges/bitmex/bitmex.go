@@ -801,7 +801,6 @@ func (b *Bitmex) SendHTTPRequest(ep exchange.URL, path string, params Parameter,
 				HTTPRecording:  b.HTTPRecording,
 				HeaderResponse: wow,
 			})
-			fmt.Println("give me head/ers:", wow)
 			if err != nil {
 				return err
 			}
@@ -819,7 +818,6 @@ func (b *Bitmex) SendHTTPRequest(ep exchange.URL, path string, params Parameter,
 		HTTPRecording:  b.HTTPRecording,
 		HeaderResponse: &wow,
 	})
-	fmt.Println("give me head/ers:", wow)
 	if err != nil {
 		return err
 	}

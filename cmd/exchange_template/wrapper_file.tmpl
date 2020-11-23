@@ -113,8 +113,12 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	{{.Variable}}.Requester = request.New({{.Variable}}.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 
-	{{.Variable}}.API.Endpoints.URLDefault = {{.Name}}APIURL
-	{{.Variable}}.API.Endpoints.URL = {{.Variable}}.API.Endpoints.URLDefault
+	// NOTE: SET THE URLs HERE
+	{{.Variable}}.API.Endpoints = {{.Variable}}.NewEndpoints()
+	{{.Variable}}.API.Endpoints.CreateMap(map[exchange.URL]string{
+		exchange.RestSpot:  {{.Name}}APIURL,
+		// exchange.SpotWsURL: {{.Name}}WSAPIURL,
+	})
 	{{.Variable}}.Websocket = stream.New()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -130,17 +134,28 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 
 	{{.Variable}}.SetupDefaults(exch)
 
-	// If websocket is supported, please fill out the following
 	/*
+	wsDefaultEndpoint, err := {{.Variable}}.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	if err != nil {
+		return err
+	}
+
+	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	if err != nil {
+		return err
+	}
+
+	// If websocket is supported, please fill out the following
+
 	err = {{.Variable}}.Websocket.Setup(
 		&stream.WebsocketSetup{
 			Enabled:                          exch.Features.Enabled.Websocket,
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       {{.Name}}WSURL,
+			DefaultURL:                       wsDefaultEndpoint,
 			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			RunningURL:                       wsRunningEndpoint,
 			Connector:                        {{.Variable}}.WsConnect,
 			Subscriber:                       {{.Variable}}.Subscribe,
 			UnSubscriber:                     {{.Variable}}.Unsubscribe,

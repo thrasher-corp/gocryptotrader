@@ -236,6 +236,7 @@ func makeExchange(exch *exchange) error {
 	cmd.Dir = exchangeDirectory
 	out, err = cmd.Output()
 	if err != nil {
+		// TODO: Update error output
 		return fmt.Errorf("unable to go test. output: %s err: %s", out, err)
 	}
 

@@ -75,7 +75,6 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-
 	sp, err := currency.NewPairFromString("XBTUSD")
 	if err != nil {
 		t.Error(err)

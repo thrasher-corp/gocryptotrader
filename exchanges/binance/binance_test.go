@@ -1,7 +1,6 @@
 package binance
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -1196,13 +1195,10 @@ func TestOpenOrders(t *testing.T) {
 	_, err := b.OpenOrders("BTCUSDT")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
-		fmt.Printf("HIIIIIIIII\n\n\n")
 		t.Error("OpenOrders() error", err)
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		fmt.Printf("BYEEEEEEE\n\n\n")
 		t.Error("OpenOrders() expecting an error when no keys are set")
 	case mockTests && err != nil:
-		fmt.Printf("WHHYYYYY\n\n\n")
 		t.Error("Mock OpenOrders() error", err)
 	}
 }

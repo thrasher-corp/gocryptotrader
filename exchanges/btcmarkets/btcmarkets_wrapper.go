@@ -143,7 +143,7 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := b.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	defaultWSURL, err := b.API.Endpoints.GetDefault(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

@@ -404,6 +404,11 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 	if err != nil {
 		return nil, err
 	}
+
+	fPair, err := k.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 	switch assetType {
 	case asset.Spot:
 		pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
@@ -426,7 +431,7 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 						continue
 					}
 					if !strings.EqualFold(pairFmt.String(), altCurrency) {
-						continue // This looks dodge
+						continue
 					}
 				}
 				err = ticker.ProcessTicker(&ticker.Price{
@@ -473,7 +478,7 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 			}
 		}
 	}
-	return ticker.GetTicker(k.Name, p, assetType)
+	return ticker.GetTicker(k.Name, fPair, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
