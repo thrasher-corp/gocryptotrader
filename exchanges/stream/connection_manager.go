@@ -8,18 +8,19 @@ import (
 )
 
 var (
-	errNoMainConfiguration          = errors.New("main configuration cannot be nil")
-	errNoExchangeConnectionFunction = errors.New("exchange connector function cannot be nil")
-	errNoConfigurations             = errors.New("at least one general configuration must be supplied")
-	errNoSubscribeFunction          = errors.New("exchange subscriber function must be supplied")
-	errNoUnsubscribeFunction        = errors.New("exchange unsubscriber function must be supplied")
-	errNoGenerateConnFunc           = errors.New("exchange connection generator function cannot be nil")
-	errNoFeatures                   = errors.New("exchange features cannot be nil")
-	errNoGenerateSubsFunc           = errors.New("exchange generate subscription function cannot be nil")
-	errMissingURLInConfig           = errors.New("connection URL must be supplied")
-	errNoAssociation                = errors.New("could not associate a subscription with a configuration")
-	errNoResponseDataHandler        = errors.New("exchange response data handler not set")
-	errNoDataHandler                = errors.New("websocket data handler not set")
+	errNoMainConfiguration              = errors.New("main configuration cannot be nil")
+	errNoExchangeConnectionFunction     = errors.New("exchange connector function cannot be nil")
+	errNoConfigurations                 = errors.New("at least one general configuration must be supplied")
+	errNoSubscribeFunction              = errors.New("exchange subscriber function must be supplied")
+	errNoUnsubscribeFunction            = errors.New("exchange unsubscriber function must be supplied")
+	errNoGenerateConnFunc               = errors.New("exchange connection generator function cannot be nil")
+	errNoFeatures                       = errors.New("exchange features cannot be nil")
+	errNoGenerateSubsFunc               = errors.New("exchange generate subscription function cannot be nil")
+	errMissingURLInConfig               = errors.New("connection URL must be supplied")
+	errNoAssociation                    = errors.New("could not associate a subscription with a configuration")
+	errNoResponseDataHandler            = errors.New("exchange response data handler not set")
+	errNoDataHandler                    = errors.New("websocket data handler not set")
+	errNoExchangeAuthConnectionFunction = errors.New("exchange auth connector function cannot be nil when auth configuration supplied")
 )
 
 // NewConnectionManager returns a new connection manager
@@ -57,6 +58,10 @@ func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, err
 	for i := range cfg.Configurations {
 		if cfg.Configurations[i].URL == "" {
 			return nil, errMissingURLInConfig
+		}
+
+		if cfg.Configurations[i].DedicatedAuthenticatedConn && cfg.ExchangeConnector == nil {
+			return nil, errNoExchangeAuthConnectionFunction
 		}
 	}
 
@@ -108,7 +113,7 @@ subscriptions:
 	reference := make(map[Connection][]ChannelSubscription)
 	for k, v := range subscriptionsToConfig {
 		if int(k.MaxSubscriptions) == 0 || len(*v) < int(k.MaxSubscriptions) {
-			conn, err := c.generateConnection(k.URL, k.DedicatedAuthenticatedConn)
+			conn, err := c.generateConnection(*k)
 			if err != nil {
 				return nil, err
 			}
@@ -125,7 +130,7 @@ subscriptions:
 			if left < 0 {
 				left = 0
 			}
-			conn, err := c.generateConnection(k.URL, k.DedicatedAuthenticatedConn)
+			conn, err := c.generateConnection(*k)
 			if err != nil {
 				return nil, err
 			}
@@ -142,12 +147,12 @@ subscriptions:
 // FullConnect generates subscriptions, deploys new connections and subscribes
 // to channels
 func (c *ConnectionManager) FullConnect() error {
-	subs, err := c.GenerateSubscriptions()
+	newsubs, err := c.GenerateSubscriptions()
 	if err != nil {
 		return err
 	}
 
-	connections, err := c.GenerateConnections(subs)
+	connections, err := c.GenerateConnections(newsubs)
 	if err != nil {
 		return err
 	}
@@ -161,6 +166,13 @@ func (c *ConnectionManager) FullConnect() error {
 		err = c.Connect(conn)
 		if err != nil {
 			return err
+		}
+
+		if conn.IsAuthenticated() {
+			err = c.ConnectAuth(conn)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = c.Subscribe([]SubscriptionParameters{{subs, conn}})
@@ -197,8 +209,19 @@ func (c *ConnectionManager) LoadNewConnection(conn Connection) error {
 	return nil
 }
 
-// Connect connects all loaded connections
+// Connect connects supplied connection
 func (c *ConnectionManager) Connect(conn Connection) error {
+	c.Lock()
+	defer c.Unlock()
+	err := c.connector(conn)
+	if err != nil {
+		return err
+	}
+	return c.ReadStream(conn, c.responseHandler)
+}
+
+// ConnectAuth connects supplied authenticated connection
+func (c *ConnectionManager) ConnectAuth(conn Connection) error {
 	c.Lock()
 	defer c.Unlock()
 	err := c.connector(conn)
@@ -320,22 +343,25 @@ func (c *ConnectionManager) GetChannelDifference(newSubs []ChannelSubscription) 
 	c.Lock()
 	defer c.Unlock()
 
-	currentlySubscribed := make(map[Connection][]ChannelSubscription)
+	currentlySubscribed := make(map[Connection]*[]ChannelSubscription)
 	for x := range c.connections {
-		currentlySubscribed[c.connections[x]] = append(currentlySubscribed[c.connections[x]],
-			c.connections[x].GetAllSubscriptions()...)
+		oldSubs := c.connections[x].GetAllSubscriptions()
+		currentlySubscribed[c.connections[x]] = &oldSubs
+		fmt.Println("currentlySubscribed:", oldSubs)
+		fmt.Println("Connection:", c.connections)
 	}
 
-	fmt.Println("currentlySubscribed:", currentlySubscribed)
+	fmt.Println()
 	fmt.Println("newSubs:", newSubs)
+	fmt.Println()
 
 	var newSubscribes []ChannelSubscription
 	// Check connections to see if new subscription is not already subscribed
 subscriptionCheck:
 	for i := range newSubs {
 		for _, subs := range currentlySubscribed {
-			for j := range subs {
-				if subs[j].Equal(&newSubs[i]) {
+			for j := range *subs {
+				if ([]ChannelSubscription)(*subs)[j].Equal(&newSubs[i]) {
 					continue subscriptionCheck
 				}
 			}
@@ -344,55 +370,74 @@ subscriptionCheck:
 	}
 
 	fmt.Println("newSubscribes", newSubscribes)
+	fmt.Println()
 
 	var unsubscribeMe = make(map[Connection][]ChannelSubscription)
 	// Check connections to see what needs to be removed in difference to the
 	// newly generated subscriptions
 	for conn, subs := range currentlySubscribed {
 	unsubscriptionCheck:
-		for x := range subs {
+		for x := range *subs {
+			if x >= len(*subs) {
+				break
+			}
 			for y := range newSubs {
-				if subs[x].Equal(&newSubs[y]) {
+				if ([]ChannelSubscription)(*subs)[x].Equal(&newSubs[y]) {
 					continue unsubscriptionCheck
 				}
 			}
 
+			unsubscribeMe[conn] = append(unsubscribeMe[conn], ([]ChannelSubscription)(*subs)[x])
+
 			// Remove instance from currently subscribed so as to determine the
 			// max connection allowance for new subscriptions
-			subs[x] = subs[len(subs)-1]
-			subs[len(subs)-1] = ChannelSubscription{}
-			subs = subs[:len(subs)-1]
-
-			unsubscribeMe[conn] = append(unsubscribeMe[conn], subs[x])
+			([]ChannelSubscription)(*subs)[x] = ([]ChannelSubscription)(*subs)[len(*subs)-1]
+			([]ChannelSubscription)(*subs)[len(*subs)-1] = ChannelSubscription{}
+			*subs = ([]ChannelSubscription)(*subs)[:len(*subs)-1]
 		}
 	}
 
 	fmt.Println("unsubscribeMe", unsubscribeMe)
+	fmt.Println()
 	fmt.Println("currentlySubscribed again:", currentlySubscribed)
+	fmt.Println()
 
 	var subscribeMe = make(map[Connection][]ChannelSubscription)
 subbies:
 	for i := range newSubscribes {
 		for conn, subs := range currentlySubscribed {
 			cfg := conn.GetConfiguration()
-			if cfg.SubscriptionConforms(&newSubscribes[i], len(subs)) {
+			fmt.Println("CONFIGURATIONS:", c.configurations)
+			if !cfg.SubscriptionConforms(&newSubscribes[i], len(*subs)) {
+				// If subscription does not conform to the connection params
+				// continue to next option and over flow to spawn a new
+				// connection if needed.
 				continue
 			}
 
 			// Add to currently subscribed
-			addSubs := append(subs, newSubscribes[i])
-			currentlySubscribed[conn] = addSubs
+			addSubs := append(*subs, newSubscribes[i])
+			currentlySubscribed[conn] = &addSubs
 			subscribeMe[conn] = append(subscribeMe[conn], newSubscribes[i])
 			continue subbies
 		}
 
-		// Spawn new connection
+		// Check potential subscription type with configuration paramater
+		// field, this will contain a small subset of configurations. These will
+		// then be associated with a new connection.
 		for j := range c.configurations {
+			fmt.Println("NEW CONNECTION SPAWNED")
 			if !c.configurations[j].SubscriptionConforms(&newSubscribes[i], 0) {
 				continue
 			}
 			var conn Connection
-			conn, err = c.generateConnection("", false)
+			conn, err = c.generateConnection(c.configurations[j])
+			if err != nil {
+				return
+			}
+
+			// Connect the newly created stream conn before subscription happens
+			err = c.connector(conn)
 			if err != nil {
 				return
 			}
@@ -400,11 +445,12 @@ subbies:
 			subscribeMe[conn] = append(subscribeMe[conn], newSubscribes[i])
 			continue subbies
 		}
-
+		// Subscription type fails configuration association and therefor cannot
+		// spawn a new connection
 		err = errNoAssociation
 		return
 	}
-	// package everything
+
 	for k, v := range subscribeMe {
 		subscribe = append(subscribe, SubscriptionParameters{v, k})
 	}

@@ -322,7 +322,7 @@ func (w *WebsocketConnection) IsAuthenticated() bool {
 
 // GetConfiguration returns the configuration associated with this connection
 func (w *WebsocketConnection) GetConfiguration() *ConnectionSetup {
-	return w.conf
+	return w.Conf
 }
 
 // LoadSubscriptionManager loads a subscription manager

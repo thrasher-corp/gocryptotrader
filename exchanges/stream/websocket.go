@@ -427,6 +427,8 @@ func (w *Websocket) FlushChannels() error {
 		return fmt.Errorf("%s websocket: cannot flush channels %s", w.exchangeName, err)
 	}
 
+	fmt.Println("InsideWebsocket", enabled.TickerFetching)
+
 	if enabled.Subscribe {
 		newsubs, err := w.Connections.GenerateSubscriptions()
 		if err != nil {
@@ -437,6 +439,10 @@ func (w *Websocket) FlushChannels() error {
 		if err != nil {
 			return fmt.Errorf("%s websocket: error %v", w.exchangeName, err)
 		}
+
+		fmt.Println("To Subscribe:", subs)
+
+		fmt.Println("To unSubscribe:", unsubs)
 
 		if enabled.Unsubscribe && len(unsubs) != 0 {
 			err := w.Connections.Unsubscribe(unsubs)

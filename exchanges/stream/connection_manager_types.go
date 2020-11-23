@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -18,6 +19,15 @@ type ConnectionSetup struct {
 // SubscriptionConforms checks to see if the subscription conforms to the
 // configuration
 func (c *ConnectionSetup) SubscriptionConforms(sub *ChannelSubscription, currentSubLength int) bool {
+	if c == nil {
+		panic("connectionsetup nil")
+	}
+	if c == nil {
+		panic("sub nil")
+	}
+
+	fmt.Println("SUB:", sub)
+	fmt.Println("sub length:", currentSubLength)
 	if len(c.AllowableAssets) != 0 && !c.AllowableAssets.Contains(sub.Asset) {
 		return false
 	}
@@ -36,10 +46,11 @@ type ConnectionManager struct {
 	connections        []Connection
 	features           *protocol.Features
 	connector          func(conn Connection) error
+	authConnector      func(conn Connection) error
 	generator          func(options SubscriptionOptions) ([]ChannelSubscription, error)
 	subscriber         func(sub SubscriptionParameters) error
 	unsubscriber       func(unsub SubscriptionParameters) error
-	generateConnection func(url string, auth bool) (Connection, error)
+	generateConnection func(c ConnectionSetup) (Connection, error)
 	responseHandler    func([]byte, Connection) error
 
 	dataHandler chan interface{}
@@ -51,10 +62,11 @@ type ConnectionManager struct {
 type ConnectionManagerConfig struct {
 	Wg                            *sync.WaitGroup
 	ExchangeConnector             func(conn Connection) error
+	ExchangeAuthConnector         func(conn Connection) error
 	ExchangeGenerateSubscriptions func(options SubscriptionOptions) ([]ChannelSubscription, error)
 	ExchangeSubscriber            func(sub SubscriptionParameters) error
 	ExchangeUnsubscriber          func(unsub SubscriptionParameters) error
-	ExchangeGenerateConnection    func(url string, auth bool) (Connection, error)
+	ExchangeGenerateConnection    func(ConnectionSetup) (Connection, error)
 	ExchangeReadConnection        func([]byte, Connection) error
 	Features                      *protocol.Features
 

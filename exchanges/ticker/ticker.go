@@ -56,24 +56,23 @@ func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (*Price,
 	service.RLock()
 	defer service.RUnlock()
 	if service.Tickers[exchange] == nil {
-		return nil, fmt.Errorf("no tickers for %s exchange", exchange)
+		return nil, fmt.Errorf("no tickers for %s exchange for pair %s", exchange, p)
 	}
 
 	if service.Tickers[exchange][p.Base.Item] == nil {
-		return nil, fmt.Errorf("no tickers associated with base currency %s",
-			p.Base)
+		return nil, fmt.Errorf("no tickers associated with base currency %s for pair %s",
+			p.Base, p)
 	}
 
 	if service.Tickers[exchange][p.Base.Item][p.Quote.Item] == nil {
-		return nil, fmt.Errorf("no tickers associated with quote currency %s",
-			p.Quote)
+		return nil, fmt.Errorf("no tickers associated with quote currency %s for pair %s",
+			p.Quote, p)
 	}
 
 	if service.Tickers[exchange][p.Base.Item][p.Quote.Item][tickerType] == nil {
-		return nil, fmt.Errorf("no tickers associated with asset type %s",
-			tickerType)
+		return nil, fmt.Errorf("no tickers associated with asset type %s for pair %s",
+			tickerType, p)
 	}
-
 	return &service.Tickers[exchange][p.Base.Item][p.Quote.Item][tickerType].Price, nil
 }
 

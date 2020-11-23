@@ -95,7 +95,7 @@ type WebsocketSetup struct {
 	Subscriber               func(SubscriptionParameters) error
 	Unsubscriber             func(SubscriptionParameters) error
 	GenerateSubscriptions    func(SubscriptionOptions) ([]ChannelSubscription, error)
-	GenerateConnection       func(url string, auth bool) (Connection, error)
+	GenerateConnection       func(ConnectionSetup) (Connection, error)
 	HandleStreamData         func(resp []byte, conn Connection) error
 	Features                 *protocol.Features
 	ResponseCheckTimeout     time.Duration
@@ -127,7 +127,7 @@ type WebsocketConnection struct {
 	Traffic           chan struct{}
 	readMessageErrors chan error
 
-	conf *ConnectionSetup
+	Conf *ConnectionSetup
 
 	Authenticated bool
 	*SubscriptionManager

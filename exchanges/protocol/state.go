@@ -110,177 +110,177 @@ func (s *State) SetFunctionality(newState State) error {
 	s.ProtocolEnabled = newState.ProtocolEnabled
 	s.AuthenticationEnabled = newState.AuthenticationEnabled
 
-	err := functionalityTranslate(s.TickerBatching, newState.TickerBatching)
+	err := functionalityTranslate(&s.TickerBatching, newState.TickerBatching)
 	if err != nil {
 		return fmt.Errorf("ticker batching error: %w", err)
 	}
 
-	err = functionalityTranslate(s.AccountBalance, newState.AccountBalance)
+	err = functionalityTranslate(&s.AccountBalance, newState.AccountBalance)
 	if err != nil {
 		return fmt.Errorf("AccountBalance error: %w", err)
 	}
 
-	err = functionalityTranslate(s.CryptoDeposit, newState.CryptoDeposit)
+	err = functionalityTranslate(&s.CryptoDeposit, newState.CryptoDeposit)
 	if err != nil {
 		return fmt.Errorf("CryptoDeposit error: %w", err)
 	}
 
-	err = functionalityTranslate(s.CryptoWithdrawal, newState.CryptoWithdrawal)
+	err = functionalityTranslate(&s.CryptoWithdrawal, newState.CryptoWithdrawal)
 	if err != nil {
 		return fmt.Errorf("CryptoWithdrawal error: %w", err)
 	}
 
-	err = functionalityTranslate(s.FiatWithdraw, newState.FiatWithdraw)
+	err = functionalityTranslate(&s.FiatWithdraw, newState.FiatWithdraw)
 	if err != nil {
 		return fmt.Errorf("FiatWithdraw error: %w", err)
 	}
 
-	err = functionalityTranslate(s.GetOrder, newState.GetOrder)
+	err = functionalityTranslate(&s.GetOrder, newState.GetOrder)
 	if err != nil {
 		return fmt.Errorf("GetOrder error: %w", err)
 	}
 
-	err = functionalityTranslate(s.GetOrders, newState.GetOrders)
+	err = functionalityTranslate(&s.GetOrders, newState.GetOrders)
 	if err != nil {
 		return fmt.Errorf("GetOrders error: %w", err)
 	}
 
-	err = functionalityTranslate(s.CancelOrders, newState.CancelOrders)
+	err = functionalityTranslate(&s.CancelOrders, newState.CancelOrders)
 	if err != nil {
 		return fmt.Errorf("CancelOrders error: %w", err)
 	}
 
-	err = functionalityTranslate(s.CancelOrder, newState.CancelOrder)
+	err = functionalityTranslate(&s.CancelOrder, newState.CancelOrder)
 	if err != nil {
 		return fmt.Errorf("CancelOrder error: %w", err)
 	}
 
-	err = functionalityTranslate(s.SubmitOrder, newState.SubmitOrder)
+	err = functionalityTranslate(&s.SubmitOrder, newState.SubmitOrder)
 	if err != nil {
 		return fmt.Errorf("SubmitOrder error: %w", err)
 	}
 
-	err = functionalityTranslate(s.SubmitOrders, newState.SubmitOrders)
+	err = functionalityTranslate(&s.SubmitOrders, newState.SubmitOrders)
 	if err != nil {
 		return fmt.Errorf("SubmitOrders error: %w", err)
 	}
 
-	err = functionalityTranslate(s.ModifyOrder, newState.ModifyOrder)
+	err = functionalityTranslate(&s.ModifyOrder, newState.ModifyOrder)
 	if err != nil {
 		return fmt.Errorf("ModifyOrder error: %w", err)
 	}
 
-	err = functionalityTranslate(s.DepositHistory, newState.DepositHistory)
+	err = functionalityTranslate(&s.DepositHistory, newState.DepositHistory)
 	if err != nil {
 		return fmt.Errorf("DepositHistory error: %w", err)
 	}
 
-	err = functionalityTranslate(s.WithdrawalHistory, newState.WithdrawalHistory)
+	err = functionalityTranslate(&s.WithdrawalHistory, newState.WithdrawalHistory)
 	if err != nil {
 		return fmt.Errorf("WithdrawalHistory error: %w", err)
 	}
 
-	err = functionalityTranslate(s.TradeHistory, newState.TradeHistory)
+	err = functionalityTranslate(&s.TradeHistory, newState.TradeHistory)
 	if err != nil {
 		return fmt.Errorf("TradeHistory error: %w", err)
 	}
 
-	err = functionalityTranslate(s.UserTradeHistory, newState.UserTradeHistory)
+	err = functionalityTranslate(&s.UserTradeHistory, newState.UserTradeHistory)
 	if err != nil {
 		return fmt.Errorf("UserTradeHistory error: %w", err)
 	}
 
-	err = functionalityTranslate(s.TradeFee, newState.TradeFee)
+	err = functionalityTranslate(&s.TradeFee, newState.TradeFee)
 	if err != nil {
 		return fmt.Errorf("TradeFee error: %w", err)
 	}
 
-	err = functionalityTranslate(s.FiatDepositFee, newState.FiatDepositFee)
+	err = functionalityTranslate(&s.FiatDepositFee, newState.FiatDepositFee)
 	if err != nil {
 		return fmt.Errorf("FiatDepositFee error: %w", err)
 	}
 
-	err = functionalityTranslate(s.FiatWithdrawalFee, newState.FiatWithdrawalFee)
+	err = functionalityTranslate(&s.FiatWithdrawalFee, newState.FiatWithdrawalFee)
 	if err != nil {
 		return fmt.Errorf("FiatWithdrawalFee error: %w", err)
 	}
 
-	err = functionalityTranslate(s.CryptoDepositFee, newState.CryptoDepositFee)
+	err = functionalityTranslate(&s.CryptoDepositFee, newState.CryptoDepositFee)
 	if err != nil {
 		return fmt.Errorf("CryptoDepositFee error: %w", err)
 	}
 
-	err = functionalityTranslate(s.CryptoWithdrawalFee, newState.CryptoWithdrawalFee)
+	err = functionalityTranslate(&s.CryptoWithdrawalFee, newState.CryptoWithdrawalFee)
 	if err != nil {
 		return fmt.Errorf("CryptoWithdrawalFee error: %w", err)
 	}
 
-	err = functionalityTranslate(s.TickerFetching, newState.TickerFetching)
+	err = functionalityTranslate(&s.TickerFetching, newState.TickerFetching)
 	if err != nil {
 		return fmt.Errorf("TickerFetching error: %w", err)
 	}
 
-	err = functionalityTranslate(s.KlineFetching, newState.KlineFetching)
+	err = functionalityTranslate(&s.KlineFetching, newState.KlineFetching)
 	if err != nil {
 		return fmt.Errorf("KlineFetching error: %w", err)
 	}
 
-	err = functionalityTranslate(s.TradeFetching, newState.TradeFetching)
+	err = functionalityTranslate(&s.TradeFetching, newState.TradeFetching)
 	if err != nil {
 		return fmt.Errorf("TradeFetching error: %w", err)
 	}
 
-	err = functionalityTranslate(s.OrderbookFetching, newState.OrderbookFetching)
+	err = functionalityTranslate(&s.OrderbookFetching, newState.OrderbookFetching)
 	if err != nil {
 		return fmt.Errorf("OrderbookFetching error: %w", err)
 	}
 
-	err = functionalityTranslate(s.AccountInfo, newState.AccountInfo)
+	err = functionalityTranslate(&s.AccountInfo, newState.AccountInfo)
 	if err != nil {
 		return fmt.Errorf("AccountInfo error: %w", err)
 	}
 
-	err = functionalityTranslate(s.FiatDeposit, newState.FiatDeposit)
+	err = functionalityTranslate(&s.FiatDeposit, newState.FiatDeposit)
 	if err != nil {
 		return fmt.Errorf("FiatDeposit error: %w", err)
 	}
 
-	err = functionalityTranslate(s.DeadMansSwitch, newState.DeadMansSwitch)
+	err = functionalityTranslate(&s.DeadMansSwitch, newState.DeadMansSwitch)
 	if err != nil {
 		return fmt.Errorf("DeadMansSwitch error: %w", err)
 	}
 
-	err = functionalityTranslate(s.FullPayloadSubscribe, newState.FullPayloadSubscribe)
+	err = functionalityTranslate(&s.FullPayloadSubscribe, newState.FullPayloadSubscribe)
 	if err != nil {
 		return fmt.Errorf("FullPayloadSubscribe error: %w", err)
 	}
 
-	err = functionalityTranslate(s.Subscribe, newState.Subscribe)
+	err = functionalityTranslate(&s.Subscribe, newState.Subscribe)
 	if err != nil {
 		return fmt.Errorf("Subscribe error: %w", err)
 	}
 
-	err = functionalityTranslate(s.Unsubscribe, newState.Unsubscribe)
+	err = functionalityTranslate(&s.Unsubscribe, newState.Unsubscribe)
 	if err != nil {
 		return fmt.Errorf("Unsubscribe error: %w", err)
 	}
 
-	err = functionalityTranslate(s.AuthenticatedEndpoints, newState.AuthenticatedEndpoints)
+	err = functionalityTranslate(&s.AuthenticatedEndpoints, newState.AuthenticatedEndpoints)
 	if err != nil {
 		return fmt.Errorf("AuthenticatedEndpoints error: %w", err)
 	}
 
-	err = functionalityTranslate(s.MessageCorrelation, newState.MessageCorrelation)
+	err = functionalityTranslate(&s.MessageCorrelation, newState.MessageCorrelation)
 	if err != nil {
 		return fmt.Errorf("MessageCorrelation error: %w", err)
 	}
 
-	err = functionalityTranslate(s.MessageSequenceNumbers, newState.MessageSequenceNumbers)
+	err = functionalityTranslate(&s.MessageSequenceNumbers, newState.MessageSequenceNumbers)
 	if err != nil {
 		return fmt.Errorf("MessageSequenceNumbers error: %w", err)
 	}
 
-	err = functionalityTranslate(s.CandleHistory, newState.CandleHistory)
+	err = functionalityTranslate(&s.CandleHistory, newState.CandleHistory)
 	if err != nil {
 		return fmt.Errorf("CandleHistory error: %w", err)
 	}
@@ -289,8 +289,8 @@ func (s *State) SetFunctionality(newState State) error {
 }
 
 // functionalityTranslate validates and changes state based on the original
-func functionalityTranslate(feature, newstate *bool) error {
-	if feature == nil {
+func functionalityTranslate(feature **bool, newstate *bool) error {
+	if *feature == nil {
 		if newstate != nil {
 			return errUnsupported
 		}
@@ -300,9 +300,11 @@ func functionalityTranslate(feature, newstate *bool) error {
 		return nil
 	}
 	if *newstate {
-		feature = convert.BoolPtrT
+		fmt.Println("Bark")
+		*feature = convert.BoolPtrT
 	} else {
-		feature = convert.BoolPtrF
+		fmt.Println("Meow")
+		*feature = convert.BoolPtrF
 	}
 	return nil
 }

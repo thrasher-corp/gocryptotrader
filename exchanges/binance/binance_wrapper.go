@@ -218,9 +218,10 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		RateLimit:                        250,
 		ConnectionConfigurations: []stream.ConnectionSetup{
 			{
-				URL:              binanceDefaultWebsocketURL,
-				AllowableAssets:  asset.Items{asset.Spot, asset.Margin},
-				MaxSubscriptions: uint16(1024),
+				URL:                        binanceDefaultWebsocketURL,
+				AllowableAssets:            asset.Items{asset.Spot, asset.Margin},
+				MaxSubscriptions:           uint16(1024),
+				DedicatedAuthenticatedConn: true,
 			},
 		},
 	})
@@ -407,10 +408,6 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	if assetType == asset.Margin {
-		assetType = asset.Spot
-	}
-
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -420,10 +417,6 @@ func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	if assetType == asset.Margin {
-		assetType = asset.Spot
-	}
-
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)

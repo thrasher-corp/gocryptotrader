@@ -67,19 +67,20 @@ func (b *Binance) WsConnectAuth(conn stream.Connection) error {
 	var err error
 	listenKey, err = b.GetWsAuthStreamKey()
 	if err != nil {
+		// TODO: Use this functionality in streaming package.
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		log.Errorf(log.ExchangeSys,
-			"%v unable to connect to authenticated Websocket. Error: %s",
+		// --
+		return fmt.Errorf("%v unable to connect to authenticated Websocket. Error: %s",
 			b.Name,
 			err)
-	} else {
-		// cleans on failed connection
-		clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
-		authPayload := clean[0] + "?streams=" + listenKey
-		err = b.Websocket.SetWebsocketURL(authPayload, false, false)
-		if err != nil {
-			return err
-		}
+	}
+
+	// TODO: Check -- cleans on failed connection
+	clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
+	authPayload := clean[0] + "?streams=" + listenKey
+	err = b.Websocket.SetWebsocketURL(authPayload, false, false)
+	if err != nil {
+		return err
 	}
 
 	err = conn.Dial(&dialer, http.Header{})
@@ -89,10 +90,8 @@ func (b *Binance) WsConnectAuth(conn stream.Connection) error {
 			err)
 	}
 
-	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		b.Websocket.Wg.Add(1)
-		go b.KeepAuthKeyAlive()
-	}
+	b.Websocket.Wg.Add(1)
+	go b.KeepAuthKeyAlive()
 
 	conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
@@ -103,21 +102,22 @@ func (b *Binance) WsConnectAuth(conn stream.Connection) error {
 	return nil
 }
 
-func (b *Binance) spawnConnection(url string, auth bool) (stream.Connection, error) {
-	if url == "" {
+func (b *Binance) spawnConnection(setup stream.ConnectionSetup) (stream.Connection, error) {
+	if setup.URL == "" {
 		return nil, errors.New("url not specified when generating connection")
 	}
 	return &stream.WebsocketConnection{
 		Verbose:          b.Verbose,
 		ExchangeName:     b.Name,
-		URL:              url,
+		URL:              setup.URL,
 		ProxyURL:         b.Websocket.GetProxyAddress(),
-		Authenticated:    auth,
+		Authenticated:    setup.DedicatedAuthenticatedConn,
 		Match:            b.Websocket.Match,
 		Wg:               b.Websocket.Wg,
 		Traffic:          b.Websocket.TrafficAlert,
 		RateLimit:        250,
 		ResponseMaxLimit: time.Second * 10,
+		Conf:             &setup,
 	}, nil
 }
 
@@ -137,8 +137,8 @@ func (b *Binance) preConnectionSetup() {
 	}
 }
 
-// KeepAuthKeyAlive will continuously send messages to
-// keep the WS auth key active
+// KeepAuthKeyAlive will continuously send messages to keep the WS auth key
+// active
 func (b *Binance) KeepAuthKeyAlive() {
 	defer b.Websocket.Wg.Done()
 	ticks := time.NewTicker(time.Minute * 30)
@@ -841,7 +841,7 @@ func (b *Binance) Unsubscribe(unsub stream.SubscriptionParameters) error {
 			return err
 		}
 
-		err = unsub.Conn.AddSuccessfulSubscriptions(unsubbed)
+		err = unsub.Conn.RemoveSuccessfulUnsubscriptions(unsubbed)
 		if err != nil {
 			return err
 		}
@@ -855,7 +855,7 @@ func (b *Binance) Unsubscribe(unsub stream.SubscriptionParameters) error {
 			return err
 		}
 
-		err = unsub.Conn.AddSuccessfulSubscriptions(unsubbed)
+		err = unsub.Conn.RemoveSuccessfulUnsubscriptions(unsubbed)
 		if err != nil {
 			return err
 		}

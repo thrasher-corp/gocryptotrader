@@ -38,6 +38,7 @@ func (s *SubscriptionManager) AddSuccessfulSubscriptions(subscriptions []Channel
 // RemoveSuccessfulUnsubscriptions removes a subscription that was successfully
 // unsubscribed
 func (s *SubscriptionManager) RemoveSuccessfulUnsubscriptions(subscriptions []ChannelSubscription) error {
+	fmt.Println("UNSUB ME PLEASE")
 	s.Lock()
 	defer s.Unlock()
 
@@ -50,6 +51,7 @@ removals:
 
 		for y := range *slice {
 			if subscriptions[x].Channel == (*slice)[y].Channel {
+				fmt.Println("PEW PEW PEW get rid of sub mate")
 				(*slice)[y] = (*slice)[len(*slice)-1]
 				(*slice)[len((*slice))-1] = ChannelSubscription{}
 				(*slice) = (*slice)[:len((*slice))-1]

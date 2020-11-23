@@ -19,6 +19,7 @@ import (
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
@@ -2416,7 +2417,7 @@ func (s *RPCServer) SetFunctionality(_ context.Context, r *gctrpc.FunctionalityS
 		return nil, fmt.Errorf("could not retrieve exchange base for %s", r.Exchange)
 	}
 
-	var klineFetching bool
+	var klineFetching *bool
 	var err error
 	if r.KlingFetching != "" {
 		klineFetching, err = stringToBool(r.KlingFetching)
@@ -2425,7 +2426,7 @@ func (s *RPCServer) SetFunctionality(_ context.Context, r *gctrpc.FunctionalityS
 		}
 	}
 
-	var orderbookFetching bool
+	var orderbookFetching *bool
 	if r.OrderbookFetching != "" {
 		orderbookFetching, err = stringToBool(r.OrderbookFetching)
 		if err != nil {
@@ -2433,7 +2434,7 @@ func (s *RPCServer) SetFunctionality(_ context.Context, r *gctrpc.FunctionalityS
 		}
 	}
 
-	var tickerFetching bool
+	var tickerFetching *bool
 	if r.TickerFetching != "" {
 		tickerFetching, err = stringToBool(r.TickerFetching)
 		if err != nil {
@@ -2441,7 +2442,7 @@ func (s *RPCServer) SetFunctionality(_ context.Context, r *gctrpc.FunctionalityS
 		}
 	}
 
-	var tradeFetching bool
+	var tradeFetching *bool
 	if r.TradeFetching != "" {
 		tradeFetching, err = stringToBool(r.TradeFetching)
 		if err != nil {
@@ -2450,10 +2451,10 @@ func (s *RPCServer) SetFunctionality(_ context.Context, r *gctrpc.FunctionalityS
 	}
 
 	newState := protocol.State{
-		KlineFetching:     &klineFetching,
-		OrderbookFetching: &orderbookFetching,
-		TickerFetching:    &tickerFetching,
-		TradeFetching:     &tradeFetching,
+		KlineFetching:     klineFetching,
+		OrderbookFetching: orderbookFetching,
+		TickerFetching:    tickerFetching,
+		TradeFetching:     tradeFetching,
 	}
 
 	if r.Protocol == "websocket" {
@@ -2485,12 +2486,12 @@ func (s *RPCServer) SetFunctionality(_ context.Context, r *gctrpc.FunctionalityS
 	return &gctrpc.GenericResponse{Status: "Functionality Set"}, nil
 }
 
-func stringToBool(char string) (bool, error) {
+func stringToBool(char string) (*bool, error) {
 	char = strings.ToLower(char)
 	if char == "true" {
-		return true, nil
+		return convert.BoolPtrT, nil
 	} else if char == "false" {
-		return false, nil
+		return convert.BoolPtrF, nil
 	}
-	return false, fmt.Errorf("cannot match string %s to boolean", char)
+	return nil, fmt.Errorf("cannot match string %s to boolean", char)
 }
