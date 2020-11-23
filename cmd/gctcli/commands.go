@@ -1832,6 +1832,152 @@ func cancelOrder(c *cli.Context) error {
 	return nil
 }
 
+var cancelBatchOrdersCommand = cli.Command{
+	Name:      "cancelbatchorders",
+	Usage:     "cancel batch orders cancels a list of exchange orders (comma separated)",
+	ArgsUsage: "<exchange> <account_id> <order_ids> <pair> <asset> <wallet_address> <side>",
+	Action:    cancelBatchOrders,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to cancel the order for",
+		},
+		cli.StringFlag{
+			Name:  "account_id",
+			Usage: "the account id",
+		},
+		cli.StringFlag{
+			Name:  "order_ids",
+			Usage: "the comma separated orders id-s",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to cancel the order for",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type",
+		},
+		cli.Float64Flag{
+			Name:  "wallet_address",
+			Usage: "the wallet address",
+		},
+		cli.StringFlag{
+			Name:  "side",
+			Usage: "the order side",
+		},
+	},
+}
+
+func cancelBatchOrders(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "cancelbatchorders")
+	}
+
+	var exchangeName string
+	var accountID string
+	var orderID string
+	var currencyPair string
+	var assetType string
+	var walletAddress string
+	var orderSide string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("account_id") {
+		accountID = c.String("account_id")
+	} else {
+		accountID = c.Args().Get(1)
+	}
+
+	if c.IsSet("order_ids") {
+		orderID = c.String("order_ids")
+	} else {
+		orderID = c.Args().Get(2)
+	}
+
+	if orderID == "" {
+		return errors.New("an order ID must be set")
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(3)
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(4)
+	}
+
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("wallet_address") {
+		walletAddress = c.String("wallet_address")
+	} else {
+		walletAddress = c.Args().Get(5)
+	}
+
+	if c.IsSet("side") {
+		orderSide = c.String("side")
+	} else {
+		orderSide = c.Args().Get(6)
+	}
+
+	// pair is optional, but if it's set, do a validity check
+	var p currency.Pair
+	if len(currencyPair) > 0 {
+		if !validPair(currencyPair) {
+			return errInvalidPair
+		}
+		var err error
+		p, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+		if err != nil {
+			return err
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.CancelBatchOrders(context.Background(), &gctrpc.CancelBatchOrdersRequest{
+		Exchange:  exchangeName,
+		AccountId: accountID,
+		OrdersId:  orderID,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		},
+		AssetType:     assetType,
+		WalletAddress: walletAddress,
+		Side:          orderSide,
+	})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var cancelAllOrdersCommand = cli.Command{
 	Name:      "cancelallorders",
 	Usage:     "cancels all orders (all or by exchange name)",

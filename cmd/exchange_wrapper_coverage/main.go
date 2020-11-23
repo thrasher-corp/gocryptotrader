@@ -147,6 +147,11 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "CancelOrder")
 	}
 
+	_, err = e.CancelBatchOrders(nil)
+	if err == common.ErrNotYetImplemented {
+		funcs = append(funcs, "CancelBatchOrders")
+	}
+
 	_, err = e.CancelAllOrders(nil)
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "CancelAllOrders")

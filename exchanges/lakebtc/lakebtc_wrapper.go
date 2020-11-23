@@ -442,6 +442,11 @@ func (l *LakeBTC) CancelOrder(o *order.Cancel) error {
 	return l.CancelExistingOrder(orderIDInt)
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (l *LakeBTC) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (l *LakeBTC) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	var cancelAllOrdersResponse order.CancelAllResponse

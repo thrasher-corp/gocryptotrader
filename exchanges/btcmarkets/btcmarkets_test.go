@@ -439,13 +439,13 @@ func TestGetBatchTrades(t *testing.T) {
 	}
 }
 
-func TestCancelBatchOrders(t *testing.T) {
+func TestCancelBatch(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	temp := []string{"4477045999", "4477381751", "4477381751"}
-	_, err := b.CancelBatchOrders(temp)
+	_, err := b.CancelBatch(temp)
 	if err != nil {
 		t.Error(err)
 	}

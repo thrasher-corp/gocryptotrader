@@ -174,6 +174,13 @@ type Cancel struct {
 // cancel all orders on an exchange
 type CancelAllResponse struct {
 	Status map[string]string
+	Count  int64
+}
+
+// CancelBatchResponse returns the status of orders
+// that have been requested for cancellation
+type CancelBatchResponse struct {
+	Status map[string]string
 }
 
 // TradeHistory holds exchange history data

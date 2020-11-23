@@ -468,6 +468,11 @@ func (e *EXMO) CancelOrder(o *order.Cancel) error {
 	return e.CancelExistingOrder(orderIDInt)
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (e *EXMO) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *EXMO) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{

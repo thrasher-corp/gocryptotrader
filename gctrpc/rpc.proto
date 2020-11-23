@@ -46,7 +46,7 @@ message RPCEndpoint {
 }
 
 message GetRPCEndpointsResponse {
-   map<string, RPCEndpoint> endpoints = 1;
+    map<string, RPCEndpoint> endpoints = 1;
 }
 
 message GenericExchangeNameRequest {
@@ -158,7 +158,7 @@ message Orderbooks {
 }
 
 message GetOrderbooksResponse {
-   repeated Orderbooks orderbooks = 1;
+    repeated Orderbooks orderbooks = 1;
 }
 
 message GetAccountInfoRequest {
@@ -301,14 +301,14 @@ message OrderDetails {
 }
 
 message TradeHistory {
-	int64  creation_time = 1;
-	string id = 2;
-	double price = 3;
-	double amount = 4;
-	string exchange = 5;
-	string asset_type = 6;
-	string order_side = 7;
-	double fee = 8;
+    int64  creation_time = 1;
+    string id = 2;
+    double price = 3;
+    double amount = 4;
+    string exchange = 5;
+    string asset_type = 6;
+    string order_side = 7;
+    double fee = 8;
 }
 
 message GetOrdersRequest {
@@ -384,6 +384,23 @@ message CancelOrderRequest {
     string side = 7;
 }
 
+message CancelBatchOrdersRequest {
+    string exchange = 1;
+    string account_id = 2;
+    string orders_id = 3;
+    CurrencyPair pair = 4;
+    string asset_type = 5;
+    string wallet_address = 6;
+    string side = 7;
+}
+
+message CancelBatchOrdersResponse {
+    message Orders {
+        map<string, string> order_status = 1;
+    }
+    repeated Orders orders = 1;
+}
+
 message CancelAllOrdersRequest {
     string exchange = 1;
 }
@@ -394,6 +411,7 @@ message CancelAllOrdersResponse {
         map<string, string> order_status = 2;
     }
     repeated Orders orders = 1;
+    int64 count = 2;
 }
 
 message GetEventsRequest {}
@@ -760,7 +778,7 @@ message WebsocketGetInfoRequest {
 message WebsocketGetInfoResponse {
     string exchange = 1;
     bool supported = 2;
-    bool enabled = 3; 
+    bool enabled = 3;
     bool authenticated_supported = 4;
     bool authenticated = 5;
     string running_url = 6;
@@ -1024,6 +1042,13 @@ service GoCryptoTrader {
     rpc CancelOrder (CancelOrderRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/cancelorder"
+            body: "*"
+        };
+    }
+
+    rpc CancelBatchOrders (CancelBatchOrdersRequest) returns (CancelBatchOrdersResponse) {
+        option (google.api.http) = {
+            post: "/v1/cancelbatchorders"
             body: "*"
         };
     }
