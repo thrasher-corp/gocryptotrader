@@ -1186,11 +1186,12 @@ func (e *Endpoints) GetURLMap(defaultMap bool) map[string]string {
 		for k, v := range e.defaults {
 			urlMap[k] = v
 		}
-	} else {
-		for k, v := range e.running {
-			urlMap[k] = v
-		}
+		e.RUnlock()
+		return e.defaults
+	}
+	for k, v := range e.running {
+		urlMap[k] = v
 	}
 	e.RUnlock()
-	return e.defaults
+	return e.running
 }

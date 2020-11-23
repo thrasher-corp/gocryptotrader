@@ -45,10 +45,13 @@ func TestMain(m *testing.M) {
 	}
 
 	g.HTTPClient = newClient
-	endpoints := g.API.Endpoints.GetURLMap(false)
-	for k := range endpoints {
-		endpoints[k] = serverDetails
+	endpointMap := g.API.Endpoints.GetURLMap(false)
+	for k := range endpointMap {
+		err = g.API.Endpoints.SetRunning(k, serverDetails, true)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	log.Println(sharedtestvalues.MockTesting, endpoints)
+	log.Println(sharedtestvalues.MockTesting, endpointMap)
 	os.Exit(m.Run())
 }

@@ -5,7 +5,6 @@
 package bitstamp
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -47,10 +46,12 @@ func TestMain(m *testing.M) {
 	}
 
 	b.HTTPClient = newClient
-	fmt.Println(serverDetails)
 	endpointMap := b.API.Endpoints.GetURLMap(false)
 	for k := range endpointMap {
-		endpointMap[k] = serverDetails + "/api"
+		err = b.API.Endpoints.SetRunning(k, serverDetails+"/api", true)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	log.Printf(sharedtestvalues.MockTesting, b.Name, endpointMap)
 	os.Exit(m.Run())
