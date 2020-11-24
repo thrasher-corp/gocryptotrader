@@ -2849,12 +2849,15 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		Asset:        r.AssetType,
 		Pair:         r.Pair,
 	}
-	iterateStartTime := UTCStartTime
-	iterateEndTime := iterateStartTime.Add(time.Hour)
-	for iterateStartTime.Before(UTCEndTime) {
+
+	for iterateStartTime := UTCStartTime; iterateStartTime.Before(UTCEndTime); iterateStartTime = iterateStartTime.Add(time.Hour) {
+		iterateEndTime := iterateStartTime.Add(time.Hour)
 		trades, err = exch.GetHistoricTrades(cp, asset.Item(r.AssetType), iterateStartTime, iterateEndTime)
 		if err != nil {
 			return err
+		}
+		if len(trades) == 0 {
+			continue
 		}
 		grpcTrades := &gctrpc.SavedTradesResponse{
 			ExchangeName: r.Exchange,
@@ -2876,8 +2879,6 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 		}
 
 		stream.Send(grpcTrades)
-		iterateStartTime = iterateStartTime.Add(time.Hour)
-		iterateEndTime = iterateEndTime.Add(time.Hour)
 	}
 	stream.Send(resp)
 
