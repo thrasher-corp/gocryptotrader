@@ -13,8 +13,8 @@ var (
 
 	passConnectionFunc        = func(c Connection) error { return nil }
 	failConnectionFunc        = func(c Connection) error { return errors.New("fail") }
-	passGenerateConnection    = func(_ string, _ bool) (Connection, error) { return &WebsocketConnection{}, nil }
-	failGenerateConnection    = func(_ string, _ bool) (Connection, error) { return nil, errGenerateConns }
+	passGenerateConnection    = func(_ ConnectionSetup) (Connection, error) { return &WebsocketConnection{}, nil }
+	failGenerateConnection    = func(_ ConnectionSetup) (Connection, error) { return nil, errGenerateConns }
 	passGenerateSubscriptions = func(_ SubscriptionOptions) ([]ChannelSubscription, error) {
 		return []ChannelSubscription{
 			{
@@ -190,7 +190,7 @@ func TestGenerateConnections(t *testing.T) {
 	tests := []struct {
 		Name                  string
 		GenerateSubscriptions func(SubscriptionOptions) ([]ChannelSubscription, error)
-		GenerateConnection    func(url string, auth bool) (Connection, error)
+		GenerateConnection    func(ConnectionSetup) (Connection, error)
 		ConfigurationSet      []ConnectionSetup
 		ConnectionCount       int
 		SubscriptionCount     int
@@ -298,17 +298,22 @@ func TestGenerateConnections(t *testing.T) {
 
 func TestGetChannelDifference(t *testing.T) {
 	configurableFn := func(s SubscriptionOptions) ([]ChannelSubscription, error) {
+		f, err := s.Features.Websocket.Functionality()
+		if err != nil {
+			return nil, err
+		}
+
 		var newChannels []ChannelSubscription
-		if s.Features.TickerFetching {
+		if f.TickerFetching {
 			newChannels = append(newChannels, ChannelSubscription{SubscriptionType: Ticker})
 		}
-		if s.Features.KlineFetching {
+		if f.KlineFetching {
 			newChannels = append(newChannels, ChannelSubscription{SubscriptionType: Kline})
 		}
-		if s.Features.OrderbookFetching {
+		if f.OrderbookFetching {
 			newChannels = append(newChannels, ChannelSubscription{SubscriptionType: Orderbook})
 		}
-		if s.Features.TradeHistory {
+		if f.TradeHistory {
 			newChannels = append(newChannels, ChannelSubscription{SubscriptionType: Trade})
 		}
 		return newChannels, nil
