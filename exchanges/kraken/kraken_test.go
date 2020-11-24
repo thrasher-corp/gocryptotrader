@@ -544,6 +544,34 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 }
 
+// TestCancelExchangeOrder wrapper test
+func TestCancelBatchExchangeOrder(t *testing.T) {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	pair := currency.Pair{
+		Delimiter: "/",
+		Base:      currency.BTC,
+		Quote:     currency.USD,
+	}
+
+	var ordersCancellation []order.Cancel
+	ordersCancellation = append(ordersCancellation, order.Cancel{
+		Pair:      pair,
+		ID:        "OGEX6P-B5Q74-IGZ72R,OGEX6P-B5Q74-IGZ722",
+		AssetType: asset.Spot,
+	})
+
+	_, err := k.CancelBatchOrders(ordersCancellation)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not cancel orders: %v", err)
+	}
+}
+
 // TestCancelAllExchangeOrders wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -774,6 +802,14 @@ func TestWsAddOrder(t *testing.T) {
 func TestWsCancelOrder(t *testing.T) {
 	setupWsTests(t)
 	err := k.wsCancelOrders([]string{"1337"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCancelAllOrders(t *testing.T) {
+	setupWsTests(t)
+	_, err := k.wsCancelAllOrders()
 	if err != nil {
 		t.Error(err)
 	}
@@ -1376,16 +1412,6 @@ func TestWsAddOrderJSON(t *testing.T) {
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
-	}
-
-	pressXToJSON = []byte(`{
-  "errorMessage": "EOrder:Order minimum not met",
-  "event": "addOrderStatus",
-  "status": "error"
-}`)
-	err = k.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected error")
 	}
 }
 

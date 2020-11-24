@@ -579,12 +579,13 @@ type WsOpenOrderDescription struct {
 type WsAddOrderRequest struct {
 	Event           string  `json:"event"`
 	Token           string  `json:"token"`
+	RequestID       int64   `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
 	OrderType       string  `json:"ordertype"`
 	OrderSide       string  `json:"type"`
 	Pair            string  `json:"pair"`
-	Price           float64 `json:"price,omitempty"`  // optional
-	Price2          float64 `json:"price2,omitempty"` // optional
-	Volume          float64 `json:"volume,omitempty"`
+	Price           float64 `json:"price,string,omitempty"`  // optional
+	Price2          float64 `json:"price2,string,omitempty"` // optional
+	Volume          float64 `json:"volume,string,omitempty"`
 	Leverage        float64 `json:"leverage,omitempty"`         // optional
 	OFlags          string  `json:"oflags,omitempty"`           // optional
 	StartTime       string  `json:"starttm,omitempty"`          // optional
@@ -598,10 +599,11 @@ type WsAddOrderRequest struct {
 
 // WsAddOrderResponse response data for ws order
 type WsAddOrderResponse struct {
-	Description   string `json:"descr"`
 	Event         string `json:"event"`
+	RequestID     int64  `json:"reqid"`
 	Status        string `json:"status"`
 	TransactionID string `json:"txid"`
+	Description   string `json:"descr"`
 	ErrorMessage  string `json:"errorMessage"`
 }
 
@@ -609,12 +611,15 @@ type WsAddOrderResponse struct {
 type WsCancelOrderRequest struct {
 	Event          string   `json:"event"`
 	Token          string   `json:"token"`
-	TransactionIDs []string `json:"txid"`
+	TransactionIDs []string `json:"txid,omitempty"`
+	RequestID      int64    `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
 }
 
-// WsCancelOrderResponse response data for ws cancel order
+// WsCancelOrderResponse response data for ws cancel order and ws cancel all orders
 type WsCancelOrderResponse struct {
 	Event        string `json:"event"`
 	Status       string `json:"status"`
 	ErrorMessage string `json:"errorMessage"`
+	RequestID    int64  `json:"reqid"`
+	Count        int64  `json:"count"`
 }
