@@ -51,7 +51,7 @@ func (p *portfolioManager) Stop() error {
 func (p *portfolioManager) run() {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
 	Bot.ServicesWG.Add(1)
-	tick := time.NewTicker(PortfolioSleepDelay)
+	tick := time.NewTicker(Bot.Settings.PortfolioManagerDelay)
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
