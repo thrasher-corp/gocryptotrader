@@ -8,11 +8,15 @@ import (
 
 type Fill struct {
 	event.Event
-	Direction   order.Side
-	Amount      float64
-	Price       float64
-	ExchangeFee float64
-	Why         string
+	Direction           order.Side
+	Amount              float64
+	ClosePrice          float64
+	VolumeAdjustedPrice float64
+	PurchasePrice       float64
+	ExchangeFee         float64
+	SlippagePercent     float64
+	Why                 string
+	Order               *order.Detail
 }
 
 type FillEvent interface {
@@ -21,7 +25,9 @@ type FillEvent interface {
 
 	SetAmount(float64)
 	GetAmount() float64
-	GetPrice() float64
+	GetClosePrice() float64
+	GetVolumeAdjustedPrice() float64
+	GetPurchasePrice() float64
 	GetExchangeFee() float64
 	SetExchangeFee(float64)
 	Value() float64

@@ -382,7 +382,7 @@ func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 	return o.processSubmittedOrder(newOrder, resultingOrder, err)
 }
 
-// GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It optionally filters any orders that don't match the status
+// GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It optionally filters any orders that do not match the status
 // but a status of "" or ANY will include all
 // the time adds contexts for the when the snapshot is relevant for
 func (o *orderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.Time) {

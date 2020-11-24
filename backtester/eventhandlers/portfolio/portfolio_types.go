@@ -9,8 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
-	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
+	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/position"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -21,7 +20,7 @@ var NoHoldingsToSellErr = errors.New("no holdings to sell")
 type Portfolio struct {
 	InitialFunds float64
 	Funds        float64
-	Holdings     map[string]map[asset.Item]map[currency.Pair]positions.Positions
+	Holdings     map[string]map[asset.Item]map[currency.Pair][]position.Position
 	Transactions []fill.FillEvent
 	SizeManager  SizeHandler
 	RiskManager  risk.RiskHandler
@@ -39,13 +38,13 @@ type PortfolioHandler interface {
 	GetFunds() float64
 
 	Value() float64
-	SetHoldings(string, asset.Item, currency.Pair, positions.Positions)
-	ViewHoldings(string, asset.Item, currency.Pair) positions.Positions
+	SetHoldings(string, asset.Item, currency.Pair, position.Position)
+	ViewHoldings(string, asset.Item, currency.Pair) *position.PositionManager
 	SetFee(string, asset.Item, currency.Pair, float64)
 	GetFee(string, asset.Item, currency.Pair) float64
 	Reset()
 }
 
 type SizeHandler interface {
-	SizeOrder(internalordermanager.OrderEvent, interfaces.DataEventHandler, float64, *exchange.CurrencySettings) (*order.Order, error)
+	SizeOrder(exchange.OrderEvent, interfaces.DataEventHandler, float64, *exchange.CurrencySettings) (*order.Order, error)
 }

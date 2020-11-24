@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -118,12 +117,12 @@ func (b *BackTest) PrintSettings(cfg *config.Config) {
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	bt := New()
-	err := engineBotSetup(cfg)
+	err := bt.engineBotSetup(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	exch, fPair, a, err := loadExchangePairAssetBase(cfg)
+	exch, fPair, a, err := bt.loadExchangePairAssetBase(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +171,6 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 				MaximumLeverage: cfg.ExchangeSettings.Leverage.MaximumLeverage,
 			},
 		},
-		InternalOrderManager: internalordermanager.InternalOrderManager{},
 	}
 
 	bt.Portfolio = &portfolio.Portfolio{
@@ -227,9 +225,9 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	return bt, nil
 }
 
-func loadExchangePairAssetBase(cfg *config.Config) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
+func (bt *BackTest) loadExchangePairAssetBase(cfg *config.Config) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
 	var err error
-	exch := engine.Bot.GetExchangeByName(cfg.ExchangeSettings.Name)
+	exch := bt.Bot.GetExchangeByName(cfg.ExchangeSettings.Name)
 	if exch == nil {
 		return nil, currency.Pair{}, "", engine.ErrExchangeNotFound
 	}
@@ -258,9 +256,9 @@ func loadExchangePairAssetBase(cfg *config.Config) (gctexchange.IBotExchange, cu
 	return exch, fPair, a, nil
 }
 
-func engineBotSetup(cfg *config.Config) error {
+func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 	var err error
-	engine.Bot, err = engine.NewFromSettings(&engine.Settings{
+	bt.Bot, err = engine.NewFromSettings(&engine.Settings{
 		EnableDryRun:   true,
 		EnableAllPairs: true,
 	}, nil)
@@ -268,12 +266,12 @@ func engineBotSetup(cfg *config.Config) error {
 		return err
 	}
 
-	err = engine.Bot.LoadExchange(cfg.ExchangeSettings.Name, false, nil)
+	err = bt.Bot.LoadExchange(cfg.ExchangeSettings.Name, false, nil)
 	if err != nil {
 		return err
 	}
 
-	err = engine.Bot.OrderManager.Start()
+	err = bt.Bot.OrderManager.Start()
 	if err != nil {
 		return err
 	}
@@ -509,13 +507,14 @@ func (b *BackTest) handleEvent(e interfaces.EventHandler) error {
 		}
 		b.EventQueue = append(b.EventQueue, o)
 
-	case internalordermanager.OrderEvent:
-		f, err := b.Exchange.ExecuteOrder(event, b.Data)
+	case exchange.OrderEvent:
+		fillEvent, err := b.Exchange.ExecuteOrder(event, b.Data)
 		if err != nil {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
 			break
 		}
-		b.EventQueue = append(b.EventQueue, f)
+		b.Compliance.GetSnapshot(fillEvent.Time)
+		b.EventQueue = append(b.EventQueue, fillEvent)
 	case fill.FillEvent:
 		t, err := b.Portfolio.OnFill(event, b.Data)
 		if err != nil {

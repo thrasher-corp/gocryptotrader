@@ -1,4 +1,4 @@
-package positions
+package position
 
 import (
 	"github.com/shopspring/decimal"
@@ -9,29 +9,29 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (p *Positions) Create(fill fill.FillEvent) {
+func (p *Position) Create(fill fill.FillEvent) {
 	p.Timestamp = fill.GetTime()
 	p.Pair = fill.Pair()
 
 	p.update(fill)
 }
 
-func (p *Positions) Update(fill fill.FillEvent) {
+func (p *Position) Update(fill fill.FillEvent) {
 	p.Timestamp = fill.GetTime()
 
 	p.update(fill)
 }
 
-func (p *Positions) UpdateValue(data interfaces.DataEventHandler) {
+func (p *Position) UpdateValue(data interfaces.DataEventHandler) {
 	p.Timestamp = data.GetTime()
 
 	latest := data.Price()
 	p.updateValue(latest)
 }
 
-func (p *Positions) update(fill fill.FillEvent) {
+func (p *Position) update(fill fill.FillEvent) {
 	fillAmount := decimal.NewFromFloat(fill.GetAmount())
-	fillPrice := decimal.NewFromFloat(fill.GetPrice())
+	fillPrice := decimal.NewFromFloat(fill.GetClosePrice())
 	fillExchangeFee := decimal.NewFromFloat(fill.GetExchangeFee())
 	fillNetValue := decimal.NewFromFloat(fill.NetValue())
 
@@ -113,10 +113,10 @@ func (p *Positions) update(fill fill.FillEvent) {
 	p.CostBasis, _ = costBasis.Round(common.DecimalPlaces).Float64()
 	p.RealProfitLoss, _ = realProfitLoss.Round(common.DecimalPlaces).Float64()
 
-	p.updateValue(fill.GetPrice())
+	p.updateValue(fill.GetClosePrice())
 }
 
-func (p *Positions) updateValue(l float64) {
+func (p *Position) updateValue(l float64) {
 	latest := decimal.NewFromFloat(l)
 	amount := decimal.NewFromFloat(p.Amount)
 	costBasis := decimal.NewFromFloat(p.CostBasis)

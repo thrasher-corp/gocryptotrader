@@ -7,7 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
-	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
+	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/position"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -15,7 +15,7 @@ func TestPortfolio_IsLong(t *testing.T) {
 	type fields struct {
 		initialFunds float64
 		funds        float64
-		holdings     map[currency.Pair]positions.Positions
+		holdings     map[currency.Pair]position.Position
 		transactions []fill.FillEvent
 		sizeManager  SizeHandler
 		riskManager  risk.RiskHandler
@@ -27,20 +27,20 @@ func TestPortfolio_IsLong(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		wantPos positions.Positions
+		wantPos position.Position
 		wantOk  bool
 	}{
 		{
 			"IsLong - false",
 			fields{},
 			args{},
-			positions.Positions{},
+			position.Position{},
 			false,
 		},
 		{
 			"IsLong - true",
 			fields{
-				holdings: map[currency.Pair]positions.Positions{
+				holdings: map[currency.Pair]position.Position{
 					currency.NewPair(currency.BTC, currency.USDT): {
 						Timestamp:          time.Time{},
 						Pair:               currency.Pair{},
@@ -59,7 +59,6 @@ func TestPortfolio_IsLong(t *testing.T) {
 						NetValueSold:       0,
 						MarketPrice:        0,
 						MarketValue:        0,
-						Commission:         0,
 						ExchangeFee:        0,
 						Cost:               0,
 						CostBasis:          0,
@@ -70,7 +69,7 @@ func TestPortfolio_IsLong(t *testing.T) {
 				},
 			},
 			args{},
-			positions.Positions{},
+			position.Position{},
 			false,
 		},
 	}
@@ -80,7 +79,6 @@ func TestPortfolio_IsLong(t *testing.T) {
 			p := &Portfolio{
 				InitialFunds: test.fields.initialFunds,
 				Funds:        test.fields.funds,
-				Holdings:     test.fields.holdings,
 				Transactions: test.fields.transactions,
 				SizeManager:  test.fields.sizeManager,
 				RiskManager:  test.fields.riskManager,

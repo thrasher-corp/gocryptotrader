@@ -93,7 +93,7 @@ func (s *Statistic) ReturnResults() Results {
 		results.Transactions = append(results.Transactions, ResultTransactions{
 			Time:      s.Transactions()[v].GetTime(),
 			Direction: s.Transactions()[v].GetDirection(),
-			Price:     s.Transactions()[v].GetPrice(),
+			Price:     s.Transactions()[v].GetClosePrice(),
 			Amount:    s.Transactions()[v].GetAmount(),
 			Why:       s.Transactions()[v].GetWhy(),
 		})
@@ -124,9 +124,9 @@ func (s *Statistic) PrintResult() {
 		sb.WriteString(fmt.Sprintf("%v\t", v.GetDirection()))
 		if v.GetDirection() != common.DoNothing {
 			sb.WriteString(fmt.Sprintf("%f @ ", roundIt(v.GetAmount())))
-			sb.WriteString(fmt.Sprintf("$%f\t", roundIt(v.GetPrice())))
+			sb.WriteString(fmt.Sprintf("$%f\t", roundIt(v.GetClosePrice())))
 			sb.WriteString(fmt.Sprintf("Fee: $%f\t", roundIt(v.GetExchangeFee())))
-			sb.WriteString(fmt.Sprintf("Cost Basis: %f\t", roundIt(v.GetPrice()*v.GetAmount()+v.GetExchangeFee())))
+			sb.WriteString(fmt.Sprintf("Cost Basis: %f\t", roundIt(v.GetClosePrice()*v.GetAmount()+v.GetExchangeFee())))
 		} else {
 			sb.WriteString("\t\t\t")
 		}

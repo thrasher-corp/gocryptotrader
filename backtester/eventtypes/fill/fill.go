@@ -27,8 +27,8 @@ func (f *Fill) GetWhy() string {
 	return f.Why
 }
 
-func (f *Fill) GetPrice() float64 {
-	return f.Price
+func (f *Fill) GetClosePrice() float64 {
+	return f.ClosePrice
 }
 
 func (f *Fill) GetExchangeFee() float64 {
@@ -41,14 +41,14 @@ func (f *Fill) SetExchangeFee(fee float64) {
 
 func (f *Fill) Value() float64 {
 	amount := decimal.NewFromFloat(f.Amount)
-	price := decimal.NewFromFloat(f.Price)
+	price := decimal.NewFromFloat(f.PurchasePrice)
 	value, _ := amount.Mul(price).Round(common.DecimalPlaces).Float64()
 	return value
 }
 
 func (f *Fill) NetValue() float64 {
 	amount := decimal.NewFromFloat(f.Amount)
-	price := decimal.NewFromFloat(f.Price)
+	price := decimal.NewFromFloat(f.PurchasePrice)
 	fee := decimal.NewFromFloat(f.ExchangeFee)
 	if f.Direction == order.Buy {
 		netValue, _ := amount.Mul(price).Add(fee).Round(common.DecimalPlaces).Float64()

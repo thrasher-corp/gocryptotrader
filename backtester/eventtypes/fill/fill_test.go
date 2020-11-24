@@ -181,8 +181,8 @@ func TestFill_GetPrice(t *testing.T) {
 				ExchangeFee: test.fields.ExchangeFee,
 				Cost:        test.fields.Cost,
 			}
-			if got := f.GetPrice(); got != test.want {
-				t.Errorf("GetPrice() = %v, want %v", got, test.want)
+			if got := f.GetClosePrice(); got != test.want {
+				t.Errorf("GetClosePrice() = %v, want %v", got, test.want)
 			}
 		})
 	}

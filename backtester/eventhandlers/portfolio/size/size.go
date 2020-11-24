@@ -8,11 +8,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (s *Size) SizeOrder(o internalordermanager.OrderEvent, _ interfaces.DataEventHandler, availableFunds float64, cs *exchange.CurrencySettings) (*order.Order, error) {
+func (s *Size) SizeOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, availableFunds float64, cs *exchange.CurrencySettings) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 
 	switch retOrder.GetDirection() {

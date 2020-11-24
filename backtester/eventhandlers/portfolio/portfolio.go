@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
+	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/position"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -95,7 +95,7 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (
 	if !holdings.Timestamp.IsZero() {
 		holdings.Update(fillEvent)
 	} else {
-		holdings = positions.Positions{}
+		holdings = position.Position{}
 		holdings.Create(fillEvent)
 	}
 	p.SetHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), holdings)
@@ -133,7 +133,7 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 	return p.Fees[exchangeName][a][cp]
 }
 
-func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (pos positions.Positions, ok bool) {
+func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (pos position.Position, ok bool) {
 	pos = p.ViewHoldings(exchangeName, a, cp)
 	if ok && (pos.Amount != 0) {
 		return pos, true
@@ -141,7 +141,7 @@ func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pa
 	return pos, false
 }
 
-func (p *Portfolio) IsLong(exchangeName string, a asset.Item, cp currency.Pair) (pos positions.Positions, ok bool) {
+func (p *Portfolio) IsLong(exchangeName string, a asset.Item, cp currency.Pair) (pos position.Position, ok bool) {
 	pos = p.ViewHoldings(exchangeName, a, cp)
 	if ok && (pos.Amount > 0) {
 		return pos, true
@@ -149,7 +149,7 @@ func (p *Portfolio) IsLong(exchangeName string, a asset.Item, cp currency.Pair) 
 	return pos, false
 }
 
-func (p *Portfolio) IsShort(exchangeName string, a asset.Item, cp currency.Pair) (pos positions.Positions, ok bool) {
+func (p *Portfolio) IsShort(exchangeName string, a asset.Item, cp currency.Pair) (pos position.Position, ok bool) {
 	pos = p.ViewHoldings(exchangeName, a, cp)
 	if ok && (pos.Amount < 0) {
 		return pos, true
@@ -197,20 +197,20 @@ func (p *Portfolio) Value() float64 {
 	return value
 }
 
-func (p *Portfolio) ViewHoldings(exchangeName string, a asset.Item, cp currency.Pair) positions.Positions {
+func (p *Portfolio) ViewHoldings(exchangeName string, a asset.Item, cp currency.Pair) []position.Position {
 	return p.Holdings[exchangeName][a][cp]
 }
 
-func (p *Portfolio) SetHoldings(exchangeName string, a asset.Item, cp currency.Pair, pos positions.Positions) {
+func (p *Portfolio) SetHoldings(exchangeName string, a asset.Item, cp currency.Pair, pos position.Position) {
 	if p.Holdings == nil {
-		p.Holdings = make(map[string]map[asset.Item]map[currency.Pair]positions.Positions)
+		p.Holdings = make(map[string]map[asset.Item]map[currency.Pair][]position.Position)
 	}
 	if p.Holdings[exchangeName] == nil {
-		p.Holdings[exchangeName] = make(map[asset.Item]map[currency.Pair]positions.Positions)
+		p.Holdings[exchangeName] = make(map[asset.Item]map[currency.Pair][]position.Position)
 	}
 	if p.Holdings[exchangeName][a] == nil {
-		p.Holdings[exchangeName][a] = make(map[currency.Pair]positions.Positions)
+		p.Holdings[exchangeName][a] = make(map[currency.Pair][]position.Position)
 	}
 
-	p.Holdings[exchangeName][a][cp] = pos
+	p.Holdings[exchangeName][a][cp] = append(p.Holdings[exchangeName][a][cp], pos)
 }

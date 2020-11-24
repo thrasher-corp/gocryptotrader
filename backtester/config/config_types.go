@@ -57,6 +57,9 @@ type ExchangeSettings struct {
 	BuySide  MinMax   `json:"buy-side"`
 	SellSide MinMax   `json:"sell-side"`
 
+	MinimumSlippagePercent float64 `json:min-slippage-percent`
+	MaximumSlippagePercent float64 `json:max-slippage-percent`
+
 	MakerFee float64 `json:"maker-fee-override"`
 	TakerFee float64 `json:"taker-fee-override"`
 }

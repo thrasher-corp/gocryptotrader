@@ -173,7 +173,7 @@ func TestSignal_GetPrice(t *testing.T) {
 				Direction: tt.fields.Direction,
 			}
 			if got := s.GetPrice(); got != tt.want {
-				t.Errorf("GetPrice() = %v, want %v", got, tt.want)
+				t.Errorf("GetClosePrice() = %v, want %v", got, tt.want)
 			}
 		})
 	}

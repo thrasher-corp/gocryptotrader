@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -40,7 +39,7 @@ func (e *Exchange) ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, vo
 	return slippagePrice, amount
 }
 
-func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfaces.DataHandler) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fill.Fill, error) {
 	fillEvent := &fill.Fill{
 		Event: event.Event{
 			Exchange:     o.GetExchange(),
@@ -67,7 +66,7 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 		estimatedPrice = fillEvent.Price * slippageRate
 	} else {
 		// provide n history and estimate volatility
-		slippageRate = slippage.EstimateSlippagePercentage()
+		slippageRate = slippage.EstimateSlippagePercentage(e.MinimumSlippageRate, e.MaximumSlippageRate)
 		estimatedPrice = fillEvent.Price * slippageRate
 		high := data.StreamHigh()
 		low := data.StreamLow()
@@ -92,6 +91,7 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 		Pair:        o.Pair(),
 		Type:        gctorder.Market,
 	}
+
 	if e.UseRealOrders {
 		resp, err := engine.Bot.OrderManager.Submit(o2)
 		if err != nil {
@@ -114,27 +114,12 @@ func (e *Exchange) ExecuteOrder(o internalordermanager.OrderEvent, data interfac
 		}
 		orderID = resp.OrderID
 	}
-	_ = orderID
-	/*
-		e.InternalOrderManager.Add(&order.Order{
-			Event: event.Event{
-				Exchange:     o.GetExchange(),
-				Time:         o.GetTime(),
-				CurrencyPair: o.Pair(),
-				AssetType:    o.GetAssetType(),
-				MakerFee:     e.CurrencySettings.MakerFee,
-				TakerFee:     e.CurrencySettings.TakerFee,
-				FeeRate:      e.CurrencySettings.ExchangeFee,
-			},
-			Why:       o.GetWhy(),
-			ID:        orderID,
-			Direction: fillEvent.Direction,
-			Status:    o.GetStatus(),
-			Price:     fillEvent.Price,
-			Amount:    fillEvent.Amount,
-			OrderType: gctorder.Market,
-		})
-	*/
+	od, err := engine.Bot.OrderManager.GetOrderInfo(o.GetExchange(), orderID, o.Pair(), o.GetAssetType())
+	if err != nil {
+		return nil, err
+	}
+	fillEvent.Order = &od
+
 	return fillEvent, nil
 }
 

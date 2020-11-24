@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/internalordermanager"
-	"github.com/thrasher-corp/gocryptotrader/backtester/positions"
+	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/position"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -16,7 +16,7 @@ import (
 
 // EvaluateOrder goes through a standard list of evaluations to make to ensure that
 // we are in a position to follow through with an order
-func (r *Risk) EvaluateOrder(o internalordermanager.OrderEvent, _ interfaces.DataEventHandler, _ positions.Positions, allPositions map[string]map[asset.Item]map[currency.Pair]positions.Positions) (*order.Order, error) {
+func (r *Risk) EvaluateOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, _ position.Position, allPositions map[string]map[asset.Item]map[currency.Pair]position.Position) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 	if o.IsLeveraged() {
 		if !r.CanUseLeverage {
@@ -52,7 +52,7 @@ func existingLeverageRatio() float64 {
 	return ordersWithLeverage / float64(len(os))
 }
 
-func areWeAllIn(o internalordermanager.OrderEvent) error {
+func areWeAllIn(o exchange.OrderEvent) error {
 	os, _ := engine.Bot.OrderManager.GetOrdersSnapshot(gctorder.AnyStatus)
 	if len(os) == 0 {
 		return nil
