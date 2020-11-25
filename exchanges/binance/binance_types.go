@@ -1,9 +1,11 @@
 package binance
 
 import (
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Response holds basic binance api response data
@@ -721,4 +723,23 @@ type WsPayload struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
 	ID     int64    `json:"id"`
+}
+
+// orderbookManager defines a way of managing and maintaining synchronisation
+// across connections and assets.
+type orderbookManager struct {
+	buffer map[currency.Code]map[currency.Code]map[asset.Item]chan *WebsocketDepthStream
+	bmtx   sync.Mutex
+
+	fetchingBook map[currency.Code]map[currency.Code]map[asset.Item]*bool
+	initialSync  map[currency.Code]map[currency.Code]map[asset.Item]*bool
+	fmtx         sync.Mutex
+
+	jobs chan orderbookWsJob
+}
+
+// orderbookWsJob defines a synchonisation job that tells a go routine to fetch
+// an orderbook by the REST protocol
+type orderbookWsJob struct {
+	Pair currency.Pair
 }
