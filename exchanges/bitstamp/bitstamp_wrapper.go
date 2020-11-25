@@ -398,6 +398,11 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (b *Bitstamp) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitstamp) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error

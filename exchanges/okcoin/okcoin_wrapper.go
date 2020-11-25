@@ -464,6 +464,11 @@ func (o *OKCoin) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 	return ret, nil
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (o *OKCoin) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error

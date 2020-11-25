@@ -607,6 +607,19 @@ type WithdrawResponse struct {
 	ID      string `json:"id"`
 }
 
+// WithdrawStatusResponse defines a withdrawal status response
+type WithdrawStatusResponse struct {
+	Amount         float64 `json:"amount"`
+	TransactionFee float64 `json:"transactionFee"`
+	Address        string  `json:"address"`
+	TxID           string  `json:"txId"`
+	ID             string  `json:"id"`
+	Asset          string  `json:"asset"`
+	ApplyTime      int64   `json:"applyTime"`
+	Status         int64   `json:"status"`
+	Network        string  `json:"network"`
+}
+
 // UserAccountStream contains a key to maintain an authorised
 // websocket connection
 type UserAccountStream struct {

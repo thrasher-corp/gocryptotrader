@@ -746,6 +746,24 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 	return resp.ID, nil
 }
 
+// WithdrawStatus gets the status of recent withdrawals
+func (b *Binance) WithdrawStatus(c currency.Code) ([]WithdrawStatusResponse, error) {
+	var response struct {
+		Success      bool                     `json:"success"`
+		WithdrawList []WithdrawStatusResponse `json:"withdrawList"`
+	}
+
+	path := b.API.Endpoints.URL + withdrawalHistory
+	params := url.Values{}
+	params.Set("asset", c.String())
+
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Unset, &response); err != nil {
+		return response.WithdrawList, err
+	}
+
+	return response.WithdrawList, nil
+}
+
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
 func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) {
 	path := b.API.Endpoints.URL + depositAddress
