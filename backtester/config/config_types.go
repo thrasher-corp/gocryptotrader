@@ -46,7 +46,11 @@ type MinMax struct {
 // It contains rules about the specific currency pair
 // you wish to trade with
 type ExchangeSettings struct {
-	Name  string `json:"exchange-name"`
+	Name             string `json:"exchange-name"`
+	CurrencySettings []CurrencySettings
+}
+
+type CurrencySettings struct {
 	Asset string `json:"asset"`
 	Base  string `json:"base"`
 	Quote string `json:"quote"`

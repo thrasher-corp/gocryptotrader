@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -42,6 +43,7 @@ type EventHandler interface {
 	GetTime() time.Time
 	Pair() currency.Pair
 	GetExchange() string
+	GetInterval() kline.Interval
 	GetAssetType() asset.Item
 }
 

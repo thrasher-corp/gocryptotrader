@@ -2,7 +2,9 @@ package portfolio
 
 import (
 	"errors"
+	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -18,13 +20,21 @@ var NotEnoughFundsErr = errors.New("not enough funds to buy")
 var NoHoldingsToSellErr = errors.New("no holdings to sell")
 
 type Portfolio struct {
-	InitialFunds float64
-	Funds        float64
-	Holdings     map[string]map[asset.Item]map[currency.Pair][]position.Position
-	Transactions []fill.FillEvent
-	SizeManager  SizeHandler
-	RiskManager  risk.RiskHandler
-	Fees         map[string]map[asset.Item]map[currency.Pair]float64
+	Transactions              []fill.FillEvent
+	SizeManager               SizeHandler
+	RiskManager               risk.RiskHandler
+	ExchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*ExchangeAssetPairSettings
+}
+
+type ExchangeAssetPairSettings struct {
+	InitialFunds      float64
+	Fee               float64
+	Funds             float64
+	Holdings          position.Snapshots
+	BuySideSizing     config.MinMax
+	SellSideSizing    config.MinMax
+	Leverage          config.Leverage
+	PositionSnapshots position.Snapshots
 }
 
 type PortfolioHandler interface {
@@ -32,14 +42,13 @@ type PortfolioHandler interface {
 	OnFill(fill.FillEvent, interfaces.DataHandler) (*fill.Fill, error)
 	Update(interfaces.DataEventHandler)
 
-	SetInitialFunds(float64)
-	GetInitialFunds() float64
-	SetFunds(float64)
-	GetFunds() float64
+	SetInitialFunds(string, asset.Item, currency.Pair, float64)
+	GetInitialFunds(string, asset.Item, currency.Pair) float64
+	SetFunds(string, asset.Item, currency.Pair, float64)
+	GetFunds(string, asset.Item, currency.Pair) float64
 
-	Value() float64
-	SetHoldings(string, asset.Item, currency.Pair, position.Position)
-	ViewHoldings(string, asset.Item, currency.Pair) *position.PositionManager
+	SetHoldings(string, asset.Item, currency.Pair, time.Time, position.Position, bool) error
+	ViewHoldings(string, asset.Item, currency.Pair, time.Time) (position.Position, error)
 	SetFee(string, asset.Item, currency.Pair, float64)
 	GetFee(string, asset.Item, currency.Pair) float64
 	Reset()

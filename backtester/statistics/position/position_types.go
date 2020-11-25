@@ -2,18 +2,14 @@ package position
 
 import (
 	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-type PositionManager struct {
+type Snapshots struct {
 	Positions []Position
 }
 
 type Position struct {
-	InitialFunds       float64
 	Timestamp          time.Time
-	Pair               currency.Pair
 	Amount             float64
 	AmountBought       float64
 	AmountSold         float64

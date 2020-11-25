@@ -31,6 +31,14 @@ func (f *Fill) GetClosePrice() float64 {
 	return f.ClosePrice
 }
 
+func (f *Fill) GetVolumeAdjustedPrice() float64 {
+	return f.VolumeAdjustedPrice
+}
+
+func (f *Fill) GetPurchasePrice() float64 {
+	return f.PurchasePrice
+}
+
 func (f *Fill) GetExchangeFee() float64 {
 	return f.ExchangeFee
 }

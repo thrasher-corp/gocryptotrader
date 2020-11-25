@@ -21,13 +21,13 @@ import (
 
 // Update Statistic for event
 func (s *Statistic) Update(d interfaces.DataEventHandler, p portfolio2.PortfolioHandler) {
-	if s.InitialBuy == 0 {
-		s.InitialBuy = p.GetInitialFunds() / d.Price()
+	if s.InitialBuy == 0 && d.Price() > 0 {
+		s.InitialBuy = p.GetInitialFunds(d.GetExchange(), d.GetAssetType(), d.Pair()) / d.Price()
 	}
 
 	e := EquityPoint{}
 	e.Timestamp = d.GetTime()
-	e.Equity = p.Value()
+	//e.Equity = p.Value()
 
 	e.BuyAndHoldValue = s.InitialBuy * d.Price()
 

@@ -11,7 +11,6 @@ import (
 
 func (p *Position) Create(fill fill.FillEvent) {
 	p.Timestamp = fill.GetTime()
-	p.Pair = fill.Pair()
 
 	p.update(fill)
 }

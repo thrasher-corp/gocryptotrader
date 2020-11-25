@@ -8,17 +8,36 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func (e *Exchange) SetCurrency(c CurrencySettings) {
-	e.CurrencySettings = c
+func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c CurrencySettings) {
+	for i := range e.CurrencySettings {
+		if e.CurrencySettings[i].CurrencyPair == cp {
+			if e.CurrencySettings[i].AssetType == a {
+				if exch == e.Name {
+					e.CurrencySettings[i] = c
+				}
+			}
+		}
+	}
 }
 
-func (e *Exchange) GetCurrency() CurrencySettings {
-	return e.CurrencySettings
+func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) CurrencySettings {
+	for i := range e.CurrencySettings {
+		if e.CurrencySettings[i].CurrencyPair == cp {
+			if e.CurrencySettings[i].AssetType == a {
+				if exch == e.Name {
+					return e.CurrencySettings[i]
+				}
+			}
+		}
+	}
+	return CurrencySettings{}
 }
 
 func (e *Exchange) ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (float64, float64) {
@@ -40,6 +59,7 @@ func (e *Exchange) ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, vo
 }
 
 func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fill.Fill, error) {
+	cs := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	fillEvent := &fill.Fill{
 		Event: event.Event{
 			Exchange:     o.GetExchange(),
@@ -49,8 +69,8 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 		},
 		Direction:   o.GetDirection(),
 		Amount:      o.GetAmount(),
-		Price:       data.Latest().Price(),
-		ExchangeFee: e.CurrencySettings.ExchangeFee, // defaulting to just using taker fee right now without orderbook
+		ClosePrice:  data.Latest().Price(),
+		ExchangeFee: cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
 		Why:         o.GetWhy(),
 	}
 	if o.GetAmount() <= 0 {
@@ -63,11 +83,11 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 		// get current orderbook
 		// calculate an estimated slippage rate
 		slippageRate = slippage.CalculateSlippage(nil)
-		estimatedPrice = fillEvent.Price * slippageRate
+		estimatedPrice = fillEvent.VolumeAdjustedPrice * slippageRate
 	} else {
 		// provide n history and estimate volatility
-		slippageRate = slippage.EstimateSlippagePercentage(e.MinimumSlippageRate, e.MaximumSlippageRate)
-		estimatedPrice = fillEvent.Price * slippageRate
+		slippageRate = slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate, o.GetDirection())
+		estimatedPrice = fillEvent.VolumeAdjustedPrice * slippageRate
 		high := data.StreamHigh()
 		low := data.StreamLow()
 		volume := data.StreamVol()
@@ -75,7 +95,7 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 		estimatedPrice, amount = e.ensureOrderFitsWithinHLV(estimatedPrice, o.GetAmount(), high[len(high)-1], low[len(low)-1], volume[len(volume)-1])
 	}
 
-	fillEvent.ExchangeFee = e.calculateExchangeFee(estimatedPrice, amount, e.CurrencySettings.ExchangeFee)
+	fillEvent.ExchangeFee = e.calculateExchangeFee(estimatedPrice, amount, cs.ExchangeFee)
 	u, _ := uuid.NewV4()
 	var orderID string
 	o2 := &gctorder.Submit{
@@ -119,6 +139,7 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 		return nil, err
 	}
 	fillEvent.Order = &od
+	fillEvent.PurchasePrice = od.Price
 
 	return fillEvent, nil
 }

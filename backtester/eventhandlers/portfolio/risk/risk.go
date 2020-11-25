@@ -8,15 +8,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/position"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // EvaluateOrder goes through a standard list of evaluations to make to ensure that
 // we are in a position to follow through with an order
-func (r *Risk) EvaluateOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, _ position.Position, allPositions map[string]map[asset.Item]map[currency.Pair]position.Position) (*order.Order, error) {
+func (r *Risk) EvaluateOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, pos position.Position) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 	if o.IsLeveraged() {
 		if !r.CanUseLeverage {

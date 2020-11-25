@@ -2,8 +2,8 @@ package portfolio
 
 import (
 	"errors"
-
-	"github.com/shopspring/decimal"
+	"sort"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -19,8 +19,7 @@ import (
 )
 
 func (p *Portfolio) Reset() {
-	p.Funds = 0
-	p.Holdings = nil
+	p.ExchangeAssetPairSettings = nil
 	p.Transactions = nil
 }
 
@@ -29,20 +28,26 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 		return &order.Order{}, errors.New("invalid Direction")
 	}
 
-	exchangeAssetPairHoldings := p.ViewHoldings(signal.GetExchange(), signal.GetAssetType(), signal.Pair())
-	currFunds := p.GetFunds()
+	exchangeAssetPairHoldings, _ := p.ViewHoldings(
+		signal.GetExchange(),
+		signal.GetAssetType(),
+		signal.Pair(),
+		signal.GetTime().Add(-signal.GetInterval().Duration()))
+	lookup := p.ExchangeAssetPairSettings[signal.GetExchange()][signal.GetAssetType()][signal.Pair()]
+	currFunds := lookup.GetFunds()
 
+	o := &order.Order{
+		Event: event.Event{
+			Exchange:     signal.GetExchange(),
+			Time:         signal.GetTime(),
+			CurrencyPair: signal.Pair(),
+			AssetType:    signal.GetAssetType(),
+		},
+		Direction: signal.GetDirection(),
+		Why:       signal.GetWhy(),
+	}
 	if signal.GetDirection() == common.DoNothing {
-		return &order.Order{
-			Event: event.Event{
-				Exchange:     signal.GetExchange(),
-				Time:         signal.GetTime(),
-				CurrencyPair: signal.Pair(),
-				AssetType:    signal.GetAssetType(),
-			},
-			Direction: signal.GetDirection(),
-			Why:       signal.GetWhy(),
-		}, nil
+		return o, nil
 	}
 
 	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && exchangeAssetPairHoldings.Amount <= signal.GetAmount() {
@@ -53,22 +58,12 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 		return nil, NotEnoughFundsErr
 	}
 
-	initialOrder := &order.Order{
-		Event: event.Event{
-			Exchange:     signal.GetExchange(),
-			Time:         signal.GetTime(),
-			CurrencyPair: signal.Pair(),
-			AssetType:    signal.GetAssetType(),
-		},
-		Direction: signal.GetDirection(),
-		Price:     signal.GetPrice(),
-		Amount:    signal.GetAmount(),
-		OrderType: gctorder.Market,
-		Why:       signal.GetWhy(),
-	}
+	o.Price = signal.GetPrice()
+	o.Amount = signal.GetAmount()
+	o.OrderType = gctorder.Market
 	latest := data.Latest()
 	sizedOrder, err := p.SizeManager.SizeOrder(
-		initialOrder,
+		o,
 		latest,
 		currFunds,
 		cs,
@@ -77,12 +72,12 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 		return nil, err
 	}
 
-	o, err := p.RiskManager.EvaluateOrder(sizedOrder, latest, exchangeAssetPairHoldings, p.Holdings)
+	eo, err := p.RiskManager.EvaluateOrder(sizedOrder, latest, exchangeAssetPairHoldings)
 	if err != nil {
 		return nil, err
 	}
 
-	return o, nil
+	return eo, nil
 }
 
 func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (*fill.Fill, error) {
@@ -91,19 +86,19 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (
 		what.ExchangeFee = 0
 		return what, nil
 	}
-	holdings := p.ViewHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair())
+	holdings := p.ViewHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()))
 	if !holdings.Timestamp.IsZero() {
 		holdings.Update(fillEvent)
 	} else {
 		holdings = position.Position{}
 		holdings.Create(fillEvent)
 	}
-	p.SetHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), holdings)
+	p.SetHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime(), holdings, false)
 
 	if fillEvent.GetDirection() == gctorder.Buy {
-		p.Funds -= fillEvent.NetValue()
+		p.ExchangeAssetPairSettings[fillEvent.GetExchange()][fillEvent.GetAssetType()][fillEvent.Pair()].Funds -= fillEvent.NetValue()
 	} else if fillEvent.GetDirection() == gctorder.Sell || fillEvent.GetDirection() == gctorder.Ask {
-		p.Funds += fillEvent.NetValue()
+		p.ExchangeAssetPairSettings[fillEvent.GetExchange()][fillEvent.GetAssetType()][fillEvent.Pair()].Funds += fillEvent.NetValue()
 	}
 
 	p.Transactions = append(p.Transactions, fillEvent)
@@ -115,102 +110,115 @@ func (p *Portfolio) SetSizeManager(size SizeHandler) {
 	p.SizeManager = size
 }
 
-func (p *Portfolio) SetFee(exchangeName string, a asset.Item, cp currency.Pair, fee float64) {
-	if p.Fees == nil {
-		p.Fees = make(map[string]map[asset.Item]map[currency.Pair]float64)
-	}
-	if p.Fees[exchangeName] == nil {
-		p.Fees[exchangeName] = make(map[asset.Item]map[currency.Pair]float64)
-	}
-	if p.Fees[exchangeName][a] == nil {
-		p.Fees[exchangeName][a] = make(map[currency.Pair]float64)
-	}
-	p.Fees[exchangeName][a][cp] = fee
+func (p *Portfolio) SetFee(exch string, a asset.Item, cp currency.Pair, fee float64) {
+	lookup := p.ExchangeAssetPairSettings[exch][a][cp]
+	lookup.Fee = fee
 }
 
 // GetFee can panic for bad requests, but why are you getting things that don't exist?
 func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) float64 {
-	return p.Fees[exchangeName][a][cp]
+	return p.ExchangeAssetPairSettings[exchangeName][a][cp].Fee
 }
 
 func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (pos position.Position, ok bool) {
-	pos = p.ViewHoldings(exchangeName, a, cp)
-	if ok && (pos.Amount != 0) {
-		return pos, true
+	holdings := p.ExchangeAssetPairSettings[exchangeName][a][cp].GetLatestHoldings()
+	if ok && (holdings.Amount != 0) {
+		return holdings, true
 	}
-	return pos, false
-}
-
-func (p *Portfolio) IsLong(exchangeName string, a asset.Item, cp currency.Pair) (pos position.Position, ok bool) {
-	pos = p.ViewHoldings(exchangeName, a, cp)
-	if ok && (pos.Amount > 0) {
-		return pos, true
-	}
-	return pos, false
-}
-
-func (p *Portfolio) IsShort(exchangeName string, a asset.Item, cp currency.Pair) (pos position.Position, ok bool) {
-	pos = p.ViewHoldings(exchangeName, a, cp)
-	if ok && (pos.Amount < 0) {
-		return pos, true
-	}
-	return pos, false
+	return holdings, false
 }
 
 func (p *Portfolio) Update(d interfaces.DataEventHandler) {
 	if pos, ok := p.IsInvested(d.GetExchange(), d.GetAssetType(), d.Pair()); ok {
 		pos.UpdateValue(d)
-		p.SetHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), pos)
+		p.SetHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), d.GetTime(), pos, false)
 	}
 }
 
-func (p *Portfolio) SetInitialFunds(initial float64) {
-	p.InitialFunds = initial
-}
-
-func (p *Portfolio) GetInitialFunds() float64 {
-	return p.InitialFunds
-}
-
-func (p *Portfolio) SetFunds(funds float64) {
-	p.Funds = funds
-}
-
-func (p *Portfolio) GetFunds() float64 {
-	return p.Funds
-}
-
-func (p *Portfolio) Value() float64 {
-	holdingValue := decimal.NewFromFloat(0)
-	for i := range p.Holdings {
-		for j := range p.Holdings[i] {
-			for k := range p.Holdings[i][j] {
-				marketValue := decimal.NewFromFloat(p.Holdings[i][j][k].MarketValue)
-				holdingValue = holdingValue.Add(marketValue)
-
-			}
+func (p *Portfolio) ViewHoldings(exch string, a asset.Item, cp currency.Pair, t time.Time) (position.Position, error) {
+	exchangeAssetPairSettings := p.ExchangeAssetPairSettings[exch][a][cp]
+	for i := range exchangeAssetPairSettings.PositionSnapshots.Positions {
+		if t.Equal(exchangeAssetPairSettings.PositionSnapshots.Positions[i].Timestamp) {
+			return exchangeAssetPairSettings.PositionSnapshots.Positions[i], nil
 		}
 	}
 
-	funds := decimal.NewFromFloat(p.Funds)
-	value, _ := funds.Add(holdingValue).Round(4).Float64()
-	return value
+	return position.Position{}, nil
 }
 
-func (p *Portfolio) ViewHoldings(exchangeName string, a asset.Item, cp currency.Pair) []position.Position {
-	return p.Holdings[exchangeName][a][cp]
+func (p *Portfolio) SetInitialFunds(exch string, a asset.Item, cp currency.Pair, funds float64) {
+	p.ExchangeAssetPairSettings[exch][a][cp].InitialFunds = funds
 }
 
-func (p *Portfolio) SetHoldings(exchangeName string, a asset.Item, cp currency.Pair, pos position.Position) {
-	if p.Holdings == nil {
-		p.Holdings = make(map[string]map[asset.Item]map[currency.Pair][]position.Position)
+func (p *Portfolio) GetInitialFunds(exch string, a asset.Item, cp currency.Pair) float64 {
+	return p.ExchangeAssetPairSettings[exch][a][cp].InitialFunds
+}
+
+func (p *Portfolio) SetFunds(exch string, a asset.Item, cp currency.Pair, funds float64) {
+	p.ExchangeAssetPairSettings[exch][a][cp].Funds = funds
+}
+
+func (p *Portfolio) GetFunds(exch string, a asset.Item, cp currency.Pair) float64 {
+	return p.ExchangeAssetPairSettings[exch][a][cp].Funds
+}
+
+func (p *Portfolio) SetHoldings(exch string, a asset.Item, cp currency.Pair, t time.Time, pos position.Position, force bool) error {
+	lookup := p.ExchangeAssetPairSettings[exch][a][cp]
+	found := false
+	for i := range lookup.Holdings.Positions {
+		if lookup.Holdings.Positions[i].Timestamp.Equal(t) {
+			found = true
+		}
 	}
-	if p.Holdings[exchangeName] == nil {
-		p.Holdings[exchangeName] = make(map[asset.Item]map[currency.Pair][]position.Position)
+	if !found {
+		lookup.Holdings.Positions = append(lookup.Holdings.Positions, pos)
+		p.ExchangeAssetPairSettings[exch][a][cp] = lookup
 	}
-	if p.Holdings[exchangeName][a] == nil {
-		p.Holdings[exchangeName][a] = make(map[currency.Pair][]position.Position)
+	return nil
+}
+
+func (p *Portfolio) SetupExchangeAssetPairMap(exch string, a asset.Item, cp currency.Pair) *ExchangeAssetPairSettings {
+	if p.ExchangeAssetPairSettings == nil {
+		p.ExchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*ExchangeAssetPairSettings)
+	}
+	if p.ExchangeAssetPairSettings[exch] == nil {
+		p.ExchangeAssetPairSettings[exch] = make(map[asset.Item]map[currency.Pair]*ExchangeAssetPairSettings)
+	}
+	if p.ExchangeAssetPairSettings[exch][a] == nil {
+		p.ExchangeAssetPairSettings[exch][a] = make(map[currency.Pair]*ExchangeAssetPairSettings)
+	}
+	if _, ok := p.ExchangeAssetPairSettings[exch][a][cp]; !ok {
+		p.ExchangeAssetPairSettings[exch][a][cp] = &ExchangeAssetPairSettings{}
 	}
 
-	p.Holdings[exchangeName][a][cp] = append(p.Holdings[exchangeName][a][cp], pos)
+	return p.ExchangeAssetPairSettings[exch][a][cp]
+}
+
+func (e *ExchangeAssetPairSettings) GetLatestHoldings() position.Position {
+	sort.SliceStable(e.Holdings.Positions, func(i, j int) bool {
+		return e.Holdings.Positions[i].Timestamp.Before(e.Holdings.Positions[j].Timestamp)
+	})
+
+	return e.Holdings.Positions[len(e.Holdings.Positions)-1]
+}
+
+func (e *ExchangeAssetPairSettings) SetInitialFunds(initial float64) {
+	e.InitialFunds = initial
+}
+
+func (e *ExchangeAssetPairSettings) GetInitialFunds() float64 {
+	return e.InitialFunds
+}
+
+func (e *ExchangeAssetPairSettings) SetFunds(funds float64) {
+	e.Funds = funds
+}
+
+func (e *ExchangeAssetPairSettings) GetFunds() float64 {
+	return e.Funds
+}
+
+func (e *ExchangeAssetPairSettings) Value() float64 {
+	latest := e.GetLatestHoldings()
+	return latest.Value
 }

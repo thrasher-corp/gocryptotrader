@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
@@ -63,14 +64,20 @@ func (b *BackTest) PrintSettings(cfg *config.Config) {
 	log.Info(log.BackTester, "------------------Exchange Settings--------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Infof(log.BackTester, "Exchange: %s", cfg.ExchangeSettings.Name)
-	log.Infof(log.BackTester, "Asset type: %s", cfg.ExchangeSettings.Asset)
-	log.Infof(log.BackTester, "Currency: %s-%s", cfg.ExchangeSettings.Base, cfg.ExchangeSettings.Quote)
-	log.Infof(log.BackTester, "Initial funds: %v", cfg.ExchangeSettings.InitialFunds)
-	log.Infof(log.BackTester, "Maker fee: %v", cfg.ExchangeSettings.TakerFee)
-	log.Infof(log.BackTester, "Taker fee: %v", cfg.ExchangeSettings.MakerFee)
-	log.Infof(log.BackTester, "Buy rules: %+v", cfg.ExchangeSettings.BuySide)
-	log.Infof(log.BackTester, "Sell rules: %+v", cfg.ExchangeSettings.SellSide)
-	log.Infof(log.BackTester, "Leverage rules: %+v", cfg.ExchangeSettings.Leverage)
+	for i := range cfg.ExchangeSettings.CurrencySettings {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "------------------%v %v-%v Settings--------------------------",
+			cfg.ExchangeSettings.CurrencySettings[i].Asset,
+			cfg.ExchangeSettings.CurrencySettings[i].Base,
+			cfg.ExchangeSettings.CurrencySettings[i].Quote)
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Initial funds: %v", cfg.ExchangeSettings.CurrencySettings[i].InitialFunds)
+		log.Infof(log.BackTester, "Maker fee: %v", cfg.ExchangeSettings.CurrencySettings[i].TakerFee)
+		log.Infof(log.BackTester, "Taker fee: %v", cfg.ExchangeSettings.CurrencySettings[i].MakerFee)
+		log.Infof(log.BackTester, "Buy rules: %+v", cfg.ExchangeSettings.CurrencySettings[i].BuySide)
+		log.Infof(log.BackTester, "Sell rules: %+v", cfg.ExchangeSettings.CurrencySettings[i].SellSide)
+		log.Infof(log.BackTester, "Leverage rules: %+v", cfg.ExchangeSettings.CurrencySettings[i].Leverage)
+	}
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
@@ -122,76 +129,30 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 		return nil, err
 	}
 
-	exch, fPair, a, err := bt.loadExchangePairAssetBase(cfg)
+	exchangeroo, err := bt.setupExchangeSettings(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	bt.Data, err = loadData(cfg, exch, fPair, a)
-	if err != nil {
-		return nil, err
-	}
+	bt.Exchange = &exchangeroo
 
-	var makerFee, takerFee float64
-	makerFee, takerFee, err = getFees(exch, fPair)
-	if err != nil {
-		return nil, err
-	}
-	if cfg.ExchangeSettings.MakerFee > 0 {
-		makerFee = cfg.ExchangeSettings.MakerFee
-	}
-	if cfg.ExchangeSettings.TakerFee > 0 {
-		takerFee = cfg.ExchangeSettings.TakerFee
-	}
-
-	var useRealOrders bool
-	if cfg.LiveData != nil {
-		useRealOrders = cfg.LiveData.RealOrders
-	}
-	bt.Exchange = &exchange.Exchange{
-		UseRealOrders: useRealOrders,
-		CurrencySettings: exchange.CurrencySettings{
-			CurrencyPair: fPair,
-			AssetType:    a,
-			ExchangeFee:  takerFee,
-			MakerFee:     takerFee,
-			TakerFee:     makerFee,
-			BuySide: config.MinMax{
-				MinimumSize:  cfg.ExchangeSettings.BuySide.MinimumSize,
-				MaximumSize:  cfg.ExchangeSettings.BuySide.MaximumSize,
-				MaximumTotal: cfg.ExchangeSettings.BuySide.MaximumTotal,
-			},
-			SellSide: config.MinMax{
-				MinimumSize:  cfg.ExchangeSettings.SellSide.MinimumSize,
-				MaximumSize:  cfg.ExchangeSettings.SellSide.MaximumSize,
-				MaximumTotal: cfg.ExchangeSettings.SellSide.MaximumTotal,
-			},
-			Leverage: config.Leverage{
-				CanUseLeverage:  cfg.ExchangeSettings.Leverage.CanUseLeverage,
-				MaximumLeverage: cfg.ExchangeSettings.Leverage.MaximumLeverage,
-			},
-		},
-	}
-
-	bt.Portfolio = &portfolio.Portfolio{
-		InitialFunds: cfg.ExchangeSettings.InitialFunds,
+	portfoliooo := &portfolio.Portfolio{
 		SizeManager: &size.Size{
 			BuySide: config.MinMax{
-				MinimumSize:  cfg.ExchangeSettings.BuySide.MinimumSize,
-				MaximumSize:  cfg.ExchangeSettings.BuySide.MaximumSize,
-				MaximumTotal: cfg.ExchangeSettings.BuySide.MaximumTotal,
+				MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
+				MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
+				MaximumTotal: cfg.PortfolioSettings.BuySide.MaximumTotal,
 			},
 			SellSide: config.MinMax{
-				MinimumSize:  cfg.ExchangeSettings.SellSide.MinimumSize,
-				MaximumSize:  cfg.ExchangeSettings.SellSide.MaximumSize,
-				MaximumTotal: cfg.ExchangeSettings.SellSide.MaximumTotal,
+				MinimumSize:  cfg.PortfolioSettings.SellSide.MinimumSize,
+				MaximumSize:  cfg.PortfolioSettings.SellSide.MaximumSize,
+				MaximumTotal: cfg.PortfolioSettings.SellSide.MaximumTotal,
 			},
 			Leverage: config.Leverage{
-				CanUseLeverage:  cfg.ExchangeSettings.Leverage.CanUseLeverage,
-				MaximumLeverage: cfg.ExchangeSettings.Leverage.MaximumLeverage,
+				CanUseLeverage:  cfg.PortfolioSettings.Leverage.CanUseLeverage,
+				MaximumLeverage: cfg.PortfolioSettings.Leverage.MaximumLeverage,
 			},
 		},
-		Funds: cfg.ExchangeSettings.InitialFunds,
 		RiskManager: &risk.Risk{
 			MaxLeverageRatio:             nil,
 			MaxLeverageRate:              nil,
@@ -199,8 +160,16 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 		},
 	}
 
-	// TODO: update fee rates after every order to hopefully get new rates
-	bt.Portfolio.SetFee(cfg.ExchangeSettings.Name, a, fPair, takerFee)
+	for i := range exchangeroo.CurrencySettings {
+		lookup := portfoliooo.SetupExchangeAssetPairMap(exchangeroo.Name, exchangeroo.CurrencySettings[i].AssetType, exchangeroo.CurrencySettings[i].CurrencyPair)
+		lookup.Fee = exchangeroo.CurrencySettings[i].TakerFee
+		lookup.Leverage = exchangeroo.CurrencySettings[i].Leverage
+		lookup.BuySideSizing = exchangeroo.CurrencySettings[i].BuySide
+		lookup.SellSideSizing = exchangeroo.CurrencySettings[i].SellSide
+		lookup.SetInitialFunds(exchangeroo.CurrencySettings[i].InitialFunds)
+		lookup.SetFunds(exchangeroo.CurrencySettings[i].InitialFunds)
+	}
+	bt.Portfolio = portfoliooo
 
 	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategyToLoad)
 	if err != nil {
@@ -217,7 +186,6 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 
 	bt.Statistic = &statistics.Statistic{
 		StrategyName: cfg.StrategyToLoad,
-		InitialFunds: cfg.ExchangeSettings.InitialFunds,
 	}
 
 	bt.PrintSettings(cfg)
@@ -225,35 +193,112 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	return bt, nil
 }
 
-func (bt *BackTest) loadExchangePairAssetBase(cfg *config.Config) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
+func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
+	exchangeroo := exchange.Exchange{
+		UseRealOrders: cfg.LiveData.RealOrders,
+	}
+
+	exch, fPair, a, err := bt.loadExchangePairAssetBase(cfg)
+	if err != nil {
+		return exchangeroo, err
+	}
+
+	bt.Data, err = loadData(cfg, exch, fPair, a)
+	if err != nil {
+		return exchangeroo, err
+	}
+
+	for i := range cfg.ExchangeSettings.CurrencySettings {
+		var makerFee, takerFee float64
+
+		if cfg.ExchangeSettings.CurrencySettings[i].MakerFee > 0 {
+			makerFee = cfg.ExchangeSettings.CurrencySettings[i].MakerFee
+		}
+		if cfg.ExchangeSettings.CurrencySettings[i].TakerFee > 0 {
+			takerFee = cfg.ExchangeSettings.CurrencySettings[i].TakerFee
+		}
+		if makerFee == 0 || takerFee == 0 {
+			var apiMakerFee, apiTakerFee float64
+			apiMakerFee, apiTakerFee, err = getFees(exch, fPair)
+			if err != nil {
+				return exchangeroo, err
+			}
+			if makerFee == 0 {
+				makerFee = apiMakerFee
+			}
+			if takerFee == 0 {
+				takerFee = apiTakerFee
+			}
+		}
+
+		if cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent <= 0 {
+			cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
+		}
+		if cfg.ExchangeSettings.CurrencySettings[i].MinimumSlippagePercent <= 0 {
+			cfg.ExchangeSettings.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
+		}
+		if cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent <= cfg.ExchangeSettings.CurrencySettings[i].MinimumSlippagePercent {
+			cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
+		}
+
+		exchangeroo.CurrencySettings = append(exchangeroo.CurrencySettings, exchange.CurrencySettings{
+			InitialFunds:        cfg.ExchangeSettings.CurrencySettings[i].InitialFunds,
+			MinimumSlippageRate: cfg.ExchangeSettings.CurrencySettings[i].MinimumSlippagePercent,
+			MaximumSlippageRate: cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent,
+			CurrencyPair:        fPair,
+			AssetType:           a,
+			ExchangeFee:         takerFee,
+			MakerFee:            takerFee,
+			TakerFee:            makerFee,
+			BuySide: config.MinMax{
+				MinimumSize:  cfg.ExchangeSettings.CurrencySettings[i].BuySide.MinimumSize,
+				MaximumSize:  cfg.ExchangeSettings.CurrencySettings[i].BuySide.MaximumSize,
+				MaximumTotal: cfg.ExchangeSettings.CurrencySettings[i].BuySide.MaximumTotal,
+			},
+			SellSide: config.MinMax{
+				MinimumSize:  cfg.ExchangeSettings.CurrencySettings[i].SellSide.MinimumSize,
+				MaximumSize:  cfg.ExchangeSettings.CurrencySettings[i].SellSide.MaximumSize,
+				MaximumTotal: cfg.ExchangeSettings.CurrencySettings[i].SellSide.MaximumTotal,
+			},
+			Leverage: config.Leverage{
+				CanUseLeverage:  cfg.ExchangeSettings.CurrencySettings[i].Leverage.CanUseLeverage,
+				MaximumLeverage: cfg.ExchangeSettings.CurrencySettings[i].Leverage.MaximumLeverage,
+			},
+		})
+	}
+
+	return exchangeroo, nil
+}
+
+func (bt *BackTest) loadExchangePairAssetBase(exch, baaa, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
 	var err error
-	exch := bt.Bot.GetExchangeByName(cfg.ExchangeSettings.Name)
-	if exch == nil {
+	e := bt.Bot.GetExchangeByName(exch)
+	if e == nil {
 		return nil, currency.Pair{}, "", engine.ErrExchangeNotFound
 	}
 
 	var cp, fPair currency.Pair
-	cp, err = currency.NewPairFromStrings(cfg.ExchangeSettings.Base, cfg.ExchangeSettings.Quote)
+	cp, err = currency.NewPairFromStrings(baaa, quote)
 	if err != nil {
 		return nil, currency.Pair{}, "", err
 	}
 
 	var a asset.Item
-	a, err = asset.New(cfg.ExchangeSettings.Asset)
+	a, err = asset.New(ass)
 	if err != nil {
 		return nil, currency.Pair{}, "", err
 	}
 
-	base := exch.GetBase()
-	if !base.ValidateAPICredentials() {
-		log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", base.Name)
+	exchangeBase := e.GetBase()
+	if !exchangeBase.ValidateAPICredentials() {
+		log.Warnf(log.BackTester, "no credentials set for %v, this is theoretical only", exchangeBase.Name)
 	}
 
-	fPair, err = base.FormatExchangeCurrency(cp, a)
+	fPair, err = exchangeBase.FormatExchangeCurrency(cp, a)
 	if err != nil {
 		return nil, currency.Pair{}, "", err
 	}
-	return exch, fPair, a, nil
+	return e, fPair, a, nil
 }
 
 func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
@@ -495,7 +540,7 @@ func (b *BackTest) handleEvent(e interfaces.EventHandler) error {
 		b.EventQueue = append(b.EventQueue, s)
 
 	case signal.SignalEvent:
-		cs := b.Exchange.GetCurrency()
+		cs := b.Exchange.GetCurrencySettings(event.GetExchange(), event.GetAssetType(), event.Pair())
 		o, err := b.Portfolio.OnSignal(event, b.Data, &cs)
 		if err != nil {
 			if errors.Is(err, portfolio.NoHoldingsToSellErr) || errors.Is(err, portfolio.NotEnoughFundsErr) {
@@ -513,9 +558,9 @@ func (b *BackTest) handleEvent(e interfaces.EventHandler) error {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
 			break
 		}
-		b.Compliance.GetSnapshot(fillEvent.Time)
 		b.EventQueue = append(b.EventQueue, fillEvent)
 	case fill.FillEvent:
+		//b.Compliance.GetSnapshot(event.GetTime())
 		t, err := b.Portfolio.OnFill(event, b.Data)
 		if err != nil {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())

@@ -10,19 +10,20 @@ import (
 )
 
 type ExecutionHandler interface {
-	SetCurrency(CurrencySettings)
-	GetCurrency() CurrencySettings
+	SetCurrency(string, asset.Item, currency.Pair, CurrencySettings)
+	GetCurrencySettings(string, asset.Item, currency.Pair) CurrencySettings
 	ExecuteOrder(OrderEvent, interfaces.DataHandler) (*fill.Fill, error)
 }
 
 type Exchange struct {
-	UseRealOrders       bool
-	MinimumSlippageRate float64
-	MaximumSlippageRate float64
-	CurrencySettings    CurrencySettings
+	Name             string
+	UseRealOrders    bool
+	CurrencySettings []CurrencySettings
 }
 
 type CurrencySettings struct {
+	InitialFunds float64
+
 	CurrencyPair currency.Pair
 	AssetType    asset.Item
 
@@ -34,6 +35,9 @@ type CurrencySettings struct {
 	SellSide config.MinMax
 
 	Leverage config.Leverage
+
+	MinimumSlippageRate float64
+	MaximumSlippageRate float64
 }
 
 // OrderEvent
