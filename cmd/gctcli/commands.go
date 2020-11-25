@@ -2641,6 +2641,10 @@ var withdrawalRequestCommand = cli.Command{
 					Name:  "limit",
 					Usage: "<limit>",
 				},
+				cli.StringFlag{
+					Name:  "currency",
+					Usage: "<currency>",
+				},
 			},
 			Action: withdrawlRequestByExchangeID,
 		},
@@ -2718,7 +2722,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		return nil
 	}
 
-	var exchange string
+	var exchange, currency string
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	} else {
@@ -2751,6 +2755,10 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 			}
 			limit = limitStr
 		}
+
+		if c.IsSet("currency") {
+			currency = c.String("currency")
+		}
 	}
 
 	conn, err := setupClient()
@@ -2766,6 +2774,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 			Exchange: exchange,
 			Id:       ID,
 			Limit:    int32(limit),
+			Currency: currency,
 		},
 	)
 	if err != nil {

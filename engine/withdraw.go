@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -154,6 +155,44 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 				}
 			}
 		}
+		v.Event = append(v.Event, tempEvent)
+	}
+	return v
+}
+
+func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, e string, limit int) *gctrpc.WithdrawalEventsByExchangeResponse {
+	v := &gctrpc.WithdrawalEventsByExchangeResponse{}
+	for x := range ret {
+		if limit > 0 && x >= limit {
+			return v
+		}
+
+		tempEvent := &gctrpc.WithdrawalEventResponse{
+			Id: ret[x].TransferID,
+			Exchange: &gctrpc.WithdrawlExchangeEvent{
+				Name:   e,
+				Status: ret[x].Status,
+			},
+			Request: &gctrpc.WithdrawalRequestEvent{
+				Currency:    ret[x].Currency,
+				Description: ret[x].Description,
+				Amount:      ret[x].Amount,
+			},
+		}
+
+		updatedAtPtype, err := ptypes.TimestampProto(ret[x].Timestamp)
+		if err != nil {
+			log.Errorf(log.Global, "failed to convert time: %v", err)
+		}
+
+		tempEvent.UpdatedAt = updatedAtPtype
+		tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
+		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
+			Address: ret[x].CryptoToAddress,
+			Fee:     ret[x].Fee,
+			TxId:    ret[x].CryptoTxID,
+		}
+
 		v.Event = append(v.Event, tempEvent)
 	}
 	return v

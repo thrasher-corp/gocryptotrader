@@ -516,6 +516,24 @@ func (k *Kraken) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (k *Kraken) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	withdrawals, err := k.WithdrawStatus(currency, "")
+	for _, w := range withdrawals {
+		resp = append(resp, exchange.WithdrawalHistory{
+			Status:          w.Status,
+			TransferID:      w.Refid,
+			Timestamp:       time.Unix(int64(w.Time), 0),
+			Amount:          w.Amount,
+			Fee:             w.Fee,
+			CryptoToAddress: w.Info,
+			CryptoTxID:      w.TxID,
+		})
+	}
+
+	return
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (k *Kraken) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error

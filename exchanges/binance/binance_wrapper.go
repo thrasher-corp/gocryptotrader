@@ -2,6 +2,7 @@ package binance
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -496,6 +497,29 @@ func (b *Binance) FetchAccountInfo() (account.Holdings, error) {
 // withdrawals
 func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetWithdrawalsHistory returns previous withdrawals data
+func (b *Binance) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	w, err := b.WithdrawStatus(currency)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, b := range w {
+		resp = append(resp, exchange.WithdrawalHistory{
+			Status:          fmt.Sprint(b.Status),
+			TransferID:      b.ID,
+			Currency:        b.Asset,
+			Amount:          b.Amount,
+			Fee:             b.TransactionFee,
+			CryptoToAddress: b.Address,
+			CryptoTxID:      b.TxID,
+			Timestamp:       time.Unix(b.ApplyTime/1000, 0),
+		})
+	}
+
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
