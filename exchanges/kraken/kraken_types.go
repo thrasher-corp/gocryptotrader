@@ -12,9 +12,6 @@ import (
 // useful const vars for checking api requests being sent
 
 const (
-	krakenAPIURL           = "https://api.kraken.com"
-	krakenFuturesURL       = "https://futures.kraken.com"
-	futuresURL             = "https://futures.kraken.com/derivatives"
 	krakenAPIVersion       = "0"
 	krakenServerTime       = "Time"
 	krakenAssets           = "Assets"

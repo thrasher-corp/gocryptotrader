@@ -378,7 +378,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 	return resp, nil
 }
 
-// UGetMarkPrice gets mark price data for USDTMarginedFutures,
+// UGetMarkPrice gets mark price data for USDTMarginedFutures
 func (b *Binance) UGetMarkPrice(symbol string) ([]UMarkPrice, error) {
 	var data json.RawMessage
 	var resp []UMarkPrice
@@ -408,7 +408,7 @@ func (b *Binance) UGetMarkPrice(symbol string) ([]UMarkPrice, error) {
 	return resp, nil
 }
 
-// UGetFundingHistory gets funding history for USDTMarginedFutures,
+// UGetFundingHistory gets funding history for USDTMarginedFutures
 func (b *Binance) UGetFundingHistory(symbol string, limit int64, startTime, endTime time.Time) ([]FundingRateHistory, error) {
 	var resp []FundingRateHistory
 	params := url.Values{}
@@ -428,7 +428,7 @@ func (b *Binance) UGetFundingHistory(symbol string, limit int64, startTime, endT
 	return resp, b.SendHTTPRequest(exchange.USDTMarginedFutures, ufuturesFundingRateHistory+params.Encode(), limitDefault, &resp)
 }
 
-// U24HTickerPriceChangeStats gets 24hr ticker price change stats for USDTMarginedFutures,
+// U24HTickerPriceChangeStats gets 24hr ticker price change stats for USDTMarginedFutures
 func (b *Binance) U24HTickerPriceChangeStats(symbol string) ([]U24HrPriceChangeStats, error) {
 	var data json.RawMessage
 	var resp []U24HrPriceChangeStats
@@ -458,7 +458,7 @@ func (b *Binance) U24HTickerPriceChangeStats(symbol string) ([]U24HrPriceChangeS
 	return resp, nil
 }
 
-// USymbolPriceTicker gets symbol price ticker for USDTMarginedFutures,
+// USymbolPriceTicker gets symbol price ticker for USDTMarginedFutures
 func (b *Binance) USymbolPriceTicker(symbol string) ([]USymbolPriceTicker, error) {
 	var resp []USymbolPriceTicker
 	var data json.RawMessage
@@ -538,7 +538,7 @@ func (b *Binance) ULiquidationOrders(symbol string, limit int64, startTime, endT
 	return resp, b.SendHTTPRequest(exchange.USDTMarginedFutures, ufuturesLiquidationOrders+params.Encode(), limitDefault, &resp)
 }
 
-// UOpenInterest gets open interest data for USDTMarginedFutures,
+// UOpenInterest gets open interest data for USDTMarginedFutures
 func (b *Binance) UOpenInterest(symbol string) (UOpenInterestData, error) {
 	var resp UOpenInterestData
 	params := url.Values{}
@@ -546,7 +546,7 @@ func (b *Binance) UOpenInterest(symbol string) (UOpenInterestData, error) {
 	return resp, b.SendHTTPRequest(exchange.USDTMarginedFutures, ufuturesOpenInterest+params.Encode(), limitDefault, &resp)
 }
 
-// UOpenInterestStats gets open interest stats for USDTMarginedFutures,
+// UOpenInterestStats gets open interest stats for USDTMarginedFutures
 func (b *Binance) UOpenInterestStats(symbol, period string, limit int64, startTime, endTime time.Time) ([]UOpenInterestStats, error) {
 	var resp []UOpenInterestStats
 	params := url.Values{}
@@ -612,7 +612,7 @@ func (b *Binance) UTopPostionsLongShortRatio(symbol, period string, limit int64,
 	return resp, b.SendHTTPRequest(exchange.USDTMarginedFutures, ufuturesTopPositionsRatio+params.Encode(), limitDefault, &resp)
 }
 
-// UGlobalLongShortRatio gets the global long/short ratio data for USDTMarginedFutures,
+// UGlobalLongShortRatio gets the global long/short ratio data for USDTMarginedFutures
 func (b *Binance) UGlobalLongShortRatio(symbol, period string, limit int64, startTime, endTime time.Time) ([]ULongShortRatio, error) {
 	var resp []ULongShortRatio
 	params := url.Values{}
@@ -634,7 +634,7 @@ func (b *Binance) UGlobalLongShortRatio(symbol, period string, limit int64, star
 	return resp, b.SendHTTPRequest(exchange.USDTMarginedFutures, ufuturesLongShortRatio+params.Encode(), limitDefault, &resp)
 }
 
-// UTakerBuySellVol gets takers' buy/sell ratio for USDTMarginedFutures,
+// UTakerBuySellVol gets takers' buy/sell ratio for USDTMarginedFutures
 func (b *Binance) UTakerBuySellVol(symbol, period string, limit int64, startTime, endTime time.Time) ([]UTakerVolumeData, error) {
 	var resp []UTakerVolumeData
 	params := url.Values{}
@@ -656,7 +656,7 @@ func (b *Binance) UTakerBuySellVol(symbol, period string, limit int64, startTime
 	return resp, b.SendHTTPRequest(exchange.USDTMarginedFutures, ufuturesBuySellVolume+params.Encode(), limitDefault, &resp)
 }
 
-// UFuturesNewOrder sends a new order for USDTMarginedFutures,
+// UFuturesNewOrder sends a new order for USDTMarginedFutures
 func (b *Binance) UFuturesNewOrder(symbol, side, positionSide, orderType, timeInForce,
 	newClientOrderID, closePosition, workingType, newOrderRespType string,
 	quantity, price, stopPrice, activationPrice, callbackRate float64, reduceOnly bool) (UOrderData, error) {
@@ -740,7 +740,7 @@ func (b *Binance) UPlaceBatchOrders(data []PlaceBatchOrderData) ([]UOrderData, e
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodPost, ufuturesBatchOrder, params, limitDefault, &resp)
 }
 
-// UGetOrderData gets order data for USDTMarginedFutures,
+// UGetOrderData gets order data for USDTMarginedFutures
 func (b *Binance) UGetOrderData(symbol, orderID, cliOrderID string) (UOrderData, error) {
 	var resp UOrderData
 	params := url.Values{}
@@ -754,7 +754,7 @@ func (b *Binance) UGetOrderData(symbol, orderID, cliOrderID string) (UOrderData,
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodGet, ufuturesOrder, params, limitDefault, &resp)
 }
 
-// UCancelOrder cancel an order for USDTMarginedFutures,
+// UCancelOrder cancel an order for USDTMarginedFutures
 func (b *Binance) UCancelOrder(symbol, orderID, cliOrderID string) (UOrderData, error) {
 	var resp UOrderData
 	params := url.Values{}
@@ -776,7 +776,7 @@ func (b *Binance) UCancelAllOpenOrders(symbol string) (GenericAuthResponse, erro
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodDelete, ufuturesCancelAllOrders, params, limitDefault, &resp)
 }
 
-// UCancelBatchOrders cancel batch order for USDTMarginedFutures,
+// UCancelBatchOrders cancel batch order for USDTMarginedFutures
 func (b *Binance) UCancelBatchOrders(symbol string, orderIDList, origCliOrdIDList []string) ([]UOrderData, error) {
 	var resp []UOrderData
 	params := url.Values{}
@@ -807,7 +807,7 @@ func (b *Binance) UAutoCancelAllOpenOrders(symbol string, countdownTime int64) (
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodPost, ufuturesCountdownCancel, params, limitDefault, &resp)
 }
 
-// UFetchOpenOrder sends a request to fetch open order data for USDTMarginedFutures,
+// UFetchOpenOrder sends a request to fetch open order data for USDTMarginedFutures
 func (b *Binance) UFetchOpenOrder(symbol, orderID, origClientOrderID string) (UOrderData, error) {
 	var resp UOrderData
 	params := url.Values{}
@@ -823,7 +823,7 @@ func (b *Binance) UFetchOpenOrder(symbol, orderID, origClientOrderID string) (UO
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodGet, ufuturesOpenOrder, params, limitDefault, &resp)
 }
 
-// UAllAccountOpenOrders gets all account's orders for USDTMarginedFutures,
+// UAllAccountOpenOrders gets all account's orders for USDTMarginedFutures
 func (b *Binance) UAllAccountOpenOrders(symbol string) ([]UOrderData, error) {
 	var resp []UOrderData
 	params := url.Values{}
@@ -833,7 +833,7 @@ func (b *Binance) UAllAccountOpenOrders(symbol string) ([]UOrderData, error) {
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodGet, ufuturesAllOpenOrders, params, limitDefault, &resp)
 }
 
-// UAllAccountOrders gets all account's orders for USDTMarginedFutures,
+// UAllAccountOrders gets all account's orders for USDTMarginedFutures
 func (b *Binance) UAllAccountOrders(symbol string, orderID, limit int64, startTime, endTime time.Time) ([]UFuturesOrderData, error) {
 	var resp []UFuturesOrderData
 	params := url.Values{}
@@ -892,7 +892,7 @@ func (b *Binance) UChangeInitialMarginType(symbol, marginType string) error {
 	return b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodPost, ufuturesChangeMarginType, params, limitDefault, &resp)
 }
 
-// UModifyIsolatedPositionMarginReq sends a request to modify isolated margin for USDTMarginedFutures,
+// UModifyIsolatedPositionMarginReq sends a request to modify isolated margin for USDTMarginedFutures
 func (b *Binance) UModifyIsolatedPositionMarginReq(symbol, positionSide, changeType string, amount float64) (UModifyIsolatedPosMargin, error) {
 	var resp UModifyIsolatedPosMargin
 	params := url.Values{}
@@ -911,7 +911,7 @@ func (b *Binance) UModifyIsolatedPositionMarginReq(symbol, positionSide, changeT
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodPost, ufuturesModifyMargin, params, limitDefault, &resp)
 }
 
-// UPositionMarginChangeHistory gets margin change history for USDTMarginedFutures,
+// UPositionMarginChangeHistory gets margin change history for USDTMarginedFutures
 func (b *Binance) UPositionMarginChangeHistory(symbol, changeType string, limit int64, startTime, endTime time.Time) ([]UPositionMarginChangeHistoryData, error) {
 	var resp []UPositionMarginChangeHistoryData
 	params := url.Values{}
@@ -934,7 +934,7 @@ func (b *Binance) UPositionMarginChangeHistory(symbol, changeType string, limit 
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodGet, ufuturesMarginChangeHistory, params, limitDefault, &resp)
 }
 
-// UPositionsInfoV2 gets positions' info for USDTMarginedFutures,
+// UPositionsInfoV2 gets positions' info for USDTMarginedFutures
 func (b *Binance) UPositionsInfoV2(symbol string) ([]UChangeInitialLeverage, error) {
 	var resp []UChangeInitialLeverage
 	params := url.Values{}
@@ -944,7 +944,7 @@ func (b *Binance) UPositionsInfoV2(symbol string) ([]UChangeInitialLeverage, err
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodGet, ufuturesPositionInfo, params, limitDefault, &resp)
 }
 
-// UAccountTradesHistory gets account's trade history data for USDTMarginedFutures,
+// UAccountTradesHistory gets account's trade history data for USDTMarginedFutures
 func (b *Binance) UAccountTradesHistory(symbol, fromID string, limit int64, startTime, endTime time.Time) ([]UAccountTradeHistory, error) {
 	var resp []UAccountTradeHistory
 	params := url.Values{}
@@ -965,7 +965,7 @@ func (b *Binance) UAccountTradesHistory(symbol, fromID string, limit int64, star
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodGet, ufuturesAccountTradeList, params, limitDefault, &resp)
 }
 
-// UAccountIncomeHistory gets account's income history data for USDTMarginedFutures,
+// UAccountIncomeHistory gets account's income history data for USDTMarginedFutures
 func (b *Binance) UAccountIncomeHistory(symbol, incomeType string, limit int64, startTime, endTime time.Time) ([]UAccountIncomeHistory, error) {
 	var resp []UAccountIncomeHistory
 	params := url.Values{}
@@ -989,7 +989,7 @@ func (b *Binance) UAccountIncomeHistory(symbol, incomeType string, limit int64, 
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodGet, ufuturesIncomeHistory, params, limitDefault, &resp)
 }
 
-// UGetNotionalAndLeverageBrackets gets account's notional and leverage brackets for USDTMarginedFutures,
+// UGetNotionalAndLeverageBrackets gets account's notional and leverage brackets for USDTMarginedFutures
 func (b *Binance) UGetNotionalAndLeverageBrackets(symbol string) ([]UNotionalLeverageAndBrakcetsData, error) {
 	var resp []UNotionalLeverageAndBrakcetsData
 	params := url.Values{}
@@ -999,7 +999,7 @@ func (b *Binance) UGetNotionalAndLeverageBrackets(symbol string) ([]UNotionalLev
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodGet, ufuturesNotionalBracket, params, limitDefault, &resp)
 }
 
-// UPositionsADLEstimate gets estimated ADL data for USDTMarginedFutures, positions
+// UPositionsADLEstimate gets estimated ADL data for USDTMarginedFutures positions
 func (b *Binance) UPositionsADLEstimate(symbol string) (UPositionADLEstimationData, error) {
 	var resp UPositionADLEstimationData
 	params := url.Values{}
@@ -1009,7 +1009,7 @@ func (b *Binance) UPositionsADLEstimate(symbol string) (UPositionADLEstimationDa
 	return resp, b.SendAuthHTTPRequest(exchange.USDTMarginedFutures, http.MethodGet, ufuturesADLQuantile, params, limitDefault, &resp)
 }
 
-// UAccountForcedOrders gets account's forced (liquidation) orders for USDTMarginedFutures,
+// UAccountForcedOrders gets account's forced (liquidation) orders for USDTMarginedFutures
 func (b *Binance) UAccountForcedOrders(symbol, autoCloseType string, limit int64, startTime, endTime time.Time) ([]UForceOrdersData, error) {
 	var resp []UForceOrdersData
 	params := url.Values{}

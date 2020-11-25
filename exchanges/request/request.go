@@ -99,7 +99,7 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	}
 
 	if r.UserAgent != "" && req.Header.Get(userAgent) == "" {
-		req.Header.Add(userAgent, "SUPER USER AGENT OF DEATH")
+		req.Header.Add(userAgent, r.UserAgent)
 	}
 
 	return req, nil
