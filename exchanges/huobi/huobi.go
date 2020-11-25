@@ -448,7 +448,7 @@ func (h *HUOBI) FIndexKline(symbol, period string, size int64) (FIndexKlineData,
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if !(size > 1) && !(size < 2000) {
+	if size == 0 && size > 2000 {
 		return resp, fmt.Errorf("invalid size")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
@@ -482,7 +482,7 @@ func (h *HUOBI) FGetAccountInfo(symbol string) (FUserAccountData, error) {
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fAccountData, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fAccountData, nil, req, &resp)
 }
 
 // FGetPositionsInfo gets positions info for futures account
@@ -492,7 +492,7 @@ func (h *HUOBI) FGetPositionsInfo(symbol string) (FUserAccountData, error) {
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fPositionInformation, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fPositionInformation, nil, req, &resp)
 }
 
 // FGetAllSubAccountAssets gets assets info for all futures subaccounts
@@ -502,7 +502,7 @@ func (h *HUOBI) FGetAllSubAccountAssets(symbol string) (FSubAccountAssetsInfo, e
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fAllSubAccountAssets, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fAllSubAccountAssets, nil, req, &resp)
 }
 
 // FGetSingleSubAccountInfo gets assets info for a futures subaccount
@@ -513,7 +513,7 @@ func (h *HUOBI) FGetSingleSubAccountInfo(symbol, subUID string) (FSingleSubAccou
 		req["symbol"] = symbol
 	}
 	req["sub_uid"] = subUID
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fSingleSubAccountAssets, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fSingleSubAccountAssets, nil, req, &resp)
 }
 
 // FGetSingleSubPositions gets positions info for a single sub account
@@ -524,7 +524,7 @@ func (h *HUOBI) FGetSingleSubPositions(symbol, subUID string) (FSingleSubAccount
 		req["symbol"] = symbol
 	}
 	req["sub_uid"] = subUID
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fSingleSubAccountPositions, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fSingleSubAccountPositions, nil, req, &resp)
 }
 
 // FGetFinancialRecords gets financial records for futures
@@ -550,7 +550,7 @@ func (h *HUOBI) FGetFinancialRecords(symbol, recordType string, createDate, page
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fFinancialRecords, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fFinancialRecords, nil, req, &resp)
 }
 
 // FGetSettlementRecords gets settlement records for futures
@@ -571,7 +571,7 @@ func (h *HUOBI) FGetSettlementRecords(symbol string, pageIndex, pageSize int64, 
 		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
 		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fSettlementRecords, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fSettlementRecords, nil, req, &resp)
 }
 
 // FGetOrderLimits gets order limits for futures contracts
@@ -587,7 +587,7 @@ func (h *HUOBI) FGetOrderLimits(symbol, orderPriceType string) (FContractInfoOnO
 		}
 		req["order_price_type"] = orderPriceType
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrderLimitInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrderLimitInfo, nil, req, &resp)
 }
 
 // FContractTradingFee gets futures contract trading fees
@@ -597,7 +597,7 @@ func (h *HUOBI) FContractTradingFee(symbol string) (FContractTradingFeeData, err
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fContractTradingFee, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fContractTradingFee, nil, req, &resp)
 }
 
 // FGetTransferLimits gets transfer limits for futures
@@ -607,7 +607,7 @@ func (h *HUOBI) FGetTransferLimits(symbol string) (FTransferLimitData, error) {
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTransferLimitInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTransferLimitInfo, nil, req, &resp)
 }
 
 // FGetPositionLimits gets position limits for futures
@@ -617,7 +617,7 @@ func (h *HUOBI) FGetPositionLimits(symbol string) (FPositionLimitData, error) {
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fPositionLimitInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fPositionLimitInfo, nil, req, &resp)
 }
 
 // FGetAssetsAndPositions gets assets and positions for futures
@@ -625,7 +625,7 @@ func (h *HUOBI) FGetAssetsAndPositions(symbol string) (FAssetsAndPositionsData, 
 	var resp FAssetsAndPositionsData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fQueryAssetsAndPositions, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fQueryAssetsAndPositions, nil, req, &resp)
 }
 
 // FTransfer transfers assets between master and subaccounts
@@ -639,7 +639,7 @@ func (h *HUOBI) FTransfer(subUID, symbol, transferType string, amount float64) (
 		return resp, fmt.Errorf("inavlid transferType received")
 	}
 	req["type"] = transferType
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTransfer, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTransfer, nil, req, &resp)
 }
 
 // FGetTransferRecords gets transfer records data for futures
@@ -663,7 +663,7 @@ func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate, pag
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTransferRecords, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTransferRecords, nil, req, &resp)
 }
 
 // FGetAvailableLeverage gets available leverage data for futures
@@ -673,7 +673,7 @@ func (h *HUOBI) FGetAvailableLeverage(symbol string) (FAvailableLeverageData, er
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fAvailableLeverage, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fAvailableLeverage, nil, req, &resp)
 }
 
 // FOrder places an order for futures
@@ -707,7 +707,7 @@ func (h *HUOBI) FOrder(symbol, contractType, contractCode, clientOrderID, direct
 	req["volume"] = volume
 	req["price"] = price
 	req["offset"] = offset
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrder, nil, req, &resp)
 }
 
 // FPlaceBatchOrder places a batch of orders for futures
@@ -731,7 +731,7 @@ func (h *HUOBI) FPlaceBatchOrder(data []fBatchOrderData) (FBatchOrderResponse, e
 		}
 	}
 	req["orders_data"] = data
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fBatchOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fBatchOrder, nil, req, &resp)
 }
 
 // FCancelOrder cancels a futures order
@@ -747,7 +747,7 @@ func (h *HUOBI) FCancelOrder(symbol, orderID, clientOrderID string) (FCancelOrde
 	if clientOrderID != "" {
 		req["client_order_id"] = clientOrderID
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fCancelOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fCancelOrder, nil, req, &resp)
 }
 
 // FCancelAllOrders cancels all futures order for a given symbol
@@ -766,7 +766,7 @@ func (h *HUOBI) FCancelAllOrders(symbol, contractCode, contractType string) (FCa
 	if contractCode != "" {
 		req["contract_code"] = contractCode
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fCancelAllOrders, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fCancelAllOrders, nil, req, &resp)
 }
 
 // FFlashCloseOrder flash closes a futures order
@@ -794,7 +794,7 @@ func (h *HUOBI) FFlashCloseOrder(symbol, contractType, contractCode, direction, 
 		}
 		req["orderPriceType"] = orderPriceType
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fFlashCloseOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fFlashCloseOrder, nil, req, &resp)
 }
 
 // FGetOrderInfo gets order info for futures
@@ -808,7 +808,7 @@ func (h *HUOBI) FGetOrderInfo(symbol, clientOrderID, orderID string) (FOrderInfo
 	if clientOrderID != "" {
 		req["client_order_id"] = clientOrderID
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrderInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrderInfo, nil, req, &resp)
 }
 
 // FOrderDetails gets order details for futures orders
@@ -829,7 +829,7 @@ func (h *HUOBI) FOrderDetails(symbol, orderID, orderType string, createdAt time.
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrderDetails, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrderDetails, nil, req, &resp)
 }
 
 // FGetOpenOrders gets order details for futures orders
@@ -843,7 +843,7 @@ func (h *HUOBI) FGetOpenOrders(symbol string, pageIndex, pageSize int64) (FOpenO
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fQueryOpenOrders, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fQueryOpenOrders, nil, req, &resp)
 }
 
 // FGetOrderHistory gets order order history for futures
@@ -898,7 +898,7 @@ func (h *HUOBI) FGetOrderHistory(symbol, tradeType, reqType, contractCode, order
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrderHistory, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fOrderHistory, nil, req, &resp)
 }
 
 // FTradeHistory gets trade history data for futures
@@ -924,7 +924,7 @@ func (h *HUOBI) FTradeHistory(symbol, tradeType, contractCode string, createDate
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fMatchResult, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fMatchResult, nil, req, &resp)
 }
 
 // FPlaceTriggerOrder places a trigger order for futures
@@ -933,6 +933,11 @@ func (h *HUOBI) FPlaceTriggerOrder(symbol, contractType, contractCode, triggerTy
 	req := make(map[string]interface{})
 	if symbol != "" {
 		req["symbol"] = symbol
+	}
+	if contractType != "" {
+		if !common.StringDataCompare(validContractTypes, contractType) {
+			return resp, nil
+		}
 	}
 	if contractCode != "" {
 		req["contract_code"] = contractCode
@@ -955,7 +960,7 @@ func (h *HUOBI) FPlaceTriggerOrder(symbol, contractType, contractCode, triggerTy
 		return resp, fmt.Errorf("invalid order price type")
 	}
 	req["order_price_type"] = orderPriceType
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTriggerOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTriggerOrder, nil, req, &resp)
 }
 
 // FCancelTriggerOrder cancels trigger order for futures
@@ -964,7 +969,7 @@ func (h *HUOBI) FCancelTriggerOrder(symbol, orderID string) (FCancelOrderData, e
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
 	req["order_id"] = orderID
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fCancelTriggerOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fCancelTriggerOrder, nil, req, &resp)
 }
 
 // FCancelAllTriggerOrders cancels all trigger order for futures
@@ -981,7 +986,7 @@ func (h *HUOBI) FCancelAllTriggerOrders(symbol, contractCode, contractType strin
 		}
 		req["contract_type"] = contractType
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fCancelAllTriggerOrders, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fCancelAllTriggerOrders, nil, req, &resp)
 }
 
 // FQueryTriggerOpenOrders queries open trigger orders for futures
@@ -998,7 +1003,7 @@ func (h *HUOBI) FQueryTriggerOpenOrders(symbol, contractCode string, pageIndex, 
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTriggerOpenOrders, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTriggerOpenOrders, nil, req, &resp)
 }
 
 // FQueryTriggerOrderHistory queries trigger order history for futures
@@ -1031,7 +1036,7 @@ func (h *HUOBI) FQueryTriggerOrderHistory(symbol, contractCode, tradeType, statu
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTriggerOrderHistory, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, fTriggerOrderHistory, nil, req, &resp)
 }
 
 // Coin Margined Swaps
@@ -1313,7 +1318,7 @@ func (h *HUOBI) GetSwapAccountInfo(code string) (SwapAccountInformation, error) 
 	var resp SwapAccountInformation
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapAccInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapAccInfo, nil, req, &resp)
 }
 
 // GetSwapPositionsInfo gets swap positions' info
@@ -1321,7 +1326,7 @@ func (h *HUOBI) GetSwapPositionsInfo(code string) (SwapPositionInfo, error) {
 	var resp SwapPositionInfo
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapPosInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapPosInfo, nil, req, &resp)
 }
 
 // GetSwapAssetsAndPositions gets swap positions and asset info
@@ -1329,7 +1334,7 @@ func (h *HUOBI) GetSwapAssetsAndPositions(code string) (SwapAssetsAndPositionsDa
 	var resp SwapAssetsAndPositionsData
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapAssetsAndPos, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapAssetsAndPos, nil, req, &resp)
 }
 
 // GetSwapAllSubAccAssets gets asset info for all subaccounts
@@ -1339,7 +1344,7 @@ func (h *HUOBI) GetSwapAllSubAccAssets(code string) (SubAccountsAssetData, error
 	if code != "" {
 		req["contract_code"] = code
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapSubAccList, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapSubAccList, nil, req, &resp)
 }
 
 // SwapSingleSubAccAssets gets a subaccount's assets info
@@ -1348,7 +1353,7 @@ func (h *HUOBI) SwapSingleSubAccAssets(code string, subUID int64) (SingleSubAcco
 	req := make(map[string]interface{})
 	req["contract_code"] = code
 	req["sub_uid"] = subUID
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapSubAccInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapSubAccInfo, nil, req, &resp)
 }
 
 // GetSubAccPositionInfo gets a subaccount's positions info
@@ -1357,7 +1362,7 @@ func (h *HUOBI) GetSubAccPositionInfo(code string, subUID int64) (SingleSubAccou
 	req := make(map[string]interface{})
 	req["contract_code"] = code
 	req["sub_uid"] = subUID
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapSubAccPosInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapSubAccPosInfo, nil, req, &resp)
 }
 
 // GetAccountFinancialRecords gets the account's financial records
@@ -1377,7 +1382,7 @@ func (h *HUOBI) GetAccountFinancialRecords(code, orderType string, createDate, p
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapFinancialRecords, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapFinancialRecords, nil, req, &resp)
 }
 
 // GetSwapSettlementRecords gets the swap account's settlement records
@@ -1398,7 +1403,7 @@ func (h *HUOBI) GetSwapSettlementRecords(code string, startTime, endTime time.Ti
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapSettlementRecords, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapSettlementRecords, nil, req, &resp)
 }
 
 // GetAvailableLeverage gets user's available leverage data
@@ -1408,7 +1413,7 @@ func (h *HUOBI) GetAvailableLeverage(code string) (AvailableLeverageData, error)
 	if code != "" {
 		req["contract_code"] = code
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapAvailableLeverage, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapAvailableLeverage, nil, req, &resp)
 }
 
 // GetSwapOrderLimitInfo gets order limit info for swaps
@@ -1420,7 +1425,7 @@ func (h *HUOBI) GetSwapOrderLimitInfo(code, orderType string) (SwapOrderLimitInf
 		return resp, fmt.Errorf("inavlid ordertype provided")
 	}
 	req["order_price_type"] = orderType
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOrderLimitInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOrderLimitInfo, nil, req, &resp)
 }
 
 // GetSwapTradingFeeInfo gets trading fee info for swaps
@@ -1428,7 +1433,7 @@ func (h *HUOBI) GetSwapTradingFeeInfo(code string) (SwapTradingFeeData, error) {
 	var resp SwapTradingFeeData
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTradingFeeInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTradingFeeInfo, nil, req, &resp)
 }
 
 // GetSwapTransferLimitInfo gets transfer limit info for swaps
@@ -1436,7 +1441,7 @@ func (h *HUOBI) GetSwapTransferLimitInfo(code string) (TransferLimitData, error)
 	var resp TransferLimitData
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTransferLimitInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTransferLimitInfo, nil, req, &resp)
 }
 
 // GetSwapPositionLimitInfo gets transfer limit info for swaps
@@ -1444,7 +1449,7 @@ func (h *HUOBI) GetSwapPositionLimitInfo(code string) (PositionLimitData, error)
 	var resp PositionLimitData
 	req := make(map[string]interface{})
 	req["contract_code"] = code
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapPositionLimitInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapPositionLimitInfo, nil, req, &resp)
 }
 
 // AccountTransferData gets asset transfer data between master and subaccounts
@@ -1458,7 +1463,7 @@ func (h *HUOBI) AccountTransferData(code, subUID, transferType string, amount fl
 		return resp, fmt.Errorf("inavlid transferType received")
 	}
 	req["type"] = transferType
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapInternalTransferData, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapInternalTransferData, nil, req, &resp)
 }
 
 // AccountTransferRecords gets asset transfer records between master and subaccounts
@@ -1480,7 +1485,7 @@ func (h *HUOBI) AccountTransferRecords(code, transferType string, createDate, pa
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapInternalTransferRecords, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapInternalTransferRecords, nil, req, &resp)
 }
 
 // PlaceSwapOrders places orders for swaps
@@ -1500,7 +1505,7 @@ func (h *HUOBI) PlaceSwapOrders(code, clientOrderID, direction, offset, orderPri
 	req["price"] = price
 	req["volume"] = volume
 	req["lever_rate"] = leverage
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapPlaceOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapPlaceOrder, nil, req, &resp)
 }
 
 // PlaceSwapBatchOrders places a batch of orders for swaps
@@ -1511,7 +1516,7 @@ func (h *HUOBI) PlaceSwapBatchOrders(data BatchOrderRequestType) (BatchOrderData
 		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
 	}
 	req["orders_data"] = data.Data
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapPlaceBatchOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapPlaceBatchOrder, nil, req, &resp)
 }
 
 // CancelSwapOrder sends a request to cancel an order
@@ -1525,7 +1530,7 @@ func (h *HUOBI) CancelSwapOrder(orderID, clientOrderID, contractCode string) (Ca
 		req["client_order_id"] = clientOrderID
 	}
 	req["contract_code"] = contractCode
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapCancelOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapCancelOrder, nil, req, &resp)
 }
 
 // CancelAllSwapOrders sends a request to cancel an order
@@ -1533,7 +1538,7 @@ func (h *HUOBI) CancelAllSwapOrders(contractCode string) (CancelOrdersData, erro
 	var resp CancelOrdersData
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapCancelAllOrders, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapCancelAllOrders, nil, req, &resp)
 }
 
 // PlaceLightningCloseOrder places a lightning close order
@@ -1552,7 +1557,7 @@ func (h *HUOBI) PlaceLightningCloseOrder(contractCode, direction, orderPriceType
 		}
 		req["order_price_type"] = orderPriceType
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapLightningCloseOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapLightningCloseOrder, nil, req, &resp)
 }
 
 // GetSwapOrderDetails gets order info
@@ -1573,7 +1578,7 @@ func (h *HUOBI) GetSwapOrderDetails(contractCode, orderID, createdAt, orderType 
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOrderDetails, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOrderDetails, nil, req, &resp)
 }
 
 // GetSwapOrderInfo gets info on a swap order
@@ -1589,7 +1594,7 @@ func (h *HUOBI) GetSwapOrderInfo(contractCode, orderID, clientOrderID string) (S
 	if clientOrderID != "" {
 		req["client_order_id"] = clientOrderID
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOrderInfo, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOrderInfo, nil, req, &resp)
 }
 
 // GetSwapOpenOrders gets open orders for swap
@@ -1603,7 +1608,7 @@ func (h *HUOBI) GetSwapOpenOrders(contractCode string, pageIndex, pageSize int64
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOpenOrders, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOpenOrders, nil, req, &resp)
 }
 
 // GetSwapOrderHistory gets swap order history
@@ -1648,7 +1653,7 @@ func (h *HUOBI) GetSwapOrderHistory(contractCode, tradeType, reqType string, sta
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOrderHistory, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapOrderHistory, nil, req, &resp)
 }
 
 // GetSwapTradeHistory gets swap trade history
@@ -1671,7 +1676,7 @@ func (h *HUOBI) GetSwapTradeHistory(contractCode, tradeType string, createDate, 
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTradeHistory, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTradeHistory, nil, req, &resp)
 }
 
 // PlaceSwapTriggerOrder places a trigger order for a swap
@@ -1694,7 +1699,7 @@ func (h *HUOBI) PlaceSwapTriggerOrder(contractCode, triggerType, direction, offs
 		return resp, fmt.Errorf("invalid order price type")
 	}
 	req["order_price_type"] = orderPriceType
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTriggerOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTriggerOrder, nil, req, &resp)
 }
 
 // CancelSwapTriggerOrder cancels swap trigger order
@@ -1703,7 +1708,7 @@ func (h *HUOBI) CancelSwapTriggerOrder(contractCode, orderID string) (CancelTrig
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
 	req["order_id"] = orderID
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapCancelTriggerOrder, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapCancelTriggerOrder, nil, req, &resp)
 }
 
 // CancelAllSwapTriggerOrders cancels all swap trigger orders
@@ -1711,7 +1716,7 @@ func (h *HUOBI) CancelAllSwapTriggerOrders(contractCode string) (CancelTriggerOr
 	var resp CancelTriggerOrdersData
 	req := make(map[string]interface{})
 	req["contract_code"] = contractCode
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapCancelAllTriggerOrders, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapCancelAllTriggerOrders, nil, req, &resp)
 }
 
 // GetSwapTriggerOrderHistory gets history for swap trigger orders
@@ -1735,7 +1740,7 @@ func (h *HUOBI) GetSwapTriggerOrderHistory(contractCode, status, tradeType strin
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTriggerOrderHistory, nil, req, &resp, false)
+	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.Futures, http.MethodPost, huobiSwapTriggerOrderHistory, nil, req, &resp)
 }
 
 // GetSwapMarkets gets data of swap markets
@@ -2442,7 +2447,7 @@ func (h *HUOBI) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 }
 
 // FuturesAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
-func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}, isVersion2API bool) error {
+func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}) error {
 	if !h.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}

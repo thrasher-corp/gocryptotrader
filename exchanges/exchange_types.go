@@ -151,7 +151,7 @@ type FeaturesSupported struct {
 	Kline                 kline.ExchangeCapabilitiesSupported
 }
 
-// Endpoints bra
+// Endpoints stores default and running url endpoints for exchanges
 type Endpoints struct {
 	defaults map[string]string
 	running  map[string]string

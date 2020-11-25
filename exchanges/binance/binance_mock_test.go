@@ -51,6 +51,6 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.GetURLMap(false))
+	log.Printf(sharedtestvalues.MockTesting, b.Name)
 	os.Exit(m.Run())
 }
