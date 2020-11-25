@@ -87,6 +87,20 @@ func (b *Binance) WsConnect() error {
 
 	go b.wsReadData()
 
+	if b.obm == nil {
+		b.obm = &orderbookManager{
+			buffer:       make(map[currency.Code]map[currency.Code]map[asset.Item]chan *WebsocketDepthStream),
+			fetchingBook: make(map[currency.Code]map[currency.Code]map[asset.Item]*bool),
+			initialSync:  make(map[currency.Code]map[currency.Code]map[asset.Item]*bool),
+			jobs:         make(chan orderbookWsJob, 2000),
+		}
+
+		for i := 0; i < 10; i++ {
+			// 10 workers for synchronising book
+			b.SynchroniseWebsocketOrderbook()
+		}
+	}
+
 	subs, err := b.GenerateSubscriptions()
 	if err != nil {
 		return err
@@ -467,57 +481,27 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) error {
 		return err
 	}
 
-	currentBook := b.Websocket.Orderbook.GetOrderbook(currencyPair, asset.Spot)
-	if currentBook == nil {
-		// Used when a pair/s is enabled while connected
-		err = b.SeedLocalCache(currencyPair)
-		if err != nil {
-			return err
-		}
-		currentBook = b.Websocket.Orderbook.GetOrderbook(currencyPair, asset.Spot)
+	err = b.obm.stageWsUpdate(wsdp, currencyPair, asset.Spot)
+	if err != nil {
+		return err
 	}
 
-	// Drop any event where u is <= lastUpdateId in the snapshot.
-	// The first processed event should have U <= lastUpdateId+1 AND u >= lastUpdateId+1.
-	// While listening to the stream, each new event's U should be equal to the previous event's u+1.
-	if wsdp.LastUpdateID <= currentBook.LastUpdateID {
-		return nil
+	err = b.applyBufferUpdate(currencyPair)
+	if err != nil {
+		cleanupErr := b.Websocket.Orderbook.FlushOrderbook(currencyPair, asset.Spot)
+		if cleanupErr != nil {
+			log.Errorln(log.WebsocketMgr, "flushing websocket error:", cleanupErr)
+		}
+
+		cleanupErr = b.obm.cleanup(currencyPair)
+		if cleanupErr != nil {
+			log.Errorln(log.WebsocketMgr, "cleanup websocket orderbook error:", cleanupErr)
+		}
+
+		return err
 	}
 
-	var updateBid, updateAsk []orderbook.Item
-	for i := range wsdp.UpdateBids {
-		p, err := strconv.ParseFloat(wsdp.UpdateBids[i][0].(string), 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(wsdp.UpdateBids[i][1].(string), 64)
-		if err != nil {
-			return err
-		}
-
-		updateBid = append(updateBid, orderbook.Item{Price: p, Amount: a})
-	}
-
-	for i := range wsdp.UpdateAsks {
-		p, err := strconv.ParseFloat(wsdp.UpdateAsks[i][0].(string), 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(wsdp.UpdateAsks[i][1].(string), 64)
-		if err != nil {
-			return err
-		}
-
-		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
-	}
-
-	return b.Websocket.Orderbook.Update(&buffer.Update{
-		Bids:     updateBid,
-		Asks:     updateAsk,
-		Pair:     currencyPair,
-		UpdateID: wsdp.LastUpdateID,
-		Asset:    asset.Spot,
-	})
+	return nil
 }
 
 // GenerateSubscriptions generates the default subscription set
@@ -723,7 +707,7 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 		if !ok {
 			o.initialSync[pair.Base][pair.Quote] = make(map[asset.Item]*bool)
 		}
-		o.initialSync[pair.Base][pair.Quote][a] = convert.BoolPtr(false)
+		o.initialSync[pair.Base][pair.Quote][a] = convert.BoolPtr(true)
 	}
 
 	select {
@@ -876,7 +860,7 @@ loop:
 				// While listening to the stream, each new event's U should be
 				// equal to the previous event's u+1.
 				if d.FirstUpdateID != id {
-					return fmt.Errorf("websocket orderbook synchronisation failure for pair %s and aset %s",
+					return fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s",
 						pair,
 						asset.Spot)
 				}
