@@ -19,7 +19,7 @@ func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c Cu
 	for i := range e.CurrencySettings {
 		if e.CurrencySettings[i].CurrencyPair == cp {
 			if e.CurrencySettings[i].AssetType == a {
-				if exch == e.Name {
+				if exch == e.CurrencySettings[i].ExchangeName {
 					e.CurrencySettings[i] = c
 				}
 			}
@@ -31,7 +31,7 @@ func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pa
 	for i := range e.CurrencySettings {
 		if e.CurrencySettings[i].CurrencyPair == cp {
 			if e.CurrencySettings[i].AssetType == a {
-				if exch == e.Name {
+				if exch == e.CurrencySettings[i].ExchangeName {
 					return e.CurrencySettings[i]
 				}
 			}
@@ -66,6 +66,7 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 			Time:         o.GetTime(),
 			CurrencyPair: o.Pair(),
 			AssetType:    o.GetAssetType(),
+			Interval:     o.GetInterval(),
 		},
 		Direction:   o.GetDirection(),
 		Amount:      o.GetAmount(),
@@ -79,7 +80,7 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 	}
 	fillEvent.Direction = o.GetDirection()
 	var slippageRate, estimatedPrice, amount float64
-	if e.UseRealOrders {
+	if false /*e.UseRealOrders*/ {
 		// get current orderbook
 		// calculate an estimated slippage rate
 		slippageRate = slippage.CalculateSlippage(nil)
@@ -112,7 +113,7 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 		Type:        gctorder.Market,
 	}
 
-	if e.UseRealOrders {
+	if false /*e.UseRealOrders*/ {
 		resp, err := engine.Bot.OrderManager.Submit(o2)
 		if err != nil {
 			return nil, err
@@ -134,12 +135,13 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 		}
 		orderID = resp.OrderID
 	}
-	od, err := engine.Bot.OrderManager.GetOrderInfo(o.GetExchange(), orderID, o.Pair(), o.GetAssetType())
-	if err != nil {
-		return nil, err
+	ords, _ := engine.Bot.OrderManager.GetOrdersSnapshot("")
+	for i := range ords {
+		if ords[i].ID == orderID {
+			fillEvent.Order = &ords[i]
+			fillEvent.PurchasePrice = ords[i].Price
+		}
 	}
-	fillEvent.Order = &od
-	fillEvent.PurchasePrice = od.Price
 
 	return fillEvent, nil
 }

@@ -17,6 +17,7 @@ func (s *Strategy) GetBase(d interfaces.DataHandler) signal.Signal {
 			Time:         d.Latest().GetTime(),
 			CurrencyPair: d.Latest().Pair(),
 			AssetType:    d.Latest().GetAssetType(),
+			Interval:     d.Latest().GetInterval(),
 		},
 	}
 }

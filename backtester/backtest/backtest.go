@@ -3,6 +3,7 @@ package backtest
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -61,22 +62,22 @@ func (b *BackTest) PrintSettings(cfg *config.Config) {
 		log.Info(log.BackTester, "Custom strategy variables: unset")
 	}
 	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Exchange Settings--------------------------")
+	log.Info(log.BackTester, "------------------Currency Settings--------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Exchange: %s", cfg.ExchangeSettings.Name)
-	for i := range cfg.ExchangeSettings.CurrencySettings {
+	for i := range cfg.CurrencySettings {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "------------------%v %v-%v Settings--------------------------",
-			cfg.ExchangeSettings.CurrencySettings[i].Asset,
-			cfg.ExchangeSettings.CurrencySettings[i].Base,
-			cfg.ExchangeSettings.CurrencySettings[i].Quote)
+			cfg.CurrencySettings[i].Asset,
+			cfg.CurrencySettings[i].Base,
+			cfg.CurrencySettings[i].Quote)
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Initial funds: %v", cfg.ExchangeSettings.CurrencySettings[i].InitialFunds)
-		log.Infof(log.BackTester, "Maker fee: %v", cfg.ExchangeSettings.CurrencySettings[i].TakerFee)
-		log.Infof(log.BackTester, "Taker fee: %v", cfg.ExchangeSettings.CurrencySettings[i].MakerFee)
-		log.Infof(log.BackTester, "Buy rules: %+v", cfg.ExchangeSettings.CurrencySettings[i].BuySide)
-		log.Infof(log.BackTester, "Sell rules: %+v", cfg.ExchangeSettings.CurrencySettings[i].SellSide)
-		log.Infof(log.BackTester, "Leverage rules: %+v", cfg.ExchangeSettings.CurrencySettings[i].Leverage)
+		log.Infof(log.BackTester, "Exchange: %v", cfg.CurrencySettings[i].ExchangeName)
+		log.Infof(log.BackTester, "Initial funds: %v", cfg.CurrencySettings[i].InitialFunds)
+		log.Infof(log.BackTester, "Maker fee: %v", cfg.CurrencySettings[i].TakerFee)
+		log.Infof(log.BackTester, "Taker fee: %v", cfg.CurrencySettings[i].MakerFee)
+		log.Infof(log.BackTester, "Buy rules: %+v", cfg.CurrencySettings[i].BuySide)
+		log.Infof(log.BackTester, "Sell rules: %+v", cfg.CurrencySettings[i].SellSide)
+		log.Infof(log.BackTester, "Leverage rules: %+v", cfg.CurrencySettings[i].Leverage)
 	}
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
@@ -161,7 +162,7 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	}
 
 	for i := range exchangeroo.CurrencySettings {
-		lookup := portfoliooo.SetupExchangeAssetPairMap(exchangeroo.Name, exchangeroo.CurrencySettings[i].AssetType, exchangeroo.CurrencySettings[i].CurrencyPair)
+		lookup := portfoliooo.SetupExchangeAssetPairMap(exchangeroo.CurrencySettings[i].ExchangeName, exchangeroo.CurrencySettings[i].AssetType, exchangeroo.CurrencySettings[i].CurrencyPair)
 		lookup.Fee = exchangeroo.CurrencySettings[i].TakerFee
 		lookup.Leverage = exchangeroo.CurrencySettings[i].Leverage
 		lookup.BuySideSizing = exchangeroo.CurrencySettings[i].BuySide
@@ -194,28 +195,27 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
-	exchangeroo := exchange.Exchange{
-		UseRealOrders: cfg.LiveData.RealOrders,
-	}
+	exchangeroo := exchange.Exchange{}
 
-	exch, fPair, a, err := bt.loadExchangePairAssetBase(cfg)
-	if err != nil {
-		return exchangeroo, err
-	}
+	for i := range cfg.CurrencySettings {
+		exch, fPair, a, err := bt.loadExchangePairAssetBase(cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote, cfg.CurrencySettings[i].Asset)
+		if err != nil {
+			return exchangeroo, err
+		}
 
-	bt.Data, err = loadData(cfg, exch, fPair, a)
-	if err != nil {
-		return exchangeroo, err
-	}
+		// despite going to all this effort, we only support one data for now
+		bt.Data, err = loadData(cfg, exch, fPair, a)
+		if err != nil {
+			return exchangeroo, err
+		}
 
-	for i := range cfg.ExchangeSettings.CurrencySettings {
 		var makerFee, takerFee float64
 
-		if cfg.ExchangeSettings.CurrencySettings[i].MakerFee > 0 {
-			makerFee = cfg.ExchangeSettings.CurrencySettings[i].MakerFee
+		if cfg.CurrencySettings[i].MakerFee > 0 {
+			makerFee = cfg.CurrencySettings[i].MakerFee
 		}
-		if cfg.ExchangeSettings.CurrencySettings[i].TakerFee > 0 {
-			takerFee = cfg.ExchangeSettings.CurrencySettings[i].TakerFee
+		if cfg.CurrencySettings[i].TakerFee > 0 {
+			takerFee = cfg.CurrencySettings[i].TakerFee
 		}
 		if makerFee == 0 || takerFee == 0 {
 			var apiMakerFee, apiTakerFee float64
@@ -231,38 +231,39 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			}
 		}
 
-		if cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent <= 0 {
-			cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
+		if cfg.CurrencySettings[i].MaximumSlippagePercent <= 0 {
+			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
-		if cfg.ExchangeSettings.CurrencySettings[i].MinimumSlippagePercent <= 0 {
-			cfg.ExchangeSettings.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
+		if cfg.CurrencySettings[i].MinimumSlippagePercent <= 0 {
+			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
 		}
-		if cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent <= cfg.ExchangeSettings.CurrencySettings[i].MinimumSlippagePercent {
-			cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
+		if cfg.CurrencySettings[i].MaximumSlippagePercent <= cfg.CurrencySettings[i].MinimumSlippagePercent {
+			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 
 		exchangeroo.CurrencySettings = append(exchangeroo.CurrencySettings, exchange.CurrencySettings{
-			InitialFunds:        cfg.ExchangeSettings.CurrencySettings[i].InitialFunds,
-			MinimumSlippageRate: cfg.ExchangeSettings.CurrencySettings[i].MinimumSlippagePercent,
-			MaximumSlippageRate: cfg.ExchangeSettings.CurrencySettings[i].MaximumSlippagePercent,
+			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
+			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
+			MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
+			MaximumSlippageRate: cfg.CurrencySettings[i].MaximumSlippagePercent,
 			CurrencyPair:        fPair,
 			AssetType:           a,
 			ExchangeFee:         takerFee,
 			MakerFee:            takerFee,
 			TakerFee:            makerFee,
 			BuySide: config.MinMax{
-				MinimumSize:  cfg.ExchangeSettings.CurrencySettings[i].BuySide.MinimumSize,
-				MaximumSize:  cfg.ExchangeSettings.CurrencySettings[i].BuySide.MaximumSize,
-				MaximumTotal: cfg.ExchangeSettings.CurrencySettings[i].BuySide.MaximumTotal,
+				MinimumSize:  cfg.CurrencySettings[i].BuySide.MinimumSize,
+				MaximumSize:  cfg.CurrencySettings[i].BuySide.MaximumSize,
+				MaximumTotal: cfg.CurrencySettings[i].BuySide.MaximumTotal,
 			},
 			SellSide: config.MinMax{
-				MinimumSize:  cfg.ExchangeSettings.CurrencySettings[i].SellSide.MinimumSize,
-				MaximumSize:  cfg.ExchangeSettings.CurrencySettings[i].SellSide.MaximumSize,
-				MaximumTotal: cfg.ExchangeSettings.CurrencySettings[i].SellSide.MaximumTotal,
+				MinimumSize:  cfg.CurrencySettings[i].SellSide.MinimumSize,
+				MaximumSize:  cfg.CurrencySettings[i].SellSide.MaximumSize,
+				MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
 			},
 			Leverage: config.Leverage{
-				CanUseLeverage:  cfg.ExchangeSettings.CurrencySettings[i].Leverage.CanUseLeverage,
-				MaximumLeverage: cfg.ExchangeSettings.CurrencySettings[i].Leverage.MaximumLeverage,
+				CanUseLeverage:  cfg.CurrencySettings[i].Leverage.CanUseLeverage,
+				MaximumLeverage: cfg.CurrencySettings[i].Leverage.MaximumLeverage,
 			},
 		})
 	}
@@ -303,7 +304,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, baaa, quote, ass string) (gc
 
 func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 	var err error
-	bt.Bot, err = engine.NewFromSettings(&engine.Settings{
+	engine.Bot, err = engine.NewFromSettings(&engine.Settings{
 		EnableDryRun:   true,
 		EnableAllPairs: true,
 	}, nil)
@@ -311,9 +312,13 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 		return err
 	}
 
-	err = bt.Bot.LoadExchange(cfg.ExchangeSettings.Name, false, nil)
-	if err != nil {
-		return err
+	bt.Bot = engine.Bot
+
+	for i := range cfg.CurrencySettings {
+		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = bt.Bot.OrderManager.Start()
@@ -368,7 +373,7 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 	}
 
 	if cfg.CSVData != nil {
-		resp, err = csv.LoadData(cfg.CSVData.FullPath, cfg.CSVData.DataType, cfg.ExchangeSettings.Name, cfg.CSVData.Interval, fPair, a)
+		resp, err = csv.LoadData(cfg.CSVData.FullPath, cfg.CSVData.DataType, strings.ToLower(exch.GetName()), cfg.CSVData.Interval, fPair, a)
 		if err != nil {
 			return nil, err
 		}
@@ -401,7 +406,7 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 			cfg.LiveData.RealOrders = false
 		}
 
-		go constantlyLoadLiveDataKThanksGuy(resp, cfg, exch, fPair, a)
+		go loadLiveDataLoop(resp, cfg, exch, fPair, a)
 		return resp, nil
 	} else if cfg.DatabaseData != nil {
 		resp, err = database.LoadData(
@@ -409,7 +414,7 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 			cfg.DatabaseData.StartDate,
 			cfg.DatabaseData.EndDate,
 			cfg.DatabaseData.Interval,
-			cfg.ExchangeSettings.Name,
+			strings.ToLower(exch.GetName()),
 			cfg.DatabaseData.DataType,
 			fPair,
 			a)
@@ -428,7 +433,7 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 	return resp, nil
 }
 
-func constantlyLoadLiveDataKThanksGuy(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
+func loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
 	candles, err := live.LoadData(exch, cfg.LiveData.DataType, cfg.LiveData.Interval, fPair, a)
 	if err != nil {
 		log.Error(log.BackTester, err)

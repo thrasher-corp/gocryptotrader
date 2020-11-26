@@ -28,9 +28,11 @@ func (d *DataFromKline) Load() error {
 	for i := range d.Item.Candles {
 		klineData[i] = &kline.Kline{
 			Event: event.Event{
-				Exchange: d.Item.Exchange,
-				Time:     d.Item.Candles[i].Time, CurrencyPair: d.Item.Pair,
-				AssetType: d.Item.Asset,
+				Exchange:     d.Item.Exchange,
+				Time:         d.Item.Candles[i].Time,
+				Interval:     d.Item.Interval,
+				CurrencyPair: d.Item.Pair,
+				AssetType:    d.Item.Asset,
 			},
 			Open:   d.Item.Candles[i].Open,
 			High:   d.Item.Candles[i].High,
@@ -64,6 +66,7 @@ func (d *DataFromKline) Append(hi gctkline.Item) {
 			Event: event.Event{
 				Exchange:     hi.Exchange,
 				Time:         gctCandles[i].Time,
+				Interval:     hi.Interval,
 				CurrencyPair: hi.Pair,
 				AssetType:    hi.Asset,
 			},

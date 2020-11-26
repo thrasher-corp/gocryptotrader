@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -16,7 +17,7 @@ import (
 )
 
 func LoadData(configOverride *database.Config, startDate, endDate time.Time, interval time.Duration, exchangeName, dataType string, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
-	var resp *kline.DataFromKline
+	resp := &kline.DataFromKline{}
 	var err error
 	if configOverride != nil {
 		engine.Bot.Config.Database = *configOverride
@@ -65,6 +66,8 @@ func LoadData(configOverride *database.Config, startDate, endDate time.Time, int
 	default:
 		return nil, fmt.Errorf("unexpected database datatype: '%v'", dataType)
 	}
+	resp.Item.Exchange = strings.ToLower(resp.Item.Exchange)
+
 	return resp, nil
 }
 

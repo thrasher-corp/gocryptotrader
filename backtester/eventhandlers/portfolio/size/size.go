@@ -66,13 +66,13 @@ func (s *Size) calculateSize(price, availableFunds, feeRate float64, minMaxSetti
 
 	amount := availableFunds * (1 - feeRate) / price
 	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
-		amount = minMaxSettings.MaximumSize * (1 - feeRate) / price
+		amount = minMaxSettings.MaximumSize * (1 - feeRate)
 	}
 	if minMaxSettings.MaximumTotal > 0 && (amount+feeRate)*price > minMaxSettings.MaximumTotal {
 		amount = minMaxSettings.MaximumTotal * (1 - feeRate) / price
 	}
 	if amount < minMaxSettings.MinimumSize {
-		return 0, fmt.Errorf("sized amount less than minimum %v", minMaxSettings.MinimumSize)
+		return 0, fmt.Errorf("sized amount '%.8f' less than minimum '%v'", amount, minMaxSettings.MinimumSize)
 	}
 
 	return amount, nil

@@ -22,8 +22,12 @@ func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate float64
 	}
 	// the language here is confusing. The maximum slippage rate is the lower bounds of the number,
 	// eg 80 means for every dollar, keep 80%
-	result := float64(rand.Intn(int(minimumSlippageRate) - int(maximumSlippageRate)))
-	return (result + maximumSlippageRate) / 100
+	randSeed := int(minimumSlippageRate) - int(maximumSlippageRate)
+	if randSeed > 0 {
+		result := float64(rand.Intn(randSeed))
+		return (result + maximumSlippageRate) / 100
+	}
+	return 1
 }
 
 func CalculateSlippage(orderbook interface{}) float64 {

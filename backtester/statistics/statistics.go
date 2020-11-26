@@ -119,14 +119,13 @@ func (s *Statistic) PrintResult() {
 
 	transactions := s.Transactions()
 	for k, v := range transactions {
-		sb.WriteString(fmt.Sprintf("%v. ", k+1))
+		sb.WriteString(fmt.Sprintf("%v.\t", k+1))
 		sb.WriteString(fmt.Sprintf("%v\t", v.GetTime().Format(common2.SimpleTimeFormat)))
 		sb.WriteString(fmt.Sprintf("%v\t", v.GetDirection()))
 		if v.GetDirection() != common.DoNothing {
-			sb.WriteString(fmt.Sprintf("%f @ ", roundIt(v.GetAmount())))
-			sb.WriteString(fmt.Sprintf("$%f\t", roundIt(v.GetClosePrice())))
+			sb.WriteString(fmt.Sprintf("Amount: %f, Price: ", roundIt(v.GetAmount())))
+			sb.WriteString(fmt.Sprintf("$%f\t", roundIt(v.GetPurchasePrice())))
 			sb.WriteString(fmt.Sprintf("Fee: $%f\t", roundIt(v.GetExchangeFee())))
-			sb.WriteString(fmt.Sprintf("Cost Basis: %f\t", roundIt(v.GetClosePrice()*v.GetAmount()+v.GetExchangeFee())))
 		} else {
 			sb.WriteString("\t\t\t")
 		}
@@ -150,6 +149,9 @@ func (s *Statistic) TotalEquityReturn() (r float64, err error) {
 	firstEquityPoint, ok := s.firstEquityPoint()
 	if !ok {
 		return r, errors.New("could not calculate totalEquityReturn, no equity points found")
+	}
+	if firstEquityPoint.Equity == 0 {
+		return 0, errors.New("equity zero")
 	}
 	firstEquity := decimal.NewFromFloat(firstEquityPoint.Equity)
 

@@ -2,6 +2,7 @@ package live
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -59,6 +60,6 @@ func LoadData(exch exchange.IBotExchange, dataType string, interval time.Duratio
 	default:
 		return nil, fmt.Errorf("unrecognised api datatype received: '%v'", dataType)
 	}
-	candles.Exchange = exch.GetName()
+	candles.Exchange = strings.ToLower(exch.GetName())
 	return &candles, nil
 }

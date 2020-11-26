@@ -44,7 +44,7 @@ func (s *Strategy) OnSignal(d interfaces.DataHandler, _ portfolio2.PortfolioHand
 	} else {
 		es.SetDirection(common.DoNothing)
 	}
-	es.SetWhy(fmt.Sprintf("RSI at %v", lastSI))
+	es.SetWhy(fmt.Sprintf("RSI at %.2f", lastSI))
 
 	return &es, nil
 }

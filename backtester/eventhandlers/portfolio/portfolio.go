@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 func (p *Portfolio) Reset() {
@@ -23,16 +24,23 @@ func (p *Portfolio) Reset() {
 	p.Transactions = nil
 }
 
+// OnSignal receives the event from the strategy on whether it has signalled to buy, do nothing or sell
+// on buy/sell, the portfolio manager will size the order and assess the risk of the order
+// if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
+// the portfolio manager's recommendations
 func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHandler, cs *exchange.CurrencySettings) (*order.Order, error) {
 	if signal.GetDirection() == "" {
 		return &order.Order{}, errors.New("invalid Direction")
 	}
 
-	exchangeAssetPairHoldings, _ := p.ViewHoldings(
+	exchangeAssetPairHoldings, err := p.ViewHoldings(
 		signal.GetExchange(),
 		signal.GetAssetType(),
 		signal.Pair(),
 		signal.GetTime().Add(-signal.GetInterval().Duration()))
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
 	lookup := p.ExchangeAssetPairSettings[signal.GetExchange()][signal.GetAssetType()][signal.Pair()]
 	currFunds := lookup.GetFunds()
 
@@ -42,6 +50,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 			Time:         signal.GetTime(),
 			CurrencyPair: signal.Pair(),
 			AssetType:    signal.GetAssetType(),
+			Interval:     signal.GetInterval(),
 		},
 		Direction: signal.GetDirection(),
 		Why:       signal.GetWhy(),
@@ -51,11 +60,15 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 	}
 
 	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && exchangeAssetPairHoldings.Amount <= signal.GetAmount() {
-		return nil, NoHoldingsToSellErr
+		o.SetWhy("no holdings to sell. " + signal.GetWhy())
+		o.Direction = common.DoNothing
+		return o, nil
 	}
 
 	if (signal.GetDirection() == gctorder.Buy || signal.GetDirection() == gctorder.Bid) && currFunds <= 0 {
-		return nil, NotEnoughFundsErr
+		o.SetWhy("not enough funds to buy. " + signal.GetWhy())
+		o.Direction = common.DoNothing
+		return o, nil
 	}
 
 	o.Price = signal.GetPrice()
@@ -69,36 +82,49 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 		cs,
 	)
 	if err != nil {
-		return nil, err
+		o.SetWhy(err.Error() + " " + signal.GetWhy())
+		o.Direction = common.DoNothing
+		return o, nil
 	}
 
 	eo, err := p.RiskManager.EvaluateOrder(sizedOrder, latest, exchangeAssetPairHoldings)
 	if err != nil {
-		return nil, err
+		o.SetWhy(err.Error() + " " + signal.GetWhy())
+		o.Direction = common.DoNothing
+		return o, nil
 	}
 
 	return eo, nil
 }
 
+// OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions
 func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (*fill.Fill, error) {
-	if fillEvent.GetDirection() == common.DoNothing {
-		what := fillEvent.(*fill.Fill)
-		what.ExchangeFee = 0
-		return what, nil
+	lookup := p.ExchangeAssetPairSettings[fillEvent.GetExchange()][fillEvent.GetAssetType()][fillEvent.Pair()]
+	holdings, err := p.ViewHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()))
+	if err != nil {
+		return nil, err
 	}
-	holdings := p.ViewHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()))
 	if !holdings.Timestamp.IsZero() {
 		holdings.Update(fillEvent)
 	} else {
 		holdings = position.Position{}
+		holdings.Amount = lookup.InitialFunds
 		holdings.Create(fillEvent)
 	}
-	p.SetHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime(), holdings, false)
+	err = p.SetHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime(), holdings, true)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
 
-	if fillEvent.GetDirection() == gctorder.Buy {
-		p.ExchangeAssetPairSettings[fillEvent.GetExchange()][fillEvent.GetAssetType()][fillEvent.Pair()].Funds -= fillEvent.NetValue()
-	} else if fillEvent.GetDirection() == gctorder.Sell || fillEvent.GetDirection() == gctorder.Ask {
-		p.ExchangeAssetPairSettings[fillEvent.GetExchange()][fillEvent.GetAssetType()][fillEvent.Pair()].Funds += fillEvent.NetValue()
+	switch fillEvent.GetDirection() {
+	case common.DoNothing:
+		fe := fillEvent.(*fill.Fill)
+		fe.ExchangeFee = 0
+		return fe, nil
+	case gctorder.Buy, gctorder.Bid:
+		lookup.Funds -= fillEvent.NetValue()
+	case gctorder.Sell, gctorder.Ask:
+		lookup.Funds += fillEvent.NetValue()
 	}
 
 	p.Transactions = append(p.Transactions, fillEvent)
@@ -165,13 +191,13 @@ func (p *Portfolio) GetFunds(exch string, a asset.Item, cp currency.Pair) float6
 func (p *Portfolio) SetHoldings(exch string, a asset.Item, cp currency.Pair, t time.Time, pos position.Position, force bool) error {
 	lookup := p.ExchangeAssetPairSettings[exch][a][cp]
 	found := false
-	for i := range lookup.Holdings.Positions {
-		if lookup.Holdings.Positions[i].Timestamp.Equal(t) {
+	for i := range lookup.PositionSnapshots.Positions {
+		if lookup.PositionSnapshots.Positions[i].Timestamp.Equal(t) {
 			found = true
 		}
 	}
 	if !found {
-		lookup.Holdings.Positions = append(lookup.Holdings.Positions, pos)
+		lookup.PositionSnapshots.Positions = append(lookup.PositionSnapshots.Positions, pos)
 		p.ExchangeAssetPairSettings[exch][a][cp] = lookup
 	}
 	return nil
@@ -195,11 +221,15 @@ func (p *Portfolio) SetupExchangeAssetPairMap(exch string, a asset.Item, cp curr
 }
 
 func (e *ExchangeAssetPairSettings) GetLatestHoldings() position.Position {
-	sort.SliceStable(e.Holdings.Positions, func(i, j int) bool {
-		return e.Holdings.Positions[i].Timestamp.Before(e.Holdings.Positions[j].Timestamp)
+	if e.PositionSnapshots.Positions == nil {
+		// no holdings yet
+		return position.Position{}
+	}
+	sort.SliceStable(e.PositionSnapshots.Positions, func(i, j int) bool {
+		return e.PositionSnapshots.Positions[i].Timestamp.Before(e.PositionSnapshots.Positions[j].Timestamp)
 	})
 
-	return e.Holdings.Positions[len(e.Holdings.Positions)-1]
+	return e.PositionSnapshots.Positions[len(e.PositionSnapshots.Positions)-1]
 }
 
 func (e *ExchangeAssetPairSettings) SetInitialFunds(initial float64) {

@@ -30,11 +30,10 @@ type ExchangeAssetPairSettings struct {
 	InitialFunds      float64
 	Fee               float64
 	Funds             float64
-	Holdings          position.Snapshots
+	PositionSnapshots position.Snapshots
 	BuySideSizing     config.MinMax
 	SellSideSizing    config.MinMax
 	Leverage          config.Leverage
-	PositionSnapshots position.Snapshots
 }
 
 type PortfolioHandler interface {

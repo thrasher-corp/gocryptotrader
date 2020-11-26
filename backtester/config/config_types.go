@@ -8,10 +8,8 @@ import (
 
 // Config defines what is in an individual strategy config
 type Config struct {
-	StrategyToLoad   string           `json:"strategy"`
-	ExchangeSettings ExchangeSettings `json:"exchange-settings"`
-	// Unsupported so far, but will move to having multiple currencies
-	ExchangeSettingsButWithPassionAndLust []ExchangeSettings `json:"lustful-exchange-settings,omitempty"`
+	StrategyToLoad   string             `json:"strategy"`
+	CurrencySettings []CurrencySettings `json:"currency-settings"`
 	// data source definitions:
 	APIData           *APIData               `json:"api-data,omitempty"`
 	DatabaseData      *DatabaseData          `json:"database-data,omitempty"`
@@ -45,15 +43,11 @@ type MinMax struct {
 // ExchangeSettings stores pair based variables
 // It contains rules about the specific currency pair
 // you wish to trade with
-type ExchangeSettings struct {
-	Name             string `json:"exchange-name"`
-	CurrencySettings []CurrencySettings
-}
-
 type CurrencySettings struct {
-	Asset string `json:"asset"`
-	Base  string `json:"base"`
-	Quote string `json:"quote"`
+	ExchangeName string `json:"exchange-name"`
+	Asset        string `json:"asset"`
+	Base         string `json:"base"`
+	Quote        string `json:"quote"`
 
 	InitialFunds float64 `json:"initial-funds"`
 

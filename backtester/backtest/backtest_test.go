@@ -69,7 +69,7 @@ func genOHCLVData() kline.Item {
 func TestLoadCandleDataFromAPI(t *testing.T) {
 	cfg := config.Config{
 		StrategyToLoad: "dollarcostaverage",
-		ExchangeSettings: config.ExchangeSettings{
+		CurrencySettings: config.ExchangeSettings{
 			Name:            "binance",
 			Asset:           asset.Spot.String(),
 			Base:            currency.BTC.String(),
@@ -116,7 +116,7 @@ func TestLoadCandleDataFromAPI(t *testing.T) {
 func TestWhatHAppensWhenLiveIsRun(t *testing.T) {
 	cfg := config.Config{
 		StrategyToLoad: "dollarcostaverage",
-		ExchangeSettings: config.ExchangeSettings{
+		CurrencySettings: config.ExchangeSettings{
 			Name:            "binance",
 			Asset:           asset.Spot.String(),
 			Base:            currency.BTC.String(),
@@ -165,7 +165,7 @@ func TestWhatHAppensWhenLiveIsRun(t *testing.T) {
 func TestLoadTradeDataFromAPI(t *testing.T) {
 	cfg := config.Config{
 		StrategyToLoad: "dollarcostaverage",
-		ExchangeSettings: config.ExchangeSettings{
+		CurrencySettings: config.ExchangeSettings{
 			Name:            "ftx",
 			Asset:           asset.Spot.String(),
 			Base:            currency.BTC.String(),
@@ -214,7 +214,7 @@ func TestLoadDataFromCandleDatabase(t *testing.T) {
 
 	cfg := config.Config{
 		StrategyToLoad: "dollarcostaverage",
-		ExchangeSettings: config.ExchangeSettings{
+		CurrencySettings: config.ExchangeSettings{
 			Name:            "binance",
 			Asset:           asset.Spot.String(),
 			Base:            currency.BTC.String(),
@@ -337,7 +337,7 @@ func TestLoadDataFromCandleDatabase(t *testing.T) {
 func TestLoadDataFromTradeDatabase(t *testing.T) {
 	cfg := config.Config{
 		StrategyToLoad: "dollarcostaverage",
-		ExchangeSettings: config.ExchangeSettings{
+		CurrencySettings: config.ExchangeSettings{
 			Name:            "binance",
 			Asset:           asset.Spot.String(),
 			Base:            currency.BTC.String(),
@@ -475,7 +475,7 @@ func TestLoadDataFromTradeDatabase(t *testing.T) {
 func TestLoadCandleDataFromCSV(t *testing.T) {
 	cfg := config.Config{
 		StrategyToLoad: "dollarcostaverage",
-		ExchangeSettings: config.ExchangeSettings{
+		CurrencySettings: config.ExchangeSettings{
 			Name:            "binance",
 			Asset:           asset.Spot.String(),
 			Base:            currency.BTC.String(),
@@ -549,7 +549,7 @@ func TestLoadCandleDataFromCSV(t *testing.T) {
 func TestLoadTradeDataFromCSV(t *testing.T) {
 	cfg := config.Config{
 		StrategyToLoad: "dollarcostaverage",
-		ExchangeSettings: config.ExchangeSettings{
+		CurrencySettings: config.ExchangeSettings{
 			Name:            "binance",
 			Asset:           asset.Spot.String(),
 			Base:            currency.BTC.String(),

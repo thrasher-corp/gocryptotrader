@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -139,6 +140,7 @@ func LoadData(filepath, dataType, exchangeName string, interval time.Duration, f
 	default:
 		return nil, fmt.Errorf("unrecognised csv datatype received: '%v'", dataType)
 	}
+	resp.Item.Exchange = strings.ToLower(resp.Item.Exchange)
 
 	return resp, nil
 }

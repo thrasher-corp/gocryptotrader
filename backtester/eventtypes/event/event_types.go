@@ -14,7 +14,4 @@ type Event struct {
 	Interval     kline.Interval
 	CurrencyPair currency.Pair
 	AssetType    asset.Item
-	MakerFee     float64
-	TakerFee     float64
-	FeeRate      float64
 }

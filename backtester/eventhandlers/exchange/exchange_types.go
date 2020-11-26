@@ -16,12 +16,13 @@ type ExecutionHandler interface {
 }
 
 type Exchange struct {
-	Name             string
-	UseRealOrders    bool
 	CurrencySettings []CurrencySettings
 }
 
 type CurrencySettings struct {
+	ExchangeName  string
+	UseRealOrders bool
+
 	InitialFunds float64
 
 	CurrencyPair currency.Pair
