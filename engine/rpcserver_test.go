@@ -795,8 +795,7 @@ func TestGetAccountInfo(t *testing.T) {
 
 	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
 	if err != nil {
-		t.Errorf("TestGetAccountInfo: Failed to get account info: %w", err)
-		return
+		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
 
 	validateAccountInfoResponse(t, r, accounts)
@@ -811,8 +810,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
 		if err != nil {
-			t.Errorf("TestGetAccountInfo: Failed to get account info: %w", err)
-			return
+			t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 		}
 		validateAccountInfoResponse(t, r, accounts)
 	}
@@ -831,8 +829,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 	testExchange, ok := bot.GetExchangeByName(fakePassExchange).(*FakePassingExchange)
 	if testExchange == nil || !ok {
-		t.Errorf("TestGetAccountInfo: Failed to get test exchange: %s", fakePassExchange)
-		return
+		t.Fatalf("TestGetAccountInfo: Failed to get test exchange: %s", fakePassExchange)
 	}
 
 	testExchange.Holdings = account.Holdings{
@@ -842,14 +839,12 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 	_, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
 	if err != nil {
-		t.Errorf("TestGetAccountInfo: Failed to update account info: %w", err)
-		return
+		t.Fatalf("TestGetAccountInfo: Failed to update account info: %s", err)
 	}
 
 	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
 	if err != nil {
-		t.Errorf("TestGetAccountInfo: Failed to get account info: %w", err)
-		return
+		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
 
 	validateAccountInfoResponse(t, r, newAccounts)
@@ -872,21 +867,18 @@ func refreshAccounts(t *testing.T) []account.SubAccount {
 		Accounts: accounts,
 	})
 	if err != nil {
-		t.Errorf("TestGetAccountInfo: Failed to process account with holdings: %w", err)
-		return nil
+		t.Fatalf("TestGetAccountInfo: Failed to process account with holdings: %s", err)
 	}
 	return accounts
 }
 
 func validateAccountInfoResponse(t *testing.T, r *gctrpc.GetAccountInfoResponse, accounts []account.SubAccount) {
 	if r.Exchange != fakePassExchange {
-		t.Errorf("TestGetAccountInfo: Unexpected exchange in the response: exp=%s, act=%s", fakePassExchange, r.Exchange)
-		return
+		t.Fatalf("TestGetAccountInfo: Unexpected exchange in the response: exp=%s, act=%s", fakePassExchange, r.Exchange)
 	}
 
 	if len(r.Accounts) != len(accounts) {
-		t.Errorf("TestGetAccountInfo: Unexpected size of accounts in the response: exp=%v, act=%v", len(accounts), len(r.Accounts))
-		return
+		t.Fatalf("TestGetAccountInfo: Unexpected size of accounts in the response: exp=%v, act=%v", len(accounts), len(r.Accounts))
 	}
 
 	cmpAccounts(t, accounts, r.Accounts)
@@ -894,25 +886,22 @@ func validateAccountInfoResponse(t *testing.T, r *gctrpc.GetAccountInfoResponse,
 
 func cmpAccounts(t *testing.T, exp []account.SubAccount, act []*gctrpc.Account) {
 	if len(act) != len(exp) {
-		t.Errorf("TestGetAccountInfo: Unexpected number of accouns in the response: exp=%d, act=%d", len(exp), len(act))
-		return
+		t.Fatalf("TestGetAccountInfo: Unexpected number of accouns in the response: exp=%d, act=%d", len(exp), len(act))
 	}
 	if act[0].Currencies[0].Currency != exp[0].Currencies[0].CurrencyName.String() {
-		t.Errorf("TestGetAccountInfo: Unexpected value of the 'CurrencyName': exp=%v, act=%v",
+		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'CurrencyName': exp=%v, act=%v",
 			exp[0].Currencies[0].CurrencyName.String(),
 			act[0].Currencies[0].Currency,
 		)
-		return
 	}
 	if act[0].Currencies[0].TotalValue != exp[0].Currencies[0].TotalValue {
-		t.Errorf("TestGetAccountInfo: Unexpected value of the 'TotalValue': exp=%v, act=%v",
+		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue': exp=%v, act=%v",
 			exp[0].Currencies[0].TotalValue,
 			act[0].Currencies[0].TotalValue,
 		)
-		return
 	}
 	if act[0].Currencies[0].Hold != exp[0].Currencies[0].Hold {
-		t.Errorf("TestGetAccountInfo: Unexpected value of the 'Hold': exp=%v, act=%v",
+		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'Hold': exp=%v, act=%v",
 			exp[0].Currencies[0].Hold,
 			act[0].Currencies[0].Hold,
 		)
