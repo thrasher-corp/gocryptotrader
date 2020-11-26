@@ -332,7 +332,7 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (g *Gemini) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (g *Gemini) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

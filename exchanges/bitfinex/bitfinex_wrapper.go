@@ -485,7 +485,7 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitfinex) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *Bitfinex) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

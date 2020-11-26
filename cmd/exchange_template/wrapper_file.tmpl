@@ -325,7 +325,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetFundingHistory() ([]exchange.FundHisto
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func ({{.Variable}} *{{.CapitalName}}) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func ({{.Variable}} *{{.CapitalName}}) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

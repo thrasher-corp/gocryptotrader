@@ -329,7 +329,7 @@ func (l *Lbank) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (l *Lbank) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (l *Lbank) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

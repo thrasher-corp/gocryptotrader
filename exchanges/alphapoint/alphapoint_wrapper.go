@@ -208,7 +208,7 @@ func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (a *Alphapoint) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (a *Alphapoint) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

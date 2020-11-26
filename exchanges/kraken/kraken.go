@@ -505,7 +505,7 @@ func (k *Kraken) GetWithdrawInfo(currency string, amount float64) (WithdrawInfor
 	params := url.Values{}
 	params.Set("asset", currency)
 	params.Set("key", "")
-	params.Set("amount", fmt.Sprintf("%f", amount))
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenWithdrawInfo, params, &response); err != nil {
 		return response.Result, err

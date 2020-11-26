@@ -427,7 +427,7 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTCMarkets) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *BTCMarkets) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

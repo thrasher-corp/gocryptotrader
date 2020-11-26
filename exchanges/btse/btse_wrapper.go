@@ -409,7 +409,7 @@ func (b *BTSE) withinLimits(pair currency.Pair, amount float64) bool {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *BTSE) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (b *BTSE) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

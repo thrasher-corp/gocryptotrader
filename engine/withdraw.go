@@ -160,7 +160,7 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 	return v
 }
 
-func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, e string, limit int) *gctrpc.WithdrawalEventsByExchangeResponse {
+func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, limit int) *gctrpc.WithdrawalEventsByExchangeResponse {
 	v := &gctrpc.WithdrawalEventsByExchangeResponse{}
 	for x := range ret {
 		if limit > 0 && x >= limit {
@@ -170,7 +170,7 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, e string, limit i
 		tempEvent := &gctrpc.WithdrawalEventResponse{
 			Id: ret[x].TransferID,
 			Exchange: &gctrpc.WithdrawlExchangeEvent{
-				Name:   e,
+				Name:   exchName,
 				Status: ret[x].Status,
 			},
 			Request: &gctrpc.WithdrawalRequestEvent{
@@ -186,7 +186,6 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, e string, limit i
 		}
 
 		tempEvent.UpdatedAt = updatedAtPtype
-		tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
 		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
 			Address: ret[x].CryptoToAddress,
 			Fee:     ret[x].Fee,

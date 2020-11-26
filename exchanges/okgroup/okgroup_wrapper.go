@@ -463,7 +463,7 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *OKGroup) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (o *OKGroup) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

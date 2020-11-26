@@ -517,17 +517,17 @@ func (k *Kraken) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (k *Kraken) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
-	withdrawals, err := k.WithdrawStatus(currency, "")
-	for _, w := range withdrawals {
+func (k *Kraken) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	withdrawals, err := k.WithdrawStatus(c, "")
+	for i := range withdrawals {
 		resp = append(resp, exchange.WithdrawalHistory{
-			Status:          w.Status,
-			TransferID:      w.Refid,
-			Timestamp:       time.Unix(int64(w.Time), 0),
-			Amount:          w.Amount,
-			Fee:             w.Fee,
-			CryptoToAddress: w.Info,
-			CryptoTxID:      w.TxID,
+			Status:          withdrawals[i].Status,
+			TransferID:      withdrawals[i].Refid,
+			Timestamp:       time.Unix(int64(withdrawals[i].Time), 0),
+			Amount:          withdrawals[i].Amount,
+			Fee:             withdrawals[i].Fee,
+			CryptoToAddress: withdrawals[i].Info,
+			CryptoTxID:      withdrawals[i].TxID,
 		})
 	}
 

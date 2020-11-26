@@ -696,7 +696,7 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (o *OKEX) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+func (o *OKEX) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
 }
 

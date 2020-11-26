@@ -2,7 +2,6 @@ package binance
 
 import (
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -500,15 +499,15 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Binance) GetWithdrawalsHistory(currency currency.Code) (resp []exchange.WithdrawalHistory, err error) {
-	w, err := b.WithdrawStatus(currency)
+func (b *Binance) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	w, err := b.WithdrawStatus(c)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, b := range w {
 		resp = append(resp, exchange.WithdrawalHistory{
-			Status:          fmt.Sprint(b.Status),
+			Status:          strconv.FormatInt(b.Status, 10),
 			TransferID:      b.ID,
 			Currency:        b.Asset,
 			Amount:          b.Amount,
