@@ -15,49 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c CurrencySettings) {
-	for i := range e.CurrencySettings {
-		if e.CurrencySettings[i].CurrencyPair == cp {
-			if e.CurrencySettings[i].AssetType == a {
-				if exch == e.CurrencySettings[i].ExchangeName {
-					e.CurrencySettings[i] = c
-				}
-			}
-		}
-	}
-}
-
-func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) CurrencySettings {
-	for i := range e.CurrencySettings {
-		if e.CurrencySettings[i].CurrencyPair == cp {
-			if e.CurrencySettings[i].AssetType == a {
-				if exch == e.CurrencySettings[i].ExchangeName {
-					return e.CurrencySettings[i]
-				}
-			}
-		}
-	}
-	return CurrencySettings{}
-}
-
-func (e *Exchange) ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (float64, float64) {
-	if slippagePrice < low {
-		slippagePrice = low
-	}
-	if slippagePrice > high {
-		slippagePrice = high
-	}
-
-	if amount*slippagePrice > volume {
-		// hey, this order is too big here
-		for amount*slippagePrice > volume {
-			amount *= 0.99999
-		}
-	}
-
-	return slippagePrice, amount
-}
-
 func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fill.Fill, error) {
 	cs := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	fillEvent := &fill.Fill{
@@ -68,11 +25,12 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 			AssetType:    o.GetAssetType(),
 			Interval:     o.GetInterval(),
 		},
-		Direction:   o.GetDirection(),
-		Amount:      o.GetAmount(),
-		ClosePrice:  data.Latest().Price(),
-		ExchangeFee: cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
-		Why:         o.GetWhy(),
+		Direction:           o.GetDirection(),
+		Amount:              o.GetAmount(),
+		ClosePrice:          data.Latest().Price(),
+		VolumeAdjustedPrice: 0,
+		ExchangeFee:         cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
+		Why:                 o.GetWhy(),
 	}
 	if o.GetAmount() <= 0 {
 		fillEvent.Direction = common.DoNothing
@@ -96,7 +54,10 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 		estimatedPrice, amount = e.ensureOrderFitsWithinHLV(estimatedPrice, o.GetAmount(), high[len(high)-1], low[len(low)-1], volume[len(volume)-1])
 	}
 
+	fillEvent.Slippage = (slippageRate * 100) - 100
+	fillEvent.VolumeAdjustedPrice = estimatedPrice
 	fillEvent.ExchangeFee = e.calculateExchangeFee(estimatedPrice, amount, cs.ExchangeFee)
+
 	u, _ := uuid.NewV4()
 	var orderID string
 	o2 := &gctorder.Submit{
@@ -138,12 +99,58 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 	ords, _ := engine.Bot.OrderManager.GetOrdersSnapshot("")
 	for i := range ords {
 		if ords[i].ID == orderID {
+			ords[i].Date = o.GetTime()
+			ords[i].LastUpdated = o.GetTime()
+			ords[i].CloseTime = o.GetTime()
 			fillEvent.Order = &ords[i]
 			fillEvent.PurchasePrice = ords[i].Price
 		}
 	}
 
 	return fillEvent, nil
+}
+
+func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c CurrencySettings) {
+	for i := range e.CurrencySettings {
+		if e.CurrencySettings[i].CurrencyPair == cp {
+			if e.CurrencySettings[i].AssetType == a {
+				if exch == e.CurrencySettings[i].ExchangeName {
+					e.CurrencySettings[i] = c
+				}
+			}
+		}
+	}
+}
+
+func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) CurrencySettings {
+	for i := range e.CurrencySettings {
+		if e.CurrencySettings[i].CurrencyPair == cp {
+			if e.CurrencySettings[i].AssetType == a {
+				if exch == e.CurrencySettings[i].ExchangeName {
+					return e.CurrencySettings[i]
+				}
+			}
+		}
+	}
+	return CurrencySettings{}
+}
+
+func (e *Exchange) ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (float64, float64) {
+	if slippagePrice < low {
+		slippagePrice = low
+	}
+	if slippagePrice > high {
+		slippagePrice = high
+	}
+
+	if amount*slippagePrice > volume {
+		// hey, this order is too big here
+		for amount*slippagePrice > volume {
+			amount *= 0.99999
+		}
+	}
+
+	return slippagePrice, amount
 }
 
 func (e *Exchange) calculateExchangeFee(price, amount, fee float64) float64 {

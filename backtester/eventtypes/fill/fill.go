@@ -65,3 +65,7 @@ func (f *Fill) NetValue() float64 {
 	netValue, _ := amount.Mul(price).Sub(fee).Round(common.DecimalPlaces).Float64()
 	return netValue
 }
+
+func (f *Fill) GetOrder() *order.Detail {
+	return f.Order
+}

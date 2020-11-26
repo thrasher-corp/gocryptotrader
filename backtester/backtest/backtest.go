@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
@@ -187,6 +188,10 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 
 	bt.Statistic = &statistics.Statistic{
 		StrategyName: cfg.StrategyToLoad,
+	}
+
+	bt.Compliance = compliance.Manager{
+		Snapshots: []compliance.Snapshot{},
 	}
 
 	bt.PrintSettings(cfg)
@@ -565,7 +570,23 @@ func (b *BackTest) handleEvent(e interfaces.EventHandler) error {
 		}
 		b.EventQueue = append(b.EventQueue, fillEvent)
 	case fill.FillEvent:
-		//b.Compliance.GetSnapshot(event.GetTime())
+		fo := event.GetOrder()
+		if fo != nil {
+			prevSnap, err := b.Compliance.GetSnapshot(e.GetTime().Add(-event.GetInterval().Duration()))
+			if err != nil {
+				log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
+			}
+			if !prevSnap.Time.IsZero() {
+				prevSnap.Orders = append(prevSnap.Orders, *fo)
+				err = b.Compliance.AddSnapshot(prevSnap.Orders, e.GetTime(), false)
+				if err != nil {
+					log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
+					break
+				}
+			}
+
+		}
+
 		t, err := b.Portfolio.OnFill(event, b.Data)
 		if err != nil {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())

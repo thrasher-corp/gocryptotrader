@@ -14,7 +14,7 @@ type Fill struct {
 	VolumeAdjustedPrice float64
 	PurchasePrice       float64
 	ExchangeFee         float64
-	SlippagePercent     float64
+	Slippage            float64
 	Why                 string
 	Order               *order.Detail
 }
@@ -33,4 +33,5 @@ type FillEvent interface {
 	Value() float64
 	NetValue() float64
 	GetWhy() string
+	GetOrder() *order.Detail
 }
