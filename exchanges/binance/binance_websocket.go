@@ -63,6 +63,7 @@ func (b *Binance) WsConnect(conn stream.Connection) error {
 
 // WsConnectAuth authenticates connection
 func (b *Binance) WsConnectAuth(conn stream.Connection) error {
+	fmt.Println("AUTH CONNECTION_____________________________________________")
 	var dialer websocket.Dialer
 	var err error
 	listenKey, err = b.GetWsAuthStreamKey()

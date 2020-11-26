@@ -16,7 +16,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
 
 const (
@@ -68,7 +67,7 @@ var defaultSetup = &WebsocketSetup{
 	// 		{Channel: "TestSub4"},
 	// 	}, nil
 	// },
-	Features: &protocol.Features{Subscribe: true, Unsubscribe: true},
+	// Features: &protocol.Features{Subscribe: true, Unsubscribe: true},
 }
 
 type dodgyConnection struct {

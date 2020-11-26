@@ -14,6 +14,7 @@ var (
 	errNoSubscribeFunction              = errors.New("exchange subscriber function must be supplied")
 	errNoUnsubscribeFunction            = errors.New("exchange unsubscriber function must be supplied")
 	errNoGenerateConnFunc               = errors.New("exchange connection generator function cannot be nil")
+	errNoReadConnectionFunc             = errors.New("exchange streaming reader function cannot be nil")
 	errNoFeatures                       = errors.New("exchange features cannot be nil")
 	errNoGenerateSubsFunc               = errors.New("exchange generate subscription function cannot be nil")
 	errMissingURLInConfig               = errors.New("connection URL must be supplied")
@@ -44,7 +45,7 @@ func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, err
 		return nil, errNoGenerateConnFunc
 	}
 	if cfg.ExchangeReadConnection == nil {
-		return nil, errNoResponseDataHandler
+		return nil, errNoReadConnectionFunc
 	}
 	if cfg.Features == nil {
 		return nil, errNoFeatures
@@ -60,7 +61,8 @@ func NewConnectionManager(cfg *ConnectionManagerConfig) (*ConnectionManager, err
 			return nil, errMissingURLInConfig
 		}
 
-		if cfg.Configurations[i].DedicatedAuthenticatedConn && cfg.ExchangeConnector == nil {
+		if cfg.Configurations[i].DedicatedAuthenticatedConn &&
+			cfg.ExchangeConnector == nil {
 			return nil, errNoExchangeAuthConnectionFunction
 		}
 	}

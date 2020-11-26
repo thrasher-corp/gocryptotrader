@@ -223,6 +223,10 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 				MaxSubscriptions:           uint16(1024),
 				DedicatedAuthenticatedConn: true,
 			},
+			{
+				URL:                        binanceDefaultWebsocketURL,
+				DedicatedAuthenticatedConn: true,
+			},
 		},
 	})
 }

@@ -331,16 +331,16 @@ func TestGetChannelDifference(t *testing.T) {
 	}{
 		{
 			Name:                "No difference",
-			State1:              &protocol.Features{TickerFetching: true},
-			State2:              &protocol.Features{TickerFetching: true},
+			State1:              &protocol.Features{Protocols: protocol.Protocols{Websocket: &protocol.State{}}},
+			State2:              &protocol.Features{Protocols: protocol.Protocols{Websocket: &protocol.State{}}},
 			SubscriptionCount:   0,
 			UnsubscriptionCount: 0,
 			Error:               nil,
 		},
 		{
 			Name:                "Orderbook Subscription",
-			State1:              &protocol.Features{TickerFetching: true},
-			State2:              &protocol.Features{TickerFetching: true, OrderbookFetching: true},
+			State1:              &protocol.Features{Protocols: protocol.Protocols{Websocket: &protocol.State{}}},
+			State2:              &protocol.Features{Protocols: protocol.Protocols{Websocket: &protocol.State{}}},
 			SubscriptionCount:   1,
 			UnsubscriptionCount: 0,
 			Error:               nil,
@@ -353,11 +353,13 @@ func TestGetChannelDifference(t *testing.T) {
 			man, err := NewConnectionManager(&ConnectionManagerConfig{
 				ExchangeConnector:             passConnectionFunc,
 				ExchangeGenerateSubscriptions: configurableFn,
+				ExchangeReadConnection:        func(_ []byte, _ Connection) error { return nil },
 				ExchangeSubscriber:            passSubscription,
 				ExchangeUnsubscriber:          passSubscription,
 				ExchangeGenerateConnection:    passGenerateConnection,
 				Features:                      tt.State1,
 				Configurations:                []ConnectionSetup{{URL: "TEST URL"}},
+				dataHandler:                   make(chan interface{}, 100),
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -370,7 +372,7 @@ func TestGetChannelDifference(t *testing.T) {
 
 			connection := &WebsocketConnection{}
 			connection.SubscriptionManager = NewSubscriptionManager()
-			connection.conf = &ConnectionSetup{URL: "TEST URL"}
+			connection.Conf = &ConnectionSetup{URL: "TEST URL"}
 			err = connection.SubscriptionManager.AddSuccessfulSubscriptions(subs)
 			if err != nil {
 				t.Fatal(err)
