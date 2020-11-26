@@ -2229,6 +2229,36 @@
         ]
       }
     },
+    "/v1/updateaccountinfo": {
+      "get": {
+        "operationId": "GoCryptoTrader_UpdateAccountInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/updateexchangesupportedpairs": {
       "get": {
         "operationId": "GoCryptoTrader_UpdateExchangeSupportedPairs",

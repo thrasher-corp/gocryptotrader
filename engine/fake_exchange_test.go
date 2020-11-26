@@ -27,6 +27,8 @@ const (
 // the engine package
 type FakePassingExchange struct {
 	exchange.Base
+
+	Holdings account.Holdings
 }
 
 // addPassingFakeExchange adds an exchange to engine tests where all funcs return a positive result
@@ -60,6 +62,10 @@ func addPassingFakeExchange(baseExchangeName string) error {
 			Websocket:                     base.Websocket,
 			Requester:                     base.Requester,
 			Config:                        base.Config,
+		},
+		Holdings: account.Holdings{
+			Exchange: fakePassExchange,
+			Accounts: []account.SubAccount{},
 		},
 	})
 	return nil
@@ -96,13 +102,23 @@ func (h *FakePassingExchange) GetEnabledPairs(_ asset.Item) (currency.Pairs, err
 func (h *FakePassingExchange) GetAvailablePairs(_ asset.Item) (currency.Pairs, error) {
 	return currency.Pairs{}, nil
 }
+
 func (h *FakePassingExchange) FetchAccountInfo() (account.Holdings, error) {
-	return account.Holdings{}, nil
+	acc, err := account.GetHoldings(h.Name)
+	if err != nil {
+		return h.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 func (h *FakePassingExchange) UpdateAccountInfo() (account.Holdings, error) {
-	return account.Holdings{}, nil
+	if err := account.Process(&h.Holdings); err != nil {
+		return account.Holdings{}, err
+	}
+	return h.Holdings, nil
 }
+
 func (h *FakePassingExchange) GetAuthenticatedAPISupport(_ uint8) bool { return true }
 func (h *FakePassingExchange) SetPairs(_ currency.Pairs, _ asset.Item, _ bool) error {
 	return nil

@@ -524,6 +524,21 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 	return &gctrpc.GetAccountInfoResponse{Exchange: r.Exchange, Accounts: accounts}, nil
 }
 
+// UpdateAccountInfo forces an update of the account info
+func (s *RPCServer) UpdateAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+
+	_, err := exch.UpdateAccountInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	return s.GetAccountInfo(ctx, r)
+}
+
 // GetAccountInfoStream streams an account balance for a specific exchange
 func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream gctrpc.GoCryptoTrader_GetAccountInfoStreamServer) error {
 	if r.Exchange == "" {
@@ -2843,7 +2858,6 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 	if err != nil {
 		return err
 	}
-
 	resp := &gctrpc.SavedTradesResponse{
 		ExchangeName: r.Exchange,
 		Asset:        r.AssetType,

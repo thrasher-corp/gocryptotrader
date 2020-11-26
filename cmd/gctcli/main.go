@@ -109,6 +109,7 @@ func main() {
 		getOrderbooksCommand,
 		getAccountInfoCommand,
 		getAccountInfoStreamCommand,
+		updateAccountInfoCommand,
 		getConfigCommand,
 		getPortfolioCommand,
 		getPortfolioSummaryCommand,
