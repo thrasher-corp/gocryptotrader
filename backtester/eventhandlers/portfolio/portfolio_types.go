@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -20,7 +21,6 @@ var NotEnoughFundsErr = errors.New("not enough funds to buy")
 var NoHoldingsToSellErr = errors.New("no holdings to sell")
 
 type Portfolio struct {
-	Transactions              []fill.FillEvent
 	SizeManager               SizeHandler
 	RiskManager               risk.RiskHandler
 	ExchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*ExchangeAssetPairSettings
@@ -34,6 +34,7 @@ type ExchangeAssetPairSettings struct {
 	BuySideSizing     config.MinMax
 	SellSideSizing    config.MinMax
 	Leverage          config.Leverage
+	ComplianceManager compliance.Manager
 }
 
 type PortfolioHandler interface {
@@ -45,6 +46,8 @@ type PortfolioHandler interface {
 	GetInitialFunds(string, asset.Item, currency.Pair) float64
 	SetFunds(string, asset.Item, currency.Pair, float64)
 	GetFunds(string, asset.Item, currency.Pair) float64
+
+	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 
 	SetHoldings(string, asset.Item, currency.Pair, time.Time, position.Position, bool) error
 	ViewHoldings(string, asset.Item, currency.Pair, time.Time) (position.Position, error)

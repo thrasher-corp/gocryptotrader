@@ -30,7 +30,7 @@ func (p *Position) UpdateValue(data interfaces.DataEventHandler) {
 
 func (p *Position) update(fill fill.FillEvent) {
 	fillAmount := decimal.NewFromFloat(fill.GetAmount())
-	fillPrice := decimal.NewFromFloat(fill.GetClosePrice())
+	fillPrice := decimal.NewFromFloat(fill.GetPurchasePrice())
 	fillExchangeFee := decimal.NewFromFloat(fill.GetExchangeFee())
 	fillNetValue := decimal.NewFromFloat(fill.NetValue())
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -21,7 +22,6 @@ import (
 
 func (p *Portfolio) Reset() {
 	p.ExchangeAssetPairSettings = nil
-	p.Transactions = nil
 }
 
 // OnSignal receives the event from the strategy on whether it has signalled to buy, do nothing or sell
@@ -82,14 +82,14 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 		cs,
 	)
 	if err != nil {
-		o.SetWhy(err.Error() + " " + signal.GetWhy())
+		o.SetWhy(err.Error() + ". " + signal.GetWhy())
 		o.Direction = common.DoNothing
 		return o, nil
 	}
 
 	eo, err := p.RiskManager.EvaluateOrder(sizedOrder, latest, exchangeAssetPairHoldings)
 	if err != nil {
-		o.SetWhy(err.Error() + " " + signal.GetWhy())
+		o.SetWhy(err.Error() + ". " + signal.GetWhy())
 		o.Direction = common.DoNothing
 		return o, nil
 	}
@@ -127,9 +127,15 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (
 		lookup.Funds += fillEvent.NetValue()
 	}
 
-	p.Transactions = append(p.Transactions, fillEvent)
-
 	return fillEvent.(*fill.Fill), nil
+}
+
+func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
+	lookup := p.ExchangeAssetPairSettings[exchangeName][a][cp]
+	if lookup == nil {
+		return nil, errors.New("not found")
+	}
+	return &lookup.ComplianceManager, nil
 }
 
 func (p *Portfolio) SetSizeManager(size SizeHandler) {
@@ -157,7 +163,10 @@ func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pa
 func (p *Portfolio) Update(d interfaces.DataEventHandler) {
 	if pos, ok := p.IsInvested(d.GetExchange(), d.GetAssetType(), d.Pair()); ok {
 		pos.UpdateValue(d)
-		p.SetHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), d.GetTime(), pos, false)
+		err := p.SetHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), d.GetTime(), pos, false)
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
 	}
 }
 

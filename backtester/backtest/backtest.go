@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
@@ -62,15 +62,13 @@ func (b *BackTest) PrintSettings(cfg *config.Config) {
 	} else {
 		log.Info(log.BackTester, "Custom strategy variables: unset")
 	}
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Currency Settings--------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
 	for i := range cfg.CurrencySettings {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "------------------%v %v-%v Settings--------------------------",
+		currStr := fmt.Sprintf("------------------%v %v-%v Settings--------------------------",
 			cfg.CurrencySettings[i].Asset,
 			cfg.CurrencySettings[i].Base,
 			cfg.CurrencySettings[i].Quote)
+		log.Infof(log.BackTester, currStr[:61])
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "Exchange: %v", cfg.CurrencySettings[i].ExchangeName)
 		log.Infof(log.BackTester, "Initial funds: %v", cfg.CurrencySettings[i].InitialFunds)
@@ -170,6 +168,9 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 		lookup.SellSideSizing = exchangeroo.CurrencySettings[i].SellSide
 		lookup.SetInitialFunds(exchangeroo.CurrencySettings[i].InitialFunds)
 		lookup.SetFunds(exchangeroo.CurrencySettings[i].InitialFunds)
+		lookup.ComplianceManager = compliance.Manager{
+			Snapshots: []compliance.Snapshot{},
+		}
 	}
 	bt.Portfolio = portfoliooo
 
@@ -188,10 +189,6 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 
 	bt.Statistic = &statistics.Statistic{
 		StrategyName: cfg.StrategyToLoad,
-	}
-
-	bt.Compliance = compliance.Manager{
-		Snapshots: []compliance.Snapshot{},
 	}
 
 	bt.PrintSettings(cfg)
@@ -213,7 +210,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		if err != nil {
 			return exchangeroo, err
 		}
-
 		var makerFee, takerFee float64
 
 		if cfg.CurrencySettings[i].MakerFee > 0 {
@@ -571,20 +567,22 @@ func (b *BackTest) handleEvent(e interfaces.EventHandler) error {
 		b.EventQueue = append(b.EventQueue, fillEvent)
 	case fill.FillEvent:
 		fo := event.GetOrder()
+		complianceManager, err := b.Portfolio.GetComplianceManager(event.GetExchange(), event.GetAssetType(), event.Pair())
+		if err != nil {
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
+			break
+		}
+		if complianceManager.Interval == 0 {
+			complianceManager.SetInterval(event.GetInterval())
+		}
+		prevSnap := complianceManager.GetPreviousSnapshot(e.GetTime())
 		if fo != nil {
-			prevSnap, err := b.Compliance.GetSnapshot(e.GetTime().Add(-event.GetInterval().Duration()))
-			if err != nil {
-				log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
-			}
-			if !prevSnap.Time.IsZero() {
-				prevSnap.Orders = append(prevSnap.Orders, *fo)
-				err = b.Compliance.AddSnapshot(prevSnap.Orders, e.GetTime(), false)
-				if err != nil {
-					log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
-					break
-				}
-			}
-
+			prevSnap.Orders = append(prevSnap.Orders, *fo)
+		}
+		err = complianceManager.AddSnapshot(prevSnap.Orders, e.GetTime(), false)
+		if err != nil {
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
+			break
 		}
 
 		t, err := b.Portfolio.OnFill(event, b.Data)

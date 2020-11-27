@@ -1,7 +1,6 @@
 package backtest
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/backtester/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
@@ -19,5 +18,4 @@ type BackTest struct {
 	Statistic  statistics.StatisticHandler
 	EventQueue []interfaces.EventHandler
 	Bot        *engine.Engine
-	Compliance compliance.Manager
 }
