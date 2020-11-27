@@ -500,21 +500,21 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (b *Binance) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
-	w, err := b.WithdrawStatus(c)
+	w, err := b.WithdrawStatus(c, "", 0, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, b := range w {
+	for i := range w {
 		resp = append(resp, exchange.WithdrawalHistory{
-			Status:          strconv.FormatInt(b.Status, 10),
-			TransferID:      b.ID,
-			Currency:        b.Asset,
-			Amount:          b.Amount,
-			Fee:             b.TransactionFee,
-			CryptoToAddress: b.Address,
-			CryptoTxID:      b.TxID,
-			Timestamp:       time.Unix(b.ApplyTime/1000, 0),
+			Status:          strconv.FormatInt(w[i].Status, 10),
+			TransferID:      w[i].ID,
+			Currency:        w[i].Asset,
+			Amount:          w[i].Amount,
+			Fee:             w[i].TransactionFee,
+			CryptoToAddress: w[i].Address,
+			CryptoTxID:      w[i].TxID,
+			Timestamp:       time.Unix(w[i].ApplyTime/1000, 0),
 		})
 	}
 

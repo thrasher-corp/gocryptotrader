@@ -6,6 +6,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
+// withdrawals status codes description
+const (
+	EmailSent = iota
+	Cancelled
+	AwaitingApproval
+	Rejected
+	Processing
+	Failure
+	Completed
+)
+
 // Response holds basic binance api response data
 type Response struct {
 	Code int    `json:"code"`

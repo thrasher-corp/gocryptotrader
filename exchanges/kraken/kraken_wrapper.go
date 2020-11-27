@@ -528,6 +528,7 @@ func (k *Kraken) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdra
 			Fee:             withdrawals[i].Fee,
 			CryptoToAddress: withdrawals[i].Info,
 			CryptoTxID:      withdrawals[i].TxID,
+			Currency:        c.String(),
 		})
 	}
 
