@@ -563,27 +563,6 @@ func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 	return nil
 }
 
-// applyBufferUpdate applies the buffer to the orderbook or initiates a new
-// orderbook sync by the REST protocol which is off handed to go routine.
-func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
-	var fetching bool
-	fetching, err := b.obm.checkIsFetchingBook(pair)
-	if err != nil {
-		return err
-	}
-
-	if fetching {
-		return nil
-	}
-
-	recent := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	if recent == nil {
-		return b.obm.fetchBookViaREST(pair)
-	}
-
-	return b.obm.checkAndProcessUpdate(b.ProcessUpdate, pair, *recent)
-}
-
 // ProcessUpdate processes the websocket orderbook update
 func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	var updateBid []orderbook.Item
@@ -620,6 +599,27 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		UpdateID: ws.LastUpdateID,
 		Asset:    a,
 	})
+}
+
+// applyBufferUpdate applies the buffer to the orderbook or initiates a new
+// orderbook sync by the REST protocol which is off handed to go routine.
+func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
+	var fetching bool
+	fetching, err := b.obm.checkIsFetchingBook(pair)
+	if err != nil {
+		return err
+	}
+
+	if fetching {
+		return nil
+	}
+
+	recent := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if recent == nil {
+		return b.obm.fetchBookViaREST(pair)
+	}
+
+	return b.obm.checkAndProcessUpdate(b.ProcessUpdate, pair, *recent)
 }
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair

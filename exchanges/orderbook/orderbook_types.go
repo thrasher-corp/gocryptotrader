@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -12,15 +13,22 @@ import (
 
 // const values for orderbook package
 const (
-	errExchangeNameUnset = "orderbook exchange name not set"
-	errPairNotSet        = "orderbook currency pair not set"
-	errAssetTypeNotSet   = "orderbook asset type not set"
-	errNoOrderbook       = "orderbook bids and asks are empty"
+	bidLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Bids: %w"
+	askLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Asks: %w"
 )
 
 // Vars for the orderbook package
 var (
 	service *Service
+
+	errExchangeNameUnset = errors.New("orderbook exchange name not set")
+	errPairNotSet        = errors.New("orderbook currency pair not set")
+	errAssetTypeNotSet   = errors.New("orderbook asset type not set")
+	errNoOrderbook       = errors.New("orderbook bids and asks are empty")
+	errPriceNotSet       = errors.New("price cannot be zero")
+	errAmountNotSet      = errors.New("amount cannot be zero")
+	errOutOfOrder        = errors.New("pricing out of order")
+	errDuplication       = errors.New("price duplication")
 )
 
 func init() {

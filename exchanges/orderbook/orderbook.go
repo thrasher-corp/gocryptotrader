@@ -3,7 +3,6 @@ package orderbook
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -206,62 +205,75 @@ func (b *Base) Update(bids, asks []Item) {
 	b.LastUpdated = time.Now()
 }
 
-// Verify ensures that the orderbook items are correctly sorted
+// Verify ensures that the orderbook items are correctly sorted prior to being
+// set and will reject any book with incorrect values.
 // Bids should always go from a high price to a low price and
-// asks should always go from a low price to a higher price
-func (b *Base) Verify() {
-	var lastPrice float64
-	var sortBids, sortAsks bool
-	for x := range b.Bids {
-		if lastPrice != 0 && b.Bids[x].Price >= lastPrice {
-			sortBids = true
-			break
+// Asks should always go from a low price to a higher price
+func (b *Base) Verify() error {
+	if len(b.Asks) == 0 && len(b.Bids) == 0 {
+		return errNoOrderbook
+	}
+	for i := range b.Bids {
+		if b.Bids[i].Price == 0 {
+			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPriceNotSet)
 		}
-		lastPrice = b.Bids[x].Price
-	}
-
-	lastPrice = 0
-	for x := range b.Asks {
-		if lastPrice != 0 && b.Asks[x].Price <= lastPrice {
-			sortAsks = true
-			break
+		if b.Bids[i].Amount == 0 {
+			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountNotSet)
 		}
-		lastPrice = b.Asks[x].Price
+		if i != 0 {
+			if b.Bids[i].Price > b.Bids[i-1].Price {
+				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errOutOfOrder)
+			}
+
+			if b.Bids[i].Price == b.Bids[i-1].Price {
+				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errDuplication)
+			}
+		}
 	}
 
-	if sortBids {
-		sort.Sort(sort.Reverse(byOBPrice(b.Bids)))
-	}
+	for i := range b.Asks {
+		if b.Asks[i].Price == 0 {
+			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPriceNotSet)
+		}
+		if b.Asks[i].Amount == 0 {
+			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountNotSet)
+		}
+		if i != 0 {
+			if b.Asks[i].Price < b.Asks[i-1].Price {
+				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errOutOfOrder)
+			}
 
-	if sortAsks {
-		sort.Sort((byOBPrice(b.Asks)))
+			if b.Asks[i].Price == b.Asks[i-1].Price {
+				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errDuplication)
+			}
+		}
 	}
+	return nil
 }
 
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
 func (b *Base) Process() error {
 	if b.ExchangeName == "" {
-		return errors.New(errExchangeNameUnset)
+		return errExchangeNameUnset
 	}
 
 	if b.Pair.IsEmpty() {
-		return errors.New(errPairNotSet)
+		return errPairNotSet
 	}
 
 	if b.AssetType.String() == "" {
-		return errors.New(errAssetTypeNotSet)
-	}
-
-	if len(b.Asks) == 0 && len(b.Bids) == 0 {
-		return errors.New(errNoOrderbook)
+		return errAssetTypeNotSet
 	}
 
 	if b.LastUpdated.IsZero() {
 		b.LastUpdated = time.Now()
 	}
 
-	b.Verify()
+	err := b.Verify()
+	if err != nil {
+		return err
+	}
 
 	return service.Update(b)
 }

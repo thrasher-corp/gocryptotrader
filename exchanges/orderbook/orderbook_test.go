@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"os"
@@ -46,14 +47,12 @@ func TestSubscribeOrderbook(t *testing.T) {
 	}
 
 	b.ExchangeName = "SubscribeOBTest"
-
 	err = b.Process()
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 
-	b.Bids = []Item{{}}
-
+	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	err = b.Process()
 	if err != nil {
 		t.Error("process error", err)
@@ -61,7 +60,7 @@ func TestSubscribeOrderbook(t *testing.T) {
 
 	_, err = SubscribeOrderbook("SubscribeOBTest", p, asset.Spot)
 	if err != nil {
-		t.Error("error cannot be nil")
+		t.Error(err)
 	}
 
 	// process redundant update
@@ -120,7 +119,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 		Pair:         p,
 		AssetType:    asset.Spot,
 		ExchangeName: "SubscribeToExchangeOrderbooks",
-		Bids:         []Item{{}},
+		Bids:         []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
 	}
 
 	err = b.Process()
@@ -138,21 +137,61 @@ func TestVerify(t *testing.T) {
 	t.Parallel()
 	b := Base{
 		ExchangeName: "TestExchange",
+		AssetType:    asset.Spot,
 		Pair:         currency.NewPair(currency.BTC, currency.USD),
-		Bids: []Item{
-			{Price: 100}, {Price: 101}, {Price: 99},
-		},
-		Asks: []Item{
-			{Price: 100}, {Price: 99}, {Price: 101},
-		},
 	}
 
-	b.Verify()
-	if r := b.Bids[1].Price; r != 100 {
-		t.Error("unexpected result")
+	err := b.Verify()
+	if err == nil || !errors.Is(err, errNoOrderbook) {
+		t.Fatalf("expecting %s error but received %v", errNoOrderbook, err)
 	}
-	if r := b.Asks[1].Price; r != 100 {
-		t.Error("unexpected result")
+
+	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errDuplication) {
+		t.Fatalf("expecting %s error but received %v", errDuplication, err)
+	}
+
+	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errOutOfOrder) {
+		t.Fatalf("expecting %s error but received %v", errOutOfOrder, err)
+	}
+
+	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errAmountNotSet) {
+		t.Fatalf("expecting %s error but received %v", errAmountNotSet, err)
+	}
+
+	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errPriceNotSet) {
+		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
+	}
+
+	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errDuplication) {
+		t.Fatalf("expecting %s error but received %v", errDuplication, err)
+	}
+
+	b.Bids = []Item{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errOutOfOrder) {
+		t.Fatalf("expecting %s error but received %v", errOutOfOrder, err)
+	}
+
+	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errAmountNotSet) {
+		t.Fatalf("expecting %s error but received %v", errAmountNotSet, err)
+	}
+
+	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errPriceNotSet) {
+		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
 	}
 }
 

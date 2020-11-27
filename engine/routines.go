@@ -118,13 +118,19 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if err != nil {
 		if err == common.ErrNotYetImplemented {
-			log.Warnf(log.Ticker, "Failed to get %s ticker. Error: %s\n",
+			log.Warnf(log.Ticker, "Failed to get %s ticker for %s %s %s. Error: %s\n",
 				protocol,
+				result.ExchangeName,
+				result.Pair,
+				result.AssetType,
 				err)
 			return
 		}
-		log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",
+		log.Errorf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s\n",
 			protocol,
+			result.ExchangeName,
+			result.Pair,
+			result.AssetType,
 			err)
 		return
 	}
