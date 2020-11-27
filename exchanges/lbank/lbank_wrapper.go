@@ -254,13 +254,13 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		return orderBook, err
 	}
 	for i := range a.Asks {
-		price, err := strconv.ParseFloat(a.Asks[i][0], 64)
-		if err != nil {
-			return orderBook, err
+		price, convErr := strconv.ParseFloat(a.Asks[i][0], 64)
+		if convErr != nil {
+			return orderBook, convErr
 		}
-		amount, err := strconv.ParseFloat(a.Asks[i][1], 64)
-		if err != nil {
-			return orderBook, err
+		amount, convErr := strconv.ParseFloat(a.Asks[i][1], 64)
+		if convErr != nil {
+			return orderBook, convErr
 		}
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
 			Price:  price,
@@ -268,13 +268,13 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		})
 	}
 	for i := range a.Bids {
-		price, err := strconv.ParseFloat(a.Bids[i][0], 64)
-		if err != nil {
-			return orderBook, err
+		price, convErr := strconv.ParseFloat(a.Bids[i][0], 64)
+		if convErr != nil {
+			return orderBook, convErr
 		}
-		amount, err := strconv.ParseFloat(a.Bids[i][1], 64)
-		if err != nil {
-			return orderBook, err
+		amount, convErr := strconv.ParseFloat(a.Bids[i][1], 64)
+		if convErr != nil {
+			return orderBook, convErr
 		}
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Price:  price,
