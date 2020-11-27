@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -791,119 +790,31 @@ func TestGetAccountInfo(t *testing.T) {
 	bot := SetupTestHelpers(t)
 	s := RPCServer{Engine: bot}
 
-	accounts := refreshAccounts(t)
-
 	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
 	if err != nil {
 		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
 
-	validateAccountInfoResponse(t, r, accounts)
+	if r.Accounts[0].Currencies[0].TotalValue != 10 {
+		t.Fatal("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+	}
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
 	bot := SetupTestHelpers(t)
 	s := RPCServer{Engine: bot}
 
-	accounts := refreshAccounts(t)
-
-	for i := 0; i < 2; i++ {
-		r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
-		if err != nil {
-			t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
-		}
-		validateAccountInfoResponse(t, r, accounts)
-	}
-
-	newAccounts := []account.SubAccount{
-		{
-			Currencies: []account.Balance{
-				{
-					CurrencyName: currency.BTC,
-					TotalValue:   20.,
-					Hold:         0,
-				},
-			},
-		},
-	}
-
-	testExchange, ok := bot.GetExchangeByName(fakePassExchange).(*FakePassingExchange)
-	if testExchange == nil || !ok {
-		t.Fatalf("TestGetAccountInfo: Failed to get test exchange: %s", fakePassExchange)
-	}
-
-	testExchange.Holdings = account.Holdings{
-		Exchange: fakePassExchange,
-		Accounts: newAccounts,
-	}
-
-	_, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
-	if err != nil {
-		t.Fatalf("TestGetAccountInfo: Failed to update account info: %s", err)
-	}
-
-	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
+	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
 	if err != nil {
 		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
 
-	validateAccountInfoResponse(t, r, newAccounts)
-}
-
-func refreshAccounts(t *testing.T) []account.SubAccount {
-	accounts := []account.SubAccount{
-		{
-			Currencies: []account.Balance{
-				{
-					CurrencyName: currency.BTC,
-					TotalValue:   10.,
-					Hold:         0,
-				},
-			},
-		},
-	}
-	err := account.Process(&account.Holdings{
-		Exchange: fakePassExchange,
-		Accounts: accounts,
-	})
+	updateResponse, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
 	if err != nil {
-		t.Fatalf("TestGetAccountInfo: Failed to process account with holdings: %s", err)
-	}
-	return accounts
-}
-
-func validateAccountInfoResponse(t *testing.T, r *gctrpc.GetAccountInfoResponse, accounts []account.SubAccount) {
-	if r.Exchange != fakePassExchange {
-		t.Fatalf("TestGetAccountInfo: Unexpected exchange in the response: exp=%s, act=%s", fakePassExchange, r.Exchange)
+		t.Fatalf("TestGetAccountInfo: Failed to update account info: %s", err)
 	}
 
-	if len(r.Accounts) != len(accounts) {
-		t.Fatalf("TestGetAccountInfo: Unexpected size of accounts in the response: exp=%v, act=%v", len(accounts), len(r.Accounts))
-	}
-
-	cmpAccounts(t, accounts, r.Accounts)
-}
-
-func cmpAccounts(t *testing.T, exp []account.SubAccount, act []*gctrpc.Account) {
-	if len(act) != len(exp) {
-		t.Fatalf("TestGetAccountInfo: Unexpected number of accouns in the response: exp=%d, act=%d", len(exp), len(act))
-	}
-	if act[0].Currencies[0].Currency != exp[0].Currencies[0].CurrencyName.String() {
-		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'CurrencyName': exp=%v, act=%v",
-			exp[0].Currencies[0].CurrencyName.String(),
-			act[0].Currencies[0].Currency,
-		)
-	}
-	if act[0].Currencies[0].TotalValue != exp[0].Currencies[0].TotalValue {
-		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue': exp=%v, act=%v",
-			exp[0].Currencies[0].TotalValue,
-			act[0].Currencies[0].TotalValue,
-		)
-	}
-	if act[0].Currencies[0].Hold != exp[0].Currencies[0].Hold {
-		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'Hold': exp=%v, act=%v",
-			exp[0].Currencies[0].Hold,
-			act[0].Currencies[0].Hold,
-		)
+	if getResponse.Accounts[0].Currencies[0].TotalValue == updateResponse.Accounts[0].Currencies[0].TotalValue {
+		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
 	}
 }
