@@ -391,7 +391,8 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		}
 		var newOrderBook orderbook.Base
 		newOrderBook.Asks = asks
-		newOrderBook.Bids = bids
+		newOrderBook.Bids = orderbook.SortBids(bids) // returned from endpoint
+		// out of order
 		newOrderBook.AssetType = asset.Spot
 		newOrderBook.Pair = pair
 		newOrderBook.ExchangeName = g.Name

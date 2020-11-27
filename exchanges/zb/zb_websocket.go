@@ -149,7 +149,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		}
 
 		var newOrderBook orderbook.Base
-		newOrderBook.Asks = asks
+		newOrderBook.Asks = orderbook.SortAsks(asks)
 		newOrderBook.Bids = bids
 		newOrderBook.AssetType = asset.Spot
 		newOrderBook.Pair = cPair

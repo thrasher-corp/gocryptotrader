@@ -234,6 +234,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		var newOB orderbook.Base
+		var asks []orderbook.Item
 		var price, amount float64
 		for i := range t.Data.SellQuote {
 			p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
@@ -246,7 +247,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			newOB.Asks = append(newOB.Asks, orderbook.Item{
+			asks = append(asks, orderbook.Item{
 				Price:  price,
 				Amount: amount,
 			})
@@ -279,6 +280,8 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		newOB.Pair = p
 		newOB.AssetType = a
 		newOB.ExchangeName = b.Name
+		newOB.Asks = orderbook.SortAsks(asks) // Returned from endpoint out of
+		//order this is needed
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {
 			return err

@@ -229,6 +229,7 @@ var orderSideMap = map[int64]order.Side{
 	1: order.Sell,
 }
 
+// TradeHistory defines a slice of historic trades
 type TradeHistory []struct {
 	Amount    float64 `json:"amount,string"`
 	Date      int64   `json:"date"`

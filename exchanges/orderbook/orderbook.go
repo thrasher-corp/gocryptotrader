@@ -3,6 +3,8 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -225,7 +227,17 @@ func (b *Base) Verify() error {
 				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errOutOfOrder)
 			}
 
-			if b.Bids[i].Price == b.Bids[i-1].Price {
+			if b.Bids[i].ID != 0 {
+				if b.Bids[i].ID == b.Bids[i-1].ID {
+					return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errors.New("awwww man"))
+				}
+				continue
+			}
+
+			fmt.Println(b.Bids)
+			os.Exit(1)
+
+			if b.Bids[i].ID != 0 && b.Bids[i].Price == b.Bids[i-1].Price {
 				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errDuplication)
 			}
 		}
@@ -241,6 +253,13 @@ func (b *Base) Verify() error {
 		if i != 0 {
 			if b.Asks[i].Price < b.Asks[i-1].Price {
 				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errOutOfOrder)
+			}
+
+			if b.Asks[i].ID != 0 {
+				if b.Asks[i].ID == b.Asks[i-1].ID {
+					return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errors.New("awwww man"))
+				}
+				continue
 			}
 
 			if b.Asks[i].Price == b.Asks[i-1].Price {
@@ -276,4 +295,16 @@ func (b *Base) Process() error {
 	}
 
 	return service.Update(b)
+}
+
+// SortAsks sorts ask items to the correct relative order
+func SortAsks(d []Item) []Item {
+	sort.Sort(byOBPrice(d))
+	return d
+}
+
+// SortBids sorts bid items to the correct relative order
+func SortBids(d []Item) []Item {
+	sort.Sort(sort.Reverse(byOBPrice(d)))
+	return d
 }

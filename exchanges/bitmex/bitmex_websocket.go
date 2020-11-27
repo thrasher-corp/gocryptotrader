@@ -501,21 +501,20 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 	switch action {
 	case bitmexActionInitialData:
 		var newOrderBook orderbook.Base
+		var asks []orderbook.Item
 		for i := range data {
-			if strings.EqualFold(data[i].Side, order.Sell.String()) {
-				newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-					Price:  data[i].Price,
-					Amount: float64(data[i].Size),
-					ID:     data[i].ID,
-				})
-				continue
-			}
-			newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+			nItem := orderbook.Item{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
-			})
+			}
+			if strings.EqualFold(data[i].Side, order.Sell.String()) {
+				asks = append(asks, nItem)
+				continue
+			}
+			newOrderBook.Bids = append(newOrderBook.Bids, nItem)
 		}
+		newOrderBook.Asks = orderbook.SortAsks(asks)
 		newOrderBook.AssetType = a
 		newOrderBook.Pair = p
 		newOrderBook.ExchangeName = b.Name
@@ -528,17 +527,16 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 	default:
 		var asks, bids []orderbook.Item
 		for i := range data {
-			if strings.EqualFold(data[i].Side, "Sell") {
-				asks = append(asks, orderbook.Item{
-					Amount: float64(data[i].Size),
-					ID:     data[i].ID,
-				})
-				continue
-			}
-			bids = append(bids, orderbook.Item{
+			nItem := orderbook.Item{
+				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
-			})
+			}
+			if strings.EqualFold(data[i].Side, "Sell") {
+				asks = append(asks, nItem)
+				continue
+			}
+			bids = append(bids, nItem)
 		}
 
 		err := b.Websocket.Orderbook.Update(&buffer.Update{
