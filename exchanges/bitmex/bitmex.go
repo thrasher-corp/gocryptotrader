@@ -791,15 +791,13 @@ func (b *Bitmex) SendHTTPRequest(ep exchange.URL, path string, params Parameter,
 			if err != nil {
 				return err
 			}
-			wow := new(http.Header)
 			err = b.SendPayload(context.Background(), &request.Item{
-				Method:         http.MethodGet,
-				Path:           encodedPath,
-				Result:         &respCheck,
-				Verbose:        b.Verbose,
-				HTTPDebugging:  b.HTTPDebugging,
-				HTTPRecording:  b.HTTPRecording,
-				HeaderResponse: wow,
+				Method:        http.MethodGet,
+				Path:          encodedPath,
+				Result:        &respCheck,
+				Verbose:       b.Verbose,
+				HTTPDebugging: b.HTTPDebugging,
+				HTTPRecording: b.HTTPRecording,
 			})
 			if err != nil {
 				return err
@@ -807,16 +805,14 @@ func (b *Bitmex) SendHTTPRequest(ep exchange.URL, path string, params Parameter,
 			return b.CaptureError(respCheck, result)
 		}
 	}
-	var wow = make(http.Header)
 
 	err = b.SendPayload(context.Background(), &request.Item{
-		Method:         http.MethodGet,
-		Path:           path,
-		Result:         &respCheck,
-		Verbose:        b.Verbose,
-		HTTPDebugging:  b.HTTPDebugging,
-		HTTPRecording:  b.HTTPRecording,
-		HeaderResponse: &wow,
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        &respCheck,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
 	})
 	if err != nil {
 		return err

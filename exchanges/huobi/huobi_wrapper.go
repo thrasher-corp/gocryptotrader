@@ -472,6 +472,13 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 			return nil, err
 		}
 
+		if len(marketData.Tick.Bid) == 0 {
+			return nil, fmt.Errorf("invalid data for bid")
+		}
+		if len(marketData.Tick.Ask) == 0 {
+			return nil, fmt.Errorf("invalid data for Ask")
+		}
+
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
@@ -1623,12 +1630,6 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 	}
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
-}
-
-type reqVars struct {
-	TradeType   string
-	OrderType   string
-	OrderStatus string
 }
 
 func setOrderSideAndType(requestType string, orderDetail *order.Detail) {

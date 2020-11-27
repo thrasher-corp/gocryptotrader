@@ -1187,11 +1187,11 @@ func (e *Endpoints) GetURLMap(defaultMap bool) map[string]string {
 			urlMap[k] = v
 		}
 		e.RUnlock()
-		return e.defaults
+		return urlMap
 	}
 	for k, v := range e.running {
 		urlMap[k] = v
 	}
 	e.RUnlock()
-	return e.running
+	return urlMap
 }
