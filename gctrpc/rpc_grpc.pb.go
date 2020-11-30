@@ -95,6 +95,7 @@ type GoCryptoTraderClient interface {
 	FindMissingSavedCandleIntervals(ctx context.Context, in *FindMissingCandlePeriodsRequest, opts ...grpc.CallOption) (*FindMissingIntervalsResponse, error)
 	FindMissingSavedTradeIntervals(ctx context.Context, in *FindMissingTradePeriodsRequest, opts ...grpc.CallOption) (*FindMissingIntervalsResponse, error)
 	SetExchangeTradeProcessing(ctx context.Context, in *SetExchangeTradeProcessingRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	UpdateAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error)
 }
 
 type goCryptoTraderClient struct {
@@ -945,6 +946,15 @@ func (c *goCryptoTraderClient) SetExchangeTradeProcessing(ctx context.Context, i
 	return out, nil
 }
 
+func (c *goCryptoTraderClient) UpdateAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error) {
+	out := new(GetAccountInfoResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/UpdateAccountInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServer is the server API for GoCryptoTrader service.
 // All implementations must embed UnimplementedGoCryptoTraderServer
 // for forward compatibility
@@ -1027,6 +1037,7 @@ type GoCryptoTraderServer interface {
 	FindMissingSavedCandleIntervals(context.Context, *FindMissingCandlePeriodsRequest) (*FindMissingIntervalsResponse, error)
 	FindMissingSavedTradeIntervals(context.Context, *FindMissingTradePeriodsRequest) (*FindMissingIntervalsResponse, error)
 	SetExchangeTradeProcessing(context.Context, *SetExchangeTradeProcessingRequest) (*GenericResponse, error)
+	UpdateAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
@@ -1267,6 +1278,9 @@ func (UnimplementedGoCryptoTraderServer) FindMissingSavedTradeIntervals(context.
 }
 func (UnimplementedGoCryptoTraderServer) SetExchangeTradeProcessing(context.Context, *SetExchangeTradeProcessingRequest) (*GenericResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetExchangeTradeProcessing not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) UpdateAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAccountInfo not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) mustEmbedUnimplementedGoCryptoTraderServer() {}
 
@@ -2703,6 +2717,24 @@ func _GoCryptoTrader_SetExchangeTradeProcessing_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTrader_UpdateAccountInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccountInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).UpdateAccountInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/UpdateAccountInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).UpdateAccountInfo(ctx, req.(*GetAccountInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _GoCryptoTrader_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "gctrpc.GoCryptoTrader",
 	HandlerType: (*GoCryptoTraderServer)(nil),
@@ -2994,6 +3026,10 @@ var _GoCryptoTrader_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetExchangeTradeProcessing",
 			Handler:    _GoCryptoTrader_SetExchangeTradeProcessing_Handler,
+		},
+		{
+			MethodName: "UpdateAccountInfo",
+			Handler:    _GoCryptoTrader_UpdateAccountInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
