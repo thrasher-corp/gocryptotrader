@@ -248,19 +248,38 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	if err != nil {
 		return nil, err
 	}
+
 	a, err := l.GetMarketDepths(fpair.String(), "60", "1")
 	if err != nil {
 		return orderBook, err
 	}
 	for i := range a.Asks {
+		price, convErr := strconv.ParseFloat(a.Asks[i][0], 64)
+		if convErr != nil {
+			return orderBook, convErr
+		}
+		amount, convErr := strconv.ParseFloat(a.Asks[i][1], 64)
+		if convErr != nil {
+			return orderBook, convErr
+		}
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
-			Price:  a.Asks[i][0],
-			Amount: a.Asks[i][1]})
+			Price:  price,
+			Amount: amount,
+		})
 	}
 	for i := range a.Bids {
+		price, convErr := strconv.ParseFloat(a.Bids[i][0], 64)
+		if convErr != nil {
+			return orderBook, convErr
+		}
+		amount, convErr := strconv.ParseFloat(a.Bids[i][1], 64)
+		if convErr != nil {
+			return orderBook, convErr
+		}
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
-			Price:  a.Bids[i][0],
-			Amount: a.Bids[i][1]})
+			Price:  price,
+			Amount: amount,
+		})
 	}
 	orderBook.Pair = p
 	orderBook.ExchangeName = l.Name

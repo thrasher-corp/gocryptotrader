@@ -186,10 +186,10 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
 	}
 	if !arg.StartTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(convert.UnixMillis(arg.StartTime), 10))
+		params.Set("startTime", timeString(arg.StartTime))
 	}
 	if !arg.EndTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(convert.UnixMillis(arg.EndTime), 10))
+		params.Set("endTime", timeString(arg.EndTime))
 	}
 
 	// startTime and endTime are set and time between startTime and endTime is more than 1 hour
@@ -233,8 +233,8 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 				// All requests returned empty
 				return nil, nil
 			}
-			params.Set("startTime", strconv.FormatInt(convert.UnixMillis(start), 10))
-			params.Set("endTime", strconv.FormatInt(convert.UnixMillis(start.Add(time.Hour)), 10))
+			params.Set("startTime", timeString(start))
+			params.Set("endTime", timeString(start.Add(time.Hour)))
 			path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
 			err := b.SendHTTPRequest(path, limitDefault, &resp)
 			if err != nil {
@@ -262,7 +262,7 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 		if !arg.EndTime.IsZero() {
 			// get index for truncating to end time
 			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
-				return convert.UnixMillis(arg.EndTime) < additionalTrades[i].TimeStamp
+				return arg.EndTime.Before(additionalTrades[i].TimeStamp)
 			})
 		}
 		// don't include the first as the request was inclusive from last ATradeID
@@ -288,7 +288,7 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 // interval: the interval time for the data
 // startTime: startTime filter for kline data
 // endTime: endTime filter for the kline data
-func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
+func (b *Binance) GetSpotKline(arg *KlinesRequestParams) ([]CandleStick, error) {
 	var resp interface{}
 	var klineData []CandleStick
 
@@ -298,11 +298,11 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	if arg.Limit != 0 {
 		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
-	if arg.StartTime != 0 {
-		params.Set("startTime", strconv.FormatInt(arg.StartTime, 10))
+	if !arg.StartTime.IsZero() {
+		params.Set("startTime", timeString(arg.StartTime))
 	}
-	if arg.EndTime != 0 {
-		params.Set("endTime", strconv.FormatInt(arg.EndTime, 10))
+	if !arg.EndTime.IsZero() {
+		params.Set("endTime", timeString(arg.EndTime))
 	}
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, candleStick, params.Encode())

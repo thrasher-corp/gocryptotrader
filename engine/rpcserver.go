@@ -507,11 +507,30 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 		return nil, err
 	}
 
+	return createAccountInfoRequest(resp)
+}
+
+// UpdateAccountInfo forces an update of the account info
+func (s *RPCServer) UpdateAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+	exch := s.GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errExchangeNotLoaded
+	}
+
+	resp, err := exch.UpdateAccountInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	return createAccountInfoRequest(resp)
+}
+
+func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoResponse, error) {
 	var accounts []*gctrpc.Account
-	for x := range resp.Accounts {
+	for x := range h.Accounts {
 		var a gctrpc.Account
-		a.Id = resp.Accounts[x].ID
-		for _, y := range resp.Accounts[x].Currencies {
+		a.Id = h.Accounts[x].ID
+		for _, y := range h.Accounts[x].Currencies {
 			a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
 				Currency:   y.CurrencyName.String(),
 				Hold:       y.Hold,
@@ -521,7 +540,7 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 		accounts = append(accounts, &a)
 	}
 
-	return &gctrpc.GetAccountInfoResponse{Exchange: r.Exchange, Accounts: accounts}, nil
+	return &gctrpc.GetAccountInfoResponse{Exchange: h.Exchange, Accounts: accounts}, nil
 }
 
 // GetAccountInfoStream streams an account balance for a specific exchange
@@ -2843,7 +2862,6 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 	if err != nil {
 		return err
 	}
-
 	resp := &gctrpc.SavedTradesResponse{
 		ExchangeName: r.Exchange,
 		Asset:        r.AssetType,
