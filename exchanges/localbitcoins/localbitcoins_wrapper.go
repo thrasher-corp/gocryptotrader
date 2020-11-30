@@ -236,6 +236,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 	orderBook.Pair = p
 	orderBook.ExchangeName = l.Name
 	orderBook.AssetType = assetType
+	orderBook.NotAggregated = true
 
 	err = orderBook.Process()
 	if err != nil {
