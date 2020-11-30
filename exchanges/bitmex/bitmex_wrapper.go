@@ -155,6 +155,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 		UpdateEntriesByID:                true,
 	})
 	if err != nil {

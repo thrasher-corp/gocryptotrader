@@ -50,6 +50,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
 		Features:                         &o.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 	})
 	if err != nil {
 		return err

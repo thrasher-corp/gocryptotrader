@@ -143,7 +143,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		Connector:                        g.WsConnect,
 		Features:                         &g.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    true,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 		SortBuffer:                       true,
 	})
 }
