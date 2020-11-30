@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/hodlings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/hodlings"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
