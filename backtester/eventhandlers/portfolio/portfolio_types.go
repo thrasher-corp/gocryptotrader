@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/position"
+	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/hodlings"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -30,14 +30,14 @@ type ExchangeAssetPairSettings struct {
 	InitialFunds      float64
 	Fee               float64
 	Funds             float64
-	PositionSnapshots position.Snapshots
+	PositionSnapshots hodlings.Snapshots
 	BuySideSizing     config.MinMax
 	SellSideSizing    config.MinMax
 	Leverage          config.Leverage
 	ComplianceManager compliance.Manager
 }
 
-type PortfolioHandler interface {
+type Handler interface {
 	OnSignal(signal.SignalEvent, interfaces.DataHandler, *exchange.CurrencySettings) (*order.Order, error)
 	OnFill(fill.FillEvent, interfaces.DataHandler) (*fill.Fill, error)
 	Update(interfaces.DataEventHandler)
@@ -49,8 +49,8 @@ type PortfolioHandler interface {
 
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 
-	SetHoldings(string, asset.Item, currency.Pair, time.Time, position.Position, bool) error
-	ViewHoldings(string, asset.Item, currency.Pair, time.Time) (position.Position, error)
+	SetHoldings(string, asset.Item, currency.Pair, time.Time, hodlings.Hodling, bool) error
+	ViewHoldings(string, asset.Item, currency.Pair, time.Time) (hodlings.Hodling, error)
 	SetFee(string, asset.Item, currency.Pair, float64)
 	GetFee(string, asset.Item, currency.Pair) float64
 	Reset()

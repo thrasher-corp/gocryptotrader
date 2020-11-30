@@ -5,12 +5,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // AddSnapshot creates a snapshot in time of the orders placed to allow for finer detail tracking
 // and to protect against anything modifying order details elsewhere
-func (m *Manager) AddSnapshot(orders []order.Detail, t time.Time, force bool) error {
+func (m *Manager) AddSnapshot(orders []SnapshotOrder, t time.Time, force bool) error {
 	found := false
 	for i := range m.Snapshots {
 		if t.Equal(m.Snapshots[i].Time) {
@@ -55,6 +54,6 @@ func (m *Manager) GetPreviousSnapshot(t time.Time) Snapshot {
 	}
 	return Snapshot{
 		Time:   t.Add(-m.Interval.Duration()),
-		Orders: []order.Detail{},
+		Orders: []SnapshotOrder{},
 	}
 }

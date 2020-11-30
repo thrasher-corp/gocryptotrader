@@ -15,6 +15,7 @@ import (
 type DataFromKline struct {
 	Item gctkline.Item
 	data.Data
+
 	actionedTimes map[time.Time]bool
 }
 
@@ -47,16 +48,16 @@ func (d *DataFromKline) Load() error {
 	return nil
 }
 
-func (d *DataFromKline) Append(hi gctkline.Item) {
+func (d *DataFromKline) Append(ki gctkline.Item) {
 	if d.actionedTimes == nil {
 		d.actionedTimes = make(map[time.Time]bool)
 	}
 	var klineData []interfaces.DataEventHandler
 	var gctCandles []gctkline.Candle
-	for i := range hi.Candles {
-		if _, ok := d.actionedTimes[hi.Candles[i].Time]; !ok {
-			gctCandles = append(gctCandles, hi.Candles[i])
-			d.actionedTimes[hi.Candles[i].Time] = true
+	for i := range ki.Candles {
+		if _, ok := d.actionedTimes[ki.Candles[i].Time]; !ok {
+			gctCandles = append(gctCandles, ki.Candles[i])
+			d.actionedTimes[ki.Candles[i].Time] = true
 		}
 	}
 	var timerinos []time.Time
@@ -64,11 +65,11 @@ func (d *DataFromKline) Append(hi gctkline.Item) {
 	for i := range gctCandles {
 		klineData = append(klineData, &kline.Kline{
 			Event: event.Event{
-				Exchange:     hi.Exchange,
+				Exchange:     ki.Exchange,
 				Time:         gctCandles[i].Time,
-				Interval:     hi.Interval,
-				CurrencyPair: hi.Pair,
-				AssetType:    hi.Asset,
+				Interval:     ki.Interval,
+				CurrencyPair: ki.Pair,
+				AssetType:    ki.Asset,
 			},
 			Open:   gctCandles[i].Open,
 			High:   gctCandles[i].High,

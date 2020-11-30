@@ -27,6 +27,7 @@ type FillEvent interface {
 	GetAmount() float64
 	GetClosePrice() float64
 	GetVolumeAdjustedPrice() float64
+	GetSlippageRate() float64
 	GetPurchasePrice() float64
 	GetExchangeFee() float64
 	SetExchangeFee(float64)

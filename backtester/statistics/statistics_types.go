@@ -30,12 +30,12 @@ type EquityPoint struct {
 	BuyAndHoldValue float64
 }
 
-// StatisticHandler interface handles
-type StatisticHandler interface {
+// Handler interface handles
+type Handler interface {
 	TrackEvent(interfaces.EventHandler)
 	Events() []interfaces.EventHandler
 
-	Update(interfaces.DataEventHandler, portfolio2.PortfolioHandler)
+	Update(interfaces.DataEventHandler, portfolio2.Handler)
 	TrackTransaction(fill.FillEvent)
 	Transactions() []fill.FillEvent
 

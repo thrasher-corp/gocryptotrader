@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/position"
+	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/hodlings"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -107,11 +107,16 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (
 	if !holdings.Timestamp.IsZero() {
 		holdings.Update(fillEvent)
 	} else {
-		holdings = position.Position{}
+		holdings = hodlings.Hodling{}
 		holdings.Amount = lookup.InitialFunds
 		holdings.Create(fillEvent)
 	}
 	err = p.SetHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime(), holdings, true)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
+
+	err = p.addComplianceSnapshot(fillEvent)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -128,6 +133,35 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (
 	}
 
 	return fillEvent.(*fill.Fill), nil
+}
+
+// addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fillevent
+// then saves the snapshot to the c
+func (p *Portfolio) addComplianceSnapshot(fillEvent fill.FillEvent) error {
+	complianceManager, err := p.GetComplianceManager(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair())
+	if err != nil {
+		return err
+	}
+	if complianceManager.Interval == 0 {
+		complianceManager.SetInterval(fillEvent.GetInterval())
+	}
+	prevSnap := complianceManager.GetPreviousSnapshot(fillEvent.GetTime())
+	fo := fillEvent.GetOrder()
+	if fo != nil {
+		snapOrder := compliance.SnapshotOrder{
+			ClosePrice:          fillEvent.GetClosePrice(),
+			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
+			SlippageRate:        fillEvent.GetSlippageRate(),
+			Detail:              fo,
+			CostBasis:           fo.Price + fo.Fee,
+		}
+		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
+	}
+	err = complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), false)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
@@ -152,7 +186,7 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 	return p.ExchangeAssetPairSettings[exchangeName][a][cp].Fee
 }
 
-func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (pos position.Position, ok bool) {
+func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (pos hodlings.Hodling, ok bool) {
 	holdings := p.ExchangeAssetPairSettings[exchangeName][a][cp].GetLatestHoldings()
 	if ok && (holdings.Amount != 0) {
 		return holdings, true
@@ -170,15 +204,15 @@ func (p *Portfolio) Update(d interfaces.DataEventHandler) {
 	}
 }
 
-func (p *Portfolio) ViewHoldings(exch string, a asset.Item, cp currency.Pair, t time.Time) (position.Position, error) {
+func (p *Portfolio) ViewHoldings(exch string, a asset.Item, cp currency.Pair, t time.Time) (hodlings.Hodling, error) {
 	exchangeAssetPairSettings := p.ExchangeAssetPairSettings[exch][a][cp]
-	for i := range exchangeAssetPairSettings.PositionSnapshots.Positions {
-		if t.Equal(exchangeAssetPairSettings.PositionSnapshots.Positions[i].Timestamp) {
-			return exchangeAssetPairSettings.PositionSnapshots.Positions[i], nil
+	for i := range exchangeAssetPairSettings.PositionSnapshots.Hodlings {
+		if t.Equal(exchangeAssetPairSettings.PositionSnapshots.Hodlings[i].Timestamp) {
+			return exchangeAssetPairSettings.PositionSnapshots.Hodlings[i], nil
 		}
 	}
 
-	return position.Position{}, nil
+	return hodlings.Hodling{}, nil
 }
 
 func (p *Portfolio) SetInitialFunds(exch string, a asset.Item, cp currency.Pair, funds float64) {
@@ -197,16 +231,16 @@ func (p *Portfolio) GetFunds(exch string, a asset.Item, cp currency.Pair) float6
 	return p.ExchangeAssetPairSettings[exch][a][cp].Funds
 }
 
-func (p *Portfolio) SetHoldings(exch string, a asset.Item, cp currency.Pair, t time.Time, pos position.Position, force bool) error {
+func (p *Portfolio) SetHoldings(exch string, a asset.Item, cp currency.Pair, t time.Time, pos hodlings.Hodling, force bool) error {
 	lookup := p.ExchangeAssetPairSettings[exch][a][cp]
 	found := false
-	for i := range lookup.PositionSnapshots.Positions {
-		if lookup.PositionSnapshots.Positions[i].Timestamp.Equal(t) {
+	for i := range lookup.PositionSnapshots.Hodlings {
+		if lookup.PositionSnapshots.Hodlings[i].Timestamp.Equal(t) {
 			found = true
 		}
 	}
 	if !found {
-		lookup.PositionSnapshots.Positions = append(lookup.PositionSnapshots.Positions, pos)
+		lookup.PositionSnapshots.Hodlings = append(lookup.PositionSnapshots.Hodlings, pos)
 		p.ExchangeAssetPairSettings[exch][a][cp] = lookup
 	}
 	return nil
@@ -229,16 +263,16 @@ func (p *Portfolio) SetupExchangeAssetPairMap(exch string, a asset.Item, cp curr
 	return p.ExchangeAssetPairSettings[exch][a][cp]
 }
 
-func (e *ExchangeAssetPairSettings) GetLatestHoldings() position.Position {
-	if e.PositionSnapshots.Positions == nil {
+func (e *ExchangeAssetPairSettings) GetLatestHoldings() hodlings.Hodling {
+	if e.PositionSnapshots.Hodlings == nil {
 		// no holdings yet
-		return position.Position{}
+		return hodlings.Hodling{}
 	}
-	sort.SliceStable(e.PositionSnapshots.Positions, func(i, j int) bool {
-		return e.PositionSnapshots.Positions[i].Timestamp.Before(e.PositionSnapshots.Positions[j].Timestamp)
+	sort.SliceStable(e.PositionSnapshots.Hodlings, func(i, j int) bool {
+		return e.PositionSnapshots.Hodlings[i].Timestamp.Before(e.PositionSnapshots.Hodlings[j].Timestamp)
 	})
 
-	return e.PositionSnapshots.Positions[len(e.PositionSnapshots.Positions)-1]
+	return e.PositionSnapshots.Hodlings[len(e.PositionSnapshots.Hodlings)-1]
 }
 
 func (e *ExchangeAssetPairSettings) SetInitialFunds(initial float64) {

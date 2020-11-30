@@ -6,9 +6,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
-type StrategyHandler interface {
+type Handler interface {
 	Name() string
-	OnSignal(interfaces.DataHandler, portfolio.PortfolioHandler) (signal.SignalEvent, error)
+	OnSignal(interfaces.DataHandler, portfolio.Handler) (signal.SignalEvent, error)
 	SetCustomSettings(map[string]interface{}) error
 	SetDefaults()
 }

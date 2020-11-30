@@ -25,12 +25,11 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 			AssetType:    o.GetAssetType(),
 			Interval:     o.GetInterval(),
 		},
-		Direction:           o.GetDirection(),
-		Amount:              o.GetAmount(),
-		ClosePrice:          data.Latest().Price(),
-		VolumeAdjustedPrice: 0,
-		ExchangeFee:         cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
-		Why:                 o.GetWhy(),
+		Direction:   o.GetDirection(),
+		Amount:      o.GetAmount(),
+		ClosePrice:  data.Latest().Price(),
+		ExchangeFee: cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
+		Why:         o.GetWhy(),
 	}
 	if o.GetAmount() <= 0 {
 		fillEvent.Direction = common.DoNothing
@@ -42,20 +41,19 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fil
 		// get current orderbook
 		// calculate an estimated slippage rate
 		slippageRate = slippage.CalculateSlippage(nil)
-		estimatedPrice = fillEvent.VolumeAdjustedPrice * slippageRate
+		estimatedPrice = fillEvent.ClosePrice * slippageRate
 	} else {
 		// provide n history and estimate volatility
 		slippageRate = slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate, o.GetDirection())
-		estimatedPrice = fillEvent.VolumeAdjustedPrice * slippageRate
 		high := data.StreamHigh()
 		low := data.StreamLow()
 		volume := data.StreamVol()
 
-		estimatedPrice, amount = e.ensureOrderFitsWithinHLV(estimatedPrice, o.GetAmount(), high[len(high)-1], low[len(low)-1], volume[len(volume)-1])
+		fillEvent.VolumeAdjustedPrice, amount = e.ensureOrderFitsWithinHLV(fillEvent.ClosePrice, o.GetAmount(), high[len(high)-1], low[len(low)-1], volume[len(volume)-1])
+		estimatedPrice = fillEvent.VolumeAdjustedPrice * slippageRate
 	}
 
 	fillEvent.Slippage = (slippageRate * 100) - 100
-	fillEvent.VolumeAdjustedPrice = estimatedPrice
 	fillEvent.ExchangeFee = e.calculateExchangeFee(estimatedPrice, amount, cs.ExchangeFee)
 
 	u, _ := uuid.NewV4()
@@ -143,9 +141,9 @@ func (e *Exchange) ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, vo
 		slippagePrice = high
 	}
 
-	if amount*slippagePrice > volume {
+	if amount > volume {
 		// hey, this order is too big here
-		for amount*slippagePrice > volume {
+		for amount > volume {
 			amount *= 0.99999
 		}
 	}

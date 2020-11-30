@@ -69,3 +69,7 @@ func (f *Fill) NetValue() float64 {
 func (f *Fill) GetOrder() *order.Detail {
 	return f.Order
 }
+
+func (f *Fill) GetSlippageRate() float64 {
+	return f.Slippage
+}

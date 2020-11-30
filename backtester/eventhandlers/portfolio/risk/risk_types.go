@@ -4,13 +4,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/position"
+	"github.com/thrasher-corp/gocryptotrader/backtester/statistics/hodlings"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 type RiskHandler interface {
-	EvaluateOrder(exchange.OrderEvent, interfaces.DataEventHandler, position.Position) (*order.Order, error)
+	EvaluateOrder(exchange.OrderEvent, interfaces.DataEventHandler, hodlings.Hodling) (*order.Order, error)
 }
 
 type Risk struct {

@@ -9,13 +9,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 )
 
+// BackTest is the main hodler of all backtesting
 type BackTest struct {
 	shutdown   chan struct{}
 	Data       interfaces.DataHandler
-	Strategy   strategies.StrategyHandler
-	Portfolio  portfolio.PortfolioHandler
+	Strategy   strategies.Handler
+	Portfolio  portfolio.Handler
 	Exchange   exchange.ExecutionHandler
-	Statistic  statistics.StatisticHandler
+	Statistic  statistics.Handler
 	EventQueue []interfaces.EventHandler
 	Bot        *engine.Engine
 }

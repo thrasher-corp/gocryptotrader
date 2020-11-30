@@ -18,7 +18,7 @@ func (s *Strategy) Name() string {
 	return name
 }
 
-func (s *Strategy) OnSignal(d interfaces.DataHandler, p portfolio.PortfolioHandler) (signal.SignalEvent, error) {
+func (s *Strategy) OnSignal(d interfaces.DataHandler, p portfolio.Handler) (signal.SignalEvent, error) {
 	es := s.GetBase(d)
 
 	es.SetPrice(d.Latest().Price())

@@ -43,6 +43,7 @@ type MinMax struct {
 // ExchangeSettings stores pair based variables
 // It contains rules about the specific currency pair
 // you wish to trade with
+// Backtester will load the data of the currencies specified here
 type CurrencySettings struct {
 	ExchangeName string `json:"exchange-name"`
 	Asset        string `json:"asset"`

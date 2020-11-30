@@ -1,18 +1,27 @@
-package position
+package hodlings
 
 import (
 	"time"
 )
 
 type Snapshots struct {
-	Positions []Position
+	Hodlings []Hodling
 }
 
-type Position struct {
-	Timestamp          time.Time
-	Amount             float64
-	AmountBought       float64
-	AmountSold         float64
+type Hodling struct {
+	Timestamp time.Time
+	//ScottStuff
+	InitialFunds  float64
+	PositionSize  float64
+	PositionValue float64
+	TotalWorth    float64
+	AmountSold    float64
+	AmountBought  float64
+
+	// ==================
+	Amount float64
+	//AmountBought       float64
+	//AmountSold         float64
 	AveragePrice       float64
 	AveragePriceNet    float64
 	AveragePriceBought float64
@@ -25,7 +34,6 @@ type Position struct {
 	NetValueSold       float64
 	MarketPrice        float64
 	MarketValue        float64
-	ExchangeFee        float64
 	Cost               float64
 	CostBasis          float64
 

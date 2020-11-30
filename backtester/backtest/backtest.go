@@ -566,25 +566,6 @@ func (b *BackTest) handleEvent(e interfaces.EventHandler) error {
 		}
 		b.EventQueue = append(b.EventQueue, fillEvent)
 	case fill.FillEvent:
-		fo := event.GetOrder()
-		complianceManager, err := b.Portfolio.GetComplianceManager(event.GetExchange(), event.GetAssetType(), event.Pair())
-		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
-			break
-		}
-		if complianceManager.Interval == 0 {
-			complianceManager.SetInterval(event.GetInterval())
-		}
-		prevSnap := complianceManager.GetPreviousSnapshot(e.GetTime())
-		if fo != nil {
-			prevSnap.Orders = append(prevSnap.Orders, *fo)
-		}
-		err = complianceManager.AddSnapshot(prevSnap.Orders, e.GetTime(), false)
-		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
-			break
-		}
-
 		t, err := b.Portfolio.OnFill(event, b.Data)
 		if err != nil {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())

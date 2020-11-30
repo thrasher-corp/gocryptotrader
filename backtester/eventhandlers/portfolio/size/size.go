@@ -26,7 +26,7 @@ func (s *Size) SizeOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, a
 		if err != nil {
 			return nil, err
 		}
-		// global settings overrule
+		// global settings overrule individual currency settings
 		if amount > portfolioSize {
 			amount = portfolioSize
 		}
@@ -43,7 +43,7 @@ func (s *Size) SizeOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, a
 		if err != nil {
 			return nil, err
 		}
-		// global settings overrule
+		// global settings overrule individual currency settings
 		if amount > portfolioSize {
 			amount = portfolioSize
 		}
@@ -55,7 +55,7 @@ func (s *Size) SizeOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, a
 }
 
 // calculateSize respects config rules and calculates the amount of money
-// that is allowed to be spend/sold for an event.
+// that is allowed to be spent/sold for an event.
 //
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules

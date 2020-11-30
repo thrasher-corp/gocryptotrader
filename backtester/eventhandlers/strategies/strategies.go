@@ -9,7 +9,7 @@ import (
 )
 
 // LoadStrategyByName returns the strategy by its name
-func LoadStrategyByName(name string) (StrategyHandler, error) {
+func LoadStrategyByName(name string) (Handler, error) {
 	strats := getStrategies()
 	for i := range strats {
 		if !strings.EqualFold(name, strats[i].Name()) {
@@ -20,8 +20,8 @@ func LoadStrategyByName(name string) (StrategyHandler, error) {
 	return nil, fmt.Errorf(errNotFound, name)
 }
 
-func getStrategies() []StrategyHandler {
-	var strats []StrategyHandler
+func getStrategies() []Handler {
+	var strats []Handler
 	strats = append(strats, new(dollarcostaverage.Strategy))
 	strats = append(strats, new(RSI420BlazeIt.Strategy))
 
