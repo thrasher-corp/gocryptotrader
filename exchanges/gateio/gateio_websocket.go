@@ -351,14 +351,6 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		}
 
 		if IsSnapshot {
-			// if !askOk {
-			// 	g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access ask data")
-			// }
-
-			// if !bidOk {
-			// 	g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access bid data")
-			// }
-
 			var newOrderBook orderbook.Base
 			newOrderBook.Asks = asks
 			newOrderBook.Bids = bids

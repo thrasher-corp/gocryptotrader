@@ -336,7 +336,7 @@ func (w *Orderbook) FlushBuffer() {
 	w.m.Unlock()
 }
 
-// FlushOrderbook flushes independant orderbook
+// FlushOrderbook flushes independent orderbook
 func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	w.m.Lock()
 	defer w.m.Unlock()

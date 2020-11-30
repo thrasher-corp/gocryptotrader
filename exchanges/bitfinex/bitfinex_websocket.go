@@ -891,7 +891,6 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 						Price:  book[i].Price})
 			}
 		} else {
-
 			orderbookUpdate.Action = "delete"
 			if book[i].Amount == 1 {
 				// delete bid

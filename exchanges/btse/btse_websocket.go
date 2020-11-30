@@ -280,8 +280,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		newOB.Pair = p
 		newOB.AssetType = a
 		newOB.ExchangeName = b.Name
-		newOB.Asks = orderbook.SortAsks(asks) // Returned from endpoint out of
-		//order this is needed
+		newOB.Asks = orderbook.SortAsks(asks)
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {
 			return err

@@ -619,7 +619,7 @@ func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
 		return b.obm.fetchBookViaREST(pair)
 	}
 
-	return b.obm.checkAndProcessUpdate(b.ProcessUpdate, pair, *recent)
+	return b.obm.checkAndProcessUpdate(b.ProcessUpdate, pair, recent)
 }
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
@@ -637,7 +637,7 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 					continue
 				}
 
-				// Immediatly apply the buffer updates so we don't wait for a
+				// Immediately apply the buffer updates so we don't wait for a
 				// new update to initiate this.
 				err = b.obm.stopFetchingBook(job.Pair)
 				if err != nil {
@@ -766,7 +766,6 @@ func (o *orderbookManager) stopFetchingBook(pair currency.Pair) error {
 	}
 	*ptr = false
 	return nil
-
 }
 
 // completeInitialSync sets if an asset type has completed its initial sync
@@ -818,7 +817,7 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 	}
 }
 
-func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
 	o.bmtx.Lock()
 	defer o.bmtx.Unlock()
 
@@ -852,18 +851,16 @@ loop:
 						pair,
 						asset.Spot)
 				}
-				err := o.completeInitialSync(pair)
+				err = o.completeInitialSync(pair)
 				if err != nil {
 					return err
 				}
-			} else {
+			} else if d.FirstUpdateID != id {
 				// While listening to the stream, each new event's U should be
 				// equal to the previous event's u+1.
-				if d.FirstUpdateID != id {
-					return fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s",
-						pair,
-						asset.Spot)
-				}
+				return fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s",
+					pair,
+					asset.Spot)
 			}
 			err = processor(pair, asset.Spot, d)
 			if err != nil {
@@ -891,7 +888,7 @@ func (o *orderbookManager) cleanup(pair currency.Pair) error {
 bufferEmpty:
 	for {
 		select {
-		case _ = <-ch:
+		case <-ch:
 			// bleed and disgard buffer
 		default:
 			break bufferEmpty
