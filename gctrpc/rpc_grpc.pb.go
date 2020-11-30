@@ -34,6 +34,7 @@ type GoCryptoTraderClient interface {
 	GetOrderbook(ctx context.Context, in *GetOrderbookRequest, opts ...grpc.CallOption) (*OrderbookResponse, error)
 	GetOrderbooks(ctx context.Context, in *GetOrderbooksRequest, opts ...grpc.CallOption) (*GetOrderbooksResponse, error)
 	GetAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error)
+	UpdateAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error)
 	GetAccountInfoStream(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (GoCryptoTrader_GetAccountInfoStreamClient, error)
 	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (*GetConfigResponse, error)
 	GetPortfolio(ctx context.Context, in *GetPortfolioRequest, opts ...grpc.CallOption) (*GetPortfolioResponse, error)
@@ -252,6 +253,15 @@ func (c *goCryptoTraderClient) GetOrderbooks(ctx context.Context, in *GetOrderbo
 func (c *goCryptoTraderClient) GetAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error) {
 	out := new(GetAccountInfoResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/GetAccountInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) UpdateAccountInfo(ctx context.Context, in *GetAccountInfoRequest, opts ...grpc.CallOption) (*GetAccountInfoResponse, error) {
+	out := new(GetAccountInfoResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/UpdateAccountInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -966,6 +976,7 @@ type GoCryptoTraderServer interface {
 	GetOrderbook(context.Context, *GetOrderbookRequest) (*OrderbookResponse, error)
 	GetOrderbooks(context.Context, *GetOrderbooksRequest) (*GetOrderbooksResponse, error)
 	GetAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error)
+	UpdateAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error)
 	GetAccountInfoStream(*GetAccountInfoRequest, GoCryptoTrader_GetAccountInfoStreamServer) error
 	GetConfig(context.Context, *GetConfigRequest) (*GetConfigResponse, error)
 	GetPortfolio(context.Context, *GetPortfolioRequest) (*GetPortfolioResponse, error)
@@ -1084,6 +1095,9 @@ func (UnimplementedGoCryptoTraderServer) GetOrderbooks(context.Context, *GetOrde
 }
 func (UnimplementedGoCryptoTraderServer) GetAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAccountInfo not implemented")
+}
+func (UnimplementedGoCryptoTraderServer) UpdateAccountInfo(context.Context, *GetAccountInfoRequest) (*GetAccountInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAccountInfo not implemented")
 }
 func (UnimplementedGoCryptoTraderServer) GetAccountInfoStream(*GetAccountInfoRequest, GoCryptoTrader_GetAccountInfoStreamServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetAccountInfoStream not implemented")
@@ -1583,6 +1597,24 @@ func _GoCryptoTrader_GetAccountInfo_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GoCryptoTraderServer).GetAccountInfo(ctx, req.(*GetAccountInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_UpdateAccountInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccountInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).UpdateAccountInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/UpdateAccountInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).UpdateAccountInfo(ctx, req.(*GetAccountInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2774,6 +2806,10 @@ var _GoCryptoTrader_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAccountInfo",
 			Handler:    _GoCryptoTrader_GetAccountInfo_Handler,
+		},
+		{
+			MethodName: "UpdateAccountInfo",
+			Handler:    _GoCryptoTrader_UpdateAccountInfo_Handler,
 		},
 		{
 			MethodName: "GetConfig",

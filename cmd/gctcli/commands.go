@@ -831,6 +831,55 @@ func getAccountInfoStream(c *cli.Context) error {
 	}
 }
 
+var updateAccountInfoCommand = cli.Command{
+	Name:      "updateaccountinfo",
+	Usage:     "updates the exchange account balance info",
+	ArgsUsage: "<exchange>",
+	Action:    updateAccountInfo,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the account info for",
+		},
+	},
+}
+
+func updateAccountInfo(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "updateaccountinfo")
+	}
+
+	var exchange string
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else {
+		exchange = c.Args().First()
+	}
+
+	if !validExchange(exchange) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.UpdateAccountInfo(context.Background(),
+		&gctrpc.GetAccountInfoRequest{
+			Exchange: exchange,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
 var getConfigCommand = cli.Command{
 	Name:   "getconfig",
 	Usage:  "gets the config",

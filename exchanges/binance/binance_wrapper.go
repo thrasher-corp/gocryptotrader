@@ -542,7 +542,7 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 			AssetType:    assetType,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Quantity,
-			Timestamp:    time.Unix(0, tradeData[i].Time*int64(time.Millisecond)),
+			Timestamp:    tradeData[i].Time,
 		})
 	}
 	if b.IsSaveTradeDataEnabled() {
@@ -587,7 +587,7 @@ func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType as
 		Amount:       a.Quantity,
 		Exchange:     exchange,
 		Price:        a.Price,
-		Timestamp:    time.Unix(0, a.TimeStamp*int64(time.Millisecond)),
+		Timestamp:    a.TimeStamp,
 		AssetType:    aType,
 		Side:         order.AnySide,
 	}
@@ -741,11 +741,6 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		return
 	}
 
-	orderCloseDate, err := convert.TimeFromUnixTimestampFloat(float64(resp.UpdateTime))
-	if err != nil {
-		return
-	}
-
 	status, err := order.StringToOrderStatus(resp.Status)
 	if err != nil {
 		return
@@ -766,7 +761,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		Pair:           formattedPair,
 		Cost:           resp.CummulativeQuoteQty,
 		AssetType:      assetType,
-		CloseTime:      orderCloseDate,
+		CloseTime:      resp.UpdateTime,
 		Status:         status,
 		Price:          resp.Price,
 		ExecutedAmount: resp.ExecutedQty,
@@ -845,10 +840,6 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		for i := range resp {
 			orderSide := order.Side(strings.ToUpper(resp[i].Side))
 			orderType := order.Type(strings.ToUpper(resp[i].Type))
-			orderDate, err := convert.TimeFromUnixTimestampFloat(resp[i].Time)
-			if err != nil {
-				return nil, err
-			}
 
 			pair, err := currency.NewPairFromString(resp[i].Symbol)
 			if err != nil {
@@ -857,7 +848,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 			orders = append(orders, order.Detail{
 				Amount:   resp[i].OrigQty,
-				Date:     orderDate,
+				Date:     resp[i].Time,
 				Exchange: b.Name,
 				ID:       strconv.FormatInt(resp[i].OrderID, 10),
 				Side:     orderSide,
@@ -902,10 +893,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		for i := range resp {
 			orderSide := order.Side(strings.ToUpper(resp[i].Side))
 			orderType := order.Type(strings.ToUpper(resp[i].Type))
-			orderDate, err := convert.TimeFromUnixTimestampFloat(resp[i].Time)
-			if err != nil {
-				return nil, err
-			}
 			// New orders are covered in GetOpenOrders
 			if resp[i].Status == "NEW" {
 				continue
@@ -918,7 +905,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 			orders = append(orders, order.Detail{
 				Amount:   resp[i].OrigQty,
-				Date:     orderDate,
+				Date:     resp[i].Time,
 				Exchange: b.Name,
 				ID:       strconv.FormatInt(resp[i].OrderID, 10),
 				Side:     orderSide,
@@ -971,8 +958,8 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	req := KlinesRequestParams{
 		Interval:  b.FormatExchangeKlineInterval(interval),
 		Symbol:    fpair.String(),
-		StartTime: start.Unix() * 1000,
-		EndTime:   end.Unix() * 1000,
+		StartTime: start,
+		EndTime:   end,
 		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 	}
 
@@ -983,7 +970,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		Interval: interval,
 	}
 
-	candles, err := b.GetSpotKline(req)
+	candles, err := b.GetSpotKline(&req)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -1026,12 +1013,12 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
 			Symbol:    formattedPair.String(),
-			StartTime: dates[x].Start.UTC().Unix() * 1000,
-			EndTime:   dates[x].End.UTC().Unix() * 1000,
+			StartTime: dates[x].Start,
+			EndTime:   dates[x].End,
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		}
 
-		candles, err := b.GetSpotKline(req)
+		candles, err := b.GetSpotKline(&req)
 		if err != nil {
 			return kline.Item{}, err
 		}
