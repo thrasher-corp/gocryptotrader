@@ -229,7 +229,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Side:            oSide,
 					Status:          oStatus,
 					AssetType:       a,
-					Date:            time.Unix(0, data.Data.OrderCreationTime*int64(time.Millisecond)),
+					Date:            data.Data.OrderCreationTime,
 					Pair:            p,
 				}
 			case "listStatus":
@@ -297,7 +297,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 
 					return b.AddTradesToBuffer(trade.Data{
 						CurrencyPair: pair,
-						Timestamp:    time.Unix(0, t.TimeStamp*int64(time.Millisecond)),
+						Timestamp:    t.TimeStamp,
 						Price:        price,
 						Amount:       amount,
 						Exchange:     b.Name,
@@ -329,7 +329,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Bid:          t.BestBidPrice,
 						Ask:          t.BestAskPrice,
 						Last:         t.LastPrice,
-						LastUpdated:  time.Unix(0, t.EventTime*int64(time.Millisecond)),
+						LastUpdated:  t.EventTime,
 						AssetType:    asset.Spot,
 						Pair:         pair,
 					}
@@ -349,12 +349,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					}
 
 					b.Websocket.DataHandler <- stream.KlineData{
-						Timestamp:  time.Unix(0, kline.EventTime*int64(time.Millisecond)),
+						Timestamp:  kline.EventTime,
 						Pair:       pair,
 						AssetType:  asset.Spot,
 						Exchange:   b.Name,
-						StartTime:  time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond)),
-						CloseTime:  time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond)),
+						StartTime:  kline.Kline.StartTime,
+						CloseTime:  kline.Kline.CloseTime,
 						Interval:   kline.Kline.Interval,
 						OpenPrice:  kline.Kline.OpenPrice,
 						ClosePrice: kline.Kline.ClosePrice,
