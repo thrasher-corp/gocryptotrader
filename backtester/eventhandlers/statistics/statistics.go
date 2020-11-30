@@ -13,14 +13,14 @@ import (
 	"gonum.org/v1/gonum/stat"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	common2 "github.com/thrasher-corp/gocryptotrader/common"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // Update Statistic for event
-func (s *Statistic) Update(d interfaces.DataEventHandler, p portfolio2.Handler) {
+func (s *Statistic) Update(d interfaces.DataEventHandler, p portfolio.Handler) {
 	if s.InitialBuy == 0 && d.Price() > 0 {
 		s.InitialBuy = p.GetInitialFunds(d.GetExchange(), d.GetAssetType(), d.Pair()) / d.Price()
 	}
@@ -120,7 +120,7 @@ func (s *Statistic) PrintResult() {
 	transactions := s.Transactions()
 	for k, v := range transactions {
 		sb.WriteString(fmt.Sprintf("%v.\t", k+1))
-		sb.WriteString(fmt.Sprintf("%v\t", v.GetTime().Format(common2.SimpleTimeFormat)))
+		sb.WriteString(fmt.Sprintf("%v\t", v.GetTime().Format(gctcommon.SimpleTimeFormat)))
 		sb.WriteString(fmt.Sprintf("%v\t", v.GetDirection()))
 		if v.GetDirection() != common.DoNothing {
 			sb.WriteString(fmt.Sprintf("Amount: %f, Price: ", roundIt(v.GetAmount())))
@@ -139,7 +139,7 @@ func (s *Statistic) PrintResult() {
 	result, _ := s.TotalEquityReturn()
 	fmt.Printf("Initial funds: $%f\nValue at enddate %v:\t$%f\n",
 		roundIt(s.InitialFunds),
-		s.Equity[len(s.Equity)-1].Timestamp.Format(common2.SimpleTimeFormat),
+		s.Equity[len(s.Equity)-1].Timestamp.Format(gctcommon.SimpleTimeFormat),
 		roundIt(s.Equity[len(s.Equity)-1].BuyAndHoldValue))
 	fmt.Printf("Difference: $%f\n", roundIt(s.Equity[len(s.Equity)-1].BuyAndHoldValue-s.InitialFunds))
 	fmt.Printf("TotalEquity: %f\nMaxDrawdown: %f", roundIt(result), roundIt(s.MaxDrawdown()))
