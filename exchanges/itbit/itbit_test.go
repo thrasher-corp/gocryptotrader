@@ -61,7 +61,8 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := i.GetOrderbook("XBTSGD")
+	i.Verbose = true
+	_, err := i.GetOrderbook("XBTUSD")
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
 	}

@@ -123,7 +123,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		if ob.Snapshot {
 			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Pair:         p,
-				Bids:         bids,
+				Bids:         orderbook.SortBids(bids),
 				Asks:         asks,
 				LastUpdated:  ob.Timestamp,
 				AssetType:    asset.Spot,

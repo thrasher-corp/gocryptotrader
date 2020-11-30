@@ -234,6 +234,7 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	orderBook.Pair = p
 	orderBook.ExchangeName = i.Name
 	orderBook.AssetType = assetType
+	orderBook.NotAggregated = true
 
 	err = orderBook.Process()
 	if err != nil {

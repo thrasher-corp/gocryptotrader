@@ -29,6 +29,7 @@ var (
 	errAmountNotSet      = errors.New("amount cannot be zero")
 	errOutOfOrder        = errors.New("pricing out of order")
 	errDuplication       = errors.New("price duplication")
+	errIDDuplication     = errors.New("id duplication")
 )
 
 func init() {
@@ -73,6 +74,8 @@ type Base struct {
 	LastUpdateID int64         `json:"lastUpdateId"`
 	AssetType    asset.Item    `json:"assetType"`
 	ExchangeName string        `json:"exchangeName"`
+	// NotAggregated defines expected duplication of prices from endpoint
+	NotAggregated bool `json:"-"`
 }
 
 type byOBPrice []Item

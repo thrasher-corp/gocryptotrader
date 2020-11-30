@@ -300,6 +300,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						err = p.WsProcessOrderbookSnapshot(orderbookData,
 							currencyPair)
 						if err != nil {
+							fmt.Println("SHEEEEEEEMMMMM")
 							return err
 						}
 					case "o":
@@ -309,6 +310,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							dataL3,
 							currencyPair)
 						if err != nil {
+							fmt.Println("SHMEEEE")
 							return err
 						}
 					case "t":
@@ -470,44 +472,38 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	askdata := ob[0].(map[string]interface{})
 	var asks []orderbook.Item
 	for price, volume := range askdata {
-		assetPrice, err := strconv.ParseFloat(price, 64)
+		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
 
-		assetVolume, err := strconv.ParseFloat(volume.(string), 64)
+		a, err := strconv.ParseFloat(volume.(string), 64)
 		if err != nil {
 			return err
 		}
 
-		asks = append(asks, orderbook.Item{
-			Price:  assetPrice,
-			Amount: assetVolume,
-		})
+		asks = append(asks, orderbook.Item{Price: p, Amount: a})
 	}
 
 	bidData := ob[1].(map[string]interface{})
 	var bids []orderbook.Item
 	for price, volume := range bidData {
-		assetPrice, err := strconv.ParseFloat(price, 64)
+		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
 
-		assetVolume, err := strconv.ParseFloat(volume.(string), 64)
+		a, err := strconv.ParseFloat(volume.(string), 64)
 		if err != nil {
 			return err
 		}
 
-		bids = append(bids, orderbook.Item{
-			Price:  assetPrice,
-			Amount: assetVolume,
-		})
+		bids = append(bids, orderbook.Item{Price: p, Amount: a})
 	}
 
 	var newOrderBook orderbook.Base
-	newOrderBook.Asks = asks
-	newOrderBook.Bids = bids
+	newOrderBook.Asks = orderbook.SortAsks(asks)
+	newOrderBook.Bids = orderbook.SortBids(bids)
 	newOrderBook.AssetType = asset.Spot
 
 	var err error

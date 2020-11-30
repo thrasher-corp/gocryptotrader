@@ -1,7 +1,6 @@
 package buffer
 
 import (
-	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -12,12 +11,12 @@ import (
 )
 
 var itemArray = [][]orderbook.Item{
-	{{Price: 1000, Amount: 1, ID: 1}},
-	{{Price: 2000, Amount: 1, ID: 2}},
-	{{Price: 3000, Amount: 1, ID: 3}},
-	{{Price: 3000, Amount: 2, ID: 4}},
-	{{Price: 4000, Amount: 0, ID: 6}},
-	{{Price: 5000, Amount: 1, ID: 5}},
+	{{Price: 1000, Amount: 1, ID: 1000}},
+	{{Price: 2000, Amount: 1, ID: 2000}},
+	{{Price: 3000, Amount: 1, ID: 3000}},
+	{{Price: 3000, Amount: 2, ID: 4000}},
+	{{Price: 4000, Amount: 5, ID: 6000}},
+	{{Price: 5000, Amount: 1, ID: 5000}},
 }
 
 var cp, _ = currency.NewPairFromString("BTCUSD")
@@ -39,7 +38,11 @@ func createSnapshot() (obl *Orderbook, asks, bids []orderbook.Item, err error) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = cp
-	obl = &Orderbook{exchangeName: exchangeName, dataHandler: make(chan interface{}, 100)}
+	obl = &Orderbook{
+		exchangeName: exchangeName,
+		dataHandler:  make(chan interface{}, 100),
+		ob:           make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base),
+		buffer:       make(map[currency.Code]map[currency.Code]map[asset.Item]*[]Update)}
 	err = obl.LoadSnapshot(&snapShot1)
 	return
 }
@@ -76,7 +79,7 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		ob.updateBidsByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot], update)
+		ob.updateByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot], update)
 	}
 }
 
@@ -95,7 +98,7 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		ob.updateAsksByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot], update)
+		ob.updateByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot], update)
 	}
 }
 
@@ -245,7 +248,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateAsksByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
+	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
 		Bids:       itemArray[5],
 		Asks:       itemArray[5],
 		Pair:       cp,
@@ -256,7 +259,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateAsksByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
+	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
 		Bids:       itemArray[0],
 		Asks:       itemArray[0],
 		Pair:       cp,
@@ -294,12 +297,11 @@ func TestHittingTheBuffer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
-		t.Log(obl.ob[cp.Base][cp.Quote][asset.Spot])
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 4 {
 		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 4 {
 		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
 	}
@@ -363,11 +365,11 @@ func TestSortIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 4 {
 		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 4 {
 		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
 	}
@@ -565,8 +567,7 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error running update with no snapshot loaded")
 	}
-	if err.Error() != fmt.Sprintf("%v cannot have bids and ask targets both nil",
-		exchangeName) {
+	if err.Error() != "websocket orderbook buffer error: update bid/ask targets cannot be nil" {
 		t.Fatal("expected nil asks and bids error")
 	}
 }
@@ -585,7 +586,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error loading a snapshot")
 	}
-	if err.Error() != "test snapshot ask and bids are nil" {
+	if err.Error() != "orderbook bids and asks are empty" {
 		t.Fatal(err)
 	}
 }
@@ -594,6 +595,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 func TestLoadSnapshot(t *testing.T) {
 	var obl Orderbook
 	obl.dataHandler = make(chan interface{}, 100)
+	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
 	var snapShot1 orderbook.Base
 	snapShot1.ExchangeName = "SnapshotWithOverride"
 	asks := []orderbook.Item{
@@ -631,6 +633,7 @@ func TestFlushbuffer(t *testing.T) {
 func TestInsertingSnapShots(t *testing.T) {
 	var obl Orderbook
 	obl.dataHandler = make(chan interface{}, 100)
+	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
 	var snapShot1 orderbook.Base
 	snapShot1.ExchangeName = "WSORDERBOOKTEST1"
 	asks := []orderbook.Item{
@@ -699,8 +702,8 @@ func TestInsertingSnapShots(t *testing.T) {
 		{Price: 39, Amount: 7, ID: 22},
 	}
 
-	snapShot2.Asks = asks
-	snapShot2.Bids = bids
+	snapShot2.Asks = orderbook.SortAsks(asks)
+	snapShot2.Bids = orderbook.SortBids(bids)
 	snapShot2.AssetType = asset.Spot
 	snapShot2.Pair, err = currency.NewPairFromString("LTCUSD")
 	if err != nil {
@@ -740,8 +743,8 @@ func TestInsertingSnapShots(t *testing.T) {
 		{Price: 39, Amount: 7, ID: 22},
 	}
 
-	snapShot3.Asks = asks
-	snapShot3.Bids = bids
+	snapShot3.Asks = orderbook.SortAsks(asks)
+	snapShot3.Bids = orderbook.SortBids(bids)
 	snapShot3.AssetType = "FUTURES"
 	snapShot3.Pair, err = currency.NewPairFromString("LTCUSD")
 	if err != nil {
@@ -799,7 +802,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 	}
 
 	asks := bidAskGenerator()
-	obl.updateAsksByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
+	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
 		Bids:       asks,
 		Asks:       asks,
 		Pair:       cp,

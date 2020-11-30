@@ -3,7 +3,6 @@ package orderbook
 import (
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -229,15 +228,12 @@ func (b *Base) Verify() error {
 
 			if b.Bids[i].ID != 0 {
 				if b.Bids[i].ID == b.Bids[i-1].ID {
-					return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errors.New("awwww man"))
+					return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 				}
 				continue
 			}
 
-			fmt.Println(b.Bids)
-			os.Exit(1)
-
-			if b.Bids[i].ID != 0 && b.Bids[i].Price == b.Bids[i-1].Price {
+			if !b.NotAggregated && b.Bids[i].Price == b.Bids[i-1].Price {
 				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errDuplication)
 			}
 		}
@@ -257,12 +253,12 @@ func (b *Base) Verify() error {
 
 			if b.Asks[i].ID != 0 {
 				if b.Asks[i].ID == b.Asks[i-1].ID {
-					return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errors.New("awwww man"))
+					return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 				}
 				continue
 			}
 
-			if b.Asks[i].Price == b.Asks[i-1].Price {
+			if !b.NotAggregated && b.Asks[i].Price == b.Asks[i-1].Price {
 				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errDuplication)
 			}
 		}

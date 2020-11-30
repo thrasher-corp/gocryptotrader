@@ -152,6 +152,12 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
 	}
 
+	b.Asks = []Item{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errIDDuplication) {
+		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
+	}
+
 	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errOutOfOrder) {
@@ -174,6 +180,12 @@ func TestVerify(t *testing.T) {
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errDuplication) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
+	}
+
+	b.Bids = []Item{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errIDDuplication) {
+		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
 	}
 
 	b.Bids = []Item{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
@@ -567,5 +579,33 @@ func TestGetAssociations(t *testing.T) {
 	_, err := service.GetAssociations(nil, "")
 	if err == nil {
 		t.Error("error cannot be nil")
+	}
+}
+
+func TestSorting(t *testing.T) {
+	var b Base
+
+	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
+	err := b.Verify()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	SortAsks(b.Asks)
+	err = b.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.Bids = []Item{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	SortBids(b.Bids)
+	err = b.Verify()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
