@@ -145,7 +145,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
 	b.Settings.WithdrawCacheSize = s.WithdrawCacheSize
 	if b.Settings.EnablePortfolioManager {
-		if b.Settings.PortfolioManagerDelay != time.Duration(0) && s.PortfolioManagerDelay > 0 {
+		if b.Settings.PortfolioManagerDelay == time.Duration(0) && s.PortfolioManagerDelay > 0 {
 			b.Settings.PortfolioManagerDelay = s.PortfolioManagerDelay
 		} else {
 			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay

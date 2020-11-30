@@ -38,9 +38,15 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetExchangeInfo()
+	info, err := b.GetExchangeInfo()
 	if err != nil {
 		t.Error(err)
+	}
+	if mockTests {
+		serverTime := time.Date(2020, 4, 15, 23, 44, 38, int(861*time.Millisecond), time.UTC)
+		if !info.Servertime.Equal(serverTime) {
+			t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
+		}
 	}
 }
 
@@ -104,12 +110,12 @@ func TestGetAggregatedTrades(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetSpotKline(KlinesRequestParams{
+	_, err := b.GetSpotKline(&KlinesRequestParams{
 		Symbol:    "BTCUSDT",
 		Interval:  kline.FiveMin.Short(),
 		Limit:     24,
-		StartTime: time.Unix(1577836800, 0).Unix() * 1000,
-		EndTime:   time.Unix(1580515200, 0).Unix() * 1000,
+		StartTime: time.Unix(1577836800, 0),
+		EndTime:   time.Unix(1580515200, 0),
 	})
 	if err != nil {
 		t.Error("Binance GetSpotKline() error", err)
@@ -514,8 +520,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			if len(result) != tt.numExpected {
 				t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", tt.numExpected, len(result))
 			}
-			lastTrade := result[len(result)-1]
-			lastTradeTime := time.Unix(0, lastTrade.TimeStamp*int64(time.Millisecond))
+			lastTradeTime := result[len(result)-1].TimeStamp
 			if !lastTradeTime.Equal(tt.lastExpected) {
 				t.Errorf("last trade expected %v, got %v", tt.lastExpected, lastTradeTime)
 			}

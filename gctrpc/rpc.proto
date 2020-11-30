@@ -953,6 +953,12 @@ service GoCryptoTrader {
         };
     }
 
+    rpc UpdateAccountInfo (GetAccountInfoRequest) returns (GetAccountInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/updateaccountinfo"
+        };
+    }
+
     rpc GetAccountInfoStream (GetAccountInfoRequest) returns (stream GetAccountInfoResponse) {
         option (google.api.http) = {
             get: "/v1/getaccountinfostream"
