@@ -6,7 +6,7 @@ import (
 )
 
 func (k *Kline) DataType() interfaces.DataType {
-	return data.DataTypeCandle
+	return data.CandleType
 }
 
 func (k *Kline) Price() float64 {

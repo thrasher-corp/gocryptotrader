@@ -8,7 +8,9 @@ const (
 	DecimalPlaces = 8
 	// DoNothing is an explicit signal for the backtester to not perform an action
 	// based upon indicator results
-	DoNothing order.Side = "DO NOTHING"
+	DoNothing    order.Side = "DO NOTHING"
+	CouldNotBuy  order.Side = "COULD NOT BUY"
+	CouldNotSell order.Side = "COULD NOT SELL"
 	// used to identify the type of data in a config
 	CandleStr = "candle"
 	TradeStr  = "trade"

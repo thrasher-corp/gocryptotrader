@@ -40,20 +40,20 @@ func New() *BackTest {
 }
 
 // Reset BackTest values to default
-func (b *BackTest) Reset() {
-	b.EventQueue = nil
-	b.Data.Reset()
-	b.Portfolio.Reset()
-	b.Statistic.Reset()
+func (bt *BackTest) Reset() {
+	bt.EventQueue = nil
+	bt.Data.Reset()
+	bt.Portfolio.Reset()
+	bt.Statistic.Reset()
 }
 
-func (b *BackTest) PrintSettings(cfg *config.Config) {
+func (bt *BackTest) PrintSettings(cfg *config.Config) {
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Backtester Settings------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Strategy Settings--------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Strategy: %s", b.Strategy.Name())
+	log.Infof(log.BackTester, "Strategy: %s", bt.Strategy.Name())
 	if len(cfg.StrategySettings) > 0 {
 		log.Info(log.BackTester, "Custom strategy variables:")
 		for k, v := range cfg.StrategySettings {
@@ -129,14 +129,15 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 		return nil, err
 	}
 
-	exchangeroo, err := bt.setupExchangeSettings(cfg)
+	var e exchange.Exchange
+	e, err = bt.setupExchangeSettings(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	bt.Exchange = &exchangeroo
+	bt.Exchange = &e
 
-	portfoliooo := &portfolio.Portfolio{
+	p := &portfolio.Portfolio{
 		SizeManager: &size.Size{
 			BuySide: config.MinMax{
 				MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
@@ -160,19 +161,19 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 		},
 	}
 
-	for i := range exchangeroo.CurrencySettings {
-		lookup := portfoliooo.SetupExchangeAssetPairMap(exchangeroo.CurrencySettings[i].ExchangeName, exchangeroo.CurrencySettings[i].AssetType, exchangeroo.CurrencySettings[i].CurrencyPair)
-		lookup.Fee = exchangeroo.CurrencySettings[i].TakerFee
-		lookup.Leverage = exchangeroo.CurrencySettings[i].Leverage
-		lookup.BuySideSizing = exchangeroo.CurrencySettings[i].BuySide
-		lookup.SellSideSizing = exchangeroo.CurrencySettings[i].SellSide
-		lookup.SetInitialFunds(exchangeroo.CurrencySettings[i].InitialFunds)
-		lookup.SetFunds(exchangeroo.CurrencySettings[i].InitialFunds)
+	for i := range e.CurrencySettings {
+		lookup := p.SetupExchangeAssetPairMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
+		lookup.Fee = e.CurrencySettings[i].TakerFee
+		lookup.Leverage = e.CurrencySettings[i].Leverage
+		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
+		lookup.SellSideSizing = e.CurrencySettings[i].SellSide
+		lookup.SetInitialFunds(e.CurrencySettings[i].InitialFunds)
+		lookup.SetFunds(e.CurrencySettings[i].InitialFunds)
 		lookup.ComplianceManager = compliance.Manager{
 			Snapshots: []compliance.Snapshot{},
 		}
 	}
-	bt.Portfolio = portfoliooo
+	bt.Portfolio = p
 
 	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategyToLoad)
 	if err != nil {
@@ -197,18 +198,18 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
-	exchangeroo := exchange.Exchange{}
+	e := exchange.Exchange{}
 
 	for i := range cfg.CurrencySettings {
 		exch, fPair, a, err := bt.loadExchangePairAssetBase(cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote, cfg.CurrencySettings[i].Asset)
 		if err != nil {
-			return exchangeroo, err
+			return e, err
 		}
 
 		// despite going to all this effort, we only support one data for now
 		bt.Data, err = loadData(cfg, exch, fPair, a)
 		if err != nil {
-			return exchangeroo, err
+			return e, err
 		}
 		var makerFee, takerFee float64
 
@@ -222,7 +223,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			var apiMakerFee, apiTakerFee float64
 			apiMakerFee, apiTakerFee, err = getFees(exch, fPair)
 			if err != nil {
-				return exchangeroo, err
+				return e, err
 			}
 			if makerFee == 0 {
 				makerFee = apiMakerFee
@@ -242,7 +243,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 
-		exchangeroo.CurrencySettings = append(exchangeroo.CurrencySettings, exchange.CurrencySettings{
+		e.CurrencySettings = append(e.CurrencySettings, exchange.CurrencySettings{
 			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
 			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
 			MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
@@ -269,7 +270,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		})
 	}
 
-	return exchangeroo, nil
+	return e, nil
 }
 
 func (bt *BackTest) loadExchangePairAssetBase(exch, baaa, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
@@ -455,40 +456,40 @@ func loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexc
 	}
 }
 
-func (b *BackTest) Stop() {
-	b.shutdown <- struct{}{}
+func (bt *BackTest) Stop() {
+	bt.shutdown <- struct{}{}
 }
 
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
-func (b *BackTest) Run() error {
-	for event, ok := b.nextEvent(); true; event, ok = b.nextEvent() {
+func (bt *BackTest) Run() error {
+	for event, ok := bt.nextEvent(); true; event, ok = bt.nextEvent() {
 		if !ok {
-			data, ok := b.Data.Next()
+			data, ok := bt.Data.Next()
 			if !ok {
 				break
 			}
-			b.EventQueue = append(b.EventQueue, data)
+			bt.EventQueue = append(bt.EventQueue, data)
 			continue
 		}
 
-		err := b.handleEvent(event)
+		err := bt.handleEvent(event)
 		if err != nil {
 			return err
 		}
-		b.Statistic.TrackEvent(event)
+		bt.Statistic.TrackEvent(event)
 	}
 
 	return nil
 }
 
-func (b *BackTest) RunLive() error {
+func (bt *BackTest) RunLive() error {
 	timerino := time.NewTimer(time.Minute * 5)
 	tickerino := time.NewTicker(time.Second)
 	doneARun := false
 	for {
 		select {
-		case <-b.shutdown:
+		case <-bt.shutdown:
 			return nil
 		case <-timerino.C:
 			return errors.New("no data returned in 5 minutes, shutting down")
@@ -496,22 +497,22 @@ func (b *BackTest) RunLive() error {
 			//
 			// Go get latest candle of interval X, verify that it hasn't been run before, then append the event
 			//
-			for event, ok := b.nextEvent(); true; event, ok = b.nextEvent() {
+			for event, ok := bt.nextEvent(); true; event, ok = bt.nextEvent() {
 				doneARun = true
 				if !ok {
-					data, ok := b.Data.Next()
+					data, ok := bt.Data.Next()
 					if !ok {
 						break
 					}
-					b.EventQueue = append(b.EventQueue, data)
+					bt.EventQueue = append(bt.EventQueue, data)
 					continue
 				}
 
-				err := b.handleEvent(event)
+				err := bt.handleEvent(event)
 				if err != nil {
 					return err
 				}
-				b.Statistic.TrackEvent(event)
+				bt.Statistic.TrackEvent(event)
 			}
 			if doneARun {
 				timerino = time.NewTimer(time.Minute * 5)
@@ -520,58 +521,56 @@ func (b *BackTest) RunLive() error {
 	}
 }
 
-func (b *BackTest) nextEvent() (e interfaces.EventHandler, ok bool) {
-	if len(b.EventQueue) == 0 {
+func (bt *BackTest) nextEvent() (e interfaces.EventHandler, ok bool) {
+	if len(bt.EventQueue) == 0 {
 		return e, false
 	}
 
-	e = b.EventQueue[0]
-	b.EventQueue = b.EventQueue[1:]
+	e = bt.EventQueue[0]
+	bt.EventQueue = bt.EventQueue[1:]
 
 	return e, true
 }
 
 // handleEvent switches based on the eventHandler type
 // it will then act on the event and if needed, will add more events to the queue to be handled
-func (b *BackTest) handleEvent(e interfaces.EventHandler) error {
+func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 	switch event := e.(type) {
 	case interfaces.DataEventHandler:
-		b.Portfolio.Update(event)
-		b.Statistic.Update(event, b.Portfolio)
-		s, err := b.Strategy.OnSignal(b.Data, b.Portfolio)
+		// update portfolio with latest price
+		bt.Portfolio.Update(event)
+		// update statistics with latest price
+		bt.Statistic.Update(event, bt.Portfolio)
+
+		s, err := bt.Strategy.OnSignal(bt.Data, bt.Portfolio)
 		if err != nil {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
 			break
 		}
-		b.EventQueue = append(b.EventQueue, s)
-
+		bt.EventQueue = append(bt.EventQueue, s)
 	case signal.SignalEvent:
-		cs := b.Exchange.GetCurrencySettings(event.GetExchange(), event.GetAssetType(), event.Pair())
-		o, err := b.Portfolio.OnSignal(event, b.Data, &cs)
+		cs := bt.Exchange.GetCurrencySettings(event.GetExchange(), event.GetAssetType(), event.Pair())
+		o, err := bt.Portfolio.OnSignal(event, bt.Data, &cs)
 		if err != nil {
-			if errors.Is(err, portfolio.NoHoldingsToSellErr) || errors.Is(err, portfolio.NotEnoughFundsErr) {
-				log.Warnf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
-			} else {
-				log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
-			}
+			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
 			break
 		}
-		b.EventQueue = append(b.EventQueue, o)
+		bt.EventQueue = append(bt.EventQueue, o)
 
 	case exchange.OrderEvent:
-		fillEvent, err := b.Exchange.ExecuteOrder(event, b.Data)
+		fillEvent, err := bt.Exchange.ExecuteOrder(event, bt.Data)
 		if err != nil {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
 			break
 		}
-		b.EventQueue = append(b.EventQueue, fillEvent)
+		bt.EventQueue = append(bt.EventQueue, fillEvent)
 	case fill.FillEvent:
-		t, err := b.Portfolio.OnFill(event, b.Data)
+		t, err := bt.Portfolio.OnFill(event, bt.Data)
 		if err != nil {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
 			break
 		}
-		b.Statistic.TrackTransaction(t)
+		bt.Statistic.TrackTransaction(t)
 	}
 
 	return nil

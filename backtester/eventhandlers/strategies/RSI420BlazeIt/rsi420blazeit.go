@@ -6,10 +6,10 @@ import (
 	"github.com/thrasher-corp/gct-ta/indicators"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -26,7 +26,7 @@ func (s *Strategy) Name() string {
 	return name
 }
 
-func (s *Strategy) OnSignal(d interfaces.DataHandler, _ portfolio2.Handler) (signal.SignalEvent, error) {
+func (s *Strategy) OnSignal(d data.Handler, _ portfolio2.Handler) (signal.SignalEvent, error) {
 	es := s.GetBase(d)
 	es.SetPrice(d.Latest().Price())
 

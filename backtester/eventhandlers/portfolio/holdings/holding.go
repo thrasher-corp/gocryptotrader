@@ -1,12 +1,15 @@
-package hodlings
+package holdings
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func Create(fill fill.FillEvent, initialFunds float64) Hodling {
-	h := Hodling{
+func Create(fill fill.FillEvent, initialFunds float64) Holding {
+	h := Holding{
 		Timestamp:    fill.GetTime(),
 		InitialFunds: initialFunds,
 	}
@@ -15,20 +18,39 @@ func Create(fill fill.FillEvent, initialFunds float64) Hodling {
 	return h
 }
 
-func (h *Hodling) Update(fill fill.FillEvent) {
+func (h *Holding) Update(fill fill.FillEvent) {
 	h.Timestamp = fill.GetTime()
-
 	h.update(fill)
 }
 
-func (h *Hodling) UpdateValue(data interfaces.DataEventHandler) {
+func (h *Holding) UpdateValue(data interfaces.DataEventHandler) {
 	h.Timestamp = data.GetTime()
-
 	latest := data.Price()
 	h.updateValue(latest)
 }
 
-func (h *Hodling) update(fill fill.FillEvent) {
+func (h *Holding) update(fill fill.FillEvent) {
+	direction := fill.GetDirection()
+	o := fill.GetOrder()
+	switch direction {
+	case order.Buy:
+		h.PositionsSize += o.Amount
+		h.PositionsValue += o.Amount * o.Price
+		h.RemainingFunds -= (o.Amount * o.Price) + o.Fee
+		h.TotalFees += o.Fee
+		h.BoughtAmount += o.Amount
+		h.BoughtValue += o.Amount * o.Price
+	case order.Sell:
+		h.PositionsSize -= o.Amount
+		h.PositionsValue -= o.Amount * o.Price
+		h.RemainingFunds += (o.Amount * o.Price) - o.Fee
+		h.TotalFees += o.Fee
+		h.SoldAmount += o.Amount
+		h.SoldValue += o.Amount * o.Price
+	case common.DoNothing:
+	default:
+		log.Error(log.BackTester, "woah nelly, how'd we get here? %v", direction)
+	}
 	/*
 		fillAmount := decimal.NewFromFloat(fill.GetAmount())
 		fillPrice := decimal.NewFromFloat(fill.GetPurchasePrice())
@@ -36,8 +58,8 @@ func (h *Hodling) update(fill fill.FillEvent) {
 		fillNetValue := decimal.NewFromFloat(fill.NetValue())
 
 		amount := decimal.NewFromFloat(h.Amount)
-		amountBought := decimal.NewFromFloat(h.AmountBought)
-		amountSold := decimal.NewFromFloat(h.AmountSold)
+		amountBought := decimal.NewFromFloat(h.BoughtAmount)
+		amountSold := decimal.NewFromFloat(h.SoldAmount)
 		avgPrice := decimal.NewFromFloat(h.AveragePrice)
 		avgPriceNet := decimal.NewFromFloat(h.AveragePriceNet)
 		avgPriceBought := decimal.NewFromFloat(h.AveragePriceBought)
@@ -96,8 +118,8 @@ func (h *Hodling) update(fill fill.FillEvent) {
 		netValue = value.Sub(cost)
 
 		h.Amount, _ = amount.Round(common.DecimalPlaces).Float64()
-		h.AmountBought, _ = amountBought.Round(common.DecimalPlaces).Float64()
-		h.AmountSold, _ = amountSold.Round(common.DecimalPlaces).Float64()
+		h.BoughtAmount, _ = amountBought.Round(common.DecimalPlaces).Float64()
+		h.SoldAmount, _ = amountSold.Round(common.DecimalPlaces).Float64()
 		h.AveragePrice, _ = avgPrice.Round(common.DecimalPlaces).Float64()
 		h.AveragePriceBought, _ = avgPriceBought.Round(common.DecimalPlaces).Float64()
 		h.AveragePriceSold, _ = avgPriceSold.Round(common.DecimalPlaces).Float64()
@@ -118,23 +140,9 @@ func (h *Hodling) update(fill fill.FillEvent) {
 	*/
 }
 
-func (h *Hodling) updateValue(l float64) {
-	/*
-		latest := decimal.NewFromFloat(l)
-		amount := decimal.NewFromFloat(h.Amount)
-		costBasis := decimal.NewFromFloat(h.CostBasis)
-
-		marketPrice := latest
-		h.MarketPrice, _ = marketPrice.Round(common.DecimalPlaces).Float64()
-		marketValue := amount.Abs().Mul(latest)
-		h.MarketValue, _ = marketValue.Round(common.DecimalPlaces).Float64()
-
-		unrealProfitLoss := amount.Mul(latest).Sub(costBasis)
-		h.UnrealProfitLoss, _ = unrealProfitLoss.Round(common.DecimalPlaces).Float64()
-
-		realProfitLoss := decimal.NewFromFloat(h.RealProfitLoss)
-		totalProfitLoss := realProfitLoss.Add(unrealProfitLoss)
-		h.TotalProfitLoss, _ = totalProfitLoss.Round(common.DecimalPlaces).Float64()
-
-	*/
+func (h *Holding) updateValue(l float64) {
+	h.PositionsValue = h.PositionsSize * l
+	h.BoughtValue = h.BoughtAmount * l
+	h.SoldValue = h.SoldAmount * l
+	h.TotalValue = h.PositionsValue + h.RemainingFunds
 }

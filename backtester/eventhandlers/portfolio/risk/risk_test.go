@@ -5,17 +5,16 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/hodlings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 func TestRisk_EvaluateOrder(t *testing.T) {
 	type args struct {
 		order exchange.OrderEvent
 		in1   interfaces.DataEventHandler
-		in2   map[currency.Pair]hodlings.Hodling
+		in2   holdings.Holding
 	}
 	tests := []struct {
 		name    string

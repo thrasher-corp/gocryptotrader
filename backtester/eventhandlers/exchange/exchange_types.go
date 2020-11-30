@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -12,7 +13,7 @@ import (
 type ExecutionHandler interface {
 	SetCurrency(string, asset.Item, currency.Pair, CurrencySettings)
 	GetCurrencySettings(string, asset.Item, currency.Pair) CurrencySettings
-	ExecuteOrder(OrderEvent, interfaces.DataHandler) (*fill.Fill, error)
+	ExecuteOrder(OrderEvent, data.Handler) (*fill.Fill, error)
 }
 
 type Exchange struct {

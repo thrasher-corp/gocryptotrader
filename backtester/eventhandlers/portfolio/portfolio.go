@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/hodlings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -28,7 +29,7 @@ func (p *Portfolio) Reset() {
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
 // the portfolio manager's recommendations
-func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHandler, cs *exchange.CurrencySettings) (*order.Order, error) {
+func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *exchange.CurrencySettings) (*order.Order, error) {
 	if signal.GetDirection() == "" {
 		return &order.Order{}, errors.New("invalid Direction")
 	}
@@ -96,16 +97,16 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data interfaces.DataHand
 }
 
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions
-func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ interfaces.DataHandler) (*fill.Fill, error) {
+func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ data.Handler) (*fill.Fill, error) {
 	lookup := p.ExchangeAssetPairSettings[fillEvent.GetExchange()][fillEvent.GetAssetType()][fillEvent.Pair()]
 	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
-	holdings := p.ViewHoldingAtTimePeriod(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()))
-	if !holdings.Timestamp.IsZero() {
-		holdings.Update(fillEvent)
+	h := p.ViewHoldingAtTimePeriod(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()))
+	if !h.Timestamp.IsZero() {
+		h.Update(fillEvent)
 	} else {
-		holdings = hodlings.Create(fillEvent, lookup.InitialFunds)
+		h = holdings.Create(fillEvent, lookup.InitialFunds)
 	}
-	err := p.SetHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime(), holdings, true)
+	err := p.SetHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime(), h, true)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -180,7 +181,7 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 	return p.ExchangeAssetPairSettings[exchangeName][a][cp].Fee
 }
 
-func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (pos hodlings.Hodling, ok bool) {
+func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (pos holdings.Holding, ok bool) {
 	holdings := p.ExchangeAssetPairSettings[exchangeName][a][cp].GetLatestHoldings()
 	if ok && (holdings.PositionsSize > 0) {
 		return holdings, true
@@ -189,9 +190,9 @@ func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pa
 }
 
 func (p *Portfolio) Update(d interfaces.DataEventHandler) {
-	if pos, ok := p.IsInvested(d.GetExchange(), d.GetAssetType(), d.Pair()); ok {
-		pos.UpdateValue(d)
-		err := p.SetHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), d.GetTime(), pos, false)
+	if holdings, ok := p.IsInvested(d.GetExchange(), d.GetAssetType(), d.Pair()); ok {
+		holdings.UpdateValue(d)
+		err := p.SetHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), d.GetTime(), holdings, true)
 		if err != nil {
 			log.Error(log.BackTester, err)
 		}
@@ -200,15 +201,15 @@ func (p *Portfolio) Update(d interfaces.DataEventHandler) {
 
 // ViewHoldingAtTimePeriod retrieves a snapshot of holdings at a specific time period,
 // returning empty when not found
-func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp currency.Pair, t time.Time) hodlings.Hodling {
+func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp currency.Pair, t time.Time) holdings.Holding {
 	exchangeAssetPairSettings := p.ExchangeAssetPairSettings[exch][a][cp]
-	for i := range exchangeAssetPairSettings.PositionSnapshots.Hodlings {
-		if t.Equal(exchangeAssetPairSettings.PositionSnapshots.Hodlings[i].Timestamp) {
-			return exchangeAssetPairSettings.PositionSnapshots.Hodlings[i]
+	for i := range exchangeAssetPairSettings.HoldingsSnapshots.Hodlings {
+		if t.Equal(exchangeAssetPairSettings.HoldingsSnapshots.Hodlings[i].Timestamp) {
+			return exchangeAssetPairSettings.HoldingsSnapshots.Hodlings[i]
 		}
 	}
 
-	return hodlings.Hodling{}
+	return holdings.Holding{}
 }
 
 func (p *Portfolio) SetInitialFunds(exch string, a asset.Item, cp currency.Pair, funds float64) {
@@ -227,16 +228,16 @@ func (p *Portfolio) GetFunds(exch string, a asset.Item, cp currency.Pair) float6
 	return p.ExchangeAssetPairSettings[exch][a][cp].Funds
 }
 
-func (p *Portfolio) SetHoldings(exch string, a asset.Item, cp currency.Pair, t time.Time, pos hodlings.Hodling, force bool) error {
+func (p *Portfolio) SetHoldings(exch string, a asset.Item, cp currency.Pair, t time.Time, pos holdings.Holding, force bool) error {
 	lookup := p.ExchangeAssetPairSettings[exch][a][cp]
 	found := false
-	for i := range lookup.PositionSnapshots.Hodlings {
-		if lookup.PositionSnapshots.Hodlings[i].Timestamp.Equal(t) {
+	for i := range lookup.HoldingsSnapshots.Hodlings {
+		if lookup.HoldingsSnapshots.Hodlings[i].Timestamp.Equal(t) {
 			found = true
 		}
 	}
 	if !found {
-		lookup.PositionSnapshots.Hodlings = append(lookup.PositionSnapshots.Hodlings, pos)
+		lookup.HoldingsSnapshots.Hodlings = append(lookup.HoldingsSnapshots.Hodlings, pos)
 		p.ExchangeAssetPairSettings[exch][a][cp] = lookup
 	}
 	return nil
@@ -259,16 +260,16 @@ func (p *Portfolio) SetupExchangeAssetPairMap(exch string, a asset.Item, cp curr
 	return p.ExchangeAssetPairSettings[exch][a][cp]
 }
 
-func (e *ExchangeAssetPairSettings) GetLatestHoldings() hodlings.Hodling {
-	if e.PositionSnapshots.Hodlings == nil {
+func (e *ExchangeAssetPairSettings) GetLatestHoldings() holdings.Holding {
+	if e.HoldingsSnapshots.Hodlings == nil {
 		// no holdings yet
-		return hodlings.Hodling{}
+		return holdings.Holding{}
 	}
-	sort.SliceStable(e.PositionSnapshots.Hodlings, func(i, j int) bool {
-		return e.PositionSnapshots.Hodlings[i].Timestamp.Before(e.PositionSnapshots.Hodlings[j].Timestamp)
+	sort.SliceStable(e.HoldingsSnapshots.Hodlings, func(i, j int) bool {
+		return e.HoldingsSnapshots.Hodlings[i].Timestamp.Before(e.HoldingsSnapshots.Hodlings[j].Timestamp)
 	})
 
-	return e.PositionSnapshots.Hodlings[len(e.PositionSnapshots.Hodlings)-1]
+	return e.HoldingsSnapshots.Hodlings[len(e.HoldingsSnapshots.Hodlings)-1]
 }
 
 func (e *ExchangeAssetPairSettings) SetInitialFunds(initial float64) {

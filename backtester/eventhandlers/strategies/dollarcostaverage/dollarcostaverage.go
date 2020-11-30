@@ -1,10 +1,10 @@
 package dollarcostaverage
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -18,7 +18,7 @@ func (s *Strategy) Name() string {
 	return name
 }
 
-func (s *Strategy) OnSignal(d interfaces.DataHandler, p portfolio.Handler) (signal.SignalEvent, error) {
+func (s *Strategy) OnSignal(d data.Handler, p portfolio.Handler) (signal.SignalEvent, error) {
 	es := s.GetBase(d)
 
 	es.SetPrice(d.Latest().Price())

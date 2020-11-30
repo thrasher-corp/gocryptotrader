@@ -4,10 +4,10 @@ import (
 	"github.com/gofrs/uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func (e *Exchange) ExecuteOrder(o OrderEvent, data interfaces.DataHandler) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o OrderEvent, data data.Handler) (*fill.Fill, error) {
 	cs := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	fillEvent := &fill.Fill{
 		Event: event.Event{
