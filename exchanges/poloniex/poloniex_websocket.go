@@ -104,6 +104,7 @@ func (p *Poloniex) wsReadData() {
 }
 
 func (p *Poloniex) wsHandleData(respRaw []byte) error {
+	fmt.Println("WOW:", string(respRaw))
 	var result interface{}
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -300,7 +301,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						err = p.WsProcessOrderbookSnapshot(orderbookData,
 							currencyPair)
 						if err != nil {
-							fmt.Println("SHEEEEEEEMMMMM")
 							return err
 						}
 					case "o":
@@ -310,7 +310,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							dataL3,
 							currencyPair)
 						if err != nil {
-							fmt.Println("SHMEEEE")
 							return err
 						}
 					case "t":

@@ -155,11 +155,10 @@ func (w *Orderbook) processObUpdate(o *orderbook.Base, u *Update) error {
 	if w.updateEntriesByID {
 		return w.updateByIDAndAction(o, u)
 	}
-	w.updateByPrice(o, u)
-	return nil
+	return w.updateByPrice(o, u)
 }
 
-func (w *Orderbook) updateByPrice(o *orderbook.Base, u *Update) {
+func (w *Orderbook) updateByPrice(o *orderbook.Base, u *Update) error {
 askUpdates:
 	for j := range u.Asks {
 		for k := range o.Asks {
@@ -171,13 +170,13 @@ askUpdates:
 				o.Asks[k].Amount = u.Asks[j].Amount
 				continue askUpdates
 			}
+
+			if o.Asks[k].Price > u.Asks[j].Price && u.Asks[j].Amount > 0 {
+				insertItem(u.Asks[j], &o.Asks, k)
+				continue askUpdates
+			}
 		}
-		if u.Asks[j].Amount == 0 {
-			continue
-		}
-		o.Asks = append(o.Asks, u.Asks[j])
 	}
-	_ = orderbook.SortAsks(o.Asks)
 
 bidUpdates:
 	for j := range u.Bids {
@@ -190,61 +189,47 @@ bidUpdates:
 				o.Bids[k].Amount = u.Bids[j].Amount
 				continue bidUpdates
 			}
+
+			if o.Bids[k].Price < u.Bids[j].Price && u.Bids[j].Amount > 0 {
+				insertItem(u.Bids[j], &o.Bids, k)
+				continue bidUpdates
+			}
 		}
-		if u.Bids[j].Amount == 0 {
-			continue
-		}
-		o.Bids = append(o.Bids, u.Bids[j])
 	}
-	_ = orderbook.SortBids(o.Bids)
+	return nil
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
 // it will then match by IDs instead of price to perform the action
-func (w *Orderbook) updateByIDAndAction(o *orderbook.Base, u *Update) error {
+func (w *Orderbook) updateByIDAndAction(o *orderbook.Base, u *Update) (err error) {
+	fmt.Printf("%+v\n", u)
 	switch u.Action {
-	case "update":
-		for x := range u.Bids {
-			for y := range o.Bids {
-				if o.Bids[y].ID == u.Bids[x].ID {
-					o.Bids[y].Amount = u.Bids[x].Amount
-					break
-				}
-			}
+	case Amend:
+		fmt.Println("amend")
+		err = applyUpdates(&u.Bids, &o.Bids)
+		if err != nil {
+			return err
 		}
-		for x := range u.Asks {
-			for y := range o.Asks {
-				if o.Asks[y].ID == u.Asks[x].ID {
-					o.Asks[y].Amount = u.Asks[x].Amount
-					break
-				}
-			}
+		err = applyUpdates(&u.Asks, &o.Asks)
+		if err != nil {
+			return err
 		}
-	case "delete":
-		for x := range u.Bids {
-			for y := 0; y < len(o.Bids); y++ {
-				if o.Bids[y].ID == u.Bids[x].ID {
-					o.Bids = append(o.Bids[:y], o.Bids[y+1:]...)
-					break
-				}
-			}
+	case Delete:
+		fmt.Println("delete")
+		err = deleteUpdates(&u.Bids, &o.Bids)
+		if err != nil {
+			return err
 		}
-		for x := range u.Asks {
-			for y := 0; y < len(o.Asks); y++ {
-				if o.Asks[y].ID == u.Asks[x].ID {
-					o.Asks = append(o.Asks[:y], o.Asks[y+1:]...)
-					break
-				}
-			}
+		err = deleteUpdates(&u.Asks, &o.Asks)
+		if err != nil {
+			return err
 		}
-	case "insert":
-		o.Bids = append(o.Bids, u.Bids...)
-		_ = orderbook.SortBids(o.Bids)
-
-		o.Asks = append(o.Asks, u.Asks...)
-		_ = orderbook.SortAsks(o.Asks)
-
-	case "update/insert":
+	case Insert:
+		fmt.Println("insert")
+		insertUpdatesBid(&u.Bids, &o.Bids)
+		insertUpdatesAsk(&u.Asks, &o.Asks)
+	case UpdateInsert:
+		fmt.Println("update insert")
 	updateBids:
 		for x := range u.Bids {
 			for y := range o.Bids {
@@ -252,10 +237,14 @@ func (w *Orderbook) updateByIDAndAction(o *orderbook.Base, u *Update) error {
 					o.Bids[y].Amount = u.Bids[x].Amount
 					continue updateBids
 				}
+
+				if o.Bids[y].Price > u.Bids[x].Price {
+					insertItem(u.Bids[x], &o.Bids, y)
+					continue updateBids
+				}
 			}
-			o.Bids = append(o.Bids, u.Bids[x])
+			return errors.New("good ness")
 		}
-		_ = orderbook.SortBids(o.Bids)
 
 	updateAsks:
 		for x := range u.Asks {
@@ -264,10 +253,14 @@ func (w *Orderbook) updateByIDAndAction(o *orderbook.Base, u *Update) error {
 					o.Asks[y].Amount = u.Asks[x].Amount
 					continue updateAsks
 				}
+
+				if o.Asks[y].Price < u.Asks[x].Price {
+					insertItem(u.Asks[x], &o.Asks, y)
+					continue updateAsks
+				}
 			}
-			o.Asks = append(o.Asks, u.Asks[x])
+			return errors.New("good ness")
 		}
-		_ = orderbook.SortAsks(o.Asks)
 
 	default:
 		return fmt.Errorf("invalid action [%s]", u.Action)
@@ -275,13 +268,80 @@ func (w *Orderbook) updateByIDAndAction(o *orderbook.Base, u *Update) error {
 	return nil
 }
 
+func applyUpdates(u, b *[]orderbook.Item) error {
+updates:
+	for x := range *u {
+		for y := range *b {
+			if ([]orderbook.Item)(*b)[y].ID == ([]orderbook.Item)(*u)[x].ID {
+				([]orderbook.Item)(*b)[y].Amount = ([]orderbook.Item)(*u)[x].Amount
+				continue updates
+			}
+		}
+		return fmt.Errorf("update cannot be applied id: %d not found",
+			([]orderbook.Item)(*u)[x].ID)
+	}
+	return nil
+}
+
+func deleteUpdates(u, b *[]orderbook.Item) error {
+updates:
+	for x := range *u {
+		for y := range *b {
+			if ([]orderbook.Item)(*b)[y].ID == ([]orderbook.Item)(*u)[x].ID {
+				*b = append(([]orderbook.Item)(*b)[:y], ([]orderbook.Item)(*b)[y+1:]...)
+				continue updates
+			}
+		}
+		return fmt.Errorf("update cannot be deleted id: %d not found",
+			([]orderbook.Item)(*u)[x].ID)
+	}
+	return nil
+}
+
+// insertUpdatesBid inserts on correctly aligned book at price level
+func insertUpdatesBid(u, b *[]orderbook.Item) {
+	for x := range *u {
+		fmt.Println("PEW BIDS")
+		for y := range *b {
+			if ([]orderbook.Item)(*u)[x].ID == ([]orderbook.Item)(*b)[y].ID {
+				return
+			}
+			if ([]orderbook.Item)(*u)[x].Price > ([]orderbook.Item)(*b)[y].Price {
+				if ([]orderbook.Item)(*u)[x].ID == ([]orderbook.Item)(*b)[y+1].ID {
+					return
+				}
+				insertItem(([]orderbook.Item)(*u)[x], b, y)
+			}
+		}
+	}
+}
+
+// insertUpdatesBid inserts on correctly aligned book at price level
+func insertUpdatesAsk(u, b *[]orderbook.Item) {
+	for x := range *u {
+		fmt.Println("PEW ASKS")
+		for y := range *b {
+			if ([]orderbook.Item)(*u)[x].ID == ([]orderbook.Item)(*b)[y].ID {
+				return
+			}
+
+		}
+		for y := range *b {
+			if ([]orderbook.Item)(*u)[x].Price < ([]orderbook.Item)(*b)[y].Price {
+				insertItem(([]orderbook.Item)(*u)[x], b, y)
+			}
+		}
+	}
+}
+
+func insertItem(update orderbook.Item, book *[]orderbook.Item, target int) {
+	*book = append(*book, orderbook.Item{})
+	copy(([]orderbook.Item)(*book)[target+1:], ([]orderbook.Item)(*book)[target:])
+	([]orderbook.Item)(*book)[target] = update
+}
+
 // LoadSnapshot loads initial snapshot of ob data from websocket
 func (w *Orderbook) LoadSnapshot(newOrderbook *orderbook.Base) error {
-	// segragate bid/ask slice so there is no potential reference in the
-	// orderbook package
-	bids := append(newOrderbook.Bids[:0:0], newOrderbook.Bids...)
-	asks := append(newOrderbook.Asks[:0:0], newOrderbook.Asks...)
-
 	w.m.Lock()
 	defer w.m.Unlock()
 
@@ -311,8 +371,8 @@ func (w *Orderbook) LoadSnapshot(newOrderbook *orderbook.Base) error {
 		}
 		m2[newOrderbook.AssetType] = m3
 	}
-	m3.Bids = bids
-	m3.Asks = asks
+	m3.Bids = newOrderbook.Bids
+	m3.Asks = newOrderbook.Asks
 
 	w.dataHandler <- newOrderbook
 	return nil
@@ -340,10 +400,11 @@ func (w *Orderbook) FlushBuffer() {
 func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	w.m.Lock()
 	defer w.m.Unlock()
-	_, ok := w.ob[p.Base][p.Quote][a]
+	book, ok := w.ob[p.Base][p.Quote][a]
 	if !ok {
 		return fmt.Errorf("orderbook not associated with pair: [%s] and asset [%s]", p, a)
 	}
-	w.ob[p.Base][p.Quote][a] = nil
+	book.Bids = nil
+	book.Asks = nil
 	return nil
 }

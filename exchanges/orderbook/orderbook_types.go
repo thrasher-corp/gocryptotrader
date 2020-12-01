@@ -51,7 +51,7 @@ type Service struct {
 	Books    map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book
 	Exchange map[string]uuid.UUID
 	mux      *dispatch.Mux
-	sync.RWMutex
+	sync.Mutex
 }
 
 // Item stores the amount and price values

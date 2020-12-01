@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -14,23 +13,20 @@ import (
 )
 
 // Get checks and returns the orderbook given an exchange name and currency pair
-// if it exists
 func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
-	o, err := service.Retrieve(exchange, p, a)
-	if err != nil {
-		return nil, err
-	}
-	return o, nil
+	return service.Retrieve(exchange, p, a)
 }
 
 // SubscribeOrderbook subcribes to an orderbook and returns a communication
 // channel to stream orderbook data updates
 func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
-	service.RLock()
-	defer service.RUnlock()
+	service.Lock()
+	defer service.Unlock()
 	book, ok := service.Books[exchange][p.Base.Item][p.Quote.Item][a]
 	if !ok {
+
+		fmt.Printf("%+v\n", service.Books)
 		return dispatch.Pipe{},
 			fmt.Errorf("orderbook item not found for %s %s %s",
 				exchange,
@@ -42,10 +38,9 @@ func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatc
 
 // SubscribeToExchangeOrderbooks subcribes to all orderbooks on an exchange
 func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
-	exchange = strings.ToLower(exchange)
-	service.RLock()
-	defer service.RUnlock()
-	id, ok := service.Exchange[exchange]
+	service.Lock()
+	defer service.Unlock()
+	id, ok := service.Exchange[strings.ToLower(exchange)]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("%s exchange orderbooks not found",
 			exchange)
@@ -57,43 +52,49 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 func (s *Service) Update(b *Base) error {
 	name := strings.ToLower(b.ExchangeName)
 	s.Lock()
-	book, ok := s.Books[name][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType]
-	if ok {
-		book.b.Bids = b.Bids
-		book.b.Asks = b.Asks
-		book.b.LastUpdated = b.LastUpdated
-		ids := append(book.Assoc, book.Main)
-		s.Unlock()
-		return s.mux.Publish(ids, b)
+	m1, ok := s.Books[name]
+	if !ok {
+		m1 = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
+		s.Books[name] = m1
 	}
 
-	switch {
-	case s.Books[name] == nil:
-		s.Books[name] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
-		fallthrough
-	case s.Books[name][b.Pair.Base.Item] == nil:
-		s.Books[name][b.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Book)
-		fallthrough
-	case s.Books[name][b.Pair.Base.Item][b.Pair.Quote.Item] == nil:
-		s.Books[name][b.Pair.Base.Item][b.Pair.Quote.Item] = make(map[asset.Item]*Book)
+	m2, ok := m1[b.Pair.Base.Item]
+	if !ok {
+		m2 = make(map[*currency.Item]map[asset.Item]*Book)
+		m1[b.Pair.Base.Item] = m2
 	}
 
-	err := s.SetNewData(b, name)
-	if err != nil {
+	m3, ok := m2[b.Pair.Quote.Item]
+	if !ok {
+		m3 = make(map[asset.Item]*Book)
+		m2[b.Pair.Quote.Item] = m3
+	}
+
+	book, ok := m3[b.AssetType]
+	if !ok {
+		book = new(Book)
+		m3[b.AssetType] = book
+		err := s.SetNewData(b, book, name)
 		s.Unlock()
 		return err
 	}
+
+	book.b.Bids = append(b.Bids[:0:0], b.Bids...)
+	book.b.Asks = append(b.Asks[:0:0], b.Asks...)
+	book.b.LastUpdated = b.LastUpdated
+	ids := append(book.Assoc, book.Main)
 	s.Unlock()
-	return nil
+	return s.mux.Publish(ids, b)
 }
 
 // SetNewData sets new data
-func (s *Service) SetNewData(b *Base, fmtName string) error {
-	ids, err := s.GetAssociations(b, fmtName)
+func (s *Service) SetNewData(ob *Base, book *Book, exch string) error {
+	var err error
+	book.Assoc, err = s.getAssociations(strings.ToLower(exch))
 	if err != nil {
 		return err
 	}
-	singleID, err := s.mux.GetID()
+	book.Main, err = s.mux.GetID()
 	if err != nil {
 		return err
 	}
@@ -101,34 +102,24 @@ func (s *Service) SetNewData(b *Base, fmtName string) error {
 	// Below instigates orderbook item separation so we can ensure, in the event
 	// of a simultaneous update via websocket/rest/fix, we don't affect package
 	// scoped orderbook data which could result in a potential panic
-	cpyBook := *b
-	cpyBook.Bids = make([]Item, len(b.Bids))
-	copy(cpyBook.Bids, b.Bids)
-	cpyBook.Asks = make([]Item, len(b.Asks))
-	copy(cpyBook.Asks, b.Asks)
-
-	s.Books[fmtName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{
-		b:     &cpyBook,
-		Main:  singleID,
-		Assoc: ids}
+	cpy := *ob
+	cpy.Bids = append(ob.Bids[:0:0], ob.Bids...)
+	cpy.Asks = append(ob.Asks[:0:0], ob.Asks...)
+	book.b = &cpy
 	return nil
 }
 
 // GetAssociations links a singular book with it's dispatch associations
-func (s *Service) GetAssociations(b *Base, fmtName string) ([]uuid.UUID, error) {
-	if b == nil {
-		return nil, errors.New("orderbook is nil")
-	}
-
+func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	var ids []uuid.UUID
-	exchangeID, ok := s.Exchange[fmtName]
+	exchangeID, ok := s.Exchange[exch]
 	if !ok {
 		var err error
 		exchangeID, err = s.mux.GetID()
 		if err != nil {
 			return nil, err
 		}
-		s.Exchange[fmtName] = exchangeID
+		s.Exchange[exch] = exchangeID
 	}
 
 	ids = append(ids, exchangeID)
@@ -137,45 +128,35 @@ func (s *Service) GetAssociations(b *Base, fmtName string) ([]uuid.UUID, error) 
 
 // Retrieve gets orderbook data from the slice
 func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
-	exchange = strings.ToLower(exchange)
-	s.RLock()
-	defer s.RUnlock()
-	if _, ok := s.Books[exchange]; !ok {
+	fmt.Println("HELLLOOO")
+	s.Lock()
+	defer s.Unlock()
+	m1, ok := s.Books[strings.ToLower(exchange)]
+	if !ok {
 		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
 	}
 
-	if _, ok := s.Books[exchange][p.Base.Item]; !ok {
+	m2, ok := m1[p.Base.Item]
+	if !ok {
 		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
 			p.Base)
 	}
 
-	if _, ok := s.Books[exchange][p.Base.Item][p.Quote.Item]; !ok {
+	m3, ok := m2[p.Quote.Item]
+	if !ok {
 		return nil, fmt.Errorf("no orderbooks associated with quote currency %s",
 			p.Quote)
 	}
 
-	var liveOrderBook *Book
-	var ok bool
-	if liveOrderBook, ok = s.Books[exchange][p.Base.Item][p.Quote.Item][a]; !ok {
+	book, ok := m3[a]
+	if !ok {
 		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
 			a)
 	}
 
-	localCopyOfAsks := make([]Item, len(s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.Asks))
-	localCopyOfBids := make([]Item, len(s.Books[exchange][p.Base.Item][p.Quote.Item][a].b.Bids))
-	copy(localCopyOfBids, liveOrderBook.b.Bids)
-	copy(localCopyOfAsks, liveOrderBook.b.Asks)
-
-	ob := Base{
-		Pair:         liveOrderBook.b.Pair,
-		Bids:         localCopyOfBids,
-		Asks:         localCopyOfAsks,
-		LastUpdated:  liveOrderBook.b.LastUpdated,
-		LastUpdateID: liveOrderBook.b.LastUpdateID,
-		AssetType:    liveOrderBook.b.AssetType,
-		ExchangeName: liveOrderBook.b.ExchangeName,
-	}
-
+	ob := *book.b
+	ob.Bids = append(ob.Bids[:0:0], ob.Bids...)
+	ob.Asks = append(ob.Asks[:0:0], ob.Asks...)
 	return &ob, nil
 }
 
@@ -228,6 +209,7 @@ func (b *Base) Verify() error {
 
 			if b.Bids[i].ID != 0 {
 				if b.Bids[i].ID == b.Bids[i-1].ID {
+					fmt.Println(b.Bids[i], b.Bids[i-1])
 					return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 				}
 				continue
@@ -253,6 +235,7 @@ func (b *Base) Verify() error {
 
 			if b.Asks[i].ID != 0 {
 				if b.Asks[i].ID == b.Asks[i-1].ID {
+					fmt.Println(b.Asks[i], b.Asks[i-1])
 					return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 				}
 				continue

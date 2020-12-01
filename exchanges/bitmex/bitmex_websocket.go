@@ -539,12 +539,14 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			bids = append(bids, nItem)
 		}
 
+		fmt.Println("OUTBOUND:", asks, bids)
+
 		err := b.Websocket.Orderbook.Update(&buffer.Update{
 			Bids:   bids,
 			Asks:   asks,
 			Pair:   p,
 			Asset:  a,
-			Action: action,
+			Action: buffer.Action(action),
 		})
 		if err != nil {
 			return err

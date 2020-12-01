@@ -875,7 +875,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 	}
 	for i := range book {
 		if book[i].Price > 0 {
-			orderbookUpdate.Action = "update/insert"
+			orderbookUpdate.Action = buffer.UpdateInsert
 			if book[i].Amount > 0 {
 				// update bid
 				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{
@@ -891,7 +891,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 						Price:  book[i].Price})
 			}
 		} else {
-			orderbookUpdate.Action = "delete"
+			orderbookUpdate.Action = buffer.Delete
 			if book[i].Amount == 1 {
 				// delete bid
 				orderbookUpdate.Bids = append(orderbookUpdate.Bids,
