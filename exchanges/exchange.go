@@ -795,8 +795,8 @@ func (e *Base) SetAPIURL() error {
 	if e.Config.API.Endpoints != nil {
 		for key, val := range e.Config.API.Endpoints {
 			if val == "" ||
-				val == "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API" ||
-				val == "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API" {
+				val == config.APIURLNonDefaultMessage ||
+				val == config.WebsocketURLNonDefaultMessage {
 				continue
 			}
 			err = e.API.Endpoints.SetRunning(key, val, true)

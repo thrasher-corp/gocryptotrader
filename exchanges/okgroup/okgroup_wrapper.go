@@ -36,12 +36,12 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := o.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultWSURL, err := o.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsEndpoint, err := o.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsEndpoint, err := o.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

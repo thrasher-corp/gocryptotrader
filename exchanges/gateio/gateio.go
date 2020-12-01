@@ -51,7 +51,7 @@ type Gateio struct {
 func (g *Gateio) GetSymbols() ([]string, error) {
 	var result []string
 	urlPath := fmt.Sprintf("/%s/%s", gateioAPIVersion, gateioSymbol)
-	err := g.SendHTTPRequest(exchange.SpotWsSupplementaryURL, urlPath, &result)
+	err := g.SendHTTPRequest(exchange.WebsocketSpotSupplementary, urlPath, &result)
 	if err != nil {
 		return nil, nil
 	}
@@ -69,7 +69,7 @@ func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s", gateioAPIVersion, gateioMarketInfo)
 	var res response
 	var result MarketInfoResponse
-	err := g.SendHTTPRequest(exchange.SpotWsSupplementaryURL, urlPath, &res)
+	err := g.SendHTTPRequest(exchange.WebsocketSpotSupplementary, urlPath, &res)
 	if err != nil {
 		return result, err
 	}
@@ -108,14 +108,14 @@ func (g *Gateio) GetLatestSpotPrice(symbol string) (float64, error) {
 func (g *Gateio) GetTicker(symbol string) (TickerResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s", gateioAPIVersion, gateioTicker, symbol)
 	var res TickerResponse
-	return res, g.SendHTTPRequest(exchange.SpotWsSupplementaryURL, urlPath, &res)
+	return res, g.SendHTTPRequest(exchange.WebsocketSpotSupplementary, urlPath, &res)
 }
 
 // GetTickers returns tickers for all symbols
 func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
 	urlPath := fmt.Sprintf("/%s/%s", gateioAPIVersion, gateioTickers)
 	resp := make(map[string]TickerResponse)
-	err := g.SendHTTPRequest(exchange.SpotWsSupplementaryURL, urlPath, &resp)
+	err := g.SendHTTPRequest(exchange.WebsocketSpotSupplementary, urlPath, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (g *Gateio) GetTickers() (map[string]TickerResponse, error) {
 func (g *Gateio) GetTrades(symbol string) (TradeHistory, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s", gateioAPIVersion, gateioTrades, symbol)
 	var resp TradeHistory
-	err := g.SendHTTPRequest(exchange.SpotWsSupplementaryURL, urlPath, &resp)
+	err := g.SendHTTPRequest(exchange.WebsocketSpotSupplementary, urlPath, &resp)
 	if err != nil {
 		return TradeHistory{}, err
 	}
@@ -137,7 +137,7 @@ func (g *Gateio) GetTrades(symbol string) (TradeHistory, error) {
 func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s", gateioAPIVersion, gateioOrderbook, symbol)
 	var resp OrderbookResponse
-	err := g.SendHTTPRequest(exchange.SpotWsSupplementaryURL, urlPath, &resp)
+	err := g.SendHTTPRequest(exchange.WebsocketSpotSupplementary, urlPath, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -204,7 +204,7 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
 		arg.HourSize)
 
 	var rawKlines map[string]interface{}
-	err := g.SendHTTPRequest(exchange.SpotWsSupplementaryURL, urlPath, &rawKlines)
+	err := g.SendHTTPRequest(exchange.WebsocketSpotSupplementary, urlPath, &rawKlines)
 	if err != nil {
 		return kline.Item{}, err
 	}

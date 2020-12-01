@@ -130,8 +130,8 @@ func (b *Bitstamp) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate)))
 	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  bitstampAPIURL,
-		exchange.SpotWsURL: bitstampWSURL,
+		exchange.RestSpot:      bitstampAPIURL,
+		exchange.WebsocketSpot: bitstampWSURL,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -151,12 +151,12 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsURL, err := b.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsURL, err := b.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

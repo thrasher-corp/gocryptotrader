@@ -132,8 +132,8 @@ func (h *HitBTC) SetDefaults() {
 		request.WithLimiter(SetRateLimit()))
 	h.API.Endpoints = h.NewEndpoints()
 	h.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  apiURL,
-		exchange.SpotWsURL: hitbtcWebsocketAddress,
+		exchange.RestSpot:      apiURL,
+		exchange.WebsocketSpot: hitbtcWebsocketAddress,
 	})
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -153,12 +153,12 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := h.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultWSURL, err := h.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := h.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsRunningURL, err := h.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

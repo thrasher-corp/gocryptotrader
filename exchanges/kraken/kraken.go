@@ -243,19 +243,19 @@ func (k *Kraken) GetFuturesOrderbook(symbol string) (FuturesOrderbookData, error
 	var resp FuturesOrderbookData
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	return resp, k.SendHTTPRequest(exchange.Futures, futuresOrderbook+"?"+params.Encode(), &resp)
+	return resp, k.SendHTTPRequest(exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
 }
 
 // GetFuturesMarkets gets a list of futures markets and their data
 func (k *Kraken) GetFuturesMarkets() (FuturesInstrumentData, error) {
 	var resp FuturesInstrumentData
-	return resp, k.SendHTTPRequest(exchange.Futures, futuresInstruments, &resp)
+	return resp, k.SendHTTPRequest(exchange.RestFutures, futuresInstruments, &resp)
 }
 
 // GetFuturesTickers gets a list of futures tickers and their data
 func (k *Kraken) GetFuturesTickers() (FuturesTickerData, error) {
 	var resp FuturesTickerData
-	return resp, k.SendHTTPRequest(exchange.Futures, futuresTickers, &resp)
+	return resp, k.SendHTTPRequest(exchange.RestFutures, futuresTickers, &resp)
 }
 
 // GetFuturesTradeHistory gets public trade history data for futures
@@ -266,7 +266,7 @@ func (k *Kraken) GetFuturesTradeHistory(symbol string, lastTime time.Time) (Futu
 	if !lastTime.IsZero() {
 		params.Set("lastTime", lastTime.Format("2006-01-02T15:04:05.070Z"))
 	}
-	return resp, k.SendHTTPRequest(exchange.Futures, futuresTradeHistory+"?"+params.Encode(), &resp)
+	return resp, k.SendHTTPRequest(exchange.RestFutures, futuresTradeHistory+"?"+params.Encode(), &resp)
 }
 
 // GetAssets returns a full asset list

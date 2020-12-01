@@ -149,6 +149,81 @@ func TestFLastTradeData(t *testing.T) {
 	}
 }
 
+func TestFRequestPublicBatchTrades(t *testing.T) {
+	t.Parallel()
+	a, err := h.FRequestPublicBatchTrades("BTC_NW", 50)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(a.Data) != 50 {
+		t.Errorf("len of data should be 50")
+	}
+}
+
+func TestFQueryInsuranceAndClawbackData(t *testing.T) {
+	t.Parallel()
+	_, err := h.FQueryInsuranceAndClawbackData("BTC_NW")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFQueryHistoricalInsuranceData(t *testing.T) {
+	t.Parallel()
+	_, err := h.FQueryHistoricalInsuranceData("BTC_NW")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFQueryTieredAdjustmentFactor(t *testing.T) {
+	t.Parallel()
+	_, err := h.FQueryTieredAdjustmentFactor("BTC_NW")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFQueryHisOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := h.FQueryHisOpenInterest("BTC_NW", "", "60min", 50, 2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFQuerySystemStatus(t *testing.T) {
+	t.Parallel()
+	_, err := h.FQuerySystemStatus("BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFQueryTopAccountsRatio(t *testing.T) {
+	t.Parallel()
+	_, err := h.FQueryTopAccountsRatio("BTC", "5min")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFQueryTopPositionsRatio(t *testing.T) {
+	t.Parallel()
+	_, err := h.FQueryTopPositionsRatio("BTC", "5min")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFLiquidationOrders(t *testing.T) {
+	t.Parallel()
+	_, err := h.FLiquidationOrders("BTC", "filled", 0, 0, 7)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestFGetAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")

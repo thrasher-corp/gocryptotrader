@@ -160,9 +160,9 @@ func (h *HUOBI) SetDefaults() {
 		request.WithLimiter(SetRateLimit()))
 	h.API.Endpoints = h.NewEndpoints()
 	h.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  huobiAPIURL,
-		exchange.Futures:   huobiURL,
-		exchange.SpotWsURL: wsMarketURL,
+		exchange.RestSpot:      huobiAPIURL,
+		exchange.RestFutures:   huobiURL,
+		exchange.WebsocketSpot: wsMarketURL,
 	})
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -182,12 +182,12 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := h.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultWSURL, err := h.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := h.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsRunningURL, err := h.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

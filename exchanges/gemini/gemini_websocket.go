@@ -72,7 +72,7 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 		val.Set("bids", "true")
 		val.Set("offers", "true")
 		val.Set("trades", "true")
-		wsEndpoint, err := g.API.Endpoints.GetRunning(exchange.SpotWsURL)
+		wsEndpoint, err := g.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	if err != nil {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", g.Name)
 	}
-	wsEndpoint, err := g.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsEndpoint, err := g.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

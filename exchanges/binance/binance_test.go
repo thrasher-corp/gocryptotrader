@@ -273,6 +273,17 @@ func TestUTakerBuySellVol(t *testing.T) {
 	}
 }
 
+func TestUFuturesNewOrder(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
+	_, err := b.UFuturesNewOrder("BTCUSDT", "BUY", "", "LIMIT", "GTC", "", "", "", "", 1, 1, 0, 0, 0, false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestUPlaceBatchOrders(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {

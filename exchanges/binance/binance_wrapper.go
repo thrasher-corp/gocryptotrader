@@ -177,10 +177,10 @@ func (b *Binance) SetDefaults() {
 	b.API.Endpoints.CreateMap(map[exchange.URL]string{
 		exchange.RestSpot:              spotAPIURL,
 		exchange.RestSpotSupplementary: apiURL,
-		exchange.USDTMarginedFutures:   ufuturesAPIURL,
-		exchange.CoinMarginedFutures:   cfuturesAPIURL,
+		exchange.RestUSDTMargined:      ufuturesAPIURL,
+		exchange.RestCoinMargined:      cfuturesAPIURL,
 		exchange.EdgeCase1:             "https://www.binance.com",
-		exchange.SpotWsURL:             binanceDefaultWebsocketURL,
+		exchange.WebsocketSpot:         binanceDefaultWebsocketURL,
 	})
 
 	b.Websocket = stream.New()
@@ -199,11 +199,11 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	epoint, err := b.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	epoint, err := b.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -1385,7 +1385,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			switch {
 			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
 				if req.StartTicks.After(req.EndTicks) {
-					if time.Now().Sub(req.StartTicks.Add(time.Hour*168)) < 0 {
+					if time.Now().Sub(req.StartTicks.Add(time.Hour*24*30)) < 0 {
 						return nil, fmt.Errorf("can only fetch orders 7 days out")
 					}
 					orderHistory, err := b.GetAllFuturesOrders(fPair.String(), "", req.StartTicks, req.EndTicks, 0, 0)
@@ -1458,57 +1458,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 		}
-		// var orderHistory []FuturesOrderData
-		// for i := range req.Pairs {
-		// 	fPair, err := b.FormatExchangeCurrency(req.Pairs[i], req.AssetType)
-		// 	if err != nil {
-		// 		return orders, err
-		// 	}
-		// 	var complete bool
-		// 	for !complete {
-		// 		orderHistory, err = b.GetAllFuturesOrders(fPair.String(), "", req.StartTicks, req.EndTicks, 0, 100)
-		// 		if err != nil {
-		// 			return orders, err
-		// 		}
-		// 		chronological := false
-		// 		if orderHistory[0].Time < orderHistory[len(orderHistory)-1].Time {
-		// 			chronological = true
-		// 		}
-		// 		for y := range orderHistory {
-		// 			var feeBuilder exchange.FeeBuilder
-		// 			feeBuilder.Amount = orderHistory[y].ExecutedQty
-		// 			feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-		// 			feeBuilder.Pair = fPair
-		// 			fee, err := b.GetFee(&feeBuilder)
-		// 			if err != nil {
-		// 				return orders, err
-		// 			}
-		// 			orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
-		// 			orders = append(orders, order.Detail{
-		// 				Price:           orderHistory[y].Price,
-		// 				Amount:          orderHistory[y].OrigQty,
-		// 				ExecutedAmount:  orderHistory[y].ExecutedQty,
-		// 				RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
-		// 				Fee:             fee,
-		// 				Exchange:        b.Name,
-		// 				ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
-		// 				ClientOrderID:   orderHistory[y].ClientOrderID,
-		// 				Type:            orderVars.OrderType,
-		// 				Side:            orderVars.Side,
-		// 				Status:          orderVars.Status,
-		// 				Pair:            fPair,
-		// 				AssetType:       asset.CoinMarginedFutures,
-		// 			})
-		// 		}
-		// 		if !chronological {
-		// 			req.OrderID = strconv.FormatInt(orderHistory[0].OrderID, 10)
-		// 		} else {
-		// 			req.OrderID = strconv.FormatInt(orderHistory[len(orderHistory)-1].OrderID, 10)
-		// 		}
-		// 		if len(orderHistory) < 100 {
-		// 			complete = true
-		// 		}
-		// 	}
 	case asset.USDTMarginedFutures:
 		for i := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[i], req.AssetType)
@@ -1591,56 +1540,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 		}
-		// fPair, err := b.FormatExchangeCurrency(req.Pairs[i], req.AssetType)
-		// if err != nil {
-		// 	return orders, err
-		// }
-		// var complete bool
-		// for !complete {
-		// 	orderHistory, err = b.UAllAccountOrders(fPair.String(), 0, 0, req.StartTicks, req.EndTicks)
-		// 	if err != nil {
-		// 		return orders, err
-		// 	}
-		// 	chronological := false
-		// 	if orderHistory[0].Time < orderHistory[len(orderHistory)-1].Time {
-		// 		chronological = true
-		// 	}
-
-		// 	for y := range orderHistory {
-		// 		var feeBuilder exchange.FeeBuilder
-		// 		feeBuilder.Amount = orderHistory[y].ExecutedQty
-		// 		feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-		// 		feeBuilder.Pair = fPair
-		// 		fee, err := b.GetFee(&feeBuilder)
-		// 		if err != nil {
-		// 			return orders, err
-		// 		}
-		// 		orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
-		// 		orders = append(orders, order.Detail{
-		// 			Price:           orderHistory[y].Price,
-		// 			Amount:          orderHistory[y].OrigQty,
-		// 			ExecutedAmount:  orderHistory[y].ExecutedQty,
-		// 			RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
-		// 			Fee:             fee,
-		// 			Exchange:        b.Name,
-		// 			ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
-		// 			ClientOrderID:   orderHistory[y].ClientOrderID,
-		// 			Type:            orderVars.OrderType,
-		// 			Side:            orderVars.Side,
-		// 			Status:          orderVars.Status,
-		// 			Pair:            fPair,
-		// 			AssetType:       asset.USDTMarginedFutures,
-		// 		})
-		// 	}
-		// 	if !chronological {
-		// 		req.OrderID = strconv.FormatInt(orderHistory[0].OrderID, 10)
-		// 	} else {
-		// 		req.OrderID = strconv.FormatInt(orderHistory[len(orderHistory)-1].OrderID, 10)
-		// 	}
-		// 	if len(orderHistory) < 100 {
-		// 		complete = true
-		// 	}
-		// }
 	default:
 		return orders, fmt.Errorf("assetType not supported")
 	}

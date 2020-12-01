@@ -9,8 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
-// useful const vars for checking api requests being sent
-
 const (
 	krakenAPIVersion       = "0"
 	krakenServerTime       = "Time"

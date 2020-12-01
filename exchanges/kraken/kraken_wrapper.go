@@ -166,9 +166,9 @@ func (k *Kraken) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
 	k.API.Endpoints = k.NewEndpoints()
 	k.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  krakenAPIURL,
-		exchange.Futures:   futuresURL,
-		exchange.SpotWsURL: krakenWSURL,
+		exchange.RestSpot:      krakenAPIURL,
+		exchange.RestFutures:   futuresURL,
+		exchange.WebsocketSpot: krakenWSURL,
 	})
 	k.Websocket = stream.New()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -193,11 +193,11 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := k.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultWSURL, err := k.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	wsRunningURL, err := k.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsRunningURL, err := k.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

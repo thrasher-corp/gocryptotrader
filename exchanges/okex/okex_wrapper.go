@@ -199,8 +199,8 @@ func (o *OKEX) SetDefaults() {
 	)
 	o.API.Endpoints = o.NewEndpoints()
 	o.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  okExAPIURL,
-		exchange.SpotWsURL: OkExWebsocketURL,
+		exchange.RestSpot:      okExAPIURL,
+		exchange.WebsocketSpot: OkExWebsocketURL,
 	})
 	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
@@ -221,7 +221,7 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
-		wsEndpoint, err := o.API.Endpoints.GetRunning(exchange.SpotWsURL)
+		wsEndpoint, err := o.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

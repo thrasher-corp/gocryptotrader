@@ -165,8 +165,8 @@ func (b *Bitfinex) SetDefaults() {
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  bitfinexAPIURLBase,
-		exchange.SpotWsURL: publicBitfinexWebsocketEndpoint,
+		exchange.RestSpot:      bitfinexAPIURLBase,
+		exchange.WebsocketSpot: publicBitfinexWebsocketEndpoint,
 	})
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -185,11 +185,11 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	wsEndpoint, err := b.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsEndpoint, err := b.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

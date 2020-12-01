@@ -603,21 +603,21 @@ type FInfoSystemStatusData struct {
 
 // FTopAccountsLongShortRatio stores long/short ratio for top futures accounts
 type FTopAccountsLongShortRatio struct {
-	Data []struct {
-		Symbol string `json:"symbol"`
-		List   []struct {
+	Data struct {
+		List []struct {
 			BuyRatio    float64 `json:"buy_ratio"`
 			SellRatio   float64 `json:"sell_ratio"`
 			LockedRatio float64 `json:"locked_ratio"`
 			Timestamp   int64   `json:"ts"`
 		} `json:"list"`
+		Symbol string `json:"symbol"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
 }
 
 // FTopPositionsLongShortRatio stores long short ratio for top futures positions
 type FTopPositionsLongShortRatio struct {
-	Data []struct {
+	Data struct {
 		Symbol string `json:"symbol"`
 		List   []struct {
 			BuyRatio  float64 `json:"buy_ratio"`

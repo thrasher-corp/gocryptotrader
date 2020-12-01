@@ -108,8 +108,8 @@ func (g *Gemini) SetDefaults() {
 		request.WithLimiter(SetRateLimit()))
 	g.API.Endpoints = g.NewEndpoints()
 	g.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  geminiAPIURL,
-		exchange.SpotWsURL: geminiWebsocketEndpoint,
+		exchange.RestSpot:      geminiAPIURL,
+		exchange.WebsocketSpot: geminiWebsocketEndpoint,
 	})
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -136,12 +136,12 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		}
 	}
 
-	defaultWSURL, err := g.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultWSURL, err := g.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := g.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsRunningURL, err := g.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

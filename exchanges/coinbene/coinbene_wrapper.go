@@ -149,8 +149,8 @@ func (c *Coinbene) SetDefaults() {
 	c.API.Endpoints = c.NewEndpoints()
 	c.API.Endpoints.CreateMap(map[exchange.URL]string{
 		exchange.RestSpot:  coinbeneAPIURL,
-		exchange.Swap:      coinbeneSwapAPIURL,
-		exchange.SpotWsURL: wsContractURL,
+		exchange.RestSwap:      coinbeneSwapAPIURL,
+		exchange.WebsocketSpot: wsContractURL,
 	})
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -170,12 +170,12 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := c.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultWSURL, err := c.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := c.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsRunningURL, err := c.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

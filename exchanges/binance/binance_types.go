@@ -7,8 +7,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Useful const vars for checking api requests being sent out
-
 var (
 	validFuturesIntervals = []string{
 		"1m", "3m", "5m", "15m", "30m",

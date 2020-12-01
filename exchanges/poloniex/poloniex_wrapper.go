@@ -133,8 +133,8 @@ func (p *Poloniex) SetDefaults() {
 		request.WithLimiter(SetRateLimit()))
 	p.API.Endpoints = p.NewEndpoints()
 	p.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  poloniexAPIURL,
-		exchange.SpotWsURL: poloniexWebsocketAddress,
+		exchange.RestSpot:      poloniexAPIURL,
+		exchange.WebsocketSpot: poloniexWebsocketAddress,
 	})
 	p.Websocket = stream.New()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -154,12 +154,12 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := p.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultWSURL, err := p.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := p.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsRunningURL, err := p.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

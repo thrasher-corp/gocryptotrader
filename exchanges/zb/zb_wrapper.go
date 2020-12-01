@@ -135,7 +135,7 @@ func (z *ZB) SetDefaults() {
 	z.API.Endpoints.CreateMap(map[exchange.URL]string{
 		exchange.RestSpot:              zbTradeURL,
 		exchange.RestSpotSupplementary: zbMarketURL,
-		exchange.SpotWsURL:             zbWebsocketAPI,
+		exchange.WebsocketSpot:         zbWebsocketAPI,
 	})
 	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -154,12 +154,12 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := z.API.Endpoints.GetDefault(exchange.SpotWsURL)
+	defaultWSURL, err := z.API.Endpoints.GetDefault(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := z.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsRunningURL, err := z.API.Endpoints.GetRunning(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

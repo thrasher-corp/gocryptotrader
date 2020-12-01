@@ -212,13 +212,13 @@ type Base struct {
 const (
 	RestSpot URL = iota
 	RestSpotSupplementary
-	USDTMarginedFutures
-	CoinMarginedFutures
-	Futures
-	Swap
-	Sandbox
-	SpotWsURL
-	SpotWsSupplementaryURL
+	RestUSDTMargined
+	RestCoinMargined
+	RestFutures
+	RestSwap
+	RestSandbox
+	WebsocketSpot
+	WebsocketSpotSupplementary
 	ChainAnalysis
 	EdgeCase1
 	EdgeCase2
@@ -226,7 +226,7 @@ const (
 )
 
 // URL stores uint conversions
-type URL uint32
+type URL uint8
 
 func (u URL) String() string {
 	switch u {
@@ -234,19 +234,19 @@ func (u URL) String() string {
 		return "RESTSpotURL"
 	case RestSpotSupplementary:
 		return "RESTSpotURLSUPPLEMENTARYURL"
-	case USDTMarginedFutures:
+	case RestUSDTMargined:
 		return "RestUSDTMarginedFuturesURL"
-	case CoinMarginedFutures:
+	case RestCoinMargined:
 		return "RestCoinMarginedFuturesURL"
-	case Futures:
+	case RestFutures:
 		return "RestFuturesURL"
-	case Sandbox:
+	case RestSandbox:
 		return "SandboxURL"
-	case Swap:
+	case RestSwap:
 		return "SwapURL"
-	case SpotWsURL:
+	case WebsocketSpot:
 		return "SpotWsURLURL"
-	case SpotWsSupplementaryURL:
+	case WebsocketSpotSupplementary:
 		return "SpotWsSupplementaryURL"
 	case ChainAnalysis:
 		return "ChainAnalysisURL"
