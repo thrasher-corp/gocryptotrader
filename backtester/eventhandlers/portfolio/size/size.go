@@ -11,18 +11,18 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (s *Size) SizeOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, availableFunds float64, cs *exchange.CurrencySettings) (*order.Order, error) {
+func (s *Size) SizeOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, amountAvailable float64, cs *exchange.CurrencySettings) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 
 	switch retOrder.GetDirection() {
 	case gctorder.Buy:
 		// check size against currency specific settings
-		amount, err := s.calculateSize(retOrder.Price, availableFunds, cs.ExchangeFee, cs.BuySide)
+		amount, err := s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, cs.BuySide)
 		if err != nil {
 			return nil, err
 		}
 		// check size against portfolio specific settings
-		portfolioSize, err := s.calculateSize(retOrder.Price, availableFunds, cs.ExchangeFee, s.BuySide)
+		portfolioSize, err := s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, s.BuySide)
 		if err != nil {
 			return nil, err
 		}
@@ -34,12 +34,12 @@ func (s *Size) SizeOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, a
 		retOrder.SetAmount(amount)
 	case gctorder.Sell:
 		// check size against currency specific settings
-		amount, err := s.calculateSize(retOrder.Price, availableFunds, cs.ExchangeFee, cs.SellSide)
+		amount, err := s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, cs.SellSide)
 		if err != nil {
 			return nil, err
 		}
 		// check size against portfolio specific settings
-		portfolioSize, err := s.calculateSize(retOrder.Price, availableFunds, cs.ExchangeFee, s.SellSide)
+		portfolioSize, err := s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, s.SellSide)
 		if err != nil {
 			return nil, err
 		}
@@ -54,12 +54,12 @@ func (s *Size) SizeOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, a
 	return retOrder, nil
 }
 
-// calculateSize respects config rules and calculates the amount of money
+// calculateBuySize respects config rules and calculates the amount of money
 // that is allowed to be spent/sold for an event.
 //
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateSize(price, availableFunds, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
+func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
 	if availableFunds <= 0 {
 		return 0, errors.New("no fund available")
 	}
@@ -69,6 +69,30 @@ func (s *Size) calculateSize(price, availableFunds, feeRate float64, minMaxSetti
 		amount = minMaxSettings.MaximumSize * (1 - feeRate)
 	}
 	if minMaxSettings.MaximumTotal > 0 && (amount+feeRate)*price > minMaxSettings.MaximumTotal {
+		amount = minMaxSettings.MaximumTotal * (1 - feeRate) / price
+	}
+	if amount < minMaxSettings.MinimumSize {
+		return 0, fmt.Errorf("sized amount '%.8f' less than minimum '%v'", amount, minMaxSettings.MinimumSize)
+	}
+
+	return amount, nil
+}
+
+// calculateSellSize respects config rules and calculates the amount of money
+// that is allowed to be spent/sold for an event.
+//
+// As fee calculation occurs during the actual ordering process
+// this can only attempt to factor the potential fee to remain under the max rules
+func (s *Size) calculateSellSize(price, availableFunds, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
+	if availableFunds <= 0 {
+		return 0, errors.New("no fund available")
+	}
+
+	amount := availableFunds * (1 - feeRate)
+	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
+		amount = minMaxSettings.MaximumSize * (1 - feeRate)
+	}
+	if minMaxSettings.MaximumTotal > 0 && amount*price > minMaxSettings.MaximumTotal {
 		amount = minMaxSettings.MaximumTotal * (1 - feeRate) / price
 	}
 	if amount < minMaxSettings.MinimumSize {

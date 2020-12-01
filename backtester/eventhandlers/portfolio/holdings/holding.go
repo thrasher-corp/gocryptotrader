@@ -1,37 +1,73 @@
 package holdings
 
 import (
+	"errors"
+	"fmt"
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func Create(fill fill.FillEvent, initialFunds float64) Holding {
+func (s *Snapshots) GetLatestSnapshot() Holding {
+	if len(s.Holdings) == 0 {
+		return Holding{}
+	}
+	return s.Holdings[len(s.Holdings)-1]
+}
+
+func (s *Snapshots) GetSnapshotAtTimestamp(t time.Time) Holding {
+	for i := range s.Holdings {
+		if t.Equal(s.Holdings[i].Timestamp) {
+			return s.Holdings[i]
+		}
+	}
+	return Holding{}
+}
+
+func (s *Snapshots) GetPreviousSnapshot() Holding {
+	if len(s.Holdings) == 0 {
+		return Holding{}
+	}
+	if len(s.Holdings) == 1 {
+		return s.Holdings[0]
+	}
+	return s.Holdings[len(s.Holdings)-2]
+}
+
+func Create(f fill.FillEvent, initialFunds float64) (Holding, error) {
+	if f == nil {
+		return Holding{}, errors.New("nil event received")
+	}
+	if initialFunds <= 0 {
+		return Holding{}, errors.New("initial funds <= 0")
+	}
 	h := Holding{
-		Timestamp:    fill.GetTime(),
-		InitialFunds: initialFunds,
+		Timestamp:      f.GetTime(),
+		InitialFunds:   initialFunds,
+		RemainingFunds: initialFunds,
 	}
 
-	h.update(fill)
-	return h
+	h.update(f)
+	return h, nil
 }
 
-func (h *Holding) Update(fill fill.FillEvent) {
-	h.Timestamp = fill.GetTime()
-	h.update(fill)
+func (h *Holding) Update(f fill.FillEvent) {
+	h.Timestamp = f.GetTime()
+	h.update(f)
 }
 
-func (h *Holding) UpdateValue(data interfaces.DataEventHandler) {
-	h.Timestamp = data.GetTime()
-	latest := data.Price()
+func (h *Holding) UpdateValue(d interfaces.DataEventHandler) {
+	h.Timestamp = d.GetTime()
+	latest := d.Price()
 	h.updateValue(latest)
 }
 
-func (h *Holding) update(fill fill.FillEvent) {
-	direction := fill.GetDirection()
-	o := fill.GetOrder()
+func (h *Holding) update(f fill.FillEvent) error {
+	direction := f.GetDirection()
+	o := f.GetOrder()
 	switch direction {
 	case order.Buy:
 		h.PositionsSize += o.Amount
@@ -47,15 +83,16 @@ func (h *Holding) update(fill fill.FillEvent) {
 		h.TotalFees += o.Fee
 		h.SoldAmount += o.Amount
 		h.SoldValue += o.Amount * o.Price
-	case common.DoNothing:
+	case common.DoNothing, common.CouldNotSell, common.CouldNotBuy:
 	default:
-		log.Error(log.BackTester, "woah nelly, how'd we get here? %v", direction)
+		return fmt.Errorf("woah nelly, how'd we get here? %v", direction)
 	}
+	h.updateValue(f.GetClosePrice())
 	/*
-		fillAmount := decimal.NewFromFloat(fill.GetAmount())
-		fillPrice := decimal.NewFromFloat(fill.GetPurchasePrice())
-		fillExchangeFee := decimal.NewFromFloat(fill.GetExchangeFee())
-		fillNetValue := decimal.NewFromFloat(fill.NetValue())
+		fillAmount := decimal.NewFromFloat(f.GetAmount())
+		fillPrice := decimal.NewFromFloat(f.GetPurchasePrice())
+		fillExchangeFee := decimal.NewFromFloat(f.GetExchangeFee())
+		fillNetValue := decimal.NewFromFloat(f.NetValue())
 
 		amount := decimal.NewFromFloat(h.Amount)
 		amountBought := decimal.NewFromFloat(h.BoughtAmount)
@@ -75,7 +112,7 @@ func (h *Holding) update(fill fill.FillEvent) {
 		costBasis := decimal.NewFromFloat(h.CostBasis)
 		realProfitLoss := decimal.NewFromFloat(h.RealProfitLoss)
 
-		switch fill.GetDirection() {
+		switch f.GetDirection() {
 		case gctorder.Buy, gctorder.Bid:
 			if h.Amount >= 0 {
 				costBasis = costBasis.Add(fillNetValue)
@@ -135,9 +172,10 @@ func (h *Holding) update(fill fill.FillEvent) {
 		h.CostBasis, _ = costBasis.Round(common.DecimalPlaces).Float64()
 		h.RealProfitLoss, _ = realProfitLoss.Round(common.DecimalPlaces).Float64()
 
-		h.updateValue(fill.GetClosePrice())
+		h.updateValue(f.GetClosePrice())
 
 	*/
+	return nil
 }
 
 func (h *Holding) updateValue(l float64) {

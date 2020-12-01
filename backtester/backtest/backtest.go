@@ -168,7 +168,6 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
 		lookup.SellSideSizing = e.CurrencySettings[i].SellSide
 		lookup.SetInitialFunds(e.CurrencySettings[i].InitialFunds)
-		lookup.SetFunds(e.CurrencySettings[i].InitialFunds)
 		lookup.ComplianceManager = compliance.Manager{
 			Snapshots: []compliance.Snapshot{},
 		}

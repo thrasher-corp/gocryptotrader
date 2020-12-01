@@ -10,7 +10,7 @@ import (
 )
 
 type RiskHandler interface {
-	EvaluateOrder(exchange.OrderEvent, interfaces.DataEventHandler, holdings.Holding) (*order.Order, error)
+	EvaluateOrder(exchange.OrderEvent, interfaces.DataEventHandler, []holdings.Holding) (*order.Order, error)
 }
 
 type Risk struct {

@@ -3,7 +3,6 @@ package exchange
 import (
 	"github.com/gofrs/uuid"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -17,7 +16,7 @@ import (
 
 func (e *Exchange) ExecuteOrder(o OrderEvent, data data.Handler) (*fill.Fill, error) {
 	cs := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
-	fillEvent := &fill.Fill{
+	f := &fill.Fill{
 		Event: event.Event{
 			Exchange:     o.GetExchange(),
 			Time:         o.GetTime(),
@@ -32,16 +31,15 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data data.Handler) (*fill.Fill, er
 		Why:         o.GetWhy(),
 	}
 	if o.GetAmount() <= 0 {
-		fillEvent.Direction = common.DoNothing
-		return fillEvent, nil
+		return f, nil
 	}
-	fillEvent.Direction = o.GetDirection()
+	f.Direction = o.GetDirection()
 	var slippageRate, estimatedPrice, amount float64
 	if false /*e.UseRealOrders*/ {
 		// get current orderbook
 		// calculate an estimated slippage rate
 		slippageRate = slippage.CalculateSlippage(nil)
-		estimatedPrice = fillEvent.ClosePrice * slippageRate
+		estimatedPrice = f.ClosePrice * slippageRate
 	} else {
 		// provide n history and estimate volatility
 		slippageRate = slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate, o.GetDirection())
@@ -49,23 +47,23 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data data.Handler) (*fill.Fill, er
 		low := data.StreamLow()
 		volume := data.StreamVol()
 
-		fillEvent.VolumeAdjustedPrice, amount = e.ensureOrderFitsWithinHLV(fillEvent.ClosePrice, o.GetAmount(), high[len(high)-1], low[len(low)-1], volume[len(volume)-1])
-		estimatedPrice = fillEvent.VolumeAdjustedPrice * slippageRate
+		f.VolumeAdjustedPrice, amount = e.ensureOrderFitsWithinHLV(f.ClosePrice, o.GetAmount(), high[len(high)-1], low[len(low)-1], volume[len(volume)-1])
+		estimatedPrice = f.VolumeAdjustedPrice * slippageRate
 	}
 
-	fillEvent.Slippage = (slippageRate * 100) - 100
-	fillEvent.ExchangeFee = e.calculateExchangeFee(estimatedPrice, amount, cs.ExchangeFee)
+	f.Slippage = (slippageRate * 100) - 100
+	f.ExchangeFee = e.calculateExchangeFee(estimatedPrice, amount, cs.ExchangeFee)
 
 	u, _ := uuid.NewV4()
 	var orderID string
 	o2 := &gctorder.Submit{
 		Price:       estimatedPrice,
 		Amount:      amount,
-		Fee:         fillEvent.ExchangeFee,
-		Exchange:    fillEvent.Exchange,
+		Fee:         f.ExchangeFee,
+		Exchange:    f.Exchange,
 		ID:          u.String(),
-		Side:        fillEvent.Direction,
-		AssetType:   fillEvent.AssetType,
+		Side:        f.Direction,
+		AssetType:   f.AssetType,
 		Date:        o.GetTime(),
 		LastUpdated: o.GetTime(),
 		Pair:        o.Pair(),
@@ -82,8 +80,8 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data data.Handler) (*fill.Fill, er
 		o2Response := gctorder.SubmitResponse{
 			IsOrderPlaced: true,
 			OrderID:       u.String(),
-			Rate:          fillEvent.Amount,
-			Fee:           fillEvent.ExchangeFee,
+			Rate:          f.Amount,
+			Fee:           f.ExchangeFee,
 			Cost:          estimatedPrice,
 			FullyMatched:  true,
 		}
@@ -100,12 +98,12 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data data.Handler) (*fill.Fill, er
 			ords[i].Date = o.GetTime()
 			ords[i].LastUpdated = o.GetTime()
 			ords[i].CloseTime = o.GetTime()
-			fillEvent.Order = &ords[i]
-			fillEvent.PurchasePrice = ords[i].Price
+			f.Order = &ords[i]
+			f.PurchasePrice = ords[i].Price
 		}
 	}
 
-	return fillEvent, nil
+	return f, nil
 }
 
 func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c CurrencySettings) {

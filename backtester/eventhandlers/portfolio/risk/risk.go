@@ -8,13 +8,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // EvaluateOrder goes through a standard list of evaluations to make to ensure that
 // we are in a position to follow through with an order
-func (r *Risk) EvaluateOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, _ holdings.Holding) (*order.Order, error) {
+func (r *Risk) EvaluateOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, latestHoldings []holdings.Holding) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 	if o.IsLeveraged() {
 		if !r.CanUseLeverage {
@@ -29,9 +30,13 @@ func (r *Risk) EvaluateOrder(o exchange.OrderEvent, _ interfaces.DataEventHandle
 			return nil, fmt.Errorf("leverage level over maximum for order %v", o)
 		}
 	}
-	err := areWeAllIn(o)
-	if err != nil {
-		return nil, err
+	allIn := areWeAllInOnOneCurrency(o.Pair(), latestHoldings)
+	if allIn {
+
+	}
+	ratios := assessHoldingsRatio(o.Pair(), latestHoldings)
+	if len(ratios) == 0 {
+
 	}
 	return retOrder, nil
 }
@@ -50,13 +55,22 @@ func existingLeverageRatio() float64 {
 	return ordersWithLeverage / float64(len(os))
 }
 
-func areWeAllIn(o exchange.OrderEvent) error {
-	os, _ := engine.Bot.OrderManager.GetOrdersSnapshot(gctorder.AnyStatus)
-	if len(os) == 0 {
-		return nil
+func areWeAllInOnOneCurrency(c currency.Pair, h []holdings.Holding) bool {
+	for i := range h {
+		if !h[i].Pair.Equal(c) {
+			return false
+		}
 	}
-	// in this setion of code, we'd want to calculate the total value of holdins per currency
-	// then once we know how much everything is worth, we can get a ratio and check it against
-	// our limits
-	return nil
+	return true
+}
+
+// add additional assessing rules, such as what the maximum ratio is allowed to be
+func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) map[currency.Pair]float64 {
+	resp := make(map[currency.Pair]float64)
+	for i := range h {
+		if h[i].Pair.Equal(c) {
+			resp[c] += h[i].PositionsSize
+		}
+	}
+	return resp
 }

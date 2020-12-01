@@ -89,6 +89,7 @@ func (s *Statistic) ReturnResults() Results {
 		SharpieRatio:      s.SharpeRatio(0),
 		StrategyName:      s.StrategyName,
 	}
+
 	for v := range s.Transactions() {
 		results.Transactions = append(results.Transactions, ResultTransactions{
 			Time:      s.Transactions()[v].GetTime(),

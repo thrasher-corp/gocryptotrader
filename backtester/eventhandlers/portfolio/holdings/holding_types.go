@@ -2,13 +2,19 @@ package holdings
 
 import (
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 type Snapshots struct {
-	Hodlings []Holding
+	Holdings []Holding
 }
 
 type Holding struct {
+	Pair           currency.Pair
+	Asset          asset.Item
+	Exchange       string
 	Timestamp      time.Time
 	InitialFunds   float64
 	PositionsSize  float64

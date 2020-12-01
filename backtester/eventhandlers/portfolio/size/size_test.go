@@ -21,7 +21,7 @@ func TestSizingAccuracy(t *testing.T) {
 	availableFunds := 1338.0
 	feeRate := 0.02
 
-	amountWithoutFee, err := sizer.calculateSize(price, availableFunds, feeRate, globalMinMax)
+	amountWithoutFee, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
 	if err != nil {
 		t.Error(err)
 	}
@@ -46,7 +46,7 @@ func TestSizingOverMaxSize(t *testing.T) {
 	availableFunds := 1338.0
 	feeRate := 0.02
 
-	amount, err := sizer.calculateSize(price, availableFunds, feeRate, globalMinMax)
+	amount, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
 	if err != nil {
 		t.Error(err)
 	}
@@ -74,7 +74,7 @@ func TestSizingUnderMinSize(t *testing.T) {
 	availableFunds := 1338.0
 	feeRate := 0.02
 
-	_, err := sizer.calculateSize(price, availableFunds, feeRate, globalMinMax)
+	_, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
 	if err != nil && err.Error() != "sized amount less than minimum 1" {
 		t.Error(err)
 	}
@@ -95,7 +95,7 @@ func TestSizingErrors(t *testing.T) {
 	availableFunds := 0.0
 	feeRate := 0.02
 
-	_, err := sizer.calculateSize(price, availableFunds, feeRate, globalMinMax)
+	_, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
 	if err != nil && err.Error() != "no fund available" {
 		t.Error(err)
 	}

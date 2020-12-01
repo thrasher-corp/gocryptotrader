@@ -26,7 +26,6 @@ type Portfolio struct {
 type ExchangeAssetPairSettings struct {
 	InitialFunds      float64
 	Fee               float64
-	Funds             float64
 	BuySideSizing     config.MinMax
 	SellSideSizing    config.MinMax
 	Leverage          config.Leverage
@@ -41,8 +40,6 @@ type Handler interface {
 
 	SetInitialFunds(string, asset.Item, currency.Pair, float64)
 	GetInitialFunds(string, asset.Item, currency.Pair) float64
-	SetFunds(string, asset.Item, currency.Pair, float64)
-	GetFunds(string, asset.Item, currency.Pair) float64
 
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 
