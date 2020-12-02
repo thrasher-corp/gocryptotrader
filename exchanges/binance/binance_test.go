@@ -1337,7 +1337,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
 	if err != nil {
