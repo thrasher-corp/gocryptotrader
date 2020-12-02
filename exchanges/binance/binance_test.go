@@ -1064,7 +1064,7 @@ func TestGetExchangeInfo(t *testing.T) {
 		t.Error(err)
 	}
 	if mockTests {
-		serverTime := time.Date(2020, 4, 15, 23, 44, 38, int(861*time.Millisecond), time.UTC)
+		serverTime := time.Date(2020, 10, 16, 06, 32, 00, int(516*time.Millisecond), time.UTC)
 		if !info.Servertime.Equal(serverTime) {
 			t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
 		}
@@ -1337,13 +1337,18 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
-
+	pair, err := currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		t.Error(err)
+	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
+		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
 	}
-	_, err := b.GetActiveOrders(&getOrdersRequest)
+	_, err = b.GetActiveOrders(&getOrdersRequest)
 	if err == nil {
 		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
 	}
