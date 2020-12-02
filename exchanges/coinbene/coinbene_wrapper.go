@@ -148,7 +148,7 @@ func (c *Coinbene) SetDefaults() {
 		request.WithLimiter(SetRateLimit()))
 	c.API.Endpoints = c.NewEndpoints()
 	c.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  coinbeneAPIURL,
+		exchange.RestSpot:      coinbeneAPIURL,
 		exchange.RestSwap:      coinbeneSwapAPIURL,
 		exchange.WebsocketSpot: wsContractURL,
 	})

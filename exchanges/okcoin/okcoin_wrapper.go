@@ -139,7 +139,7 @@ func (o *OKCoin) SetDefaults() {
 	)
 	o.API.Endpoints = o.NewEndpoints()
 	o.API.Endpoints.CreateMap(map[exchange.URL]string{
-		exchange.RestSpot:  okCoinAPIURL,
+		exchange.RestSpot:      okCoinAPIURL,
 		exchange.WebsocketSpot: okCoinWebsocketURL,
 	})
 	o.APIVersion = okCoinAPIVersion
