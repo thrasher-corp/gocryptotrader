@@ -1057,8 +1057,6 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		if err != nil {
 			return nil, err
 		}
-
-		var orders []order.Detail
 		for i := range resp.Open {
 			p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
 				avail,
@@ -1125,6 +1123,8 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				})
 			}
 		}
+	default:
+		return nil, fmt.Errorf("%s assetType not supported", req.AssetType)
 	}
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersBySide(&orders, req.Side)

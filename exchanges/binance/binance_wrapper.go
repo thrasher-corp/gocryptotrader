@@ -1426,7 +1426,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			switch {
 			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
 				if req.StartTicks.After(req.EndTicks) {
-					if time.Now().Sub(req.StartTicks.Add(time.Hour*24*30)) < 0 {
+					if time.Since(req.StartTicks) > time.Hour*24*30 {
 						return nil, fmt.Errorf("can only fetch orders 7 days out")
 					}
 					orderHistory, err := b.GetAllFuturesOrders(fPair.String(), "", req.StartTicks, req.EndTicks, 0, 0)
@@ -1508,7 +1508,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			switch {
 			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
 				if req.StartTicks.After(req.EndTicks) {
-					if time.Now().Sub(req.StartTicks.Add(time.Hour*168)) < 0 {
+					if time.Since(req.StartTicks) > time.Hour*24*7 {
 						return nil, fmt.Errorf("can only fetch orders 7 days out")
 					}
 					orderHistory, err := b.UAllAccountOrders(fPair.String(), 0, 0, req.StartTicks, req.EndTicks)
