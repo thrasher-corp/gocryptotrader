@@ -1064,7 +1064,7 @@ func TestGetExchangeInfo(t *testing.T) {
 		t.Error(err)
 	}
 	if mockTests {
-		serverTime := time.Date(2020, 10, 16, 06, 32, 00, int(516*time.Millisecond), time.UTC)
+		serverTime := time.Date(2020, 10, 16, 6, 32, 00, int(516*time.Millisecond), time.UTC)
 		if !info.Servertime.Equal(serverTime) {
 			t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
 		}
