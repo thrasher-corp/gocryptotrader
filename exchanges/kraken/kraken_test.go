@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -75,6 +76,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	fmt.Printf("restarting")
 	sp, err := currency.NewPairFromString("XBTUSD")
 	if err != nil {
 		t.Error(err)
