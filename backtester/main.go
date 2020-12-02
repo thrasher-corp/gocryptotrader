@@ -49,5 +49,8 @@ func main() {
 		}
 	}
 
-	bt.Statistic.PrintResult()
+	err = bt.Statistic.CalculateTheResults()
+	if err != nil {
+		gctlog.Error(gctlog.BackTester, err)
+	}
 }

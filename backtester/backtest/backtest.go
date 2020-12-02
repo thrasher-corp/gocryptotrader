@@ -187,10 +187,11 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 		bt.Strategy.SetDefaults()
 	}
 
-	bt.Statistic = &statistics.Statistic{
+	stats := &statistics.Statistic{
 		StrategyName: cfg.StrategyToLoad,
+		EventsByTime: make(map[time.Time]map[string]map[asset.Item]map[currency.Pair]*statistics.EventStore),
 	}
-
+	bt.Statistic = stats
 	bt.PrintSettings(cfg)
 
 	return bt, nil
@@ -540,12 +541,14 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 		bt.Portfolio.Update(event)
 		// update statistics with latest price
 		bt.Statistic.Update(event, bt.Portfolio)
+		bt.Statistic.AddDataEventForTime(event)
 
 		s, err := bt.Strategy.OnSignal(bt.Data, bt.Portfolio)
 		if err != nil {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
 			break
 		}
+
 		bt.EventQueue = append(bt.EventQueue, s)
 	case signal.SignalEvent:
 		cs := bt.Exchange.GetCurrencySettings(event.GetExchange(), event.GetAssetType(), event.Pair())
@@ -554,8 +557,8 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
 			break
 		}
-		bt.EventQueue = append(bt.EventQueue, o)
 
+		bt.EventQueue = append(bt.EventQueue, o)
 	case exchange.OrderEvent:
 		fillEvent, err := bt.Exchange.ExecuteOrder(event, bt.Data)
 		if err != nil {
@@ -569,6 +572,18 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
 			break
 		}
+		holding := bt.Portfolio.ViewHoldingAtTimePeriod(event.GetExchange(), event.GetAssetType(), event.Pair(), event.GetTime())
+		bt.Statistic.AddHoldingsForTime(holding)
+		cp, err := bt.Portfolio.GetComplianceManager(event.GetExchange(), event.GetAssetType(), event.Pair())
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
+		snap, err := cp.GetSnapshot(event.GetTime())
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
+		bt.Statistic.AddComplianceSnapshotForTime(snap, event)
+		bt.Statistic.AddFillEventForTime(t)
 		bt.Statistic.TrackTransaction(t)
 	}
 

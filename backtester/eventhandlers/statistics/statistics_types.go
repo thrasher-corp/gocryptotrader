@@ -3,14 +3,33 @@ package statistics
 import (
 	"time"
 
-	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+type EventStore struct {
+	Holdings      holdings.Holding
+	Transactions  compliance.Snapshot
+	DataEvent     interfaces.DataEventHandler
+	SignalEvent   signal.SignalEvent
+	ExchangeEvent exchange.OrderEvent
+	FillEvent     fill.FillEvent
+	High          EquityPoint
+	Low           EquityPoint
+}
+
 // Statistic
 type Statistic struct {
+	EventsByTime map[time.Time]map[string]map[asset.Item]map[currency.Pair]*EventStore
+	///////////////////////////////////////////////
 	EventHistory       []interfaces.EventHandler
 	TransactionHistory []fill.FillEvent
 	Equity             []EquityPoint
@@ -32,10 +51,20 @@ type EquityPoint struct {
 
 // Handler interface handles
 type Handler interface {
+	AddDataEventForTime(interfaces.DataEventHandler)
+	AddSignalEventForTime(signal.SignalEvent)
+	AddExchangeEventForTime(exchange.OrderEvent)
+	AddFillEventForTime(fill.FillEvent)
+
+	AddHoldingsForTime(holdings.Holding)
+	AddComplianceSnapshotForTime(compliance.Snapshot, fill.FillEvent)
+
+	CalculateTheResults() error
+	//////////////////////////////////////
 	TrackEvent(interfaces.EventHandler)
 	Events() []interfaces.EventHandler
 
-	Update(interfaces.DataEventHandler, portfolio2.Handler)
+	Update(interfaces.DataEventHandler, portfolio.Handler)
 	TrackTransaction(fill.FillEvent)
 	Transactions() []fill.FillEvent
 

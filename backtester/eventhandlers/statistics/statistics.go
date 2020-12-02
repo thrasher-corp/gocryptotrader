@@ -13,11 +13,124 @@ import (
 	"gonum.org/v1/gonum/stat"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+// AddDataEventForTime sets up the big map for to store important data at each time interval
+func (s *Statistic) AddDataEventForTime(e interfaces.DataEventHandler) {
+	ex := e.GetExchange()
+	a := e.GetAssetType()
+	p := e.Pair()
+	t := e.GetTime()
+
+	if s.EventsByTime[t] == nil {
+		s.EventsByTime[t] = make(map[string]map[asset.Item]map[currency.Pair]*EventStore)
+	}
+	if s.EventsByTime[t][ex] == nil {
+		s.EventsByTime[t][ex] = make(map[asset.Item]map[currency.Pair]*EventStore)
+	}
+	if s.EventsByTime[t][ex][a] == nil {
+		s.EventsByTime[t][ex][a] = make(map[currency.Pair]*EventStore)
+	}
+	if s.EventsByTime[t][ex][a][p] == nil {
+		s.EventsByTime[t][ex][a][p] = &EventStore{
+			DataEvent: e,
+		}
+	}
+}
+
+// AddSignalEventForTime adds strategy signal event to the statistics at the time period
+func (s *Statistic) AddSignalEventForTime(e signal.SignalEvent) {
+	s.EventsByTime[e.GetTime()][e.GetExchange()][e.GetAssetType()][e.Pair()].SignalEvent = e
+}
+
+// AddExchangeEventForTime adds exchange event to the statistics at the time period
+func (s *Statistic) AddExchangeEventForTime(e exchange.OrderEvent) {
+	s.EventsByTime[e.GetTime()][e.GetExchange()][e.GetAssetType()][e.Pair()].ExchangeEvent = e
+}
+
+// AddFillEventForTime adds fill event to the statistics at the time period
+func (s *Statistic) AddFillEventForTime(e fill.FillEvent) {
+	s.EventsByTime[e.GetTime()][e.GetExchange()][e.GetAssetType()][e.Pair()].FillEvent = e
+}
+
+// AddHoldingsForTime adds all holdings to the statistics at the time period
+func (s *Statistic) AddHoldingsForTime(h holdings.Holding) {
+	s.EventsByTime[h.Timestamp][h.Exchange][h.Asset][h.Pair].Holdings = h
+}
+
+// AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period
+func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.FillEvent) {
+	s.EventsByTime[e.GetTime()][e.GetExchange()][e.GetAssetType()][e.Pair()].Transactions = c
+}
+
+func (s *Statistic) CalculateTheResults() error {
+	for t, i := range s.EventsByTime {
+		for e, j := range i {
+			for a, k := range j {
+				for p, l := range k {
+					if l.FillEvent != nil {
+						direction := l.FillEvent.GetDirection()
+						if direction == common.CouldNotBuy || direction == common.CouldNotSell || direction == common.DoNothing {
+							log.Infof(log.BackTester, "%v - %v %v %v - Direction: %v - ClosePrice: %v - Why: %s",
+								t.Format(gctcommon.SimpleTimeFormat),
+								e,
+								a.String(),
+								p.String(),
+								l.FillEvent.GetDirection(),
+								l.FillEvent.GetClosePrice(),
+								l.FillEvent.GetWhy())
+						} else {
+							log.Infof(log.BackTester, "%v - %v %v %v - %v - Direction %v - Fee: %v - Amount: %v - Price: %v - ClosePrice: %v - Why: %s",
+								t.Format(gctcommon.SimpleTimeFormat),
+								e,
+								a.String(),
+								p.String(),
+								l.FillEvent.GetDirection(),
+								l.FillEvent.GetExchangeFee(),
+								l.FillEvent.GetAmount(),
+								l.FillEvent.GetPurchasePrice(),
+								l.FillEvent.GetClosePrice(),
+								l.FillEvent.GetWhy())
+						}
+					} else if l.ExchangeEvent != nil {
+						log.Infof(log.BackTester, "%v - %v %v %v - Direction: %v - Why: %s",
+							t.Format(gctcommon.SimpleTimeFormat),
+							e,
+							a.String(),
+							p.String(),
+							l.ExchangeEvent.GetDirection(),
+							l.ExchangeEvent.GetWhy())
+					} else if l.SignalEvent != nil {
+						log.Infof(log.BackTester, "%v - %v %v %v - Direction: %v - Why: %s",
+							t.Format(gctcommon.SimpleTimeFormat),
+							e,
+							a.String(),
+							p.String(),
+							l.SignalEvent.GetDirection(),
+							l.SignalEvent.GetWhy())
+					} else if l.DataEvent != nil {
+						log.Infof(log.BackTester, "%v - %v %v %v - Price: %v", l.DataEvent.Price())
+					} else {
+						log.Error(log.BackTester, "things are bad")
+
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
 
 // Update Statistic for event
 func (s *Statistic) Update(d interfaces.DataEventHandler, p portfolio.Handler) {

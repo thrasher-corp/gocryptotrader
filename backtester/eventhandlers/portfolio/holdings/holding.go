@@ -45,12 +45,18 @@ func Create(f fill.FillEvent, initialFunds float64) (Holding, error) {
 		return Holding{}, errors.New("initial funds <= 0")
 	}
 	h := Holding{
+		Pair:           f.Pair(),
+		Asset:          f.GetAssetType(),
+		Exchange:       f.GetExchange(),
 		Timestamp:      f.GetTime(),
 		InitialFunds:   initialFunds,
 		RemainingFunds: initialFunds,
 	}
 
-	h.update(f)
+	err := h.update(f)
+	if err != nil {
+		return h, err
+	}
 	return h, nil
 }
 
