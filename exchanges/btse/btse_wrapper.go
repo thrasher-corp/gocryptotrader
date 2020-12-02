@@ -328,23 +328,24 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 		return nil, err
 	}
 
-	orderBook := new(orderbook.Base)
+	book := new(orderbook.Base)
 	for x := range a.BuyQuote {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Price:  a.BuyQuote[x].Price,
 			Amount: a.BuyQuote[x].Size})
 	}
 	for x := range a.SellQuote {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Price:  a.SellQuote[x].Price,
 			Amount: a.SellQuote[x].Size})
 	}
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-	err = orderBook.Process()
+	orderbook.Reverse(&book.Asks) // Reverse asks for correct alignment
+	book.Pair = p
+	book.ExchangeName = b.Name
+	book.AssetType = assetType
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 	return orderbook.Get(b.Name, p, assetType)
 }

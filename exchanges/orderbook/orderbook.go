@@ -25,8 +25,6 @@ func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatc
 	defer service.Unlock()
 	book, ok := service.Books[exchange][p.Base.Item][p.Quote.Item][a]
 	if !ok {
-
-		fmt.Printf("%+v\n", service.Books)
 		return dispatch.Pipe{},
 			fmt.Errorf("orderbook item not found for %s %s %s",
 				exchange,
@@ -128,7 +126,6 @@ func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 
 // Retrieve gets orderbook data from the slice
 func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
-	fmt.Println("HELLLOOO")
 	s.Lock()
 	defer s.Unlock()
 	m1, ok := s.Books[strings.ToLower(exchange)]
@@ -210,6 +207,8 @@ func (b *Base) Verify() error {
 			if b.Bids[i].ID != 0 {
 				if b.Bids[i].ID == b.Bids[i-1].ID {
 					fmt.Println(b.Bids[i], b.Bids[i-1])
+					fmt.Println("BOOK:", b.Bids)
+					panic("BID")
 					return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 				}
 				continue
@@ -236,6 +235,8 @@ func (b *Base) Verify() error {
 			if b.Asks[i].ID != 0 {
 				if b.Asks[i].ID == b.Asks[i-1].ID {
 					fmt.Println(b.Asks[i], b.Asks[i-1])
+					fmt.Println("BOOK:", b.Asks)
+					panic("ASK")
 					return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 				}
 				continue
@@ -274,6 +275,17 @@ func (b *Base) Process() error {
 	}
 
 	return service.Update(b)
+}
+
+// Reverse reverses the order of orderbook items; some bid/asks are returned
+// without correct allignment. This is faster than using a sort algorithm
+func Reverse(elem *[]Item) {
+	eLen := len(*elem)
+	var target int
+	for i := eLen/2 - 1; i >= 0; i-- {
+		target = eLen - 1 - i
+		([]Item)(*elem)[i], ([]Item)(*elem)[target] = ([]Item)(*elem)[target], ([]Item)(*elem)[i]
+	}
 }
 
 // SortAsks sorts ask items to the correct relative order

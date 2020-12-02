@@ -434,7 +434,6 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("MEOW:", p)
 	return b.SeedLocalCacheWithBook(p, &ob)
 }
 

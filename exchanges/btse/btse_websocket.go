@@ -234,7 +234,6 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		var newOB orderbook.Base
-		var asks []orderbook.Item
 		var price, amount float64
 		for i := range t.Data.SellQuote {
 			p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
@@ -247,7 +246,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			asks = append(asks, orderbook.Item{
+			newOB.Asks = append(newOB.Asks, orderbook.Item{
 				Price:  price,
 				Amount: amount,
 			})
@@ -280,7 +279,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		newOB.Pair = p
 		newOB.AssetType = a
 		newOB.ExchangeName = b.Name
-		newOB.Asks = orderbook.SortAsks(asks)
+		orderbook.Reverse(&newOB.Asks) // Reverse asks for correct alignment
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {
 			return err

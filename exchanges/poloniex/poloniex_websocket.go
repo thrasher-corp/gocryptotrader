@@ -104,7 +104,6 @@ func (p *Poloniex) wsReadData() {
 }
 
 func (p *Poloniex) wsHandleData(respRaw []byte) error {
-	fmt.Println("WOW:", string(respRaw))
 	var result interface{}
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -469,50 +468,45 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 // of orderbooks
 func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) error {
 	askdata := ob[0].(map[string]interface{})
-	var asks []orderbook.Item
+	var book orderbook.Base
 	for price, volume := range askdata {
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
-
 		a, err := strconv.ParseFloat(volume.(string), 64)
 		if err != nil {
 			return err
 		}
-
-		asks = append(asks, orderbook.Item{Price: p, Amount: a})
+		book.Asks = append(book.Asks, orderbook.Item{Price: p, Amount: a})
 	}
 
 	bidData := ob[1].(map[string]interface{})
-	var bids []orderbook.Item
 	for price, volume := range bidData {
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
-
 		a, err := strconv.ParseFloat(volume.(string), 64)
 		if err != nil {
 			return err
 		}
-
-		bids = append(bids, orderbook.Item{Price: p, Amount: a})
+		book.Bids = append(book.Bids, orderbook.Item{Price: p, Amount: a})
 	}
 
-	var newOrderBook orderbook.Base
-	newOrderBook.Asks = orderbook.SortAsks(asks)
-	newOrderBook.Bids = orderbook.SortBids(bids)
-	newOrderBook.AssetType = asset.Spot
+	// Both sides are completely out of order - sort needs to be used
+	book.Asks = orderbook.SortAsks(book.Asks)
+	book.Bids = orderbook.SortBids(book.Bids)
+	book.AssetType = asset.Spot
 
 	var err error
-	newOrderBook.Pair, err = currency.NewPairFromString(symbol)
+	book.Pair, err = currency.NewPairFromString(symbol)
 	if err != nil {
 		return err
 	}
-	newOrderBook.ExchangeName = p.Name
+	book.ExchangeName = p.Name
 
-	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return p.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
 // WsProcessOrderbookUpdate processes new orderbook updates

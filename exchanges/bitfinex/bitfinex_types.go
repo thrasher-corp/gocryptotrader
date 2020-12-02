@@ -8,6 +8,9 @@ import (
 
 // AcceptedOrderType defines the accepted market types, exchange strings denote
 // non-contract order types.
+// non-contract order types.
+// non-contract order types.
+// non-contract order types.
 var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
 	"fill-or-kill", "exchange market", "exchange limit", "exchange stop",
 	"exchange trailing-stop", "exchange fill-or-kill"}

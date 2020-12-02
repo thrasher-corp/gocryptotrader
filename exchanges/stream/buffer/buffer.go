@@ -103,6 +103,8 @@ func (w *Orderbook) Update(u *Update) error {
 	return nil
 }
 
+// processBufferUpdate stores update into buffer, when buffer at capacity as
+// defined by w.obBufferLimit it well then sort and apply updates.
 func (w *Orderbook) processBufferUpdate(o *orderbook.Base, u *Update) (bool, error) {
 	m1, ok := w.buffer[u.Pair.Base]
 	if !ok {
@@ -121,26 +123,25 @@ func (w *Orderbook) processBufferUpdate(o *orderbook.Base, u *Update) (bool, err
 		m2[u.Asset] = buffer
 	}
 
-	if len(*buffer)+1 < w.obBufferLimit {
-		*buffer = append(*buffer, *u)
+	*buffer = append(*buffer, *u)
+	if len(*buffer) < w.obBufferLimit {
 		return false, nil
 	}
 
-	tmp := append(*buffer, *u)
 	if w.sortBuffer {
 		// sort by last updated to ensure each update is in order
 		if w.sortBufferByUpdateIDs {
-			sort.Slice(tmp, func(i, j int) bool {
-				return tmp[i].UpdateID < tmp[j].UpdateID
+			sort.Slice(*buffer, func(i, j int) bool {
+				return ([]Update)(*buffer)[i].UpdateID < ([]Update)(*buffer)[j].UpdateID
 			})
 		} else {
-			sort.Slice(tmp, func(i, j int) bool {
-				return tmp[i].UpdateTime.Before(tmp[j].UpdateTime)
+			sort.Slice(*buffer, func(i, j int) bool {
+				return ([]Update)(*buffer)[i].UpdateTime.Before(([]Update)(*buffer)[j].UpdateTime)
 			})
 		}
 	}
-	for i := range tmp {
-		err := w.processObUpdate(o, &tmp[i])
+	for i := range *buffer {
+		err := w.processObUpdate(o, &([]Update)(*buffer)[i])
 		if err != nil {
 			return false, err
 		}
@@ -150,6 +151,8 @@ func (w *Orderbook) processBufferUpdate(o *orderbook.Base, u *Update) (bool, err
 	return true, nil
 }
 
+// processObUpdate processes updates either by its corresponding id or by
+// price level
 func (w *Orderbook) processObUpdate(o *orderbook.Base, u *Update) error {
 	o.LastUpdateID = u.UpdateID
 	if w.updateEntriesByID {
@@ -158,241 +161,256 @@ func (w *Orderbook) processObUpdate(o *orderbook.Base, u *Update) error {
 	return w.updateByPrice(o, u)
 }
 
-func (w *Orderbook) updateByPrice(o *orderbook.Base, u *Update) error {
+// updateByPrice ammends amount if match occurs by price, deletes if amount is
+// zero or less and inserts if not found.
+func (w *Orderbook) updateByPrice(book *orderbook.Base, updts *Update) error {
 askUpdates:
-	for j := range u.Asks {
-		for k := range o.Asks {
-			if o.Asks[k].Price == u.Asks[j].Price {
-				if u.Asks[j].Amount <= 0 {
-					o.Asks = append(o.Asks[:k], o.Asks[k+1:]...)
+	for j := range updts.Asks {
+		for target := range book.Asks {
+			if book.Asks[target].Price == updts.Asks[j].Price {
+				if updts.Asks[j].Amount <= 0 {
+					book.Asks = append(book.Asks[:target], book.Asks[target+1:]...)
 					continue askUpdates
 				}
-				o.Asks[k].Amount = u.Asks[j].Amount
-				continue askUpdates
-			}
-
-			if o.Asks[k].Price > u.Asks[j].Price && u.Asks[j].Amount > 0 {
-				insertItem(u.Asks[j], &o.Asks, k)
+				book.Asks[target].Amount = updts.Asks[j].Amount
 				continue askUpdates
 			}
 		}
+		if updts.Asks[j].Amount <= 0 {
+			continue
+		}
+		insertAsk(updts.Asks[j], &book.Asks)
 	}
-
 bidUpdates:
-	for j := range u.Bids {
-		for k := range o.Bids {
-			if o.Bids[k].Price == u.Bids[j].Price {
-				if u.Bids[j].Amount <= 0 {
-					o.Bids = append(o.Bids[:k], o.Bids[k+1:]...)
+	for j := range updts.Bids {
+		for target := range book.Bids {
+			if book.Bids[target].Price == updts.Bids[j].Price {
+				if updts.Bids[j].Amount <= 0 {
+					book.Bids = append(book.Bids[:target], book.Bids[target+1:]...)
 					continue bidUpdates
 				}
-				o.Bids[k].Amount = u.Bids[j].Amount
-				continue bidUpdates
-			}
-
-			if o.Bids[k].Price < u.Bids[j].Price && u.Bids[j].Amount > 0 {
-				insertItem(u.Bids[j], &o.Bids, k)
+				book.Bids[target].Amount = updts.Bids[j].Amount
 				continue bidUpdates
 			}
 		}
+		if updts.Bids[j].Amount <= 0 {
+			continue
+		}
+		insertBid(updts.Bids[j], &book.Bids)
 	}
 	return nil
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
 // it will then match by IDs instead of price to perform the action
-func (w *Orderbook) updateByIDAndAction(o *orderbook.Base, u *Update) (err error) {
-	fmt.Printf("%+v\n", u)
-	switch u.Action {
+func (w *Orderbook) updateByIDAndAction(book *orderbook.Base, updts *Update) (err error) {
+	switch updts.Action {
 	case Amend:
-		fmt.Println("amend")
-		err = applyUpdates(&u.Bids, &o.Bids)
+		err = applyUpdates(updts.Bids, &book.Bids)
 		if err != nil {
 			return err
 		}
-		err = applyUpdates(&u.Asks, &o.Asks)
+		err = applyUpdates(updts.Asks, &book.Asks)
 		if err != nil {
 			return err
 		}
 	case Delete:
-		fmt.Println("delete")
-		err = deleteUpdates(&u.Bids, &o.Bids)
+		err = deleteUpdates(updts.Bids, &book.Bids)
 		if err != nil {
 			return err
 		}
-		err = deleteUpdates(&u.Asks, &o.Asks)
+		err = deleteUpdates(updts.Asks, &book.Asks)
 		if err != nil {
 			return err
 		}
 	case Insert:
-		fmt.Println("insert")
-		insertUpdatesBid(&u.Bids, &o.Bids)
-		insertUpdatesAsk(&u.Asks, &o.Asks)
+		insertUpdatesBid(updts.Bids, &book.Bids)
+		insertUpdatesAsk(updts.Asks, &book.Asks)
 	case UpdateInsert:
-		fmt.Println("update insert")
 	updateBids:
-		for x := range u.Bids {
-			for y := range o.Bids {
-				if o.Bids[y].ID == u.Bids[x].ID {
-					o.Bids[y].Amount = u.Bids[x].Amount
-					continue updateBids
-				}
-
-				if o.Bids[y].Price > u.Bids[x].Price {
-					insertItem(u.Bids[x], &o.Bids, y)
+		for x := range updts.Bids {
+			for target := range book.Bids { // First iteration finds ID matches
+				if book.Bids[target].ID == updts.Bids[x].ID {
+					if book.Bids[target].Price != updts.Bids[x].Price {
+						// Price change occured so correct bid alignment is
+						// needed - delete instance and insert into correct
+						// price level
+						book.Bids = append(book.Bids[:target], book.Bids[target+1:]...)
+						break
+					}
+					book.Bids[target].Amount = updts.Bids[x].Amount
 					continue updateBids
 				}
 			}
-			return errors.New("good ness")
+			insertBid(updts.Bids[x], &book.Bids)
 		}
-
 	updateAsks:
-		for x := range u.Asks {
-			for y := range o.Asks {
-				if o.Asks[y].ID == u.Asks[x].ID {
-					o.Asks[y].Amount = u.Asks[x].Amount
-					continue updateAsks
-				}
-
-				if o.Asks[y].Price < u.Asks[x].Price {
-					insertItem(u.Asks[x], &o.Asks, y)
+		for x := range updts.Asks {
+			for target := range book.Asks {
+				if book.Asks[target].ID == updts.Asks[x].ID {
+					if book.Asks[target].Price != updts.Asks[x].Price {
+						// Price change occured so correct ask alignment is
+						// needed - delete instance and insert into correct
+						// price level
+						book.Asks = append(book.Asks[:target], book.Asks[target+1:]...)
+						break
+					}
+					book.Asks[target].Amount = updts.Asks[x].Amount
 					continue updateAsks
 				}
 			}
-			return errors.New("good ness")
+			insertAsk(updts.Asks[x], &book.Asks)
 		}
-
 	default:
-		return fmt.Errorf("invalid action [%s]", u.Action)
+		return fmt.Errorf("invalid action [%s]", updts.Action)
 	}
 	return nil
 }
 
-func applyUpdates(u, b *[]orderbook.Item) error {
+// applyUpdates amends amount by ID and returns an error if not found
+func applyUpdates(updt []orderbook.Item, book *[]orderbook.Item) error {
 updates:
-	for x := range *u {
-		for y := range *b {
-			if ([]orderbook.Item)(*b)[y].ID == ([]orderbook.Item)(*u)[x].ID {
-				([]orderbook.Item)(*b)[y].Amount = ([]orderbook.Item)(*u)[x].Amount
+	for x := range updt {
+		for y := range *book {
+			if ([]orderbook.Item)(*book)[y].ID == updt[x].ID {
+				([]orderbook.Item)(*book)[y].Amount = updt[x].Amount
 				continue updates
 			}
 		}
 		return fmt.Errorf("update cannot be applied id: %d not found",
-			([]orderbook.Item)(*u)[x].ID)
+			updt[x].ID)
 	}
 	return nil
 }
 
-func deleteUpdates(u, b *[]orderbook.Item) error {
+// deleteUpdates removes updates from orderbook and returns an error if not
+// found
+func deleteUpdates(updt []orderbook.Item, book *[]orderbook.Item) error {
 updates:
-	for x := range *u {
-		for y := range *b {
-			if ([]orderbook.Item)(*b)[y].ID == ([]orderbook.Item)(*u)[x].ID {
-				*b = append(([]orderbook.Item)(*b)[:y], ([]orderbook.Item)(*b)[y+1:]...)
+	for x := range updt {
+		for y := range *book {
+			if ([]orderbook.Item)(*book)[y].ID == updt[x].ID {
+				*book = append(([]orderbook.Item)(*book)[:y], ([]orderbook.Item)(*book)[y+1:]...)
 				continue updates
 			}
 		}
 		return fmt.Errorf("update cannot be deleted id: %d not found",
-			([]orderbook.Item)(*u)[x].ID)
+			updt[x].ID)
 	}
 	return nil
 }
 
-// insertUpdatesBid inserts on correctly aligned book at price level
-func insertUpdatesBid(u, b *[]orderbook.Item) {
-	for x := range *u {
-		fmt.Println("PEW BIDS")
-		for y := range *b {
-			if ([]orderbook.Item)(*u)[x].ID == ([]orderbook.Item)(*b)[y].ID {
-				return
-			}
-			if ([]orderbook.Item)(*u)[x].Price > ([]orderbook.Item)(*b)[y].Price {
-				if ([]orderbook.Item)(*u)[x].ID == ([]orderbook.Item)(*b)[y+1].ID {
-					return
-				}
-				insertItem(([]orderbook.Item)(*u)[x], b, y)
+func insertAsk(updt orderbook.Item, book *[]orderbook.Item) {
+	for target := range *book {
+		if updt.Price < ([]orderbook.Item)(*book)[target].Price {
+			insertItem(updt, book, target)
+			return
+		}
+	}
+	*book = append(*book, updt)
+}
+
+func insertBid(updt orderbook.Item, book *[]orderbook.Item) {
+	for target := range *book {
+		if updt.Price > ([]orderbook.Item)(*book)[target].Price {
+			insertItem(updt, book, target)
+			return
+		}
+	}
+	*book = append(*book, updt)
+}
+
+// insertUpdatesBid inserts on **correctly aligned** book at price level
+func insertUpdatesBid(updt []orderbook.Item, book *[]orderbook.Item) {
+updates:
+	for x := range updt {
+		for target := range *book {
+			if updt[x].Price > ([]orderbook.Item)(*book)[target].Price {
+				insertItem(updt[x], book, target)
+				continue updates
 			}
 		}
+		*book = append(*book, updt[x])
 	}
 }
 
-// insertUpdatesBid inserts on correctly aligned book at price level
-func insertUpdatesAsk(u, b *[]orderbook.Item) {
-	for x := range *u {
-		fmt.Println("PEW ASKS")
-		for y := range *b {
-			if ([]orderbook.Item)(*u)[x].ID == ([]orderbook.Item)(*b)[y].ID {
-				return
-			}
-
-		}
-		for y := range *b {
-			if ([]orderbook.Item)(*u)[x].Price < ([]orderbook.Item)(*b)[y].Price {
-				insertItem(([]orderbook.Item)(*u)[x], b, y)
+// insertUpdatesBid inserts on **correctly aligned** book at price level
+func insertUpdatesAsk(updt []orderbook.Item, book *[]orderbook.Item) {
+updates:
+	for x := range updt {
+		for target := range *book {
+			if updt[x].Price < ([]orderbook.Item)(*book)[target].Price {
+				insertItem(updt[x], book, target)
+				continue updates
 			}
 		}
+		*book = append(*book, updt[x])
 	}
 }
 
+// insertItem inserts item in slice by target element this is an optimization
+// to reduce the need for sorting algorithms
 func insertItem(update orderbook.Item, book *[]orderbook.Item, target int) {
+	// TODO: extend slice by incoming update length before this gets hit
 	*book = append(*book, orderbook.Item{})
 	copy(([]orderbook.Item)(*book)[target+1:], ([]orderbook.Item)(*book)[target:])
 	([]orderbook.Item)(*book)[target] = update
 }
 
 // LoadSnapshot loads initial snapshot of ob data from websocket
-func (w *Orderbook) LoadSnapshot(newOrderbook *orderbook.Base) error {
+func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	w.m.Lock()
 	defer w.m.Unlock()
 
-	err := newOrderbook.Process()
+	err := book.Process()
 	if err != nil {
 		return err
 	}
 
-	m1, ok := w.ob[newOrderbook.Pair.Base]
+	m1, ok := w.ob[book.Pair.Base]
 	if !ok {
 		m1 = make(map[currency.Code]map[asset.Item]*orderbook.Base)
-		w.ob[newOrderbook.Pair.Base] = m1
+		w.ob[book.Pair.Base] = m1
 	}
-	m2, ok := m1[newOrderbook.Pair.Quote]
+	m2, ok := m1[book.Pair.Quote]
 	if !ok {
 		m2 = make(map[asset.Item]*orderbook.Base)
-		m1[newOrderbook.Pair.Quote] = m2
+		m1[book.Pair.Quote] = m2
 	}
-	m3, ok := m2[newOrderbook.AssetType]
+	m3, ok := m2[book.AssetType]
 	if !ok {
-		m3 = &orderbook.Base{
-			Pair:         newOrderbook.Pair,
-			LastUpdated:  newOrderbook.LastUpdated,
-			LastUpdateID: newOrderbook.LastUpdateID,
-			AssetType:    newOrderbook.AssetType,
-			ExchangeName: newOrderbook.ExchangeName,
-		}
-		m2[newOrderbook.AssetType] = m3
+		m3 = book
+		m2[book.AssetType] = m3
+	} else {
+		m3.Bids = book.Bids
+		m3.Asks = book.Asks
 	}
-	m3.Bids = newOrderbook.Bids
-	m3.Asks = newOrderbook.Asks
 
-	w.dataHandler <- newOrderbook
+	w.dataHandler <- book
 	return nil
 }
 
-// GetOrderbook use sparingly. Modifying anything here will ruin hash
-// calculation and cause problems
+// GetOrderbook returns orderbook stored in current buffer
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base {
 	w.m.Lock()
-	ob := w.ob[p.Base][p.Quote][a]
-	w.m.Unlock()
-	return ob
+	defer w.m.Unlock()
+	ptr := w.ob[p.Base][p.Quote][a]
+	return ptr
+	// if !ok {
+	// 	return nil
+	// }
+	// cpy := &(*ptr)
+	// cpy.Asks = append(ptr.Asks[:0:0], ptr.Asks...)
+	// cpy.Bids = append(ptr.Bids[:0:0], ptr.Bids...)
+	// return cpy
 }
 
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
 func (w *Orderbook) FlushBuffer() {
 	w.m.Lock()
-	w.ob = nil
-	w.buffer = nil
+	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
+	w.buffer = make(map[currency.Code]map[currency.Code]map[asset.Item]*[]Update)
 	w.m.Unlock()
 }
 

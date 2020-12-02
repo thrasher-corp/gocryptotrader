@@ -817,3 +817,60 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 		t.Errorf("Insufficient updates")
 	}
 }
+
+func TestInsertItem(t *testing.T) {
+	update := []orderbook.Item{{Price: 4}}
+
+	// Correctly aligned
+	asks := []orderbook.Item{
+		{
+			Price: 1,
+		},
+		{
+			Price: 2,
+		},
+		{
+			Price: 3,
+		},
+		{
+			Price: 5,
+		},
+		{
+			Price: 6,
+		},
+		{
+			Price: 7,
+		},
+	}
+
+	insertUpdatesAsk(update, &asks)
+	if asks[3].Price != 4 {
+		t.Fatal("incorrect insertion")
+	}
+
+	bids := []orderbook.Item{
+		{
+			Price: 7,
+		},
+		{
+			Price: 6,
+		},
+		{
+			Price: 5,
+		},
+		{
+			Price: 3,
+		},
+		{
+			Price: 2,
+		},
+		{
+			Price: 1,
+		},
+	}
+
+	insertUpdatesBid(update, &bids)
+	if asks[3].Price != 4 {
+		t.Fatal("incorrect insertion")
+	}
+}

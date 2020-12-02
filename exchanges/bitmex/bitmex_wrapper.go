@@ -349,30 +349,28 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 		return nil, err
 	}
 
-	orderBook := new(orderbook.Base)
+	book := new(orderbook.Base)
 	for i := range orderbookNew {
 		if strings.EqualFold(orderbookNew[i].Side, order.Sell.String()) {
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price})
 			continue
 		}
 		if strings.EqualFold(orderbookNew[i].Side, order.Buy.String()) {
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price})
 		}
 	}
+	book.Pair = p
+	book.ExchangeName = b.Name
+	book.AssetType = assetType
 
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
-
 	return orderbook.Get(b.Name, p, assetType)
 }
 

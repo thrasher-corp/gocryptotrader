@@ -126,17 +126,16 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		var asks []orderbook.Item
+		var book orderbook.Base
 		for i := range depth.Asks {
-			asks = append(asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: depth.Asks[i][1].(float64),
 				Price:  depth.Asks[i][0].(float64),
 			})
 		}
 
-		var bids []orderbook.Item
 		for i := range depth.Bids {
-			bids = append(bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: depth.Bids[i][1].(float64),
 				Price:  depth.Bids[i][0].(float64),
 			})
@@ -148,14 +147,12 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		var newOrderBook orderbook.Base
-		newOrderBook.Asks = orderbook.SortAsks(asks)
-		newOrderBook.Bids = bids
-		newOrderBook.AssetType = asset.Spot
-		newOrderBook.Pair = cPair
-		newOrderBook.ExchangeName = z.Name
+		orderbook.Reverse(&book.Asks) // Reverse asks for correct alignment
+		book.AssetType = asset.Spot
+		book.Pair = cPair
+		book.ExchangeName = z.Name
 
-		err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		err = z.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
 			return err
 		}

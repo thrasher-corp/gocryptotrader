@@ -500,26 +500,25 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 	switch action {
 	case bitmexActionInitialData:
-		var newOrderBook orderbook.Base
-		var asks []orderbook.Item
+		var book orderbook.Base
 		for i := range data {
-			nItem := orderbook.Item{
+			item := orderbook.Item{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
 			}
 			if strings.EqualFold(data[i].Side, order.Sell.String()) {
-				asks = append(asks, nItem)
+				book.Asks = append(book.Asks, item)
 				continue
 			}
-			newOrderBook.Bids = append(newOrderBook.Bids, nItem)
+			book.Bids = append(book.Bids, item)
 		}
-		newOrderBook.Asks = orderbook.SortAsks(asks)
-		newOrderBook.AssetType = a
-		newOrderBook.Pair = p
-		newOrderBook.ExchangeName = b.Name
+		orderbook.Reverse(&book.Asks) // Reverse asks for correct alignment
+		book.AssetType = a
+		book.Pair = p
+		book.ExchangeName = b.Name
 
-		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		err := b.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
 			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 				err)
@@ -538,8 +537,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			}
 			bids = append(bids, nItem)
 		}
-
-		fmt.Println("OUTBOUND:", asks, bids)
 
 		err := b.Websocket.Orderbook.Update(&buffer.Update{
 			Bids:   bids,
