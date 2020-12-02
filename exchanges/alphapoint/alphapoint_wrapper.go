@@ -271,6 +271,11 @@ func (a *Alphapoint) CancelOrder(o *order.Cancel) error {
 	return err
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (a *Alphapoint) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders for a given account
 func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {

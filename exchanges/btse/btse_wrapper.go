@@ -537,6 +537,11 @@ func (b *BTSE) CancelOrder(o *order.Cancel) error {
 	return nil
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (b *BTSE) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 // If product ID is sent, all orders of that specified market will be cancelled
 // If not specified, all orders of all markets will be cancelled

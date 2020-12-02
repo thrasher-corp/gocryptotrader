@@ -26,6 +26,8 @@ const (
 	krakenAPIURL     = "https://api.kraken.com"
 	krakenFuturesURL = "https://futures.kraken.com"
 	futuresURL       = "https://futures.kraken.com/derivatives"
+	// Status consts
+	StatusOpen = "open"
 )
 
 // Kraken is the overarching type across the alphapoint package

@@ -558,6 +558,11 @@ func (c *CoinbasePro) CancelOrder(o *order.Cancel) error {
 	return c.CancelExistingOrder(o.ID)
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (c *CoinbasePro) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *CoinbasePro) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	// CancellAllExisting orders returns a list of successful cancellations, we're only interested in failures

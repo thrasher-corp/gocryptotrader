@@ -8,6 +8,10 @@ CRON = $(TRAVIS_EVENT_TYPE)
 DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 
+.PHONY: get linter check test build install update_deps
+
+all: check build
+
 get:
 	GO111MODULE=on go get $(GCTPKG)
 

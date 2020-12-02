@@ -785,3 +785,36 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetAccountInfo(t *testing.T) {
+	bot := SetupTestHelpers(t)
+	s := RPCServer{Engine: bot}
+
+	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
+	if err != nil {
+		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
+	}
+
+	if r.Accounts[0].Currencies[0].TotalValue != 10 {
+		t.Fatal("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+	}
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	bot := SetupTestHelpers(t)
+	s := RPCServer{Engine: bot}
+
+	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
+	if err != nil {
+		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
+	}
+
+	updateResponse, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
+	if err != nil {
+		t.Fatalf("TestGetAccountInfo: Failed to update account info: %s", err)
+	}
+
+	if getResponse.Accounts[0].Currencies[0].TotalValue == updateResponse.Accounts[0].Currencies[0].TotalValue {
+		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+	}
+}

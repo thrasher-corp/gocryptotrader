@@ -369,6 +369,11 @@ func (b *Bitflyer) CancelOrder(_ *order.Cancel) error {
 	return common.ErrNotYetImplemented
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (b *Bitflyer) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bitflyer) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	// TODO, implement BitFlyer API

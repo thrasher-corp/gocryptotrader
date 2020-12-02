@@ -587,6 +587,28 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{nil}),
 		})
 
+		var request []order.Cancel
+		request = append(request, order.Cancel{
+			Side:      testOrderSide,
+			Pair:      p,
+			ID:        config.OrderSubmission.OrderID,
+			AssetType: assetTypes[i],
+		})
+
+		var CancelBatchOrdersResponse order.CancelBatchResponse
+		CancelBatchOrdersResponse, err = e.CancelBatchOrders(request)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			SentParams: jsonifyInterface([]interface{}{cancelRequest}),
+			Function:   "CancelBatchOrders",
+			Error:      msg,
+			Response:   jsonifyInterface([]interface{}{CancelBatchOrdersResponse}),
+		})
+
 		var cancellAllOrdersResponse order.CancelAllResponse
 		cancellAllOrdersResponse, err = e.CancelAllOrders(&cancelRequest)
 		msg = ""

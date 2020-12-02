@@ -96,13 +96,41 @@ func (h *FakePassingExchange) GetEnabledPairs(_ asset.Item) (currency.Pairs, err
 func (h *FakePassingExchange) GetAvailablePairs(_ asset.Item) (currency.Pairs, error) {
 	return currency.Pairs{}, nil
 }
+
 func (h *FakePassingExchange) FetchAccountInfo() (account.Holdings, error) {
-	return account.Holdings{}, nil
+	return account.Holdings{
+		Exchange: h.Name,
+		Accounts: []account.SubAccount{
+			{
+				Currencies: []account.Balance{
+					{
+						CurrencyName: currency.BTC,
+						TotalValue:   10.,
+						Hold:         0,
+					},
+				},
+			},
+		},
+	}, nil
 }
 
 func (h *FakePassingExchange) UpdateAccountInfo() (account.Holdings, error) {
-	return account.Holdings{}, nil
+	return account.Holdings{
+		Exchange: h.Name,
+		Accounts: []account.SubAccount{
+			{
+				Currencies: []account.Balance{
+					{
+						CurrencyName: currency.BTC,
+						TotalValue:   20.,
+						Hold:         0,
+					},
+				},
+			},
+		},
+	}, nil
 }
+
 func (h *FakePassingExchange) GetAuthenticatedAPISupport(_ uint8) bool { return true }
 func (h *FakePassingExchange) SetPairs(_ currency.Pairs, _ asset.Item, _ bool) error {
 	return nil
@@ -133,6 +161,9 @@ func (h *FakePassingExchange) SubmitOrder(_ *order.Submit) (order.SubmitResponse
 }
 func (h *FakePassingExchange) ModifyOrder(_ *order.Modify) (string, error) { return "", nil }
 func (h *FakePassingExchange) CancelOrder(_ *order.Cancel) error           { return nil }
+func (h *FakePassingExchange) CancelBatchOrders(_ []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, nil
+}
 func (h *FakePassingExchange) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, nil
 }

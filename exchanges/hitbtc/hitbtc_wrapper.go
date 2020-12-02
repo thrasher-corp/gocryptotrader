@@ -592,6 +592,11 @@ func (h *HitBTC) CancelOrder(o *order.Cancel) error {
 	return err
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (h *HitBTC) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (h *HitBTC) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{

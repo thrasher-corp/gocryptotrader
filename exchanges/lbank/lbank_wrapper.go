@@ -248,6 +248,7 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	if err != nil {
 		return nil, err
 	}
+
 	a, err := l.GetMarketDepths(fpair.String(), "60", "1")
 	if err != nil {
 		return orderBook, err
@@ -462,6 +463,11 @@ func (l *Lbank) CancelOrder(o *order.Cancel) error {
 	}
 	_, err = l.RemoveOrder(fpair.String(), o.ID)
 	return err
+}
+
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (l *Lbank) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

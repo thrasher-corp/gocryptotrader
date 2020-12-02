@@ -510,3 +510,8 @@ func (o *OKCoin) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade
 	sort.Sort(trade.ByDate(resp))
 	return resp, nil
 }
+
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (o *OKCoin) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}

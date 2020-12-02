@@ -565,6 +565,11 @@ func (p *Poloniex) CancelOrder(o *order.Cancel) error {
 	return p.CancelExistingOrder(orderIDInt)
 }
 
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (p *Poloniex) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
+}
+
 // CancelAllOrders cancels all orders associated with a currency pair
 func (p *Poloniex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	cancelAllOrdersResponse := order.CancelAllResponse{
