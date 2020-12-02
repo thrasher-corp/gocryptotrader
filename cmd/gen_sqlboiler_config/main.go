@@ -7,9 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -17,9 +15,8 @@ import (
 )
 
 var (
-	configFile     string
-	defaultDataDir string
-	outputFolder   string
+	configFile   string
+	outputFolder string
 )
 
 var sqlboilerConfig map[string]driverConfig
@@ -41,7 +38,6 @@ func main() {
 	fmt.Println()
 
 	flag.StringVar(&configFile, "config", config.DefaultFilePath(), "config file to load")
-	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.StringVar(&outputFolder, "outdir", "", "overwrite default output folder")
 	flag.Parse()
 
@@ -82,7 +78,7 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 		dbType = "psql"
 	}
 	if dbType == database.DBSQLite || dbType == database.DBSQLite3 {
-		tempConfig.DBName = convertDBName(c.Database)
+		tempConfig.DBName = getLoadedDBPath()
 	} else {
 		tempConfig.User = c.Username
 		tempConfig.Pass = c.Password
@@ -95,6 +91,7 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 	sqlboilerConfig[dbType] = tempConfig
 }
 
-func convertDBName(in string) string {
-	return filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "database", in)
+// getLoadedDBPath gets the path loaded by 'database/drivers/sqlite3'
+func getLoadedDBPath() string {
+	return filepath.Join(database.DB.DataPath, database.DB.Config.Database)
 }
