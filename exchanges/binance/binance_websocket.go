@@ -670,43 +670,49 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 	o.bmtx.Lock()
 	defer o.bmtx.Unlock()
 
-	_, ok := o.buffer[pair.Base]
+	m1, ok := o.buffer[pair.Base]
 	if !ok {
-		o.buffer[pair.Base] = make(map[currency.Code]map[asset.Item]chan *WebsocketDepthStream)
+		m1 = make(map[currency.Code]map[asset.Item]chan *WebsocketDepthStream)
+		o.buffer[pair.Base] = m1
 	}
 
-	_, ok = o.buffer[pair.Base][pair.Quote]
+	m2, ok := m1[pair.Quote]
 	if !ok {
-		o.buffer[pair.Base][pair.Quote] = make(map[asset.Item]chan *WebsocketDepthStream)
+		m2 = make(map[asset.Item]chan *WebsocketDepthStream)
+		m1[pair.Quote] = m2
 	}
 
-	ch, ok := o.buffer[pair.Base][pair.Quote][a]
+	ch, ok := m2[a]
 	if !ok {
 		ch = make(chan *WebsocketDepthStream, 100) // 100ms update assuming we
 		// might have up to a 10 second delay. There could be a potential 100
 		// updates for the currency.
-		o.buffer[pair.Base][pair.Quote][a] = ch
+		m2[a] = ch
 
 		// Set init and fetching tables.
-		_, ok := o.fetchingBook[pair.Base]
+		m11, ok := o.fetchingBook[pair.Base]
 		if !ok {
-			o.fetchingBook[pair.Base] = make(map[currency.Code]map[asset.Item]*bool)
+			m11 = make(map[currency.Code]map[asset.Item]*bool)
+			o.fetchingBook[pair.Base] = m11
 		}
-		_, ok = o.fetchingBook[pair.Base][pair.Quote]
+		m12, ok := m11[pair.Quote]
 		if !ok {
-			o.fetchingBook[pair.Base][pair.Quote] = make(map[asset.Item]*bool)
+			m12 = make(map[asset.Item]*bool)
+			m11[pair.Quote] = m12
 		}
-		o.fetchingBook[pair.Base][pair.Quote][a] = convert.BoolPtr(false)
+		m12[a] = convert.BoolPtr(false)
 
-		_, ok = o.initialSync[pair.Base]
+		m21, ok := o.initialSync[pair.Base]
 		if !ok {
-			o.initialSync[pair.Base] = make(map[currency.Code]map[asset.Item]*bool)
+			m21 = make(map[currency.Code]map[asset.Item]*bool)
+			o.initialSync[pair.Base] = m21
 		}
-		_, ok = o.initialSync[pair.Base][pair.Quote]
+		m22, ok := m21[pair.Quote]
 		if !ok {
-			o.initialSync[pair.Base][pair.Quote] = make(map[asset.Item]*bool)
+			m22 = make(map[asset.Item]*bool)
+			m21[pair.Quote] = m22
 		}
-		o.initialSync[pair.Base][pair.Quote][a] = convert.BoolPtr(true)
+		m22[a] = convert.BoolPtr(true)
 	}
 
 	select {

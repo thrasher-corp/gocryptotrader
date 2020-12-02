@@ -206,9 +206,6 @@ func (b *Base) Verify() error {
 
 			if b.Bids[i].ID != 0 {
 				if b.Bids[i].ID == b.Bids[i-1].ID {
-					fmt.Println(b.Bids[i], b.Bids[i-1])
-					fmt.Println("BOOK:", b.Bids)
-					panic("BID")
 					return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 				}
 				continue
@@ -234,9 +231,6 @@ func (b *Base) Verify() error {
 
 			if b.Asks[i].ID != 0 {
 				if b.Asks[i].ID == b.Asks[i-1].ID {
-					fmt.Println(b.Asks[i], b.Asks[i-1])
-					fmt.Println("BOOK:", b.Asks)
-					panic("ASK")
 					return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 				}
 				continue

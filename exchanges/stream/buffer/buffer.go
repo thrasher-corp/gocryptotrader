@@ -114,7 +114,7 @@ func (w *Orderbook) processBufferUpdate(o *orderbook.Base, u *Update) (bool, err
 	m2, ok := m1[u.Pair.Quote]
 	if !ok {
 		m2 = make(map[asset.Item]*[]Update)
-		w.buffer[u.Pair.Base][u.Pair.Quote] = m2
+		m1[u.Pair.Quote] = m2
 	}
 
 	buffer, ok := m2[u.Asset]
@@ -394,15 +394,14 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base {
 	w.m.Lock()
 	defer w.m.Unlock()
-	ptr := w.ob[p.Base][p.Quote][a]
-	return ptr
-	// if !ok {
-	// 	return nil
-	// }
-	// cpy := &(*ptr)
-	// cpy.Asks = append(ptr.Asks[:0:0], ptr.Asks...)
-	// cpy.Bids = append(ptr.Bids[:0:0], ptr.Bids...)
-	// return cpy
+	ptr, ok := w.ob[p.Base][p.Quote][a]
+	if !ok {
+		return nil
+	}
+	cpy := &(*ptr)
+	cpy.Asks = append(ptr.Asks[:0:0], ptr.Asks...)
+	cpy.Bids = append(ptr.Bids[:0:0], ptr.Bids...)
+	return cpy
 }
 
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a

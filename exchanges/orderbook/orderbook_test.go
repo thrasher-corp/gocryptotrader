@@ -2,7 +2,6 @@ package orderbook
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -385,16 +384,12 @@ func TestProcessOrderbook(t *testing.T) {
 		ExchangeName: "ProcessOrderbook",
 	}
 
-	fmt.Println("MEOW")
-
 	// test for empty pair
 	base.Pair = currency.Pair{}
 	err = base.Process()
 	if err == nil {
 		t.Error("empty pair should throw an err")
 	}
-
-	fmt.Println("MEOW2")
 
 	// test for empty asset type
 	base.Pair = c
@@ -403,20 +398,16 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Error("empty asset type should throw an err")
 	}
 
-	fmt.Println("MEOW3")
-
 	// now process a valid orderbook
 	base.AssetType = asset.Spot
 	err = base.Process()
 	if err != nil {
 		t.Error("unexpcted result: ", err)
 	}
-	fmt.Println("MEOW4")
 	result, err := Get("ProcessOrderbook", c, asset.Spot)
 	if err != nil {
 		t.Fatal("TestProcessOrderbook failed to create new orderbook")
 	}
-	fmt.Println("MEOW5")
 	if !result.Pair.Equal(c) {
 		t.Fatal("TestProcessOrderbook result pair is incorrect")
 	}
