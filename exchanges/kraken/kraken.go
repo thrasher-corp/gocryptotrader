@@ -26,7 +26,7 @@ const (
 	krakenAPIURL     = "https://api.kraken.com"
 	krakenFuturesURL = "https://futures.kraken.com"
 	futuresURL       = "https://futures.kraken.com/derivatives"
-	// Status consts
+	// StatusOpen consts
 	StatusOpen = "open"
 )
 
