@@ -2,11 +2,11 @@ package engine
 
 import (
 	"fmt"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	withdrawDataStore "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
