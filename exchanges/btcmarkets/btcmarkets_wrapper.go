@@ -375,6 +375,7 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 	orderBook.Pair = p
 	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
+	orderBook.NotAggregated = true
 	err = orderBook.Process()
 	if err != nil {
 		return orderBook, err

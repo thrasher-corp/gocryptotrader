@@ -868,8 +868,8 @@ func TestWSOrderbookHandling(t *testing.T) {
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("delete should already have occured above")
 	}
 }
 

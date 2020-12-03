@@ -87,6 +87,16 @@ func (b *Binance) WsConnect() error {
 
 	go b.wsReadData()
 
+	b.setupOrderbookManager()
+
+	subs, err := b.GenerateSubscriptions()
+	if err != nil {
+		return err
+	}
+	return b.Websocket.SubscribeToChannels(subs)
+}
+
+func (b *Binance) setupOrderbookManager() {
 	if b.obm == nil {
 		b.obm = &orderbookManager{
 			buffer:       make(map[currency.Code]map[currency.Code]map[asset.Item]chan *WebsocketDepthStream),
@@ -100,12 +110,6 @@ func (b *Binance) WsConnect() error {
 			b.SynchroniseWebsocketOrderbook()
 		}
 	}
-
-	subs, err := b.GenerateSubscriptions()
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
 }
 
 // KeepAuthKeyAlive will continuously send messages to

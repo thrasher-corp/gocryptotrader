@@ -896,6 +896,7 @@ func TestWsTradeUpdate(t *testing.T) {
 }
 
 func TestWsDepthUpdate(t *testing.T) {
+	b.setupOrderbookManager()
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
 		Asks: []OrderbookItem{
