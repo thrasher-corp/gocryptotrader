@@ -273,22 +273,24 @@ func (b *Base) Process() error {
 
 // Reverse reverses the order of orderbook items; some bid/asks are returned
 // without correct allignment. This is faster than using a sort algorithm
-func Reverse(elem *[]Item) {
-	eLen := len(*elem)
+func Reverse(elem []Item) {
+	eLen := len(elem)
 	var target int
 	for i := eLen/2 - 1; i >= 0; i-- {
 		target = eLen - 1 - i
-		([]Item)(*elem)[i], ([]Item)(*elem)[target] = ([]Item)(*elem)[target], ([]Item)(*elem)[i]
+		elem[i], elem[target] = elem[target], elem[i]
 	}
 }
 
-// SortAsks sorts ask items to the correct relative order
+// SortAsks sorts ask items to the correct relative order if they are not
+// aligned. Consider using reverse function as this has overhead.
 func SortAsks(d []Item) []Item {
 	sort.Sort(byOBPrice(d))
 	return d
 }
 
-// SortBids sorts bid items to the correct relative order
+// SortBids sorts bid items to the correct relative order if they are not
+// aligned. Consider using reverse function as this has overhead.
 func SortBids(d []Item) []Item {
 	sort.Sort(sort.Reverse(byOBPrice(d)))
 	return d

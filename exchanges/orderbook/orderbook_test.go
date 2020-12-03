@@ -568,28 +568,26 @@ func TestProcessOrderbook(t *testing.T) {
 	wg.Wait()
 }
 
-// func TestSetNewData(t *testing.T) {
-// 	err := service.SetNewData(nil, "")
-// 	if err == nil {
-// 		t.Error("error cannot be nil")
-// 	}
-// }
-
-// func TestGetAssociations(t *testing.T) {
-// 	_, err := service.GetAssociations(nil, "")
-// 	if err == nil {
-// 		t.Error("error cannot be nil")
-// 	}
-// }
+func deployUnorderedSlice(size int) []Item {
+	var items []Item
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < size; i++ {
+		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()})
+	}
+	return items
+}
 
 func TestSorting(t *testing.T) {
 	var b Base
 
-	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
+	length := 100
+	b.Asks = deployUnorderedSlice(length)
 	err := b.Verify()
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
+
+	SortAsks(nil)
 
 	SortAsks(b.Asks)
 	err = b.Verify()
@@ -597,15 +595,91 @@ func TestSorting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Bids = []Item{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Bids = deployUnorderedSlice(length)
 	err = b.Verify()
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
+	SortBids(nil)
+
 	SortBids(b.Bids)
 	err = b.Verify()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// 292588	      4785 ns/op	      32 B/op	       1 allocs/op
+func BenchmarkSortAsks(b *testing.B) {
+	length := 100
+	s := deployUnorderedSlice(length)
+	for i := 0; i < b.N; i++ {
+		SortAsks(s)
+	}
+}
+
+// 272722	      4811 ns/op	      48 B/op	       2 allocs/op
+func BenchmarkSortBids(b *testing.B) {
+	length := 100
+	s := deployUnorderedSlice(length)
+	for i := 0; i < b.N; i++ {
+		SortBids(s)
+	}
+}
+
+func deploySliceOrdered(size int) []Item {
+	rand.Seed(time.Now().UnixNano())
+	var items []Item
+	for i := 0; i < size; i++ {
+		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()})
+	}
+	return items
+}
+
+func TestReverse(t *testing.T) {
+	var b Base
+
+	length := 100
+	b.Bids = deploySliceOrdered(length)
+	if len(b.Bids) != length {
+		t.Fatal("incorrect length")
+	}
+
+	err := b.Verify()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	Reverse(nil)
+	Reverse(b.Bids)
+	err = b.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.Asks = append(b.Bids[:0:0], b.Bids...)
+	err = b.Verify()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	Reverse(b.Asks)
+	err = b.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// 6217651	       187 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkReverse(b *testing.B) {
+	length := 100
+	s := deploySliceOrdered(length)
+	if len(s) != length {
+		b.Fatal("incorrect length")
+	}
+
+	for i := 0; i < b.N; i++ {
+		Reverse(s)
 	}
 }
