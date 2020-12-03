@@ -137,13 +137,13 @@ func (s *Statistic) CalculateTheResults() error {
 							z[i].SignalEvent.GetPrice(),
 							z[i].SignalEvent.GetWhy())
 					} else {
-						errs = append(errs, fmt.Errorf("unexpected data received %+v", z[i]))
+						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", e, a, p, z[i]))
 					}
 				}
 				last := z[len(z)-1]
+				first := z[0]
 				currStr = fmt.Sprintf("------------------Stats for %v %v %v-------------------------", e, a, p)
 				log.Infof(log.BackTester, currStr[:61])
-
 				log.Infof(log.BackTester, "Initial funds: $%v\n\n", last.Holdings.InitialFunds)
 
 				var buyOrders, sellOrders int64
@@ -167,11 +167,57 @@ func (s *Statistic) CalculateTheResults() error {
 				log.Infof(log.BackTester, "Total Value lost: $%v", last.Holdings.TotalValueLostToSlippage+last.Holdings.TotalValueLostToSlippage)
 				log.Infof(log.BackTester, "Total Fees: $%v\n\n", last.Holdings.TotalFees)
 
+				log.Infof(log.BackTester, "Starting Close Price: $%v", first.DataEvent.Price())
+				log.Infof(log.BackTester, "Finishing Close Price: $%v", last.DataEvent.Price())
+				var lowest, highest float64
+				for i := range z {
+					price := z[i].DataEvent.Price()
+					if lowest == 0 || price < lowest {
+						lowest = price
+					}
+					if highest == 0 || price > highest {
+						highest = price
+					}
+				}
+				log.Infof(log.BackTester, "Lowest Close Price: $%v", lowest)
+				log.Infof(log.BackTester, "Highest Close Price: $%v", highest)
+				marketMove := ((highest - lowest) / lowest) * 100
+				strategyMove := ((last.Holdings.TotalValue - last.Holdings.InitialFunds) / last.Holdings.InitialFunds) * 100
+				log.Infof(log.BackTester, "Market movement: %v%%", marketMove)
+				log.Infof(log.BackTester, "Strategy movement: %v%%", strategyMove)
+				log.Infof(log.BackTester, "Did it beat the market: %v\n\n", strategyMove > marketMove)
+
+				var allDataEvents []interfaces.DataEventHandler
+				for i := range z {
+					allDataEvents = append(allDataEvents, z[i].DataEvent)
+				}
+				draws := calculateAllDrawDowns(allDataEvents)
+				log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
+				log.Infof(log.BackTester, "Highest Price: $%.2f", draws.MaxDrawDown.Highest.Price)
+				log.Infof(log.BackTester, "Highest Price Time: %v", draws.MaxDrawDown.Highest.Time)
+				log.Infof(log.BackTester, "Lowest Price: $%v", draws.MaxDrawDown.Lowest.Price)
+				log.Infof(log.BackTester, "Lowest Price Time: %v", draws.MaxDrawDown.Lowest.Time)
+				log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", ((draws.MaxDrawDown.Lowest.Price-draws.MaxDrawDown.Highest.Price)/draws.MaxDrawDown.Highest.Price)*100)
+				log.Infof(log.BackTester, "Difference: $%.2f", draws.MaxDrawDown.Highest.Price-draws.MaxDrawDown.Lowest.Price)
+				log.Infof(log.BackTester, "Drawdown length: %v", len(draws.MaxDrawDown.Iterations))
+
+				log.Info(log.BackTester, "------------------Longest Drawdown---------------------------")
+				log.Infof(log.BackTester, "Highest Price: $%.2f", draws.LongestDrawDown.Highest.Price)
+				log.Infof(log.BackTester, "Highest Price Time: %v", draws.LongestDrawDown.Highest.Time)
+				log.Infof(log.BackTester, "Lowest Price: $%.2f", draws.LongestDrawDown.Lowest.Price)
+				log.Infof(log.BackTester, "Lowest Price Time: %v", draws.LongestDrawDown.Lowest.Time)
+				log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", ((draws.LongestDrawDown.Lowest.Price-draws.LongestDrawDown.Highest.Price)/draws.LongestDrawDown.Highest.Price)*100)
+				log.Infof(log.BackTester, "Difference: $%.2f", draws.LongestDrawDown.Highest.Price-draws.LongestDrawDown.Lowest.Price)
+				log.Infof(log.BackTester, "Drawdown length: %v", len(draws.LongestDrawDown.Iterations))
+
+				log.Info(log.BackTester, "------------------Ratios-------------------------------------")
+				log.Infof(log.BackTester, "Shape ratio: $%v", last.Holdings.TotalFees)
+				log.Infof(log.BackTester, "Sortino ratio: $%v\n\n", last.Holdings.TotalFees)
+
 				log.Infof(log.BackTester, "Final funds: $%v", last.Holdings.RemainingFunds)
 				log.Infof(log.BackTester, "Final holdings: %v", last.Holdings.PositionsSize)
 				log.Infof(log.BackTester, "Final holdings value: $%v", last.Holdings.PositionsValue)
 				log.Infof(log.BackTester, "Final total value: $%v", last.Holdings.TotalValue)
-
 			}
 		}
 	}
@@ -184,6 +230,112 @@ func (s *Statistic) CalculateTheResults() error {
 	}
 
 	return nil
+}
+
+type SuperDrawDown struct {
+	DrawDowns       []DrawDown
+	MaxDrawDown     DrawDown
+	LongestDrawDown DrawDown
+}
+
+type DrawDown struct {
+	Highest    Draw
+	Lowest     Draw
+	Iterations []Iterations
+}
+
+type Draw struct {
+	Price float64
+	Time  time.Time
+}
+
+type Iterations struct {
+	Time  time.Time
+	Price float64
+}
+
+func (s *SuperDrawDown) calculateMaxAndLongestDrawDowns() {
+	for i := range s.DrawDowns {
+		if s.DrawDowns[i].Highest.Price-s.DrawDowns[i].Lowest.Price > s.MaxDrawDown.Highest.Price-s.MaxDrawDown.Lowest.Price {
+			s.MaxDrawDown = s.DrawDowns[i]
+		}
+		if len(s.DrawDowns[i].Iterations) > len(s.LongestDrawDown.Iterations) {
+			s.LongestDrawDown = s.DrawDowns[i]
+		}
+	}
+}
+
+func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) SuperDrawDown {
+	isDrawingDown := false
+
+	var response SuperDrawDown
+	var activeDraw DrawDown
+	for i := range closePrices {
+		p := closePrices[i].Price()
+		t := closePrices[i].GetTime()
+		if i == 0 {
+			activeDraw.Highest = Draw{
+				Price: p,
+				Time:  t,
+			}
+			activeDraw.Lowest = Draw{
+				Price: p,
+				Time:  t,
+			}
+		}
+
+		// create
+		if !isDrawingDown && activeDraw.Highest.Price > p {
+			isDrawingDown = true
+			activeDraw = DrawDown{
+				Highest: Draw{
+					Price: p,
+					Time:  t,
+				},
+				Lowest: Draw{
+					Price: p,
+					Time:  t,
+				},
+			}
+		}
+
+		// close
+		if isDrawingDown && activeDraw.Lowest.Price < p {
+			activeDraw.Lowest = Draw{
+				Price: activeDraw.Iterations[len(activeDraw.Iterations)-1].Price,
+				Time:  activeDraw.Iterations[len(activeDraw.Iterations)-1].Time,
+			}
+			isDrawingDown = false
+			response.DrawDowns = append(response.DrawDowns, activeDraw)
+			// reset
+			activeDraw = DrawDown{
+				Highest: Draw{
+					Price: p,
+					Time:  t,
+				},
+				Lowest: Draw{
+					Price: p,
+					Time:  t,
+				},
+			}
+		}
+
+		// append
+		if isDrawingDown {
+			if p < activeDraw.Lowest.Price {
+				activeDraw.Lowest.Price = p
+				activeDraw.Lowest.Time = t
+			}
+			activeDraw.Iterations = append(activeDraw.Iterations, Iterations{
+				Time:  t,
+				Price: p,
+			})
+		}
+	}
+
+	response.calculateMaxAndLongestDrawDowns()
+
+	return response
 }
 
 // Update Statistic for event

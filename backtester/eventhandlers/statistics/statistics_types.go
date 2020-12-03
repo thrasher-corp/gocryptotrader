@@ -7,12 +7,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
-	order2 "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 type EventStore struct {
@@ -20,10 +20,8 @@ type EventStore struct {
 	Transactions  compliance.Snapshot
 	DataEvent     interfaces.DataEventHandler
 	SignalEvent   signal.SignalEvent
-	ExchangeEvent order2.OrderEvent
+	ExchangeEvent order.OrderEvent
 	FillEvent     fill.FillEvent
-	High          EquityPoint
-	Low           EquityPoint
 }
 
 // Statistic
@@ -53,7 +51,7 @@ type EquityPoint struct {
 type Handler interface {
 	AddDataEventForTime(interfaces.DataEventHandler)
 	AddSignalEventForTime(signal.SignalEvent)
-	AddExchangeEventForTime(order2.OrderEvent)
+	AddExchangeEventForTime(order.OrderEvent)
 	AddFillEventForTime(fill.FillEvent)
 
 	AddHoldingsForTime(holdings.Holding)
@@ -95,11 +93,11 @@ type Results struct {
 }
 
 type ResultTransactions struct {
-	Time      time.Time  `json:"time"`
-	Direction order.Side `json:"direction"`
-	Price     float64    `json:"price"`
-	Amount    float64    `json:"amount"`
-	Why       string     `json:"why,omitempty"`
+	Time      time.Time     `json:"time"`
+	Direction gctorder.Side `json:"direction"`
+	Price     float64       `json:"price"`
+	Amount    float64       `json:"amount"`
+	Why       string        `json:"why,omitempty"`
 }
 
 type ResultEvent struct {
