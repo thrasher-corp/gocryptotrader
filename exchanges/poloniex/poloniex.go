@@ -419,14 +419,14 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(start, end, limit int64) (Authen
 }
 
 // GetAuthenticatedOrderStatus returns the status of a given orderId.
-func (p *Poloniex) GetAuthenticatedOrderStatus(orderId string) (o OrderStatus, err error) {
+func (p *Poloniex) GetAuthenticatedOrderStatus(orderID string) (o OrderStatus, err error) {
 	values := url.Values{}
 
-	if orderId == "" {
+	if orderID == "" {
 		return o, fmt.Errorf("no orderId passed")
 	}
 
-	values.Set("orderNumber", orderId)
+	values.Set("orderNumber", orderID)
 	var result json.RawMessage
 	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderStatus, values, &result)
 	if err != nil {
@@ -438,14 +438,14 @@ func (p *Poloniex) GetAuthenticatedOrderStatus(orderId string) (o OrderStatus, e
 }
 
 // GetAuthenticatedOrderTrades returns all trades involving a given orderId.
-func (p *Poloniex) GetAuthenticatedOrderTrades(orderId string) (o []OrderTrade, err error) {
+func (p *Poloniex) GetAuthenticatedOrderTrades(orderID string) (o []OrderTrade, err error) {
 	values := url.Values{}
 
-	if orderId == "" {
+	if orderID == "" {
 		return o, fmt.Errorf("no orderId passed")
 	}
 
-	values.Set("orderNumber", orderId)
+	values.Set("orderNumber", orderID)
 	var result json.RawMessage
 	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderTrades, values, &result)
 	if err != nil {

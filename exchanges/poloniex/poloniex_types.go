@@ -68,7 +68,6 @@ type TradeHistory struct {
 
 // OrderStatus holds order status data
 type OrderStatus struct {
-	//Result 		  map[string]OrderTrade   `json:"result"`
 	Result  map[string]interface{} `json:"result"`
 	Success int64                  `json:"success"`
 }
