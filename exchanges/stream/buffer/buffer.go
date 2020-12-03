@@ -132,16 +132,16 @@ func (w *Orderbook) processBufferUpdate(o *orderbook.Base, u *Update) (bool, err
 		// sort by last updated to ensure each update is in order
 		if w.sortBufferByUpdateIDs {
 			sort.Slice(*buffer, func(i, j int) bool {
-				return ([]Update)(*buffer)[i].UpdateID < ([]Update)(*buffer)[j].UpdateID
+				return []Update(*buffer)[i].UpdateID < []Update(*buffer)[j].UpdateID
 			})
 		} else {
 			sort.Slice(*buffer, func(i, j int) bool {
-				return ([]Update)(*buffer)[i].UpdateTime.Before(([]Update)(*buffer)[j].UpdateTime)
+				return []Update(*buffer)[i].UpdateTime.Before([]Update(*buffer)[j].UpdateTime)
 			})
 		}
 	}
 	for i := range *buffer {
-		err := w.processObUpdate(o, &([]Update)(*buffer)[i])
+		err := w.processObUpdate(o, &[]Update(*buffer)[i])
 		if err != nil {
 			return false, err
 		}
@@ -232,7 +232,7 @@ func (w *Orderbook) updateByIDAndAction(book *orderbook.Base, updts *Update) (er
 			for target := range book.Bids { // First iteration finds ID matches
 				if book.Bids[target].ID == updts.Bids[x].ID {
 					if book.Bids[target].Price != updts.Bids[x].Price {
-						// Price change occured so correct bid alignment is
+						// Price change occurred so correct bid alignment is
 						// needed - delete instance and insert into correct
 						// price level
 						book.Bids = append(book.Bids[:target], book.Bids[target+1:]...)
@@ -249,7 +249,7 @@ func (w *Orderbook) updateByIDAndAction(book *orderbook.Base, updts *Update) (er
 			for target := range book.Asks {
 				if book.Asks[target].ID == updts.Asks[x].ID {
 					if book.Asks[target].Price != updts.Asks[x].Price {
-						// Price change occured so correct ask alignment is
+						// Price change occurred so correct ask alignment is
 						// needed - delete instance and insert into correct
 						// price level
 						book.Asks = append(book.Asks[:target], book.Asks[target+1:]...)
@@ -289,8 +289,8 @@ func deleteUpdates(updt []orderbook.Item, book *[]orderbook.Item) error {
 updates:
 	for x := range updt {
 		for y := range *book {
-			if ([]orderbook.Item)(*book)[y].ID == updt[x].ID {
-				*book = append(([]orderbook.Item)(*book)[:y], ([]orderbook.Item)(*book)[y+1:]...)
+			if []orderbook.Item(*book)[y].ID == updt[x].ID {
+				*book = append([]orderbook.Item(*book)[:y], []orderbook.Item(*book)[y+1:]...) // nolint:gocritic
 				continue updates
 			}
 		}
@@ -302,7 +302,7 @@ updates:
 
 func insertAsk(updt orderbook.Item, book *[]orderbook.Item) {
 	for target := range *book {
-		if updt.Price < ([]orderbook.Item)(*book)[target].Price {
+		if updt.Price < []orderbook.Item(*book)[target].Price {
 			insertItem(updt, book, target)
 			return
 		}
@@ -312,7 +312,7 @@ func insertAsk(updt orderbook.Item, book *[]orderbook.Item) {
 
 func insertBid(updt orderbook.Item, book *[]orderbook.Item) {
 	for target := range *book {
-		if updt.Price > ([]orderbook.Item)(*book)[target].Price {
+		if updt.Price > []orderbook.Item(*book)[target].Price {
 			insertItem(updt, book, target)
 			return
 		}
@@ -325,7 +325,7 @@ func insertUpdatesBid(updt []orderbook.Item, book *[]orderbook.Item) {
 updates:
 	for x := range updt {
 		for target := range *book {
-			if updt[x].Price > ([]orderbook.Item)(*book)[target].Price {
+			if updt[x].Price > []orderbook.Item(*book)[target].Price {
 				insertItem(updt[x], book, target)
 				continue updates
 			}
@@ -339,7 +339,7 @@ func insertUpdatesAsk(updt []orderbook.Item, book *[]orderbook.Item) {
 updates:
 	for x := range updt {
 		for target := range *book {
-			if updt[x].Price < ([]orderbook.Item)(*book)[target].Price {
+			if updt[x].Price < []orderbook.Item(*book)[target].Price {
 				insertItem(updt[x], book, target)
 				continue updates
 			}
@@ -353,8 +353,8 @@ updates:
 func insertItem(update orderbook.Item, book *[]orderbook.Item, target int) {
 	// TODO: extend slice by incoming update length before this gets hit
 	*book = append(*book, orderbook.Item{})
-	copy(([]orderbook.Item)(*book)[target+1:], ([]orderbook.Item)(*book)[target:])
-	([]orderbook.Item)(*book)[target] = update
+	copy([]orderbook.Item(*book)[target+1:], []orderbook.Item(*book)[target:])
+	[]orderbook.Item(*book)[target] = update
 }
 
 // LoadSnapshot loads initial snapshot of ob data from websocket
@@ -398,10 +398,10 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base 
 	if !ok {
 		return nil
 	}
-	cpy := &(*ptr)
-	cpy.Asks = append(ptr.Asks[:0:0], ptr.Asks...)
-	cpy.Bids = append(ptr.Bids[:0:0], ptr.Bids...)
-	return cpy
+	cpy := *ptr
+	cpy.Asks = append(ptr.Asks[:0:0], ptr.Asks...) // nolint:gocritic
+	cpy.Bids = append(ptr.Bids[:0:0], ptr.Bids...) // nolint:gocritic
+	return &cpy
 }
 
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a

@@ -77,8 +77,8 @@ func (s *Service) Update(b *Base) error {
 		return err
 	}
 
-	book.b.Bids = append(b.Bids[:0:0], b.Bids...)
-	book.b.Asks = append(b.Asks[:0:0], b.Asks...)
+	book.b.Bids = append(b.Bids[:0:0], b.Bids...) // nolint:gocritic
+	book.b.Asks = append(b.Asks[:0:0], b.Asks...) // nolint:gocritic
 	book.b.LastUpdated = b.LastUpdated
 	ids := append(book.Assoc, book.Main)
 	s.Unlock()
@@ -101,8 +101,8 @@ func (s *Service) SetNewData(ob *Base, book *Book, exch string) error {
 	// of a simultaneous update via websocket/rest/fix, we don't affect package
 	// scoped orderbook data which could result in a potential panic
 	cpy := *ob
-	cpy.Bids = append(ob.Bids[:0:0], ob.Bids...)
-	cpy.Asks = append(ob.Asks[:0:0], ob.Asks...)
+	cpy.Bids = append(ob.Bids[:0:0], ob.Bids...) // nolint:gocritic
+	cpy.Asks = append(ob.Asks[:0:0], ob.Asks...) // nolint:gocritic
 	book.b = &cpy
 	return nil
 }

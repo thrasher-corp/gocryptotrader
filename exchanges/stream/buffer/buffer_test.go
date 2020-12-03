@@ -831,7 +831,7 @@ func deploySliceOrdered(size int) []orderbook.Item {
 	rand.Seed(time.Now().UnixNano())
 	var items []orderbook.Item
 	for i := 0; i < size; i++ {
-		items = append(items, orderbook.Item{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()})
+		items = append(items, orderbook.Item{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()}) // nolint:crypto/rand
 	}
 	return items
 }
@@ -945,8 +945,8 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal("did not adjust ask item placement and details")
 	}
 
-	book.Bids = append(bids[:0:0], bids...)
-	book.Asks = append(asks[:0:0], asks...)
+	book.Bids = append(bids[:0:0], bids...) // nolint:gocritic
+	book.Asks = append(asks[:0:0], asks...) // nolint:gocritic
 
 	// Delete - not found
 	err = w.updateByIDAndAction(book, &Update{
