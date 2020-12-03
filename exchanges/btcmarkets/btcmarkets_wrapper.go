@@ -142,7 +142,7 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	
+
 	wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
