@@ -36,11 +36,3 @@ func (s *Signal) GetPrice() float64 {
 func (s *Signal) SetPrice(f float64) {
 	s.Price = f
 }
-
-func (s *Signal) GetWhy() string {
-	return s.Why
-}
-
-func (s *Signal) SetWhy(y string) {
-	s.Why = y
-}

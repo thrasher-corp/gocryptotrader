@@ -14,4 +14,5 @@ type Event struct {
 	Interval     kline.Interval
 	CurrencyPair currency.Pair
 	AssetType    asset.Item
+	Why          string
 }

@@ -30,13 +30,6 @@ func (p *Portfolio) Reset() {
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
 // the portfolio manager's recommendations
 func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *exchange.CurrencySettings) (*order.Order, error) {
-	if signal.GetDirection() == "" {
-		return &order.Order{}, errors.New("invalid Direction")
-	}
-
-	lookup := p.ExchangeAssetPairSettings[signal.GetExchange()][signal.GetAssetType()][signal.Pair()]
-	prevHolding := lookup.HoldingsSnapshots.GetLatestSnapshot()
-
 	o := &order.Order{
 		Event: event.Event{
 			Exchange:     signal.GetExchange(),
@@ -44,23 +37,31 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 			CurrencyPair: signal.Pair(),
 			AssetType:    signal.GetAssetType(),
 			Interval:     signal.GetInterval(),
+			Why:          signal.GetWhy(),
 		},
 		Direction: signal.GetDirection(),
-		Why:       signal.GetWhy(),
 	}
+	if signal.GetDirection() == "" {
+		o.AppendWhy("LOL")
+		return o, errors.New("invalid Direction")
+	}
+
+	lookup := p.ExchangeAssetPairSettings[signal.GetExchange()][signal.GetAssetType()][signal.Pair()]
+	prevHolding := lookup.HoldingsSnapshots.GetLatestSnapshot()
+
 	if signal.GetDirection() == common.DoNothing {
 		return o, nil
 	}
 
 	if (signal.GetDirection() == gctorder.Sell || signal.GetDirection() == gctorder.Ask) && prevHolding.PositionsSize == 0 {
-		o.SetWhy("no holdings to sell. " + signal.GetWhy())
+		o.AppendWhy("no holdings to sell")
 		o.SetDirection(common.CouldNotSell)
 		signal.SetDirection(o.Direction)
 		return o, nil
 	}
 
 	if (signal.GetDirection() == gctorder.Buy || signal.GetDirection() == gctorder.Bid) && prevHolding.RemainingFunds <= 0 {
-		o.SetWhy("not enough funds to buy. " + signal.GetWhy())
+		o.AppendWhy("not enough funds to buy")
 		o.SetDirection(common.CouldNotBuy)
 		signal.SetDirection(o.Direction)
 		return o, nil
@@ -81,7 +82,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 		cs,
 	)
 	if err != nil {
-		o.SetWhy(err.Error() + ". " + signal.GetWhy())
+		o.AppendWhy(err.Error())
 		if o.Direction == gctorder.Buy {
 			o.Direction = common.CouldNotBuy
 		} else if o.Direction == gctorder.Sell {
@@ -96,7 +97,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 	var eo *order.Order
 	eo, err = p.RiskManager.EvaluateOrder(sizedOrder, latest, p.GetLatestHoldingsForAllCurrencies())
 	if err != nil {
-		o.SetWhy(err.Error() + ". " + signal.GetWhy())
+		o.AppendWhy(err.Error())
 		if signal.GetDirection() == gctorder.Buy {
 			o.Direction = common.CouldNotBuy
 		} else if signal.GetDirection() == gctorder.Sell {

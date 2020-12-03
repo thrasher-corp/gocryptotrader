@@ -1,6 +1,7 @@
 package RSI420BlazeIt
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
@@ -31,7 +32,8 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio2.Handler) (signal.Signal
 	es.SetPrice(d.Latest().Price())
 
 	if d.Offset() <= int(s.rsiPeriod) {
-		return &es, nil
+		es.AppendWhy("Not enough data for signal generation")
+		return &es, errors.New(es.Why)
 	}
 	dataRange := d.StreamClose()[:d.Offset()]
 
@@ -44,7 +46,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio2.Handler) (signal.Signal
 	} else {
 		es.SetDirection(common.DoNothing)
 	}
-	es.SetWhy(fmt.Sprintf("RSI at %.2f", lastSI))
+	es.AppendWhy(fmt.Sprintf("RSI at %.2f", lastSI))
 
 	return &es, nil
 }

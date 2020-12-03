@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
@@ -15,7 +14,7 @@ import (
 
 // EvaluateOrder goes through a standard list of evaluations to make to ensure that
 // we are in a position to follow through with an order
-func (r *Risk) EvaluateOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, latestHoldings []holdings.Holding) (*order.Order, error) {
+func (r *Risk) EvaluateOrder(o order.OrderEvent, _ interfaces.DataEventHandler, latestHoldings []holdings.Holding) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 	if o.IsLeveraged() {
 		if !r.CanUseLeverage {

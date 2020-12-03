@@ -2,7 +2,6 @@ package holdings
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -52,11 +51,8 @@ func Create(f fill.FillEvent, initialFunds float64) (Holding, error) {
 		InitialFunds:   initialFunds,
 		RemainingFunds: initialFunds,
 	}
+	h.update(f)
 
-	err := h.update(f)
-	if err != nil {
-		return h, err
-	}
 	return h, nil
 }
 
@@ -71,7 +67,7 @@ func (h *Holding) UpdateValue(d interfaces.DataEventHandler) {
 	h.updateValue(latest)
 }
 
-func (h *Holding) update(f fill.FillEvent) error {
+func (h *Holding) update(f fill.FillEvent) {
 	direction := f.GetDirection()
 	o := f.GetOrder()
 	switch direction {
@@ -90,98 +86,10 @@ func (h *Holding) update(f fill.FillEvent) error {
 		h.SoldAmount += o.Amount
 		h.SoldValue += o.Amount * o.Price
 	case common.DoNothing, common.CouldNotSell, common.CouldNotBuy:
-	default:
-		return fmt.Errorf("woah nelly, how'd we get here? %v", direction)
 	}
+	h.TotalValueLostToSlippage += (f.GetVolumeAdjustedPrice() - f.GetPurchasePrice()) * f.GetAmount()
+	h.TotalValueLostToVolumeSizing += (f.GetClosePrice() - f.GetVolumeAdjustedPrice()) * f.GetAmount()
 	h.updateValue(f.GetClosePrice())
-	/*
-		fillAmount := decimal.NewFromFloat(f.GetAmount())
-		fillPrice := decimal.NewFromFloat(f.GetPurchasePrice())
-		fillExchangeFee := decimal.NewFromFloat(f.GetExchangeFee())
-		fillNetValue := decimal.NewFromFloat(f.NetValue())
-
-		amount := decimal.NewFromFloat(h.Amount)
-		amountBought := decimal.NewFromFloat(h.BoughtAmount)
-		amountSold := decimal.NewFromFloat(h.SoldAmount)
-		avgPrice := decimal.NewFromFloat(h.AveragePrice)
-		avgPriceNet := decimal.NewFromFloat(h.AveragePriceNet)
-		avgPriceBought := decimal.NewFromFloat(h.AveragePriceBought)
-		avgPriceSold := decimal.NewFromFloat(h.AveragePriceSold)
-		value := decimal.NewFromFloat(h.Value)
-		valueBought := decimal.NewFromFloat(h.ValueBought)
-		valueSold := decimal.NewFromFloat(h.ValueSold)
-		netValue := decimal.NewFromFloat(h.NetValue)
-		netValueBought := decimal.NewFromFloat(h.NetValueBought)
-		netValueSold := decimal.NewFromFloat(h.NetValueSold)
-		exchangeFee := decimal.NewFromFloat(h.ExchangeFee)
-		cost := decimal.NewFromFloat(h.Cost)
-		costBasis := decimal.NewFromFloat(h.CostBasis)
-		realProfitLoss := decimal.NewFromFloat(h.RealProfitLoss)
-
-		switch f.GetDirection() {
-		case gctorder.Buy, gctorder.Bid:
-			if h.Amount >= 0 {
-				costBasis = costBasis.Add(fillNetValue)
-			} else {
-				costBasis = costBasis.Add(fillAmount.Abs().Div(amount).Mul(costBasis))
-				realProfitLoss = realProfitLoss.Add(fillAmount.Mul(avgPriceNet.Sub(fillPrice))).Sub(exchangeFee)
-			}
-			avgPrice = amount.Abs().Mul(avgPrice).Add(fillAmount.Mul(fillPrice)).Div(amount.Abs().Add(fillAmount))
-			avgPriceNet = amount.Abs().Mul(avgPriceNet).Add(fillNetValue).Div(amount.Abs().Add(fillAmount))
-			avgPriceBought = amountBought.Mul(avgPriceBought).Add(fillAmount.Mul(fillPrice)).Div(amountBought.Add(fillAmount))
-
-			amount = amount.Add(fillAmount)
-			amountBought = amountBought.Add(fillAmount)
-
-			valueBought = amountBought.Mul(avgPriceBought)
-			netValueBought = netValueBought.Add(fillNetValue)
-
-		case gctorder.Sell, gctorder.Ask:
-			if h.Amount > 0 {
-				costBasis = costBasis.Sub(fillAmount.Abs().Div(amount).Mul(costBasis))
-				realProfitLoss = realProfitLoss.Add(fillAmount.Abs().Mul(fillPrice.Sub(avgPriceNet))).Sub(exchangeFee)
-			} else {
-				costBasis = costBasis.Sub(fillNetValue)
-			}
-
-			avgPrice = amount.Abs().Mul(avgPrice).Add(fillAmount.Mul(fillPrice)).Div(amount.Abs().Add(fillAmount))
-			avgPriceNet = amount.Abs().Mul(avgPriceNet).Add(fillNetValue).Div(amount.Abs().Add(fillAmount))
-			avgPriceSold = amountSold.Mul(avgPriceSold).Add(fillAmount.Mul(fillPrice)).Div(amountSold.Add(fillAmount))
-
-			amount = amount.Sub(fillAmount)
-			amountSold = amountSold.Add(fillAmount)
-			valueSold = amountSold.Mul(avgPriceSold)
-			netValueSold = netValueSold.Add(fillNetValue)
-		}
-
-		exchangeFee = exchangeFee.Add(fillExchangeFee)
-		cost = cost.Add(exchangeFee)
-
-		value = valueSold.Sub(valueBought)
-		netValue = value.Sub(cost)
-
-		h.Amount, _ = amount.Round(common.DecimalPlaces).Float64()
-		h.BoughtAmount, _ = amountBought.Round(common.DecimalPlaces).Float64()
-		h.SoldAmount, _ = amountSold.Round(common.DecimalPlaces).Float64()
-		h.AveragePrice, _ = avgPrice.Round(common.DecimalPlaces).Float64()
-		h.AveragePriceBought, _ = avgPriceBought.Round(common.DecimalPlaces).Float64()
-		h.AveragePriceSold, _ = avgPriceSold.Round(common.DecimalPlaces).Float64()
-		h.AveragePriceNet, _ = avgPriceNet.Round(common.DecimalPlaces).Float64()
-		h.Value, _ = value.Round(common.DecimalPlaces).Float64()
-		h.ValueBought, _ = valueBought.Round(common.DecimalPlaces).Float64()
-		h.ValueSold, _ = valueSold.Round(common.DecimalPlaces).Float64()
-		h.NetValue, _ = netValue.Round(common.DecimalPlaces).Float64()
-		h.NetValueBought, _ = netValueBought.Round(common.DecimalPlaces).Float64()
-		h.NetValueSold, _ = netValueSold.Round(common.DecimalPlaces).Float64()
-		h.ExchangeFee, _ = exchangeFee.Round(common.DecimalPlaces).Float64()
-		h.Cost, _ = cost.Round(common.DecimalPlaces).Float64()
-		h.CostBasis, _ = costBasis.Round(common.DecimalPlaces).Float64()
-		h.RealProfitLoss, _ = realProfitLoss.Round(common.DecimalPlaces).Float64()
-
-		h.updateValue(f.GetClosePrice())
-
-	*/
-	return nil
 }
 
 func (h *Holding) updateValue(l float64) {

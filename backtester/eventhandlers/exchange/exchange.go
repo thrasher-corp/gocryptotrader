@@ -7,14 +7,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func (e *Exchange) ExecuteOrder(o OrderEvent, data data.Handler) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fill, error) {
 	cs := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	f := &fill.Fill{
 		Event: event.Event{
@@ -23,12 +23,12 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data data.Handler) (*fill.Fill, er
 			CurrencyPair: o.Pair(),
 			AssetType:    o.GetAssetType(),
 			Interval:     o.GetInterval(),
+			Why:          o.GetWhy(),
 		},
 		Direction:   o.GetDirection(),
 		Amount:      o.GetAmount(),
 		ClosePrice:  data.Latest().Price(),
 		ExchangeFee: cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
-		Why:         o.GetWhy(),
 	}
 	if o.GetAmount() <= 0 {
 		return f, nil
@@ -85,7 +85,6 @@ func (e *Exchange) ExecuteOrder(o OrderEvent, data data.Handler) (*fill.Fill, er
 			Cost:          estimatedPrice,
 			FullyMatched:  true,
 		}
-		log.Debugf(log.BackTester, "submitting fake order for %v interval", o.GetTime())
 		resp, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
 		if err != nil {
 			return nil, err

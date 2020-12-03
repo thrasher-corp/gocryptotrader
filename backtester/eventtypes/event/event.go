@@ -31,3 +31,15 @@ func (e *Event) GetAssetType() asset.Item {
 func (e *Event) GetInterval() kline.Interval {
 	return e.Interval
 }
+
+func (e *Event) AppendWhy(y string) {
+	if e.Why == "" {
+		e.Why = y
+	} else {
+		e.Why = y + ". " + e.Why
+	}
+}
+
+func (e *Event) GetWhy() string {
+	return e.Why
+}

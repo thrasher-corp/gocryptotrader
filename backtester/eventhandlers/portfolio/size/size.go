@@ -11,7 +11,7 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (s *Size) SizeOrder(o exchange.OrderEvent, _ interfaces.DataEventHandler, amountAvailable float64, cs *exchange.CurrencySettings) (*order.Order, error) {
+func (s *Size) SizeOrder(o order.OrderEvent, _ interfaces.DataEventHandler, amountAvailable float64, cs *exchange.CurrencySettings) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 
 	switch retOrder.GetDirection() {

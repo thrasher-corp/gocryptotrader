@@ -23,7 +23,7 @@ func (s *Strategy) OnSignal(d data.Handler, p portfolio.Handler) (signal.SignalE
 
 	es.SetPrice(d.Latest().Price())
 	es.SetDirection(order.Buy)
-	es.SetWhy("DCA purchases on every iteration")
+	es.AppendWhy("DCA purchases on every iteration")
 	return &es, nil
 }
 

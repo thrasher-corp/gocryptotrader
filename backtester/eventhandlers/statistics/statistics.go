@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -13,16 +14,17 @@ import (
 	"gonum.org/v1/gonum/stat"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -31,104 +33,156 @@ func (s *Statistic) AddDataEventForTime(e interfaces.DataEventHandler) {
 	ex := e.GetExchange()
 	a := e.GetAssetType()
 	p := e.Pair()
-	t := e.GetTime()
 
-	if s.EventsByTime[t] == nil {
-		s.EventsByTime[t] = make(map[string]map[asset.Item]map[currency.Pair]*EventStore)
+	if s.EventsByTime[ex] == nil {
+		s.EventsByTime[ex] = make(map[asset.Item]map[currency.Pair][]EventStore)
 	}
-	if s.EventsByTime[t][ex] == nil {
-		s.EventsByTime[t][ex] = make(map[asset.Item]map[currency.Pair]*EventStore)
+	if s.EventsByTime[ex][a] == nil {
+		s.EventsByTime[ex][a] = make(map[currency.Pair][]EventStore)
 	}
-	if s.EventsByTime[t][ex][a] == nil {
-		s.EventsByTime[t][ex][a] = make(map[currency.Pair]*EventStore)
-	}
-	if s.EventsByTime[t][ex][a][p] == nil {
-		s.EventsByTime[t][ex][a][p] = &EventStore{
-			DataEvent: e,
-		}
-	}
+	lookup := s.EventsByTime[ex][a][p]
+	lookup = append(lookup, EventStore{DataEvent: e})
+	s.EventsByTime[ex][a][p] = lookup
 }
 
 // AddSignalEventForTime adds strategy signal event to the statistics at the time period
 func (s *Statistic) AddSignalEventForTime(e signal.SignalEvent) {
-	s.EventsByTime[e.GetTime()][e.GetExchange()][e.GetAssetType()][e.Pair()].SignalEvent = e
+	lookup := s.EventsByTime[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	for i := range lookup {
+		if lookup[i].DataEvent.GetTime().Equal(e.GetTime()) {
+			lookup[i].SignalEvent = e
+			s.EventsByTime[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
+		}
+	}
 }
 
 // AddExchangeEventForTime adds exchange event to the statistics at the time period
-func (s *Statistic) AddExchangeEventForTime(e exchange.OrderEvent) {
-	s.EventsByTime[e.GetTime()][e.GetExchange()][e.GetAssetType()][e.Pair()].ExchangeEvent = e
+func (s *Statistic) AddExchangeEventForTime(e order.OrderEvent) {
+	lookup := s.EventsByTime[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	for i := range lookup {
+		if lookup[i].DataEvent.GetTime().Equal(e.GetTime()) {
+			lookup[i].ExchangeEvent = e
+			s.EventsByTime[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
+		}
+	}
 }
 
 // AddFillEventForTime adds fill event to the statistics at the time period
 func (s *Statistic) AddFillEventForTime(e fill.FillEvent) {
-	s.EventsByTime[e.GetTime()][e.GetExchange()][e.GetAssetType()][e.Pair()].FillEvent = e
+	lookup := s.EventsByTime[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	for i := range lookup {
+		if lookup[i].DataEvent.GetTime().Equal(e.GetTime()) {
+			lookup[i].FillEvent = e
+			s.EventsByTime[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
+		}
+	}
 }
 
 // AddHoldingsForTime adds all holdings to the statistics at the time period
 func (s *Statistic) AddHoldingsForTime(h holdings.Holding) {
-	s.EventsByTime[h.Timestamp][h.Exchange][h.Asset][h.Pair].Holdings = h
+	lookup := s.EventsByTime[h.Exchange][h.Asset][h.Pair]
+	for i := range lookup {
+		if lookup[i].DataEvent.GetTime().Equal(h.Timestamp) {
+			lookup[i].Holdings = h
+			s.EventsByTime[h.Exchange][h.Asset][h.Pair] = lookup
+		}
+	}
 }
 
 // AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period
 func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.FillEvent) {
-	s.EventsByTime[e.GetTime()][e.GetExchange()][e.GetAssetType()][e.Pair()].Transactions = c
+	lookup := s.EventsByTime[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	for i := range lookup {
+		if lookup[i].DataEvent.GetTime().Equal(c.Time) {
+			lookup[i].Transactions = c
+			s.EventsByTime[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
+		}
+	}
 }
 
 func (s *Statistic) CalculateTheResults() error {
-	for t, i := range s.EventsByTime {
-		for e, j := range i {
-			for a, k := range j {
-				for p, l := range k {
-					if l.FillEvent != nil {
-						direction := l.FillEvent.GetDirection()
-						if direction == common.CouldNotBuy || direction == common.CouldNotSell || direction == common.DoNothing {
-							log.Infof(log.BackTester, "%v - %v %v %v - Direction: %v - ClosePrice: %v - Why: %s",
-								t.Format(gctcommon.SimpleTimeFormat),
-								e,
-								a.String(),
-								p.String(),
-								l.FillEvent.GetDirection(),
-								l.FillEvent.GetClosePrice(),
-								l.FillEvent.GetWhy())
-						} else {
-							log.Infof(log.BackTester, "%v - %v %v %v - %v - Direction %v - Fee: %v - Amount: %v - Price: %v - ClosePrice: %v - Why: %s",
-								t.Format(gctcommon.SimpleTimeFormat),
-								e,
-								a.String(),
-								p.String(),
-								l.FillEvent.GetDirection(),
-								l.FillEvent.GetExchangeFee(),
-								l.FillEvent.GetAmount(),
-								l.FillEvent.GetPurchasePrice(),
-								l.FillEvent.GetClosePrice(),
-								l.FillEvent.GetWhy())
-						}
-					} else if l.ExchangeEvent != nil {
-						log.Infof(log.BackTester, "%v - %v %v %v - Direction: %v - Why: %s",
-							t.Format(gctcommon.SimpleTimeFormat),
-							e,
-							a.String(),
-							p.String(),
-							l.ExchangeEvent.GetDirection(),
-							l.ExchangeEvent.GetWhy())
-					} else if l.SignalEvent != nil {
-						log.Infof(log.BackTester, "%v - %v %v %v - Direction: %v - Why: %s",
-							t.Format(gctcommon.SimpleTimeFormat),
-							e,
-							a.String(),
-							p.String(),
-							l.SignalEvent.GetDirection(),
-							l.SignalEvent.GetWhy())
-					} else if l.DataEvent != nil {
-						log.Infof(log.BackTester, "%v - %v %v %v - Price: %v", l.DataEvent.Price())
-					} else {
-						log.Error(log.BackTester, "things are bad")
+	var errs gctcommon.Errors
+	log.Info(log.BackTester, "------------------Events-------------------------------------")
 
+	for e, x := range s.EventsByTime {
+		for a, y := range x {
+			for p, z := range y {
+				sort.Slice(z, func(i, j int) bool {
+					return z[i].DataEvent.GetTime().Before(z[j].DataEvent.GetTime())
+				})
+				currStr := fmt.Sprintf("------------------Events for %v %v %v------------------------", e, a, p)
+				log.Infof(log.BackTester, currStr[:61])
+
+				for i := range z {
+					if z[i].FillEvent != nil {
+						direction := z[i].FillEvent.GetDirection()
+						if direction == common.CouldNotBuy || direction == common.CouldNotSell || direction == common.DoNothing {
+							log.Infof(log.BackTester, "%v | Direction: %v - Price: %v - Why: %s",
+								z[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+								z[i].FillEvent.GetDirection(),
+								z[i].FillEvent.GetClosePrice(),
+								z[i].FillEvent.GetWhy())
+						} else {
+							log.Infof(log.BackTester, "%v | Direction %v - Price: $%v - Amount: %v - Fee: $%v - Why: %s",
+								z[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+								z[i].FillEvent.GetDirection(),
+								z[i].FillEvent.GetExchangeFee(),
+								z[i].FillEvent.GetAmount(),
+								z[i].FillEvent.GetPurchasePrice(),
+								z[i].FillEvent.GetWhy())
+						}
+					} else if z[i].SignalEvent != nil {
+						log.Infof(log.BackTester, "%v | Price: $%v - Why: %v",
+							z[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+							z[i].SignalEvent.GetPrice(),
+							z[i].SignalEvent.GetWhy())
+					} else {
+						errs = append(errs, fmt.Errorf("unexpected data received %+v", z[i]))
 					}
 				}
+				last := z[len(z)-1]
+				currStr = fmt.Sprintf("------------------Stats for %v %v %v-------------------------", e, a, p)
+				log.Infof(log.BackTester, currStr[:61])
+
+				log.Infof(log.BackTester, "Initial funds: $%v\n\n", last.Holdings.InitialFunds)
+
+				var buyOrders, sellOrders int64
+				for i := range last.Transactions.Orders {
+					if last.Transactions.Orders[i].Side == gctorder.Buy {
+						buyOrders++
+					} else if last.Transactions.Orders[i].Side == gctorder.Sell {
+						sellOrders++
+					}
+				}
+				log.Infof(log.BackTester, "Buy orders: %v", buyOrders)
+				log.Infof(log.BackTester, "Buy value: %v", last.Holdings.BoughtValue)
+				log.Infof(log.BackTester, "Buy amount: %v", last.Holdings.BoughtAmount)
+				log.Infof(log.BackTester, "Sell orders: %v", sellOrders)
+				log.Infof(log.BackTester, "Sell value: %v", last.Holdings.SoldValue)
+				log.Infof(log.BackTester, "Sell amount: %v", last.Holdings.SoldAmount)
+				log.Infof(log.BackTester, "Total orders: %v\n\n", buyOrders+sellOrders)
+
+				log.Infof(log.BackTester, "Value lost to volume sizing: $%v", last.Holdings.TotalValueLostToVolumeSizing)
+				log.Infof(log.BackTester, "Value lost to slippage: $%v", last.Holdings.TotalValueLostToSlippage)
+				log.Infof(log.BackTester, "Total Value lost: $%v", last.Holdings.TotalValueLostToSlippage+last.Holdings.TotalValueLostToSlippage)
+				log.Infof(log.BackTester, "Total Fees: $%v\n\n", last.Holdings.TotalFees)
+
+				log.Infof(log.BackTester, "Final funds: $%v", last.Holdings.RemainingFunds)
+				log.Infof(log.BackTester, "Final holdings: %v", last.Holdings.PositionsSize)
+				log.Infof(log.BackTester, "Final holdings value: $%v", last.Holdings.PositionsValue)
+				log.Infof(log.BackTester, "Final total value: $%v", last.Holdings.TotalValue)
+
 			}
 		}
 	}
+
+	if len(errs) > 0 {
+		log.Info(log.BackTester, "------------------Errors-------------------------------------")
+		for i := range errs {
+			log.Info(log.BackTester, errs[i].Error())
+		}
+	}
+
 	return nil
 }
 

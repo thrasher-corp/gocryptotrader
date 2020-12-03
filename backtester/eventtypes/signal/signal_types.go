@@ -16,8 +16,6 @@ type SignalEvent interface {
 	GetAmount() float64
 	GetPrice() float64
 	IsSignal() bool
-	GetWhy() string
-	SetWhy(string)
 }
 
 type Signal struct {
@@ -25,5 +23,4 @@ type Signal struct {
 	Amount    float64
 	Price     float64
 	Direction order.Side
-	Why       string
 }

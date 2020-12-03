@@ -60,11 +60,3 @@ func (o *Order) GetLeverage() float64 {
 func (o *Order) SetLeverage(l float64) {
 	o.Leverage = l
 }
-
-func (o *Order) SetWhy(y string) {
-	o.Why = y
-}
-
-func (o *Order) GetWhy() string {
-	return o.Why
-}

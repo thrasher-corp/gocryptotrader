@@ -7,7 +7,6 @@ import (
 )
 
 type Strategy struct {
-	Why string
 }
 
 func (s *Strategy) GetBase(d data.Handler) signal.Signal {

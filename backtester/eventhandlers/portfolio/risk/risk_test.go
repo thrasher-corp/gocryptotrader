@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
@@ -12,7 +11,7 @@ import (
 
 func TestRisk_EvaluateOrder(t *testing.T) {
 	type args struct {
-		order exchange.OrderEvent
+		order order.OrderEvent
 		in1   interfaces.DataEventHandler
 		in2   holdings.Holding
 	}

@@ -24,6 +24,9 @@ type Holding struct {
 	BoughtAmount   float64
 	BoughtValue    float64
 	RemainingFunds float64
-	TotalValue     float64
-	TotalFees      float64
+
+	TotalValue                   float64
+	TotalFees                    float64
+	TotalValueLostToVolumeSizing float64
+	TotalValueLostToSlippage     float64
 }

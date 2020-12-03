@@ -17,6 +17,9 @@ type EventHandler interface {
 	GetExchange() string
 	GetInterval() kline.Interval
 	GetAssetType() asset.Item
+
+	GetWhy() string
+	AppendWhy(string)
 }
 
 // DataHandler interface used for loading and interacting with Data

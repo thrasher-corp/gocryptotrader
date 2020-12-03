@@ -23,10 +23,6 @@ func (f *Fill) GetAmount() float64 {
 	return f.Amount
 }
 
-func (f *Fill) GetWhy() string {
-	return f.Why
-}
-
 func (f *Fill) GetClosePrice() float64 {
 	return f.ClosePrice
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -189,7 +190,7 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 
 	stats := &statistics.Statistic{
 		StrategyName: cfg.StrategyToLoad,
-		EventsByTime: make(map[time.Time]map[string]map[asset.Item]map[currency.Pair]*statistics.EventStore),
+		EventsByTime: make(map[string]map[asset.Item]map[currency.Pair][]statistics.EventStore),
 	}
 	bt.Statistic = stats
 	bt.PrintSettings(cfg)
@@ -545,7 +546,7 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 
 		s, err := bt.Strategy.OnSignal(bt.Data, bt.Portfolio)
 		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
+			bt.Statistic.AddSignalEventForTime(s)
 			break
 		}
 
@@ -554,22 +555,22 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 		cs := bt.Exchange.GetCurrencySettings(event.GetExchange(), event.GetAssetType(), event.Pair())
 		o, err := bt.Portfolio.OnSignal(event, bt.Data, &cs)
 		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
+			bt.Statistic.AddExchangeEventForTime(o)
 			break
 		}
 
 		bt.EventQueue = append(bt.EventQueue, o)
-	case exchange.OrderEvent:
-		fillEvent, err := bt.Exchange.ExecuteOrder(event, bt.Data)
+	case order.OrderEvent:
+		f, err := bt.Exchange.ExecuteOrder(event, bt.Data)
 		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
+			bt.Statistic.AddFillEventForTime(f)
 			break
 		}
-		bt.EventQueue = append(bt.EventQueue, fillEvent)
+		bt.EventQueue = append(bt.EventQueue, f)
 	case fill.FillEvent:
 		t, err := bt.Portfolio.OnFill(event, bt.Data)
 		if err != nil {
-			log.Errorf(log.BackTester, "%s - %s", e.GetTime().Format(gctcommon.SimpleTimeFormat), err.Error())
+			bt.Statistic.AddFillEventForTime(t)
 			break
 		}
 		holding := bt.Portfolio.ViewHoldingAtTimePeriod(event.GetExchange(), event.GetAssetType(), event.Pair(), event.GetTime())

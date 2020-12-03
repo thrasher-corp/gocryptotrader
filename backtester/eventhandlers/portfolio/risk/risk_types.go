@@ -1,7 +1,6 @@
 package risk
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
@@ -10,7 +9,7 @@ import (
 )
 
 type RiskHandler interface {
-	EvaluateOrder(exchange.OrderEvent, interfaces.DataEventHandler, []holdings.Holding) (*order.Order, error)
+	EvaluateOrder(order.OrderEvent, interfaces.DataEventHandler, []holdings.Holding) (*order.Order, error)
 }
 
 type Risk struct {
