@@ -30,7 +30,7 @@ const (
 	poloniexOrders               = "returnOpenOrders"
 	poloniexTradeHistory         = "returnTradeHistory"
 	poloniexOrderTrades          = "returnOrderTrades"
-	poloniexOrderStatus			 = "returnOrderStatus"
+	poloniexOrderStatus          = "returnOrderStatus"
 	poloniexOrderCancel          = "cancelOrder"
 	poloniexOrderMove            = "moveOrder"
 	poloniexWithdraw             = "withdraw"
@@ -94,9 +94,7 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 		if err != nil {
 			return oba, err
 		}
-		if resp.Error != "" {
-			return oba, fmt.Errorf("%s GetOrderbook() error: %s", p.Name, resp.Error)
-		}
+
 		var ob Orderbook
 		for x := range resp.Asks {
 			price, err := strconv.ParseFloat(resp.Asks[x][0].(string), 64)
@@ -453,12 +451,8 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(orderId string) (o []OrderTrade, 
 	if err != nil {
 		return o, err
 	}
-	//fmt.Printf("RAW: %+v", string(result))
-	//panic(999)
+
 	err = json.Unmarshal(result, &o)
-	//if err != nil {
-	//	err = json.Unmarshal(result, &o)
-	//}
 	return
 }
 
