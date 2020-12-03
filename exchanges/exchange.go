@@ -805,8 +805,8 @@ func (e *Base) SetAPIURL() error {
 			}
 		}
 	}
-	e.Config.API.Endpoints = e.API.Endpoints.GetURLMap(true)
-	runningMap := e.API.Endpoints.GetURLMap(false)
+	e.Config.API.Endpoints = e.API.Endpoints.GetURLMap()
+	runningMap := e.API.Endpoints.GetURLMap()
 	for r, s := range runningMap {
 		e.Config.API.Endpoints[r] = s
 	}
@@ -1130,15 +1130,13 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 func (e *Base) NewEndpoints() *Endpoints {
 	return &Endpoints{
 		defaults: make(map[string]string),
-		running:  make(map[string]string),
 	}
 }
 
 // CreateMap declares and sets running and default URLs maps
 func (e *Endpoints) CreateMap(m map[URL]string) {
 	for k, v := range m {
-		e.defaults[Default+k.String()] = v
-		e.running[k.String()] = v
+		e.defaults[k.String()] = v
 	}
 }
 
@@ -1147,31 +1145,20 @@ func (e *Endpoints) SetRunning(key, val string, overwrite bool) error {
 	e.Lock()
 	defer e.Unlock()
 	if !overwrite {
-		oldVal, ok := e.running[key]
+		oldVal, ok := e.defaults[key]
 		if ok && oldVal == val {
 			return fmt.Errorf("given key and val are already set")
 		}
 	}
-	e.running[key] = val
+	e.defaults[key] = val
 	return nil
 }
 
-// GetRunning gets running URLs map
-func (e *Endpoints) GetRunning(key URL) (string, error) {
+// GetURL gets default url from URLs map
+func (e *Endpoints) GetURL(key URL) (string, error) {
 	e.RLock()
 	defer e.RUnlock()
-	val, ok := e.running[key.String()]
-	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
-	}
-	return val, nil
-}
-
-// GetDefault gets default URLs map
-func (e *Endpoints) GetDefault(key URL) (string, error) {
-	e.RLock()
-	defer e.RUnlock()
-	val, ok := e.defaults[Default+key.String()]
+	val, ok := e.defaults[key.String()]
 	if !ok {
 		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
 	}
@@ -1179,17 +1166,10 @@ func (e *Endpoints) GetDefault(key URL) (string, error) {
 }
 
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
-func (e *Endpoints) GetURLMap(defaultMap bool) map[string]string {
+func (e *Endpoints) GetURLMap() map[string]string {
 	e.RLock()
 	var urlMap = make(map[string]string)
-	if defaultMap {
-		for k, v := range e.defaults {
-			urlMap[k] = v
-		}
-		e.RUnlock()
-		return urlMap
-	}
-	for k, v := range e.running {
+	for k, v := range e.defaults {
 		urlMap[k] = v
 	}
 	e.RUnlock()

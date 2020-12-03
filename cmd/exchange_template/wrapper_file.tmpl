@@ -135,12 +135,12 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 	{{.Variable}}.SetupDefaults(exch)
 
 	/*
-	wsDefaultEndpoint, err := {{.Variable}}.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsDefaultEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}
 
-	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetRunning(exchange.SpotWsURL)
+	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.SpotWsURL)
 	if err != nil {
 		return err
 	}

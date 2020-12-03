@@ -221,7 +221,7 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
-		wsEndpoint, err := o.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+		wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

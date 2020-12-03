@@ -272,7 +272,7 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, er
 
 // SendHTTPRequest sends an unauthenticated http request
 func (l *LakeBTC) SendHTTPRequest(endpoint exchange.URL, path string, result interface{}) error {
-	pathURL, err := l.API.Endpoints.GetRunning(endpoint)
+	pathURL, err := l.API.Endpoints.GetURL(endpoint)
 	if err != nil {
 		return err
 	}
@@ -291,7 +291,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, params s
 	if !l.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
-	endpoint, err := l.API.Endpoints.GetRunning(ep)
+	endpoint, err := l.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}

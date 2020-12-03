@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Mock server error %s", err)
 	}
 	b.HTTPClient = newClient
-	endpointMap := b.API.Endpoints.GetURLMap(false)
+	endpointMap := b.API.Endpoints.GetURLMap()
 	for k := range endpointMap {
 		err = b.API.Endpoints.SetRunning(k, serverDetails, true)
 		if err != nil {

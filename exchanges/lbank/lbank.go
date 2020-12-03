@@ -500,7 +500,7 @@ func ErrorCapture(code int64) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *Lbank) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
-	endpoint, err := l.API.Endpoints.GetRunning(ep)
+	endpoint, err := l.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}

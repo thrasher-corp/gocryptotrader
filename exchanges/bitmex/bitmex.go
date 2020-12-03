@@ -779,7 +779,7 @@ func (b *Bitmex) GetWalletSummary(currency string) ([]TransactionInfo, error) {
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitmex) SendHTTPRequest(ep exchange.URL, path string, params Parameter, result interface{}) error {
 	var respCheck interface{}
-	endpoint, err := b.API.Endpoints.GetRunning(ep)
+	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -827,7 +827,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ep exchange.URL, verb, path string
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
-	endpoint, err := b.API.Endpoints.GetRunning(ep)
+	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}

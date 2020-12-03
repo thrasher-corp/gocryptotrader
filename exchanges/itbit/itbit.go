@@ -279,7 +279,7 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (i *ItBit) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
-	endpoint, err := i.API.Endpoints.GetRunning(ep)
+	endpoint, err := i.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 	if !i.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, i.Name)
 	}
-	endpoint, err := i.API.Endpoints.GetRunning(ep)
+	endpoint, err := i.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}

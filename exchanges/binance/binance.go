@@ -2645,7 +2645,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
-	endpointPath, err := b.API.Endpoints.GetRunning(ePath)
+	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
@@ -2664,7 +2664,7 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
-	endpointPath, err := b.API.Endpoints.GetRunning(ePath)
+	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
@@ -2827,7 +2827,7 @@ func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) 
 
 // GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming
 func (b *Binance) GetWsAuthStreamKey() (string, error) {
-	endpointPath, err := b.API.Endpoints.GetRunning(exchange.RestSpotSupplementary)
+	endpointPath, err := b.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {
 		return "", err
 	}
@@ -2854,7 +2854,7 @@ func (b *Binance) GetWsAuthStreamKey() (string, error) {
 
 // MaintainWsAuthStreamKey will keep the key alive
 func (b *Binance) MaintainWsAuthStreamKey() error {
-	endpointPath, err := b.API.Endpoints.GetRunning(exchange.RestSpotSupplementary)
+	endpointPath, err := b.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {
 		return err
 	}

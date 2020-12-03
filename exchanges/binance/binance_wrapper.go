@@ -199,11 +199,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	epoint, err := b.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	epoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -212,7 +208,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       defaultEpoint,
+		DefaultURL:                       binanceDefaultWebsocketURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       epoint,
 		Connector:                        b.WsConnect,

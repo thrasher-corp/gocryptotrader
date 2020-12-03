@@ -265,7 +265,7 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (y *Yobit) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
-	endpoint, err := y.API.Endpoints.GetRunning(ep)
+	endpoint, err := y.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -284,7 +284,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ep exchange.URL, path string, param
 	if !y.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, y.Name)
 	}
-	endpoint, err := y.API.Endpoints.GetRunning(ep)
+	endpoint, err := y.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}

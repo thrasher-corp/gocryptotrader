@@ -136,12 +136,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		}
 	}
 
-	defaultWSURL, err := g.API.Endpoints.GetDefault(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
-	wsRunningURL, err := g.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -151,7 +146,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       defaultWSURL,
+		DefaultURL:                       geminiWebsocketEndpoint,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        g.WsConnect,

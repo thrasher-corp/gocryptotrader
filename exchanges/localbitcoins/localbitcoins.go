@@ -731,7 +731,7 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *LocalBitcoins) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
-	endpoint, err := l.API.Endpoints.GetRunning(ep)
+	endpoint, err := l.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -751,7 +751,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, pa
 	if !l.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
-	endpoint, err := l.API.Endpoints.GetRunning(ep)
+	endpoint, err := l.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}

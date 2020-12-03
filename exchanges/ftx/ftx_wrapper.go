@@ -165,12 +165,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := f.API.Endpoints.GetDefault(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
-	wsEndpoint, err := f.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	wsEndpoint, err := f.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -180,7 +175,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       defaultWSURL,
+		DefaultURL:                       ftxWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsEndpoint,
 		Connector:                        f.WsConnect,

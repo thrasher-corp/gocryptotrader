@@ -154,12 +154,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultWSURL, err := z.API.Endpoints.GetDefault(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
-	wsRunningURL, err := z.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	wsRunningURL, err := z.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -169,7 +164,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       defaultWSURL,
+		DefaultURL:                       zbWebsocketAPI,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        z.WsConnect,

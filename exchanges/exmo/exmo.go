@@ -301,7 +301,7 @@ func (e *EXMO) GetWalletHistory(date int64) (WalletHistory, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *EXMO) SendHTTPRequest(endpoint exchange.URL, path string, result interface{}) error {
-	urlPath, err := e.API.Endpoints.GetRunning(endpoint)
+	urlPath, err := e.API.Endpoints.GetURL(endpoint)
 	if err != nil {
 		return err
 	}
@@ -322,7 +322,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(epath exchange.URL, method, endpoint
 			e.Name)
 	}
 
-	urlPath, err := e.API.Endpoints.GetRunning(epath)
+	urlPath, err := e.API.Endpoints.GetURL(epath)
 	if err != nil {
 		return err
 	}

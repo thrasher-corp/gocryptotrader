@@ -763,7 +763,7 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (p *Poloniex) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
-	endpoint, err := p.API.Endpoints.GetRunning(ep)
+	endpoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -783,7 +783,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			p.Name)
 	}
-	epoint, err := p.API.Endpoints.GetRunning(ep)
+	epoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}

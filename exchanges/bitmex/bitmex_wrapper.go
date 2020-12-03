@@ -142,12 +142,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
-	wsEndpoint, err := b.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -157,7 +152,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       defaultEpoint,
+		DefaultURL:                       bitmexWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsEndpoint,
 		Connector:                        b.WsConnect,
@@ -189,7 +184,7 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		wsEndpoint, err := b.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+		wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

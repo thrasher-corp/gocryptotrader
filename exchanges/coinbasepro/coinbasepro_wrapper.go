@@ -155,12 +155,12 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsDefaultEndpoint, err := c.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	wsDefaultEndpoint, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsRunningURL, err := c.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}

@@ -19,7 +19,7 @@ func (a *Alphapoint) WebsocketClient() {
 		var dialer websocket.Dialer
 		var err error
 		var httpResp *http.Response
-		endpoint, err := a.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+		endpoint, err := a.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
 			log.Error(log.Global, err)
 		}

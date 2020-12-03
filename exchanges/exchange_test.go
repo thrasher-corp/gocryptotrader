@@ -66,7 +66,7 @@ func TestCreateMap(t *testing.T) {
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
 	})
-	_, ok := b.API.Endpoints.running[EdgeCase1.String()]
+	_, ok := b.API.Endpoints.defaults[EdgeCase1.String()]
 	if !ok {
 		t.Errorf("CreateMap failed, no value for for the given key")
 	}
@@ -86,7 +86,7 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	val, ok := b.API.Endpoints.running[EdgeCase2.String()]
+	val, ok := b.API.Endpoints.defaults[EdgeCase2.String()]
 	if !ok {
 		t.Error("set method or createmap failed")
 	}
@@ -105,7 +105,7 @@ func TestGet(t *testing.T) {
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
 	})
-	getVal, err := b.API.Endpoints.GetRunning(EdgeCase1)
+	getVal, err := b.API.Endpoints.GetURL(EdgeCase1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -116,7 +116,7 @@ func TestGet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	getChangedVal, err := b.API.Endpoints.GetRunning(EdgeCase2)
+	getChangedVal, err := b.API.Endpoints.GetURL(EdgeCase2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -135,8 +135,8 @@ func TestGetAll(t *testing.T) {
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
 	})
-	allRunning := b.API.Endpoints.GetURLMap(false)
-	allDefault := b.API.Endpoints.GetURLMap(true)
+	allRunning := b.API.Endpoints.GetURLMap()
+	allDefault := b.API.Endpoints.GetURLMap()
 	if len(allDefault) != len(allRunning) {
 		t.Errorf("number of defaultURLs should match the number of runningURLs")
 	}

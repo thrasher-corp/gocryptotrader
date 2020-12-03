@@ -185,11 +185,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	wsEndpoint, err := b.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -199,7 +195,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       defaultEpoint,
+		DefaultURL:                       publicBitfinexWebsocketEndpoint,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsEndpoint,
 		Connector:                        b.WsConnect,

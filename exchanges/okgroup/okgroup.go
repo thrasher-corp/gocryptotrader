@@ -573,7 +573,7 @@ func (o *OKGroup) SendHTTPRequest(ep exchange.URL, httpMethod, requestType, requ
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			o.Name)
 	}
-	endpoint, err := o.API.Endpoints.GetRunning(ep)
+	endpoint, err := o.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}

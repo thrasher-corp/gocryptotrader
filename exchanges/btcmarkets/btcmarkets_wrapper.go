@@ -142,13 +142,8 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-
-	defaultWSURL, err := b.API.Endpoints.GetDefault(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
-	wsURL, err := b.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	
+	wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -158,7 +153,7 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       defaultWSURL,
+		DefaultURL:                       btcMarketsWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsURL,
 		Connector:                        b.WsConnect,

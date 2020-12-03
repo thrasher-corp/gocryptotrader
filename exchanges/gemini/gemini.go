@@ -351,7 +351,7 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (g *Gemini) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
-	endpoint, err := g.API.Endpoints.GetRunning(ep)
+	endpoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -372,7 +372,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path stri
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
 	}
 
-	endpoint, err := g.API.Endpoints.GetRunning(ep)
+	endpoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}

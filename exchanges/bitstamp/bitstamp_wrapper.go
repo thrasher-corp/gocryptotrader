@@ -151,12 +151,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	defaultEpoint, err := b.API.Endpoints.GetDefault(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
-	wsURL, err := b.API.Endpoints.GetRunning(exchange.WebsocketSpot)
+	wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -166,7 +161,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       defaultEpoint,
+		DefaultURL:                       bitstampWSURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsURL,
 		Connector:                        b.WsConnect,
