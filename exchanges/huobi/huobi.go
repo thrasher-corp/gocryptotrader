@@ -2453,7 +2453,6 @@ func (h *HUOBI) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 	if err != nil {
 		return err
 	}
-	fmt.Println(endpoint + path)
 	return h.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,

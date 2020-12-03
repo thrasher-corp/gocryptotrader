@@ -1347,14 +1347,6 @@ func TestGetActiveOrders(t *testing.T) {
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
 	}
-	_, err = b.GetActiveOrders(&getOrdersRequest)
-	if err == nil {
-		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
-	}
-
-	getOrdersRequest.Pairs = []currency.Pair{
-		currency.NewPair(currency.LTC, currency.BTC),
-	}
 
 	_, err = b.GetActiveOrders(&getOrdersRequest)
 	switch {
