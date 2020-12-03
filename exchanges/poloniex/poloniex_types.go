@@ -66,6 +66,28 @@ type TradeHistory struct {
 	Total         float64 `json:"total,string"`
 }
 
+// OrderStatus holds order status data
+type OrderStatus struct {
+	//Result 		  map[string]OrderTrade   `json:"result"`
+	Result 		  map[string]interface{}   `json:"result"`
+	Success       int64   `json:"success"`
+}
+
+// OrderTrade holds order trade data
+type OrderTrade struct {
+	Status  	  string  `json:"status"`
+	GlobalTradeID int64   `json:"globalTradeID"`
+	TradeID       int64   `json:"tradeID"`
+	CurrencyPair  string  `json:"currencyPair"`
+	Type          string  `json:"type"`
+	Rate          float64 `json:"rate,string"`
+	Amount        float64 `json:"amount,string"`
+	Total         float64 `json:"total,string"`
+	Fee         float64 `json:"fee,string"`
+	Date          string  `json:"date"`
+	StartingAmount         float64 `json:"startingAmount,string"`
+}
+
 // ChartData holds kline data
 type ChartData struct {
 	Date            int64   `json:"date"`

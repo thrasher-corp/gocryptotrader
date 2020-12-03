@@ -29,6 +29,8 @@ const (
 	poloniexDepositsWithdrawals  = "returnDepositsWithdrawals"
 	poloniexOrders               = "returnOpenOrders"
 	poloniexTradeHistory         = "returnTradeHistory"
+	poloniexOrderTrades          = "returnOrderTrades"
+	poloniexOrderStatus			 = "returnOrderStatus"
 	poloniexOrderCancel          = "cancelOrder"
 	poloniexOrderMove            = "moveOrder"
 	poloniexWithdraw             = "withdraw"
@@ -416,6 +418,48 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(start, end, limit int64) (Authen
 
 	var mainResult AuthenticatedTradeHistoryAll
 	return mainResult, json.Unmarshal(result, &mainResult.Data)
+}
+
+// GetAuthenticatedOrderStatus returns the status of a given orderId.
+func (p *Poloniex) GetAuthenticatedOrderStatus(orderId string) (o OrderStatus, err error) {
+	values := url.Values{}
+
+	if orderId == "" {
+		return o, fmt.Errorf("no orderId passed")
+	}
+
+	values.Set("orderNumber", orderId)
+	var result json.RawMessage
+	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderStatus, values, &result)
+	if err != nil {
+		return o, err
+	}
+
+	err = json.Unmarshal(result, &o)
+	return
+}
+
+// GetAuthenticatedOrderTrades returns all trades involving a given orderId.
+func (p *Poloniex) GetAuthenticatedOrderTrades(orderId string) (o []OrderTrade, err error) {
+	values := url.Values{}
+
+	if orderId == "" {
+		return o, fmt.Errorf("no orderId passed")
+	}
+
+	values.Set("orderNumber", orderId)
+	var result json.RawMessage
+	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderTrades, values, &result)
+	if err != nil {
+		return o, err
+	}
+	//fmt.Printf("RAW: %+v", string(result))
+	//panic(999)
+	err = json.Unmarshal(result, &o)
+	//if err != nil {
+	//	err = json.Unmarshal(result, &o)
+	//}
+	return
 }
 
 // PlaceOrder places a new order on the exchange

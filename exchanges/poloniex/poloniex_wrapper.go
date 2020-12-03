@@ -589,8 +589,146 @@ func (p *Poloniex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 
 // GetOrderInfo returns order information based on order ID
 func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	var orderInfo order.Detail
+
+	trades, err := p.GetAuthenticatedOrderTrades(orderID)
+	if err == nil {
+		for _, o := range trades {
+			var tradeHistory order.TradeHistory
+			tradeHistory.Exchange = p.Name
+			tradeHistory.Side, err = order.StringToOrderSide(o.Type)
+			if err != nil {
+				return orderInfo, err
+			}
+			tradeHistory.TID = strconv.FormatInt(o.GlobalTradeID, 10)
+			tradeHistory.Timestamp, err = time.Parse(common.SimpleTimeFormat, o.Date)
+			if err != nil {
+				return orderInfo, err
+			}
+			tradeHistory.Price = o.Rate
+			tradeHistory.Amount = o.Amount
+			tradeHistory.Total = o.Total
+			tradeHistory.Fee = o.Fee
+
+			orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
+		}
+		orderInfo.Exchange = p.Name
+		return orderInfo, nil
+	}
+	//fmt.Printf("%+v %v", trades , err)
+	//panic(321)
+
+
+	resp, err := p.GetAuthenticatedOrderStatus(orderID)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
+	for _, v := range resp.Result {
+		switch v.(type) {
+		case string:
+			return orderInfo, fmt.Errorf(v.(string))
+		case map[string]interface{}:
+			orderStatus := v.(map[string]interface{})
+			orderInfo.Status, _ = order.StringToOrderStatus(orderStatus["status"].(string))
+
+			rate, err := strconv.ParseFloat(orderStatus["rate"].(string), 64)
+			if err == nil {
+				orderInfo.Price = rate
+			}
+
+			amount, err := strconv.ParseFloat(orderStatus["amount"].(string), 64)
+			if err == nil {
+				orderInfo.Amount = amount
+			}
+
+			total, err := strconv.ParseFloat(orderStatus["total"].(string), 64)
+			if err == nil {
+				orderInfo.Cost = total
+			}
+
+			fee, err := strconv.ParseFloat(orderStatus["fee"].(string), 64)
+			if err == nil {
+				orderInfo.Fee = fee
+			}
+
+			orderInfo.Side, err = order.StringToOrderSide(orderStatus["type"].(string))
+			if err == nil {
+				return order.Detail{}, err
+			}
+
+			avail, err := p.GetAvailablePairs(assetType)
+			if err != nil {
+				return order.Detail{}, err
+			}
+
+			format, err := p.GetPairFormat(assetType, true)
+			if err != nil {
+				return orderInfo, err
+			}
+
+			orderInfo.Pair, err = currency.NewPairFromFormattedPairs(orderStatus["currencyPair"].(string), avail, format)
+			if err != nil {
+				return orderInfo, err
+			}
+
+			orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, orderStatus["date"].(string))
+			if err != nil {
+				return orderInfo, err
+			}
+
+			orderInfo.TargetAmount, err = strconv.ParseFloat(orderStatus["startingAmount"].(string), 64)
+			if err == nil {
+				orderInfo.Cost = total
+			}
+
+			orderInfo.Exchange = p.Name
+		default:
+			return orderInfo, fmt.Errorf("wrong resp.Result type")
+		}
+	}
+
+
+	/*
+	resp, err := p.GetAuthenticatedOrderTrades(orderID)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
+	if len(resp) == 0 {
+		return order.Detail{}, fmt.Errorf("order not found")
+	}
+
+	//a := int64(resp[0].Date)
+	//aa := time.Unix(a,0)
+
+	var cost, rateT, fee float64
+	var orders []order.Detail
+	for _, r := range resp {
+		cost = cost + r.Total
+		rateT += r.Rate
+		fee += r.Fee
+	}
+
+	orders = append(orders, order.Detail{
+		ID:              fmt.Sprint(resp[0].GlobalTradeID),
+		//ID:              resp[getOrdersRequest.OrderId].RefID,
+		Amount:          resp[0].Amount,
+		//Exchange:        req.,
+		//Date:            resp[""].OpenTime,
+		Price:          rateT / float64(len(resp)),
+		//Side:            resp[getOrdersRequest.OrderId].Status,
+		//Type:            resp[""].Description.OrderType,
+		//Pair:            resp[""].Description.Pair,
+		Fee:            fee,
+		Cost: 			cost,
+		//Date: 			aa,
+	})
+
+	orderInfo.Trades = append(orderInfo.Trades, orders)
+	*/
+
+	return orderInfo, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
