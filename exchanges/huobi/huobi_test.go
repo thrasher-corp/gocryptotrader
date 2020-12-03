@@ -186,7 +186,7 @@ func TestFQueryTieredAdjustmentFactor(t *testing.T) {
 
 func TestFQueryHisOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := h.FQueryHisOpenInterest("BTC_NW", "", "60min", 50, 2)
+	_, err := h.FQueryHisOpenInterest("BTC", "next_week", "60min", "cont", 3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -219,6 +219,22 @@ func TestFQueryTopPositionsRatio(t *testing.T) {
 func TestFLiquidationOrders(t *testing.T) {
 	t.Parallel()
 	_, err := h.FLiquidationOrders("BTC", "filled", 0, 0, 7)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFIndexKline(t *testing.T) {
+	t.Parallel()
+	_, err := h.FIndexKline("BTC", "5min", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFGetBasisData(t *testing.T) {
+	t.Parallel()
+	_, err := h.FGetBasisData("BTC", "5min", "open", 3)
 	if err != nil {
 		t.Error(err)
 	}

@@ -580,7 +580,7 @@ type FOIData struct {
 		Symbol       string `json:"symbol"`
 		ContractType string `json:"contract_type"`
 		Tick         []struct {
-			Volume     float64 `json:"volume"`
+			Volume     float64 `json:"volume,string"`
 			AmountType int64   `json:"amount_type"`
 			Timestamp  int64   `json:"ts"`
 		} `json:"tick"`

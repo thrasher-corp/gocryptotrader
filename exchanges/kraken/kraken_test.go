@@ -734,13 +734,17 @@ func TestGetActiveOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-
+	pair, err := currency.NewPairFromString("LTC_USDT")
+	if err != nil {
+		t.Error(err)
+	}
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
+		Pairs:     currency.Pairs{pair},
 	}
 
-	_, err := k.GetActiveOrders(&getOrdersRequest)
+	_, err = k.GetActiveOrders(&getOrdersRequest)
 	if err != nil {
 		t.Error(err)
 	}

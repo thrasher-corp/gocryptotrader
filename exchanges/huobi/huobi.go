@@ -364,8 +364,8 @@ func (h *HUOBI) FQueryTieredAdjustmentFactor(symbol string) (FTieredAdjustmentFa
 }
 
 // FQueryHisOpenInterest gets open interest for futures contract
-func (h *HUOBI) FQueryHisOpenInterest(symbol, contractType, period string, size, amountType int64) (FContractOIData, error) {
-	var resp FContractOIData
+func (h *HUOBI) FQueryHisOpenInterest(symbol, contractType, period, amountType string, size int64) (FOIData, error) {
+	var resp FOIData
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -378,6 +378,14 @@ func (h *HUOBI) FQueryHisOpenInterest(symbol, contractType, period string, size,
 		return resp, fmt.Errorf("invalid period")
 	}
 	params.Set("period", period)
+	if size > 0 || size <= 200 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	validAmount, ok := validAmountType[amountType]
+	if !ok {
+		return resp, fmt.Errorf("invalid amountType")
+	}
+	params.Set("amount_type", strconv.FormatInt(validAmount, 10))
 	path := fHisContractOpenInterest + params.Encode()
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
 }
@@ -473,11 +481,13 @@ func (h *HUOBI) FGetBasisData(symbol, period, basisPriceType string, size int64)
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	params.Set("size", strconv.FormatInt(size, 10))
 	if basisPriceType != "" {
 		if common.StringDataCompare(validBasisPriceTypes, basisPriceType) {
 			params.Set("basis_price_type", basisPriceType)
 		}
+	}
+	if size > 0 && size <= 2000 {
+		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	path := fBasisData + params.Encode()
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
