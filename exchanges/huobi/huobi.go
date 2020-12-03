@@ -2453,14 +2453,25 @@ func (h *HUOBI) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 	if err != nil {
 		return err
 	}
-	return h.SendPayload(context.Background(), &request.Item{
+	var tempResp json.RawMessage
+	var errCap errorCapture
+	err = h.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
-		Result:        result,
+		Result:        &tempResp,
 		Verbose:       h.Verbose,
 		HTTPDebugging: h.HTTPDebugging,
 		HTTPRecording: h.HTTPRecording,
 	})
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(tempResp, &errCap); err == nil {
+		if errCap.Code != 200 && errCap.ErrMsg != "" {
+			return errors.New(errCap.ErrMsg)
+		}
+	}
+	return json.Unmarshal(tempResp, result)
 }
 
 // FuturesAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
@@ -2505,11 +2516,7 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 	}
 
 	var tempResp json.RawMessage
-	errCap := struct {
-		Status string `json:"status"`
-		Code   int64  `json:"err_code"`
-		ErrMsg string `json:"err_msg"`
-	}{}
+	var errCap errorCapture
 
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
 	defer cancel()

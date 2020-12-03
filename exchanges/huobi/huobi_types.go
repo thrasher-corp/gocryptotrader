@@ -2,6 +2,13 @@ package huobi
 
 import "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 
+type errorCapture struct {
+	Status    string `json:"status"`
+	Code      int64  `json:"err_code"`
+	ErrMsg    string `json:"err_msg"`
+	Timestamp int64  `json:"ts"`
+}
+
 // WsKlineData stores kline data for futures and swap websocket
 type WsKlineData struct {
 	Channel   string `json:"ch"`

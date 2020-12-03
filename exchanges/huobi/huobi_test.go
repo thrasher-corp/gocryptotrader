@@ -162,7 +162,7 @@ func TestFRequestPublicBatchTrades(t *testing.T) {
 
 func TestFQueryInsuranceAndClawbackData(t *testing.T) {
 	t.Parallel()
-	_, err := h.FQueryInsuranceAndClawbackData("BTC_NW")
+	_, err := h.FQueryInsuranceAndClawbackData("BTC")
 	if err != nil {
 		t.Error(err)
 	}
@@ -170,7 +170,7 @@ func TestFQueryInsuranceAndClawbackData(t *testing.T) {
 
 func TestFQueryHistoricalInsuranceData(t *testing.T) {
 	t.Parallel()
-	_, err := h.FQueryHistoricalInsuranceData("BTC_NW")
+	_, err := h.FQueryHistoricalInsuranceData("BTC")
 	if err != nil {
 		t.Error(err)
 	}
@@ -178,7 +178,7 @@ func TestFQueryHistoricalInsuranceData(t *testing.T) {
 
 func TestFQueryTieredAdjustmentFactor(t *testing.T) {
 	t.Parallel()
-	_, err := h.FQueryTieredAdjustmentFactor("BTC_NW")
+	_, err := h.FQueryTieredAdjustmentFactor("BTC")
 	if err != nil {
 		t.Error(err)
 	}
