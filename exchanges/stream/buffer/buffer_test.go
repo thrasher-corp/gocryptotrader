@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"errors"
 	"math/rand"
 	"testing"
 	"time"
@@ -375,86 +376,6 @@ func TestSortIDs(t *testing.T) {
 	}
 }
 
-// TestDeleteWithIDs logic test
-func TestDeleteWithIDs(t *testing.T) {
-	obl, _, _, err := createSnapshot()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// This is to ensure we do not send in zero orderbook info to our main book
-	// in orderbook.go, orderbooks should not be zero even after an update.
-	dummyItem := orderbook.Item{
-		Amount: 1333337,
-		Price:  1337.1337,
-		ID:     1337,
-	}
-	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
-	obl.ob[cp.Base][cp.Quote][asset.Spot].Asks = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks,
-		itemArray[2][0])
-	obl.ob[cp.Base][cp.Quote][asset.Spot].Asks = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks,
-		itemArray[1][0])
-
-	obl.updateEntriesByID = true
-	for i := range itemArray {
-		asks := itemArray[i]
-		bids := itemArray[i]
-		err = obl.Update(&Update{
-			Bids:       bids,
-			Asks:       asks,
-			Pair:       cp,
-			UpdateTime: time.Now(),
-			Asset:      asset.Spot,
-			Action:     "delete",
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 0 {
-		t.Errorf("expected 0 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
-	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 1 {
-		t.Errorf("expected 1 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
-	}
-}
-
-// TestUpdateWithIDs logic test
-func TestUpdateWithIDs(t *testing.T) {
-	obl, _, _, err := createSnapshot()
-	if err != nil {
-		t.Fatal(err)
-	}
-	obl.updateEntriesByID = true
-	for i := range itemArray {
-		asks := itemArray[i]
-		bids := itemArray[i]
-		err = obl.Update(&Update{
-			Bids:       bids,
-			Asks:       asks,
-			Pair:       cp,
-			UpdateTime: time.Now(),
-			Asset:      asset.Spot,
-			Action:     "update",
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 1 {
-		t.Log(obl.ob[cp.Base][cp.Quote][asset.Spot])
-		t.Errorf("expected 1 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
-	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 1 {
-		t.Errorf("expected 1 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
-	}
-}
-
 // TestOutOfOrderIDs logic test
 func TestOutOfOrderIDs(t *testing.T) {
 	obl, _, _, err := createSnapshot()
@@ -784,14 +705,45 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	w := Orderbook{}
-	w.Setup(1, true, true, true, true, "hi", make(chan interface{}))
-	if w.obBufferLimit != 1 ||
+	err := w.Setup(0, false, false, false, false, "", nil)
+	if err == nil || !errors.Is(err, errUnsetExchangeName) {
+		t.Fatalf("expected error %v but received %v", errUnsetExchangeName, err)
+	}
+
+	err = w.Setup(0, false, false, false, false, "test", nil)
+	if err == nil || !errors.Is(err, errUnsetDataHandler) {
+		t.Fatalf("expected error %v but received %v", errUnsetDataHandler, err)
+	}
+
+	err = w.Setup(0, true, false, false, false, "test", make(chan interface{}))
+	if err == nil || !errors.Is(err, errIssueBufferEnabledButNoLimit) {
+		t.Fatalf("expected error %v but received %v", errIssueBufferEnabledButNoLimit, err)
+	}
+
+	err = w.Setup(1337, true, true, true, true, "test", make(chan interface{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w.obBufferLimit != 1337 ||
 		!w.bufferEnabled ||
 		!w.sortBuffer ||
 		!w.sortBufferByUpdateIDs ||
 		!w.updateEntriesByID ||
-		w.exchangeName != "hi" {
+		w.exchangeName != "test" {
 		t.Errorf("Setup incorrectly loaded %s", w.exchangeName)
+	}
+}
+
+func TestValidate(t *testing.T) {
+	w := Orderbook{}
+	err := w.validate(nil)
+	if err == nil || !errors.Is(err, errUpdateIsNil) {
+		t.Fatalf("expected error %v but received %v", errUpdateIsNil, err)
+	}
+
+	err = w.validate(&Update{})
+	if err == nil || !errors.Is(err, errUpdateNoTargets) {
+		t.Fatalf("expected error %v but received %v", errUpdateNoTargets, err)
 	}
 }
 
@@ -872,5 +824,198 @@ func TestInsertItem(t *testing.T) {
 	insertUpdatesBid(update, &bids)
 	if asks[3].Price != 4 {
 		t.Fatal("incorrect insertion")
+	}
+}
+
+func deploySliceOrdered(size int) []orderbook.Item {
+	rand.Seed(time.Now().UnixNano())
+	var items []orderbook.Item
+	for i := 0; i < size; i++ {
+		items = append(items, orderbook.Item{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()})
+	}
+	return items
+}
+
+func TestUpdateByIDAndAction(t *testing.T) {
+	w := Orderbook{}
+
+	asks := deploySliceOrdered(100)
+	bids := append(asks[:0:0], asks...)
+	orderbook.Reverse(bids)
+
+	book := &orderbook.Base{
+		Bids: append(bids[:0:0], bids...),
+		Asks: append(asks[:0:0], asks...),
+	}
+
+	err := book.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = w.updateByIDAndAction(book, &Update{})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	// append to slice
+	err = w.updateByIDAndAction(book, &Update{
+		Action: UpdateInsert,
+		Bids: []orderbook.Item{
+			{
+				Price: 0,
+				ID:    1337,
+			},
+		},
+		Asks: []orderbook.Item{
+			{
+				Price: 100,
+				ID:    1337,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if book.Bids[len(book.Bids)-1].Price != 0 {
+		t.Fatal("did not append bid item")
+	}
+	if book.Asks[len(book.Asks)-1].Price != 100 {
+		t.Fatal("did not append ask item")
+	}
+
+	// Change amount
+	err = w.updateByIDAndAction(book, &Update{
+		Action: UpdateInsert,
+		Bids: []orderbook.Item{
+			{
+				Price:  0,
+				ID:     1337,
+				Amount: 100,
+			},
+		},
+		Asks: []orderbook.Item{
+			{
+				Price:  100,
+				ID:     1337,
+				Amount: 100,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if book.Bids[len(book.Bids)-1].Amount != 100 {
+		t.Fatal("did not update bid amount")
+	}
+
+	if book.Asks[len(book.Asks)-1].Amount != 100 {
+		t.Fatal("did not update ask amount")
+	}
+
+	// Change price level
+	err = w.updateByIDAndAction(book, &Update{
+		Action: UpdateInsert,
+		Bids: []orderbook.Item{
+			{
+				Price:  100,
+				ID:     1337,
+				Amount: 99,
+			},
+		},
+		Asks: []orderbook.Item{
+			{
+				Price:  0,
+				ID:     1337,
+				Amount: 99,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if book.Bids[0].Amount != 99 && book.Bids[0].Price != 100 {
+		t.Fatal("did not adjust bid item placement and details")
+	}
+
+	if book.Asks[0].Amount != 99 && book.Asks[0].Amount != 0 {
+		t.Fatal("did not adjust ask item placement and details")
+	}
+
+	book.Bids = append(bids[:0:0], bids...)
+	book.Asks = append(asks[:0:0], asks...)
+
+	// Delete - not found
+	err = w.updateByIDAndAction(book, &Update{
+		Action: Delete,
+		Asks: []orderbook.Item{
+			{
+				Price:  0,
+				ID:     1337,
+				Amount: 99,
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	err = w.updateByIDAndAction(book, &Update{
+		Action: Delete,
+		Bids: []orderbook.Item{
+			{
+				Price:  0,
+				ID:     1337,
+				Amount: 99,
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	// Delete - found
+	err = w.updateByIDAndAction(book, &Update{
+		Action: Delete,
+		Asks: []orderbook.Item{
+			asks[0],
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(book.Asks) != 99 {
+		t.Fatal("element not deleted")
+	}
+
+	// Apply update
+	err = w.updateByIDAndAction(book, &Update{
+		Action: Amend,
+		Asks: []orderbook.Item{
+			{ID: 123456},
+		},
+	})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	update := book.Asks[0]
+	update.Amount = 1337
+
+	err = w.updateByIDAndAction(book, &Update{
+		Action: Amend,
+		Asks: []orderbook.Item{
+			update,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if book.Asks[0].Amount != 1337 {
+		t.Fatal("element not updated")
 	}
 }

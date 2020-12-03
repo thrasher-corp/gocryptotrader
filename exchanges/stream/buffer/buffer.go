@@ -206,11 +206,11 @@ bidUpdates:
 func (w *Orderbook) updateByIDAndAction(book *orderbook.Base, updts *Update) (err error) {
 	switch updts.Action {
 	case Amend:
-		err = applyUpdates(updts.Bids, &book.Bids)
+		err = applyUpdates(updts.Bids, book.Bids)
 		if err != nil {
 			return err
 		}
-		err = applyUpdates(updts.Asks, &book.Asks)
+		err = applyUpdates(updts.Asks, book.Asks)
 		if err != nil {
 			return err
 		}
@@ -268,17 +268,17 @@ func (w *Orderbook) updateByIDAndAction(book *orderbook.Base, updts *Update) (er
 }
 
 // applyUpdates amends amount by ID and returns an error if not found
-func applyUpdates(updt []orderbook.Item, book *[]orderbook.Item) error {
+func applyUpdates(updts, book []orderbook.Item) error {
 updates:
-	for x := range updt {
-		for y := range *book {
-			if ([]orderbook.Item)(*book)[y].ID == updt[x].ID {
-				([]orderbook.Item)(*book)[y].Amount = updt[x].Amount
+	for x := range updts {
+		for y := range book {
+			if book[y].ID == updts[x].ID {
+				book[y].Amount = updts[x].Amount
 				continue updates
 			}
 		}
 		return fmt.Errorf("update cannot be applied id: %d not found",
-			updt[x].ID)
+			updts[x].ID)
 	}
 	return nil
 }
