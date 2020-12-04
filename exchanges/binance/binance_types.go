@@ -98,13 +98,13 @@ type DepthUpdateParams []struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string          `json:"e"`
-	Timestamp     time.Time       `json:"E"`
-	Pair          string          `json:"s"`
-	FirstUpdateID int64           `json:"U"`
-	LastUpdateID  int64           `json:"u"`
-	UpdateBids    [][]interface{} `json:"b"`
-	UpdateAsks    [][]interface{} `json:"a"`
+	Event         string           `json:"e"`
+	Timestamp     time.Time        `json:"E"`
+	Pair          string           `json:"s"`
+	FirstUpdateID int64            `json:"U"`
+	LastUpdateID  int64            `json:"u"`
+	UpdateBids    [][2]interface{} `json:"b"`
+	UpdateAsks    [][2]interface{} `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.
@@ -728,18 +728,20 @@ type WsPayload struct {
 // orderbookManager defines a way of managing and maintaining synchronisation
 // across connections and assets.
 type orderbookManager struct {
-	buffer map[currency.Code]map[currency.Code]map[asset.Item]chan *WebsocketDepthStream
-	bmtx   sync.Mutex
+	state map[currency.Code]map[currency.Code]map[asset.Item]*update
+	sync.Mutex
 
-	fetchingBook map[currency.Code]map[currency.Code]map[asset.Item]*bool
-	initialSync  map[currency.Code]map[currency.Code]map[asset.Item]*bool
-	fmtx         sync.Mutex
-
-	jobs chan orderbookWsJob
+	jobs chan job
 }
 
-// orderbookWsJob defines a synchonisation job that tells a go routine to fetch
-// an orderbook by the REST protocol
-type orderbookWsJob struct {
+type update struct {
+	buffer       chan *WebsocketDepthStream
+	fetchingBook bool
+	initialSync  bool
+}
+
+// job defines a synchonisation job that tells a go routine to fetch an
+// orderbook via the REST protocol
+type job struct {
 	Pair currency.Pair
 }

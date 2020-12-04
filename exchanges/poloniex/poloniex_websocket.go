@@ -467,7 +467,15 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot into a local
 // of orderbooks
 func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) error {
-	askdata := ob[0].(map[string]interface{})
+	if len(ob) != 2 {
+		return errors.New("incorrect orderbook data returned")
+	}
+
+	askdata, ok := ob[0].(map[string]interface{})
+	if !ok {
+		return errors.New("assertion failed for ask data")
+	}
+
 	var book orderbook.Base
 	for price, volume := range askdata {
 		p, err := strconv.ParseFloat(price, 64)
@@ -481,7 +489,11 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 		book.Asks = append(book.Asks, orderbook.Item{Price: p, Amount: a})
 	}
 
-	bidData := ob[1].(map[string]interface{})
+	bidData, ok := ob[1].(map[string]interface{})
+	if !ok {
+		return errors.New("assertion failed for bid data")
+	}
+
 	for price, volume := range bidData {
 		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {

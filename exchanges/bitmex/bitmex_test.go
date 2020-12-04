@@ -868,8 +868,11 @@ func TestWSOrderbookHandling(t *testing.T) {
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
+	if err != nil && err.Error() != "update cannot be deleted id: 17999995000 not found" {
+		t.Error(err)
+	}
 	if err == nil {
-		t.Error("delete should already have occurred above")
+		t.Error("expecting error")
 	}
 }
 

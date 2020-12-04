@@ -16,7 +16,7 @@ var itemArray = [][]orderbook.Item{
 	{{Price: 2000, Amount: 1, ID: 2000}},
 	{{Price: 3000, Amount: 1, ID: 3000}},
 	{{Price: 3000, Amount: 2, ID: 4000}},
-	{{Price: 4000, Amount: 5, ID: 6000}},
+	{{Price: 4000, Amount: 0, ID: 6000}},
 	{{Price: 5000, Amount: 1, ID: 5000}},
 }
 
@@ -298,11 +298,11 @@ func TestHittingTheBuffer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 4 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 4 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
 	}
@@ -319,6 +319,9 @@ func TestInsertWithIDs(t *testing.T) {
 	obl.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
+		if asks[0].Amount <= 0 {
+			continue
+		}
 		bids := itemArray[i]
 		err = obl.Update(&Update{
 			Bids:       bids,
@@ -366,11 +369,11 @@ func TestSortIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 4 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 4 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
 			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
 	}
@@ -698,8 +701,19 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	ob := obl.GetOrderbook(cp, asset.Spot)
-	if obl.ob[cp.Base][cp.Quote][asset.Spot] != ob {
-		t.Error("Failed to get orderbook")
+	bufferOb := obl.ob[cp.Base][cp.Quote][asset.Spot]
+	if bufferOb == ob {
+		t.Error("orderbooks should be seperate in pointer value and not linked to orderbook package")
+	}
+
+	if len(bufferOb.Asks) != len(ob.Asks) ||
+		len(bufferOb.Bids) != len(ob.Bids) ||
+		bufferOb.AssetType != ob.AssetType ||
+		bufferOb.ExchangeName != ob.ExchangeName ||
+		bufferOb.LastUpdateID != ob.LastUpdateID ||
+		bufferOb.NotAggregated != ob.NotAggregated ||
+		bufferOb.Pair != ob.Pair {
+		t.Fatal("data on both books should be the same")
 	}
 }
 
@@ -854,6 +868,19 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	err = w.updateByIDAndAction(book, &Update{})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = w.updateByIDAndAction(book, &Update{
+		Action: Amend,
+		Bids: []orderbook.Item{
+			{
+				Price: 100,
+				ID:    6969,
+			},
+		},
+	})
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -1017,5 +1044,60 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	if book.Asks[0].Amount != 1337 {
 		t.Fatal("element not updated")
+	}
+}
+
+func TestFlushOrderbook(t *testing.T) {
+	w := &Orderbook{}
+	err := w.Setup(5, false, false, false, false, "test", make(chan interface{}, 2))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var snapShot1 orderbook.Base
+	snapShot1.ExchangeName = "Snapshooooot"
+	asks := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 8},
+	}
+	bids := []orderbook.Item{
+		{Price: 4000, Amount: 1, ID: 9},
+	}
+	snapShot1.Asks = asks
+	snapShot1.Bids = bids
+	snapShot1.AssetType = asset.Spot
+	snapShot1.Pair = cp
+
+	err = w.FlushOrderbook(cp, asset.Spot)
+	if err == nil {
+		t.Fatal("book not loaded error cannot be nil")
+	}
+
+	o := w.GetOrderbook(cp, asset.Spot)
+	if o != nil {
+		t.Fatal("book not loaded, this should not happend")
+	}
+
+	err = w.LoadSnapshot(&snapShot1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = w.LoadSnapshot(&snapShot1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = w.FlushOrderbook(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	o = w.GetOrderbook(cp, asset.Spot)
+	if o == nil {
+		t.Fatal("cannot get book")
+	}
+
+	if o.Bids != nil && o.Asks != nil {
+		t.Fatal("orderbook items not flushed")
 	}
 }
