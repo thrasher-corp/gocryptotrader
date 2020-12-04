@@ -211,13 +211,14 @@ func (s *Statistic) CalculateTheResults() error {
 				log.Infof(log.BackTester, "Drawdown length: %v", len(draws.LongestDrawDown.Iterations))
 
 				log.Info(log.BackTester, "------------------Ratios-------------------------------------")
-				log.Infof(log.BackTester, "Shape ratio: $%v", last.Holdings.TotalFees)
+				log.Infof(log.BackTester, "Sharpe ratio: $%v", last.Holdings.TotalFees)
 				log.Infof(log.BackTester, "Sortino ratio: $%v\n\n", last.Holdings.TotalFees)
 
 				log.Infof(log.BackTester, "Final funds: $%v", last.Holdings.RemainingFunds)
 				log.Infof(log.BackTester, "Final holdings: %v", last.Holdings.PositionsSize)
 				log.Infof(log.BackTester, "Final holdings value: $%v", last.Holdings.PositionsValue)
 				log.Infof(log.BackTester, "Final total value: $%v", last.Holdings.TotalValue)
+
 			}
 		}
 	}
@@ -232,29 +233,7 @@ func (s *Statistic) CalculateTheResults() error {
 	return nil
 }
 
-type SuperDrawDown struct {
-	DrawDowns       []DrawDown
-	MaxDrawDown     DrawDown
-	LongestDrawDown DrawDown
-}
-
-type DrawDown struct {
-	Highest    Draw
-	Lowest     Draw
-	Iterations []Iterations
-}
-
-type Draw struct {
-	Price float64
-	Time  time.Time
-}
-
-type Iterations struct {
-	Time  time.Time
-	Price float64
-}
-
-func (s *SuperDrawDown) calculateMaxAndLongestDrawDowns() {
+func (s *DrawDownHolder) calculateMaxAndLongestDrawDowns() {
 	for i := range s.DrawDowns {
 		if s.DrawDowns[i].Highest.Price-s.DrawDowns[i].Lowest.Price > s.MaxDrawDown.Highest.Price-s.MaxDrawDown.Lowest.Price {
 			s.MaxDrawDown = s.DrawDowns[i]
@@ -265,20 +244,20 @@ func (s *SuperDrawDown) calculateMaxAndLongestDrawDowns() {
 	}
 }
 
-func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) SuperDrawDown {
+func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) DrawDownHolder {
 	isDrawingDown := false
 
-	var response SuperDrawDown
-	var activeDraw DrawDown
+	var response DrawDownHolder
+	var activeDraw DrawDowns
 	for i := range closePrices {
 		p := closePrices[i].Price()
 		t := closePrices[i].GetTime()
 		if i == 0 {
-			activeDraw.Highest = Draw{
+			activeDraw.Highest = Iteration{
 				Price: p,
 				Time:  t,
 			}
-			activeDraw.Lowest = Draw{
+			activeDraw.Lowest = Iteration{
 				Price: p,
 				Time:  t,
 			}
@@ -287,12 +266,12 @@ func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) SuperDrawD
 		// create
 		if !isDrawingDown && activeDraw.Highest.Price > p {
 			isDrawingDown = true
-			activeDraw = DrawDown{
-				Highest: Draw{
+			activeDraw = DrawDowns{
+				Highest: Iteration{
 					Price: p,
 					Time:  t,
 				},
-				Lowest: Draw{
+				Lowest: Iteration{
 					Price: p,
 					Time:  t,
 				},
@@ -301,19 +280,19 @@ func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) SuperDrawD
 
 		// close
 		if isDrawingDown && activeDraw.Lowest.Price < p {
-			activeDraw.Lowest = Draw{
+			activeDraw.Lowest = Iteration{
 				Price: activeDraw.Iterations[len(activeDraw.Iterations)-1].Price,
 				Time:  activeDraw.Iterations[len(activeDraw.Iterations)-1].Time,
 			}
 			isDrawingDown = false
 			response.DrawDowns = append(response.DrawDowns, activeDraw)
 			// reset
-			activeDraw = DrawDown{
-				Highest: Draw{
+			activeDraw = DrawDowns{
+				Highest: Iteration{
 					Price: p,
 					Time:  t,
 				},
-				Lowest: Draw{
+				Lowest: Iteration{
 					Price: p,
 					Time:  t,
 				},
@@ -326,7 +305,7 @@ func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) SuperDrawD
 				activeDraw.Lowest.Price = p
 				activeDraw.Lowest.Time = t
 			}
-			activeDraw.Iterations = append(activeDraw.Iterations, Iterations{
+			activeDraw.Iterations = append(activeDraw.Iterations, Iteration{
 				Time:  t,
 				Price: p,
 			})
@@ -336,6 +315,18 @@ func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) SuperDrawD
 	response.calculateMaxAndLongestDrawDowns()
 
 	return response
+}
+
+// SharpeRatio returns sharpe ratio of backtest compared to risk-free
+func (s *Statistic) ScottSharpeRatio(riskfree float64) float64 {
+	var equityReturns = make([]float64, len(s.Equity))
+
+	for i := range s.Equity {
+		equityReturns[i] = s.Equity[i].EquityReturn
+	}
+	mean, stddev := stat.MeanStdDev(equityReturns, nil)
+
+	return (mean - riskfree) / stddev
 }
 
 // Update Statistic for event

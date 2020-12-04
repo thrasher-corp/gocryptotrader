@@ -103,3 +103,24 @@ type ResultTransactions struct {
 type ResultEvent struct {
 	Time time.Time `json:"time"`
 }
+
+// DrawdownHolder holds two types of drawdowns, the largest and longest
+// it stores all of the calculated drawdowns
+type DrawDownHolder struct {
+	DrawDowns       []DrawDowns
+	MaxDrawDown     DrawDowns
+	LongestDrawDown DrawDowns
+}
+
+// DrawDowns holds a drawdown
+type DrawDowns struct {
+	Highest    Iteration
+	Lowest     Iteration
+	Iterations []Iteration
+}
+
+// Iteration is an individual iteration of price at a time
+type Iteration struct {
+	Time  time.Time
+	Price float64
+}
