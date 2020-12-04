@@ -35,7 +35,7 @@ type OrderbookResponse struct {
 	Asks     [][]interface{} `json:"asks"`
 	Bids     [][]interface{} `json:"bids"`
 	IsFrozen string          `json:"isFrozen"`
-	Error    string          `json:"error"`
+	Seq      int64           `json:"seq"`
 }
 
 // OrderbookItem holds data on an individual item
@@ -64,6 +64,27 @@ type TradeHistory struct {
 	Rate          float64 `json:"rate,string"`
 	Amount        float64 `json:"amount,string"`
 	Total         float64 `json:"total,string"`
+}
+
+// OrderStatus holds order status data
+type OrderStatus struct {
+	Result  map[string]interface{} `json:"result"`
+	Success int64                  `json:"success"`
+}
+
+// OrderTrade holds order trade data
+type OrderTrade struct {
+	Status         string  `json:"status"`
+	GlobalTradeID  int64   `json:"globalTradeID"`
+	TradeID        int64   `json:"tradeID"`
+	CurrencyPair   string  `json:"currencyPair"`
+	Type           string  `json:"type"`
+	Rate           float64 `json:"rate,string"`
+	Amount         float64 `json:"amount,string"`
+	Total          float64 `json:"total,string"`
+	Fee            float64 `json:"fee,string"`
+	Date           string  `json:"date"`
+	StartingAmount float64 `json:"startingAmount,string"`
 }
 
 // ChartData holds kline data

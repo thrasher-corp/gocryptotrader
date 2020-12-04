@@ -851,8 +851,18 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 			AssetType:    result.Trades[i].Type.String(),
 			OrderSide:    result.Trades[i].Side.String(),
 			Fee:          result.Trades[i].Fee,
+			Total:        result.Trades[i].Total,
 		})
 	}
+
+	var creationTime, updateTime int64
+	if result.Date.Unix() > 0 {
+		creationTime = result.Date.Unix()
+	}
+	if result.CloseTime.Unix() > 0 {
+		updateTime = result.CloseTime.Unix()
+	}
+
 	return &gctrpc.OrderDetails{
 		Exchange:      result.Exchange,
 		Id:            result.ID,
@@ -861,7 +871,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		AssetType:     result.AssetType.String(),
 		OrderSide:     result.Side.String(),
 		OrderType:     result.Type.String(),
-		CreationTime:  result.Date.Unix(),
+		CreationTime:  creationTime,
 		Status:        result.Status.String(),
 		Price:         result.Price,
 		Amount:        result.Amount,
@@ -869,7 +879,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		Fee:           result.Fee,
 		Trades:        trades,
 		Cost:          result.Cost,
-		UpdateTime:    result.CloseTime.Unix(),
+		UpdateTime:    updateTime,
 	}, err
 }
 

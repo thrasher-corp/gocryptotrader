@@ -309,6 +309,7 @@ message TradeHistory {
     string asset_type = 6;
     string order_side = 7;
     double fee = 8;
+    double total = 9;
 }
 
 message GetOrdersRequest {

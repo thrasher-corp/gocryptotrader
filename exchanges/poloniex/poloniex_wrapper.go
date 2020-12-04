@@ -589,8 +589,138 @@ func (p *Poloniex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 
 // GetOrderInfo returns order information based on order ID
 func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	var orderInfo order.Detail
+	trades, err := p.GetAuthenticatedOrderTrades(orderID)
+	if err == nil {
+		orderInfo.Exchange = p.Name
+		orderInfo.Pair = pair
+		for _, o := range trades {
+			var tradeHistory order.TradeHistory
+			tradeHistory.Exchange = p.Name
+			tradeHistory.Side, err = order.StringToOrderSide(o.Type)
+			if err != nil {
+				return orderInfo, err
+			}
+			tradeHistory.TID = strconv.FormatInt(o.GlobalTradeID, 10)
+			tradeHistory.Timestamp, err = time.Parse(common.SimpleTimeFormat, o.Date)
+			if err != nil {
+				return orderInfo, err
+			}
+			tradeHistory.Price = o.Rate
+			tradeHistory.Amount = o.Amount
+			tradeHistory.Total = o.Total
+			tradeHistory.Fee = o.Fee
+
+			orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
+		}
+	}
+
+	resp, err := p.GetAuthenticatedOrderStatus(orderID)
+	if err != nil {
+		return orderInfo, err
+	}
+
+	for _, v := range resp.Result {
+		switch v.(type) {
+		case string: // case of error message
+			if len(orderInfo.Trades) > 0 { // on closed orders return trades only
+				return orderInfo, nil
+			}
+			return orderInfo, fmt.Errorf(v.(string))
+		case map[string]interface{}: // case of data message
+			orderStatus := v.(map[string]interface{})
+			orderInfo.Exchange = p.Name
+
+			if statusInterface, ok := orderStatus["status"]; ok {
+				switch statusInterface.(type) {
+				case string:
+					orderInfo.Status, _ = order.StringToOrderStatus(statusInterface.(string))
+				}
+			}
+
+			if rateInterface, ok := orderStatus["rate"]; ok {
+				switch rateInterface.(type) {
+				case string:
+					orderInfo.Price, _ = strconv.ParseFloat(rateInterface.(string), 64)
+				}
+			}
+
+			if amountInterface, ok := orderStatus["amount"]; ok {
+				switch amountInterface.(type) {
+				case string:
+					orderInfo.Amount, _ = strconv.ParseFloat(amountInterface.(string), 64)
+				}
+			}
+
+			if totalInterface, ok := orderStatus["total"]; ok {
+				switch totalInterface.(type) {
+				case string:
+					orderInfo.Cost, _ = strconv.ParseFloat(totalInterface.(string), 64)
+				}
+			}
+
+			if feeInterface, ok := orderStatus["fee"]; ok {
+				switch feeInterface.(type) {
+				case string:
+					orderInfo.Fee, _ = strconv.ParseFloat(feeInterface.(string), 64)
+				}
+			}
+
+			if sideInterface, ok := orderStatus["type"]; ok {
+				switch sideInterface.(type) {
+				case string:
+					orderInfo.Side, err = order.StringToOrderSide(sideInterface.(string))
+					if err != nil {
+						return orderInfo, err
+					}
+				}
+			}
+
+			avail, err := p.GetAvailablePairs(assetType)
+			if err != nil {
+				return orderInfo, err
+			}
+
+			format, err := p.GetPairFormat(assetType, true)
+			if err != nil {
+				return orderInfo, err
+			}
+
+			if pairInterface, ok := orderStatus["currencyPair"]; ok {
+				switch pairInterface.(type) {
+				case string:
+					orderInfo.Pair, err = currency.NewPairFromFormattedPairs(pairInterface.(string), avail, format)
+					if err != nil {
+						return orderInfo, err
+					}
+				}
+			}
+
+			if dateInterface, ok := orderStatus["date"]; ok {
+				switch dateInterface.(type) {
+				case string:
+					orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, dateInterface.(string))
+					if err != nil {
+						return orderInfo, err
+					}
+				}
+			}
+
+			if targetAmountInterface, ok := orderStatus["startingAmount"]; ok {
+				switch targetAmountInterface.(type) {
+				case string:
+					orderInfo.TargetAmount, err = strconv.ParseFloat(targetAmountInterface.(string), 64)
+					if err != nil {
+						return orderInfo, err
+					}
+				}
+			}
+		default:
+			return orderInfo, fmt.Errorf("wrong resp.Result type")
+		}
+	}
+
+	return orderInfo, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

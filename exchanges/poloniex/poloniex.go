@@ -29,6 +29,8 @@ const (
 	poloniexDepositsWithdrawals  = "returnDepositsWithdrawals"
 	poloniexOrders               = "returnOpenOrders"
 	poloniexTradeHistory         = "returnTradeHistory"
+	poloniexOrderTrades          = "returnOrderTrades"
+	poloniexOrderStatus          = "returnOrderStatus"
 	poloniexOrderCancel          = "cancelOrder"
 	poloniexOrderMove            = "moveOrder"
 	poloniexWithdraw             = "withdraw"
@@ -92,9 +94,7 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 		if err != nil {
 			return oba, err
 		}
-		if resp.Error != "" {
-			return oba, fmt.Errorf("%s GetOrderbook() error: %s", p.Name, resp.Error)
-		}
+
 		var ob Orderbook
 		for x := range resp.Asks {
 			price, err := strconv.ParseFloat(resp.Asks[x][0].(string), 64)
@@ -416,6 +416,44 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(start, end, limit int64) (Authen
 
 	var mainResult AuthenticatedTradeHistoryAll
 	return mainResult, json.Unmarshal(result, &mainResult.Data)
+}
+
+// GetAuthenticatedOrderStatus returns the status of a given orderId.
+func (p *Poloniex) GetAuthenticatedOrderStatus(orderID string) (o OrderStatus, err error) {
+	values := url.Values{}
+
+	if orderID == "" {
+		return o, fmt.Errorf("no orderId passed")
+	}
+
+	values.Set("orderNumber", orderID)
+	var result json.RawMessage
+	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderStatus, values, &result)
+	if err != nil {
+		return o, err
+	}
+
+	err = json.Unmarshal(result, &o)
+	return
+}
+
+// GetAuthenticatedOrderTrades returns all trades involving a given orderId.
+func (p *Poloniex) GetAuthenticatedOrderTrades(orderID string) (o []OrderTrade, err error) {
+	values := url.Values{}
+
+	if orderID == "" {
+		return o, fmt.Errorf("no orderId passed")
+	}
+
+	values.Set("orderNumber", orderID)
+	var result json.RawMessage
+	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderTrades, values, &result)
+	if err != nil {
+		return o, err
+	}
+
+	err = json.Unmarshal(result, &o)
+	return
 }
 
 // PlaceOrder places a new order on the exchange
