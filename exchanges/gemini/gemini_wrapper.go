@@ -331,6 +331,11 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (g *Gemini) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (g *Gemini) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	return g.GetHistoricTrades(currencyPair, assetType, time.Time{}, time.Time{})

@@ -173,6 +173,9 @@ func (h *FakePassingExchange) GetOrderInfo(_ string, _ currency.Pair, _ asset.It
 		ID:       "fakeOrder",
 	}, nil
 }
+func (h *FakePassingExchange) GetWithdrawalsHistory(_ currency.Code) ([]exchange.WithdrawalHistory, error) {
+	return nil, nil
+}
 func (h *FakePassingExchange) GetDepositAddress(_ currency.Code, _ string) (string, error) {
 	return "", nil
 }

@@ -503,9 +503,9 @@ func (k *Kraken) GetWithdrawInfo(currency string, amount float64) (WithdrawInfor
 		Result WithdrawInformation `json:"result"`
 	}
 	params := url.Values{}
-	params.Set("asset ", currency)
-	params.Set("key  ", "")
-	params.Set("amount ", fmt.Sprintf("%f", amount))
+	params.Set("asset", currency)
+	params.Set("key", "")
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenWithdrawInfo, params, &response); err != nil {
 		return response.Result, err
@@ -1098,7 +1098,7 @@ func (k *Kraken) WithdrawStatus(c currency.Code, method string) ([]WithdrawStatu
 	}
 
 	params := url.Values{}
-	params.Set("asset ", c.String())
+	params.Set("asset", c.String())
 	if method != "" {
 		params.Set("method", method)
 	}
@@ -1118,7 +1118,7 @@ func (k *Kraken) WithdrawCancel(c currency.Code, refID string) (bool, error) {
 	}
 
 	params := url.Values{}
-	params.Set("asset ", c.String())
+	params.Set("asset", c.String())
 	params.Set("refid", refID)
 
 	if err := k.SendAuthenticatedHTTPRequest(krakenWithdrawCancel, params, &response); err != nil {

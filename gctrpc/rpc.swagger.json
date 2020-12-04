@@ -2925,6 +2925,9 @@
         "fee": {
           "type": "number",
           "format": "double"
+        },
+        "tx_id": {
+          "type": "string"
         }
       }
     },
@@ -4336,6 +4339,9 @@
         "limit": {
           "type": "integer",
           "format": "int32"
+        },
+        "currency": {
+          "type": "string"
         }
       }
     },

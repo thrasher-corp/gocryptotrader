@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	withdrawDataStore "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -154,6 +155,43 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 				}
 			}
 		}
+		v.Event = append(v.Event, tempEvent)
+	}
+	return v
+}
+
+func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, limit int) *gctrpc.WithdrawalEventsByExchangeResponse {
+	v := &gctrpc.WithdrawalEventsByExchangeResponse{}
+	for x := range ret {
+		if limit > 0 && x >= limit {
+			return v
+		}
+
+		tempEvent := &gctrpc.WithdrawalEventResponse{
+			Id: ret[x].TransferID,
+			Exchange: &gctrpc.WithdrawlExchangeEvent{
+				Name:   exchName,
+				Status: ret[x].Status,
+			},
+			Request: &gctrpc.WithdrawalRequestEvent{
+				Currency:    ret[x].Currency,
+				Description: ret[x].Description,
+				Amount:      ret[x].Amount,
+			},
+		}
+
+		updatedAtPtype, err := ptypes.TimestampProto(ret[x].Timestamp)
+		if err != nil {
+			log.Errorf(log.Global, "failed to convert time: %v", err)
+		}
+
+		tempEvent.UpdatedAt = updatedAtPtype
+		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
+			Address: ret[x].CryptoToAddress,
+			Fee:     ret[x].Fee,
+			TxId:    ret[x].CryptoTxID,
+		}
+
 		v.Event = append(v.Event, tempEvent)
 	}
 	return v
