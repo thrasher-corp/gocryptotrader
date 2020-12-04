@@ -621,58 +621,64 @@ func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType as
 	}
 
 	for _, v := range resp.Result {
-		switch v.(type) {
+		switch resultType := v.(type) {
 		case string: // case of error message
 			if len(orderInfo.Trades) > 0 { // on closed orders return trades only
 				return orderInfo, nil
 			}
-			return orderInfo, fmt.Errorf(v.(string))
+			return orderInfo, fmt.Errorf(resultType)
 		case map[string]interface{}: // case of data message
 			orderStatus := v.(map[string]interface{})
 			orderInfo.Exchange = p.Name
 
 			if statusInterface, ok := orderStatus["status"]; ok {
-				switch statusInterface.(type) {
+				switch varType := statusInterface.(type) {
 				case string:
-					orderInfo.Status, _ = order.StringToOrderStatus(statusInterface.(string))
+					orderInfo.Status, _ = order.StringToOrderStatus(varType)
+				default:
 				}
 			}
 
 			if rateInterface, ok := orderStatus["rate"]; ok {
-				switch rateInterface.(type) {
+				switch varType := rateInterface.(type) {
 				case string:
-					orderInfo.Price, _ = strconv.ParseFloat(rateInterface.(string), 64)
+					orderInfo.Price, _ = strconv.ParseFloat(varType, 64)
+				default:
 				}
 			}
 
 			if amountInterface, ok := orderStatus["amount"]; ok {
-				switch amountInterface.(type) {
+				switch varType := amountInterface.(type) {
 				case string:
-					orderInfo.Amount, _ = strconv.ParseFloat(amountInterface.(string), 64)
+					orderInfo.Amount, _ = strconv.ParseFloat(varType, 64)
+				default:
 				}
 			}
 
 			if totalInterface, ok := orderStatus["total"]; ok {
-				switch totalInterface.(type) {
+				switch varType := totalInterface.(type) {
 				case string:
-					orderInfo.Cost, _ = strconv.ParseFloat(totalInterface.(string), 64)
+					orderInfo.Cost, _ = strconv.ParseFloat(varType, 64)
+				default:
 				}
 			}
 
 			if feeInterface, ok := orderStatus["fee"]; ok {
-				switch feeInterface.(type) {
+				switch varType := feeInterface.(type) {
 				case string:
-					orderInfo.Fee, _ = strconv.ParseFloat(feeInterface.(string), 64)
+					orderInfo.Fee, _ = strconv.ParseFloat(varType, 64)
+				default:
 				}
 			}
 
 			if sideInterface, ok := orderStatus["type"]; ok {
-				switch sideInterface.(type) {
+				switch varType := sideInterface.(type) {
 				case string:
-					orderInfo.Side, err = order.StringToOrderSide(sideInterface.(string))
+					orderInfo.Side, err = order.StringToOrderSide(varType)
 					if err != nil {
 						return orderInfo, err
 					}
+				default:
 				}
 			}
 
@@ -687,32 +693,35 @@ func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType as
 			}
 
 			if pairInterface, ok := orderStatus["currencyPair"]; ok {
-				switch pairInterface.(type) {
+				switch varType := pairInterface.(type) {
 				case string:
-					orderInfo.Pair, err = currency.NewPairFromFormattedPairs(pairInterface.(string), avail, format)
+					orderInfo.Pair, err = currency.NewPairFromFormattedPairs(varType, avail, format)
 					if err != nil {
 						return orderInfo, err
 					}
+				default:
 				}
 			}
 
 			if dateInterface, ok := orderStatus["date"]; ok {
-				switch dateInterface.(type) {
+				switch varType := dateInterface.(type) {
 				case string:
-					orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, dateInterface.(string))
+					orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, varType)
 					if err != nil {
 						return orderInfo, err
 					}
+				default:
 				}
 			}
 
 			if targetAmountInterface, ok := orderStatus["startingAmount"]; ok {
-				switch targetAmountInterface.(type) {
+				switch varType := targetAmountInterface.(type) {
 				case string:
-					orderInfo.TargetAmount, err = strconv.ParseFloat(targetAmountInterface.(string), 64)
+					orderInfo.TargetAmount, err = strconv.ParseFloat(varType, 64)
 					if err != nil {
 						return orderInfo, err
 					}
+				default:
 				}
 			}
 		default:
