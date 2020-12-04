@@ -207,6 +207,11 @@ func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (a *Alphapoint) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (a *Alphapoint) GetRecentTrades(_ currency.Pair, _ asset.Item) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented

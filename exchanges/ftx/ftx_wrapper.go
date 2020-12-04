@@ -439,6 +439,11 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return resp, nil
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (f *FTX) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (f *FTX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	return f.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())
