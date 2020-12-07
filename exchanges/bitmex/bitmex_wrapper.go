@@ -351,16 +351,19 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 	book := new(orderbook.Base)
 	for i := range orderbookNew {
-		if strings.EqualFold(orderbookNew[i].Side, order.Sell.String()) {
+		switch {
+		case strings.EqualFold(orderbookNew[i].Side, order.Sell.String()):
 			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price})
-			continue
-		}
-		if strings.EqualFold(orderbookNew[i].Side, order.Buy.String()) {
+		case strings.EqualFold(orderbookNew[i].Side, order.Buy.String()):
 			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price})
+		default:
+			return nil,
+				fmt.Errorf("could update orderbook order side could not be matched for %s",
+					orderbookNew[i].Side)
 		}
 	}
 	book.Pair = p

@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -115,10 +116,20 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 	}
 }
 
+const (
+	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n"
+)
+
 func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if err != nil {
+		if result == nil {
+			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",
+				protocol,
+				err)
+			return
+		}
 		if err == common.ErrNotYetImplemented {
-			log.Warnf(log.Ticker, "Failed to get %s ticker for %s %s %s. Error: %s\n",
+			log.Warnf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s\n",
 				protocol,
 				result.ExchangeName,
 				result.Pair,
@@ -141,7 +152,7 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if result.Pair.Quote.IsFiatCurrency() &&
 		result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := result.Pair.Quote.Upper()
-		log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
+		log.Infof(log.OrderBook, book,
 			result.ExchangeName,
 			protocol,
 			FormatCurrency(result.Pair),
@@ -155,39 +166,37 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 			result.Pair.Base,
 			printConvertCurrencyFormat(origCurrency, asksValue),
 		)
+	} else if result.Pair.Quote.IsFiatCurrency() &&
+		result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency {
+		log.Infof(log.OrderBook, book,
+			result.ExchangeName,
+			protocol,
+			FormatCurrency(result.Pair),
+			strings.ToUpper(result.AssetType.String()),
+			len(result.Bids),
+			bidsAmount,
+			result.Pair.Base,
+			printCurrencyFormat(bidsValue),
+			len(result.Asks),
+			asksAmount,
+			result.Pair.Base,
+			printCurrencyFormat(asksValue),
+		)
 	} else {
-		if result.Pair.Quote.IsFiatCurrency() &&
-			result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency {
-			log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
-				result.ExchangeName,
-				protocol,
-				FormatCurrency(result.Pair),
-				strings.ToUpper(result.AssetType.String()),
-				len(result.Bids),
-				bidsAmount,
-				result.Pair.Base,
-				printCurrencyFormat(bidsValue),
-				len(result.Asks),
-				asksAmount,
-				result.Pair.Base,
-				printCurrencyFormat(asksValue),
-			)
-		} else {
-			log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f\n",
-				result.ExchangeName,
-				protocol,
-				FormatCurrency(result.Pair),
-				strings.ToUpper(result.AssetType.String()),
-				len(result.Bids),
-				bidsAmount,
-				result.Pair.Base,
-				bidsValue,
-				len(result.Asks),
-				asksAmount,
-				result.Pair.Base,
-				asksValue,
-			)
-		}
+		log.Infof(log.OrderBook, book,
+			result.ExchangeName,
+			protocol,
+			FormatCurrency(result.Pair),
+			strings.ToUpper(result.AssetType.String()),
+			len(result.Bids),
+			bidsAmount,
+			result.Pair.Base,
+			strconv.FormatFloat(bidsValue, 'f', -1, 64),
+			len(result.Asks),
+			asksAmount,
+			result.Pair.Base,
+			strconv.FormatFloat(asksValue, 'f', -1, 64),
+		)
 	}
 }
 

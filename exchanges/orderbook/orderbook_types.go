@@ -26,10 +26,11 @@ var (
 	errAssetTypeNotSet   = errors.New("orderbook asset type not set")
 	errNoOrderbook       = errors.New("orderbook bids and asks are empty")
 	errPriceNotSet       = errors.New("price cannot be zero")
-	errAmountNotSet      = errors.New("amount cannot be zero")
+	errAmountInvalid     = errors.New("amount cannot be less or equal to zero")
 	errOutOfOrder        = errors.New("pricing out of order")
 	errDuplication       = errors.New("price duplication")
 	errIDDuplication     = errors.New("id duplication")
+	errPeriodUnset       = errors.New("funding rate period is unset")
 )
 
 func init() {
@@ -60,6 +61,9 @@ type Item struct {
 	Price  float64
 	ID     int64
 
+	// Funding rate field
+	Period int64
+
 	// Contract variables
 	LiquidationOrders int64
 	OrderCount        int64
@@ -77,6 +81,7 @@ type Base struct {
 	// NotAggregated defines whether an orderbook can contain duplicate prices
 	// in a payload
 	NotAggregated bool `json:"-"`
+	FundingRate   bool `json:"fundingRate"`
 }
 
 type byOBPrice []Item

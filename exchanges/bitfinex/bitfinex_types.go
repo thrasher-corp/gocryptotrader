@@ -376,7 +376,6 @@ type WebsocketBook struct {
 	ID     int64
 	Price  float64
 	Amount float64
-	Rate   float64
 	Period int64
 }
 

@@ -171,7 +171,7 @@ askUpdates:
 	for j := range updts.Asks {
 		for target := range book.Asks {
 			if book.Asks[target].Price == updts.Asks[j].Price {
-				if updts.Asks[j].Amount <= 0 {
+				if updts.Asks[j].Amount == 0 {
 					book.Asks = append(book.Asks[:target], book.Asks[target+1:]...)
 					continue askUpdates
 				}
@@ -188,7 +188,7 @@ bidUpdates:
 	for j := range updts.Bids {
 		for target := range book.Bids {
 			if book.Bids[target].Price == updts.Bids[j].Price {
-				if updts.Bids[j].Amount <= 0 {
+				if updts.Bids[j].Amount == 0 {
 					book.Bids = append(book.Bids[:target], book.Bids[target+1:]...)
 					continue bidUpdates
 				}
@@ -218,11 +218,13 @@ func (w *Orderbook) updateByIDAndAction(book *orderbook.Base, updts *Update) (er
 			return err
 		}
 	case Delete:
-		err = deleteUpdates(updts.Bids, &book.Bids)
+		// edge case for Bitfinex as their streaming endpoint duplicates deletes
+		bypassErr := w.exchangeName == "bitfinex" && book.FundingRate
+		err = deleteUpdates(updts.Bids, &book.Bids, bypassErr)
 		if err != nil {
 			return err
 		}
-		err = deleteUpdates(updts.Asks, &book.Asks)
+		err = deleteUpdates(updts.Asks, &book.Asks, bypassErr)
 		if err != nil {
 			return err
 		}
@@ -288,7 +290,7 @@ updates:
 
 // deleteUpdates removes updates from orderbook and returns an error if not
 // found
-func deleteUpdates(updt []orderbook.Item, book *[]orderbook.Item) error {
+func deleteUpdates(updt []orderbook.Item, book *[]orderbook.Item, bypassErr bool) error {
 updates:
 	for x := range updt {
 		for y := range *book {
@@ -297,8 +299,11 @@ updates:
 				continue updates
 			}
 		}
-		return fmt.Errorf("update cannot be deleted id: %d not found",
-			updt[x].ID)
+		// bypassErr is for expected duplication from endpoint.
+		if bypassErr {
+			return fmt.Errorf("update cannot be deleted id: %d not found",
+				updt[x].ID)
+		}
 	}
 	return nil
 }

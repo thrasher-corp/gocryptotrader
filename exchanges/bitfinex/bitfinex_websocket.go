@@ -202,15 +202,17 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if len(obSnapBundle) == 0 {
 				return errors.New("no data within orderbook snapshot")
 			}
+			var fundingRate bool
 			switch id := obSnapBundle[0].(type) {
 			case []interface{}:
 				for i := range obSnapBundle {
 					data := obSnapBundle[i].([]interface{})
 					if len(data) == 4 {
+						fundingRate = true
 						newOrderbook = append(newOrderbook, WebsocketBook{
 							ID:     int64(data[0].(float64)),
 							Period: int64(data[1].(float64)),
-							Rate:   data[2].(float64),
+							Price:  data[2].(float64),
 							Amount: data[3].(float64)})
 					} else {
 						newOrderbook = append(newOrderbook, WebsocketBook{
@@ -219,17 +221,18 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							Amount: data[2].(float64)})
 					}
 				}
-				err := b.WsInsertSnapshot(pair, chanAsset, newOrderbook)
+				err := b.WsInsertSnapshot(pair, chanAsset, newOrderbook, fundingRate)
 				if err != nil {
 					return fmt.Errorf("bitfinex_websocket.go inserting snapshot error: %s",
 						err)
 				}
 			case float64:
 				if len(obSnapBundle) == 4 {
+					fundingRate = true
 					newOrderbook = append(newOrderbook, WebsocketBook{
 						ID:     int64(id),
 						Period: int64(obSnapBundle[1].(float64)),
-						Rate:   obSnapBundle[2].(float64),
+						Price:  obSnapBundle[2].(float64),
 						Amount: obSnapBundle[3].(float64)})
 				} else {
 					newOrderbook = append(newOrderbook, WebsocketBook{
@@ -837,33 +840,38 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a
 // channel
-func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook) error {
+func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook, fundingRate bool) error {
 	if len(books) == 0 {
 		return errors.New("bitfinex.go error - no orderbooks submitted")
 	}
-	var bids, asks []orderbook.Item
+	var book orderbook.Base
 	for i := range books {
 		if books[i].Amount > 0 {
-			bids = append(bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Item{
 				ID:     books[i].ID,
 				Amount: books[i].Amount,
-				Price:  books[i].Price})
+				Price:  books[i].Price,
+				Period: books[i].Period})
 		} else {
-			asks = append(asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Item{
 				ID:     books[i].ID,
 				Amount: books[i].Amount * -1,
-				Price:  books[i].Price})
+				Price:  books[i].Price,
+				Period: books[i].Period})
 		}
 	}
 
-	var newOrderBook orderbook.Base
-	newOrderBook.Asks = asks
-	newOrderBook.AssetType = assetType
-	newOrderBook.Bids = bids
-	newOrderBook.Pair = p
-	newOrderBook.ExchangeName = b.Name
+	if fundingRate {
+		book.Bids = orderbook.SortBids(book.Bids)
+		book.Asks = orderbook.SortAsks(book.Asks)
+	}
 
-	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	book.AssetType = assetType
+	book.Pair = p
+	book.ExchangeName = b.Name
+	book.NotAggregated = true
+	book.FundingRate = fundingRate
+	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
@@ -879,14 +887,16 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{
 					ID:     book[i].ID,
 					Amount: book[i].Amount,
-					Price:  book[i].Price})
+					Price:  book[i].Price,
+					Period: book[i].Period})
 			} else {
 				// update ask
 				orderbookUpdate.Asks = append(orderbookUpdate.Asks,
 					orderbook.Item{
 						ID:     book[i].ID,
 						Amount: book[i].Amount * -1,
-						Price:  book[i].Price})
+						Price:  book[i].Price,
+						Period: book[i].Period})
 			}
 		} else {
 			orderbookUpdate.Action = buffer.Delete

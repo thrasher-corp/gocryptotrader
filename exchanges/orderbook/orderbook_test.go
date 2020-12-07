@@ -166,8 +166,8 @@ func TestVerify(t *testing.T) {
 
 	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
-	if err == nil || !errors.Is(err, errAmountNotSet) {
-		t.Fatalf("expecting %s error but received %v", errAmountNotSet, err)
+	if err == nil || !errors.Is(err, errAmountInvalid) {
+		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
 	}
 
 	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
@@ -196,8 +196,8 @@ func TestVerify(t *testing.T) {
 
 	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
-	if err == nil || !errors.Is(err, errAmountNotSet) {
-		t.Fatalf("expecting %s error but received %v", errAmountNotSet, err)
+	if err == nil || !errors.Is(err, errAmountInvalid) {
+		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
 	}
 
 	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}

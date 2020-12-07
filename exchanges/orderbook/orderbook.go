@@ -196,23 +196,23 @@ func (b *Base) Verify() error {
 		if b.Bids[i].Price == 0 {
 			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPriceNotSet)
 		}
-		if b.Bids[i].Amount == 0 {
-			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountNotSet)
+		if b.Bids[i].Amount <= 0 {
+			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountInvalid)
+		}
+		if b.FundingRate && b.Bids[i].Period == 0 {
+			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPeriodUnset)
 		}
 		if i != 0 {
 			if b.Bids[i].Price > b.Bids[i-1].Price {
 				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errOutOfOrder)
 			}
 
-			if b.Bids[i].ID != 0 {
-				if b.Bids[i].ID == b.Bids[i-1].ID {
-					return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
-				}
-				continue
-			}
-
 			if !b.NotAggregated && b.Bids[i].Price == b.Bids[i-1].Price {
 				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errDuplication)
+			}
+
+			if b.Bids[i].ID != 0 && b.Bids[i].ID == b.Bids[i-1].ID {
+				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 			}
 		}
 	}
@@ -221,23 +221,23 @@ func (b *Base) Verify() error {
 		if b.Asks[i].Price == 0 {
 			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPriceNotSet)
 		}
-		if b.Asks[i].Amount == 0 {
-			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountNotSet)
+		if b.Asks[i].Amount <= 0 {
+			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountInvalid)
+		}
+		if b.FundingRate && b.Asks[i].Period == 0 {
+			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPeriodUnset)
 		}
 		if i != 0 {
 			if b.Asks[i].Price < b.Asks[i-1].Price {
 				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errOutOfOrder)
 			}
 
-			if b.Asks[i].ID != 0 {
-				if b.Asks[i].ID == b.Asks[i-1].ID {
-					return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
-				}
-				continue
-			}
-
 			if !b.NotAggregated && b.Asks[i].Price == b.Asks[i-1].Price {
 				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errDuplication)
+			}
+
+			if b.Asks[i].ID != 0 && b.Asks[i].ID == b.Asks[i-1].ID {
+				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
 			}
 		}
 	}

@@ -507,11 +507,15 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
 			}
-			if strings.EqualFold(data[i].Side, order.Sell.String()) {
+			switch {
+			case strings.EqualFold(data[i].Side, order.Sell.String()):
 				book.Asks = append(book.Asks, item)
-				continue
+			case strings.EqualFold(data[i].Side, order.Buy.String()):
+				book.Bids = append(book.Bids, item)
+			default:
+				return fmt.Errorf("could process websocket orderbook update order side could not be matched for %s",
+					data[i].Side)
 			}
-			book.Bids = append(book.Bids, item)
 		}
 		orderbook.Reverse(book.Asks) // Reverse asks for correct alignment
 		book.AssetType = a
