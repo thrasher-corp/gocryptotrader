@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -38,18 +39,18 @@ func TestMain(m *testing.M) {
 		log.Fatal("Binance setup error", err)
 	}
 
-	// serverDetails, newClient, err := mock.NewVCRServer(mockfile)
-	// if err != nil {
-	// 	log.Fatalf("Mock server error %s", err)
-	// }
-	// b.HTTPClient = newClient
-	// endpointMap := b.API.Endpoints.GetURLMap()
-	// for k := range endpointMap {
-	// 	err = b.API.Endpoints.SetRunning(k, serverDetails, true)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }
+	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
+	if err != nil {
+		log.Fatalf("Mock server error %s", err)
+	}
+	b.HTTPClient = newClient
+	endpointMap := b.API.Endpoints.GetURLMap()
+	for k := range endpointMap {
+		err = b.API.Endpoints.SetRunning(k, serverDetails, true)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	log.Printf(sharedtestvalues.MockTesting, b.Name)
 	os.Exit(m.Run())
 }
