@@ -481,10 +481,6 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) error {
 		return err
 	}
 
-	if b.obm.checkCanBypass(currencyPair) {
-		return b.ProcessUpdate(currencyPair, asset.Spot, wsdp)
-	}
-
 	err = b.obm.stageWsUpdate(wsdp, currencyPair, asset.Spot)
 	if err != nil {
 		return err
@@ -736,15 +732,6 @@ func (o *orderbookManager) checkInitialSync(pair currency.Pair) (bool, error) {
 	return state.initialSync, nil
 }
 
-// checkCanBypass checks initial sync already occurred and that book isn't being
-// fetched
-func (o *orderbookManager) checkCanBypass(pair currency.Pair) bool {
-	o.Lock()
-	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-	return ok && !state.fetchingBook && !state.initialSync
-}
-
 // stopFetchingBook completes the book fetching.
 func (o *orderbookManager) stopFetchingBook(pair currency.Pair) error {
 	o.Lock()
@@ -822,37 +809,48 @@ buffer:
 	for {
 		select {
 		case d := <-state.buffer:
-			if d.LastUpdateID <= recent.LastUpdateID {
-				// Drop any event where u is <= lastUpdateId in the snapshot.
-				continue
-			}
-
-			id := recent.LastUpdateID + 1
-			if state.initialSync {
-				// The first processed event should have U <= lastUpdateId+1 AND
-				// u >= lastUpdateId+1.
-				if d.FirstUpdateID > id && d.LastUpdateID < id {
-					return fmt.Errorf("initial websocket orderbook sync failure for pair %s and asset %s",
-						pair,
-						asset.Spot)
-				}
-				state.initialSync = false
-			} else if d.FirstUpdateID != id {
-				// While listening to the stream, each new event's U should be
-				// equal to the previous event's u+1.
-				return fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s",
-					pair,
-					asset.Spot)
-			}
-			err := processor(pair, asset.Spot, d)
+			process, err := validate(d, recent, &state.initialSync)
 			if err != nil {
 				return err
+			}
+			if process {
+				err := processor(pair, asset.Spot, d)
+				if err != nil {
+					return err
+				}
 			}
 		default:
 			break buffer
 		}
 	}
 	return nil
+}
+
+// validate checks for correct update alignment
+func validate(updt *WebsocketDepthStream, recent *orderbook.Base, initialSync *bool) (bool, error) {
+	if updt.LastUpdateID <= recent.LastUpdateID {
+		// Drop any event where u is <= lastUpdateId in the snapshot.
+		return false, nil
+	}
+
+	id := recent.LastUpdateID + 1
+	if *initialSync {
+		// The first processed event should have U <= lastUpdateId+1 AND
+		// u >= lastUpdateId+1.
+		if updt.FirstUpdateID > id && updt.LastUpdateID < id {
+			return false, fmt.Errorf("initial websocket orderbook sync failure for pair %s and asset %s",
+				recent.Pair,
+				asset.Spot)
+		}
+		*initialSync = false
+	} else if updt.FirstUpdateID != id {
+		// While listening to the stream, each new event's U should be
+		// equal to the previous event's u+1.
+		return false, fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s",
+			recent.Pair,
+			asset.Spot)
+	}
+	return true, nil
 }
 
 // cleanup cleans up buffer and reset fetch and init
