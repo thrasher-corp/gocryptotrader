@@ -456,6 +456,11 @@ func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (h *HitBTC) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (h *HitBTC) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	return h.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())

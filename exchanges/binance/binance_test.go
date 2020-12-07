@@ -1845,6 +1845,21 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
+func TestWithdrawHistory(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	_, err := b.GetWithdrawalsHistory(currency.XBT)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("GetWithdrawalsHistory() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("GetWithdrawalsHistory() expecting an error when no keys are set")
+	}
+}
+
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 

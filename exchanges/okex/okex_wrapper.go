@@ -700,6 +700,11 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 	return ret, nil
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (o *OKEX) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetRecentTrades returns historic trade data within the timeframe provided
 func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error

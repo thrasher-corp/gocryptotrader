@@ -416,6 +416,11 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (p *Poloniex) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (p *Poloniex) GetRecentTrades(currencyPair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	return p.GetHistoricTrades(currencyPair, assetType, time.Now().Add(-time.Minute*15), time.Now())

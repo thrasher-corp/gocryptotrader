@@ -7,6 +7,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// withdrawals status codes description
+const (
+	EmailSent = iota
+	Cancelled
+	AwaitingApproval
+	Rejected
+	Processing
+	Failure
+	Completed
+)
+
 var (
 	validFuturesIntervals = []string{
 		"1m", "3m", "5m", "15m", "30m",
@@ -1614,6 +1625,19 @@ type WithdrawResponse struct {
 	Success bool   `json:"success"`
 	Msg     string `json:"msg"`
 	ID      string `json:"id"`
+}
+
+// WithdrawStatusResponse defines a withdrawal status response
+type WithdrawStatusResponse struct {
+	Amount         float64 `json:"amount"`
+	TransactionFee float64 `json:"transactionFee"`
+	Address        string  `json:"address"`
+	TxID           string  `json:"txId"`
+	ID             string  `json:"id"`
+	Asset          string  `json:"asset"`
+	ApplyTime      int64   `json:"applyTime"`
+	Status         int64   `json:"status"`
+	Network        string  `json:"network"`
 }
 
 // UserAccountStream contains a key to maintain an authorised
