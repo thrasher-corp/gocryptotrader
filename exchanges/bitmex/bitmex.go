@@ -282,11 +282,34 @@ func (b *Bitmex) GetActiveIntervals() (InstrumentInterval, error) {
 }
 
 // GetCompositeIndex returns composite index
-func (b *Bitmex) GetCompositeIndex(params *GenericRequestParams) ([]IndexComposite, error) {
+func (b *Bitmex) GetCompositeIndex(symbol, count, filter, columns, start, reverse string, startTime, endTime time.Time) ([]IndexComposite, error) {
 	var compositeIndices []IndexComposite
-
-	return compositeIndices, b.SendHTTPRequest(exchange.RestSpot, bitmexEndpointCompositeIndex,
-		params,
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if count != "" {
+		params.Set("count", count)
+	}
+	if filter != "" {
+		params.Set("filter", filter)
+	}
+	if columns != "" {
+		params.Set("columns", columns)
+	}
+	if start != "" {
+		params.Set("start", start)
+	}
+	if reverse != "" {
+		params.Set("reverse", "true")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return nil, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("startTime", startTime.Format(time.RFC3339))
+		params.Set("endTime", endTime.Format(time.RFC3339))
+	}
+	return compositeIndices, b.SendHTTPRequest(exchange.RestSpot, bitmexEndpointCompositeIndex+"?"+params.Encode(),
+		nil,
 		&compositeIndices)
 }
 
