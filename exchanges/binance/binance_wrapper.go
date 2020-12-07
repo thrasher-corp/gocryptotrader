@@ -839,7 +839,6 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			TradeType:   requestParamsOrderType,
 			TimeInForce: timeInForce,
 		}
-
 		response, err := b.NewOrder(&orderRequest)
 		if err != nil {
 			return submitOrderResponse, err
@@ -948,6 +947,8 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 		submitOrderResponse.OrderID = strconv.FormatInt(order.OrderID, 10)
 		submitOrderResponse.IsOrderPlaced = true
+	default:
+		return submitOrderResponse, fmt.Errorf("assetType not supported")
 	}
 
 	return submitOrderResponse, nil

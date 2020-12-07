@@ -16,7 +16,7 @@ import (
 
 const mockfile = "../../testdata/http_mock/binance/binance.json"
 
-var mockTests = false
+var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
