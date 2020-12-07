@@ -300,7 +300,7 @@ updates:
 			}
 		}
 		// bypassErr is for expected duplication from endpoint.
-		if bypassErr {
+		if !bypassErr {
 			return fmt.Errorf("update cannot be deleted id: %d not found",
 				updt[x].ID)
 		}

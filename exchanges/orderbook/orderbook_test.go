@@ -146,19 +146,26 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %s error but received %v", errNoOrderbook, err)
 	}
 
+	b.Asks = []Item{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errIDDuplication) {
+		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
+	}
+
 	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errDuplication) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
 	}
 
-	b.Asks = []Item{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
-	err = b.Verify()
-	if err == nil || !errors.Is(err, errIDDuplication) {
-		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
-	}
-
 	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
+	b.FundingRate = true
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errPeriodUnset) {
+		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
+	}
+	b.FundingRate = false
+
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errOutOfOrder) {
 		t.Fatalf("expecting %s error but received %v", errOutOfOrder, err)
@@ -176,19 +183,26 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
 	}
 
+	b.Bids = []Item{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errIDDuplication) {
+		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
+	}
+
 	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errDuplication) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
 	}
 
-	b.Bids = []Item{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
-	err = b.Verify()
-	if err == nil || !errors.Is(err, errIDDuplication) {
-		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
-	}
-
 	b.Bids = []Item{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
+	b.FundingRate = true
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errPeriodUnset) {
+		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
+	}
+	b.FundingRate = false
+
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errOutOfOrder) {
 		t.Fatalf("expecting %s error but received %v", errOutOfOrder, err)

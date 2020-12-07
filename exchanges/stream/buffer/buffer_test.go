@@ -39,6 +39,7 @@ func createSnapshot() (obl *Orderbook, asks, bids []orderbook.Item, err error) {
 	snapShot1.Bids = bids
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = cp
+	snapShot1.NotAggregated = true
 	obl = &Orderbook{
 		exchangeName: exchangeName,
 		dataHandler:  make(chan interface{}, 100),
