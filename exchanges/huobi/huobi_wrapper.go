@@ -1045,7 +1045,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 				cancelAllOrdersResponse.Status[split[x]] = "success"
 			}
 			for y := range a.Errors {
-				cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail"
+				cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = fmt.Sprintf("fail: %s", a.Errors[y].ErrMsg)
 			}
 		}
 	case asset.Futures:
@@ -1085,7 +1085,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 				cancelAllOrdersResponse.Status[split[x]] = "success"
 			}
 			for y := range a.Data.Errors {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail"
+				cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = fmt.Sprintf("fail: %s", a.Data.Errors[y].ErrMsg)
 			}
 		}
 	}

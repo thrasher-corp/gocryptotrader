@@ -1227,6 +1227,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
+	addAll := len(req.Pairs) == 0
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.Spot:
@@ -1234,25 +1235,16 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		if err != nil {
 			return nil, err
 		}
-		var addAll bool
-		if len(req.Pairs) == 0 {
-			addAll = true
-		}
 		for i := range resp {
 			pair, err := currency.NewPairFromString(resp[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			if !addAll {
-				if !req.Pairs.Contains(pair, false) {
-					continue
-				}
+			if !addAll && !req.Pairs.Contains(pair, false) {
+				continue
 			}
 			orderSide := order.Side(strings.ToUpper(resp[i].Side))
 			orderType := order.Type(strings.ToUpper(resp[i].Type))
-			if err != nil {
-				return nil, err
-			}
 			orders = append(orders, order.Detail{
 				Amount:    resp[i].OrigQty,
 				Date:      resp[i].Time,
@@ -1271,19 +1263,13 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		if err != nil {
 			return nil, err
 		}
-		var addAll bool
-		if len(req.Pairs) == 0 {
-			addAll = true
-		}
 		for y := range openOrders {
 			pair, err := currency.NewPairFromString(openOrders[y].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			if !addAll {
-				if !req.Pairs.Contains(pair, false) {
-					continue
-				}
+			if !addAll && !req.Pairs.Contains(pair, false) {
+				continue
 			}
 			var feeBuilder exchange.FeeBuilder
 			feeBuilder.Amount = openOrders[y].ExecutedQty
@@ -1315,19 +1301,13 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		if err != nil {
 			return nil, err
 		}
-		var addAll bool
-		if len(req.Pairs) == 0 {
-			addAll = true
-		}
 		for y := range openOrders {
 			pair, err := currency.NewPairFromString(openOrders[y].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			if !addAll {
-				if !req.Pairs.Contains(pair, false) {
-					continue
-				}
+			if !addAll && !req.Pairs.Contains(pair, false) {
+				continue
 			}
 			var feeBuilder exchange.FeeBuilder
 			feeBuilder.Amount = openOrders[y].ExecutedQty
@@ -1421,7 +1401,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			}
 			switch {
 			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
-				if req.StartTicks.After(req.EndTicks) {
+				if req.EndTicks.After(req.StartTicks) {
 					if time.Since(req.StartTicks) > time.Hour*24*30 {
 						return nil, fmt.Errorf("can only fetch orders 7 days out")
 					}
@@ -1503,7 +1483,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			}
 			switch {
 			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
-				if req.StartTicks.After(req.EndTicks) {
+				if req.EndTicks.After(req.StartTicks) {
 					if time.Since(req.StartTicks) > time.Hour*24*7 {
 						return nil, fmt.Errorf("can only fetch orders 7 days out")
 					}

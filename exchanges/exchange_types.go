@@ -151,7 +151,7 @@ type FeaturesSupported struct {
 	Kline                 kline.ExchangeCapabilitiesSupported
 }
 
-// Endpoints stores default and running url endpoints for exchanges
+// Endpoints stores running url endpoints for exchanges
 type Endpoints struct {
 	defaults map[string]string
 	sync.RWMutex
@@ -232,7 +232,7 @@ func (u URL) String() string {
 	case RestSpot:
 		return "RESTSpotURL"
 	case RestSpotSupplementary:
-		return "RESTSpotURLSUPPLEMENTARYURL"
+		return "RestSpotSupplementaryURL"
 	case RestUSDTMargined:
 		return "RestUSDTMarginedFuturesURL"
 	case RestCoinMargined:
@@ -240,13 +240,13 @@ func (u URL) String() string {
 	case RestFutures:
 		return "RestFuturesURL"
 	case RestSandbox:
-		return "SandboxURL"
+		return "RestSandboxURL"
 	case RestSwap:
-		return "SwapURL"
+		return "RestSwapURL"
 	case WebsocketSpot:
-		return "SpotWsURLURL"
+		return "WebsocketSpotURL"
 	case WebsocketSpotSupplementary:
-		return "SpotWsSupplementaryURL"
+		return "WebsocketSpotSupplementaryURL"
 	case ChainAnalysis:
 		return "ChainAnalysisURL"
 	case EdgeCase1:

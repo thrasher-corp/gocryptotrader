@@ -136,9 +136,8 @@ func TestGetAll(t *testing.T) {
 		EdgeCase2: "test2url",
 	})
 	allRunning := b.API.Endpoints.GetURLMap()
-	allDefault := b.API.Endpoints.GetURLMap()
-	if len(allDefault) != len(allRunning) {
-		t.Errorf("number of defaultURLs should match the number of runningURLs")
+	if len(allRunning) != 2 {
+		t.Error("invalid running map received")
 	}
 }
 

@@ -232,20 +232,6 @@ func (b *Binance) URecentTrades(symbol, fromID string, limit int64) ([]UPublicTr
 	return resp, b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesRecentTrades+params.Encode(), limitDefault, &resp)
 }
 
-// UHistoricalTrades gets historical public trades for usdt margined futures
-func (b *Binance) UHistoricalTrades(symbol, fromID string, limit int64) ([]UPublicTradesData, error) {
-	var resp []UPublicTradesData
-	params := url.Values{}
-	params.Set("symbol", symbol)
-	if fromID != "" {
-		params.Set("fromID", fromID)
-	}
-	if limit > 0 && limit < 1000 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	return resp, b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesHistoricalTrades+params.Encode(), limitDefault, &resp)
-}
-
 // UCompressedTrades gets compressed public trades for usdt margined futures
 func (b *Binance) UCompressedTrades(symbol, fromID string, limit int64, startTime, endTime time.Time) ([]UCompressedTradeData, error) {
 	var resp []UCompressedTradeData
