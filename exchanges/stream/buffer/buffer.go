@@ -294,7 +294,7 @@ func deleteUpdates(updt []orderbook.Item, book *[]orderbook.Item, bypassErr bool
 updates:
 	for x := range updt {
 		for y := range *book {
-			if []orderbook.Item(*book)[y].ID == updt[x].ID {
+			if (*book)[y].ID == updt[x].ID {
 				*book = append((*book)[:y], (*book)[y+1:]...) // nolint:gocritic
 				continue updates
 			}

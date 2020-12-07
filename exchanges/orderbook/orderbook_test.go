@@ -572,7 +572,7 @@ func deployUnorderedSlice() []Item {
 	var items []Item
 	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < 100; i++ {
-		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) // nolint:crypto/rand
+		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) // nolint:crypto/rand // Not needed in tests
 	}
 	return items
 }
@@ -625,11 +625,11 @@ func BenchmarkSortBids(b *testing.B) {
 	}
 }
 
-func deploySliceOrdered(size int) []Item {
+func deploySliceOrdered() []Item {
 	rand.Seed(time.Now().UnixNano())
 	var items []Item
-	for i := 0; i < size; i++ {
-		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) // nolint:crypto/rand
+	for i := 0; i < 100; i++ {
+		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) // nolint:crypto/rand // Not needed in tests
 	}
 	return items
 }
@@ -638,7 +638,7 @@ func TestReverse(t *testing.T) {
 	var b Base
 
 	length := 100
-	b.Bids = deploySliceOrdered(length)
+	b.Bids = deploySliceOrdered()
 	if len(b.Bids) != length {
 		t.Fatal("incorrect length")
 	}
@@ -655,7 +655,7 @@ func TestReverse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Asks = append(b.Bids[:0:0], b.Bids...) // nolint:gocritic
+	b.Asks = append(b.Bids[:0:0], b.Bids...) // nolint:gocritic //  Short hand
 	err = b.Verify()
 	if err == nil {
 		t.Fatal("error cannot be nil")
@@ -671,7 +671,7 @@ func TestReverse(t *testing.T) {
 // 6217651	       187 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkReverse(b *testing.B) {
 	length := 100
-	s := deploySliceOrdered(length)
+	s := deploySliceOrdered()
 	if len(s) != length {
 		b.Fatal("incorrect length")
 	}
@@ -683,9 +683,7 @@ func BenchmarkReverse(b *testing.B) {
 
 // 923154	      1169 ns/op	    4096 B/op	       1 allocs/op
 func BenchmarkDuplicatingSlice(b *testing.B) {
-	length := 100
-	s := deploySliceOrdered(length)
-
+	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
 		_ = append(s[:0:0], s...)
 	}
@@ -693,9 +691,7 @@ func BenchmarkDuplicatingSlice(b *testing.B) {
 
 // 705922	      1546 ns/op	    4096 B/op	       1 allocs/op
 func BenchmarkCopySlice(b *testing.B) {
-	length := 100
-	s := deploySliceOrdered(length)
-
+	s := deploySliceOrdered()
 	for i := 0; i < b.N; i++ {
 		cpy := make([]Item, len(s))
 		copy(cpy, s)

@@ -149,8 +149,8 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	bidsAmount, bidsValue := result.TotalBidsAmount()
 	asksAmount, asksValue := result.TotalAsksAmount()
 
-	if result.Pair.Quote.IsFiatCurrency() &&
-		result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency {
+	switch {
+	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency:
 		origCurrency := result.Pair.Quote.Upper()
 		log.Infof(log.OrderBook, book,
 			result.ExchangeName,
@@ -166,8 +166,7 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 			result.Pair.Base,
 			printConvertCurrencyFormat(origCurrency, asksValue),
 		)
-	} else if result.Pair.Quote.IsFiatCurrency() &&
-		result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency {
+	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency:
 		log.Infof(log.OrderBook, book,
 			result.ExchangeName,
 			protocol,
@@ -182,7 +181,7 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 			result.Pair.Base,
 			printCurrencyFormat(asksValue),
 		)
-	} else {
+	default:
 		log.Infof(log.OrderBook, book,
 			result.ExchangeName,
 			protocol,

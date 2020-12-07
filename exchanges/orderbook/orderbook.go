@@ -77,8 +77,8 @@ func (s *Service) Update(b *Base) error {
 		return err
 	}
 
-	book.b.Bids = append(b.Bids[:0:0], b.Bids...) // nolint:gocritic -- Short hand to not use make and copy
-	book.b.Asks = append(b.Asks[:0:0], b.Asks...) // nolint:gocritic -- Short hand to not use make and copy
+	book.b.Bids = append(b.Bids[:0:0], b.Bids...) // nolint:gocritic // Short hand to not use make and copy
+	book.b.Asks = append(b.Asks[:0:0], b.Asks...) // nolint:gocritic // Short hand to not use make and copy
 	book.b.LastUpdated = b.LastUpdated
 	ids := append(book.Assoc, book.Main)
 	s.Unlock()

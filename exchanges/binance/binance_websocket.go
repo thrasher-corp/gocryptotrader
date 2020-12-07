@@ -633,8 +633,8 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 		defer b.Websocket.Wg.Done()
 		for {
 			select {
-			case job := <-b.obm.jobs:
-				err := b.SeedLocalCache(job.Pair)
+			case j := <-b.obm.jobs:
+				err := b.SeedLocalCache(j.Pair)
 				if err != nil {
 					log.Errorln(log.WebsocketMgr, "seeding local cache for orderbook error", err)
 					continue
@@ -642,19 +642,19 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 
 				// Immediately apply the buffer updates so we don't wait for a
 				// new update to initiate this.
-				err = b.obm.stopFetchingBook(job.Pair)
+				err = b.obm.stopFetchingBook(j.Pair)
 				if err != nil {
 					log.Errorln(log.WebsocketMgr, "applying orderbook updates error", err)
 					continue
 				}
-				err = b.applyBufferUpdate(job.Pair)
+				err = b.applyBufferUpdate(j.Pair)
 				if err != nil {
 					log.Errorln(log.WebsocketMgr, "applying orderbook updates error", err)
-					err = b.Websocket.Orderbook.FlushOrderbook(job.Pair, asset.Spot)
+					err = b.Websocket.Orderbook.FlushOrderbook(j.Pair, asset.Spot)
 					if err != nil {
 						log.Errorln(log.WebsocketMgr, "flushing websocket error:", err)
 					}
-					err = b.obm.cleanup(job.Pair)
+					err = b.obm.cleanup(j.Pair)
 					if err != nil {
 						log.Errorln(log.WebsocketMgr, "cleanup websocket error:", err)
 					}
@@ -736,7 +736,7 @@ func (o *orderbookManager) checkInitialSync(pair currency.Pair) (bool, error) {
 	return state.initialSync, nil
 }
 
-// checkCanBypass checks initial sync already occured and that book isn't being
+// checkCanBypass checks initial sync already occurred and that book isn't being
 // fetched
 func (o *orderbookManager) checkCanBypass(pair currency.Pair) bool {
 	o.Lock()

@@ -703,7 +703,7 @@ func TestGetOrderbook(t *testing.T) {
 	ob := obl.GetOrderbook(cp, asset.Spot)
 	bufferOb := obl.ob[cp.Base][cp.Quote][asset.Spot]
 	if bufferOb == ob {
-		t.Error("orderbooks should be seperate in pointer value and not linked to orderbook package")
+		t.Error("orderbooks should be separate in pointer value and not linked to orderbook package")
 	}
 
 	if len(bufferOb.Asks) != len(ob.Asks) ||
@@ -1074,7 +1074,7 @@ func TestFlushOrderbook(t *testing.T) {
 
 	o := w.GetOrderbook(cp, asset.Spot)
 	if o != nil {
-		t.Fatal("book not loaded, this should not happend")
+		t.Fatal("book not loaded, this should not happen")
 	}
 
 	err = w.LoadSnapshot(&snapShot1)

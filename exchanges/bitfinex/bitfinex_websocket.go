@@ -228,7 +228,6 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 			case float64:
 				if len(obSnapBundle) == 4 {
-					fundingRate = true
 					newOrderbook = append(newOrderbook, WebsocketBook{
 						ID:     int64(id),
 						Period: int64(obSnapBundle[1].(float64)),
