@@ -17,6 +17,14 @@ type Config struct {
 	CSVData           *CSVData               `json:"csv-data,omitempty"`
 	StrategySettings  map[string]interface{} `json:"strategy-settings"`
 	PortfolioSettings PortfolioSettings      `json:"portfolio"`
+	StatisticSettings StatisticSettings      `json:"statistic-settings"`
+}
+
+// StatisticSettings holds configurable varialbes to adjust ratios where
+// proper data is currently lacking
+type StatisticSettings struct {
+	SharpeRatioRiskFreeRate       float64 `json:"sharpe-ratio-risk-free-rate"`
+	SortinoRatioRatioRiskFreeRate float64 `json:"sortino-ratio-risk-free-rate"`
 }
 
 // PortfolioSettings act as a global protector for strategies

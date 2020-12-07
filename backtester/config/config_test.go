@@ -2,6 +2,9 @@ package config
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -46,8 +49,6 @@ func TestGenerateCandleAPIConfig(t *testing.T) {
 			Interval:  kline.OneHour.Duration(),
 			DataType:  common.CandleStr,
 		},
-		DatabaseData: nil,
-		LiveData:     nil,
 		PortfolioSettings: PortfolioSettings{
 			DiversificationSomething: 0,
 			BuySide: MinMax{
@@ -65,12 +66,23 @@ func TestGenerateCandleAPIConfig(t *testing.T) {
 				MaximumLeverage: 102,
 			},
 		},
+		StatisticSettings: StatisticSettings{
+			SharpeRatioRiskFreeRate:       0.03,
+			SortinoRatioRatioRiskFreeRate: 0.03,
+		},
 	}
 	result, err := json.MarshalIndent(cfg, "", " ")
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%s", result)
+	p, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dollar-cost-average.strat"), result, 0770)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGenerateCandleLiveConfig(t *testing.T) {
@@ -122,12 +134,23 @@ func TestGenerateCandleLiveConfig(t *testing.T) {
 				MaximumLeverage: 102,
 			},
 		},
+		StatisticSettings: StatisticSettings{
+			SharpeRatioRiskFreeRate:       0.03,
+			SortinoRatioRatioRiskFreeRate: 0.03,
+		},
 	}
 	result, err := json.MarshalIndent(cfg, "", " ")
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%s", result)
+	p, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dollar-cost-average-live.strat"), result, 0770)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 // these are tests for experimentation more than anything
@@ -165,8 +188,11 @@ func TestGenerateRSIAPIConfig(t *testing.T) {
 			Interval:  kline.OneHour.Duration(),
 			DataType:  common.CandleStr,
 		},
-		DatabaseData: nil,
-		LiveData:     nil,
+		StrategySettings: map[string]interface{}{
+			"rsi-low":    31.0,
+			"rsi-high":   69.0,
+			"rsi-period": 12,
+		},
 		PortfolioSettings: PortfolioSettings{
 			DiversificationSomething: 0,
 			BuySide: MinMax{
@@ -184,15 +210,21 @@ func TestGenerateRSIAPIConfig(t *testing.T) {
 				MaximumLeverage: 102,
 			},
 		},
-		StrategySettings: map[string]interface{}{
-			"rsi-low":    31.0,
-			"rsi-high":   69.0,
-			"rsi-period": 12,
+		StatisticSettings: StatisticSettings{
+			SharpeRatioRiskFreeRate:       0.03,
+			SortinoRatioRatioRiskFreeRate: 0.03,
 		},
 	}
 	result, err := json.MarshalIndent(cfg, "", " ")
 	if err != nil {
 		t.Error(err)
 	}
-	t.Logf("%s", result)
+	p, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi420blazeit.strat"), result, 0770)
+	if err != nil {
+		t.Error(err)
+	}
 }

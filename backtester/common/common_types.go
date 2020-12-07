@@ -1,6 +1,8 @@
 package common
 
-import "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
 
 const (
 	// DecimalPlaces is a lovely little holder

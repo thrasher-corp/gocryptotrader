@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -189,8 +190,10 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	}
 
 	stats := &statistics.Statistic{
-		StrategyName: cfg.StrategyToLoad,
-		EventsByTime: make(map[string]map[asset.Item]map[currency.Pair][]statistics.EventStore),
+		StrategyName:                  cfg.StrategyToLoad,
+		EventsByTime:                  make(map[string]map[asset.Item]map[currency.Pair]currencystatstics.CurrencyStatistic),
+		SharpeRatioRiskFreeRate:       cfg.StatisticSettings.SharpeRatioRiskFreeRate,
+		SortinoRatioRatioRiskFreeRate: cfg.StatisticSettings.SortinoRatioRatioRiskFreeRate,
 	}
 	bt.Statistic = stats
 	bt.PrintSettings(cfg)

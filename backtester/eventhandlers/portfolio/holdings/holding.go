@@ -93,8 +93,18 @@ func (h *Holding) update(f fill.FillEvent) {
 }
 
 func (h *Holding) updateValue(l float64) {
+	origPosValue := h.PositionsValue
+	origBoughtValue := h.PositionsValue
+	origSoldValue := h.SoldValue
+	origTotalValue := h.TotalValue
 	h.PositionsValue = h.PositionsSize * l
 	h.BoughtValue = h.BoughtAmount * l
 	h.SoldValue = h.SoldAmount * l
 	h.TotalValue = h.PositionsValue + h.RemainingFunds
+
+	h.TotalValueDifference = h.TotalValue - origTotalValue
+	h.BoughtValueDifference = h.BoughtValue - origBoughtValue
+	h.PositionsValueDifference = h.PositionsValue - origPosValue
+	h.SoldValueDifference = h.SoldValue - origSoldValue
+
 }

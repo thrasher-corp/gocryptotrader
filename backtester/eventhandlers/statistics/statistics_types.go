@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -15,18 +16,11 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-type EventStore struct {
-	Holdings      holdings.Holding
-	Transactions  compliance.Snapshot
-	DataEvent     interfaces.DataEventHandler
-	SignalEvent   signal.SignalEvent
-	ExchangeEvent order.OrderEvent
-	FillEvent     fill.FillEvent
-}
-
 // Statistic
 type Statistic struct {
-	EventsByTime map[string]map[asset.Item]map[currency.Pair][]EventStore
+	EventsByTime                  map[string]map[asset.Item]map[currency.Pair]currencystatstics.CurrencyStatistic
+	SharpeRatioRiskFreeRate       float64
+	SortinoRatioRatioRiskFreeRate float64
 	///////////////////////////////////////////////
 	EventHistory       []interfaces.EventHandler
 	TransactionHistory []fill.FillEvent
@@ -66,15 +60,6 @@ type Handler interface {
 	TrackTransaction(fill.FillEvent)
 	Transactions() []fill.FillEvent
 
-	TotalEquityReturn() (float64, error)
-
-	MaxDrawdown() float64
-	MaxDrawdownTime() time.Time
-	MaxDrawdownDuration() time.Duration
-
-	SharpeRatio(float64) float64
-	SortinoRatio(float64) float64
-
 	PrintResult()
 	ReturnResults() Results
 	Reset()
@@ -102,25 +87,4 @@ type ResultTransactions struct {
 
 type ResultEvent struct {
 	Time time.Time `json:"time"`
-}
-
-// DrawdownHolder holds two types of drawdowns, the largest and longest
-// it stores all of the calculated drawdowns
-type DrawDownHolder struct {
-	DrawDowns       []DrawDowns
-	MaxDrawDown     DrawDowns
-	LongestDrawDown DrawDowns
-}
-
-// DrawDowns holds a drawdown
-type DrawDowns struct {
-	Highest    Iteration
-	Lowest     Iteration
-	Iterations []Iteration
-}
-
-// Iteration is an individual iteration of price at a time
-type Iteration struct {
-	Time  time.Time
-	Price float64
 }
