@@ -572,7 +572,7 @@ func deployUnorderedSlice() []Item {
 	var items []Item
 	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < 100; i++ {
-		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) // nolint:crypto/rand // Not needed in tests
+		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
 	}
 	return items
 }
@@ -629,7 +629,7 @@ func deploySliceOrdered() []Item {
 	rand.Seed(time.Now().UnixNano())
 	var items []Item
 	for i := 0; i < 100; i++ {
-		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) // nolint:crypto/rand // Not needed in tests
+		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
 	}
 	return items
 }

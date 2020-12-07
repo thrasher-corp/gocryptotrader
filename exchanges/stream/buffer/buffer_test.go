@@ -845,7 +845,7 @@ func deploySliceOrdered(size int) []orderbook.Item {
 	rand.Seed(time.Now().UnixNano())
 	var items []orderbook.Item
 	for i := 0; i < size; i++ {
-		items = append(items, orderbook.Item{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()}) // nolint:crypto/rand
+		items = append(items, orderbook.Item{Amount: 1, Price: rand.Float64() + float64(i), ID: rand.Int63()}) // nolint:gosec // Not needed for tests
 	}
 	return items
 }
