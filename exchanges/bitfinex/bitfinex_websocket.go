@@ -207,18 +207,34 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			case []interface{}:
 				for i := range obSnapBundle {
 					data := obSnapBundle[i].([]interface{})
+					id, okAssert := data[0].(float64)
+					if !okAssert {
+						return errors.New("type assertion failed for orderbook item data")
+					}
+					d1, okAssert := data[1].(float64)
+					if !okAssert {
+						return errors.New("type assertion failed for orderbook item data")
+					}
+					d2, okAssert := data[2].(float64)
+					if !okAssert {
+						return errors.New("type assertion failed for orderbook item data")
+					}
 					if len(data) == 4 {
 						fundingRate = true
+						amount, okFunding := data[3].(float64)
+						if !okFunding {
+							return errors.New("type assertion failed for orderbook item data")
+						}
 						newOrderbook = append(newOrderbook, WebsocketBook{
-							ID:     int64(data[0].(float64)),
-							Period: int64(data[1].(float64)),
-							Price:  data[2].(float64),
-							Amount: data[3].(float64)})
+							ID:     int64(id),
+							Period: int64(d1),
+							Price:  d2,
+							Amount: amount})
 					} else {
 						newOrderbook = append(newOrderbook, WebsocketBook{
-							ID:     int64(data[0].(float64)),
-							Price:  data[1].(float64),
-							Amount: data[2].(float64)})
+							ID:     int64(id),
+							Price:  d1,
+							Amount: d2})
 					}
 				}
 				err := b.WsInsertSnapshot(pair, chanAsset, newOrderbook, fundingRate)
@@ -227,17 +243,30 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						err)
 				}
 			case float64:
+				d1, okSnap := obSnapBundle[1].(float64)
+				if !okSnap {
+					return errors.New("type assertion failed for orderbook snapshot data")
+				}
+				d2, okSnap := obSnapBundle[2].(float64)
+				if !okSnap {
+					return errors.New("type assertion failed for orderbook snapshot data")
+				}
 				if len(obSnapBundle) == 4 {
+					var d3 float64
+					d3, okSnap = obSnapBundle[3].(float64)
+					if !okSnap {
+						return errors.New("type assertion failed for orderbook snapshot data")
+					}
 					newOrderbook = append(newOrderbook, WebsocketBook{
 						ID:     int64(id),
-						Period: int64(obSnapBundle[1].(float64)),
-						Price:  obSnapBundle[2].(float64),
-						Amount: obSnapBundle[3].(float64)})
+						Period: int64(d1),
+						Price:  d2,
+						Amount: d3})
 				} else {
 					newOrderbook = append(newOrderbook, WebsocketBook{
 						ID:     int64(id),
-						Price:  obSnapBundle[1].(float64),
-						Amount: obSnapBundle[2].(float64)})
+						Price:  d1,
+						Amount: d2})
 				}
 
 				err := b.WsUpdateOrderbook(pair, chanAsset, newOrderbook)

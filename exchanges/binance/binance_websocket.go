@@ -567,11 +567,19 @@ func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	var updateBid []orderbook.Item
 	for i := range ws.UpdateBids {
-		p, err := strconv.ParseFloat(ws.UpdateBids[i][0].(string), 64)
+		price, ok := ws.UpdateBids[i][0].(string)
+		if !ok {
+			return errors.New("type assertion failed for bid price")
+		}
+		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
-		a, err := strconv.ParseFloat(ws.UpdateBids[i][1].(string), 64)
+		amount, ok := ws.UpdateBids[i][1].(string)
+		if !ok {
+			return errors.New("type assertion failed for bid amount")
+		}
+		a, err := strconv.ParseFloat(amount, 64)
 		if err != nil {
 			return err
 		}
@@ -580,15 +588,22 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 
 	var updateAsk []orderbook.Item
 	for i := range ws.UpdateAsks {
-		p, err := strconv.ParseFloat(ws.UpdateAsks[i][0].(string), 64)
+		price, ok := ws.UpdateAsks[i][0].(string)
+		if !ok {
+			return errors.New("type assertion failed for ask price")
+		}
+		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
-		a, err := strconv.ParseFloat(ws.UpdateAsks[i][1].(string), 64)
+		amount, ok := ws.UpdateAsks[i][1].(string)
+		if !ok {
+			return errors.New("type assertion failed for ask amount")
+		}
+		a, err := strconv.ParseFloat(amount, 64)
 		if err != nil {
 			return err
 		}
-
 		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
 

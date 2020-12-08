@@ -413,30 +413,27 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 		return nil, err
 	}
 
-	orderBook := new(orderbook.Base)
+	book := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids,
-			orderbook.Item{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price:  orderbookNew.Bids[x].Price,
-			})
+		book.Bids = append(book.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x].Quantity,
+			Price:  orderbookNew.Bids[x].Price,
+		})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks,
-			orderbook.Item{
-				Amount: orderbookNew.Asks[x].Quantity,
-				Price:  orderbookNew.Asks[x].Price,
-			})
+		book.Asks = append(book.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x].Quantity,
+			Price:  orderbookNew.Asks[x].Price,
+		})
 	}
+	book.Pair = p
+	book.ExchangeName = b.Name
+	book.AssetType = assetType
 
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
 	return orderbook.Get(b.Name, p, assetType)

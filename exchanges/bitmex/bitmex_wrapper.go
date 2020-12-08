@@ -366,6 +366,7 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 					orderbookNew[i].Side)
 		}
 	}
+	orderbook.Reverse(book.Asks)
 	book.Pair = p
 	book.ExchangeName = b.Name
 	book.AssetType = assetType

@@ -131,13 +131,15 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 	}
 	resp.MarketName = marketName
 	for x := range result.Data.Asks {
-		resp.Asks = append(resp.Asks, OData{Price: result.Data.Asks[x][0],
-			Size: result.Data.Asks[x][1],
+		resp.Asks = append(resp.Asks, OData{
+			Price: result.Data.Asks[x][0],
+			Size:  result.Data.Asks[x][1],
 		})
 	}
 	for y := range result.Data.Bids {
-		resp.Bids = append(resp.Bids, OData{Price: result.Data.Bids[y][0],
-			Size: result.Data.Bids[y][1],
+		resp.Bids = append(resp.Bids, OData{
+			Price: result.Data.Bids[y][0],
+			Size:  result.Data.Bids[y][1],
 		})
 	}
 	return resp, nil
