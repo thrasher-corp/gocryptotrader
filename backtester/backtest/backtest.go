@@ -45,85 +45,9 @@ func New() *BackTest {
 // Reset BackTest values to default
 func (bt *BackTest) Reset() {
 	bt.EventQueue = nil
-	bt.Data.Reset()
 	bt.Datas = nil
 	bt.Portfolio.Reset()
 	bt.Statistic.Reset()
-}
-
-func (bt *BackTest) PrintSettings(cfg *config.Config) {
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Backtester Settings------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Strategy Settings--------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Strategy: %s", bt.Strategy.Name())
-	if len(cfg.StrategySettings.CustomSettings) > 0 {
-		log.Info(log.BackTester, "Custom strategy variables:")
-		for k, v := range cfg.StrategySettings.CustomSettings {
-			log.Infof(log.BackTester, "%s: %v", k, v)
-		}
-	} else {
-		log.Info(log.BackTester, "Custom strategy variables: unset")
-	}
-	log.Infof(log.BackTester, "MultiCurrency Assessment: %v", cfg.StrategySettings.IsMultiCurrency)
-	for i := range cfg.CurrencySettings {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		currStr := fmt.Sprintf("------------------%v %v-%v Settings--------------------------",
-			cfg.CurrencySettings[i].Asset,
-			cfg.CurrencySettings[i].Base,
-			cfg.CurrencySettings[i].Quote)
-		log.Infof(log.BackTester, currStr[:61])
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Exchange: %v", cfg.CurrencySettings[i].ExchangeName)
-		log.Infof(log.BackTester, "Initial funds: %v", cfg.CurrencySettings[i].InitialFunds)
-		log.Infof(log.BackTester, "Maker fee: %v", cfg.CurrencySettings[i].TakerFee)
-		log.Infof(log.BackTester, "Taker fee: %v", cfg.CurrencySettings[i].MakerFee)
-		log.Infof(log.BackTester, "Buy rules: %+v", cfg.CurrencySettings[i].BuySide)
-		log.Infof(log.BackTester, "Sell rules: %+v", cfg.CurrencySettings[i].SellSide)
-		log.Infof(log.BackTester, "Leverage rules: %+v", cfg.CurrencySettings[i].Leverage)
-	}
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Buy rules: %+v", cfg.PortfolioSettings.BuySide)
-	log.Infof(log.BackTester, "Sell rules: %+v", cfg.PortfolioSettings.SellSide)
-	log.Infof(log.BackTester, "Leverage rules: %+v", cfg.PortfolioSettings.Leverage)
-	if cfg.LiveData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------Live Settings------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.LiveData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.LiveData.Interval)
-		log.Infof(log.BackTester, "REAL ORDERS: %v", cfg.LiveData.RealOrders)
-		log.Infof(log.BackTester, "Overriding GCT API settings: %v", cfg.LiveData.APIClientIDOverride != "")
-	}
-	if cfg.APIData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------API Settings-------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.APIData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.APIData.Interval)
-		log.Infof(log.BackTester, "Start date: %v", cfg.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", cfg.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
-	}
-	if cfg.CSVData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------CSV Settings-------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.CSVData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.CSVData.Interval)
-	}
-	if cfg.DatabaseData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------Database Settings--------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.DatabaseData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.DatabaseData.Interval)
-		log.Infof(log.BackTester, "Start date: %v", cfg.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", cfg.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
-	}
-	log.Info(log.BackTester, "-------------------------------------------------------------")
 }
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
@@ -476,6 +400,81 @@ func (bt *BackTest) Stop() {
 	bt.shutdown <- struct{}{}
 }
 
+func (bt *BackTest) PrintSettings(cfg *config.Config) {
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Info(log.BackTester, "------------------Backtester Settings------------------------")
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Info(log.BackTester, "------------------Strategy Settings--------------------------")
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Infof(log.BackTester, "Strategy: %s", bt.Strategy.Name())
+	if len(cfg.StrategySettings.CustomSettings) > 0 {
+		log.Info(log.BackTester, "Custom strategy variables:")
+		for k, v := range cfg.StrategySettings.CustomSettings {
+			log.Infof(log.BackTester, "%s: %v", k, v)
+		}
+	} else {
+		log.Info(log.BackTester, "Custom strategy variables: unset")
+	}
+	log.Infof(log.BackTester, "MultiCurrency Assessment: %v", cfg.StrategySettings.IsMultiCurrency)
+	for i := range cfg.CurrencySettings {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		currStr := fmt.Sprintf("------------------%v %v-%v Settings--------------------------",
+			cfg.CurrencySettings[i].Asset,
+			cfg.CurrencySettings[i].Base,
+			cfg.CurrencySettings[i].Quote)
+		log.Infof(log.BackTester, currStr[:61])
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Exchange: %v", cfg.CurrencySettings[i].ExchangeName)
+		log.Infof(log.BackTester, "Initial funds: %v", cfg.CurrencySettings[i].InitialFunds)
+		log.Infof(log.BackTester, "Maker fee: %v", cfg.CurrencySettings[i].TakerFee)
+		log.Infof(log.BackTester, "Taker fee: %v", cfg.CurrencySettings[i].MakerFee)
+		log.Infof(log.BackTester, "Buy rules: %+v", cfg.CurrencySettings[i].BuySide)
+		log.Infof(log.BackTester, "Sell rules: %+v", cfg.CurrencySettings[i].SellSide)
+		log.Infof(log.BackTester, "Leverage rules: %+v", cfg.CurrencySettings[i].Leverage)
+	}
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Infof(log.BackTester, "Buy rules: %+v", cfg.PortfolioSettings.BuySide)
+	log.Infof(log.BackTester, "Sell rules: %+v", cfg.PortfolioSettings.SellSide)
+	log.Infof(log.BackTester, "Leverage rules: %+v", cfg.PortfolioSettings.Leverage)
+	if cfg.LiveData != nil {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------Live Settings------------------------------")
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Data type: %v", cfg.LiveData.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.LiveData.Interval)
+		log.Infof(log.BackTester, "REAL ORDERS: %v", cfg.LiveData.RealOrders)
+		log.Infof(log.BackTester, "Overriding GCT API settings: %v", cfg.LiveData.APIClientIDOverride != "")
+	}
+	if cfg.APIData != nil {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------API Settings-------------------------------")
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Data type: %v", cfg.APIData.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.APIData.Interval)
+		log.Infof(log.BackTester, "Start date: %v", cfg.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "End date: %v", cfg.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
+	}
+	if cfg.CSVData != nil {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------CSV Settings-------------------------------")
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Data type: %v", cfg.CSVData.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.CSVData.Interval)
+	}
+	if cfg.DatabaseData != nil {
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Info(log.BackTester, "------------------Database Settings--------------------------")
+		log.Info(log.BackTester, "-------------------------------------------------------------")
+		log.Infof(log.BackTester, "Data type: %v", cfg.DatabaseData.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.DatabaseData.Interval)
+		log.Infof(log.BackTester, "Start date: %v", cfg.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "End date: %v", cfg.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
+	}
+	log.Info(log.BackTester, "-------------------------------------------------------------")
+}
+
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() error {
@@ -512,44 +511,6 @@ dataLoadingIssue:
 	return nil
 }
 
-func (bt *BackTest) RunLive() error {
-	timerino := time.NewTimer(time.Minute * 5)
-	tickerino := time.NewTicker(time.Second)
-	doneARun := false
-	for {
-		select {
-		case <-bt.shutdown:
-			return nil
-		case <-timerino.C:
-			return errors.New("no data returned in 5 minutes, shutting down")
-		case <-tickerino.C:
-			//
-			// Go get latest candle of interval X, verify that it hasn't been run before, then append the event
-			//
-			for event, ok := bt.nextEvent(); true; event, ok = bt.nextEvent() {
-				doneARun = true
-				if !ok {
-					d, ok := bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()].Next()
-					if !ok {
-						break
-					}
-					bt.EventQueue = append(bt.EventQueue, d)
-					continue
-				}
-
-				err := bt.handleEvent(event)
-				if err != nil {
-					return err
-				}
-				bt.Statistic.TrackEvent(event)
-			}
-			if doneARun {
-				timerino = time.NewTimer(time.Minute * 5)
-			}
-		}
-	}
-}
-
 func (bt *BackTest) nextEvent() (e interfaces.EventHandler, ok bool) {
 	if len(bt.EventQueue) == 0 {
 		return e, false
@@ -566,47 +527,7 @@ func (bt *BackTest) nextEvent() (e interfaces.EventHandler, ok bool) {
 func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 	switch event := e.(type) {
 	case interfaces.DataEventHandler:
-
-		if bt.Strategy.IsMultiCurrency() {
-			var dataEvents []data.Handler
-			for _, i := range bt.Datas {
-				for _, j := range i {
-					for _, k := range j {
-						latestData := k.Latest()
-						// update portfolio with latest price
-						bt.Portfolio.Update(latestData)
-						// update statistics with latest price
-						bt.Statistic.Update(latestData, bt.Portfolio)
-						bt.Statistic.AddDataEventForTime(latestData)
-						dataEvents = append(dataEvents, k)
-					}
-				}
-			}
-			signals, err := bt.Strategy.OnSignals(event.GetTime(), dataEvents, bt.Portfolio)
-			if err != nil {
-				for i := range signals {
-					bt.Statistic.AddSignalEventForTime(signals[i])
-				}
-				break
-			}
-			for i := range signals {
-				bt.EventQueue = append(bt.EventQueue, signals[i])
-			}
-		} else {
-			// update portfolio with latest price
-			bt.Portfolio.Update(event)
-			// update statistics with latest price
-			bt.Statistic.Update(event, bt.Portfolio)
-			bt.Statistic.AddDataEventForTime(event)
-
-			s, err := bt.Strategy.OnSignal(bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()], bt.Portfolio)
-			if err != nil {
-				bt.Statistic.AddSignalEventForTime(s)
-				break
-			}
-
-			bt.EventQueue = append(bt.EventQueue, s)
-		}
+		bt.appendSignalEventsFromDataEvents(event)
 	case signal.SignalEvent:
 		cs := bt.Exchange.GetCurrencySettings(event.GetExchange(), event.GetAssetType(), event.Pair())
 		o, err := bt.Portfolio.OnSignal(event, bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()], &cs)
@@ -645,4 +566,98 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 	}
 
 	return nil
+}
+
+// appendSignalEventsFromDataEvents determines what signal events are generated and appended
+// to the event queue based on whether it is running a multi-currency consideration strategy order not
+//
+// for multi-currency-consideration it will pass all currency datas to the strategy for it to determine what
+// currencies to act upon
+//
+// for non-multi-currency-consideration strategies, it will simply process every currency individually
+// against the strategy and generate signals
+func (bt *BackTest) appendSignalEventsFromDataEvents(e interfaces.DataEventHandler) {
+	if bt.Strategy.IsMultiCurrency() {
+		var dataEvents []data.Handler
+		for _, e := range bt.Datas {
+			for _, a := range e {
+				for _, p := range a {
+					latestData := p.Latest()
+					bt.updateStatsForDataEvent(latestData)
+					dataEvents = append(dataEvents, p)
+				}
+			}
+		}
+		signals, err := bt.Strategy.OnSignals(dataEvents, bt.Portfolio)
+		if err != nil {
+			for i := range signals {
+				bt.Statistic.AddSignalEventForTime(signals[i])
+			}
+			return
+		}
+		for i := range signals {
+			bt.EventQueue = append(bt.EventQueue, signals[i])
+		}
+	} else {
+		bt.updateStatsForDataEvent(e)
+
+		s, err := bt.Strategy.OnSignal(bt.Datas[e.GetExchange()][e.GetAssetType()][e.Pair()], bt.Portfolio)
+		if err != nil {
+			bt.Statistic.AddSignalEventForTime(s)
+			return
+		}
+
+		bt.EventQueue = append(bt.EventQueue, s)
+	}
+}
+
+// updateStatsForDataEvent makes various systems aware of price movements from
+// data events
+func (bt *BackTest) updateStatsForDataEvent(e interfaces.DataEventHandler) {
+	// update portfolio with latest price
+	bt.Portfolio.Update(e)
+	// update statistics with latest price
+	bt.Statistic.Update(e, bt.Portfolio)
+	bt.Statistic.AddDataEventForTime(e)
+}
+
+// RunLive is a proof of concept function that does not yet support multi currency usage
+// It runs by constantly checking for new live datas and running through the list of events
+// once new data is processed. It will run until application close event has been received
+func (bt *BackTest) RunLive() error {
+	timerino := time.NewTimer(time.Minute * 5)
+	tickerino := time.NewTicker(time.Second)
+	doneARun := false
+	for {
+		select {
+		case <-bt.shutdown:
+			return nil
+		case <-timerino.C:
+			return errors.New("no data returned in 5 minutes, shutting down")
+		case <-tickerino.C:
+			//
+			// Go get latest candle of interval X, verify that it hasn't been run before, then append the event
+			//
+			for event, ok := bt.nextEvent(); true; event, ok = bt.nextEvent() {
+				doneARun = true
+				if !ok {
+					d, ok := bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()].Next()
+					if !ok {
+						break
+					}
+					bt.EventQueue = append(bt.EventQueue, d)
+					continue
+				}
+
+				err := bt.handleEvent(event)
+				if err != nil {
+					return err
+				}
+				bt.Statistic.TrackEvent(event)
+			}
+			if doneARun {
+				timerino = time.NewTimer(time.Minute * 5)
+			}
+		}
+	}
 }

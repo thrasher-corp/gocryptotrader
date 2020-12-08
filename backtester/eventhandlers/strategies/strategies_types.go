@@ -1,8 +1,6 @@
 package strategies
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -11,7 +9,7 @@ import (
 type Handler interface {
 	Name() string
 	OnSignal(data.Handler, portfolio.Handler) (signal.SignalEvent, error)
-	OnSignals(time.Time, []data.Handler, portfolio.Handler) ([]signal.SignalEvent, error)
+	OnSignals([]data.Handler, portfolio.Handler) ([]signal.SignalEvent, error)
 	IsMultiCurrency() bool
 	SupportsMultiCurrency() bool
 	SetMultiCurrency(bool)

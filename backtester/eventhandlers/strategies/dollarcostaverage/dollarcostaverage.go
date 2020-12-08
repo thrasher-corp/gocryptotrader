@@ -1,8 +1,6 @@
 package dollarcostaverage
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
@@ -33,7 +31,7 @@ func (s *Strategy) SupportsMultiCurrency() bool {
 	return true
 }
 
-func (s *Strategy) OnSignals(t time.Time, d []data.Handler, p portfolio.Handler) ([]signal.SignalEvent, error) {
+func (s *Strategy) OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.SignalEvent, error) {
 	var resp []signal.SignalEvent
 	for i := range d {
 		es := s.GetBase(d[i])

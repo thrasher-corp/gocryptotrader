@@ -3,7 +3,6 @@ package RSI420BlazeIt
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
 
@@ -56,7 +55,8 @@ func (s *Strategy) SupportsMultiCurrency() bool {
 	return false
 }
 
-func (s *Strategy) OnSignals(_ time.Time, _ []data.Handler, _ portfolio.Handler) ([]signal.SignalEvent, error) {
+// OnSignals
+func (s *Strategy) OnSignals(_ []data.Handler, _ portfolio.Handler) ([]signal.SignalEvent, error) {
 	return nil, errors.New("unsupported")
 }
 

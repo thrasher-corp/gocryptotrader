@@ -108,9 +108,6 @@ func TestLoadCandleDataFromAPI(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(bt.Data.List()) == 0 {
-		t.Error("no data loaded")
-	}
 }
 
 func TestWhatHAppensWhenLiveIsRun(t *testing.T) {
@@ -203,9 +200,6 @@ func TestLoadTradeDataFromAPI(t *testing.T) {
 	bt, err := NewFromConfig(&cfg)
 	if err != nil {
 		t.Error(err)
-	}
-	if len(bt.Data.List()) == 0 {
-		t.Error("no data loaded")
 	}
 }
 

@@ -51,9 +51,9 @@ func TestGenerateDCACandleAPIStrat(t *testing.T) {
 			},
 		},
 		APIData: &APIData{
-			StartDate: time.Now().Add(-time.Hour * 24 * 7),
+			StartDate: time.Now().Add(-time.Hour * 24 * 365),
 			EndDate:   time.Now(),
-			Interval:  kline.OneHour.Duration(),
+			Interval:  kline.OneDay.Duration(),
 			DataType:  common.CandleStr,
 		},
 		PortfolioSettings: PortfolioSettings{

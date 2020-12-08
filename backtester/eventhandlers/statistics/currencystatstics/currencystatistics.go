@@ -29,7 +29,20 @@ func (c *CurrencyStatistic) calculateSharpeRatio(riskFreeReturns float64) {
 
 func (c *CurrencyStatistic) CalculateResults(riskFreeReturns float64) {
 	c.calculateSharpeRatio(riskFreeReturns)
+	first := c.Events[0]
+	var firstPrice float64
+	if first.SignalEvent != nil {
+		firstPrice = first.SignalEvent.GetPrice()
+	} else if first.FillEvent != nil {
+		firstPrice = first.FillEvent.GetClosePrice()
+	}
 	last := c.Events[len(c.Events)-1]
+	var lastPrice float64
+	if last.SignalEvent != nil {
+		lastPrice = last.SignalEvent.GetPrice()
+	} else if first.FillEvent != nil {
+		lastPrice = last.FillEvent.GetClosePrice()
+	}
 	for i := range last.Transactions.Orders {
 		if last.Transactions.Orders[i].Side == gctorder.Buy {
 			c.BuyOrders++
@@ -46,7 +59,7 @@ func (c *CurrencyStatistic) CalculateResults(riskFreeReturns float64) {
 			c.HighestClosePrice = price
 		}
 	}
-	c.MarketMovement = ((c.HighestClosePrice - c.LowestClosePrice) / c.LowestClosePrice) * 100
+	c.MarketMovement = ((lastPrice - firstPrice) / firstPrice) * 100
 	c.StrategyMovement = ((last.Holdings.TotalValue - last.Holdings.InitialFunds) / last.Holdings.InitialFunds) * 100
 	var allDataEvents []interfaces.DataEventHandler
 	for i := range c.Events {

@@ -18,16 +18,15 @@ import (
 
 // BackTest is the main hodler of all backtesting
 type BackTest struct {
-	shutdown chan struct{}
-	Data     data.Handler
-	Datas    map[string]map[asset.Item]map[currency.Pair]data.Handler
-
-	Strategy   strategies.Handler
-	Portfolio  portfolio.Handler
-	Exchange   exchange.ExecutionHandler
-	Statistic  statistics.Handler
-	EventQueue []interfaces.EventHandler
-	Bot        *engine.Engine
+	shutdown     chan struct{}
+	Datas        map[string]map[asset.Item]map[currency.Pair]data.Handler
+	AllTheThings UltimateHolderOfAllThings
+	Strategy     strategies.Handler
+	Portfolio    portfolio.Handler
+	Exchange     exchange.ExecutionHandler
+	Statistic    statistics.Handler
+	EventQueue   []interfaces.EventHandler
+	Bot          *engine.Engine
 }
 
 // UltimateHolderOfAllThings is to hold all specific currency pair related things in one location.
@@ -42,7 +41,4 @@ type AllTheThings struct {
 	Events                    []currencystatstics.CurrencyStatistic
 	ExchangeAssetPairSettings portfolio.ExchangeAssetPairSettings
 	RiskSettings              risk.Settings
-}
-
-type AllTheThingReader interface {
 }
