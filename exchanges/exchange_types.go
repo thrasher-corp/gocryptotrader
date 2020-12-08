@@ -127,6 +127,21 @@ type FundHistory struct {
 	BankFrom          string
 }
 
+// WithdrawalHistory holds exchange Withdrawal history data
+type WithdrawalHistory struct {
+	Status          string
+	TransferID      string
+	Description     string
+	Timestamp       time.Time
+	Currency        string
+	Amount          float64
+	Fee             float64
+	TransferType    string
+	CryptoToAddress string
+	CryptoTxID      string
+	BankTo          string
+}
+
 // Features stores the supported and enabled features
 // for the exchange
 type Features struct {

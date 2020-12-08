@@ -746,6 +746,48 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 	return resp.ID, nil
 }
 
+// WithdrawStatus gets the status of recent withdrawals
+// status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
+func (b *Binance) WithdrawStatus(c currency.Code, status string, startTime, endTime int64) ([]WithdrawStatusResponse, error) {
+	var response struct {
+		Success      bool                     `json:"success"`
+		WithdrawList []WithdrawStatusResponse `json:"withdrawList"`
+	}
+
+	path := b.API.Endpoints.URL + withdrawalHistory
+	params := url.Values{}
+	params.Set("asset", c.String())
+
+	if status != "" {
+		i, err := strconv.Atoi(status)
+		if err != nil {
+			return response.WithdrawList, fmt.Errorf("wrong param (status): %s. Error: %v", status, err)
+		}
+
+		switch i {
+		case EmailSent, Cancelled, AwaitingApproval, Rejected, Processing, Failure, Completed:
+		default:
+			return response.WithdrawList, fmt.Errorf("wrong param (status): %s", status)
+		}
+
+		params.Set("status", status)
+	}
+
+	if startTime > 0 {
+		params.Set("startTime", strconv.FormatInt(startTime, 10))
+	}
+
+	if endTime > 0 {
+		params.Set("endTime", strconv.FormatInt(endTime, 10))
+	}
+
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Unset, &response); err != nil {
+		return response.WithdrawList, err
+	}
+
+	return response.WithdrawList, nil
+}
+
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
 func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) {
 	path := b.API.Endpoints.URL + depositAddress

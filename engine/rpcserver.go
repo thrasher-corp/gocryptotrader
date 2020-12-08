@@ -1303,6 +1303,20 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 // WithdrawalEventsByExchange returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.WithdrawalEventsByExchangeRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
 	if !s.Config.Database.Enabled {
+		if r.Id == "" {
+			exch := s.GetExchangeByName(r.Exchange)
+			if exch == nil {
+				return nil, errExchangeNotLoaded
+			}
+
+			c := currency.NewCode(strings.ToUpper(r.Currency))
+			ret, err := exch.GetWithdrawalsHistory(c)
+			if err != nil {
+				return nil, err
+			}
+
+			return parseWithdrawalsHistory(ret, exch.GetName(), int(r.Limit)), nil
+		}
 		return nil, database.ErrDatabaseSupportDisabled
 	}
 	if r.Id == "" {

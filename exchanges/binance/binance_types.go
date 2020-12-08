@@ -6,6 +6,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
+// withdrawals status codes description
+const (
+	EmailSent = iota
+	Cancelled
+	AwaitingApproval
+	Rejected
+	Processing
+	Failure
+	Completed
+)
+
 // Response holds basic binance api response data
 type Response struct {
 	Code int    `json:"code"`
@@ -605,6 +616,19 @@ type WithdrawResponse struct {
 	Success bool   `json:"success"`
 	Msg     string `json:"msg"`
 	ID      string `json:"id"`
+}
+
+// WithdrawStatusResponse defines a withdrawal status response
+type WithdrawStatusResponse struct {
+	Amount         float64 `json:"amount"`
+	TransactionFee float64 `json:"transactionFee"`
+	Address        string  `json:"address"`
+	TxID           string  `json:"txId"`
+	ID             string  `json:"id"`
+	Asset          string  `json:"asset"`
+	ApplyTime      int64   `json:"applyTime"`
+	Status         int64   `json:"status"`
+	Network        string  `json:"network"`
 }
 
 // UserAccountStream contains a key to maintain an authorised

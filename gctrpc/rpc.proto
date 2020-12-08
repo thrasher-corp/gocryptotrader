@@ -504,6 +504,7 @@ message WithdrawalEventsByExchangeRequest {
     string exchange = 1;
     string id = 2;
     int32 limit = 3;
+    string currency = 4;
 }
 
 message WithdrawalEventsByDateRequest {
@@ -553,6 +554,7 @@ message CryptoWithdrawalEvent {
     string address = 1;
     string address_tag = 2;
     double fee = 3;
+    string tx_id = 4;
 }
 
 message GetLoggerDetailsRequest {

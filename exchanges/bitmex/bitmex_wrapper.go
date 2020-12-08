@@ -423,6 +423,11 @@ func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (b *Bitmex) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitmex) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	return b.GetHistoricTrades(p, assetType, time.Now().Add(-time.Hour), time.Now())

@@ -498,6 +498,29 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetWithdrawalsHistory returns previous withdrawals data
+func (b *Binance) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	w, err := b.WithdrawStatus(c, "", 0, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range w {
+		resp = append(resp, exchange.WithdrawalHistory{
+			Status:          strconv.FormatInt(w[i].Status, 10),
+			TransferID:      w[i].ID,
+			Currency:        w[i].Asset,
+			Amount:          w[i].Amount,
+			Fee:             w[i].TransactionFee,
+			CryptoToAddress: w[i].Address,
+			CryptoTxID:      w[i].TxID,
+			Timestamp:       time.Unix(w[i].ApplyTime/1000, 0),
+		})
+	}
+
+	return resp, nil
+}
+
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
