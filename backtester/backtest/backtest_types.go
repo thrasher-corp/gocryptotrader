@@ -18,8 +18,10 @@ import (
 
 // BackTest is the main hodler of all backtesting
 type BackTest struct {
-	shutdown   chan struct{}
-	Data       data.Handler
+	shutdown chan struct{}
+	Data     data.Handler
+	Datas    map[string]map[asset.Item]map[currency.Pair]data.Handler
+
 	Strategy   strategies.Handler
 	Portfolio  portfolio.Handler
 	Exchange   exchange.ExecutionHandler
@@ -34,11 +36,12 @@ type UltimateHolderOfAllThings struct {
 }
 
 type AllTheThings struct {
+	Data                      data.Handler
 	Holdings                  holdings.Snapshots
 	Compliance                compliance.Manager
 	Events                    []currencystatstics.CurrencyStatistic
 	ExchangeAssetPairSettings portfolio.ExchangeAssetPairSettings
-	RiskSettings              risk.Risk
+	RiskSettings              risk.Settings
 }
 
 type AllTheThingReader interface {

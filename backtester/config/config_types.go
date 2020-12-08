@@ -8,16 +8,24 @@ import (
 
 // Config defines what is in an individual strategy config
 type Config struct {
-	StrategyToLoad   string             `json:"strategy"`
-	CurrencySettings []CurrencySettings `json:"currency-settings"`
+	CurrencySettings  []CurrencySettings `json:"currency-settings"`
+	StrategySettings  StrategySettings   `json:"strategy-settings"`
+	PortfolioSettings PortfolioSettings  `json:"portfolio"`
+	StatisticSettings StatisticSettings  `json:"statistic-settings"`
 	// data source definitions:
-	APIData           *APIData               `json:"api-data,omitempty"`
-	DatabaseData      *DatabaseData          `json:"database-data,omitempty"`
-	LiveData          *LiveData              `json:"live-data,omitempty"`
-	CSVData           *CSVData               `json:"csv-data,omitempty"`
-	StrategySettings  map[string]interface{} `json:"strategy-settings"`
-	PortfolioSettings PortfolioSettings      `json:"portfolio"`
-	StatisticSettings StatisticSettings      `json:"statistic-settings"`
+	APIData      *APIData      `json:"api-data,omitempty"`
+	DatabaseData *DatabaseData `json:"database-data,omitempty"`
+	LiveData     *LiveData     `json:"live-data,omitempty"`
+	CSVData      *CSVData      `json:"csv-data,omitempty"`
+}
+
+// StrategySettings contains what strategy to load, along with custom settins map
+// (variables defined per strategy)
+// along with defining whether the strategy will assess all currencies at once, or individually
+type StrategySettings struct {
+	Name            string                 `json:"name"`
+	IsMultiCurrency bool                   `json:"is-multi-currency"`
+	CustomSettings  map[string]interface{} `json:"custom-settings"`
 }
 
 // StatisticSettings holds configurable varialbes to adjust ratios where

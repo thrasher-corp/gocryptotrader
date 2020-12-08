@@ -449,7 +449,7 @@ func (o *orderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 			"Order manager: Unable to generate UUID. Err: %s",
 			err)
 	}
-	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v side=%v type=%v.",
+	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v side=%v type=%v for time %v.",
 		newOrder.Exchange,
 		result.OrderID,
 		id.String(),
@@ -457,7 +457,8 @@ func (o *orderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 		newOrder.Price,
 		newOrder.Amount,
 		newOrder.Side,
-		newOrder.Type)
+		newOrder.Type,
+		newOrder.Date)
 
 	log.Debugln(log.OrderMgr, msg)
 	Bot.CommsManager.PushEvent(base.Event{

@@ -14,7 +14,7 @@ import (
 
 func main() {
 	var configPath string
-	flag.StringVar(&configPath, "configpath", filepath.Join("C:\\Users\\ScottGrant\\go\\src\\github.com\\thrasher-corp\\gocryptotrader\\backtester", "config", "examples", "rsi420blazeit.strat"), "the config containing strategy params")
+	flag.StringVar(&configPath, "configpath", filepath.Join("C:\\Users\\ScottGrant\\go\\src\\github.com\\thrasher-corp\\gocryptotrader\\backtester", "config", "examples", "dollar-cost-average-multi-currency-assessment.strat"), "the config containing strategy params")
 	flag.Parse()
 
 	var bt *backtest.BackTest

@@ -1,6 +1,8 @@
 package dollarcostaverage
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
@@ -25,6 +27,24 @@ func (s *Strategy) OnSignal(d data.Handler, p portfolio.Handler) (signal.SignalE
 	es.SetDirection(order.Buy)
 	es.AppendWhy("DCA purchases on every iteration")
 	return &es, nil
+}
+
+func (s *Strategy) SupportsMultiCurrency() bool {
+	return true
+}
+
+func (s *Strategy) OnSignals(t time.Time, d []data.Handler, p portfolio.Handler) ([]signal.SignalEvent, error) {
+	var resp []signal.SignalEvent
+	for i := range d {
+		es := s.GetBase(d[i])
+
+		es.SetPrice(d[i].Latest().Price())
+		es.SetDirection(order.Buy)
+		es.AppendWhy("DCA purchases on every iteration")
+		resp = append(resp, &es)
+	}
+
+	return resp, nil
 }
 
 // SetCustomSettings not required for DCA

@@ -1,5 +1,4 @@
 {
- "strategy": "rsi420blazeit",
  "currency-settings": [
   {
    "exchange-name": "binance",
@@ -23,20 +22,18 @@
    },
    "MinimumSlippagePercent": 0,
    "MaximumSlippagePercent": 0,
-   "maker-fee-override": 0.01,
-   "taker-fee-override": 0.02
+   "maker-fee-override": 0.002,
+   "taker-fee-override": 0.001
   }
  ],
- "api-data": {
-  "data-type": "candle",
-  "interval": 3600000000000,
-  "start-date": "2020-11-30T14:04:42.5282293+11:00",
-  "end-date": "2020-12-07T14:04:42.5282293+11:00"
- },
  "strategy-settings": {
-  "rsi-high": 69,
-  "rsi-low": 31,
-  "rsi-period": 12
+  "name": "rsi420blazeit",
+  "is-multi-currency": false,
+  "custom-settings": {
+   "rsi-high": 69,
+   "rsi-low": 31,
+   "rsi-period": 12
+  }
  },
  "portfolio": {
   "diversification-something": 0,
@@ -58,5 +55,11 @@
  "statistic-settings": {
   "sharpe-ratio-risk-free-rate": 0.03,
   "sortino-ratio-risk-free-rate": 0.03
+ },
+ "api-data": {
+  "data-type": "candle",
+  "interval": 3600000000000,
+  "start-date": "2020-12-01T13:30:54.2178451+11:00",
+  "end-date": "2020-12-08T13:30:54.2178451+11:00"
  }
 }

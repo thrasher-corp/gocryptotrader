@@ -17,6 +17,7 @@ func (d *Data) Reset() {
 	d.latest = nil
 	d.offset = 0
 	d.stream = nil
+	d.datas = nil
 }
 
 // Stream will return entire data list
@@ -29,6 +30,10 @@ func (d *Data) GetOffset() int {
 }
 
 func (d *Data) SetStream(s []interfaces.DataEventHandler) {
+	d.stream = s
+}
+
+func (d *Data) SetStrea2m(s []interfaces.DataEventHandler) {
 	d.stream = s
 }
 

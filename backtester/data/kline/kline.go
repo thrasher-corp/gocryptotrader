@@ -16,11 +16,11 @@ type DataFromKline struct {
 	Item gctkline.Item
 	data.Data
 
-	actionedTimes map[time.Time]bool
+	addedTimes map[time.Time]bool
 }
 
 func (d *DataFromKline) Load() error {
-	d.actionedTimes = make(map[time.Time]bool)
+	d.addedTimes = make(map[time.Time]bool)
 	if len(d.Item.Candles) == 0 {
 		return errors.New("no candle data provided")
 	}
@@ -41,7 +41,7 @@ func (d *DataFromKline) Load() error {
 			Close:  d.Item.Candles[i].Close,
 			Volume: d.Item.Candles[i].Volume,
 		}
-		d.actionedTimes[d.Item.Candles[i].Time] = true
+		d.addedTimes[d.Item.Candles[i].Time] = true
 	}
 	d.SetStream(klineData)
 	d.SortStream()
@@ -49,15 +49,15 @@ func (d *DataFromKline) Load() error {
 }
 
 func (d *DataFromKline) Append(ki gctkline.Item) {
-	if d.actionedTimes == nil {
-		d.actionedTimes = make(map[time.Time]bool)
+	if d.addedTimes == nil {
+		d.addedTimes = make(map[time.Time]bool)
 	}
 	var klineData []interfaces.DataEventHandler
 	var gctCandles []gctkline.Candle
 	for i := range ki.Candles {
-		if _, ok := d.actionedTimes[ki.Candles[i].Time]; !ok {
+		if _, ok := d.addedTimes[ki.Candles[i].Time]; !ok {
 			gctCandles = append(gctCandles, ki.Candles[i])
-			d.actionedTimes[ki.Candles[i].Time] = true
+			d.addedTimes[ki.Candles[i].Time] = true
 		}
 	}
 	var timerinos []time.Time

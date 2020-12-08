@@ -3,12 +3,13 @@ package RSI420BlazeIt
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	portfolio2 "github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -27,7 +28,7 @@ func (s *Strategy) Name() string {
 	return name
 }
 
-func (s *Strategy) OnSignal(d data.Handler, _ portfolio2.Handler) (signal.SignalEvent, error) {
+func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.SignalEvent, error) {
 	es := s.GetBase(d)
 	es.SetPrice(d.Latest().Price())
 
@@ -49,6 +50,14 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio2.Handler) (signal.Signal
 	es.AppendWhy(fmt.Sprintf("RSI at %.2f", lastSI))
 
 	return &es, nil
+}
+
+func (s *Strategy) SupportsMultiCurrency() bool {
+	return false
+}
+
+func (s *Strategy) OnSignals(_ time.Time, _ []data.Handler, _ portfolio.Handler) ([]signal.SignalEvent, error) {
+	return nil, errors.New("unsupported")
 }
 
 func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {

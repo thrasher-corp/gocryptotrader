@@ -7,6 +7,7 @@ import (
 )
 
 type Strategy struct {
+	multiCurrency bool
 }
 
 func (s *Strategy) GetBase(d data.Handler) signal.Signal {
@@ -19,4 +20,12 @@ func (s *Strategy) GetBase(d data.Handler) signal.Signal {
 			Interval:     d.Latest().GetInterval(),
 		},
 	}
+}
+
+func (s *Strategy) IsMultiCurrency() bool {
+	return s.multiCurrency
+}
+
+func (s *Strategy) SetMultiCurrency(b bool) {
+	s.multiCurrency = b
 }

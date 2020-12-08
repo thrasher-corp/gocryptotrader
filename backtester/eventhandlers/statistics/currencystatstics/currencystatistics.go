@@ -16,7 +16,7 @@ import (
 )
 
 // SharpeRatio returns sharpe ratio of backtest compared to risk-free
-func (c *CurrencyStatistic) CalculateSharpeRatio(riskFreeReturns float64) {
+func (c *CurrencyStatistic) calculateSharpeRatio(riskFreeReturns float64) {
 	var equityReturns = make([]float64, len(c.Events))
 
 	for i := range c.Events {
@@ -27,7 +27,8 @@ func (c *CurrencyStatistic) CalculateSharpeRatio(riskFreeReturns float64) {
 	c.SharpeRatio = (mean - riskFreeReturns) / stddev
 }
 
-func (c *CurrencyStatistic) CalculateResults() {
+func (c *CurrencyStatistic) CalculateResults(riskFreeReturns float64) {
+	c.calculateSharpeRatio(riskFreeReturns)
 	last := c.Events[len(c.Events)-1]
 	for i := range last.Transactions.Orders {
 		if last.Transactions.Orders[i].Side == gctorder.Buy {
@@ -66,21 +67,19 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 		if c.Events[i].FillEvent != nil {
 			direction := c.Events[i].FillEvent.GetDirection()
 			if direction == common.CouldNotBuy || direction == common.CouldNotSell || direction == common.DoNothing {
-				log.Infof(log.BackTester, "%v | Direction: %v - Price: %v - Why: %s - Equity Return %.2f",
+				log.Infof(log.BackTester, "%v | Price: $%v - Direction: %v - Why: %s",
 					c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-					c.Events[i].FillEvent.GetDirection(),
 					c.Events[i].FillEvent.GetClosePrice(),
-					c.Events[i].FillEvent.GetWhy(),
-					c.Events[i].Holdings.EquityReturn)
-			} else {
-				log.Infof(log.BackTester, "%v | Direction %v - Price: $%v - Amount: %v - Fee: $%v - Why: %s - Equity Return %.2f ",
-					c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 					c.Events[i].FillEvent.GetDirection(),
-					c.Events[i].FillEvent.GetExchangeFee(),
-					c.Events[i].FillEvent.GetAmount(),
+					c.Events[i].FillEvent.GetWhy())
+			} else {
+				log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Direction %v - Why: %s",
+					c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 					c.Events[i].FillEvent.GetPurchasePrice(),
+					c.Events[i].FillEvent.GetAmount(),
+					c.Events[i].FillEvent.GetExchangeFee(),
+					c.Events[i].FillEvent.GetDirection(),
 					c.Events[i].FillEvent.GetWhy(),
-					c.Events[i].Holdings.EquityReturn,
 				)
 			}
 		} else if c.Events[i].SignalEvent != nil {
@@ -106,21 +105,6 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Sell amount: %v", last.Holdings.SoldAmount)
 	log.Infof(log.BackTester, "Total orders: %v\n\n", c.BuyOrders+c.SellOrders)
 
-	log.Infof(log.BackTester, "Value lost to volume sizing: $%v", last.Holdings.TotalValueLostToVolumeSizing)
-	log.Infof(log.BackTester, "Value lost to slippage: $%v", last.Holdings.TotalValueLostToSlippage)
-	log.Infof(log.BackTester, "Total Value lost: $%v", last.Holdings.TotalValueLostToSlippage+last.Holdings.TotalValueLostToSlippage)
-	log.Infof(log.BackTester, "Total Fees: $%v\n\n", last.Holdings.TotalFees)
-
-	log.Infof(log.BackTester, "Starting Close Price: $%v", first.DataEvent.Price())
-	log.Infof(log.BackTester, "Finishing Close Price: $%v", last.DataEvent.Price())
-
-	log.Infof(log.BackTester, "Lowest Close Price: $%v", c.LowestClosePrice)
-	log.Infof(log.BackTester, "Highest Close Price: $%v", c.HighestClosePrice)
-
-	log.Infof(log.BackTester, "Market movement: %v%%", c.MarketMovement)
-	log.Infof(log.BackTester, "Strategy movement: %v%%", c.StrategyMovement)
-	log.Infof(log.BackTester, "Did it beat the market: %v\n\n", c.StrategyMovement > c.MarketMovement)
-
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
 	log.Infof(log.BackTester, "Highest Price: $%.2f", c.DrawDowns.MaxDrawDown.Highest.Price)
 	log.Infof(log.BackTester, "Highest Price Time: %v", c.DrawDowns.MaxDrawDown.Highest.Time)
@@ -143,10 +127,27 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Sharpe ratio: $%v", last.Holdings.TotalFees)
 	log.Infof(log.BackTester, "Sortino ratio: $%v\n\n", last.Holdings.TotalFees)
 
+	log.Info(log.BackTester, "------------------Results------------------------------------")
+	log.Infof(log.BackTester, "Starting Close Price: $%v", first.DataEvent.Price())
+	log.Infof(log.BackTester, "Finishing Close Price: $%v", last.DataEvent.Price())
+	log.Infof(log.BackTester, "Lowest Close Price: $%v", c.LowestClosePrice)
+	log.Infof(log.BackTester, "Highest Close Price: $%v", c.HighestClosePrice)
+
+	log.Infof(log.BackTester, "Market movement: %v%%", c.MarketMovement)
+	log.Infof(log.BackTester, "Strategy movement: %v%%", c.StrategyMovement)
+	log.Infof(log.BackTester, "Did it beat the market: %v", c.StrategyMovement > c.MarketMovement)
+	log.Infof(log.BackTester, "Should you reconsider your life choices: %v\n\n", c.StrategyMovement < c.MarketMovement)
+
+	log.Infof(log.BackTester, "Value lost to volume sizing: $%v", last.Holdings.TotalValueLostToVolumeSizing)
+	log.Infof(log.BackTester, "Value lost to slippage: $%v", last.Holdings.TotalValueLostToSlippage)
+	log.Infof(log.BackTester, "Total Value lost: $%v", last.Holdings.TotalValueLostToSlippage+last.Holdings.TotalValueLostToSlippage)
+	log.Infof(log.BackTester, "Total Fees: $%v\n\n", last.Holdings.TotalFees)
+
 	log.Infof(log.BackTester, "Final funds: $%v", last.Holdings.RemainingFunds)
 	log.Infof(log.BackTester, "Final holdings: %v", last.Holdings.PositionsSize)
 	log.Infof(log.BackTester, "Final holdings value: $%v", last.Holdings.PositionsValue)
 	log.Infof(log.BackTester, "Final total value: $%v", last.Holdings.TotalValue)
+
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")
 		for i := range errs {

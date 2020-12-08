@@ -42,12 +42,19 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 		Direction: signal.GetDirection(),
 	}
 	if signal.GetDirection() == "" {
-		o.AppendWhy("LOL")
 		return o, errors.New("invalid Direction")
 	}
 
 	lookup := p.ExchangeAssetPairSettings[signal.GetExchange()][signal.GetAssetType()][signal.Pair()]
 	prevHolding := lookup.HoldingsSnapshots.GetLatestSnapshot()
+	if prevHolding.InitialFunds == 0 {
+		prevHolding.InitialFunds = lookup.InitialFunds
+		prevHolding.RemainingFunds = lookup.InitialFunds
+		prevHolding.Exchange = signal.GetExchange()
+		prevHolding.Pair = signal.Pair()
+		prevHolding.Asset = signal.GetAssetType()
+		prevHolding.Timestamp = signal.GetTime()
+	}
 
 	if signal.GetDirection() == common.DoNothing {
 		return o, nil
@@ -167,7 +174,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.FillEvent) error {
 		}
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 	}
-	err = complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), false)
+	err = complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), true)
 	if err != nil {
 		return err
 	}

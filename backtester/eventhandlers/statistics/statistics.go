@@ -108,26 +108,14 @@ func (s *Statistic) CalculateTheResults() error {
 	for e, x := range s.EventsByTime {
 		for a, y := range x {
 			for p, z := range y {
-				z.CalculateSharpeRatio(s.SharpeRatioRiskFreeRate)
-				z.CalculateResults()
+				z.CalculateResults(s.SharpeRatioRiskFreeRate)
 				z.PrintResults(e, a, p)
 			}
 		}
 	}
+	// todo, do a big final stats output
 
 	return nil
-}
-
-// SharpeRatio returns sharpe ratio of backtest compared to risk-free
-func (s *Statistic) ScottSharpeRatio(riskfree float64) float64 {
-	var equityReturns = make([]float64, len(s.Equity))
-
-	for i := range s.Equity {
-		equityReturns[i] = s.Equity[i].EquityReturn
-	}
-	mean, stddev := stat.MeanStdDev(equityReturns, nil)
-
-	return (mean - riskfree) / stddev
 }
 
 // Update Statistic for event

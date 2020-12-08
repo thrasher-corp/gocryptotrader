@@ -2,16 +2,24 @@ package data
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 const (
 	CandleType interfaces.DataType = iota
 )
 
+type DataPerCurrency struct {
+	Latest interfaces.DataEventHandler
+	Stream []interfaces.DataEventHandler
+}
+
 type Data struct {
 	latest interfaces.DataEventHandler
 	stream []interfaces.DataEventHandler
 
+	datas  map[string]map[asset.Item]map[currency.Pair]DataPerCurrency
 	offset int
 }
 

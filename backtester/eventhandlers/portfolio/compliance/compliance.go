@@ -17,7 +17,7 @@ func (m *Manager) AddSnapshot(orders []SnapshotOrder, t time.Time, force bool) e
 			if force {
 				m.Snapshots[i].Orders = orders
 			} else {
-				return errors.New("already exists")
+				return errors.New("already exists buttts")
 			}
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
@@ -45,6 +46,7 @@ func New() *BackTest {
 func (bt *BackTest) Reset() {
 	bt.EventQueue = nil
 	bt.Data.Reset()
+	bt.Datas = nil
 	bt.Portfolio.Reset()
 	bt.Statistic.Reset()
 }
@@ -56,14 +58,15 @@ func (bt *BackTest) PrintSettings(cfg *config.Config) {
 	log.Info(log.BackTester, "------------------Strategy Settings--------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Infof(log.BackTester, "Strategy: %s", bt.Strategy.Name())
-	if len(cfg.StrategySettings) > 0 {
+	if len(cfg.StrategySettings.CustomSettings) > 0 {
 		log.Info(log.BackTester, "Custom strategy variables:")
-		for k, v := range cfg.StrategySettings {
+		for k, v := range cfg.StrategySettings.CustomSettings {
 			log.Infof(log.BackTester, "%s: %v", k, v)
 		}
 	} else {
 		log.Info(log.BackTester, "Custom strategy variables: unset")
 	}
+	log.Infof(log.BackTester, "MultiCurrency Assessment: %v", cfg.StrategySettings.IsMultiCurrency)
 	for i := range cfg.CurrencySettings {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		currStr := fmt.Sprintf("------------------%v %v-%v Settings--------------------------",
@@ -176,12 +179,12 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	}
 	bt.Portfolio = p
 
-	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategyToLoad)
+	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategySettings.Name, cfg.StrategySettings.IsMultiCurrency)
 	if err != nil {
 		return nil, err
 	}
-	if cfg.StrategySettings != nil {
-		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings)
+	if cfg.StrategySettings.CustomSettings != nil {
+		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +193,7 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	}
 
 	stats := &statistics.Statistic{
-		StrategyName:                  cfg.StrategyToLoad,
+		StrategyName:                  cfg.StrategySettings.Name,
 		EventsByTime:                  make(map[string]map[asset.Item]map[currency.Pair]currencystatstics.CurrencyStatistic),
 		SharpeRatioRiskFreeRate:       cfg.StatisticSettings.SharpeRatioRiskFreeRate,
 		SortinoRatioRatioRiskFreeRate: cfg.StatisticSettings.SortinoRatioRatioRiskFreeRate,
@@ -210,8 +213,17 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			return e, err
 		}
 
-		// despite going to all this effort, we only support one data for now
-		bt.Data, err = loadData(cfg, exch, fPair, a)
+		lowerName := strings.ToLower(exch.GetName())
+		if bt.Datas == nil {
+			bt.Datas = make(map[string]map[asset.Item]map[currency.Pair]data.Handler)
+		}
+		if bt.Datas[lowerName] == nil {
+			bt.Datas[lowerName] = make(map[asset.Item]map[currency.Pair]data.Handler)
+		}
+		if bt.Datas[lowerName][a] == nil {
+			bt.Datas[lowerName][a] = make(map[currency.Pair]data.Handler)
+		}
+		bt.Datas[strings.ToLower(exch.GetName())][a][fPair], err = loadData(cfg, exch, fPair, a)
 		if err != nil {
 			return e, err
 		}
@@ -277,7 +289,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 	return e, nil
 }
 
-func (bt *BackTest) loadExchangePairAssetBase(exch, baaa, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
+func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
 	var err error
 	e := bt.Bot.GetExchangeByName(exch)
 	if e == nil {
@@ -285,7 +297,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, baaa, quote, ass string) (gc
 	}
 
 	var cp, fPair currency.Pair
-	cp, err = currency.NewPairFromStrings(baaa, quote)
+	cp, err = currency.NewPairFromStrings(base, quote)
 	if err != nil {
 		return nil, currency.Pair{}, "", err
 	}
@@ -322,7 +334,7 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 
 	for i := range cfg.CurrencySettings {
 		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
-		if err != nil {
+		if err != nil && err.Error() != "exchange already loaded" {
 			return err
 		}
 	}
@@ -467,14 +479,27 @@ func (bt *BackTest) Stop() {
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() error {
+dataLoadingIssue:
 	for event, ok := bt.nextEvent(); true; event, ok = bt.nextEvent() {
 		if !ok {
-			data, ok := bt.Data.Next()
-			if !ok {
-				break
+			for i, e := range bt.Datas {
+				for j, a := range e {
+					var z int64
+					for k, p := range a {
+						d, ok := p.Next()
+
+						if !ok {
+							log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", i, j, k)
+							break dataLoadingIssue
+						}
+						if bt.Strategy.IsMultiCurrency() && z != 0 {
+							continue
+						}
+						bt.EventQueue = append(bt.EventQueue, d)
+						z++
+					}
+				}
 			}
-			bt.EventQueue = append(bt.EventQueue, data)
-			continue
 		}
 
 		err := bt.handleEvent(event)
@@ -504,11 +529,11 @@ func (bt *BackTest) RunLive() error {
 			for event, ok := bt.nextEvent(); true; event, ok = bt.nextEvent() {
 				doneARun = true
 				if !ok {
-					data, ok := bt.Data.Next()
+					d, ok := bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()].Next()
 					if !ok {
 						break
 					}
-					bt.EventQueue = append(bt.EventQueue, data)
+					bt.EventQueue = append(bt.EventQueue, d)
 					continue
 				}
 
@@ -541,22 +566,50 @@ func (bt *BackTest) nextEvent() (e interfaces.EventHandler, ok bool) {
 func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 	switch event := e.(type) {
 	case interfaces.DataEventHandler:
-		// update portfolio with latest price
-		bt.Portfolio.Update(event)
-		// update statistics with latest price
-		bt.Statistic.Update(event, bt.Portfolio)
-		bt.Statistic.AddDataEventForTime(event)
 
-		s, err := bt.Strategy.OnSignal(bt.Data, bt.Portfolio)
-		if err != nil {
-			bt.Statistic.AddSignalEventForTime(s)
-			break
+		if bt.Strategy.IsMultiCurrency() {
+			var dataEvents []data.Handler
+			for _, i := range bt.Datas {
+				for _, j := range i {
+					for _, k := range j {
+						latestData := k.Latest()
+						// update portfolio with latest price
+						bt.Portfolio.Update(latestData)
+						// update statistics with latest price
+						bt.Statistic.Update(latestData, bt.Portfolio)
+						bt.Statistic.AddDataEventForTime(latestData)
+						dataEvents = append(dataEvents, k)
+					}
+				}
+			}
+			signals, err := bt.Strategy.OnSignals(event.GetTime(), dataEvents, bt.Portfolio)
+			if err != nil {
+				for i := range signals {
+					bt.Statistic.AddSignalEventForTime(signals[i])
+				}
+				break
+			}
+			for i := range signals {
+				bt.EventQueue = append(bt.EventQueue, signals[i])
+			}
+		} else {
+			// update portfolio with latest price
+			bt.Portfolio.Update(event)
+			// update statistics with latest price
+			bt.Statistic.Update(event, bt.Portfolio)
+			bt.Statistic.AddDataEventForTime(event)
+
+			s, err := bt.Strategy.OnSignal(bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()], bt.Portfolio)
+			if err != nil {
+				bt.Statistic.AddSignalEventForTime(s)
+				break
+			}
+
+			bt.EventQueue = append(bt.EventQueue, s)
 		}
-
-		bt.EventQueue = append(bt.EventQueue, s)
 	case signal.SignalEvent:
 		cs := bt.Exchange.GetCurrencySettings(event.GetExchange(), event.GetAssetType(), event.Pair())
-		o, err := bt.Portfolio.OnSignal(event, bt.Data, &cs)
+		o, err := bt.Portfolio.OnSignal(event, bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()], &cs)
 		if err != nil {
 			bt.Statistic.AddExchangeEventForTime(o)
 			break
@@ -564,14 +617,14 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 
 		bt.EventQueue = append(bt.EventQueue, o)
 	case order.OrderEvent:
-		f, err := bt.Exchange.ExecuteOrder(event, bt.Data)
+		f, err := bt.Exchange.ExecuteOrder(event, bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()])
 		if err != nil {
 			bt.Statistic.AddFillEventForTime(f)
 			break
 		}
 		bt.EventQueue = append(bt.EventQueue, f)
 	case fill.FillEvent:
-		t, err := bt.Portfolio.OnFill(event, bt.Data)
+		t, err := bt.Portfolio.OnFill(event, bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()])
 		if err != nil {
 			bt.Statistic.AddFillEventForTime(t)
 			break

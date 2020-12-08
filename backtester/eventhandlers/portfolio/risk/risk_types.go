@@ -19,3 +19,11 @@ type Risk struct {
 	CanUseLeverage               bool
 	MaximumLeverage              float64
 }
+
+type Settings struct {
+	MaxLeverageRatio             float64
+	MaxLeverageRate              float64
+	MaxDiversificationPercentage float64 // I cant think of a term, but the ratio between the entire portfolio, eg BTC cannot be more than 50% of holdings
+	CanUseLeverage               bool
+	MaximumLeverage              float64
+}
