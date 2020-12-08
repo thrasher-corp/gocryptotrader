@@ -954,7 +954,7 @@ func (h *HUOBI) FPlaceTriggerOrder(symbol, contractType, contractCode, triggerTy
 	}
 	if contractType != "" {
 		if !common.StringDataCompare(validContractTypes, contractType) {
-			return resp, fmt.Errorf("invalid contractType")
+			return resp, fmt.Errorf("invalid contractType: %s", contractType)
 		}
 		req["contract_type"] = contractType
 	}

@@ -255,7 +255,7 @@ func (b *Binance) UCompressedTrades(symbol, fromID string, limit int64, startTim
 
 // UKlineData gets kline data for usdt margined futures
 func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][]interface{}
+	var data [][10]interface{}
 	var resp []FuturesCandleStick
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -367,30 +367,25 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 
 // UGetMarkPrice gets mark price data for USDTMarginedFutures
 func (b *Binance) UGetMarkPrice(symbol string) ([]UMarkPrice, error) {
-	var data json.RawMessage
-	var resp []UMarkPrice
 	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 		singleResp = true
 	}
-	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesMarkPrice+params.Encode(), limitDefault, &data)
-	if err != nil {
-		return resp, err
-	}
+
 	if singleResp {
 		var tempResp UMarkPrice
-		err := json.Unmarshal(data, &tempResp)
+		err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesMarkPrice+params.Encode(), limitDefault, &tempResp)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		resp = append(resp, tempResp)
-	} else {
-		err := json.Unmarshal(data, &resp)
-		if err != nil {
-			return resp, err
-		}
+		return []UMarkPrice{tempResp}, nil
+	}
+	var resp []UMarkPrice
+	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesMarkPrice+params.Encode(), limitDefault, &resp)
+	if err != nil {
+		return nil, err
 	}
 	return resp, nil
 }
@@ -1150,7 +1145,7 @@ func (b *Binance) GetIndexAndMarkPrice(symbol, pair string) ([]IndexMarkPrice, e
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures,
 func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][]interface{}
+	var data [][10]interface{}
 	var resp []FuturesCandleStick
 	params := url.Values{}
 	if symbol != "" {
@@ -1264,7 +1259,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 
 // GetContinuousKlineData gets continuous kline data
 func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][]interface{}
+	var data [][10]interface{}
 	var resp []FuturesCandleStick
 	params := url.Values{}
 	params.Set("pair", pair)
@@ -1338,7 +1333,7 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 
 // GetIndexPriceKlines gets continuous kline data
 func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][]interface{}
+	var data [][10]interface{}
 	var resp []FuturesCandleStick
 	params := url.Values{}
 	params.Set("pair", pair)
@@ -1408,7 +1403,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 
 // GetMarkPriceKline gets mark price kline data
 func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	var data [][]interface{}
+	var data [][10]interface{}
 	var resp []FuturesCandleStick
 	params := url.Values{}
 	params.Set("symbol", symbol)
