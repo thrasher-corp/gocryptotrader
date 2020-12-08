@@ -35,6 +35,7 @@ type OrderbookResponse struct {
 	Asks     [][]interface{} `json:"asks"`
 	Bids     [][]interface{} `json:"bids"`
 	IsFrozen string          `json:"isFrozen"`
+	Error    string          `json:"error"`
 	Seq      int64           `json:"seq"`
 }
 

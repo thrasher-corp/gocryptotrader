@@ -94,7 +94,9 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 		if err != nil {
 			return oba, err
 		}
-
+		if resp.Error != "" {
+			return oba, fmt.Errorf("%s GetOrderbook() error: %s", p.Name, resp.Error)
+		}
 		var ob Orderbook
 		for x := range resp.Asks {
 			price, err := strconv.ParseFloat(resp.Asks[x][0].(string), 64)
@@ -423,17 +425,15 @@ func (p *Poloniex) GetAuthenticatedOrderStatus(orderID string) (o OrderStatus, e
 	values := url.Values{}
 
 	if orderID == "" {
-		return o, fmt.Errorf("no orderId passed")
+		return o, fmt.Errorf("no orderID passed")
 	}
 
 	values.Set("orderNumber", orderID)
-	var result json.RawMessage
-	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderStatus, values, &result)
+	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderStatus, values, &o)
 	if err != nil {
 		return o, err
 	}
 
-	err = json.Unmarshal(result, &o)
 	return
 }
 
@@ -452,8 +452,27 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(orderID string) (o []OrderTrade, 
 		return o, err
 	}
 
-	err = json.Unmarshal(result, &o)
-	return
+	if len(result) == 0 {
+		return o, fmt.Errorf("server wrong response")
+	}
+
+	switch result[0] {
+	case '{': // error message received
+		var resp GenericResponse
+		err = json.Unmarshal(result, &resp)
+		if err != nil {
+			return
+		}
+		if resp.Error != "" {
+			err = fmt.Errorf(resp.Error)
+		}
+	case '[': // data received
+		err = json.Unmarshal(result, &o)
+	default:
+		return o, fmt.Errorf("server wrong response")
+	}
+
+	return o, err
 }
 
 // PlaceOrder places a new order on the exchange
