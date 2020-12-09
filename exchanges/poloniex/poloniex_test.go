@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -282,12 +283,10 @@ func TestGetOrderStatus(t *testing.T) {
 				t.Skip()
 			}
 
-			var errMsg string
-			result, err := p.GetAuthenticatedOrderStatus(tt.orderID)
-			if err == nil {
-				if e, ok := result.Result["error"]; ok {
-					errMsg = e.(string)
-				}
+			var errMsg GenericResponse
+			resp, err := p.GetAuthenticatedOrderStatus(tt.orderID)
+			if err == nil && resp.Success == 0 {
+				err = json.Unmarshal(resp.Result, &errMsg)
 			}
 
 			switch {
@@ -297,12 +296,12 @@ func TestGetOrderStatus(t *testing.T) {
 				t.Error("Expecting an error when no keys are set")
 			case mockTests && err != nil:
 				t.Errorf("Could not mock get order status: %s", err)
-			case mockTests && errMsg != "":
-				if !(tt.errExpected && strings.Contains(errMsg, tt.errMsgExpected)) {
-					t.Errorf("Could not mock get order status: %s", errMsg)
+			case mockTests && errMsg.Error != "":
+				if !(tt.errExpected && strings.Contains(errMsg.Error, tt.errMsgExpected)) {
+					t.Errorf("Could not mock get order status: %s", errMsg.Error)
 				}
 				if !tt.errExpected {
-					t.Errorf("Could not mock get order status: %s", errMsg)
+					t.Errorf("Could not mock get order status: %s", errMsg.Error)
 				}
 			case mockTests:
 				if tt.errExpected {
