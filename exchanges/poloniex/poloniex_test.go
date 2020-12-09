@@ -285,8 +285,10 @@ func TestGetOrderStatus(t *testing.T) {
 
 			var errMsg GenericResponse
 			resp, err := p.GetAuthenticatedOrderStatus(tt.orderID)
-			if err == nil && resp.Success == 0 {
-				err = json.Unmarshal(resp.Result, &errMsg)
+			if err == nil {
+				if resp.Success == 0 {
+					err = json.Unmarshal(resp.Result, &errMsg)
+				}
 			}
 
 			switch {
