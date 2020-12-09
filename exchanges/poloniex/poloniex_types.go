@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -69,8 +70,21 @@ type TradeHistory struct {
 
 // OrderStatus holds order status data
 type OrderStatus struct {
-	Result  map[string]interface{} `json:"result"`
-	Success int64                  `json:"success"`
+	Result  json.RawMessage `json:"result"`
+	Success int64           `json:"success"`
+}
+
+// wsStatus defines order status details
+type wsStatus struct {
+	Pair           string  `json:"currencyPair"`
+	Rate           float64 `json:"rate,string"`
+	Amount         float64 `json:"amount,string"`
+	Total          float64 `json:"total,string"`
+	StartingAmount float64 `json:"startingAmount,string"`
+	Type           string  `json:"type"`
+	Status         string  `json:"status"`
+	Date           string  `json:"date"`
+	Fee            float64 `json:"fee,string"`
 }
 
 // OrderTrade holds order trade data

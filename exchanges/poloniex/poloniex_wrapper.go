@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -589,11 +590,13 @@ func (p *Poloniex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 
 // GetOrderInfo returns order information based on order ID
 func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderInfo order.Detail
+	orderInfo := order.Detail{
+		Exchange: p.Name,
+		Pair:     pair,
+	}
+
 	trades, err := p.GetAuthenticatedOrderTrades(orderID)
 	if err == nil {
-		orderInfo.Exchange = p.Name
-		orderInfo.Pair = pair
 		for _, o := range trades {
 			var tradeHistory order.TradeHistory
 			tradeHistory.Exchange = p.Name
@@ -620,112 +623,41 @@ func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType as
 		return orderInfo, err
 	}
 
-	for _, v := range resp.Result {
-		switch resultType := v.(type) {
-		case string: // case of error message
-			if len(orderInfo.Trades) > 0 { // on closed orders return trades only
-				return orderInfo, nil
-			}
-			return orderInfo, fmt.Errorf(resultType)
-		case map[string]interface{}: // case of data message
-			orderStatus := v.(map[string]interface{})
-			orderInfo.Exchange = p.Name
+	switch resp.Success {
+	case 0: // fail
+		var errMsg GenericResponse
+		err = json.Unmarshal(resp.Result, &errMsg)
+		if err != nil {
+			return orderInfo, err
+		}
+		if len(orderInfo.Trades) > 0 { // on closed orders return trades only
+			return orderInfo, nil
+		}
+		return orderInfo, fmt.Errorf(errMsg.Error)
+	case 1: // success
+		var status map[string]wsStatus
+		err = json.Unmarshal(resp.Result, &status)
+		if err != nil {
+			return orderInfo, err
+		}
 
-			if statusInterface, ok := orderStatus["status"]; ok {
-				switch varType := statusInterface.(type) {
-				case string:
-					orderInfo.Status, _ = order.StringToOrderStatus(varType)
-				default:
-				}
-			}
+		for _, s := range status {
+			orderInfo.Status, _ = order.StringToOrderStatus(s.Status)
+			orderInfo.Price = s.Rate
+			orderInfo.Amount = s.Amount
+			orderInfo.Cost = s.Total
+			orderInfo.Fee = s.Fee
+			orderInfo.TargetAmount = s.StartingAmount
 
-			if rateInterface, ok := orderStatus["rate"]; ok {
-				switch varType := rateInterface.(type) {
-				case string:
-					orderInfo.Price, _ = strconv.ParseFloat(varType, 64)
-				default:
-				}
-			}
-
-			if amountInterface, ok := orderStatus["amount"]; ok {
-				switch varType := amountInterface.(type) {
-				case string:
-					orderInfo.Amount, _ = strconv.ParseFloat(varType, 64)
-				default:
-				}
-			}
-
-			if totalInterface, ok := orderStatus["total"]; ok {
-				switch varType := totalInterface.(type) {
-				case string:
-					orderInfo.Cost, _ = strconv.ParseFloat(varType, 64)
-				default:
-				}
-			}
-
-			if feeInterface, ok := orderStatus["fee"]; ok {
-				switch varType := feeInterface.(type) {
-				case string:
-					orderInfo.Fee, _ = strconv.ParseFloat(varType, 64)
-				default:
-				}
-			}
-
-			if sideInterface, ok := orderStatus["type"]; ok {
-				switch varType := sideInterface.(type) {
-				case string:
-					orderInfo.Side, err = order.StringToOrderSide(varType)
-					if err != nil {
-						return orderInfo, err
-					}
-				default:
-				}
-			}
-
-			avail, err := p.GetAvailablePairs(assetType)
+			orderInfo.Side, err = order.StringToOrderSide(s.Type)
 			if err != nil {
 				return orderInfo, err
 			}
 
-			format, err := p.GetPairFormat(assetType, true)
+			orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, s.Date)
 			if err != nil {
 				return orderInfo, err
 			}
-
-			if pairInterface, ok := orderStatus["currencyPair"]; ok {
-				switch varType := pairInterface.(type) {
-				case string:
-					orderInfo.Pair, err = currency.NewPairFromFormattedPairs(varType, avail, format)
-					if err != nil {
-						return orderInfo, err
-					}
-				default:
-				}
-			}
-
-			if dateInterface, ok := orderStatus["date"]; ok {
-				switch varType := dateInterface.(type) {
-				case string:
-					orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, varType)
-					if err != nil {
-						return orderInfo, err
-					}
-				default:
-				}
-			}
-
-			if targetAmountInterface, ok := orderStatus["startingAmount"]; ok {
-				switch varType := targetAmountInterface.(type) {
-				case string:
-					orderInfo.TargetAmount, err = strconv.ParseFloat(varType, 64)
-					if err != nil {
-						return orderInfo, err
-					}
-				default:
-				}
-			}
-		default:
-			return orderInfo, fmt.Errorf("wrong resp.Result type")
 		}
 	}
 
