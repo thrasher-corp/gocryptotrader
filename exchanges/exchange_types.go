@@ -245,7 +245,7 @@ type URL uint8
 func (u URL) String() string {
 	switch u {
 	case RestSpot:
-		return "RESTSpotURL"
+		return "RestSpotURL"
 	case RestSpotSupplementary:
 		return "RestSpotSupplementaryURL"
 	case RestUSDTMargined:

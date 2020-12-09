@@ -80,12 +80,6 @@ func (b *BTSE) GetMarketSummary(symbol string, spot bool) (MarketSummary, error)
 	return m, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet, path, &m, spot, queryFunc)
 }
 
-// GetSpotMarkets returns a list of spot markets available on BTSE
-func (b *BTSE) GetSpotMarkets() ([]SpotMarket, error) {
-	var m []SpotMarket
-	return m, b.SendHTTPRequest(exchange.RestSpot, http.MethodGet, btseMarkets, &m, true, queryFunc)
-}
-
 // FetchOrderBook gets orderbook data for a given pair
 func (b *BTSE) FetchOrderBook(symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
 	var o Orderbook

@@ -149,9 +149,9 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 }
 
 // GetV2FundingInfo gets funding info for margin pairs
-func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
+func (b *Bitfinex) GetV2FundingInfo(key string) (MarginFundingDataV2, error) {
 	var resp []interface{}
-	var response MarginV2FundingData
+	var response MarginFundingDataV2
 	err := b.SendAuthenticatedHTTPRequestV2(exchange.RestSpot, http.MethodPost,
 		fmt.Sprintf(bitfinexV2FundingInfo, key),
 		nil,
@@ -160,19 +160,33 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
 	if err != nil {
 		return response, err
 	}
-	if len(resp) != 2 {
+	if len(resp) != 3 {
 		return response, errors.New("invalid data received")
 	}
-	avgRate, ok := resp[0].(float64)
+	sym, ok := resp[0].(string)
 	if !ok {
-		return response, errors.New("failed type assertion for rate")
+		return response, errors.New("failed type assertion for sym")
 	}
-	avgAmount, ok := resp[1].(float64)
+	symbol, ok := resp[1].(string)
 	if !ok {
-		return response, errors.New("failed type assertion for amount")
+		return response, errors.New("failed type assertion for symbol")
 	}
-	response.RateAverage = avgRate
-	response.AmountAverage = avgAmount
+	fundingData, ok := resp[2].([]interface{})
+	if !ok {
+		return response, errors.New("failed type assertion for fundingData")
+	}
+	response.Sym = sym
+	response.Symbol = symbol
+	for x := 0; x < 3; x++ {
+		_, ok := fundingData[x].(float64)
+		if !ok {
+			return response, fmt.Errorf("type conversion failed for x = %d", x)
+		}
+	}
+	response.Data.YieldLoan = fundingData[0].(float64)
+	response.Data.YieldLend = fundingData[1].(float64)
+	response.Data.DurationLoan = fundingData[2].(float64)
+	response.Data.DurationLend = fundingData[3].(float64)
 	return response, nil
 }
 
@@ -221,7 +235,7 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 // GetV2Balances gets v2 balances
 func (b *Bitfinex) GetV2Balances() ([]WalletDataV2, error) {
 	var resp []WalletDataV2
-	var data [][]interface{}
+	var data [][4]interface{}
 	err := b.SendAuthenticatedHTTPRequestV2(exchange.RestSpot, http.MethodPost,
 		bitfinexV2Balances,
 		nil,
@@ -273,7 +287,7 @@ func (b *Bitfinex) GetMarginPairs() ([]string, error) {
 
 // GetDerivativeData gets data for the queried derivative
 func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limit int64) (DerivativeDataResponse, error) {
-	var result [][]interface{}
+	var result [][19]interface{}
 	var response DerivativeDataResponse
 
 	params := url.Values{}

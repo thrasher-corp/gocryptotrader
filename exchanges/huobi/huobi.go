@@ -184,7 +184,10 @@ func (h *HUOBI) FGetContractInfo(symbol, contractType, code string) (FContractIn
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if common.StringDataCompare(validContractTypes, contractType) {
+	if contractType != "" {
+		if !common.StringDataCompare(validContractTypes, contractType) {
+			return resp, fmt.Errorf("invalid contractType")
+		}
 		params.Set("contract_type", contractType)
 	}
 	if code != "" {
@@ -212,7 +215,10 @@ func (h *HUOBI) FContractPriceLimitations(symbol, contractType, code string) (FC
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if common.StringDataCompare(validContractTypes, contractType) {
+	if contractType != "" {
+		if !common.StringDataCompare(validContractTypes, contractType) {
+			return resp, fmt.Errorf("invalid")
+		}
 		params.Set("contract_type", contractType)
 	}
 	if code != "" {
@@ -229,7 +235,10 @@ func (h *HUOBI) FContractOpenInterest(symbol, contractType, code string) (FContr
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if common.StringDataCompare(validContractTypes, contractType) {
+	if contractType != "" {
+		if !common.StringDataCompare(validContractTypes, contractType) {
+			return resp, fmt.Errorf("invalid contractType")
+		}
 		params.Set("contract_type", contractType)
 	}
 	if code != "" {
@@ -285,8 +294,8 @@ func (h *HUOBI) FGetKlineData(symbol, period string, size int64, startTime, endT
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if !(size > 1) && !(size < 2000) {
-		return resp, fmt.Errorf("invalid size")
+	if size <= 0 || size > 1200 {
+		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -732,7 +741,7 @@ func (h *HUOBI) FOrder(symbol, contractType, contractCode, clientOrderID, direct
 func (h *HUOBI) FPlaceBatchOrder(data []fBatchOrderData) (FBatchOrderResponse, error) {
 	var resp FBatchOrderResponse
 	req := make(map[string]interface{})
-	if (len(data) > 10) || (len(data) == 0) {
+	if len(data) > 10 || len(data) == 0 {
 		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
 	}
 	for x := range data {
@@ -1107,7 +1116,7 @@ func (h *HUOBI) GetSwapKlineData(code, period string, size int64, startTime, end
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if (size == 1) || (size > 2000) {
+	if size == 1 || size > 2000 {
 		return resp, fmt.Errorf("invalid size")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
@@ -1142,8 +1151,8 @@ func (h *HUOBI) GetBatchTrades(code string, size int64) (BatchTradesData, error)
 	var resp BatchTradesData
 	params := url.Values{}
 	params.Set("contract_code", code)
-	if !(size > 1) && !(size < 2000) {
-		return resp, fmt.Errorf("invalid size")
+	if size <= 0 || size > 1200 {
+		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
 	return resp, h.SendHTTPRequest(exchange.RestFutures, huobiRequestBatchOfTradingRecords+params.Encode(), &resp)
@@ -1188,7 +1197,7 @@ func (h *HUOBI) GetOpenInterestInfo(code, period, amountType string, size int64)
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if !(size > 0 && size <= 1200) {
+	if size <= 0 || size > 1200 {
 		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
@@ -1290,8 +1299,8 @@ func (h *HUOBI) GetPremiumIndexKlineData(code, period string, size int64) (Premi
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if !(size > 1) && !(size < 2000) {
-		return resp, fmt.Errorf("invalid size")
+	if size <= 0 || size > 1200 {
+		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
 	return resp, h.SendHTTPRequest(exchange.RestFutures, huobiPremiumIndexKlineData+params.Encode(), &resp)
@@ -1306,7 +1315,7 @@ func (h *HUOBI) GetEstimatedFundingRates(code, period string, size int64) (Estim
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if !(size > 0 && size <= 1200) {
+	if size <= 0 || size > 1200 {
 		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
@@ -1322,7 +1331,7 @@ func (h *HUOBI) GetBasisData(code, period, basisPriceType string, size int64) (B
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if !(size > 0 && size <= 1200) {
+	if size <= 0 || size > 1200 {
 		return resp, fmt.Errorf("invalid size provided values from 1-1200 supported")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
@@ -1531,7 +1540,7 @@ func (h *HUOBI) PlaceSwapOrders(code, clientOrderID, direction, offset, orderPri
 func (h *HUOBI) PlaceSwapBatchOrders(data BatchOrderRequestType) (BatchOrderData, error) {
 	var resp BatchOrderData
 	req := make(map[string]interface{})
-	if (len(data.Data) > 10) || len(data.Data) == 0 {
+	if len(data.Data) > 10 || len(data.Data) == 0 {
 		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
 	}
 	req["orders_data"] = data.Data

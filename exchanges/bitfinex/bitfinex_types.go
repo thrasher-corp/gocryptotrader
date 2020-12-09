@@ -44,6 +44,18 @@ type MarginV2FundingData struct {
 	AmountAverage float64
 }
 
+// MarginFundingDataV2 stores margin funding data
+type MarginFundingDataV2 struct {
+	Sym    string
+	Symbol string
+	Data   struct {
+		YieldLoan    float64
+		YieldLend    float64
+		DurationLoan float64
+		DurationLend float64
+	}
+}
+
 // MarginFundingData stores data for margin funding
 type MarginFundingData struct {
 	ID          int64

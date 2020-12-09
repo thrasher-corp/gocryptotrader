@@ -301,8 +301,8 @@ func (k *Kraken) GetAssetPairs(assetPairs []string, info string) (map[string]Ass
 		Result map[string]AssetPairs `json:"result"`
 	}
 	if info != "" {
-		if (info != "margin") && (info != "leverage") && (info != "fees") && (info != "info") {
-			return response.Result, errors.New("parameter info can only be 'asset', 'margin' or 'fees'")
+		if info != "margin" && info != "leverage" && info != "fees" && info != "info" {
+			return response.Result, errors.New("parameter info can only be 'asset', 'margin', 'fees' or 'leverage'")
 		}
 		params.Set("info", info)
 	}
@@ -1211,9 +1211,8 @@ func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values
 	}
 	return k.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          krakenFuturesURL + common.EncodeURLValues(path, postData),
+		Path:          futuresURL + common.EncodeURLValues(path, postData),
 		Headers:       headers,
-		Body:          nil,
 		Result:        result,
 		AuthRequest:   true,
 		Verbose:       k.Verbose,

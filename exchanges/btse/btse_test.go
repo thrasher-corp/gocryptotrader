@@ -110,7 +110,7 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := currency.NewPairFromString("BTCPFC")
+	f, err := currency.NewPairFromString(testFUTURESPair)
 	if err != nil {
 		t.Fatal(err)
 	}

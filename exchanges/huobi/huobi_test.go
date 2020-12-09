@@ -1657,6 +1657,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	}
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = order.Cancel{
 		ID:            "1",
@@ -1666,17 +1669,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 
-	resp, err := h.CancelAllOrders(&orderCancellation)
-
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not cancel orders: %v", err)
-	}
-
-	if len(resp.Status) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.Status))
+	_, err := h.CancelAllOrders(&orderCancellation)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

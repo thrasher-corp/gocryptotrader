@@ -68,15 +68,16 @@ func (h *HUOBI) SetDefaults() {
 	coinFutures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
 		},
 	}
 	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.UnderscoreDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -681,13 +682,13 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 					}
 
 					var currencyDetails []account.Balance
+				label:
 					for j := range balances {
 						var frozen bool
 						if balances[j].Type == "frozen" {
 							frozen = true
 						}
 
-						var updated bool
 						for i := range currencyDetails {
 							if currencyDetails[i].CurrencyName.String() == balances[j].Currency {
 								if frozen {
@@ -695,12 +696,8 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 								} else {
 									currencyDetails[i].TotalValue = balances[j].Balance
 								}
-								updated = true
+								continue label
 							}
-						}
-
-						if updated {
-							continue
 						}
 
 						if frozen {
@@ -1212,7 +1209,6 @@ func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 				IsMaker:  maker,
 			})
 		}
-
 	case asset.Futures:
 		orderInfo, err := h.FGetOrderInfo("", orderID, "")
 		if err != nil {
@@ -1224,10 +1220,7 @@ func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 			if err != nil {
 				return orderDetail, err
 			}
-			maker := true
-			if orderVars.OrderType == order.Limit || orderVars.OrderType == order.PostOnly {
-				maker = false
-			}
+
 			orderDetail.Trades = append(orderDetail.Trades, order.TradeHistory{
 				Price:    orderInfo.Data[x].Price,
 				Amount:   orderInfo.Data[x].Volume,
@@ -1236,7 +1229,7 @@ func (h *HUOBI) GetOrderInfo(orderID string, pair currency.Pair, assetType asset
 				TID:      orderInfo.Data[x].OrderIDString,
 				Type:     orderVars.OrderType,
 				Side:     orderVars.Side,
-				IsMaker:  maker,
+				IsMaker:  orderVars.OrderType == order.Limit || orderVars.OrderType == order.PostOnly,
 			})
 		}
 	}

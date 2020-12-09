@@ -531,6 +531,8 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 				}
 			}
 		}
+	default:
+		return nil, fmt.Errorf("assetType not supported: %v", assetType)
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
@@ -1069,6 +1071,8 @@ func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, e
 				return cancelAllOrdersResponse, err
 			}
 		}
+	default:
+		return cancelAllOrdersResponse, fmt.Errorf("assetType not supported: %v", req.AssetType)
 	}
 	return cancelAllOrdersResponse, nil
 }

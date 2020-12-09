@@ -30,7 +30,6 @@ const (
 	krakenWSURL              = "wss://ws.kraken.com"
 	krakenAuthWSURL          = "wss://ws-auth.kraken.com"
 	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
-	krakenFuturesWsURL       = "wss://futures.kraken.com/ws/v1"
 	krakenWSSupportedVersion = "1.4.0"
 	// WS endpoints
 	krakenWsHeartbeat            = "heartbeat"
@@ -549,12 +548,8 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 					if err != nil {
 						return err
 					}
-					floatLev, err := strconv.ParseFloat(val.Description.Leverage, 64)
-					if err != nil {
-						return err
-					}
 					k.Websocket.DataHandler <- &order.Modify{
-						Leverage:        floatLev,
+						Leverage:        val.Description.Leverage,
 						Price:           val.Price,
 						Amount:          val.Volume,
 						LimitPriceUpper: val.LimitPrice,
@@ -596,12 +591,7 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
 			return
 		}
-		fpair, err := k.FormatExchangeCurrency(pair, asset.Spot)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
-			return
-		}
-		pair.Delimiter = fpair.Delimiter
+		pair.Delimiter = k.CurrencyPairs.RequestFormat.Delimiter
 	}
 	subscriptionChannelPair = append(subscriptionChannelPair, WebsocketChannelData{
 		Subscription: response.Subscription.Name,

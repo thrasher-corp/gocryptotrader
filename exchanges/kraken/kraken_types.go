@@ -188,12 +188,12 @@ type WsOpenPositions struct {
 	Feed      string `json:"feed"`
 	Account   string `json:"account"`
 	Positions []struct {
-		Instrument string  `json:"instrument"`
-		Balance    float64 `json:"balance"`
-		EntryPrice float64 `json:"entry_price"`
-		MarkPrice  float64 `json:"mark_price"`
-		IndexPrice float64 `json:"index_price"`
-		PNL        float64 `json:"pnl"`
+		Instrument    string  `json:"instrument"`
+		Balance       float64 `json:"balance"`
+		EntryPrice    float64 `json:"entry_price"`
+		MarkPrice     float64 `json:"mark_price"`
+		IndexPrice    float64 `json:"index_price"`
+		ProfitAndLoss float64 `json:"pnl"`
 	} `json:"positions"`
 }
 
@@ -265,14 +265,14 @@ type WsAccountBalancesAndMargin struct {
 	Feed           string `json:"feed"`
 	Account        string `json:"account"`
 	MarginAccounts []struct {
-		Name    string  `json:"name"`
-		PV      float64 `json:"pv"`
-		Balance float64 `json:"balance"`
-		Funding float64 `json:"funding"`
-		MM      float64 `json:"mm"`
-		PNL     float64 `json:"pnl"`
-		IM      float64 `json:"im"`
-		AM      float64 `json:"am"`
+		Name              string  `json:"name"`
+		PortfolioValue    float64 `json:"pv"`
+		Balance           float64 `json:"balance"`
+		Funding           float64 `json:"funding"`
+		MaintenanceMargin float64 `json:"mm"`
+		ProfitAndLoss     float64 `json:"pnl"`
+		InitialMargin     float64 `json:"im"`
+		AM                float64 `json:"am"`
 	} `json:"margin_accounts"`
 }
 
@@ -481,21 +481,21 @@ type AccountsData struct {
 	Currency  string             `json:"currency"`
 	Balances  map[string]float64 `json:"balances"`
 	Auxiliary struct {
-		AF  float64 `json:"af"`
-		PnL float64 `json:"pnl"`
-		PV  float64 `json:"pv"`
+		AvailableFunds float64 `json:"af"`
+		ProfitAndLoss  float64 `json:"pnl"`
+		PortfolioValue float64 `json:"pv"`
 	} `json:"auxiliary"`
 	MarginRequirements struct {
-		IM float64 `json:"im"`
-		MM float64 `json:"mm"`
-		LT float64 `json:"lt"`
-		TT float64 `json:"tt"`
+		InitialMargin        float64 `json:"im"`
+		MaintenanceMargin    float64 `json:"mm"`
+		LiquidationThreshold float64 `json:"lt"`
+		TerminationThreshold float64 `json:"tt"`
 	} `json:"marginRequirements"`
 	TriggerEstimates struct {
-		IM float64 `json:"im"`
-		MM float64 `json:"mm"`
-		LT float64 `json:"lt"`
-		TT float64 `json:"tt"`
+		InitialMargin        float64 `json:"im"`
+		MaintenanceMargin    float64 `json:"mm"`
+		LiquidationThreshold float64 `json:"lt"`
+		TerminationThreshold float64 `json:"tt"`
 	} `json:"triggerEstimates"`
 }
 
@@ -1151,7 +1151,7 @@ type WsOpenOrder struct {
 		Close     string  `json:"close"`
 		Price     float64 `json:"price,string"`
 		Price2    float64 `json:"price2,string"`
-		Leverage  string  `json:"leverage"`
+		Leverage  float64 `json:"leverage,string"`
 		Order     string  `json:"order"`
 		OrderType string  `json:"ordertype"`
 		Pair      string  `json:"pair"`

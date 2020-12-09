@@ -155,11 +155,6 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	wsDefaultEndpoint, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
 	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -170,7 +165,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       wsDefaultEndpoint,
+		DefaultURL:                       coinbaseproWebsocketURL,
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        c.WsConnect,

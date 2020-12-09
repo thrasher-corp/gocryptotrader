@@ -243,6 +243,7 @@ func TestFuturesCancelAllOrders(t *testing.T) {
 }
 
 func TestGetFuturesAccountData(t *testing.T) {
+	k.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
