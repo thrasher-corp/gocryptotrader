@@ -108,6 +108,11 @@ func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFor
 	return NewPairFromString(currencyPair)
 }
 
+// Format formats the given pair as a string
+func (f *PairFormat) Format(pair Pair) string {
+	return pair.Format(f.Delimiter, f.Uppercase).String()
+}
+
 // MatchPairsWithNoDelimiter will move along a predictable index on the provided currencyPair
 // it will then split on that index and verify whether that currencypair exists in the
 // supplied pairs
