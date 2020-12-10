@@ -821,6 +821,7 @@ func TestPairFormat_Format(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			f := &PairFormat{
 				Uppercase: tt.fields.Uppercase,
