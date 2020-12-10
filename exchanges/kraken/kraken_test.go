@@ -96,7 +96,6 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-
 	sp, err := currency.NewPairFromString("BTCEUR")
 	if err != nil {
 		t.Error(err)
@@ -243,7 +242,6 @@ func TestFuturesCancelAllOrders(t *testing.T) {
 }
 
 func TestGetFuturesAccountData(t *testing.T) {
-	k.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}

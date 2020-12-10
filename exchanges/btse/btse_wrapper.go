@@ -158,6 +158,7 @@ func (b *BTSE) SetDefaults() {
 	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.CreateMap(map[exchange.URL]string{
 		exchange.RestSpot:      btseAPIURL,
+		exchange.RestFutures:   btseAPIURL,
 		exchange.WebsocketSpot: btseWebsocket,
 	})
 	b.Websocket = stream.New()

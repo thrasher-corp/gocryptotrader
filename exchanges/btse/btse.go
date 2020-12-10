@@ -42,7 +42,7 @@ const (
 	btseTime           = "time"
 	btseOHLCV          = "ohlcv"
 	btsePrice          = "price"
-	btseFuturesFunding = "/api/v2.1/funding_history"
+	btseFuturesFunding = "funding_history"
 
 	// Authenticated endpoints
 	btseWallet           = "user/wallet"
@@ -64,10 +64,7 @@ func (b *BTSE) FetchFundingHistory(symbol string) (map[string][]FundingHistoryDa
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return resp, common.SendHTTPGetRequest(btseAPIURL+btseFuturesPath+btseFuturesFunding+params.Encode(),
-		true,
-		false,
-		&resp)
+	return resp, b.SendHTTPRequest(exchange.RestFutures, http.MethodGet, btseFuturesFunding+params.Encode(), &resp, false, queryFunc)
 }
 
 // GetMarketSummary stores market summary data

@@ -412,92 +412,65 @@ func (b *Binance) UGetFundingHistory(symbol string, limit int64, startTime, endT
 
 // U24HTickerPriceChangeStats gets 24hr ticker price change stats for USDTMarginedFutures
 func (b *Binance) U24HTickerPriceChangeStats(symbol string) ([]U24HrPriceChangeStats, error) {
-	var data json.RawMessage
-	var resp []U24HrPriceChangeStats
 	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 		singleResp = true
 	}
-	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), limitDefault, &data)
-	if err != nil {
-		return resp, err
-	}
 	if singleResp {
 		var tempResp U24HrPriceChangeStats
-		err := json.Unmarshal(data, &tempResp)
+		err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), limitDefault, &tempResp)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		resp = append(resp, tempResp)
-	} else {
-		err := json.Unmarshal(data, &resp)
-		if err != nil {
-			return resp, err
-		}
+		return []U24HrPriceChangeStats{tempResp}, err
 	}
-	return resp, nil
+	var resp []U24HrPriceChangeStats
+	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), limitDefault, &resp)
+	return resp, err
 }
 
 // USymbolPriceTicker gets symbol price ticker for USDTMarginedFutures
 func (b *Binance) USymbolPriceTicker(symbol string) ([]USymbolPriceTicker, error) {
-	var resp []USymbolPriceTicker
-	var data json.RawMessage
 	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 		singleResp = true
 	}
-	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesSymbolPriceTicker+params.Encode(), limitDefault, &data)
-	if err != nil {
-		return resp, err
-	}
 	if singleResp {
 		var tempResp USymbolPriceTicker
-		err := json.Unmarshal(data, &tempResp)
+		err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesSymbolPriceTicker+params.Encode(), limitDefault, &tempResp)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		resp = append(resp, tempResp)
-	} else {
-		err := json.Unmarshal(data, &resp)
-		if err != nil {
-			return resp, err
-		}
+		return []USymbolPriceTicker{tempResp}, err
 	}
-	return resp, nil
+	var resp []USymbolPriceTicker
+	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesSymbolPriceTicker+params.Encode(), limitDefault, &resp)
+	return resp, err
 }
 
 // USymbolOrderbookTicker gets symbol orderbook ticker
 func (b *Binance) USymbolOrderbookTicker(symbol string) ([]USymbolOrderbookTicker, error) {
-	var resp []USymbolOrderbookTicker
 	var singleResp bool
-	var data json.RawMessage
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 		singleResp = true
 	}
-	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesSymbolOrderbook+params.Encode(), limitDefault, &data)
-	if err != nil {
-		return resp, err
-	}
 	if singleResp {
 		var tempResp USymbolOrderbookTicker
-		err := json.Unmarshal(data, &tempResp)
+		err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesSymbolOrderbook+params.Encode(), limitDefault, &tempResp)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		resp = append(resp, tempResp)
-	} else {
-		err := json.Unmarshal(data, &resp)
-		if err != nil {
-			return resp, err
-		}
+		return []USymbolOrderbookTicker{tempResp}, err
 	}
-	return resp, nil
+	var resp []USymbolOrderbookTicker
+	err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), limitDefault, &resp)
+	return resp, err
 }
 
 // ULiquidationOrders gets public liquidation orders
@@ -1286,42 +1259,84 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		return resp, err
 	}
 	var floatData float64
+	var strData string
+	var ok bool
 	var tempData FuturesCandleStick
 	for x := range data {
-		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		floatData, ok = data[x][0].(float64)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][1].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Open = floatData
-		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		strData, ok = data[x][2].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.High = floatData
-		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		strData, ok = data[x][3].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Low = floatData
-		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		strData, ok = data[x][4].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Close = floatData
-		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		strData, ok = data[x][5].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Volume = floatData
-		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		floatData, ok = data[x][6].(float64)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][7].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.BaseAssetVolume = floatData
-		tempData.TakerBuyVolume = data[x][8].(float64)
-		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		floatData, ok = data[x][8].(float64)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		tempData.TakerBuyVolume = floatData
+		strData, ok = data[x][9].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
@@ -1356,42 +1371,84 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		return resp, err
 	}
 	var floatData float64
+	var strData string
+	var ok bool
 	var tempData FuturesCandleStick
 	for x := range data {
-		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		floatData, ok = data[x][0].(float64)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][1].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Open = floatData
-		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		strData, ok = data[x][2].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.High = floatData
-		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		strData, ok = data[x][3].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Low = floatData
-		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		strData, ok = data[x][4].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Close = floatData
-		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		strData, ok = data[x][5].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Volume = floatData
-		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		floatData, ok = data[x][6].(float64)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][7].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.BaseAssetVolume = floatData
-		tempData.TakerBuyVolume = data[x][8].(float64)
-		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		floatData, ok = data[x][8].(float64)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		tempData.TakerBuyVolume = floatData
+		strData, ok = data[x][9].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
@@ -1426,42 +1483,84 @@ func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startT
 		return resp, err
 	}
 	var floatData float64
+	var strData string
+	var ok bool
 	var tempData FuturesCandleStick
 	for x := range data {
-		tempData.OpenTime = time.Unix(int64(data[x][0].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][1].(string), 64)
+		floatData, ok = data[x][0].(float64)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		tempData.OpenTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][1].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Open = floatData
-		floatData, err = strconv.ParseFloat(data[x][2].(string), 64)
+		strData, ok = data[x][2].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.High = floatData
-		floatData, err = strconv.ParseFloat(data[x][3].(string), 64)
+		strData, ok = data[x][3].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Low = floatData
-		floatData, err = strconv.ParseFloat(data[x][4].(string), 64)
+		strData, ok = data[x][4].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Close = floatData
-		floatData, err = strconv.ParseFloat(data[x][5].(string), 64)
+		strData, ok = data[x][5].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.Volume = floatData
-		tempData.CloseTime = time.Unix(int64(data[x][6].(float64)), 0)
-		floatData, err = strconv.ParseFloat(data[x][7].(string), 64)
+		floatData, ok = data[x][6].(float64)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		tempData.CloseTime = time.Unix(int64(floatData), 0)
+		strData, ok = data[x][7].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}
 		tempData.BaseAssetVolume = floatData
-		tempData.TakerBuyVolume = data[x][8].(float64)
-		floatData, err = strconv.ParseFloat(data[x][9].(string), 64)
+		floatData, ok = data[x][8].(float64)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		tempData.TakerBuyVolume = floatData
+		strData, ok = data[x][9].(string)
+		if !ok {
+			return resp, errors.New("type casting failed")
+		}
+		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
 			return resp, err
 		}

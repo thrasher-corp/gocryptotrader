@@ -36,12 +36,6 @@ const (
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
-
-	oldURL          = "oldConfigURL"
-	oldSecondaryURL = "oldSecondaryConfigURL"
-	oldWSURL        = "oldWebsocketConfigURL"
-	// Default stores default string to append for default URLs lookup
-	Default = "Default"
 )
 
 func (e *Base) checkAndInitRequester() {

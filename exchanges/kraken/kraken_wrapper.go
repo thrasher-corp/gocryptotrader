@@ -74,6 +74,7 @@ func (k *Kraken) SetDefaults() {
 
 	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
+			Delimiter: currency.UnderscoreDelimiter,
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
@@ -511,6 +512,8 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			})
 		}
+	default:
+		return orderBook, fmt.Errorf("invalid assetType: %v", assetType)
 	}
 	orderBook.Pair = p
 	orderBook.ExchangeName = k.Name

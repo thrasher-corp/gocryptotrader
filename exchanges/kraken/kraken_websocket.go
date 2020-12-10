@@ -583,7 +583,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 // allowing correlation between subscriptions and returned data
 func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 	// We change the / to - to maintain compatibility with REST/config
-	var pair currency.Pair
+	var pair, fPair currency.Pair
 	if response.Pair != "" {
 		var err error
 		pair, err = currency.NewPairFromString(response.Pair)
@@ -591,11 +591,15 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
 			return
 		}
-		pair.Delimiter = k.CurrencyPairs.RequestFormat.Delimiter
+		fPair, err = k.FormatExchangeCurrency(pair, asset.Spot)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s exchange error: %s", k.Name, err)
+			return
+		}
 	}
 	subscriptionChannelPair = append(subscriptionChannelPair, WebsocketChannelData{
 		Subscription: response.Subscription.Name,
-		Pair:         pair,
+		Pair:         fPair,
 		ChannelID:    response.ChannelID,
 	})
 }
