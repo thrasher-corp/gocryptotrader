@@ -227,7 +227,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			})
 		}
 		return trade.AddTradesToBuffer(b.Name, trades...)
-	case strings.Contains(result["topic"].(string), "orderBookApi"):
+	case strings.Contains(result["topic"].(string), "orderBookL2Api"):
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)
 		if err != nil {
@@ -256,6 +256,13 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			price, err = strconv.ParseFloat(p, 64)
 			if err != nil {
 				return err
+			}
+			if price == 0 {
+				// This occurs when we are deep in the bid book and there are
+				// prices that are less than 4 decimal places
+				// e.g. {"price":"0.0000","size":"14219"} currency: TRX-PAX
+				// We cannot load a zero price and this will ruin calculations
+				continue
 			}
 			a := strings.Replace(t.Data.BuyQuote[j].Size, ",", "", -1)
 			amount, err = strconv.ParseFloat(a, 64)
@@ -293,7 +300,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"orderBookApi:%s_0", "tradeHistory:%s"}
+	var channels = []string{"orderBookL2Api:%s_0", "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
