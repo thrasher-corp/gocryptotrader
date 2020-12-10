@@ -757,7 +757,7 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 	}
 
 	price := orderInfo.Price
-	if orderInfo.Status == StatusOpen {
+	if orderInfo.Status == statusOpen {
 		price = orderInfo.Description.Price
 	}
 
