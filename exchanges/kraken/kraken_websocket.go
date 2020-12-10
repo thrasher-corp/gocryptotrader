@@ -350,9 +350,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				}
 				k.addNewSubscriptionChannelData(&sub)
 				if sub.RequestID > 0 {
-					if k.Websocket.Match.IncomingWithData(sub.RequestID, respRaw) {
-						return nil
-					}
+					k.Websocket.Match.IncomingWithData(sub.RequestID, respRaw)
 				}
 			default:
 				k.Websocket.DataHandler <- stream.UnhandledMessageWarning{
@@ -383,7 +381,10 @@ func (k *Kraken) wsPingHandler() error {
 func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 	if cID, ok := response[0].(float64); ok {
 		channelID := int64(cID)
-		channelData := getSubscriptionChannelData(channelID)
+		channelData, err := getSubscriptionChannelData(channelID)
+		if err != nil {
+			return err
+		}
 		switch channelData.Subscription {
 		case krakenWsTicker:
 			t, ok := response[1].(map[string]interface{})
@@ -416,8 +417,9 @@ func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 			}
 			return k.wsProcessTrades(&channelData, t)
 		default:
-			return fmt.Errorf("%s received unidentified data: %+v",
+			return fmt.Errorf("%s received unidentified data for subscription %s: %+v",
 				k.Name,
+				channelData.Subscription,
 				response)
 		}
 	}
@@ -601,13 +603,17 @@ func (k *Kraken) addNewSubscriptionChannelData(response *wsSubscription) {
 }
 
 // getSubscriptionChannelData retrieves WebsocketChannelData based on response ID
-func getSubscriptionChannelData(id int64) WebsocketChannelData {
+func getSubscriptionChannelData(id int64) (WebsocketChannelData, error) {
 	for i := range subscriptionChannelPair {
-		if id == subscriptionChannelPair[i].ChannelID {
-			return subscriptionChannelPair[i]
+		if subscriptionChannelPair[i].ChannelID == nil {
+			continue
+		}
+		if id == *subscriptionChannelPair[i].ChannelID {
+			return subscriptionChannelPair[i], nil
 		}
 	}
-	return WebsocketChannelData{}
+	return WebsocketChannelData{},
+		fmt.Errorf("could not get subscription data for id %d", id)
 }
 
 // wsProcessTickers converts ticker data and sends it to the datahandler
