@@ -117,7 +117,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	{{.Variable}}.API.Endpoints = {{.Variable}}.NewEndpoints()
 	{{.Variable}}.API.Endpoints.CreateMap(map[exchange.URL]string{
 		exchange.RestSpot:  {{.Name}}APIURL,
-		// exchange.SpotWsURL: {{.Name}}WSAPIURL,
+		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
 	})
 	{{.Variable}}.Websocket = stream.New()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -135,12 +135,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 	{{.Variable}}.SetupDefaults(exch)
 
 	/*
-	wsDefaultEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.SpotWsURL)
-	if err != nil {
-		return err
-	}
-
-	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.SpotWsURL)
+	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -153,7 +148,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       wsDefaultEndpoint,
+			DefaultURL:                       {{.Name}}WSAPIURL,
 			ExchangeName:                     exch.Name,
 			RunningURL:                       wsRunningEndpoint,
 			Connector:                        {{.Variable}}.WsConnect,

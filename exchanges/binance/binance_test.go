@@ -38,19 +38,26 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTCUSD_PERP")
+	coinMarginedPairs, err := b.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UpdateTicker(cp, asset.CoinMarginedFutures)
+	if len(coinMarginedPairs) == 0 {
+		t.Error("no pairs enabled")
+	}
+	_, err = b.UpdateTicker(coinMarginedPairs[0], asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
-	cp2, err := currency.NewPairFromString("BTCUSDT")
+
+	usdtMarginedPairs, err := b.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UpdateTicker(cp2, asset.USDTMarginedFutures)
+	if len(usdtMarginedPairs) == 0 {
+		t.Errorf("no pairs enabled")
+	}
+	_, err = b.UpdateTicker(usdtMarginedPairs[0], asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
