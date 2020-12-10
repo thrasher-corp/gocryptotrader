@@ -47,11 +47,6 @@ func TestSubscribeOrderbook(t *testing.T) {
 	}
 
 	b.ExchangeName = "SubscribeOBTest"
-	err = b.Process()
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
-
 	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	err = b.Process()
 	if err != nil {
@@ -142,8 +137,8 @@ func TestVerify(t *testing.T) {
 	}
 
 	err := b.Verify()
-	if err == nil || !errors.Is(err, errNoOrderbook) {
-		t.Fatalf("expecting %s error but received %v", errNoOrderbook, err)
+	if err != nil {
+		t.Fatalf("expecting %v error but received %v", nil, err)
 	}
 
 	b.Asks = []Item{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}

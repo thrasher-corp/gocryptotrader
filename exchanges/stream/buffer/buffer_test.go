@@ -500,18 +500,15 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 // TestRunSnapshotWithNoData logic test
 func TestRunSnapshotWithNoData(t *testing.T) {
 	var obl Orderbook
+	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
+	obl.dataHandler = make(chan interface{}, 1)
 	var snapShot1 orderbook.Base
-	snapShot1.Asks = []orderbook.Item{}
-	snapShot1.Bids = []orderbook.Item{}
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = cp
 	snapShot1.ExchangeName = "test"
 	obl.exchangeName = "test"
 	err := obl.LoadSnapshot(&snapShot1)
-	if err == nil {
-		t.Fatal("expected an error loading a snapshot")
-	}
-	if err.Error() != "orderbook bids and asks are empty" {
+	if err != nil {
 		t.Fatal(err)
 	}
 }

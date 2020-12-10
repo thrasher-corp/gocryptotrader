@@ -15,6 +15,7 @@ import (
 const (
 	bidLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Bids: %w"
 	askLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Asks: %w"
+	bookLengthIssue    = "Potential book issue for exchange %s pair %s asset %s length Bids %d length Asks %d"
 )
 
 // Vars for the orderbook package

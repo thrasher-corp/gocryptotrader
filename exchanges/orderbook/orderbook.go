@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Get checks and returns the orderbook given an exchange name and currency pair
@@ -189,8 +190,19 @@ func (b *Base) Update(bids, asks []Item) {
 // Bids should always go from a high price to a low price and
 // Asks should always go from a low price to a higher price
 func (b *Base) Verify() error {
-	if len(b.Asks) == 0 && len(b.Bids) == 0 {
-		return errNoOrderbook
+	// Checking for both ask and bid lengths being zero has been removed and
+	// a warning has been put in place some exchanges e.g. LakeBTC return zero
+	// level books. In the event that there is a massive liquidity change where
+	// a book dries up, this will still update so we do not traverse potential
+	// incorrect old data.
+	if len(b.Asks) == 0 || len(b.Bids) == 0 {
+		log.Warnf(log.OrderBook,
+			bookLengthIssue,
+			b.ExchangeName,
+			b.Pair,
+			b.AssetType,
+			len(b.Bids),
+			len(b.Asks))
 	}
 	for i := range b.Bids {
 		if b.Bids[i].Price == 0 {
