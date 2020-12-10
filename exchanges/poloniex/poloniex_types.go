@@ -75,7 +75,7 @@ type OrderStatus struct {
 }
 
 // wsStatus defines order status details
-type wsStatus struct {
+type OrderStatusData struct {
 	Pair           string  `json:"currencyPair"`
 	Rate           float64 `json:"rate,string"`
 	Amount         float64 `json:"amount,string"`
@@ -89,17 +89,16 @@ type wsStatus struct {
 
 // OrderTrade holds order trade data
 type OrderTrade struct {
-	Status         string  `json:"status"`
-	GlobalTradeID  int64   `json:"globalTradeID"`
-	TradeID        int64   `json:"tradeID"`
-	CurrencyPair   string  `json:"currencyPair"`
-	Type           string  `json:"type"`
-	Rate           float64 `json:"rate,string"`
-	Amount         float64 `json:"amount,string"`
-	Total          float64 `json:"total,string"`
-	Fee            float64 `json:"fee,string"`
-	Date           string  `json:"date"`
-	StartingAmount float64 `json:"startingAmount,string"`
+	Status        string  `json:"status"`
+	GlobalTradeID int64   `json:"globalTradeID"`
+	TradeID       int64   `json:"tradeID"`
+	CurrencyPair  string  `json:"currencyPair"`
+	Type          string  `json:"type"`
+	Rate          float64 `json:"rate,string"`
+	Amount        float64 `json:"amount,string"`
+	Total         float64 `json:"total,string"`
+	Fee           float64 `json:"fee,string"`
+	Date          string  `json:"date"`
 }
 
 // ChartData holds kline data

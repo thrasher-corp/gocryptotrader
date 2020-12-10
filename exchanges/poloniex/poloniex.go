@@ -421,7 +421,7 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(start, end, limit int64) (Authen
 }
 
 // GetAuthenticatedOrderStatus returns the status of a given orderId.
-func (p *Poloniex) GetAuthenticatedOrderStatus(orderID string) (o OrderStatus, err error) {
+func (p *Poloniex) GetAuthenticatedOrderStatus(orderID string) (o OrderStatusData, err error) {
 	values := url.Values{}
 
 	if orderID == "" {
@@ -429,12 +429,33 @@ func (p *Poloniex) GetAuthenticatedOrderStatus(orderID string) (o OrderStatus, e
 	}
 
 	values.Set("orderNumber", orderID)
-	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderStatus, values, &o)
+	var rawOrderStatus OrderStatus
+	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderStatus, values, &rawOrderStatus)
 	if err != nil {
 		return o, err
 	}
 
-	return
+	switch rawOrderStatus.Success {
+	case 0: // fail
+		var errMsg GenericResponse
+		err = json.Unmarshal(rawOrderStatus.Result, &errMsg)
+		if err != nil {
+			return o, err
+		}
+		return o, fmt.Errorf(errMsg.Error)
+	case 1: // success
+		var status map[string]OrderStatusData
+		err = json.Unmarshal(rawOrderStatus.Result, &status)
+		if err != nil {
+			return o, err
+		}
+
+		for _, o = range status {
+			return o, err
+		}
+	}
+
+	return o, err
 }
 
 // GetAuthenticatedOrderTrades returns all trades involving a given orderId.

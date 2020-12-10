@@ -1,7 +1,6 @@
 package poloniex
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -613,52 +612,33 @@ func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType as
 			tradeHistory.Amount = o.Amount
 			tradeHistory.Total = o.Total
 			tradeHistory.Fee = o.Fee
-
 			orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
 		}
 	}
 
 	resp, err := p.GetAuthenticatedOrderStatus(orderID)
 	if err != nil {
-		return orderInfo, err
-	}
-
-	switch resp.Success {
-	case 0: // fail
-		var errMsg GenericResponse
-		err = json.Unmarshal(resp.Result, &errMsg)
-		if err != nil {
-			return orderInfo, err
-		}
 		if len(orderInfo.Trades) > 0 { // on closed orders return trades only
 			return orderInfo, nil
 		}
-		return orderInfo, fmt.Errorf(errMsg.Error)
-	case 1: // success
-		var status map[string]wsStatus
-		err = json.Unmarshal(resp.Result, &status)
-		if err != nil {
-			return orderInfo, err
-		}
+		return orderInfo, err
+	}
 
-		for _, s := range status {
-			orderInfo.Status, _ = order.StringToOrderStatus(s.Status)
-			orderInfo.Price = s.Rate
-			orderInfo.Amount = s.Amount
-			orderInfo.Cost = s.Total
-			orderInfo.Fee = s.Fee
-			orderInfo.TargetAmount = s.StartingAmount
+	orderInfo.Status, _ = order.StringToOrderStatus(resp.Status)
+	orderInfo.Price = resp.Rate
+	orderInfo.Amount = resp.Amount
+	orderInfo.Cost = resp.Total
+	orderInfo.Fee = resp.Fee
+	orderInfo.TargetAmount = resp.StartingAmount
 
-			orderInfo.Side, err = order.StringToOrderSide(s.Type)
-			if err != nil {
-				return orderInfo, err
-			}
+	orderInfo.Side, err = order.StringToOrderSide(resp.Type)
+	if err != nil {
+		return orderInfo, err
+	}
 
-			orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, s.Date)
-			if err != nil {
-				return orderInfo, err
-			}
-		}
+	orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, resp.Date)
+	if err != nil {
+		return orderInfo, err
 	}
 
 	return orderInfo, nil
