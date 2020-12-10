@@ -348,6 +348,7 @@ func (a *wsListStatus) UnmarshalJSON(data []byte) error {
 }
 
 // formatSymbol formats the given pair to a string suitable for exchange API requests
+// currently applicable to Spot and Margin assets
 func (b *Binance) formatSymbol(pair currency.Pair) (string, error) {
 	pairFmt, err := b.GetPairFormat(asset.Spot, true)
 	if err != nil {
