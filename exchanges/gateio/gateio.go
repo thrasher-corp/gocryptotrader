@@ -408,7 +408,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint,
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			g.Name)
 	}
-	epoint, err := g.API.Endpoints.GetURL(ep)
+	ePoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -419,7 +419,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint,
 	hmac := g.GenerateSignature(param)
 	headers["sign"] = crypto.HexEncodeToString(hmac)
 
-	urlPath := fmt.Sprintf("%s/%s/%s", epoint, gateioAPIVersion, endpoint)
+	urlPath := fmt.Sprintf("%s/%s/%s", ePoint, gateioAPIVersion, endpoint)
 
 	var intermidiary json.RawMessage
 	err = g.SendPayload(context.Background(), &request.Item{

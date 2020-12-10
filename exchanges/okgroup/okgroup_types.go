@@ -25,13 +25,6 @@ type TradingPairData struct {
 	TickSize      float64 `json:"tick_size,string"`
 }
 
-// MarginMarkPrice stores data of the currencies available for margin trading
-type MarginMarkPrice struct {
-	InstrumentID string  `json:"instrument_id"`
-	MarkPrice    float64 `json:"mark_price,string"`
-	Timestamp    string  `json:"timestamp"`
-}
-
 // MarginCurrencyData stores currency data for margin trading
 type MarginCurrencyData []struct {
 	Base struct {
@@ -67,11 +60,11 @@ type TickerData struct {
 
 // PerpSwapFundingRates stores funding rates data
 type PerpSwapFundingRates struct {
-	InstrumentID string  `json:"instrument_id"`
-	FundingRate  float64 `json:"funding_rate,string"`
-	RealizedRate float64 `json:"realized_rate,string"`
-	InterestRate float64 `json:"interest_rate,string"`
-	FundingTime  string  `json:"funding_time"`
+	InstrumentID string    `json:"instrument_id"`
+	FundingRate  float64   `json:"funding_rate,string"`
+	RealizedRate float64   `json:"realized_rate,string"`
+	InterestRate float64   `json:"interest_rate,string"`
+	FundingTime  time.Time `json:"funding_time"`
 }
 
 // GetAccountCurrenciesResponse response data for GetAccountCurrencies

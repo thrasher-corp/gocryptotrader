@@ -783,7 +783,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			p.Name)
 	}
-	epoint, err := p.API.Endpoints.GetURL(ep)
+	ePoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -799,7 +799,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 
 	headers["Sign"] = crypto.HexEncodeToString(hmac)
 
-	path := fmt.Sprintf("%s/%s", epoint, poloniexAPITradingEndpoint)
+	path := fmt.Sprintf("%s/%s", ePoint, poloniexAPITradingEndpoint)
 
 	return p.SendPayload(context.Background(), &request.Item{
 		Method:        method,

@@ -2489,7 +2489,7 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 	if !h.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}
-	epoint, err := h.API.Endpoints.GetURL(ep)
+	ePoint, err := h.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -2513,7 +2513,7 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 	sigValues := url.Values{}
 	sigValues.Add("Signature", crypto.Base64Encode(hmac))
 	urlPath :=
-		common.EncodeURLValues(epoint, values) + "&" + sigValues.Encode()
+		common.EncodeURLValues(ePoint, values) + "&" + sigValues.Encode()
 
 	var body io.Reader
 	var payload []byte
@@ -2557,7 +2557,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint s
 	if !h.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
 	}
-	epoint, err := h.API.Endpoints.GetURL(ep)
+	ePoint, err := h.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -2590,7 +2590,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint s
 
 	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(h.API.Credentials.Secret))
 	values.Set("Signature", crypto.Base64Encode(hmac))
-	urlPath := epoint + common.EncodeURLValues(endpoint, values)
+	urlPath := ePoint + common.EncodeURLValues(endpoint, values)
 
 	var body []byte
 	if data != nil {

@@ -430,7 +430,7 @@ func (b *BTSE) TradeHistory(symbol string, start, end time.Time, beforeSerialID,
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(ep exchange.URL, method, endpoint string, result interface{}, spotEndpoint bool, f request.EndpointLimit) error {
-	epoint, err := b.API.Endpoints.GetURL(ep)
+	ePoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -440,7 +440,7 @@ func (b *BTSE) SendHTTPRequest(ep exchange.URL, method, endpoint string, result 
 	}
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          epoint + p + endpoint,
+		Path:          ePoint + p + endpoint,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
@@ -456,7 +456,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 			b.Name)
 	}
 
-	epoint, err := b.API.Endpoints.GetURL(ep)
+	ePoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -464,7 +464,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint st
 	// The concatenation is done this way because BTSE expect endpoint+nonce or endpoint+nonce+body
 	// when signing the data but the full path of the request  is /spot/api/v3.2/<endpoint>
 	// its messy but it works and supports futures as well
-	host := epoint
+	host := ePoint
 	if isSpot {
 		host += btseSPOTPath + btseSPOTAPIPath + endpoint
 		endpoint = btseSPOTAPIPath + endpoint

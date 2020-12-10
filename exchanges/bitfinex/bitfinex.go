@@ -1386,7 +1386,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path st
 			b.Name)
 	}
 
-	epoint, err := b.API.Endpoints.GetURL(ep)
+	ePoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -1420,7 +1420,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path st
 
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          epoint + bitfinexAPIVersion + path,
+		Path:          ePoint + bitfinexAPIVersion + path,
 		Headers:       headers,
 		Result:        result,
 		AuthRequest:   true,
@@ -1438,7 +1438,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ep exchange.URL, method, path 
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
-	epoint, err := b.API.Endpoints.GetURL(ep)
+	ePoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -1470,7 +1470,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ep exchange.URL, method, path 
 
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          epoint + bitfinexAPIVersion2 + path,
+		Path:          ePoint + bitfinexAPIVersion2 + path,
 		Headers:       headers,
 		Body:          body,
 		Result:        result,

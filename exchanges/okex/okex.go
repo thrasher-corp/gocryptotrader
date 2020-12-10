@@ -45,7 +45,7 @@ const (
 	okGroupDefinePrice    = "define-price"
 	okGroupPerpSwapRates  = "instruments/%s/historical_funding_rate?"
 	okGroupPerpTickers    = "instruments/ticker"
-	okGroupMarginPairData = "accounts/BTC-USDT/availability?"
+	okGroupMarginPairData = "accounts/%s/availability"
 	okGroupSpotPairs      = "instruments"
 )
 
@@ -57,11 +57,9 @@ type OKEX struct {
 // GetMarginRates gets interest rates for margin currencies
 func (o *OKEX) GetMarginRates(instrumentID string) (okgroup.MarginCurrencyData, error) {
 	var resp okgroup.MarginCurrencyData
-	params := url.Values{}
-	params.Set("instrument_id", instrumentID)
 	return resp, o.SendHTTPRequest(exchange.RestSpot, http.MethodGet,
 		okGroupMarginSubsection,
-		okGroupMarginPairData+params.Encode(),
+		fmt.Sprintf(okGroupMarginPairData, instrumentID),
 		nil,
 		&resp,
 		true)
