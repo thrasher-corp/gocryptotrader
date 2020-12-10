@@ -128,7 +128,7 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ data.Handler) (*fill.Fill
 	if !h.Timestamp.IsZero() {
 		h.Update(fillEvent)
 	} else {
-		h, err = holdings.Create(fillEvent, lookup.InitialFunds)
+		h, err = holdings.Create(fillEvent, lookup.InitialFunds, p.RiskFreeRate)
 		if err != nil {
 			return nil, err
 		}

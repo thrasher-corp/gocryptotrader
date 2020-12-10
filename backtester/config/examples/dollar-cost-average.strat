@@ -49,13 +49,12 @@
   }
  },
  "statistic-settings": {
-  "sharpe-ratio-risk-free-rate": 0.03,
-  "sortino-ratio-risk-free-rate": 0.03
+  "risk-free-rate": 0.03
  },
  "api-data": {
   "data-type": "candle",
   "interval": 86400000000000,
-  "start-date": "2019-12-09T16:08:26.4689684+11:00",
-  "end-date": "2020-12-08T16:08:26.4689684+11:00"
+  "start-date": "2017-12-11T10:10:43.6965971+11:00",
+  "end-date": "2018-12-10T10:10:43.6965971+11:00"
  }
 }

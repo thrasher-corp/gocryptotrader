@@ -25,15 +25,17 @@ type Holding struct {
 	BoughtValue    float64
 	RemainingFunds float64
 
-	TotalValueDifference     float64
-	BoughtValueDifference    float64
-	SoldValueDifference      float64
-	PositionsValueDifference float64
+	TotalValueDifference      float64
+	ChangeInTotalValuePercent float64
+	ExcessReturnPercent       float64
+	BoughtValueDifference     float64
+	SoldValueDifference       float64
+	PositionsValueDifference  float64
 
 	TotalValue                   float64
 	TotalFees                    float64
 	TotalValueLostToVolumeSizing float64
 	TotalValueLostToSlippage     float64
 
-	EquityReturn float64
+	RiskFreeRate float64
 }

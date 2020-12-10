@@ -67,6 +67,7 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	bt.Exchange = &e
 
 	p := &portfolio.Portfolio{
+		RiskFreeRate: cfg.StatisticSettings.RiskFreeRate,
 		SizeManager: &size.Size{
 			BuySide: config.MinMax{
 				MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
@@ -117,10 +118,9 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	}
 
 	stats := &statistics.Statistic{
-		StrategyName:                  cfg.StrategySettings.Name,
-		EventsByTime:                  make(map[string]map[asset.Item]map[currency.Pair]currencystatstics.CurrencyStatistic),
-		SharpeRatioRiskFreeRate:       cfg.StatisticSettings.SharpeRatioRiskFreeRate,
-		SortinoRatioRatioRiskFreeRate: cfg.StatisticSettings.SortinoRatioRatioRiskFreeRate,
+		StrategyName: cfg.StrategySettings.Name,
+		EventsByTime: make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic),
+		RiskFreeRate: cfg.StatisticSettings.RiskFreeRate,
 	}
 	bt.Statistic = stats
 	bt.PrintSettings(cfg)
@@ -486,7 +486,6 @@ dataLoadingIssue:
 					var z int64
 					for k, p := range a {
 						d, ok := p.Next()
-
 						if !ok {
 							log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", i, j, k)
 							break dataLoadingIssue

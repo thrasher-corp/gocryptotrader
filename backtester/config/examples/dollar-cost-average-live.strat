@@ -49,8 +49,7 @@
   }
  },
  "statistic-settings": {
-  "sharpe-ratio-risk-free-rate": 0.03,
-  "sortino-ratio-risk-free-rate": 0.03
+  "risk-free-rate": 0.03
  },
  "live-data": {
   "interval": 60000000000,

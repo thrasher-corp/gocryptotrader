@@ -18,6 +18,7 @@ import (
 )
 
 type Portfolio struct {
+	RiskFreeRate              float64
 	SizeManager               SizeHandler
 	RiskManager               risk.RiskHandler
 	ExchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*ExchangeAssetPairSettings

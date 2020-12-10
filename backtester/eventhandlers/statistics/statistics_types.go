@@ -18,9 +18,16 @@ import (
 
 // Statistic
 type Statistic struct {
-	EventsByTime                  map[string]map[asset.Item]map[currency.Pair]currencystatstics.CurrencyStatistic
-	SharpeRatioRiskFreeRate       float64
-	SortinoRatioRatioRiskFreeRate float64
+	EventsByTime map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic
+	RiskFreeRate float64
+	//
+	TotalBuyOrders      int64
+	TotalSellOrders     int64
+	TotalOrders         int64
+	BiggestDrawdown     FinalResultsHolder
+	BestStrategyResults FinalResultsHolder
+	BestMarketMovement  FinalResultsHolder
+
 	///////////////////////////////////////////////
 	EventHistory       []interfaces.EventHandler
 	TransactionHistory []fill.FillEvent
@@ -31,6 +38,15 @@ type Statistic struct {
 	InitialFunds       float64
 
 	StrategyName string
+}
+
+type FinalResultsHolder struct {
+	e                string
+	a                asset.Item
+	p                currency.Pair
+	maxDrawdown      currencystatstics.Swing
+	marketMovement   float64
+	strategyMovement float64
 }
 
 type EquityPoint struct {

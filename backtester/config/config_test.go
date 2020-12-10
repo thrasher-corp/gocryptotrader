@@ -74,8 +74,7 @@ func TestGenerateDCACandleAPIStrat(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			SharpeRatioRiskFreeRate:       0.03,
-			SortinoRatioRatioRiskFreeRate: 0.03,
+			RiskFreeRate: 0.03,
 		},
 	}
 	result, err := json.MarshalIndent(cfg, "", " ")
@@ -170,8 +169,7 @@ func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			SharpeRatioRiskFreeRate:       0.03,
-			SortinoRatioRatioRiskFreeRate: 0.03,
+			RiskFreeRate: 0.03,
 		},
 	}
 	result, err := json.MarshalIndent(cfg, "", " ")
@@ -267,8 +265,7 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			SharpeRatioRiskFreeRate:       0.03,
-			SortinoRatioRatioRiskFreeRate: 0.03,
+			RiskFreeRate: 0.03,
 		},
 	}
 	result, err := json.MarshalIndent(cfg, "", " ")
@@ -337,8 +334,7 @@ func TestGenerateDCALiveCandleStrat(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			SharpeRatioRiskFreeRate:       0.03,
-			SortinoRatioRatioRiskFreeRate: 0.03,
+			RiskFreeRate: 0.03,
 		},
 	}
 	result, err := json.MarshalIndent(cfg, "", " ")
@@ -392,8 +388,8 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 			},
 		},
 		APIData: &APIData{
-			StartDate: time.Now().Add(-time.Hour * 24 * 7),
-			EndDate:   time.Now(),
+			StartDate: time.Date(2017, 5, 1, 0, 0, 0, 0, time.Local),
+			EndDate:   time.Date(2018, 5, 1, 0, 0, 0, 0, time.Local),
 			Interval:  kline.OneHour.Duration(),
 			DataType:  common.CandleStr,
 		},
@@ -415,8 +411,7 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			SharpeRatioRiskFreeRate:       0.03,
-			SortinoRatioRatioRiskFreeRate: 0.03,
+			RiskFreeRate: 0.03,
 		},
 	}
 	result, err := json.MarshalIndent(cfg, "", " ")

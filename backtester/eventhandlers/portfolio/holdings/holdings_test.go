@@ -13,18 +13,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+var riskFreeRate = 0.03
+
 func TestCreate(t *testing.T) {
-	_, err := Create(&fill.Fill{}, -1)
+	_, err := Create(&fill.Fill{}, -1, riskFreeRate)
 	if err != nil && err.Error() != "initial funds <= 0" {
 		t.Error(err)
 	}
 
-	_, err = Create(nil, 1)
+	_, err = Create(nil, 1, riskFreeRate)
 	if err != nil && err.Error() != "nil event received" {
 		t.Error(err)
 	}
 
-	h, err := Create(&fill.Fill{}, 1)
+	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}
@@ -34,7 +36,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	h, err := Create(&fill.Fill{}, 1)
+	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}
@@ -50,7 +52,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateValue(t *testing.T) {
-	h, err := Create(&fill.Fill{}, 1)
+	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}
@@ -64,11 +66,11 @@ func TestUpdateValue(t *testing.T) {
 }
 
 func TestUpdateBuyStats(t *testing.T) {
-	h, err := Create(&fill.Fill{}, 1000)
+	h, err := Create(&fill.Fill{}, 1000, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}
-	err = h.update(&fill.Fill{
+	h.update(&fill.Fill{
 		Event: event.Event{
 			Exchange:     "butts",
 			Time:         time.Now(),
@@ -83,7 +85,6 @@ func TestUpdateBuyStats(t *testing.T) {
 		PurchasePrice:       500,
 		ExchangeFee:         0,
 		Slippage:            0,
-		Why:                 "coz",
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
@@ -132,7 +133,7 @@ func TestUpdateBuyStats(t *testing.T) {
 		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
 	}
 
-	err = h.update(&fill.Fill{
+	h.update(&fill.Fill{
 		Event: event.Event{
 			Exchange:     "butts",
 			Time:         time.Now(),
@@ -147,7 +148,6 @@ func TestUpdateBuyStats(t *testing.T) {
 		PurchasePrice:       500,
 		ExchangeFee:         0,
 		Slippage:            0,
-		Why:                 "coz",
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      0.5,
@@ -198,11 +198,11 @@ func TestUpdateBuyStats(t *testing.T) {
 }
 
 func TestUpdateSellStats(t *testing.T) {
-	h, err := Create(&fill.Fill{}, 1000)
+	h, err := Create(&fill.Fill{}, 1000, riskFreeRate)
 	if err != nil {
 		t.Error(err)
 	}
-	err = h.update(&fill.Fill{
+	h.update(&fill.Fill{
 		Event: event.Event{
 			Exchange:     "butts",
 			Time:         time.Now(),
@@ -217,7 +217,6 @@ func TestUpdateSellStats(t *testing.T) {
 		PurchasePrice:       500,
 		ExchangeFee:         0,
 		Slippage:            0,
-		Why:                 "coz",
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
@@ -266,7 +265,7 @@ func TestUpdateSellStats(t *testing.T) {
 		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
 	}
 
-	err = h.update(&fill.Fill{
+	h.update(&fill.Fill{
 		Event: event.Event{
 			Exchange:     "butts",
 			Time:         time.Now(),
@@ -281,7 +280,6 @@ func TestUpdateSellStats(t *testing.T) {
 		PurchasePrice:       500,
 		ExchangeFee:         0,
 		Slippage:            0,
-		Why:                 "coz",
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
@@ -299,9 +297,7 @@ func TestUpdateSellStats(t *testing.T) {
 			Fee:         1,
 		},
 	})
-	if err != nil {
-		t.Error(err)
-	}
+
 	if h.PositionsSize != 0 {
 		t.Errorf("expected '%v' received '%v'", 0, h.PositionsSize)
 	}

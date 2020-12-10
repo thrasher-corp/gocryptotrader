@@ -2,11 +2,9 @@ package currencystatstics
 
 import (
 	"fmt"
+	"math"
 	"sort"
 
-	"gonum.org/v1/gonum/stat"
-
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -15,20 +13,56 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// SharpeRatio returns sharpe ratio of backtest compared to risk-free
-func (c *CurrencyStatistic) calculateSharpeRatio(riskFreeReturns float64) {
-	var equityReturns = make([]float64, len(c.Events))
-
-	for i := range c.Events {
-		equityReturns[i] = c.Events[i].Holdings.EquityReturn
+func calculateStandardDeviation(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
 	}
-	mean, stddev := stat.MeanStdDev(equityReturns, nil)
+	avg := calculateTheAverage(values)
 
-	c.SharpeRatio = (mean - riskFreeReturns) / stddev
+	diffs := make([]float64, len(values))
+	for x := range values {
+		diffs[x] = math.Pow(values[x]-avg, 2)
+	}
+	return math.Sqrt(calculateTheAverage(diffs))
 }
 
-func (c *CurrencyStatistic) CalculateResults(riskFreeReturns float64) {
-	c.calculateSharpeRatio(riskFreeReturns)
+func calculateTheMean(values []float64) float64 {
+	sort.Float64s(values)
+	mean := values[len(values)-1] - values[0]/2
+	return mean
+}
+
+func calculateTheAverage(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	var sumOfValues float64
+	for x := range values {
+		sumOfValues += values[x]
+	}
+	avg := sumOfValues / float64(len(values))
+	return avg
+}
+
+// SharpeRatio returns sharpe ratio of backtest compared to risk-free
+func calculateSharpeRatio2(movementPerCandle []float64, excessMovement []float64, riskFreeRate float64) float64 {
+	butts := calculateTheAverage(movementPerCandle)
+	standardDeviation := calculateStandardDeviation(excessMovement)
+
+	return (butts - riskFreeRate) / standardDeviation
+}
+
+// SharpeRatio returns sharpe ratio of backtest compared to risk-free
+func calculateSharpeRatio(values []float64, strategyMovement, riskFreeRate float64) float64 {
+
+	standardDeviation := calculateStandardDeviation(values)
+	if strategyMovement > 0 {
+		strategyMovement /= 100
+	}
+	return (strategyMovement - riskFreeRate) / standardDeviation
+}
+
+func (c *CurrencyStatistic) CalculateResults() {
 	first := c.Events[0]
 	var firstPrice float64
 	if first.SignalEvent != nil {
@@ -40,7 +74,7 @@ func (c *CurrencyStatistic) CalculateResults(riskFreeReturns float64) {
 	var lastPrice float64
 	if last.SignalEvent != nil {
 		lastPrice = last.SignalEvent.GetPrice()
-	} else if first.FillEvent != nil {
+	} else if last.FillEvent != nil {
 		lastPrice = last.FillEvent.GetClosePrice()
 	}
 	for i := range last.Transactions.Orders {
@@ -61,6 +95,16 @@ func (c *CurrencyStatistic) CalculateResults(riskFreeReturns float64) {
 	}
 	c.MarketMovement = ((lastPrice - firstPrice) / firstPrice) * 100
 	c.StrategyMovement = ((last.Holdings.TotalValue - last.Holdings.InitialFunds) / last.Holdings.InitialFunds) * 100
+	c.RiskFreeRate = last.Holdings.RiskFreeRate
+	var returnPerCandle = make([]float64, len(c.Events))
+	var excessReturns = make([]float64, len(c.Events))
+	for i := range c.Events {
+		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
+		excessReturns[i] = c.Events[i].Holdings.ExcessReturnPercent
+	}
+	c.SharpeRatio = calculateSharpeRatio2(returnPerCandle, excessReturns, c.RiskFreeRate)
+	//c.SharpeRatio = calculateSharpeRatio(returnPerCandle, c.StrategyMovement, c.RiskFreeRate)
+
 	var allDataEvents []interfaces.DataEventHandler
 	for i := range c.Events {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
@@ -73,40 +117,9 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	sort.Slice(c.Events, func(i, j int) bool {
 		return c.Events[i].DataEvent.GetTime().Before(c.Events[j].DataEvent.GetTime())
 	})
-	currStr := fmt.Sprintf("------------------Events for %v %v %v------------------------", e, a, p)
-	log.Infof(log.BackTester, currStr[:61])
-
-	for i := range c.Events {
-		if c.Events[i].FillEvent != nil {
-			direction := c.Events[i].FillEvent.GetDirection()
-			if direction == common.CouldNotBuy || direction == common.CouldNotSell || direction == common.DoNothing {
-				log.Infof(log.BackTester, "%v | Price: $%v - Direction: %v - Why: %s",
-					c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-					c.Events[i].FillEvent.GetClosePrice(),
-					c.Events[i].FillEvent.GetDirection(),
-					c.Events[i].FillEvent.GetWhy())
-			} else {
-				log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Direction %v - Why: %s",
-					c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-					c.Events[i].FillEvent.GetPurchasePrice(),
-					c.Events[i].FillEvent.GetAmount(),
-					c.Events[i].FillEvent.GetExchangeFee(),
-					c.Events[i].FillEvent.GetDirection(),
-					c.Events[i].FillEvent.GetWhy(),
-				)
-			}
-		} else if c.Events[i].SignalEvent != nil {
-			log.Infof(log.BackTester, "%v | Price: $%v - Why: %v",
-				c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-				c.Events[i].SignalEvent.GetPrice(),
-				c.Events[i].SignalEvent.GetWhy())
-		} else {
-			errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", e, a, p, c.Events[i]))
-		}
-	}
 	last := c.Events[len(c.Events)-1]
 	first := c.Events[0]
-	currStr = fmt.Sprintf("------------------Stats for %v %v %v-------------------------", e, a, p)
+	currStr := fmt.Sprintf("------------------Stats for %v %v %v-------------------------", e, a, p)
 	log.Infof(log.BackTester, currStr[:61])
 	log.Infof(log.BackTester, "Initial funds: $%v\n\n", last.Holdings.InitialFunds)
 
@@ -134,10 +147,11 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Lowest Price Time: %v", c.DrawDowns.LongestDrawDown.Lowest.Time)
 	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.DrawDowns.LongestDrawDown.CalculatedDrawDown)
 	log.Infof(log.BackTester, "Difference: $%.2f", c.DrawDowns.LongestDrawDown.Highest.Price-c.DrawDowns.LongestDrawDown.Lowest.Price)
-	log.Infof(log.BackTester, "Drawdown length: %v", len(c.DrawDowns.LongestDrawDown.Iterations))
+	log.Infof(log.BackTester, "Drawdown length: %v\n\n", len(c.DrawDowns.LongestDrawDown.Iterations))
 
 	log.Info(log.BackTester, "------------------Ratios-------------------------------------")
-	log.Infof(log.BackTester, "Sharpe ratio: $%v", last.Holdings.TotalFees)
+	log.Infof(log.BackTester, "Risk free rate: %.3f%%", c.RiskFreeRate)
+	log.Infof(log.BackTester, "Sharpe ratio: %.8f", c.SharpeRatio)
 	log.Infof(log.BackTester, "Sortino ratio: $%v\n\n", last.Holdings.TotalFees)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
@@ -149,7 +163,6 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Market movement: %v%%", c.MarketMovement)
 	log.Infof(log.BackTester, "Strategy movement: %v%%", c.StrategyMovement)
 	log.Infof(log.BackTester, "Did it beat the market: %v", c.StrategyMovement > c.MarketMovement)
-	log.Infof(log.BackTester, "Should you reconsider your life choices: %v\n\n", c.StrategyMovement < c.MarketMovement)
 
 	log.Infof(log.BackTester, "Value lost to volume sizing: $%v", last.Holdings.TotalValueLostToVolumeSizing)
 	log.Infof(log.BackTester, "Value lost to slippage: $%v", last.Holdings.TotalValueLostToSlippage)
@@ -159,7 +172,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Final funds: $%v", last.Holdings.RemainingFunds)
 	log.Infof(log.BackTester, "Final holdings: %v", last.Holdings.PositionsSize)
 	log.Infof(log.BackTester, "Final holdings value: $%v", last.Holdings.PositionsValue)
-	log.Infof(log.BackTester, "Final total value: $%v", last.Holdings.TotalValue)
+	log.Infof(log.BackTester, "Final total value: $%v\n\n", last.Holdings.TotalValue)
 
 	if len(errs) > 0 {
 		log.Info(log.BackTester, "------------------Errors-------------------------------------")
@@ -169,7 +182,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	}
 }
 
-func (c *CurrencyStatistic) MaxDrawdown() DrawDown {
+func (c *CurrencyStatistic) MaxDrawdown() Swing {
 	if len(c.DrawDowns.MaxDrawDown.Iterations) == 0 {
 		var allDataEvents []interfaces.DataEventHandler
 		for i := range c.Events {
@@ -180,7 +193,7 @@ func (c *CurrencyStatistic) MaxDrawdown() DrawDown {
 	return c.DrawDowns.MaxDrawDown
 }
 
-func (c *CurrencyStatistic) LongestDrawdown() DrawDown {
+func (c *CurrencyStatistic) LongestDrawdown() Swing {
 	if len(c.DrawDowns.LongestDrawDown.Iterations) == 0 {
 		var allDataEvents []interfaces.DataEventHandler
 		for i := range c.Events {
@@ -191,11 +204,11 @@ func (c *CurrencyStatistic) LongestDrawdown() DrawDown {
 	return c.DrawDowns.LongestDrawDown
 }
 
-func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) DrawDownHolder {
+func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) SwingHolder {
 	isDrawingDown := false
 
-	var response DrawDownHolder
-	var activeDraw DrawDown
+	var response SwingHolder
+	var activeDraw Swing
 	for i := range closePrices {
 		p := closePrices[i].Price()
 		t := closePrices[i].GetTime()
@@ -214,7 +227,7 @@ func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) DrawDownHo
 		// create
 		if !isDrawingDown && activeDraw.Highest.Price > p {
 			isDrawingDown = true
-			activeDraw = DrawDown{
+			activeDraw = Swing{
 				Highest: Iteration{
 					Price: p,
 					Time:  t,
@@ -235,7 +248,7 @@ func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) DrawDownHo
 			isDrawingDown = false
 			response.DrawDowns = append(response.DrawDowns, activeDraw)
 			// reset
-			activeDraw = DrawDown{
+			activeDraw = Swing{
 				Highest: Iteration{
 					Price: p,
 					Time:  t,
@@ -267,7 +280,7 @@ func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) DrawDownHo
 	return response
 }
 
-func (s *DrawDownHolder) calculateMaxAndLongestDrawDowns() {
+func (s *SwingHolder) calculateMaxAndLongestDrawDowns() {
 	for i := range s.DrawDowns {
 		if s.DrawDowns[i].Highest.Price-s.DrawDowns[i].Lowest.Price > s.MaxDrawDown.Highest.Price-s.MaxDrawDown.Lowest.Price {
 			s.MaxDrawDown = s.DrawDowns[i]

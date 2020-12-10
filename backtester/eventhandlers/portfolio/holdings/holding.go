@@ -36,7 +36,7 @@ func (s *Snapshots) GetPreviousSnapshot() Holding {
 	return s.Holdings[len(s.Holdings)-2]
 }
 
-func Create(f fill.FillEvent, initialFunds float64) (Holding, error) {
+func Create(f fill.FillEvent, initialFunds, riskFreeRate float64) (Holding, error) {
 	if f == nil {
 		return Holding{}, errors.New("nil event received")
 	}
@@ -50,6 +50,7 @@ func Create(f fill.FillEvent, initialFunds float64) (Holding, error) {
 		Timestamp:      f.GetTime(),
 		InitialFunds:   initialFunds,
 		RemainingFunds: initialFunds,
+		RiskFreeRate:   riskFreeRate,
 	}
 	h.update(f)
 
@@ -107,4 +108,8 @@ func (h *Holding) updateValue(l float64) {
 	h.PositionsValueDifference = h.PositionsValue - origPosValue
 	h.SoldValueDifference = h.SoldValue - origSoldValue
 
+	if origTotalValue != 0 {
+		h.ChangeInTotalValuePercent = (h.TotalValue - origTotalValue) / origTotalValue
+	}
+	h.ExcessReturnPercent = h.ChangeInTotalValuePercent - h.RiskFreeRate
 }
