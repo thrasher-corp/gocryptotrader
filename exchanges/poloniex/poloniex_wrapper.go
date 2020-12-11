@@ -595,30 +595,35 @@ func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType as
 	}
 
 	trades, err := p.GetAuthenticatedOrderTrades(orderID)
-	if err == nil {
-		for _, o := range trades {
-			var tradeHistory order.TradeHistory
-			tradeHistory.Exchange = p.Name
-			tradeHistory.Side, err = order.StringToOrderSide(o.Type)
-			if err != nil {
-				return orderInfo, err
-			}
-			tradeHistory.TID = strconv.FormatInt(o.GlobalTradeID, 10)
-			tradeHistory.Timestamp, err = time.Parse(common.SimpleTimeFormat, o.Date)
-			if err != nil {
-				return orderInfo, err
-			}
-			tradeHistory.Price = o.Rate
-			tradeHistory.Amount = o.Amount
-			tradeHistory.Total = o.Total
-			tradeHistory.Fee = o.Fee
-			orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
+	if err != nil && !strings.Contains(err.Error(), "Order not found") {
+		return orderInfo, err
+	}
+
+	for i := range trades {
+		var tradeHistory order.TradeHistory
+		tradeHistory.Exchange = p.Name
+		tradeHistory.Side, err = order.StringToOrderSide(trades[i].Type)
+		if err != nil {
+			return orderInfo, err
 		}
+		tradeHistory.TID = strconv.FormatInt(trades[i].GlobalTradeID, 10)
+		tradeHistory.Timestamp, err = time.Parse(common.SimpleTimeFormat, trades[i].Date)
+		if err != nil {
+			return orderInfo, err
+		}
+		tradeHistory.Price = trades[i].Rate
+		tradeHistory.Amount = trades[i].Amount
+		tradeHistory.Total = trades[i].Total
+		tradeHistory.Fee = trades[i].Fee
+		orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
 	}
 
 	resp, err := p.GetAuthenticatedOrderStatus(orderID)
 	if err != nil {
 		if len(orderInfo.Trades) > 0 { // on closed orders return trades only
+			if strings.Contains(err.Error(), "Order not found") {
+				orderInfo.Status = order.Closed
+			}
 			return orderInfo, nil
 		}
 		return orderInfo, err

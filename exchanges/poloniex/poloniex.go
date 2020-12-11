@@ -463,18 +463,18 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(orderID string) (o []OrderTrade, 
 	values := url.Values{}
 
 	if orderID == "" {
-		return o, fmt.Errorf("no orderId passed")
+		return nil, fmt.Errorf("no orderId passed")
 	}
 
 	values.Set("orderNumber", orderID)
 	var result json.RawMessage
 	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderTrades, values, &result)
 	if err != nil {
-		return o, err
+		return nil, err
 	}
 
 	if len(result) == 0 {
-		return o, fmt.Errorf("server wrong response")
+		return nil, fmt.Errorf("received unexpected response")
 	}
 
 	switch result[0] {
@@ -482,7 +482,7 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(orderID string) (o []OrderTrade, 
 		var resp GenericResponse
 		err = json.Unmarshal(result, &resp)
 		if err != nil {
-			return
+			return nil, err
 		}
 		if resp.Error != "" {
 			err = fmt.Errorf(resp.Error)
@@ -490,7 +490,7 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(orderID string) (o []OrderTrade, 
 	case '[': // data received
 		err = json.Unmarshal(result, &o)
 	default:
-		return o, fmt.Errorf("server wrong response")
+		return nil, fmt.Errorf("received unexpected response")
 	}
 
 	return o, err
