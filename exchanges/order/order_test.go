@@ -506,6 +506,9 @@ var stringsToOrderType = []struct {
 	{"any", AnyType, nil},
 	{"ANY", AnyType, nil},
 	{"aNy", AnyType, nil},
+	{"trigger", Trigger, nil},
+	{"TRIGGER", Trigger, nil},
+	{"tRiGgEr", Trigger, nil},
 	{"woahMan", UnknownType, errors.New("woahMan not recognised as order type")},
 }
 
