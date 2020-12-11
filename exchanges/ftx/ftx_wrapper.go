@@ -338,7 +338,7 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 	if err != nil {
 		return nil, err
 	}
-	tempResp, err := f.GetOrderbook(formattedPair.String(), 0)
+	tempResp, err := f.GetOrderbook(formattedPair.String(), 100)
 	if err != nil {
 		return orderBook, err
 	}
