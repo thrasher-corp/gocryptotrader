@@ -13,6 +13,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+func calculateCalmarRatio(values []float64, maxDrawdown Swing) float64 {
+	avg := calculateTheAverage(values)
+	drawdownDiff := (maxDrawdown.Highest.Price - maxDrawdown.Lowest.Price) / maxDrawdown.Highest.Price
+	ratio := avg / drawdownDiff
+	return ratio
+}
+
 func calculateInformationRatio(values []float64, riskFreeRates []float64) float64 {
 	if len(riskFreeRates) == 1 {
 		for i := range values {
@@ -130,14 +137,17 @@ func (c *CurrencyStatistic) CalculateResults() {
 			negativeReturns = append(negativeReturns, c.Events[i].Holdings.ChangeInTotalValuePercent)
 		}
 	}
-	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, excessReturns, c.RiskFreeRate)
-	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, c.RiskFreeRate)
-	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{c.RiskFreeRate})
 	var allDataEvents []interfaces.DataEventHandler
 	for i := range c.Events {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
 	c.DrawDowns = calculateAllDrawDowns(allDataEvents)
+
+	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, excessReturns, c.RiskFreeRate)
+	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, c.RiskFreeRate)
+	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{c.RiskFreeRate})
+	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, c.DrawDowns.MaxDrawDown)
+
 }
 
 func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair) {
@@ -178,10 +188,11 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Drawdown length: %v\n\n", len(c.DrawDowns.LongestDrawDown.Iterations))
 
 	log.Info(log.BackTester, "------------------Ratios-------------------------------------")
-	log.Infof(log.BackTester, "Risk free rate: %.3f%%", c.RiskFreeRate)
+	log.Infof(log.BackTester, "Risk free rate: %.3f", c.RiskFreeRate)
 	log.Infof(log.BackTester, "Sharpe ratio: %.8f", c.SharpeRatio)
-	log.Infof(log.BackTester, "Sortino ratio: %.3f\n\n", c.SortinoRatio)
-	log.Infof(log.BackTester, "Information ratio: %.3f\n\n", c.InformationRatio)
+	log.Infof(log.BackTester, "Sortino ratio: %.3f", c.SortinoRatio)
+	log.Infof(log.BackTester, "Information ratio: %.3f", c.InformationRatio)
+	log.Infof(log.BackTester, "Calmar ratio: %.3f\n\n", c.CalamariRatio)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
 	log.Infof(log.BackTester, "Starting Close Price: $%v", first.DataEvent.Price())

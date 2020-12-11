@@ -42,3 +42,12 @@ func TestInformationRatio(t *testing.T) {
 		t.Error(information2)
 	}
 }
+
+func TestCalmarRatio(t *testing.T) {
+	drawDown := Swing{Highest: Iteration{Price: 50000}, Lowest: Iteration{Price: 15000}}
+	avg := []float64{0.2}
+	ratio := calculateCalmarRatio(avg, drawDown)
+	if ratio != 0.28571428571428575 {
+		t.Error(ratio)
+	}
+}
