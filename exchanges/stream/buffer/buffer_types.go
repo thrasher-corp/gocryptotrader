@@ -13,8 +13,7 @@ import (
 // and deleting changes and updates the main store for a stream
 // and deleting changes and updates the main store for a stream
 type Orderbook struct {
-	ob                    map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base
-	buffer                map[currency.Code]map[currency.Code]map[asset.Item]*[]Update
+	ob                    map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder
 	obBufferLimit         int
 	bufferEnabled         bool
 	sortBuffer            bool
@@ -23,6 +22,11 @@ type Orderbook struct {
 	exchangeName          string
 	dataHandler           chan interface{}
 	m                     sync.Mutex
+}
+
+type orderbookHolder struct {
+	ob     *orderbook.Base
+	buffer *[]Update
 }
 
 // Update stores orderbook updates and dictates what features to use when processing

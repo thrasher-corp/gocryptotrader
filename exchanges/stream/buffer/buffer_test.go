@@ -43,8 +43,8 @@ func createSnapshot() (obl *Orderbook, asks, bids []orderbook.Item, err error) {
 	obl = &Orderbook{
 		exchangeName: exchangeName,
 		dataHandler:  make(chan interface{}, 100),
-		ob:           make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base),
-		buffer:       make(map[currency.Code]map[currency.Code]map[asset.Item]*[]Update)}
+		ob:           make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder),
+	}
 	err = obl.LoadSnapshot(&snapShot1)
 	return
 }
@@ -81,7 +81,7 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		ob.updateByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot], update)
+		ob.updateByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot].ob, update)
 	}
 }
 
@@ -100,7 +100,7 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		ob.updateByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot], update)
+		ob.updateByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot].ob, update)
 	}
 }
 
@@ -119,7 +119,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		Price:  1337.1337,
 		ID:     1337,
 	}
-	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
+	obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids, dummyItem)
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -154,7 +154,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		Price:  1337.1337,
 		ID:     1337,
 	}
-	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
+	obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids, dummyItem)
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -190,7 +190,7 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 		Price:  1337.1337,
 		ID:     1337,
 	}
-	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
+	obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids, dummyItem)
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -224,7 +224,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 		Price:  1337.1337,
 		ID:     1337,
 	}
-	obl.ob[cp.Base][cp.Quote][asset.Spot].Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids, dummyItem)
+	obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids, dummyItem)
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -250,7 +250,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
+	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot].ob, &Update{
 		Bids:       itemArray[5],
 		Asks:       itemArray[5],
 		Pair:       cp,
@@ -261,7 +261,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
+	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot].ob, &Update{
 		Bids:       itemArray[0],
 		Asks:       itemArray[0],
 		Pair:       cp,
@@ -272,7 +272,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) != 3 {
 		t.Error("Did not update")
 	}
 }
@@ -299,13 +299,13 @@ func TestHittingTheBuffer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks))
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids))
 	}
 }
 
@@ -336,13 +336,13 @@ func TestInsertWithIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 6 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) != 6 {
 		t.Errorf("expected 6 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks))
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 6 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids) != 6 {
 		t.Errorf("expected 6 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids))
 	}
 }
 
@@ -370,13 +370,13 @@ func TestSortIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks))
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids) != 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids) != 3 {
 		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].Bids))
+			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids))
 	}
 }
 
@@ -407,9 +407,9 @@ func TestOutOfOrderIDs(t *testing.T) {
 		}
 	}
 	// Index 1 since index 0 is price 7000
-	if obl.ob[cp.Base][cp.Quote][asset.Spot].Asks[1].Price != 2000 {
+	if obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks[1].Price != 2000 {
 		t.Errorf("expected sorted price to be 3000, received: %v",
-			obl.ob[cp.Base][cp.Quote][asset.Spot].Asks[1].Price)
+			obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks[1].Price)
 	}
 }
 
@@ -500,7 +500,7 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 // TestRunSnapshotWithNoData logic test
 func TestRunSnapshotWithNoData(t *testing.T) {
 	var obl Orderbook
-	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
+	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	obl.dataHandler = make(chan interface{}, 1)
 	var snapShot1 orderbook.Base
 	snapShot1.AssetType = asset.Spot
@@ -517,7 +517,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 func TestLoadSnapshot(t *testing.T) {
 	var obl Orderbook
 	obl.dataHandler = make(chan interface{}, 100)
-	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
+	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	var snapShot1 orderbook.Base
 	snapShot1.ExchangeName = "SnapshotWithOverride"
 	asks := []orderbook.Item{
@@ -555,7 +555,7 @@ func TestFlushbuffer(t *testing.T) {
 func TestInsertingSnapShots(t *testing.T) {
 	var obl Orderbook
 	obl.dataHandler = make(chan interface{}, 100)
-	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
+	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	var snapShot1 orderbook.Base
 	snapShot1.ExchangeName = "WSORDERBOOKTEST1"
 	asks := []orderbook.Item{
@@ -676,20 +676,20 @@ func TestInsertingSnapShots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.AssetType].Asks[0] != snapShot1.Asks[0] {
+	if obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.AssetType].ob.Asks[0] != snapShot1.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot1.Asks[0],
-			obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.AssetType].Asks[0])
+			obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.AssetType].ob.Asks[0])
 	}
-	if obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.AssetType].Asks[0] != snapShot2.Asks[0] {
+	if obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.AssetType].ob.Asks[0] != snapShot2.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot2.Asks[0],
-			obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.AssetType].Asks[0])
+			obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.AssetType].ob.Asks[0])
 	}
-	if obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.AssetType].Asks[0] != snapShot3.Asks[0] {
+	if obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.AssetType].ob.Asks[0] != snapShot3.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot3.Asks[0],
-			obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.AssetType].Asks[0])
+			obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.AssetType].ob.Asks[0])
 	}
 }
 
@@ -700,17 +700,17 @@ func TestGetOrderbook(t *testing.T) {
 	}
 	ob := obl.GetOrderbook(cp, asset.Spot)
 	bufferOb := obl.ob[cp.Base][cp.Quote][asset.Spot]
-	if bufferOb == ob {
+	if bufferOb.ob == ob {
 		t.Error("orderbooks should be separate in pointer value and not linked to orderbook package")
 	}
 
-	if len(bufferOb.Asks) != len(ob.Asks) ||
-		len(bufferOb.Bids) != len(ob.Bids) ||
-		bufferOb.AssetType != ob.AssetType ||
-		bufferOb.ExchangeName != ob.ExchangeName ||
-		bufferOb.LastUpdateID != ob.LastUpdateID ||
-		bufferOb.NotAggregated != ob.NotAggregated ||
-		bufferOb.Pair != ob.Pair {
+	if len(bufferOb.ob.Asks) != len(ob.Asks) ||
+		len(bufferOb.ob.Bids) != len(ob.Bids) ||
+		bufferOb.ob.AssetType != ob.AssetType ||
+		bufferOb.ob.ExchangeName != ob.ExchangeName ||
+		bufferOb.ob.LastUpdateID != ob.LastUpdateID ||
+		bufferOb.ob.NotAggregated != ob.NotAggregated ||
+		bufferOb.ob.Pair != ob.Pair {
 		t.Fatal("data on both books should be the same")
 	}
 }
@@ -766,7 +766,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 	}
 
 	asks := bidAskGenerator()
-	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot], &Update{
+	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot].ob, &Update{
 		Bids:       asks,
 		Asks:       asks,
 		Pair:       cp,
@@ -777,7 +777,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].Asks) <= 3 {
+	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) <= 3 {
 		t.Errorf("Insufficient updates")
 	}
 }

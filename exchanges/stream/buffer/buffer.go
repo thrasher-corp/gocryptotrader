@@ -42,8 +42,7 @@ func (w *Orderbook) Setup(obBufferLimit int,
 	w.updateEntriesByID = updateEntriesByID
 	w.exchangeName = exchangeName
 	w.dataHandler = dataHandler
-	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
-	w.buffer = make(map[currency.Code]map[currency.Code]map[asset.Item]*[]Update)
+	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	return nil
 }
 
@@ -87,20 +86,20 @@ func (w *Orderbook) Update(u *Update) error {
 			return nil
 		}
 	} else {
-		err := w.processObUpdate(obLookup, u)
+		err := w.processObUpdate(obLookup.ob, u)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := obLookup.Process()
+	err := obLookup.ob.Process()
 	if err != nil {
 		return err
 	}
 
 	// Process in data handler
 	select {
-	case w.dataHandler <- obLookup:
+	case w.dataHandler <- obLookup.ob:
 	default:
 	}
 	return nil
@@ -108,49 +107,32 @@ func (w *Orderbook) Update(u *Update) error {
 
 // processBufferUpdate stores update into buffer, when buffer at capacity as
 // defined by w.obBufferLimit it well then sort and apply updates.
-func (w *Orderbook) processBufferUpdate(o *orderbook.Base, u *Update) (bool, error) {
-	m1, ok := w.buffer[u.Pair.Base]
-	if !ok {
-		m1 = make(map[currency.Code]map[asset.Item]*[]Update)
-		w.buffer[u.Pair.Base] = m1
-	}
-	m2, ok := m1[u.Pair.Quote]
-	if !ok {
-		m2 = make(map[asset.Item]*[]Update)
-		m1[u.Pair.Quote] = m2
-	}
-
-	buffer, ok := m2[u.Asset]
-	if !ok {
-		buffer = new([]Update)
-		m2[u.Asset] = buffer
-	}
-
-	*buffer = append(*buffer, *u)
-	if len(*buffer) < w.obBufferLimit {
+func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, error) {
+	*o.buffer = append(*o.buffer, *u)
+	if len(*o.buffer) < w.obBufferLimit {
 		return false, nil
 	}
 
 	if w.sortBuffer {
 		// sort by last updated to ensure each update is in order
 		if w.sortBufferByUpdateIDs {
-			sort.Slice(*buffer, func(i, j int) bool {
-				return (*buffer)[i].UpdateID < (*buffer)[j].UpdateID
+			sort.Slice(*o.buffer, func(i, j int) bool {
+				return (*o.buffer)[i].UpdateID < (*o.buffer)[j].UpdateID
 			})
 		} else {
-			sort.Slice(*buffer, func(i, j int) bool {
-				return (*buffer)[i].UpdateTime.Before((*buffer)[j].UpdateTime)
+			sort.Slice(*o.buffer, func(i, j int) bool {
+				return (*o.buffer)[i].UpdateTime.Before((*o.buffer)[j].UpdateTime)
 			})
 		}
 	}
-	for i := range *buffer {
-		err := w.processObUpdate(o, &(*buffer)[i])
+	for i := range *o.buffer {
+		err := w.processObUpdate(o.ob, &(*o.buffer)[i])
 		if err != nil {
 			return false, err
 		}
 	}
 	// clear buffer of old updates
-	*buffer = nil
+	*o.buffer = nil
 	return true, nil
 }
 
@@ -377,23 +359,22 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 	m1, ok := w.ob[book.Pair.Base]
 	if !ok {
-		m1 = make(map[currency.Code]map[asset.Item]*orderbook.Base)
+		m1 = make(map[currency.Code]map[asset.Item]*orderbookHolder)
 		w.ob[book.Pair.Base] = m1
 	}
 	m2, ok := m1[book.Pair.Quote]
 	if !ok {
-		m2 = make(map[asset.Item]*orderbook.Base)
+		m2 = make(map[asset.Item]*orderbookHolder)
 		m1[book.Pair.Quote] = m2
 	}
 	m3, ok := m2[book.AssetType]
 	if !ok {
-		m3 = book
+		m3 = &orderbookHolder{ob: book}
 		m2[book.AssetType] = m3
 	} else {
-		m3.Bids = book.Bids
-		m3.Asks = book.Asks
+		m3.ob.Bids = book.Bids
+		m3.ob.Asks = book.Asks
 	}
-
 	w.dataHandler <- book
 	return nil
 }
@@ -406,7 +387,7 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base 
 	if !ok {
 		return nil
 	}
-	cpy := *ptr
+	cpy := *ptr.ob
 	cpy.Asks = append(cpy.Asks[:0:0], cpy.Asks...)
 	cpy.Bids = append(cpy.Bids[:0:0], cpy.Bids...)
 	return &cpy
@@ -416,8 +397,7 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base 
 // connection is lost and reconnected
 func (w *Orderbook) FlushBuffer() {
 	w.m.Lock()
-	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbook.Base)
-	w.buffer = make(map[currency.Code]map[currency.Code]map[asset.Item]*[]Update)
+	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	w.m.Unlock()
 }
 
@@ -429,7 +409,7 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	if !ok {
 		return fmt.Errorf("orderbook not associated with pair: [%s] and asset [%s]", p, a)
 	}
-	book.Bids = nil
-	book.Asks = nil
+	book.ob.Bids = nil
+	book.ob.Asks = nil
 	return nil
 }
