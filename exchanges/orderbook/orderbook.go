@@ -283,8 +283,12 @@ func (b *Base) Process() error {
 	return service.Update(b)
 }
 
-// Reverse reverses the order of orderbook items; some bid/asks are returned
-// without correct allignment. This is faster than using a sort algorithm
+// Reverse reverses the order of orderbook items; some bid/asks are
+// returned in either ascending or descending order. One bid or ask slice
+// depending on whats received can be reversed. This is usually faster than
+// using a sort algorithm as the algorithm could be impeded by a worst case time
+// complexity when elements are shifted as opposed to just swapping element
+// values.
 func Reverse(elem []Item) {
 	eLen := len(elem)
 	var target int
@@ -294,15 +298,17 @@ func Reverse(elem []Item) {
 	}
 }
 
-// SortAsks sorts ask items to the correct relative order if they are not
-// aligned. Consider using reverse function as this has overhead.
+// SortAsks sorts ask items to the correct ascending order if pricing values are
+// scattered. If order from exchange is descending consider using the Reverse
+// function.
 func SortAsks(d []Item) []Item {
 	sort.Sort(byOBPrice(d))
 	return d
 }
 
-// SortBids sorts bid items to the correct relative order if they are not
-// aligned. Consider using reverse function as this has overhead.
+// SortBids sorts bid items to the correct descending order if pricing values
+// are scattered. If order from exchange is ascending consider using the Reverse
+// function.
 func SortBids(d []Item) []Item {
 	sort.Sort(sort.Reverse(byOBPrice(d)))
 	return d

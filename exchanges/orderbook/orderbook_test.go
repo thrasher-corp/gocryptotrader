@@ -580,7 +580,7 @@ func TestProcessOrderbook(t *testing.T) {
 func deployUnorderedSlice() []Item {
 	var items []Item
 	rand.Seed(time.Now().UnixNano())
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
 	}
 	return items
@@ -618,26 +618,10 @@ func TestSorting(t *testing.T) {
 	}
 }
 
-// 292588	      4785 ns/op	      32 B/op	       1 allocs/op
-func BenchmarkSortAsks(b *testing.B) {
-	s := deployUnorderedSlice()
-	for i := 0; i < b.N; i++ {
-		SortAsks(s)
-	}
-}
-
-// 272722	      4811 ns/op	      48 B/op	       2 allocs/op
-func BenchmarkSortBids(b *testing.B) {
-	s := deployUnorderedSlice()
-	for i := 0; i < b.N; i++ {
-		SortBids(s)
-	}
-}
-
 func deploySliceOrdered() []Item {
 	rand.Seed(time.Now().UnixNano())
 	var items []Item
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
 	}
 	return items
@@ -646,7 +630,7 @@ func deploySliceOrdered() []Item {
 func TestReverse(t *testing.T) {
 	var b Base
 
-	length := 100
+	length := 1000
 	b.Bids = deploySliceOrdered()
 	if len(b.Bids) != length {
 		t.Fatal("incorrect length")
@@ -677,9 +661,9 @@ func TestReverse(t *testing.T) {
 	}
 }
 
-// 6217651	       187 ns/op	       0 B/op	       0 allocs/op
+// 705985	      1856 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkReverse(b *testing.B) {
-	length := 100
+	length := 1000
 	s := deploySliceOrdered()
 	if len(s) != length {
 		b.Fatal("incorrect length")
@@ -687,6 +671,62 @@ func BenchmarkReverse(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		Reverse(s)
+	}
+}
+
+//   20209	     56385 ns/op	   49189 B/op	       2 allocs/op
+func BenchmarkSortAsksDecending(b *testing.B) {
+	s := deploySliceOrdered()
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortAsks(ts)
+	}
+}
+
+// 14924	     79199 ns/op	   49206 B/op	       3 allocs/op
+func BenchmarkSortBidsAscending(b *testing.B) {
+	s := deploySliceOrdered()
+	Reverse(s)
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortBids(ts)
+	}
+}
+
+// 9842	    133761 ns/op	   49194 B/op	       2 allocs/op
+func BenchmarkSortAsksStandard(b *testing.B) {
+	s := deployUnorderedSlice()
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortAsks(ts)
+	}
+}
+
+// 7058	    155057 ns/op	   49214 B/op	       3 allocs/op
+func BenchmarkSortBidsStandard(b *testing.B) {
+	s := deployUnorderedSlice()
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortBids(ts)
+	}
+}
+
+// 20565	     57001 ns/op	   49188 B/op	       2 allocs/op
+func BenchmarkSortAsksAscending(b *testing.B) {
+	s := deploySliceOrdered()
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortAsks(ts)
+	}
+}
+
+// 12565	     97257 ns/op	   49208 B/op	       3 allocs/op
+func BenchmarkSortBidsDescending(b *testing.B) {
+	s := deploySliceOrdered()
+	Reverse(s)
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortBids(ts)
 	}
 }
 
