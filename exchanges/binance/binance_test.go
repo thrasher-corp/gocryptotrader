@@ -43,7 +43,7 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 	if len(coinMarginedPairs) == 0 {
-		t.Error("no pairs enabled")
+		t.Error("no pairs are enabled")
 	}
 	_, err = b.UpdateTicker(coinMarginedPairs[0], asset.CoinMarginedFutures)
 	if err != nil {
@@ -55,7 +55,7 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 	if len(usdtMarginedPairs) == 0 {
-		t.Errorf("no pairs enabled")
+		t.Errorf("no pairs are enabled")
 	}
 	_, err = b.UpdateTicker(usdtMarginedPairs[0], asset.USDTMarginedFutures)
 	if err != nil {
