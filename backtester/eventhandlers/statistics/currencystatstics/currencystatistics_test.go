@@ -1,39 +1,13 @@
 package currencystatstics
 
-import (
-	"testing"
+import "testing"
 
-	"gonum.org/v1/gonum/stat"
-)
-
-func TestCalculateSharpeRatio(t *testing.T) {
-	//	var c CurrencyStatistic
-	//	c.Events = append(c.Events, EventStore{
-	//		Holdings: holdings.Holding{EquityReturn: 1},
-	//	})
-	//	c.Events = append(c.Events, EventStore{
-	//		Holdings: holdings.Holding{EquityReturn: 2},
-	//	})
-	//	c.Events = append(c.Events, EventStore{
-	//		Holdings: holdings.Holding{EquityReturn: 3},
-	//	})
-	//	c.calculateSharpeRatio(0)
-	//	if c.SharpeRatio != 2 {
-	//		t.Errorf("expected %v received %v", 2, c.SharpeRatio)
-	//	}
-	//
-	//	c.calculateSharpeRatio(1.5)
-	//	if c.SharpeRatio != 0.5 {
-	//		t.Errorf("expected %v received %v", 0.5, c.SharpeRatio)
-	//	}
-}
-
-func TestStandardDeviation(t *testing.T) {
-	dec := stat.StdDev([]float64{4, 4, 4, 4, 4, 6, 6, 6, 6, 6}, nil)
-	t.Log(dec)
-}
-
-func TestStandardDeviation2(t *testing.T) {
-	result := calculateStandardDeviation([]float64{4, 4, 4, 4, 4, 6, 6, 6, 6, 6})
-	t.Log(result)
+func TestSortinoRatio(t *testing.T) {
+	rfr := 0.07
+	figures := []float64{0.10, 0.04, 0.15, -0.05, 0.20, -0.02, 0.08, -0.06, 0.13, 0.23}
+	negativeOnlyFigures := []float64{-0.05, -0.02, -0.06}
+	r := calculateSortinoRatio(figures, negativeOnlyFigures, rfr)
+	if r != 0.3922322702763678 {
+		t.Errorf("received %v instead", r)
+	}
 }

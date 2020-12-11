@@ -26,12 +26,6 @@ func calculateStandardDeviation(values []float64) float64 {
 	return math.Sqrt(calculateTheAverage(diffs))
 }
 
-func calculateTheMean(values []float64) float64 {
-	sort.Float64s(values)
-	mean := values[len(values)-1] - values[0]/2
-	return mean
-}
-
 func calculateTheAverage(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
@@ -45,21 +39,31 @@ func calculateTheAverage(values []float64) float64 {
 }
 
 // SharpeRatio returns sharpe ratio of backtest compared to risk-free
-func calculateSharpeRatio2(movementPerCandle []float64, excessMovement []float64, riskFreeRate float64) float64 {
-	butts := calculateTheAverage(movementPerCandle)
-	standardDeviation := calculateStandardDeviation(excessMovement)
+// fun fact! You can also calculate the sortino ratio here if `movementPerCandle` and `excessMovement`
+// only use negative events
+func calculateSortinoRatio(movementPerCandle []float64, excessMovement []float64, riskFreeRate float64) float64 {
+	mean := calculateTheAverage(movementPerCandle)
+	if len(excessMovement) == 0 {
+		return 0
+	}
+	totalNegativeResultsSquared := 0.0
+	for x := range excessMovement {
+		totalNegativeResultsSquared += math.Pow(excessMovement[x], 2)
+	}
 
-	return (butts - riskFreeRate) / standardDeviation
+	averageDownsideDeviation := math.Sqrt(totalNegativeResultsSquared / float64(len(movementPerCandle)))
+
+	return (mean - riskFreeRate) / averageDownsideDeviation
 }
 
 // SharpeRatio returns sharpe ratio of backtest compared to risk-free
-func calculateSharpeRatio(values []float64, strategyMovement, riskFreeRate float64) float64 {
+// fun fact! You can also calculate the sortino ratio here if `movementPerCandle` and `excessMovement`
+// only use negative events
+func calculateSharpeRatio(movementPerCandle []float64, excessMovement []float64, riskFreeRate float64) float64 {
+	mean := calculateTheAverage(movementPerCandle)
+	standardDeviation := calculateStandardDeviation(excessMovement)
 
-	standardDeviation := calculateStandardDeviation(values)
-	if strategyMovement > 0 {
-		strategyMovement /= 100
-	}
-	return (strategyMovement - riskFreeRate) / standardDeviation
+	return (mean - riskFreeRate) / standardDeviation
 }
 
 func (c *CurrencyStatistic) CalculateResults() {
@@ -98,12 +102,16 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.RiskFreeRate = last.Holdings.RiskFreeRate
 	var returnPerCandle = make([]float64, len(c.Events))
 	var excessReturns = make([]float64, len(c.Events))
+	var negativeReturns []float64
 	for i := range c.Events {
 		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
 		excessReturns[i] = c.Events[i].Holdings.ExcessReturnPercent
+		if c.Events[i].Holdings.ChangeInTotalValuePercent < 0 {
+			negativeReturns = append(negativeReturns, c.Events[i].Holdings.ChangeInTotalValuePercent)
+		}
 	}
-	c.SharpeRatio = calculateSharpeRatio2(returnPerCandle, excessReturns, c.RiskFreeRate)
-	//c.SharpeRatio = calculateSharpeRatio(returnPerCandle, c.StrategyMovement, c.RiskFreeRate)
+	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, excessReturns, c.RiskFreeRate)
+	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, c.RiskFreeRate)
 
 	var allDataEvents []interfaces.DataEventHandler
 	for i := range c.Events {
@@ -152,7 +160,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Info(log.BackTester, "------------------Ratios-------------------------------------")
 	log.Infof(log.BackTester, "Risk free rate: %.3f%%", c.RiskFreeRate)
 	log.Infof(log.BackTester, "Sharpe ratio: %.8f", c.SharpeRatio)
-	log.Infof(log.BackTester, "Sortino ratio: $%v\n\n", last.Holdings.TotalFees)
+	log.Infof(log.BackTester, "Sortino ratio: %.3f\n\n", c.SortinoRatio)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
 	log.Infof(log.BackTester, "Starting Close Price: $%v", first.DataEvent.Price())
