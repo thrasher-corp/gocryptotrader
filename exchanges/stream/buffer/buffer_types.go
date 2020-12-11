@@ -11,7 +11,6 @@ import (
 
 // Orderbook defines a local cache of orderbooks for amending, appending
 // and deleting changes and updates the main store for a stream
-// and deleting changes and updates the main store for a stream
 type Orderbook struct {
 	ob                    map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder
 	obBufferLimit         int
