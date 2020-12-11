@@ -63,12 +63,11 @@ var pingRequest = WebsocketBaseEventRequest{Event: stream.Ping}
 // Channels require a topic and a currency
 // Format [[ticker,but-t4u],[orderbook,nce-btt]]
 var defaultSubscribedChannels = []string{
-	// krakenWsTicker,
-	// krakenWsTrade,
+	krakenWsTicker,
+	krakenWsTrade,
 	krakenWsOrderbook,
-	// krakenWsOHLC,
-	// krakenWsSpread}
-}
+	krakenWsOHLC,
+	krakenWsSpread}
 var authenticatedChannels = []string{krakenWsOwnTrades, krakenWsOpenOrders}
 
 var cancelOrdersStatusMutex sync.Mutex
@@ -194,7 +193,6 @@ func isAwaitingCancelOrderResponses(requestID int64, success bool) bool {
 }
 
 func (k *Kraken) wsHandleData(respRaw []byte) error {
-	fmt.Println(string(respRaw))
 	if strings.HasPrefix(string(respRaw), "[") {
 		var dataResponse WebsocketDataResponse
 		err := json.Unmarshal(respRaw, &dataResponse)
@@ -739,13 +737,11 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 	askSnapshot, askSnapshotExists := data["as"].([]interface{})
 	bidSnapshot, bidSnapshotExists := data["bs"].([]interface{})
 	if askSnapshotExists || bidSnapshotExists {
-		fmt.Println("partial", channelData)
 		err := k.wsProcessOrderBookPartial(channelData, askSnapshot, bidSnapshot)
 		if err != nil {
 			return err
 		}
 	} else {
-		// fmt.Println("update", channelData)
 		askData, asksExist := data["a"].([]interface{})
 		bidData, bidsExist := data["b"].([]interface{})
 		if asksExist || bidsExist {
@@ -753,18 +749,21 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 			defer k.wsRequestMtx.Unlock()
 			err := k.wsProcessOrderBookUpdate(channelData, askData, bidData)
 			if err != nil {
-				subscriptionToRemove := &stream.ChannelSubscription{
+				go func(resub *stream.ChannelSubscription) {
+					// This was locking the main websocket reader routine and a
+					// backlog occured. So put this into it's own go routine.
+					errResub := k.Websocket.ResubscribeToChannel(resub)
+					if errResub != nil {
+						log.Errorln(log.WebsocketMgr,
+							"resubscription failure for %v: %v",
+							resub,
+							errResub)
+					}
+				}(&stream.ChannelSubscription{
 					Channel:  krakenWsOrderbook,
 					Currency: channelData.Pair,
 					Asset:    asset.Spot,
-				}
-				go func() {
-					errResub := k.Websocket.ResubscribeToChannel(subscriptionToRemove)
-					if errResub != nil {
-						log.Errorln(log.WebsocketMgr, "cannot resub chan man to chan:", errResub)
-					}
-					log.Debugln(log.WebsocketMgr, "RESUB DONE!")
-				}()
+				})
 				return err
 			}
 		}
@@ -991,32 +990,24 @@ func (k *Kraken) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 
 // Subscribe sends a websocket message to receive data from the channel
 func (k *Kraken) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	fmt.Println("CHANNELS TO SUB", len(channelsToSubscribe))
-	// var subs []WebsocketSubscriptionEventRequest
-
 	var subscriptions = make(map[string]*[]WebsocketSubscriptionEventRequest)
-wakka:
+channels:
 	for i := range channelsToSubscribe {
 		s, ok := subscriptions[channelsToSubscribe[i].Channel]
-		if ok {
-			for j := range *s {
-				if len((*s)[j].Channels) >= 20 {
-					fmt.Println("MEEEOOOOOOOWWWWW")
-					// overflow
-					continue
-				}
-				(*s)[j].Pairs = append((*s)[j].Pairs,
-					channelsToSubscribe[j].Currency.String())
-				(*s)[j].Channels = append((*s)[j].Channels, channelsToSubscribe[j])
-				continue wakka
-			}
-		}
-
-		if s == nil {
+		if !ok {
 			s = &[]WebsocketSubscriptionEventRequest{}
 			subscriptions[channelsToSubscribe[i].Channel] = s
-		} else {
+		}
 
+		for j := range *s {
+			if len((*s)[j].Channels) >= 20 {
+				// Batch outgoing subscriptions as there are limitations on the
+				// orderbook snapshots
+				continue
+			}
+			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Currency.String())
+			(*s)[j].Channels = append((*s)[j].Channels, channelsToSubscribe[i])
+			continue channels
 		}
 
 		id := k.Websocket.Conn.GenerateMessageID(false)
@@ -1028,7 +1019,6 @@ wakka:
 			},
 		}
 		if channelsToSubscribe[i].Channel == "book" {
-			// TODO: Add ability to make depth customisable
 			outbound.Subscription.Depth = 1000
 		}
 		if !channelsToSubscribe[i].Currency.IsEmpty() {
@@ -1042,48 +1032,8 @@ wakka:
 		*s = append(*s, outbound)
 	}
 
-	// channels:
-	// 	for x := range channelsToSubscribe {
-	// 		for y := range subs {
-	// 			if subs[y].Subscription.Name == channelsToSubscribe[x].Channel {
-	// 				subs[y].Pairs = append(subs[y].Pairs,
-	// 					channelsToSubscribe[x].Currency.String())
-	// 				subs[y].Channels = append(subs[y].Channels, channelsToSubscribe[x])
-	// 				continue channels
-	// 			}
-	// 		}
-
-	// 		var id int64
-	// 		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[x].Channel) {
-	// 			id = k.Websocket.AuthConn.GenerateMessageID(false)
-	// 		} else {
-	// 			id = k.Websocket.Conn.GenerateMessageID(false)
-	// 		}
-
-	// 		resp := WebsocketSubscriptionEventRequest{
-	// 			Event: krakenWsSubscribe,
-	// 			Subscription: WebsocketSubscriptionData{
-	// 				Name: channelsToSubscribe[x].Channel,
-	// 			},
-	// 			RequestID: id,
-	// 		}
-	// 		if channelsToSubscribe[x].Channel == "book" {
-	// 			// TODO: Add ability to make depth customisable
-	// 			resp.Subscription.Depth = 1000
-	// 		}
-	// 		if !channelsToSubscribe[x].Currency.IsEmpty() {
-	// 			resp.Pairs = []string{channelsToSubscribe[x].Currency.String()}
-	// 		}
-	// 		if channelsToSubscribe[x].Params != nil {
-	// 			resp.Subscription.Token = authToken
-	// 		}
-
-	// 		resp.Channels = append(resp.Channels, channelsToSubscribe[x])
-	// 		subs = append(subs, resp)
-	// 	}
-
 	var errs common.Errors
-	for _, subs := range subscriptions {
+	for subType, subs := range subscriptions {
 		for i := range *subs {
 			if common.StringDataContains(authenticatedChannels, (*subs)[i].Subscription.Name) {
 				_, err := k.Websocket.AuthConn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
@@ -1094,9 +1044,13 @@ wakka:
 				k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
 				continue
 			}
-
-			fmt.Printf("SUBS: %+v\n", (*subs)[i])
-
+			if subType == "book" {
+				// There is an undocumented subscription limit that is present
+				// on websocket orderbooks, to subscribe to the channel while
+				// actually receiving the snapshots a rudimentary sleep is
+				// imposed and requests are batched in allotments of 20 items.
+				time.Sleep(1 * time.Second)
+			}
 			_, err := k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
 			if err != nil {
 				errs = append(errs, err)
@@ -1127,7 +1081,6 @@ channels:
 		}
 		var depth int64
 		if channelsToUnsubscribe[x].Channel == "book" {
-			// TODO: Add ability to make depth customisable
 			depth = 1000
 		}
 
