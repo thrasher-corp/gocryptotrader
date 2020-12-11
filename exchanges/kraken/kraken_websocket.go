@@ -751,10 +751,10 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 			if err != nil {
 				go func(resub *stream.ChannelSubscription) {
 					// This was locking the main websocket reader routine and a
-					// backlog occured. So put this into it's own go routine.
+					// backlog occurred. So put this into it's own go routine.
 					errResub := k.Websocket.ResubscribeToChannel(resub)
 					if errResub != nil {
-						log.Errorln(log.WebsocketMgr,
+						log.Errorf(log.WebsocketMgr,
 							"resubscription failure for %v: %v",
 							resub,
 							errResub)
