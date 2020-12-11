@@ -13,6 +13,26 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+func calculateInformationRatio(values []float64, riskFreeRates []float64) float64 {
+	if len(riskFreeRates) == 1 {
+		for i := range values {
+			if i == 0 {
+				continue
+			}
+			riskFreeRates = append(riskFreeRates, riskFreeRates[0])
+		}
+	}
+	avgValue := calculateTheAverage(values)
+	avgComparison := calculateTheAverage(riskFreeRates)
+	var diffs []float64
+	for i := range values {
+		diffs = append(diffs, values[i]-riskFreeRates[i])
+	}
+	stdDev := calculateStandardDeviation(diffs)
+	ratio := (avgValue - avgComparison) / stdDev
+	return ratio
+}
+
 func calculateStandardDeviation(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
@@ -112,7 +132,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 	}
 	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, excessReturns, c.RiskFreeRate)
 	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, c.RiskFreeRate)
-
+	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{c.RiskFreeRate})
 	var allDataEvents []interfaces.DataEventHandler
 	for i := range c.Events {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
@@ -161,6 +181,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Risk free rate: %.3f%%", c.RiskFreeRate)
 	log.Infof(log.BackTester, "Sharpe ratio: %.8f", c.SharpeRatio)
 	log.Infof(log.BackTester, "Sortino ratio: %.3f\n\n", c.SortinoRatio)
+	log.Infof(log.BackTester, "Information ratio: %.3f\n\n", c.InformationRatio)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
 	log.Infof(log.BackTester, "Starting Close Price: $%v", first.DataEvent.Price())
