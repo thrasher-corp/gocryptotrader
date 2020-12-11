@@ -37,7 +37,7 @@ var (
 func init() {
 	service = new(Service)
 	service.mux = dispatch.GetNewMux()
-	service.Books = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
+	service.Books = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Book)
 	service.Exchange = make(map[string]uuid.UUID)
 }
 
@@ -50,7 +50,7 @@ type Book struct {
 
 // Service holds orderbook information for each individual exchange
 type Service struct {
-	Books    map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book
+	Books    map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Book
 	Exchange map[string]uuid.UUID
 	mux      *dispatch.Mux
 	sync.Mutex

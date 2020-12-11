@@ -24,7 +24,7 @@ func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatc
 	exchange = strings.ToLower(exchange)
 	service.Lock()
 	defer service.Unlock()
-	book, ok := service.Books[exchange][p.Base.Item][p.Quote.Item][a]
+	book, ok := service.Books[exchange][a][p.Base.Item][p.Quote.Item]
 	if !ok {
 		return dispatch.Pipe{},
 			fmt.Errorf("orderbook item not found for %s %s %s",
@@ -53,26 +53,26 @@ func (s *Service) Update(b *Base) error {
 	s.Lock()
 	m1, ok := s.Books[name]
 	if !ok {
-		m1 = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
+		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Book)
 		s.Books[name] = m1
 	}
 
-	m2, ok := m1[b.Pair.Base.Item]
+	m2, ok := m1[b.AssetType]
 	if !ok {
-		m2 = make(map[*currency.Item]map[asset.Item]*Book)
-		m1[b.Pair.Base.Item] = m2
+		m2 = make(map[*currency.Item]map[*currency.Item]*Book)
+		m1[b.AssetType] = m2
 	}
 
-	m3, ok := m2[b.Pair.Quote.Item]
+	m3, ok := m2[b.Pair.Base.Item]
 	if !ok {
-		m3 = make(map[asset.Item]*Book)
-		m2[b.Pair.Quote.Item] = m3
+		m3 = make(map[*currency.Item]*Book)
+		m2[b.Pair.Base.Item] = m3
 	}
 
-	book, ok := m3[b.AssetType]
+	book, ok := m3[b.Pair.Quote.Item]
 	if !ok {
 		book = new(Book)
-		m3[b.AssetType] = book
+		m3[b.Pair.Quote.Item] = book
 		err := s.SetNewData(b, book, name)
 		s.Unlock()
 		return err
@@ -134,22 +134,22 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
 	}
 
-	m2, ok := m1[p.Base.Item]
+	m2, ok := m1[a]
+	if !ok {
+		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
+			a)
+	}
+
+	m3, ok := m2[p.Base.Item]
 	if !ok {
 		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
 			p.Base)
 	}
 
-	m3, ok := m2[p.Quote.Item]
+	book, ok := m3[p.Quote.Item]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with quote currency %s",
+		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
 			p.Quote)
-	}
-
-	book, ok := m3[a]
-	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
-			a)
 	}
 
 	ob := *book.b
