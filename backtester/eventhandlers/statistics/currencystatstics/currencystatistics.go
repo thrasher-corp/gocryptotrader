@@ -13,6 +13,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+func calculateCompoundAnnualGrowthRate(values []float64) float64 {
+	first := values[0]
+	last := values[len(values)-1]
+	iterations := len(values) - 1
+
+	rate := math.Pow(last/first, 1/float64(iterations))
+	return rate - 1
+}
+
 func calculateCalmarRatio(values []float64, maxDrawdown Swing) float64 {
 	avg := calculateTheAverage(values)
 	drawdownDiff := (maxDrawdown.Highest.Price - maxDrawdown.Lowest.Price) / maxDrawdown.Highest.Price
@@ -142,11 +151,11 @@ func (c *CurrencyStatistic) CalculateResults() {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
 	c.DrawDowns = calculateAllDrawDowns(allDataEvents)
-
 	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, excessReturns, c.RiskFreeRate)
 	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, c.RiskFreeRate)
 	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{c.RiskFreeRate})
 	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, c.DrawDowns.MaxDrawDown)
+	c.CompoundAnnualGrowthRate = calculateCompoundAnnualGrowthRate(returnPerCandle)
 
 }
 
@@ -192,7 +201,8 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Sharpe ratio: %.8f", c.SharpeRatio)
 	log.Infof(log.BackTester, "Sortino ratio: %.3f", c.SortinoRatio)
 	log.Infof(log.BackTester, "Information ratio: %.3f", c.InformationRatio)
-	log.Infof(log.BackTester, "Calmar ratio: %.3f\n\n", c.CalamariRatio)
+	log.Infof(log.BackTester, "Calmar ratio: %.3f", c.CalamariRatio)
+	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2f\n\n", c.CalamariRatio)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
 	log.Infof(log.BackTester, "Starting Close Price: $%v", first.DataEvent.Price())

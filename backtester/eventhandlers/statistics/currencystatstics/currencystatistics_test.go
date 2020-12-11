@@ -51,3 +51,10 @@ func TestCalmarRatio(t *testing.T) {
 		t.Error(ratio)
 	}
 }
+
+func TestCAGR(t *testing.T) {
+	cagr := calculateCompoundAnnualGrowthRate([]float64{100, 123, 125, 126, 134, 147})
+	if cagr != 0.08009875865888949 {
+		t.Error(cagr)
+	}
+}
