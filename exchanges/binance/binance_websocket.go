@@ -407,13 +407,8 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // SeedLocalCache seeds depth data
 func (b *Binance) SeedLocalCache(p currency.Pair) error {
-	fPair, err := b.FormatExchangeCurrency(p, asset.Spot)
-	if err != nil {
-		return err
-	}
-
 	ob, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: fPair.String(),
+		Symbol: p,
 		Limit:  1000,
 	})
 	if err != nil {

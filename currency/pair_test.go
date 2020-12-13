@@ -776,3 +776,62 @@ func TestMatchPairsWithNoDelimiter(t *testing.T) {
 		t.Errorf("unexpected response base: %v quote: %v", p.Base.String(), p.Quote.String())
 	}
 }
+
+func TestPairFormat_Format(t *testing.T) {
+	type fields struct {
+		Uppercase bool
+		Delimiter string
+		Separator string
+		Index     string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		arg    Pair
+		want   string
+	}{
+		{
+			name:   "empty",
+			fields: fields{},
+			arg:    Pair{},
+			want:   "",
+		},
+		{
+			name:   "empty format",
+			fields: fields{},
+			arg: Pair{
+				Delimiter: "<>",
+				Base:      AAA,
+				Quote:     BTC,
+			},
+			want: "aaabtc",
+		},
+		{
+			name: "format",
+			fields: fields{
+				Uppercase: true,
+				Delimiter: "!!!",
+			},
+			arg: Pair{
+				Delimiter: "<>",
+				Base:      AAA,
+				Quote:     BTC,
+			},
+			want: "AAA!!!BTC",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			f := &PairFormat{
+				Uppercase: tt.fields.Uppercase,
+				Delimiter: tt.fields.Delimiter,
+				Separator: tt.fields.Separator,
+				Index:     tt.fields.Index,
+			}
+			if got := f.Format(tt.arg); got != tt.want {
+				t.Errorf("PairFormat.Format() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

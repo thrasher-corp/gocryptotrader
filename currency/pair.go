@@ -100,12 +100,17 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 // apply the same format
 func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFormat) (Pair, error) {
 	for x := range pairs {
-		fPair := pairs[x].Format(pairFmt.Delimiter, pairFmt.Uppercase)
-		if strings.EqualFold(fPair.String(), currencyPair) {
+		fPair := pairFmt.Format(pairs[x])
+		if strings.EqualFold(fPair, currencyPair) {
 			return pairs[x], nil
 		}
 	}
 	return NewPairFromString(currencyPair)
+}
+
+// Format formats the given pair as a string
+func (f *PairFormat) Format(pair Pair) string {
+	return pair.Format(f.Delimiter, f.Uppercase).String()
 }
 
 // MatchPairsWithNoDelimiter will move along a predictable index on the provided currencyPair
