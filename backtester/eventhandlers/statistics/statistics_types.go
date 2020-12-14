@@ -18,14 +18,15 @@ import (
 // Statistic
 type Statistic struct {
 	StrategyName                string
-	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic `json:"exchange-asset-pair-stats"`
+	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic `json:"-"`
 	RiskFreeRate                float64                                                                          `json:"risk-free-rate"`
 	TotalBuyOrders              int64                                                                            `json:"total-buy-orders"`
 	TotalSellOrders             int64                                                                            `json:"total-sell-orders"`
 	TotalOrders                 int64                                                                            `json:"total-orders"`
-	BiggestDrawdown             FinalResultsHolder                                                               `json:"biggest-drawdown"`
-	BestStrategyResults         FinalResultsHolder                                                               `json:"best-strat-results"`
-	BestMarketMovement          FinalResultsHolder                                                               `json:"best-market-movement"`
+	BiggestDrawdown             *FinalResultsHolder                                                              `json:"biggest-drawdown,omitempty"`
+	BestStrategyResults         *FinalResultsHolder                                                              `json:"best-strat-results,omitempty"`
+	BestMarketMovement          *FinalResultsHolder                                                              `json:"best-market-movement,omitempty"`
+	AllStats                    []currencystatstics.CurrencyStatistic                                            `json:"results"`
 }
 
 type FinalResultsHolder struct {
@@ -48,6 +49,7 @@ type Handler interface {
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.FillEvent)
 	CalculateTheResults() error
 	Reset()
+	Serialise() string
 }
 
 type Results struct {

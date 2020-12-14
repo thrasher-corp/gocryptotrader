@@ -13,16 +13,16 @@ type Manager struct {
 }
 
 type Snapshot struct {
-	Orders []SnapshotOrder
-	Time   time.Time
+	Orders    []SnapshotOrder `json:"orders"`
+	Timestamp time.Time       `json:"timestamp"`
 }
 
 // SnapshotOrder adds some additional data that's only relevant for backtesting
 // to the order.Detail without adding to order.Detail
 type SnapshotOrder struct {
-	ClosePrice          float64
-	VolumeAdjustedPrice float64
-	SlippageRate        float64
-	CostBasis           float64
-	*order.Detail
+	ClosePrice          float64 `json:"close-price"`
+	VolumeAdjustedPrice float64 `json:"volume-adjusted-price"`
+	SlippageRate        float64 `json:"slippage-rate"`
+	CostBasis           float64 `json:"cost-basis"`
+	*order.Detail       `json:"order-detail"`
 }

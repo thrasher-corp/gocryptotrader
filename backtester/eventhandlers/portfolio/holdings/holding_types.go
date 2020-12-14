@@ -12,18 +12,18 @@ type Snapshots struct {
 }
 
 type Holding struct {
-	Pair           currency.Pair
-	Asset          asset.Item
-	Exchange       string
-	Timestamp      time.Time
-	InitialFunds   float64
-	PositionsSize  float64
-	PositionsValue float64
-	SoldAmount     float64
-	SoldValue      float64
-	BoughtAmount   float64
-	BoughtValue    float64
-	RemainingFunds float64
+	Pair           currency.Pair `json:"pair"`
+	Asset          asset.Item    `json:"asset"`
+	Exchange       string        `json:"exchange"`
+	Timestamp      time.Time     `json:"timestamp"`
+	InitialFunds   float64       `json:"initial-funds"`
+	PositionsSize  float64       `json:"positions-size"`
+	PositionsValue float64       `json:"postions-value"`
+	SoldAmount     float64       `json:"sold-amount"`
+	SoldValue      float64       `json:"sold-value"`
+	BoughtAmount   float64       `json:"bought-amount"`
+	BoughtValue    float64       `json:"bought-value"`
+	RemainingFunds float64       `json:"remaining-funds"`
 
 	TotalValueDifference      float64
 	ChangeInTotalValuePercent float64
@@ -32,10 +32,10 @@ type Holding struct {
 	SoldValueDifference       float64
 	PositionsValueDifference  float64
 
-	TotalValue                   float64
-	TotalFees                    float64
-	TotalValueLostToVolumeSizing float64
-	TotalValueLostToSlippage     float64
+	TotalValue                   float64 `json:"total-value"`
+	TotalFees                    float64 `json:"total-fees"`
+	TotalValueLostToVolumeSizing float64 `json:"total-value-lost-to-volume-sizing"`
+	TotalValueLostToSlippage     float64 `json:"total-value-lost-to-slippage"`
 
-	RiskFreeRate float64
+	RiskFreeRate float64 `json:"risk-free-rate"`
 }

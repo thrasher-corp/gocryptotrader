@@ -9,10 +9,10 @@ import (
 )
 
 type Event struct {
-	Exchange     string
-	Time         time.Time
-	Interval     kline.Interval
-	CurrencyPair currency.Pair
-	AssetType    asset.Item
-	Why          string
+	Exchange     string         `json:"exchange"`
+	Time         time.Time      `json:"timestamp"`
+	Interval     kline.Interval `json:"interval-size"`
+	CurrencyPair currency.Pair  `json:"pair"`
+	AssetType    asset.Item     `json:"asset"`
+	Why          string         `json:"why"`
 }

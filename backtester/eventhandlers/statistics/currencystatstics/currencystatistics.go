@@ -17,7 +17,9 @@ func calculateCompoundAnnualGrowthRate(values []float64) float64 {
 	first := values[0]
 	last := values[len(values)-1]
 	iterations := len(values) - 1
-
+	if iterations == 0 || first == 0 {
+		return 0
+	}
 	rate := math.Pow(last/first, 1/float64(iterations))
 	return rate - 1
 }
@@ -25,6 +27,9 @@ func calculateCompoundAnnualGrowthRate(values []float64) float64 {
 func calculateCalmarRatio(values []float64, maxDrawdown Swing) float64 {
 	avg := calculateTheAverage(values)
 	drawdownDiff := (maxDrawdown.Highest.Price - maxDrawdown.Lowest.Price) / maxDrawdown.Highest.Price
+	if drawdownDiff == 0 {
+		return 0
+	}
 	ratio := avg / drawdownDiff
 	return ratio
 }
@@ -45,6 +50,9 @@ func calculateInformationRatio(values []float64, riskFreeRates []float64) float6
 		diffs = append(diffs, values[i]-riskFreeRates[i])
 	}
 	stdDev := calculateStandardDeviation(diffs)
+	if stdDev == 0 {
+		return 0
+	}
 	ratio := (avgValue - avgComparison) / stdDev
 	return ratio
 }
@@ -79,6 +87,9 @@ func calculateTheAverage(values []float64) float64 {
 // only use negative events
 func calculateSortinoRatio(movementPerCandle []float64, excessMovement []float64, riskFreeRate float64) float64 {
 	mean := calculateTheAverage(movementPerCandle)
+	if mean == 0 {
+		return 0
+	}
 	if len(excessMovement) == 0 {
 		return 0
 	}
@@ -99,6 +110,9 @@ func calculateSharpeRatio(movementPerCandle []float64, excessMovement []float64,
 	mean := calculateTheAverage(movementPerCandle)
 	standardDeviation := calculateStandardDeviation(excessMovement)
 
+	if standardDeviation == 0 {
+		return 0
+	}
 	return (mean - riskFreeRate) / standardDeviation
 }
 
@@ -230,6 +244,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 			log.Info(log.BackTester, errs[i].Error())
 		}
 	}
+
 }
 
 func (c *CurrencyStatistic) MaxDrawdown() Swing {

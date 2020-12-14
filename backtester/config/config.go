@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// ReadConfigFromFile will take a config from a path
 func ReadConfigFromFile(path string) (*Config, error) {
 	if !file.Exists(path) {
 		return nil, errors.New("file not found")
@@ -24,11 +25,13 @@ func ReadConfigFromFile(path string) (*Config, error) {
 	return LoadConfig(fileData)
 }
 
+// LoadConfig unmarshalls byte data into a config struct
 func LoadConfig(data []byte) (resp *Config, err error) {
 	err = json.Unmarshal(data, &resp)
 	return resp, err
 }
 
+// PrintSetting prints relevant settings to the console for easy reading
 func (cfg *Config) PrintSetting() {
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Backtester Settings------------------------")
@@ -101,5 +104,5 @@ func (cfg *Config) PrintSetting() {
 		log.Infof(log.BackTester, "Start date: %v", cfg.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
 		log.Infof(log.BackTester, "End date: %v", cfg.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
 	}
-	log.Info(log.BackTester, "-------------------------------------------------------------")
+	log.Info(log.BackTester, "-------------------------------------------------------------\n\n")
 }

@@ -61,4 +61,9 @@ func main() {
 	if err != nil {
 		gctlog.Error(gctlog.BackTester, err)
 	}
+
+	hi := bt.Statistic.Serialise()
+	if hi == "" {
+
+	}
 }

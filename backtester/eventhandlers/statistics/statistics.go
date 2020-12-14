@@ -1,6 +1,7 @@
 package statistics
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -35,7 +36,11 @@ func (s *Statistic) AddDataEventForTime(e interfaces.DataEventHandler) {
 	}
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
-		lookup = &currencystatstics.CurrencyStatistic{}
+		lookup = &currencystatstics.CurrencyStatistic{
+			Pair:     p,
+			Exchange: ex,
+			Asset:    a,
+		}
 	}
 	lookup.Events = append(lookup.Events,
 		currencystatstics.EventStore{
@@ -93,7 +98,7 @@ func (s *Statistic) AddHoldingsForTime(h holdings.Holding) {
 func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.FillEvent) {
 	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	for i := range lookup.Events {
-		if lookup.Events[i].DataEvent.GetTime().Equal(c.Time) {
+		if lookup.Events[i].DataEvent.GetTime().Equal(c.Timestamp) {
 			lookup.Events[i].Transactions = c
 			s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
 		}
@@ -110,6 +115,10 @@ func (s *Statistic) CalculateTheResults() error {
 				currCount++
 				z.CalculateResults()
 				z.PrintResults(e, a, p)
+				last := z.Events[len(z.Events)-1]
+				z.FinalHoldings = last.Holdings
+				z.Orders = last.Transactions
+				s.AllStats = append(s.AllStats, *z)
 
 				finalResults = append(finalResults, FinalResultsHolder{
 					E:                e,
@@ -156,33 +165,35 @@ func (s *Statistic) PrintTotalResults(finalResults []FinalResultsHolder) {
 	log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%", s.BestStrategyResults.E, s.BestStrategyResults.A, s.BestStrategyResults.P, s.BestStrategyResults.StrategyMovement)
 }
 
-func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) FinalResultsHolder {
-	var result FinalResultsHolder
+func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) *FinalResultsHolder {
+	result := &FinalResultsHolder{}
 	for i := range results {
 		if results[i].MarketMovement > result.MarketMovement || result.MarketMovement == 0 {
-			result = results[i]
+			result = &results[i]
 		}
 	}
 
 	return result
 }
 
-func (s *Statistic) GetBestStrategyPerformer(results []FinalResultsHolder) FinalResultsHolder {
-	var result FinalResultsHolder
+func (s *Statistic) GetBestStrategyPerformer(results []FinalResultsHolder) *FinalResultsHolder {
+	result := &FinalResultsHolder{}
 	for i := range results {
 		if results[i].StrategyMovement > result.StrategyMovement || result.StrategyMovement == 0 {
-			result = results[i]
+			result = &results[i]
 		}
 	}
 
 	return result
 }
 
-func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResultsHolder) FinalResultsHolder {
-	var result FinalResultsHolder
+func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResultsHolder) *FinalResultsHolder {
+	result := &FinalResultsHolder{
+		MaxDrawdown: currencystatstics.Swing{},
+	}
 	for i := range results {
 		if results[i].MaxDrawdown.CalculatedDrawDown > result.MaxDrawdown.CalculatedDrawDown || result.MaxDrawdown.CalculatedDrawDown == 0 {
-			result = results[i]
+			result = &results[i]
 		}
 	}
 
@@ -236,4 +247,14 @@ func (s *Statistic) PrintAllEvents() {
 
 func (s *Statistic) SetStrategyName(name string) {
 	s.StrategyName = name
+}
+
+func (s *Statistic) Serialise() string {
+	resp, err := json.MarshalIndent(s, "", " ")
+	if err != nil {
+		log.Errorf(log.BackTester, "unable to serialise results: '%v'", err)
+		return ""
+	}
+
+	return string(resp)
 }

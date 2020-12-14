@@ -61,13 +61,14 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	}
 
 	var e exchange.Exchange
+	bt.Datas = &data.DataHolder{}
+	bt.EventQueue = &eventholder.Holder{}
+
 	e, err = bt.setupExchangeSettings(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	bt.Datas = &data.DataHolder{}
-	bt.EventQueue = &eventholder.Holder{}
 	bt.Exchange = &e
 
 	p := &portfolio.Portfolio{
@@ -141,9 +142,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 
 		z := strings.ToLower(exch.GetName())
-		if bt.Datas == nil {
-			bt.Datas.Setup()
-		}
+		bt.Datas.Setup()
 		e, err := loadData(cfg, exch, p, a)
 		if err != nil {
 			return resp, err
@@ -560,9 +559,6 @@ func (bt *BackTest) RunLive() error {
 		case <-timerino.C:
 			return errors.New("no data returned in 5 minutes, shutting down")
 		case <-tickerino.C:
-			//
-			// Go get latest candle of interval X, verify that it hasn't been run before, then append the event
-			//
 			for e, ok := bt.EventQueue.NextEvent(); true; e, ok = bt.EventQueue.NextEvent() {
 				doneARun = true
 				if !ok {
@@ -579,7 +575,6 @@ func (bt *BackTest) RunLive() error {
 				if err != nil {
 					return err
 				}
-				//	bt.Statistic.TrackEvent(event)
 			}
 			if doneARun {
 				timerino = time.NewTimer(time.Minute * 5)

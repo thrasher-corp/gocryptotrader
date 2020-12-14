@@ -8,14 +8,14 @@ import (
 
 type Fill struct {
 	event.Event
-	Direction           order.Side
-	Amount              float64
-	ClosePrice          float64
-	VolumeAdjustedPrice float64
-	PurchasePrice       float64
-	ExchangeFee         float64
-	Slippage            float64
-	Order               *order.Detail
+	Direction           order.Side    `json:"side"`
+	Amount              float64       `json:"amount"`
+	ClosePrice          float64       `json:"close-price"`
+	VolumeAdjustedPrice float64       `json:"volume-adjusted-price"`
+	PurchasePrice       float64       `json:"purchase-price"`
+	ExchangeFee         float64       `json:"exchange-fee"`
+	Slippage            float64       `json:"slippage"`
+	Order               *order.Detail `json:"-"`
 }
 
 type FillEvent interface {
