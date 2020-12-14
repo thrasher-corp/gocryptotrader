@@ -433,7 +433,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 			}
 		}
 	case asset.USDTMarginedFutures:
-		tick, err := b.U24HTickerPriceChangeStats("")
+		tick, err := b.U24HTickerPriceChangeStats(currency.Pair{})
 		if err != nil {
 			return nil, err
 		}
@@ -453,7 +453,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 					continue
 				}
 
-				tickData, err := b.USymbolOrderbookTicker(tick[y].Symbol)
+				tickData, err := b.USymbolOrderbookTicker(pairs[i])
 				if err != nil {
 					return nil, err
 				}
@@ -482,7 +482,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 			}
 		}
 	case asset.CoinMarginedFutures:
-		tick, err := b.GetFuturesSwapTickerChangeStats("", "")
+		tick, err := b.GetFuturesSwapTickerChangeStats(currency.Pair{}, "")
 		if err != nil {
 			return nil, err
 		}
@@ -503,7 +503,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 					continue
 				}
 
-				tickData, err := b.GetFuturesOrderbookTicker(tick[y].Symbol, "")
+				tickData, err := b.GetFuturesOrderbookTicker(pairs[i], "")
 				if err != nil {
 					return nil, err
 				}
@@ -574,9 +574,9 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 			Symbol: p,
 			Limit:  1000})
 	case asset.USDTMarginedFutures:
-		orderbookNew, err = b.UFuturesOrderbook(p.String(), 1000)
+		orderbookNew, err = b.UFuturesOrderbook(p, 1000)
 	case asset.CoinMarginedFutures:
-		orderbookNew, err = b.GetFuturesOrderbook(p.String(), 1000)
+		orderbookNew, err = b.GetFuturesOrderbook(p, 1000)
 	}
 	if err != nil {
 		return nil, err
@@ -847,11 +847,6 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 
 	case asset.CoinMarginedFutures:
-		fPair, err := b.FormatExchangeCurrency(s.Pair, asset.CoinMarginedFutures)
-		if err != nil {
-			return submitOrderResponse, err
-		}
-
 		var reqSide string
 		switch s.Side {
 		case order.Buy:
@@ -881,7 +876,7 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		default:
 			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
-		order, err := b.FuturesNewOrder(fPair.String(), reqSide,
+		order, err := b.FuturesNewOrder(s.Pair, reqSide,
 			"", oType, "GTC", "",
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
@@ -891,10 +886,6 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.OrderID = strconv.FormatInt(order.OrderID, 10)
 		submitOrderResponse.IsOrderPlaced = true
 	case asset.USDTMarginedFutures:
-		fPair, err := b.FormatExchangeCurrency(s.Pair, asset.USDTMarginedFutures)
-		if err != nil {
-			return submitOrderResponse, err
-		}
 		var reqSide string
 		switch s.Side {
 		case order.Buy:
@@ -923,7 +914,7 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		default:
 			return submitOrderResponse, errors.New("invalid type, check api docs for updates")
 		}
-		order, err := b.UFuturesNewOrder(fPair.String(), reqSide,
+		order, err := b.UFuturesNewOrder(s.Pair, reqSide,
 			"", oType, "GTC", "",
 			s.ClientOrderID, "", "",
 			s.Amount, s.Price, 0, 0, 0, s.ReduceOnly)
@@ -950,10 +941,6 @@ func (b *Binance) CancelOrder(o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
-	fpair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
-	if err != nil {
-		return err
-	}
 	switch o.AssetType {
 	case asset.Spot:
 		orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
@@ -967,12 +954,12 @@ func (b *Binance) CancelOrder(o *order.Cancel) error {
 			return err
 		}
 	case asset.CoinMarginedFutures:
-		_, err := b.FuturesCancelOrder(fpair.String(), o.ID, "")
+		_, err := b.FuturesCancelOrder(o.Pair, o.ID, "")
 		if err != nil {
 			return err
 		}
 	case asset.USDTMarginedFutures:
-		_, err := b.UCancelOrder(fpair.String(), o.ID, "")
+		_, err := b.UCancelOrder(o.Pair, o.ID, "")
 		if err != nil {
 			return err
 		}
@@ -1009,21 +996,13 @@ func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, e
 				return cancelAllOrdersResponse, err
 			}
 			for i := range enabledPairs {
-				fPair, err := b.FormatExchangeCurrency(enabledPairs[i], asset.CoinMarginedFutures)
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
-				_, err = b.FuturesCancelAllOpenOrders(fPair.String())
+				_, err = b.FuturesCancelAllOpenOrders(enabledPairs[i])
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
 			}
 		} else {
-			fPair, err := b.FormatExchangeCurrency(req.Pair, asset.CoinMarginedFutures)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			_, err = b.FuturesCancelAllOpenOrders(fPair.String())
+			_, err := b.FuturesCancelAllOpenOrders(req.Pair)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1035,21 +1014,13 @@ func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, e
 				return cancelAllOrdersResponse, err
 			}
 			for i := range enabledPairs {
-				fPair, err := b.FormatExchangeCurrency(enabledPairs[i], asset.CoinMarginedFutures)
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
-				_, err = b.UCancelAllOpenOrders(fPair.String())
+				_, err = b.UCancelAllOpenOrders(enabledPairs[i])
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
 			}
 		} else {
-			fPair, err := b.FormatExchangeCurrency(req.Pair, asset.USDTMarginedFutures)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			_, err = b.UCancelAllOpenOrders(fPair.String())
+			_, err := b.UCancelAllOpenOrders(req.Pair)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1111,7 +1082,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 			ExecutedAmount: resp.ExecutedQty,
 		}, nil
 	case asset.CoinMarginedFutures:
-		orderData, err := b.GetAllFuturesOrders("", "", time.Time{}, time.Time{}, orderIDInt, 0)
+		orderData, err := b.GetAllFuturesOrders(currency.Pair{}, "", time.Time{}, time.Time{}, orderIDInt, 0)
 		if err != nil {
 			return respData, err
 		}
@@ -1145,7 +1116,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
 	case asset.USDTMarginedFutures:
-		orderData, err := b.UAllAccountOrders("", 0, 0, time.Time{}, time.Time{})
+		orderData, err := b.UAllAccountOrders(currency.Pair{}, 0, 0, time.Time{}, time.Time{})
 		if err != nil {
 			return respData, err
 		}
@@ -1265,7 +1236,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			})
 		}
 	case asset.CoinMarginedFutures:
-		openOrders, err := b.GetFuturesAllOpenOrders("", "")
+		openOrders, err := b.GetFuturesAllOpenOrders(currency.Pair{}, "")
 		if err != nil {
 			return nil, err
 		}
@@ -1303,7 +1274,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			})
 		}
 	case asset.USDTMarginedFutures:
-		openOrders, err := b.UAllAccountOpenOrders("")
+		openOrders, err := b.UAllAccountOpenOrders(currency.Pair{})
 		if err != nil {
 			return nil, err
 		}
@@ -1397,17 +1368,13 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 	case asset.CoinMarginedFutures:
 		for i := range req.Pairs {
-			fPair, err := b.FormatExchangeCurrency(req.Pairs[i], req.AssetType)
-			if err != nil {
-				return orders, err
-			}
 			switch {
 			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
 				if req.EndTicks.After(req.StartTicks) {
 					if time.Since(req.StartTicks) > time.Hour*24*30 {
 						return nil, fmt.Errorf("can only fetch orders 7 days out")
 					}
-					orderHistory, err := b.GetAllFuturesOrders(fPair.String(), "", req.StartTicks, req.EndTicks, 0, 0)
+					orderHistory, err := b.GetAllFuturesOrders(req.Pairs[i], "", req.StartTicks, req.EndTicks, 0, 0)
 					if err != nil {
 						return nil, err
 					}
@@ -1415,7 +1382,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 						var feeBuilder exchange.FeeBuilder
 						feeBuilder.Amount = orderHistory[y].ExecutedQty
 						feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-						feeBuilder.Pair = fPair
+						feeBuilder.Pair = req.Pairs[i]
 						fee, err := b.GetFee(&feeBuilder)
 						if err != nil {
 							return orders, err
@@ -1433,7 +1400,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 							Type:            orderVars.OrderType,
 							Side:            orderVars.Side,
 							Status:          orderVars.Status,
-							Pair:            fPair,
+							Pair:            req.Pairs[i],
 							AssetType:       asset.CoinMarginedFutures,
 						})
 					}
@@ -1443,7 +1410,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				if err != nil {
 					return nil, err
 				}
-				orderHistory, err := b.GetAllFuturesOrders(fPair.String(), "", time.Time{}, time.Time{}, fromID, 0)
+				orderHistory, err := b.GetAllFuturesOrders(req.Pairs[i], "", time.Time{}, time.Time{}, fromID, 0)
 				if err != nil {
 					return nil, err
 				}
@@ -1451,7 +1418,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 					var feeBuilder exchange.FeeBuilder
 					feeBuilder.Amount = orderHistory[y].ExecutedQty
 					feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-					feeBuilder.Pair = fPair
+					feeBuilder.Pair = req.Pairs[i]
 					fee, err := b.GetFee(&feeBuilder)
 					if err != nil {
 						return orders, err
@@ -1469,7 +1436,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 						Type:            orderVars.OrderType,
 						Side:            orderVars.Side,
 						Status:          orderVars.Status,
-						Pair:            fPair,
+						Pair:            req.Pairs[i],
 						AssetType:       asset.CoinMarginedFutures,
 					})
 				}
@@ -1489,7 +1456,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 					if time.Since(req.StartTicks) > time.Hour*24*7 {
 						return nil, fmt.Errorf("can only fetch orders 7 days out")
 					}
-					orderHistory, err := b.UAllAccountOrders(fPair.String(), 0, 0, req.StartTicks, req.EndTicks)
+					orderHistory, err := b.UAllAccountOrders(req.Pairs[i], 0, 0, req.StartTicks, req.EndTicks)
 					if err != nil {
 						return nil, err
 					}
@@ -1525,7 +1492,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				if err != nil {
 					return nil, err
 				}
-				orderHistory, err := b.UAllAccountOrders(fPair.String(), fromID, 0, time.Time{}, time.Time{})
+				orderHistory, err := b.UAllAccountOrders(req.Pairs[i], fromID, 0, time.Time{}, time.Time{})
 				if err != nil {
 					return nil, err
 				}

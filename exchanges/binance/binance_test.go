@@ -95,7 +95,7 @@ func TestUExchangeInfo(t *testing.T) {
 
 func TestUFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.UFuturesOrderbook("BTCUSDT", 1000)
+	_, err := b.UFuturesOrderbook(currency.Pair{Delimiter: "_", Base: currency.BTC, Quote: currency.USDT}, 1000)
 	if err != nil {
 		t.Error(err)
 	}
@@ -103,7 +103,7 @@ func TestUFuturesOrderbook(t *testing.T) {
 
 func TestURecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.URecentTrades("BTCUSDT", "", 5)
+	_, err := b.URecentTrades(currency.NewPair(currency.BTC, currency.USDT), "", 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -111,11 +111,11 @@ func TestURecentTrades(t *testing.T) {
 
 func TestUCompressedTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.UCompressedTrades("BTCUSDT", "", 5, time.Time{}, time.Time{})
+	_, err := b.UCompressedTrades(currency.NewPair(currency.BTC, currency.USDT), "", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UCompressedTrades("LTCUSDT", "", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.UCompressedTrades(currency.NewPair(currency.LTC, currency.USDT), "", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -123,11 +123,11 @@ func TestUCompressedTrades(t *testing.T) {
 
 func TestUKlineData(t *testing.T) {
 	t.Parallel()
-	_, err := b.UKlineData("BTCUSDT", "1d", 5, time.Time{}, time.Time{})
+	_, err := b.UKlineData(currency.NewPair(currency.BTC, currency.USDT), "1d", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UKlineData("LTCUSDT", "5m", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.UKlineData(currency.NewPair(currency.LTC, currency.USDT), "5m", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -135,11 +135,11 @@ func TestUKlineData(t *testing.T) {
 
 func TestUGetMarkPrice(t *testing.T) {
 	t.Parallel()
-	_, err := b.UGetMarkPrice("BTCUSDT")
+	_, err := b.UGetMarkPrice(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UGetMarkPrice("")
+	_, err = b.UGetMarkPrice(currency.Pair{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -147,11 +147,11 @@ func TestUGetMarkPrice(t *testing.T) {
 
 func TestUGetFundingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.UGetFundingHistory("BTCUSDT", 1, time.Time{}, time.Time{})
+	_, err := b.UGetFundingHistory(currency.NewPair(currency.BTC, currency.USDT), 1, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UGetFundingHistory("LTCUSDT", 1, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.UGetFundingHistory(currency.NewPair(currency.LTC, currency.USDT), 1, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -159,11 +159,11 @@ func TestUGetFundingHistory(t *testing.T) {
 
 func TestU24HTickerPriceChangeStats(t *testing.T) {
 	t.Parallel()
-	_, err := b.U24HTickerPriceChangeStats("BTCUSDT")
+	_, err := b.U24HTickerPriceChangeStats(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.U24HTickerPriceChangeStats("")
+	_, err = b.U24HTickerPriceChangeStats(currency.Pair{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -171,11 +171,11 @@ func TestU24HTickerPriceChangeStats(t *testing.T) {
 
 func TestUSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.USymbolPriceTicker("BTCUSDT")
+	_, err := b.USymbolPriceTicker(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.USymbolPriceTicker("")
+	_, err = b.USymbolPriceTicker(currency.Pair{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -183,11 +183,11 @@ func TestUSymbolPriceTicker(t *testing.T) {
 
 func TestUSymbolOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.USymbolOrderbookTicker("BTCUSDT")
+	_, err := b.USymbolOrderbookTicker(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.USymbolOrderbookTicker("")
+	_, err = b.USymbolOrderbookTicker(currency.Pair{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -195,11 +195,11 @@ func TestUSymbolOrderbookTicker(t *testing.T) {
 
 func TestULiquidationOrders(t *testing.T) {
 	t.Parallel()
-	_, err := b.ULiquidationOrders("BTCUSDT", 0, time.Time{}, time.Time{})
+	_, err := b.ULiquidationOrders(currency.NewPair(currency.BTC, currency.USDT), 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.ULiquidationOrders("LTCUSDT", 5, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.ULiquidationOrders(currency.NewPair(currency.LTC, currency.USDT), 5, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -207,7 +207,7 @@ func TestULiquidationOrders(t *testing.T) {
 
 func TestUOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := b.UOpenInterest("BTCUSDT")
+	_, err := b.UOpenInterest(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
@@ -215,11 +215,11 @@ func TestUOpenInterest(t *testing.T) {
 
 func TestUOpenInterestStats(t *testing.T) {
 	t.Parallel()
-	_, err := b.UOpenInterestStats("BTCUSDT", "5m", 1, time.Time{}, time.Time{})
+	_, err := b.UOpenInterestStats(currency.NewPair(currency.BTC, currency.USDT), "5m", 1, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UOpenInterestStats("LTCUSDT", "1d", 10, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.UOpenInterestStats(currency.NewPair(currency.LTC, currency.USDT), "1d", 10, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -227,11 +227,11 @@ func TestUOpenInterestStats(t *testing.T) {
 
 func TestUTopAcccountsLongShortRatio(t *testing.T) {
 	t.Parallel()
-	_, err := b.UTopAcccountsLongShortRatio("BTCUSDT", "5m", 2, time.Time{}, time.Time{})
+	_, err := b.UTopAcccountsLongShortRatio(currency.NewPair(currency.BTC, currency.USDT), "5m", 2, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UTopAcccountsLongShortRatio("BTCUSDT", "5m", 2, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.UTopAcccountsLongShortRatio(currency.NewPair(currency.BTC, currency.USDT), "5m", 2, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -239,11 +239,11 @@ func TestUTopAcccountsLongShortRatio(t *testing.T) {
 
 func TestUTopPostionsLongShortRatio(t *testing.T) {
 	t.Parallel()
-	_, err := b.UTopPostionsLongShortRatio("BTCUSDT", "5m", 3, time.Time{}, time.Time{})
+	_, err := b.UTopPostionsLongShortRatio(currency.NewPair(currency.BTC, currency.USDT), "5m", 3, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UTopPostionsLongShortRatio("BTCUSDT", "1d", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.UTopPostionsLongShortRatio(currency.NewPair(currency.BTC, currency.USDT), "1d", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -251,11 +251,11 @@ func TestUTopPostionsLongShortRatio(t *testing.T) {
 
 func TestUGlobalLongShortRatio(t *testing.T) {
 	t.Parallel()
-	_, err := b.UGlobalLongShortRatio("BTCUSDT", "5m", 3, time.Time{}, time.Time{})
+	_, err := b.UGlobalLongShortRatio(currency.NewPair(currency.BTC, currency.USDT), "5m", 3, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UGlobalLongShortRatio("BTCUSDT", "4h", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.UGlobalLongShortRatio(currency.NewPair(currency.BTC, currency.USDT), "4h", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -263,7 +263,7 @@ func TestUGlobalLongShortRatio(t *testing.T) {
 
 func TestUTakerBuySellVol(t *testing.T) {
 	t.Parallel()
-	_, err := b.UTakerBuySellVol("BTCUSDT", "5m", 10, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err := b.UTakerBuySellVol(currency.NewPair(currency.BTC, currency.USDT), "5m", 10, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -274,7 +274,7 @@ func TestUFuturesNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.UFuturesNewOrder("BTCUSDT", "BUY", "", "LIMIT", "GTC", "", "", "", "", 1, 1, 0, 0, 0, false)
+	_, err := b.UFuturesNewOrder(currency.NewPair(currency.BTC, currency.USDT), "BUY", "", "LIMIT", "GTC", "", "", "", "", 1, 1, 0, 0, 0, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -305,7 +305,7 @@ func TestUGetOrderData(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UGetOrderData("BTCUSDT", "123", "")
+	_, err := b.UGetOrderData(currency.NewPair(currency.BTC, currency.USDT), "123", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -316,7 +316,7 @@ func TestUCancelOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.UCancelOrder("BTCUSDT", "123", "")
+	_, err := b.UCancelOrder(currency.NewPair(currency.BTC, currency.USDT), "123", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -327,7 +327,7 @@ func TestUCancelAllOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.UCancelAllOpenOrders("BTCUSDT")
+	_, err := b.UCancelAllOpenOrders(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
@@ -338,7 +338,7 @@ func TestUCancelBatchOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.UCancelBatchOrders("BTCUSDT", []string{"123"}, []string{})
+	_, err := b.UCancelBatchOrders(currency.NewPair(currency.BTC, currency.USDT), []string{"123"}, []string{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -349,7 +349,7 @@ func TestUAutoCancelAllOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.UAutoCancelAllOpenOrders("BTCUSDT", 30)
+	_, err := b.UAutoCancelAllOpenOrders(currency.NewPair(currency.BTC, currency.USDT), 30)
 	if err != nil {
 		t.Error(err)
 	}
@@ -360,7 +360,7 @@ func TestUFetchOpenOrder(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UFetchOpenOrder("BTCUSDT", "123", "")
+	_, err := b.UFetchOpenOrder(currency.NewPair(currency.BTC, currency.USDT), "123", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -371,7 +371,7 @@ func TestUAllAccountOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UAllAccountOpenOrders("BTCUSDT")
+	_, err := b.UAllAccountOpenOrders(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
@@ -382,11 +382,11 @@ func TestUAllAccountOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UAllAccountOrders("", 0, 0, time.Time{}, time.Time{})
+	_, err := b.UAllAccountOrders(currency.Pair{}, 0, 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UAllAccountOrders("BTCUSDT", 0, 5, time.Now().Add(-time.Hour*4), time.Now())
+	_, err = b.UAllAccountOrders(currency.NewPair(currency.BTC, currency.USDT), 0, 5, time.Now().Add(-time.Hour*4), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -419,7 +419,7 @@ func TestUChangeInitialLeverageRequest(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.UChangeInitialLeverageRequest("BTCUSDT", 2)
+	_, err := b.UChangeInitialLeverageRequest(currency.NewPair(currency.BTC, currency.USDT), 2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -430,7 +430,7 @@ func TestUChangeInitialMarginType(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	err := b.UChangeInitialMarginType("BTCUSDT", "ISOLATED")
+	err := b.UChangeInitialMarginType(currency.NewPair(currency.BTC, currency.USDT), "ISOLATED")
 	if err != nil {
 		t.Error(err)
 	}
@@ -441,7 +441,7 @@ func TestUModifyIsolatedPositionMarginReq(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.UModifyIsolatedPositionMarginReq("BTCUSDT", "LONG", "add", 5)
+	_, err := b.UModifyIsolatedPositionMarginReq(currency.NewPair(currency.BTC, currency.USDT), "LONG", "add", 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -452,7 +452,7 @@ func TestUPositionMarginChangeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UPositionMarginChangeHistory("BTCUSDT", "add", 5, time.Time{}, time.Time{})
+	_, err := b.UPositionMarginChangeHistory(currency.NewPair(currency.BTC, currency.USDT), "add", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -463,7 +463,7 @@ func TestUPositionsInfoV2(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UPositionsInfoV2("BTCUSDT")
+	_, err := b.UPositionsInfoV2(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
@@ -474,7 +474,7 @@ func TestUAccountTradesHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UAccountTradesHistory("BTCUSDT", "", 5, time.Time{}, time.Time{})
+	_, err := b.UAccountTradesHistory(currency.NewPair(currency.BTC, currency.USDT), "", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -485,7 +485,7 @@ func TestUAccountIncomeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UAccountIncomeHistory("", "", 5, time.Now().Add(-time.Hour*48), time.Now())
+	_, err := b.UAccountIncomeHistory(currency.Pair{}, "", 5, time.Now().Add(-time.Hour*48), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -496,7 +496,7 @@ func TestUGetNotionalAndLeverageBrackets(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UGetNotionalAndLeverageBrackets("BTCUSDT")
+	_, err := b.UGetNotionalAndLeverageBrackets(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
@@ -507,7 +507,7 @@ func TestUPositionsADLEstimate(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UPositionsADLEstimate("BTCUSDT")
+	_, err := b.UPositionsADLEstimate(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
@@ -518,7 +518,7 @@ func TestUAccountForcedOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UAccountForcedOrders("BTCUSDT", "ADL", 5, time.Time{}, time.Time{})
+	_, err := b.UAccountForcedOrders(currency.NewPair(currency.BTC, currency.USDT), "ADL", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -544,11 +544,11 @@ func TestGetInterestHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFundingRates("BTCUSDT", "", time.Time{}, time.Time{})
+	_, err := b.GetFundingRates(currency.NewPair(currency.BTC, currency.USDT), "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFundingRates("BTCUSDT", "2", time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.GetFundingRates(currency.NewPair(currency.BTC, currency.USDT), "2", time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -556,7 +556,7 @@ func TestGetFundingRates(t *testing.T) {
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesOrderbook("BTCUSD_PERP", 1000)
+	_, err := b.GetFuturesOrderbook(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 1000)
 	if err != nil {
 		t.Error(err)
 	}
@@ -564,7 +564,7 @@ func TestGetFuturesOrderbook(t *testing.T) {
 
 func TestGetFuturesPublicTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesPublicTrades("BTCUSD_PERP", 5)
+	_, err := b.GetFuturesPublicTrades(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -572,7 +572,7 @@ func TestGetFuturesPublicTrades(t *testing.T) {
 
 func TestGetPastPublicTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetPastPublicTrades("BTCUSD_PERP", 5, 0)
+	_, err := b.GetPastPublicTrades(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -580,7 +580,7 @@ func TestGetPastPublicTrades(t *testing.T) {
 
 func TestGetAggregatedTradesList(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesAggregatedTradesList("BTCUSD_PERP", 0, 5, time.Time{}, time.Time{})
+	_, err := b.GetFuturesAggregatedTradesList(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 0, 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -604,12 +604,12 @@ func TestGetIndexAndMarkPrice(t *testing.T) {
 
 func TestGetFuturesKlineData(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesKlineData("BTCUSD_PERP", "1M", 5, time.Time{}, time.Time{})
+	_, err := b.GetFuturesKlineData(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "1M", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetFuturesKlineData("LTCUSD_PERP", "5m", 5, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.GetFuturesKlineData(currency.NewPairWithDelimiter("LTCUSD", "PERP", "_"), "5m", 5, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -641,15 +641,15 @@ func TestGetIndexPriceKlines(t *testing.T) {
 
 func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesSwapTickerChangeStats("BTCUSD_PERP", "")
+	_, err := b.GetFuturesSwapTickerChangeStats(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesSwapTickerChangeStats("BTCUSD_PERP", "")
+	_, err = b.GetFuturesSwapTickerChangeStats(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesSwapTickerChangeStats("", "")
+	_, err = b.GetFuturesSwapTickerChangeStats(currency.Pair{}, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -660,11 +660,11 @@ func TestFuturesGetFundingHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesGetFundingHistory("BTCUSD_PERP", 5, time.Time{}, time.Time{})
+	_, err := b.FuturesGetFundingHistory(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.FuturesGetFundingHistory("BTCUSD_PERP", 50, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.FuturesGetFundingHistory(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 50, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -675,11 +675,11 @@ func TestGetFuturesHistoricalTrades(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.GetFuturesHistoricalTrades("BTCUSD_PERP", "", 5)
+	_, err := b.GetFuturesHistoricalTrades(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", 5)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesHistoricalTrades("BTCUSD_PERP", "", 0)
+	_, err = b.GetFuturesHistoricalTrades(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -687,7 +687,7 @@ func TestGetFuturesHistoricalTrades(t *testing.T) {
 
 func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesSymbolPriceTicker("BTCUSD_PERP", "")
+	_, err := b.GetFuturesSymbolPriceTicker(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -695,11 +695,11 @@ func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 
 func TestGetFuturesOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesOrderbookTicker("", "")
+	_, err := b.GetFuturesOrderbookTicker(currency.Pair{}, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesOrderbookTicker("BTCUSD_PERP", "")
+	_, err = b.GetFuturesOrderbookTicker(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -707,11 +707,11 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 
 func TestGetFuturesLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesLiquidationOrders("", "", 0, time.Time{}, time.Time{})
+	_, err := b.GetFuturesLiquidationOrders(currency.Pair{}, "", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesLiquidationOrders("BTCUSD_PERP", "", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
+	_, err = b.GetFuturesLiquidationOrders(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", 0, time.Unix(1577836800, 0), time.Unix(1580515200, 0))
 	if err != nil {
 		t.Error(err)
 	}
@@ -719,7 +719,7 @@ func TestGetFuturesLiquidationOrders(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOpenInterest("BTCUSD_PERP")
+	_, err := b.GetOpenInterest(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -802,7 +802,7 @@ func TestFuturesNewOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesNewOrder("BTCUSD_PERP", "BUY", "", "LIMIT", "GTC", "", "", "", "", 1, 1, 0, 0, 0, false)
+	_, err := b.FuturesNewOrder(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "BUY", "", "LIMIT", "GTC", "", "", "", "", 1, 1, 0, 0, 0, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -834,7 +834,7 @@ func TestFuturesBatchCancelOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesBatchCancelOrders("BTCUSD_PERP", []string{"123"}, []string{})
+	_, err := b.FuturesBatchCancelOrders(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), []string{"123"}, []string{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -844,7 +844,7 @@ func TestFuturesGetOrderData(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesGetOrderData("BTCUSD_PERP", "123", "")
+	_, err := b.FuturesGetOrderData(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "123", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -855,7 +855,7 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesCancelAllOpenOrders("BTCUSD_PERP")
+	_, err := b.FuturesCancelAllOpenOrders(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -866,7 +866,7 @@ func TestAutoCancelAllOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.AutoCancelAllOpenOrders("BTCUSD_PERP", 30000)
+	_, err := b.AutoCancelAllOpenOrders(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 30000)
 	if err != nil {
 		t.Error(err)
 	}
@@ -877,7 +877,7 @@ func TestFuturesOpenOrderData(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesOpenOrderData("BTCUSDT", "", "")
+	_, err := b.FuturesOpenOrderData(currency.NewPair(currency.BTC, currency.USDT), "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -888,7 +888,7 @@ func TestGetFuturesAllOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.GetFuturesAllOpenOrders("BTCUSD_PERP", "")
+	_, err := b.GetFuturesAllOpenOrders(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -899,7 +899,7 @@ func TestGetAllFuturesOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.GetAllFuturesOrders("BTCUSD_PERP", "", time.Time{}, time.Time{}, 0, 2)
+	_, err := b.GetAllFuturesOrders(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", time.Time{}, time.Time{}, 0, 2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -910,7 +910,7 @@ func TestFuturesChangeMarginType(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesChangeMarginType("BTCUSD_PERP", "ISOLATED")
+	_, err := b.FuturesChangeMarginType(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "ISOLATED")
 	if err != nil {
 		t.Error(err)
 	}
@@ -942,7 +942,7 @@ func TestFuturesChangeInitialLeverage(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesChangeInitialLeverage("BTCUSD_PERP", 5)
+	_, err := b.FuturesChangeInitialLeverage(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -953,7 +953,7 @@ func TestModifyIsolatedPositionMargin(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.ModifyIsolatedPositionMargin("BTCUSD_PERP", "BOTH", "add", 5)
+	_, err := b.ModifyIsolatedPositionMargin(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "BOTH", "add", 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -964,7 +964,7 @@ func TestFuturesMarginChangeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	_, err := b.FuturesMarginChangeHistory("BTCUSD_PERP", "add", time.Time{}, time.Time{}, 10)
+	_, err := b.FuturesMarginChangeHistory(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "add", time.Time{}, time.Time{}, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -986,7 +986,7 @@ func TestFuturesTradeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesTradeHistory("BTCUSD_PERP", "", time.Time{}, time.Time{}, 5, 0)
+	_, err := b.FuturesTradeHistory(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", time.Time{}, time.Time{}, 5, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -997,7 +997,7 @@ func TestFuturesIncomeHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesIncomeHistory("", "TRANSFER", time.Time{}, time.Time{}, 5)
+	_, err := b.FuturesIncomeHistory(currency.Pair{}, "TRANSFER", time.Time{}, time.Time{}, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1008,7 +1008,7 @@ func TestFuturesForceOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesForceOrders("", "ADL", time.Time{}, time.Time{})
+	_, err := b.FuturesForceOrders(currency.Pair{}, "ADL", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1030,7 +1030,7 @@ func TestFuturesPositionsADLEstimate(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesPositionsADLEstimate("")
+	_, err := b.FuturesPositionsADLEstimate(currency.Pair{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1038,7 +1038,7 @@ func TestFuturesPositionsADLEstimate(t *testing.T) {
 
 func TestGetMarkPriceKline(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarkPriceKline("BTCUSD_PERP", "1M", 5, time.Time{}, time.Time{})
+	_, err := b.GetMarkPriceKline(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "1M", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
