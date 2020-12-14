@@ -682,7 +682,7 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 					}
 
 					var currencyDetails []account.Balance
-				label:
+				balance:
 					for j := range balances {
 						var frozen bool
 						if balances[j].Type == "frozen" {
@@ -696,7 +696,7 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 								} else {
 									currencyDetails[i].TotalValue = balances[j].Balance
 								}
-								continue label
+								continue balance
 							}
 						}
 

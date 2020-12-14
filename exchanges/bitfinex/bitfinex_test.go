@@ -103,7 +103,6 @@ func TestGetV2Balances(t *testing.T) {
 }
 
 func TestGetDerivativeData(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	a, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
 	t.Log(a)

@@ -284,12 +284,12 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 	for x := range data {
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed for opentime")
+			return resp, errors.New("type assertion failed for opentime")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type casting failed for open")
+			return resp, errors.New("type assertion failed for open")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -298,7 +298,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type casting failed for high")
+			return resp, errors.New("type assertion failed for high")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -307,7 +307,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type casting failed for low")
+			return resp, errors.New("type assertion failed for low")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -316,7 +316,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type casting failed for close")
+			return resp, errors.New("type assertion failed for close")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -325,7 +325,7 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type casting failed for volume")
+			return resp, errors.New("type assertion failed for volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -334,12 +334,12 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed for ")
+			return resp, errors.New("type assertion failed for ")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type casting failed base asset volume")
+			return resp, errors.New("type assertion failed base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -348,12 +348,12 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed for taker buy volume")
+			return resp, errors.New("type assertion failed for taker buy volume")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type casting failed for taker buy base asset volume")
+			return resp, errors.New("type assertion failed for taker buy base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -367,14 +367,9 @@ func (b *Binance) UKlineData(symbol, interval string, limit int64, startTime, en
 
 // UGetMarkPrice gets mark price data for USDTMarginedFutures
 func (b *Binance) UGetMarkPrice(symbol string) ([]UMarkPrice, error) {
-	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
-		singleResp = true
-	}
-
-	if singleResp {
 		var tempResp UMarkPrice
 		err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesMarkPrice+params.Encode(), limitDefault, &tempResp)
 		if err != nil {
@@ -412,13 +407,9 @@ func (b *Binance) UGetFundingHistory(symbol string, limit int64, startTime, endT
 
 // U24HTickerPriceChangeStats gets 24hr ticker price change stats for USDTMarginedFutures
 func (b *Binance) U24HTickerPriceChangeStats(symbol string) ([]U24HrPriceChangeStats, error) {
-	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
-		singleResp = true
-	}
-	if singleResp {
 		var tempResp U24HrPriceChangeStats
 		err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), limitDefault, &tempResp)
 		if err != nil {
@@ -433,13 +424,9 @@ func (b *Binance) U24HTickerPriceChangeStats(symbol string) ([]U24HrPriceChangeS
 
 // USymbolPriceTicker gets symbol price ticker for USDTMarginedFutures
 func (b *Binance) USymbolPriceTicker(symbol string) ([]USymbolPriceTicker, error) {
-	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
-		singleResp = true
-	}
-	if singleResp {
 		var tempResp USymbolPriceTicker
 		err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesSymbolPriceTicker+params.Encode(), limitDefault, &tempResp)
 		if err != nil {
@@ -454,13 +441,9 @@ func (b *Binance) USymbolPriceTicker(symbol string) ([]USymbolPriceTicker, error
 
 // USymbolOrderbookTicker gets symbol orderbook ticker
 func (b *Binance) USymbolOrderbookTicker(symbol string) ([]USymbolOrderbookTicker, error) {
-	var singleResp bool
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
-		singleResp = true
-	}
-	if singleResp {
 		var tempResp USymbolOrderbookTicker
 		err := b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesSymbolOrderbook+params.Encode(), limitDefault, &tempResp)
 		if err != nil {
@@ -1149,12 +1132,12 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 	for x := range data {
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1163,7 +1146,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1172,7 +1155,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1181,7 +1164,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1190,7 +1173,7 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1199,12 +1182,12 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1213,12 +1196,12 @@ func (b *Binance) GetFuturesKlineData(symbol, interval string, limit int64, star
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1265,12 +1248,12 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 	for x := range data {
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1279,7 +1262,7 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1288,7 +1271,7 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1297,7 +1280,7 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1306,7 +1289,7 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1315,12 +1298,12 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1329,12 +1312,12 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1377,12 +1360,12 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 	for x := range data {
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1391,7 +1374,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1400,7 +1383,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1409,7 +1392,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1418,7 +1401,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1427,12 +1410,12 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1441,12 +1424,12 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1489,12 +1472,12 @@ func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startT
 	for x := range data {
 		floatData, ok = data[x][0].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1503,7 +1486,7 @@ func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startT
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1512,7 +1495,7 @@ func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startT
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1521,7 +1504,7 @@ func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startT
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1530,7 +1513,7 @@ func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startT
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1539,12 +1522,12 @@ func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startT
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -1553,12 +1536,12 @@ func (b *Binance) GetMarkPriceKline(symbol, interval string, limit int64, startT
 		tempData.BaseAssetVolume = floatData
 		floatData, ok = data[x][8].(float64)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		tempData.TakerBuyVolume = floatData
 		strData, ok = data[x][9].(string)
 		if !ok {
-			return resp, errors.New("type casting failed")
+			return resp, errors.New("type assertion failed")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
