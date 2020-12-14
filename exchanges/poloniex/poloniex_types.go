@@ -74,7 +74,7 @@ type OrderStatus struct {
 	Success int64           `json:"success"`
 }
 
-// wsStatus defines order status details
+// OrderStatusData defines order status details
 type OrderStatusData struct {
 	Pair           string  `json:"currencyPair"`
 	Rate           float64 `json:"rate,string"`
