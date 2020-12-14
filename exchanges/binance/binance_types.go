@@ -1066,8 +1066,8 @@ type ExchangeInfo struct {
 
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
-	Symbol string `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
-	Limit  int    `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
+	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
+	Limit  int           `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
 }
 
 // OrderbookItem stores an individual orderbook item
@@ -1115,8 +1115,8 @@ type WebsocketDepthStream struct {
 
 // RecentTradeRequestParams represents Klines request data.
 type RecentTradeRequestParams struct {
-	Symbol string `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
-	Limit  int    `json:"limit"`  // Default 500; max 500.
+	Symbol currency.Pair `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
+	Limit  int           `json:"limit"`  // Default 500; max 500.
 }
 
 // RecentTrade holds recent trade data
@@ -1210,7 +1210,7 @@ type HistoricalTrade struct {
 
 // AggregatedTradeRequestParams holds request params
 type AggregatedTradeRequestParams struct {
-	Symbol string // Required field; example LTCBTC, BTCUSDT
+	Symbol currency.Pair // Required field; example LTCBTC, BTCUSDT
 	// The first trade to retrieve
 	FromID int64
 	// The API seems to accept (start and end time) or FromID and no other combinations
@@ -1306,7 +1306,7 @@ type BestPrice struct {
 // NewOrderRequest request type
 type NewOrderRequest struct {
 	// Symbol (currency pair to trade)
-	Symbol string
+	Symbol currency.Pair
 	// Side Buy or Sell
 	Side string
 	// TradeType (market or limit order)
@@ -1444,9 +1444,9 @@ var (
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol    string // Required field; example LTCBTC, BTCUSDT
-	Interval  string // Time interval period
-	Limit     int    // Default 500; max 500.
+	Symbol    currency.Pair // Required field; example LTCBTC, BTCUSDT
+	Interval  string        // Time interval period
+	Limit     int           // Default 500; max 500.
 	StartTime time.Time
 	EndTime   time.Time
 }

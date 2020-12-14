@@ -1086,9 +1086,8 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: "BTCUSDT",
+		Symbol: currency.NewPair(currency.BTC, currency.USDT),
 		Limit:  10,
 	})
 
@@ -1100,8 +1099,8 @@ func TestGetOrderBook(t *testing.T) {
 func TestGetMostRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMostRecentTrades(RecentTradeRequestParams{
-		Symbol: "BTCUSDT",
-		Limit:  1000,
+		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+		Limit:  15,
 	})
 
 	if err != nil {
@@ -1124,7 +1123,7 @@ func TestGetHistoricalTrades(t *testing.T) {
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetAggregatedTrades(&AggregatedTradeRequestParams{
-		Symbol: currency.NewPair(currency.BTC, currency.USDT).String(),
+		Symbol: currency.NewPair(currency.BTC, currency.USDT),
 		Limit:  5,
 	})
 	if err != nil {
@@ -1135,7 +1134,7 @@ func TestGetAggregatedTrades(t *testing.T) {
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetSpotKline(&KlinesRequestParams{
-		Symbol:    "BTCUSDT",
+		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
 		Interval:  kline.FiveMin.Short(),
 		Limit:     24,
 		StartTime: time.Unix(1577836800, 0),
@@ -1149,7 +1148,7 @@ func TestGetSpotKline(t *testing.T) {
 func TestGetAveragePrice(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetAveragePrice("BTCUSDT")
+	_, err := b.GetAveragePrice(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error("Binance GetAveragePrice() error", err)
 	}
@@ -1158,7 +1157,7 @@ func TestGetAveragePrice(t *testing.T) {
 func TestGetPriceChangeStats(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetPriceChangeStats("BTCUSDT")
+	_, err := b.GetPriceChangeStats(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error("Binance GetPriceChangeStats() error", err)
 	}
@@ -1176,7 +1175,7 @@ func TestGetTickers(t *testing.T) {
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetLatestSpotPrice("BTCUSDT")
+	_, err := b.GetLatestSpotPrice(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error("Binance GetLatestSpotPrice() error", err)
 	}
@@ -1185,7 +1184,7 @@ func TestGetLatestSpotPrice(t *testing.T) {
 func TestGetBestPrice(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetBestPrice("BTCUSDT")
+	_, err := b.GetBestPrice(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error("Binance GetBestPrice() error", err)
 	}
@@ -1194,7 +1193,7 @@ func TestGetBestPrice(t *testing.T) {
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.QueryOrder("BTCUSDT", "", 1337)
+	_, err := b.QueryOrder(currency.NewPair(currency.BTC, currency.USDT), "", 1337)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("QueryOrder() error", err)
@@ -1207,7 +1206,9 @@ func TestQueryOrder(t *testing.T) {
 
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := b.OpenOrders("BTCUSDT")
+
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := b.OpenOrders(&p)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("OpenOrders() error", err)
@@ -1220,7 +1221,8 @@ func TestOpenOrders(t *testing.T) {
 
 func TestAllOrders(t *testing.T) {
 	t.Parallel()
-	_, err := b.AllOrders("BTCUSDT", "", "")
+
+	_, err := b.AllOrders(currency.NewPair(currency.BTC, currency.USDT), "", "")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("AllOrders() error", err)
@@ -1386,7 +1388,7 @@ func TestNewOrderTest(t *testing.T) {
 	t.Parallel()
 
 	req := &NewOrderRequest{
-		Symbol:      "LTCBTC",
+		Symbol:      currency.NewPair(currency.LTC, currency.BTC),
 		Side:        order.Buy.String(),
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
@@ -1405,7 +1407,7 @@ func TestNewOrderTest(t *testing.T) {
 	}
 
 	req = &NewOrderRequest{
-		Symbol:        "LTCBTC",
+		Symbol:        currency.NewPair(currency.LTC, currency.BTC),
 		Side:          order.Sell.String(),
 		TradeType:     BinanceRequestParamsOrderMarket,
 		Price:         0.0045,
@@ -1478,7 +1480,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "mock batch with timerange",
 			mock: true,
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair.String(),
+				Symbol:    currencyPair,
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 			},
@@ -1488,7 +1490,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		{
 			name: "batch with timerange",
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair.String(),
+				Symbol:    currencyPair,
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 			},
@@ -1499,7 +1501,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "mock custom limit with start time set, no end time",
 			mock: true,
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewPair(currency.BTC, currency.USDT).String(),
+				Symbol:    currency.NewPair(currency.BTC, currency.USDT),
 				StartTime: start,
 				Limit:     1001,
 			},
@@ -1509,7 +1511,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		{
 			name: "custom limit with start time set, no end time",
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewPair(currency.BTC, currency.USDT).String(),
+				Symbol:    currency.NewPair(currency.BTC, currency.USDT),
 				StartTime: time.Date(2020, 11, 18, 12, 0, 0, 0, time.UTC),
 				Limit:     1001,
 			},
@@ -1520,7 +1522,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "mock recent trades",
 			mock: true,
 			args: &AggregatedTradeRequestParams{
-				Symbol: currency.NewPair(currency.BTC, currency.USDT).String(),
+				Symbol: currency.NewPair(currency.BTC, currency.USDT),
 				Limit:  3,
 			},
 			numExpected:  3,
@@ -1561,14 +1563,14 @@ func TestGetAggregatedTradesErrors(t *testing.T) {
 		{
 			name: "get recent trades does not support custom limit",
 			args: &AggregatedTradeRequestParams{
-				Symbol: currency.NewPair(currency.BTC, currency.USDT).String(),
+				Symbol: currency.NewPair(currency.BTC, currency.USDT),
 				Limit:  1001,
 			},
 		},
 		{
 			name: "start time and fromId cannot be both set",
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewPair(currency.BTC, currency.USDT).String(),
+				Symbol:    currency.NewPair(currency.BTC, currency.USDT),
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 				FromID:    2,
@@ -1577,7 +1579,7 @@ func TestGetAggregatedTradesErrors(t *testing.T) {
 		{
 			name: "can't get most recent 5000 (more than 1000 not allowed)",
 			args: &AggregatedTradeRequestParams{
-				Symbol: currency.NewPair(currency.BTC, currency.USDT).String(),
+				Symbol: currency.NewPair(currency.BTC, currency.USDT),
 				Limit:  5000,
 			},
 		},
