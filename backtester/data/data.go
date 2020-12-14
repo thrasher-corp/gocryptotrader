@@ -17,7 +17,6 @@ func (d *Data) Reset() {
 	d.latest = nil
 	d.offset = 0
 	d.stream = nil
-	d.datas = nil
 }
 
 // Stream will return entire data list

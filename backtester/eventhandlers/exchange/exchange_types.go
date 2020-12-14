@@ -13,6 +13,7 @@ type ExecutionHandler interface {
 	SetCurrency(string, asset.Item, currency.Pair, CurrencySettings)
 	GetCurrencySettings(string, asset.Item, currency.Pair) CurrencySettings
 	ExecuteOrder(order.OrderEvent, data.Handler) (*fill.Fill, error)
+	Reset()
 }
 
 type Exchange struct {

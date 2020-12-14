@@ -14,6 +14,10 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+func (e *Exchange) Reset() {
+	*e = Exchange{}
+}
+
 func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fill, error) {
 	cs := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	f := &fill.Fill{

@@ -3,7 +3,6 @@ package statistics
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
@@ -18,69 +17,37 @@ import (
 
 // Statistic
 type Statistic struct {
-	EventsByTime map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic
-	RiskFreeRate float64
-	//
-	TotalBuyOrders      int64
-	TotalSellOrders     int64
-	TotalOrders         int64
-	BiggestDrawdown     FinalResultsHolder
-	BestStrategyResults FinalResultsHolder
-	BestMarketMovement  FinalResultsHolder
-
-	///////////////////////////////////////////////
-	EventHistory       []interfaces.EventHandler
-	TransactionHistory []fill.FillEvent
-	Equity             []EquityPoint
-	High               EquityPoint
-	Low                EquityPoint
-	InitialBuy         float64
-	InitialFunds       float64
-
-	StrategyName string
+	StrategyName                string
+	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic `json:"exchange-asset-pair-stats"`
+	RiskFreeRate                float64                                                                          `json:"risk-free-rate"`
+	TotalBuyOrders              int64                                                                            `json:"total-buy-orders"`
+	TotalSellOrders             int64                                                                            `json:"total-sell-orders"`
+	TotalOrders                 int64                                                                            `json:"total-orders"`
+	BiggestDrawdown             FinalResultsHolder                                                               `json:"biggest-drawdown"`
+	BestStrategyResults         FinalResultsHolder                                                               `json:"best-strat-results"`
+	BestMarketMovement          FinalResultsHolder                                                               `json:"best-market-movement"`
 }
 
 type FinalResultsHolder struct {
-	e                string
-	a                asset.Item
-	p                currency.Pair
-	maxDrawdown      currencystatstics.Swing
-	marketMovement   float64
-	strategyMovement float64
-}
-
-type EquityPoint struct {
-	Timestamp       time.Time
-	Equity          float64
-	EquityReturn    float64
-	DrawnDown       float64
-	BuyAndHoldValue float64
+	E                string                  `json:"exchange"`
+	A                asset.Item              `json:"asset"`
+	P                currency.Pair           `json:"currency"`
+	MaxDrawdown      currencystatstics.Swing `json:"max-drawdown"`
+	MarketMovement   float64                 `json:"market-movement"`
+	StrategyMovement float64                 `json:"strategy-movement"`
 }
 
 // Handler interface handles
 type Handler interface {
+	SetStrategyName(string)
 	AddDataEventForTime(interfaces.DataEventHandler)
 	AddSignalEventForTime(signal.SignalEvent)
 	AddExchangeEventForTime(order.OrderEvent)
 	AddFillEventForTime(fill.FillEvent)
-
 	AddHoldingsForTime(holdings.Holding)
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.FillEvent)
-
 	CalculateTheResults() error
-	//////////////////////////////////////
-	TrackEvent(interfaces.EventHandler)
-	Events() []interfaces.EventHandler
-
-	Update(interfaces.DataEventHandler, portfolio.Handler)
-	TrackTransaction(fill.FillEvent)
-	Transactions() []fill.FillEvent
-
-	PrintResult()
-	ReturnResults() Results
 	Reset()
-
-	SetStrategyName(string)
 }
 
 type Results struct {

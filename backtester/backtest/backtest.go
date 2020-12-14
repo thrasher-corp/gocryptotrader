@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -26,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
-	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -44,10 +44,12 @@ func New() *BackTest {
 
 // Reset BackTest values to default
 func (bt *BackTest) Reset() {
-	bt.EventQueue = nil
-	bt.Datas = nil
+	bt.EventQueue.Reset()
+	bt.Datas.Reset()
 	bt.Portfolio.Reset()
 	bt.Statistic.Reset()
+	bt.Exchange.Reset()
+	bt.Bot = nil
 }
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
@@ -64,6 +66,8 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 		return nil, err
 	}
 
+	bt.Datas = &data.DataHolder{}
+	bt.EventQueue = &eventholder.Holder{}
 	bt.Exchange = &e
 
 	p := &portfolio.Portfolio{
@@ -116,41 +120,35 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	} else {
 		bt.Strategy.SetDefaults()
 	}
-
-	stats := &statistics.Statistic{
-		StrategyName: cfg.StrategySettings.Name,
-		EventsByTime: make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic),
-		RiskFreeRate: cfg.StatisticSettings.RiskFreeRate,
+	bt.Statistic = &statistics.Statistic{
+		StrategyName:                cfg.StrategySettings.Name,
+		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic),
+		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,
 	}
-	bt.Statistic = stats
-	bt.PrintSettings(cfg)
+
+	cfg.PrintSetting()
 
 	return bt, nil
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
-	e := exchange.Exchange{}
+	resp := exchange.Exchange{}
 
 	for i := range cfg.CurrencySettings {
-		exch, fPair, a, err := bt.loadExchangePairAssetBase(cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote, cfg.CurrencySettings[i].Asset)
+		exch, p, a, err := bt.loadExchangePairAssetBase(cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote, cfg.CurrencySettings[i].Asset)
 		if err != nil {
-			return e, err
+			return resp, err
 		}
 
-		lowerName := strings.ToLower(exch.GetName())
+		z := strings.ToLower(exch.GetName())
 		if bt.Datas == nil {
-			bt.Datas = make(map[string]map[asset.Item]map[currency.Pair]data.Handler)
+			bt.Datas.Setup()
 		}
-		if bt.Datas[lowerName] == nil {
-			bt.Datas[lowerName] = make(map[asset.Item]map[currency.Pair]data.Handler)
-		}
-		if bt.Datas[lowerName][a] == nil {
-			bt.Datas[lowerName][a] = make(map[currency.Pair]data.Handler)
-		}
-		bt.Datas[strings.ToLower(exch.GetName())][a][fPair], err = loadData(cfg, exch, fPair, a)
+		e, err := loadData(cfg, exch, p, a)
 		if err != nil {
-			return e, err
+			return resp, err
 		}
+		bt.Datas.AddDataForCurrency(z, a, p, e)
 		var makerFee, takerFee float64
 
 		if cfg.CurrencySettings[i].MakerFee > 0 {
@@ -161,9 +159,9 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 		if makerFee == 0 || takerFee == 0 {
 			var apiMakerFee, apiTakerFee float64
-			apiMakerFee, apiTakerFee, err = getFees(exch, fPair)
+			apiMakerFee, apiTakerFee, err = getFees(exch, p)
 			if err != nil {
-				return e, err
+				return resp, err
 			}
 			if makerFee == 0 {
 				makerFee = apiMakerFee
@@ -183,12 +181,12 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 
-		e.CurrencySettings = append(e.CurrencySettings, exchange.CurrencySettings{
+		resp.CurrencySettings = append(resp.CurrencySettings, exchange.CurrencySettings{
 			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
 			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
 			MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
 			MaximumSlippageRate: cfg.CurrencySettings[i].MaximumSlippagePercent,
-			CurrencyPair:        fPair,
+			CurrencyPair:        p,
 			AssetType:           a,
 			ExchangeFee:         takerFee,
 			MakerFee:            takerFee,
@@ -210,7 +208,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		})
 	}
 
-	return e, nil
+	return resp, nil
 }
 
 func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gctexchange.IBotExchange, currency.Pair, asset.Item, error) {
@@ -244,6 +242,8 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 	return e, fPair, a, nil
 }
 
+// engineBotSetup sets up a basic bot to retrieve exchange data
+// as well as process orders
 func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 	var err error
 	engine.Bot, err = engine.NewFromSettings(&engine.Settings{
@@ -271,6 +271,7 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 	return nil
 }
 
+// getFees will return an exchange's fee rate from GCT's wrapper function
 func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float64, takerFee float64, err error) {
 	takerFee, err = exch.GetFeeByType(&gctexchange.FeeBuilder{
 		FeeType:       gctexchange.OfflineTradeFee,
@@ -297,6 +298,8 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float
 	return makerFee, takerFee, err
 }
 
+// loadData will create kline data from the sources defined in strat config files. It can exist from databases, csv or API endpoints
+// it can also be generated from trade data which will be converted into kline data
 func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	base := exch.GetBase()
 	if cfg.DatabaseData == nil && cfg.LiveData == nil && cfg.APIData == nil && cfg.CSVData == nil {
@@ -375,6 +378,8 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 	return resp, nil
 }
 
+// loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
+// from live. Its purpose is to be able to perform strategy analysis against current data
 func loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
 	candles, err := live.LoadData(exch, cfg.LiveData.DataType, cfg.LiveData.Interval, fPair, a)
 	if err != nil {
@@ -400,168 +405,90 @@ func (bt *BackTest) Stop() {
 	bt.shutdown <- struct{}{}
 }
 
-func (bt *BackTest) PrintSettings(cfg *config.Config) {
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Backtester Settings------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Strategy Settings--------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Strategy: %s", bt.Strategy.Name())
-	if len(cfg.StrategySettings.CustomSettings) > 0 {
-		log.Info(log.BackTester, "Custom strategy variables:")
-		for k, v := range cfg.StrategySettings.CustomSettings {
-			log.Infof(log.BackTester, "%s: %v", k, v)
-		}
-	} else {
-		log.Info(log.BackTester, "Custom strategy variables: unset")
-	}
-	log.Infof(log.BackTester, "MultiCurrency Assessment: %v", cfg.StrategySettings.IsMultiCurrency)
-	for i := range cfg.CurrencySettings {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		currStr := fmt.Sprintf("------------------%v %v-%v Settings--------------------------",
-			cfg.CurrencySettings[i].Asset,
-			cfg.CurrencySettings[i].Base,
-			cfg.CurrencySettings[i].Quote)
-		log.Infof(log.BackTester, currStr[:61])
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Exchange: %v", cfg.CurrencySettings[i].ExchangeName)
-		log.Infof(log.BackTester, "Initial funds: %v", cfg.CurrencySettings[i].InitialFunds)
-		log.Infof(log.BackTester, "Maker fee: %v", cfg.CurrencySettings[i].TakerFee)
-		log.Infof(log.BackTester, "Taker fee: %v", cfg.CurrencySettings[i].MakerFee)
-		log.Infof(log.BackTester, "Buy rules: %+v", cfg.CurrencySettings[i].BuySide)
-		log.Infof(log.BackTester, "Sell rules: %+v", cfg.CurrencySettings[i].SellSide)
-		log.Infof(log.BackTester, "Leverage rules: %+v", cfg.CurrencySettings[i].Leverage)
-	}
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Buy rules: %+v", cfg.PortfolioSettings.BuySide)
-	log.Infof(log.BackTester, "Sell rules: %+v", cfg.PortfolioSettings.SellSide)
-	log.Infof(log.BackTester, "Leverage rules: %+v", cfg.PortfolioSettings.Leverage)
-	if cfg.LiveData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------Live Settings------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.LiveData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.LiveData.Interval)
-		log.Infof(log.BackTester, "REAL ORDERS: %v", cfg.LiveData.RealOrders)
-		log.Infof(log.BackTester, "Overriding GCT API settings: %v", cfg.LiveData.APIClientIDOverride != "")
-	}
-	if cfg.APIData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------API Settings-------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.APIData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.APIData.Interval)
-		log.Infof(log.BackTester, "Start date: %v", cfg.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", cfg.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
-	}
-	if cfg.CSVData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------CSV Settings-------------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.CSVData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.CSVData.Interval)
-	}
-	if cfg.DatabaseData != nil {
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Info(log.BackTester, "------------------Database Settings--------------------------")
-		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.DatabaseData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.DatabaseData.Interval)
-		log.Infof(log.BackTester, "Start date: %v", cfg.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", cfg.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
-	}
-	log.Info(log.BackTester, "-------------------------------------------------------------")
-}
-
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() error {
 dataLoadingIssue:
-	for event, ok := bt.nextEvent(); true; event, ok = bt.nextEvent() {
+	for ev, ok := bt.EventQueue.NextEvent(); true; ev, ok = bt.EventQueue.NextEvent() {
 		if !ok {
-			for i, e := range bt.Datas {
+			d := bt.Datas.GetAllData()
+			for i, e := range d {
 				for j, a := range e {
 					var z int64
 					for k, p := range a {
 						d, ok := p.Next()
 						if !ok {
-							log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", i, j, k)
+							if !hasHandledAnEvent {
+								log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", i, j, k)
+							}
 							break dataLoadingIssue
 						}
 						if bt.Strategy.IsMultiCurrency() && z != 0 {
 							continue
 						}
-						bt.EventQueue = append(bt.EventQueue, d)
+						bt.EventQueue.AppendEvent(d)
 						z++
 					}
 				}
 			}
 		}
 
-		err := bt.handleEvent(event)
+		err := bt.handleEvent(ev)
 		if err != nil {
 			return err
 		}
-		bt.Statistic.TrackEvent(event)
+		if !hasHandledAnEvent {
+			hasHandledAnEvent = true
+		}
+		//bt.Statistic.TrackEvent(ev)
 	}
 
 	return nil
 }
 
-func (bt *BackTest) nextEvent() (e interfaces.EventHandler, ok bool) {
-	if len(bt.EventQueue) == 0 {
-		return e, false
-	}
-
-	e = bt.EventQueue[0]
-	bt.EventQueue = bt.EventQueue[1:]
-
-	return e, true
-}
-
 // handleEvent switches based on the eventHandler type
 // it will then act on the event and if needed, will add more events to the queue to be handled
 func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
-	switch event := e.(type) {
+	switch ev := e.(type) {
 	case interfaces.DataEventHandler:
-		bt.appendSignalEventsFromDataEvents(event)
+		bt.appendSignalEventsFromDataEvents(ev)
 	case signal.SignalEvent:
-		cs := bt.Exchange.GetCurrencySettings(event.GetExchange(), event.GetAssetType(), event.Pair())
-		o, err := bt.Portfolio.OnSignal(event, bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()], &cs)
+		cs := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		o, err := bt.Portfolio.OnSignal(ev, d, &cs)
 		if err != nil {
 			bt.Statistic.AddExchangeEventForTime(o)
 			break
 		}
 
-		bt.EventQueue = append(bt.EventQueue, o)
+		bt.EventQueue.AppendEvent(o)
 	case order.OrderEvent:
-		f, err := bt.Exchange.ExecuteOrder(event, bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()])
+		d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		f, err := bt.Exchange.ExecuteOrder(ev, d)
 		if err != nil {
 			bt.Statistic.AddFillEventForTime(f)
 			break
 		}
-		bt.EventQueue = append(bt.EventQueue, f)
+		bt.EventQueue.AppendEvent(f)
 	case fill.FillEvent:
-		t, err := bt.Portfolio.OnFill(event, bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()])
+		d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+		t, err := bt.Portfolio.OnFill(ev, d)
 		if err != nil {
 			bt.Statistic.AddFillEventForTime(t)
 			break
 		}
-		holding := bt.Portfolio.ViewHoldingAtTimePeriod(event.GetExchange(), event.GetAssetType(), event.Pair(), event.GetTime())
+		holding := bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
 		bt.Statistic.AddHoldingsForTime(holding)
-		cp, err := bt.Portfolio.GetComplianceManager(event.GetExchange(), event.GetAssetType(), event.Pair())
+		cp, err := bt.Portfolio.GetComplianceManager(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 		if err != nil {
 			log.Error(log.BackTester, err)
 		}
-		snap, err := cp.GetSnapshot(event.GetTime())
+		snap, err := cp.GetSnapshot(ev.GetTime())
 		if err != nil {
 			log.Error(log.BackTester, err)
 		}
-		bt.Statistic.AddComplianceSnapshotForTime(snap, event)
+		bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
 		bt.Statistic.AddFillEventForTime(t)
-		bt.Statistic.TrackTransaction(t)
 	}
 
 	return nil
@@ -578,7 +505,8 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 func (bt *BackTest) appendSignalEventsFromDataEvents(e interfaces.DataEventHandler) {
 	if bt.Strategy.IsMultiCurrency() {
 		var dataEvents []data.Handler
-		for _, e := range bt.Datas {
+		ad := bt.Datas.GetAllData()
+		for _, e := range ad {
 			for _, a := range e {
 				for _, p := range a {
 					latestData := p.Latest()
@@ -595,18 +523,17 @@ func (bt *BackTest) appendSignalEventsFromDataEvents(e interfaces.DataEventHandl
 			return
 		}
 		for i := range signals {
-			bt.EventQueue = append(bt.EventQueue, signals[i])
+			bt.EventQueue.AppendEvent(signals[i])
 		}
 	} else {
 		bt.updateStatsForDataEvent(e)
-
-		s, err := bt.Strategy.OnSignal(bt.Datas[e.GetExchange()][e.GetAssetType()][e.Pair()], bt.Portfolio)
+		d := bt.Datas.GetDataForCurrency(e.GetExchange(), e.GetAssetType(), e.Pair())
+		s, err := bt.Strategy.OnSignal(d, bt.Portfolio)
 		if err != nil {
 			bt.Statistic.AddSignalEventForTime(s)
 			return
 		}
-
-		bt.EventQueue = append(bt.EventQueue, s)
+		bt.EventQueue.AppendEvent(s)
 	}
 }
 
@@ -616,7 +543,6 @@ func (bt *BackTest) updateStatsForDataEvent(e interfaces.DataEventHandler) {
 	// update portfolio with latest price
 	bt.Portfolio.Update(e)
 	// update statistics with latest price
-	bt.Statistic.Update(e, bt.Portfolio)
 	bt.Statistic.AddDataEventForTime(e)
 }
 
@@ -637,22 +563,23 @@ func (bt *BackTest) RunLive() error {
 			//
 			// Go get latest candle of interval X, verify that it hasn't been run before, then append the event
 			//
-			for event, ok := bt.nextEvent(); true; event, ok = bt.nextEvent() {
+			for e, ok := bt.EventQueue.NextEvent(); true; e, ok = bt.EventQueue.NextEvent() {
 				doneARun = true
 				if !ok {
-					d, ok := bt.Datas[event.GetExchange()][event.GetAssetType()][event.Pair()].Next()
+					d := bt.Datas.GetDataForCurrency(e.GetExchange(), e.GetAssetType(), e.Pair())
+					de, ok := d.Next()
 					if !ok {
 						break
 					}
-					bt.EventQueue = append(bt.EventQueue, d)
+					bt.EventQueue.AppendEvent(de)
 					continue
 				}
 
-				err := bt.handleEvent(event)
+				err := bt.handleEvent(e)
 				if err != nil {
 					return err
 				}
-				bt.Statistic.TrackEvent(event)
+				//	bt.Statistic.TrackEvent(event)
 			}
 			if doneARun {
 				timerino = time.NewTimer(time.Minute * 5)

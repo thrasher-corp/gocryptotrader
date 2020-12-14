@@ -2,6 +2,7 @@ package backtest
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -10,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -19,13 +19,13 @@ import (
 // BackTest is the main hodler of all backtesting
 type BackTest struct {
 	shutdown     chan struct{}
-	Datas        map[string]map[asset.Item]map[currency.Pair]data.Handler
+	Datas        data.Holder
 	AllTheThings UltimateHolderOfAllThings
 	Strategy     strategies.Handler
 	Portfolio    portfolio.Handler
 	Exchange     exchange.ExecutionHandler
 	Statistic    statistics.Handler
-	EventQueue   []interfaces.EventHandler
+	EventQueue   eventholder.EventHolder
 	Bot          *engine.Engine
 }
 
@@ -42,3 +42,5 @@ type AllTheThings struct {
 	ExchangeAssetPairSettings portfolio.ExchangeAssetPairSettings
 	RiskSettings              risk.Settings
 }
+
+var hasHandledAnEvent bool
