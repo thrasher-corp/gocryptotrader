@@ -196,6 +196,7 @@ type TradeHistory struct {
 	Timestamp   time.Time
 	IsMaker     bool
 	FeeAsset    string
+	Total       float64
 }
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
