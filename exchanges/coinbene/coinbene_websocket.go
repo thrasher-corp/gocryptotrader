@@ -237,6 +237,10 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
+		if len(orderBook.Data) != 1 {
+			return errors.New("incomplete orderbook data has been received")
+		}
+
 		newPair, err = c.getCurrencyFromWsTopic(assetType, orderBook.Topic)
 		if err != nil {
 			return err
