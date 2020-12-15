@@ -81,7 +81,8 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		ob.updateByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot].ob, update)
+		holder := ob.ob[cp.Base][cp.Quote][asset.Spot]
+		holder.updateByPrice(update)
 	}
 }
 
@@ -100,7 +101,8 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
 		}
-		ob.updateByPrice(ob.ob[cp.Base][cp.Quote][asset.Spot].ob, update)
+		holder := ob.ob[cp.Base][cp.Quote][asset.Spot]
+		holder.updateByPrice(update)
 	}
 }
 
@@ -250,7 +252,8 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot].ob, &Update{
+	holder := obl.ob[cp.Base][cp.Quote][asset.Spot]
+	holder.updateByPrice(&Update{
 		Bids:       itemArray[5],
 		Asks:       itemArray[5],
 		Pair:       cp,
@@ -261,7 +264,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot].ob, &Update{
+	holder.updateByPrice(&Update{
 		Bids:       itemArray[0],
 		Asks:       itemArray[0],
 		Pair:       cp,
@@ -272,7 +275,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) != 3 {
+	if len(holder.ob.Asks) != 3 {
 		t.Error("Did not update")
 	}
 }
@@ -766,7 +769,8 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 	}
 
 	asks := bidAskGenerator()
-	obl.updateByPrice(obl.ob[cp.Base][cp.Quote][asset.Spot].ob, &Update{
+	holder := obl.ob[cp.Base][cp.Quote][asset.Spot]
+	holder.updateByPrice(&Update{
 		Bids:       asks,
 		Asks:       asks,
 		Pair:       cp,
@@ -777,7 +781,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) <= 3 {
+	if len(holder.ob.Asks) <= 3 {
 		t.Errorf("Insufficient updates")
 	}
 }
@@ -849,7 +853,7 @@ func deploySliceOrdered(size int) []orderbook.Item {
 }
 
 func TestUpdateByIDAndAction(t *testing.T) {
-	w := Orderbook{}
+	holder := orderbookHolder{}
 
 	asks := deploySliceOrdered(100)
 	bids := append(asks[:0:0], asks...)
@@ -865,12 +869,14 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = w.updateByIDAndAction(book, &Update{})
+	holder.ob = book
+
+	err = holder.updateByIDAndAction(&Update{})
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
-	err = w.updateByIDAndAction(book, &Update{
+	err = holder.updateByIDAndAction(&Update{
 		Action: Amend,
 		Bids: []orderbook.Item{
 			{
@@ -884,7 +890,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	// append to slice
-	err = w.updateByIDAndAction(book, &Update{
+	err = holder.updateByIDAndAction(&Update{
 		Action: UpdateInsert,
 		Bids: []orderbook.Item{
 			{
@@ -911,7 +917,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	// Change amount
-	err = w.updateByIDAndAction(book, &Update{
+	err = holder.updateByIDAndAction(&Update{
 		Action: UpdateInsert,
 		Bids: []orderbook.Item{
 			{
@@ -941,7 +947,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	// Change price level
-	err = w.updateByIDAndAction(book, &Update{
+	err = holder.updateByIDAndAction(&Update{
 		Action: UpdateInsert,
 		Bids: []orderbook.Item{
 			{
@@ -974,7 +980,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	book.Asks = append(asks[:0:0], asks...) // nolint:gocritic
 
 	// Delete - not found
-	err = w.updateByIDAndAction(book, &Update{
+	err = holder.updateByIDAndAction(&Update{
 		Action: Delete,
 		Asks: []orderbook.Item{
 			{
@@ -987,7 +993,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
-	err = w.updateByIDAndAction(book, &Update{
+	err = holder.updateByIDAndAction(&Update{
 		Action: Delete,
 		Bids: []orderbook.Item{
 			{
@@ -1002,7 +1008,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	// Delete - found
-	err = w.updateByIDAndAction(book, &Update{
+	err = holder.updateByIDAndAction(&Update{
 		Action: Delete,
 		Asks: []orderbook.Item{
 			asks[0],
@@ -1017,7 +1023,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	}
 
 	// Apply update
-	err = w.updateByIDAndAction(book, &Update{
+	err = holder.updateByIDAndAction(&Update{
 		Action: Amend,
 		Asks: []orderbook.Item{
 			{ID: 123456},
@@ -1030,7 +1036,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	update := book.Asks[0]
 	update.Amount = 1337
 
-	err = w.updateByIDAndAction(book, &Update{
+	err = holder.updateByIDAndAction(&Update{
 		Action: Amend,
 		Asks: []orderbook.Item{
 			update,

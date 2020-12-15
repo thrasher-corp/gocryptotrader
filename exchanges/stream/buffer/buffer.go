@@ -86,7 +86,7 @@ func (w *Orderbook) Update(u *Update) error {
 			return nil
 		}
 	} else {
-		err := w.processObUpdate(obLookup.ob, u)
+		err := w.processObUpdate(obLookup, u)
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, er
 		}
 	}
 	for i := range *o.buffer {
-		err := w.processObUpdate(o.ob, &(*o.buffer)[i])
+		err := w.processObUpdate(o, &(*o.buffer)[i])
 		if err != nil {
 			return false, err
 		}
@@ -138,115 +138,115 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, er
 
 // processObUpdate processes updates either by its corresponding id or by
 // price level
-func (w *Orderbook) processObUpdate(o *orderbook.Base, u *Update) error {
-	o.LastUpdateID = u.UpdateID
+func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
+	o.ob.LastUpdateID = u.UpdateID
 	if w.updateEntriesByID {
-		return w.updateByIDAndAction(o, u)
+		return o.updateByIDAndAction(u)
 	}
-	return w.updateByPrice(o, u)
+	return o.updateByPrice(u)
 }
 
 // updateByPrice ammends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
-func (w *Orderbook) updateByPrice(book *orderbook.Base, updts *Update) error {
+func (o *orderbookHolder) updateByPrice(updts *Update) error {
 askUpdates:
 	for j := range updts.Asks {
-		for target := range book.Asks {
-			if book.Asks[target].Price == updts.Asks[j].Price {
+		for target := range o.ob.Asks {
+			if o.ob.Asks[target].Price == updts.Asks[j].Price {
 				if updts.Asks[j].Amount == 0 {
-					book.Asks = append(book.Asks[:target], book.Asks[target+1:]...)
+					o.ob.Asks = append(o.ob.Asks[:target], o.ob.Asks[target+1:]...)
 					continue askUpdates
 				}
-				book.Asks[target].Amount = updts.Asks[j].Amount
+				o.ob.Asks[target].Amount = updts.Asks[j].Amount
 				continue askUpdates
 			}
 		}
 		if updts.Asks[j].Amount <= 0 {
 			continue
 		}
-		insertAsk(updts.Asks[j], &book.Asks)
+		insertAsk(updts.Asks[j], &o.ob.Asks)
 	}
 bidUpdates:
 	for j := range updts.Bids {
-		for target := range book.Bids {
-			if book.Bids[target].Price == updts.Bids[j].Price {
+		for target := range o.ob.Bids {
+			if o.ob.Bids[target].Price == updts.Bids[j].Price {
 				if updts.Bids[j].Amount == 0 {
-					book.Bids = append(book.Bids[:target], book.Bids[target+1:]...)
+					o.ob.Bids = append(o.ob.Bids[:target], o.ob.Bids[target+1:]...)
 					continue bidUpdates
 				}
-				book.Bids[target].Amount = updts.Bids[j].Amount
+				o.ob.Bids[target].Amount = updts.Bids[j].Amount
 				continue bidUpdates
 			}
 		}
 		if updts.Bids[j].Amount <= 0 {
 			continue
 		}
-		insertBid(updts.Bids[j], &book.Bids)
+		insertBid(updts.Bids[j], &o.ob.Bids)
 	}
 	return nil
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
 // it will then match by IDs instead of price to perform the action
-func (w *Orderbook) updateByIDAndAction(book *orderbook.Base, updts *Update) (err error) {
+func (o *orderbookHolder) updateByIDAndAction(updts *Update) (err error) {
 	switch updts.Action {
 	case Amend:
-		err = applyUpdates(updts.Bids, book.Bids)
+		err = applyUpdates(updts.Bids, o.ob.Bids)
 		if err != nil {
 			return err
 		}
-		err = applyUpdates(updts.Asks, book.Asks)
+		err = applyUpdates(updts.Asks, o.ob.Asks)
 		if err != nil {
 			return err
 		}
 	case Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
-		bypassErr := w.exchangeName == "bitfinex" && book.IsFundingRate
-		err = deleteUpdates(updts.Bids, &book.Bids, bypassErr)
+		bypassErr := o.ob.ExchangeName == "bitfinex" && o.ob.IsFundingRate
+		err = deleteUpdates(updts.Bids, &o.ob.Bids, bypassErr)
 		if err != nil {
 			return err
 		}
-		err = deleteUpdates(updts.Asks, &book.Asks, bypassErr)
+		err = deleteUpdates(updts.Asks, &o.ob.Asks, bypassErr)
 		if err != nil {
 			return err
 		}
 	case Insert:
-		insertUpdatesBid(updts.Bids, &book.Bids)
-		insertUpdatesAsk(updts.Asks, &book.Asks)
+		insertUpdatesBid(updts.Bids, &o.ob.Bids)
+		insertUpdatesAsk(updts.Asks, &o.ob.Asks)
 	case UpdateInsert:
 	updateBids:
 		for x := range updts.Bids {
-			for target := range book.Bids { // First iteration finds ID matches
-				if book.Bids[target].ID == updts.Bids[x].ID {
-					if book.Bids[target].Price != updts.Bids[x].Price {
+			for target := range o.ob.Bids { // First iteration finds ID matches
+				if o.ob.Bids[target].ID == updts.Bids[x].ID {
+					if o.ob.Bids[target].Price != updts.Bids[x].Price {
 						// Price change occurred so correct bid alignment is
 						// needed - delete instance and insert into correct
 						// price level
-						book.Bids = append(book.Bids[:target], book.Bids[target+1:]...)
+						o.ob.Bids = append(o.ob.Bids[:target], o.ob.Bids[target+1:]...)
 						break
 					}
-					book.Bids[target].Amount = updts.Bids[x].Amount
+					o.ob.Bids[target].Amount = updts.Bids[x].Amount
 					continue updateBids
 				}
 			}
-			insertBid(updts.Bids[x], &book.Bids)
+			insertBid(updts.Bids[x], &o.ob.Bids)
 		}
 	updateAsks:
 		for x := range updts.Asks {
-			for target := range book.Asks {
-				if book.Asks[target].ID == updts.Asks[x].ID {
-					if book.Asks[target].Price != updts.Asks[x].Price {
+			for target := range o.ob.Asks {
+				if o.ob.Asks[target].ID == updts.Asks[x].ID {
+					if o.ob.Asks[target].Price != updts.Asks[x].Price {
 						// Price change occurred so correct ask alignment is
 						// needed - delete instance and insert into correct
 						// price level
-						book.Asks = append(book.Asks[:target], book.Asks[target+1:]...)
+						o.ob.Asks = append(o.ob.Asks[:target], o.ob.Asks[target+1:]...)
 						break
 					}
-					book.Asks[target].Amount = updts.Asks[x].Amount
+					o.ob.Asks[target].Amount = updts.Asks[x].Amount
 					continue updateAsks
 				}
 			}
-			insertAsk(updts.Asks[x], &book.Asks)
+			insertAsk(updts.Asks[x], &o.ob.Asks)
 		}
 	default:
 		return fmt.Errorf("invalid action [%s]", updts.Action)
