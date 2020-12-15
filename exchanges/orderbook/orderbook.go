@@ -211,7 +211,7 @@ func (b *Base) Verify() error {
 		if b.Bids[i].Amount <= 0 {
 			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountInvalid)
 		}
-		if b.FundingRate && b.Bids[i].Period == 0 {
+		if b.IsFundingRate && b.Bids[i].Period == 0 {
 			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPeriodUnset)
 		}
 		if i != 0 {
@@ -236,7 +236,7 @@ func (b *Base) Verify() error {
 		if b.Asks[i].Amount <= 0 {
 			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountInvalid)
 		}
-		if b.FundingRate && b.Asks[i].Period == 0 {
+		if b.IsFundingRate && b.Asks[i].Period == 0 {
 			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPeriodUnset)
 		}
 		if i != 0 {

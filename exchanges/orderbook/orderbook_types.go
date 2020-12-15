@@ -82,7 +82,7 @@ type Base struct {
 	// NotAggregated defines whether an orderbook can contain duplicate prices
 	// in a payload
 	NotAggregated bool `json:"-"`
-	FundingRate   bool `json:"fundingRate"`
+	IsFundingRate bool `json:"fundingRate"`
 }
 
 type byOBPrice []Item

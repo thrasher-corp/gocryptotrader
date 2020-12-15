@@ -154,12 +154,12 @@ func TestVerify(t *testing.T) {
 	}
 
 	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
-	b.FundingRate = true
+	b.IsFundingRate = true
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errPeriodUnset) {
 		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
 	}
-	b.FundingRate = false
+	b.IsFundingRate = false
 
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errOutOfOrder) {
@@ -191,12 +191,12 @@ func TestVerify(t *testing.T) {
 	}
 
 	b.Bids = []Item{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
-	b.FundingRate = true
+	b.IsFundingRate = true
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errPeriodUnset) {
 		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
 	}
-	b.FundingRate = false
+	b.IsFundingRate = false
 
 	err = b.Verify()
 	if err == nil || !errors.Is(err, errOutOfOrder) {

@@ -898,7 +898,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.Pair = p
 	book.ExchangeName = b.Name
 	book.NotAggregated = true
-	book.FundingRate = fundingRate
+	book.IsFundingRate = fundingRate
 	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
