@@ -362,7 +362,7 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 				Price:  orderbookNew[i].Price})
 		default:
 			return nil,
-				fmt.Errorf("could update orderbook order side could not be matched for %s",
+				fmt.Errorf("could not process orderbook, order side [%s] could not be matched",
 					orderbookNew[i].Side)
 		}
 	}
