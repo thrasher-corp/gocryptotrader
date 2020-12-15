@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
@@ -61,9 +62,8 @@ func main() {
 	if err != nil {
 		gctlog.Error(gctlog.BackTester, err)
 	}
-
-	hi := bt.Statistic.Serialise()
-	if hi == "" {
-
+	err = report.GenerateReport(bt.Statistic.GetBase())
+	if err != nil {
+		gctlog.Error(gctlog.BackTester, err)
 	}
 }

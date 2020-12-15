@@ -17,7 +17,10 @@ import (
 
 // Statistic
 type Statistic struct {
-	StrategyName                string
+	StrategyName                string                                                                           `json:"strategy-name"`
+	StartDate                   time.Time                                                                        `json:"start-date"`
+	IntervalSize                time.Duration                                                                    `json:"interval-size"`
+	EndDate                     time.Time                                                                        `json:"end-date"`
 	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic `json:"-"`
 	RiskFreeRate                float64                                                                          `json:"risk-free-rate"`
 	TotalBuyOrders              int64                                                                            `json:"total-buy-orders"`
@@ -26,7 +29,7 @@ type Statistic struct {
 	BiggestDrawdown             *FinalResultsHolder                                                              `json:"biggest-drawdown,omitempty"`
 	BestStrategyResults         *FinalResultsHolder                                                              `json:"best-strat-results,omitempty"`
 	BestMarketMovement          *FinalResultsHolder                                                              `json:"best-market-movement,omitempty"`
-	AllStats                    []currencystatstics.CurrencyStatistic                                            `json:"results"`
+	AllStats                    []currencystatstics.CurrencyStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
 }
 
 type FinalResultsHolder struct {
@@ -50,6 +53,7 @@ type Handler interface {
 	CalculateTheResults() error
 	Reset()
 	Serialise() string
+	GetBase() Statistic
 }
 
 type Results struct {
