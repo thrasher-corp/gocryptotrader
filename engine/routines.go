@@ -149,54 +149,33 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	bidsAmount, bidsValue := result.TotalBidsAmount()
 	asksAmount, asksValue := result.TotalAsksAmount()
 
+	var bidValueResult, askValueResult string
 	switch {
 	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency:
 		origCurrency := result.Pair.Quote.Upper()
-		log.Infof(log.OrderBook, book,
-			result.ExchangeName,
-			protocol,
-			FormatCurrency(result.Pair),
-			strings.ToUpper(result.AssetType.String()),
-			len(result.Bids),
-			bidsAmount,
-			result.Pair.Base,
-			printConvertCurrencyFormat(origCurrency, bidsValue),
-			len(result.Asks),
-			asksAmount,
-			result.Pair.Base,
-			printConvertCurrencyFormat(origCurrency, asksValue),
-		)
+		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue)
+		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue)
 	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency:
-		log.Infof(log.OrderBook, book,
-			result.ExchangeName,
-			protocol,
-			FormatCurrency(result.Pair),
-			strings.ToUpper(result.AssetType.String()),
-			len(result.Bids),
-			bidsAmount,
-			result.Pair.Base,
-			printCurrencyFormat(bidsValue),
-			len(result.Asks),
-			asksAmount,
-			result.Pair.Base,
-			printCurrencyFormat(asksValue),
-		)
+		bidValueResult = printCurrencyFormat(bidsValue)
+		askValueResult = printCurrencyFormat(asksValue)
 	default:
-		log.Infof(log.OrderBook, book,
-			result.ExchangeName,
-			protocol,
-			FormatCurrency(result.Pair),
-			strings.ToUpper(result.AssetType.String()),
-			len(result.Bids),
-			bidsAmount,
-			result.Pair.Base,
-			strconv.FormatFloat(bidsValue, 'f', -1, 64),
-			len(result.Asks),
-			asksAmount,
-			result.Pair.Base,
-			strconv.FormatFloat(asksValue, 'f', -1, 64),
-		)
+		bidValueResult = strconv.FormatFloat(bidsValue, 'f', -1, 64)
+		askValueResult = strconv.FormatFloat(asksValue, 'f', -1, 64)
 	}
+	log.Infof(log.OrderBook, book,
+		result.ExchangeName,
+		protocol,
+		FormatCurrency(result.Pair),
+		strings.ToUpper(result.AssetType.String()),
+		len(result.Bids),
+		bidsAmount,
+		result.Pair.Base,
+		bidValueResult,
+		len(result.Asks),
+		asksAmount,
+		result.Pair.Base,
+		askValueResult,
+	)
 }
 
 func relayWebsocketEvent(result interface{}, event, assetType, exchangeName string) {
