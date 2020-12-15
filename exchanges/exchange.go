@@ -1166,3 +1166,12 @@ func (e *Endpoints) GetURLMap() map[string]string {
 	e.RUnlock()
 	return urlMap
 }
+
+// FormatSymbol formats the given pair to a string suitable for exchange API requests
+func (e *Base) FormatSymbol(pair currency.Pair, assetType asset.Item) (string, error) {
+	pairFmt, err := e.GetPairFormat(assetType, true)
+	if err != nil {
+		return pair.String(), err
+	}
+	return pairFmt.Format(pair), nil
+}

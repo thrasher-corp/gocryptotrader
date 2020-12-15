@@ -397,13 +397,9 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := k.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
 	switch assetType {
 	case asset.Spot:
-		t, err := k.GetTicker(fPair.String())
+		t, err := k.GetTicker(p)
 		if err != nil {
 			return nil, err
 		}
@@ -470,15 +466,10 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fpair, err := k.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
 	var orderBook = new(orderbook.Base)
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew Orderbook
-		orderbookNew, err = k.GetDepth(fpair.String())
+		orderbookNew, err := k.GetDepth(p)
 		if err != nil {
 			return nil, err
 		}
@@ -495,8 +486,7 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 			})
 		}
 	case asset.Futures:
-		var futuresOB FuturesOrderbookData
-		futuresOB, err = k.GetFuturesOrderbook(fpair.String())
+		futuresOB, err := k.GetFuturesOrderbook(p)
 		if err != nil {
 			return nil, err
 		}
@@ -518,7 +508,7 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	orderBook.Pair = p
 	orderBook.ExchangeName = k.Name
 	orderBook.AssetType = assetType
-	err = orderBook.Process()
+	err := orderBook.Process()
 	if err != nil {
 		return orderBook, err
 	}
@@ -626,12 +616,8 @@ func (k *Kraken) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdra
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (k *Kraken) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
-	p, err = k.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
 	var tradeData []RecentTrades
-	tradeData, err = k.GetTrades(assetTranslator.LookupCurrency(p.String()))
+	tradeData, err = k.GetTrades(p)
 	if err != nil {
 		return nil, err
 	}
@@ -691,12 +677,8 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			submitOrderResponse.OrderID = resp
 			submitOrderResponse.IsOrderPlaced = true
 		} else {
-			fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Spot)
-			if err != nil {
-				return submitOrderResponse, err
-			}
 			var response AddOrderResponse
-			response, err = k.AddOrder(fPair.String(),
+			response, err = k.AddOrder(s.Pair,
 				s.Side.String(),
 				s.Type.String(),
 				s.Amount,
@@ -716,13 +698,9 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 		submitOrderResponse.IsOrderPlaced = true
 	case asset.Futures:
-		fPair, err := k.FormatExchangeCurrency(s.Pair, asset.Futures)
-		if err != nil {
-			return submitOrderResponse, err
-		}
 		order, err := k.FuturesSendOrder(
 			s.Type,
-			fPair.String(),
+			s.Pair,
 			s.Side.Lower(),
 			"",
 			s.ClientOrderID,
@@ -821,11 +799,7 @@ func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, er
 			}
 		}
 	case asset.Futures:
-		fPair, err := k.FormatExchangeCurrency(req.Pair, asset.Futures)
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
-		cancelData, err := k.FuturesCancelAllOrders(fPair.String())
+		cancelData, err := k.FuturesCancelAllOrders(req.Pair)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -1200,7 +1174,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 			if err != nil {
 				return orders, err
 			}
-			orderHistory, err = k.FuturesRecentOrders(fPair.String())
+			orderHistory, err = k.FuturesRecentOrders(pairs[p])
 			if err != nil {
 				return orders, err
 			}
@@ -1359,11 +1333,7 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		Asset:    a,
 		Interval: interval,
 	}
-	formattedPair, err := k.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(formattedPair.Upper().String()), k.FormatExchangeKlineInterval(interval))
+	candles, err := k.GetOHLC(pair, k.FormatExchangeKlineInterval(interval))
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -1399,11 +1369,7 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		Asset:    a,
 		Interval: interval,
 	}
-	formattedPair, err := k.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(formattedPair.Upper().String()), k.FormatExchangeKlineInterval(interval))
+	candles, err := k.GetOHLC(pair, k.FormatExchangeKlineInterval(interval))
 	if err != nil {
 		return kline.Item{}, err
 	}

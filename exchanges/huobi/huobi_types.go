@@ -1,6 +1,9 @@
 package huobi
 
-import "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
 
 type errorCapture struct {
 	Status    string `json:"status"`
@@ -2538,8 +2541,8 @@ var (
 
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
-	Symbol string                         `json:"symbol"` // Required; example LTCBTC,BTCUSDT
-	Type   OrderBookDataRequestParamsType `json:"type"`   // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
+	Symbol currency.Pair                  // Required; example LTCBTC,BTCUSDT
+	Type   OrderBookDataRequestParamsType `json:"type"` // step0, step1, step2, step3, step4, step5 (combined depth 0-5); when step0, no depth is merged
 }
 
 // Orderbook stores the orderbook data

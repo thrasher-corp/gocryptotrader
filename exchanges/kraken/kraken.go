@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -39,6 +40,17 @@ type Kraken struct {
 // FuturesBatchOrder places a batch order for futures
 func (k *Kraken) FuturesBatchOrder(data []PlaceBatchOrderData) (FuturesAccountsData, error) {
 	var resp FuturesAccountsData
+	for x := range data {
+		unformattedPair, err := currency.NewPairFromString(data[x].Symbol)
+		if err != nil {
+			return resp, err
+		}
+		formattedPair, err := k.FormatExchangeCurrency(unformattedPair, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		data[x].Symbol = formattedPair.String()
+	}
 	req := make(map[string]interface{})
 	req["batchOrder"] = data
 	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresBatchOrder, nil, req, &resp)
@@ -61,7 +73,7 @@ func (k *Kraken) FuturesEditOrder(orderID, clientOrderID string, size, limitPric
 }
 
 // FuturesSendOrder sends a futures order
-func (k *Kraken) FuturesSendOrder(orderType order.Type, symbol, side, triggerSignal, clientOrderID, reduceOnly string,
+func (k *Kraken) FuturesSendOrder(orderType order.Type, symbol currency.Pair, side, triggerSignal, clientOrderID, reduceOnly string,
 	size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
 	var resp FuturesSendOrderData
 	oType, ok := validOrderTypes[orderType]
@@ -70,7 +82,11 @@ func (k *Kraken) FuturesSendOrder(orderType order.Type, symbol, side, triggerSig
 	}
 	params := url.Values{}
 	params.Set("orderType", oType)
-	params.Set("symbol", symbol)
+	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 	if !common.StringDataCompare(validSide, side) {
 		return resp, errors.New("invalid side")
 	}
@@ -145,11 +161,15 @@ func (k *Kraken) FuturesNotifications() (FuturesNotificationData, error) {
 }
 
 // FuturesCancelAllOrders cancels all futures orders for a given symbol or all symbols
-func (k *Kraken) FuturesCancelAllOrders(symbol string) (CancelAllOrdersData, error) {
+func (k *Kraken) FuturesCancelAllOrders(symbol currency.Pair) (CancelAllOrdersData, error) {
 	var resp CancelAllOrdersData
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol != (currency.Pair{}) {
+		symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", symbolValue)
 	}
 	return resp, k.SendFuturesAuthRequest(http.MethodPost, futuresCancelAllOrders, params, nil, &resp)
 }
@@ -169,11 +189,15 @@ func (k *Kraken) FuturesOpenOrders() (FuturesOpenOrdersData, error) {
 }
 
 // FuturesRecentOrders gets recent futures orders for a symbol or all symbols
-func (k *Kraken) FuturesRecentOrders(symbol string) (FuturesRecentOrdersData, error) {
+func (k *Kraken) FuturesRecentOrders(symbol currency.Pair) (FuturesRecentOrdersData, error) {
 	var resp FuturesRecentOrdersData
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol != (currency.Pair{}) {
+		symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", symbolValue)
 	}
 	return resp, k.SendFuturesAuthRequest(http.MethodGet, futuresRecentOrders, nil, nil, &resp)
 }
@@ -241,10 +265,14 @@ func (k *Kraken) SeedAssets() error {
 }
 
 // GetFuturesOrderbook gets orderbook data for futures
-func (k *Kraken) GetFuturesOrderbook(symbol string) (FuturesOrderbookData, error) {
+func (k *Kraken) GetFuturesOrderbook(symbol currency.Pair) (FuturesOrderbookData, error) {
 	var resp FuturesOrderbookData
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 	return resp, k.SendHTTPRequest(exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
 }
 
@@ -261,10 +289,14 @@ func (k *Kraken) GetFuturesTickers() (FuturesTickerData, error) {
 }
 
 // GetFuturesTradeHistory gets public trade history data for futures
-func (k *Kraken) GetFuturesTradeHistory(symbol string, lastTime time.Time) (FuturesTradeHistoryData, error) {
+func (k *Kraken) GetFuturesTradeHistory(symbol currency.Pair, lastTime time.Time) (FuturesTradeHistoryData, error) {
 	var resp FuturesTradeHistoryData
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 	if !lastTime.IsZero() {
 		params.Set("lastTime", lastTime.Format("2006-01-02T15:04:05.070Z"))
 	}
@@ -313,10 +345,14 @@ func (k *Kraken) GetAssetPairs(assetPairs []string, info string) (map[string]Ass
 }
 
 // GetTicker returns ticker information from kraken
-func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
+func (k *Kraken) GetTicker(symbol currency.Pair) (Ticker, error) {
 	tick := Ticker{}
 	values := url.Values{}
-	values.Set("pair", symbol)
+	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
+	if err != nil {
+		return tick, err
+	}
+	values.Set("pair", symbolValue)
 
 	type Response struct {
 		Error []interface{}             `json:"error"`
@@ -326,7 +362,7 @@ func (k *Kraken) GetTicker(symbol string) (Ticker, error) {
 	resp := Response{}
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTicker, values.Encode())
 
-	err := k.SendHTTPRequest(exchange.RestSpot, path, &resp)
+	err = k.SendHTTPRequest(exchange.RestSpot, path, &resp)
 	if err != nil {
 		return tick, err
 	}
@@ -392,9 +428,17 @@ func (k *Kraken) GetTickers(pairList string) (map[string]Ticker, error) {
 }
 
 // GetOHLC returns an array of open high low close values of a currency pair
-func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
+func (k *Kraken) GetOHLC(symbol currency.Pair, interval string) ([]OpenHighLowClose, error) {
 	values := url.Values{}
-	values.Set("pair", symbol)
+	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	translatedAsset := assetTranslator.LookupCurrency(symbolValue)
+	if translatedAsset == "" {
+		translatedAsset = symbolValue
+	}
+	values.Set("pair", translatedAsset)
 	values.Set("interval", interval)
 	type Response struct {
 		Error []interface{}          `json:"error"`
@@ -406,7 +450,7 @@ func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenOHLC, values.Encode())
 
-	err := k.SendHTTPRequest(exchange.RestSpot, path, &result)
+	err = k.SendHTTPRequest(exchange.RestSpot, path, &result)
 	if err != nil {
 		return OHLC, err
 	}
@@ -415,12 +459,12 @@ func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
 		return OHLC, fmt.Errorf("getOHLC error: %s", result.Error)
 	}
 
-	_, ok := result.Data[symbol].([]interface{})
+	_, ok := result.Data[translatedAsset].([]interface{})
 	if !ok {
 		return nil, errors.New("invalid data returned")
 	}
 
-	for _, y := range result.Data[symbol].([]interface{}) {
+	for _, y := range result.Data[translatedAsset].([]interface{}) {
 		o := OpenHighLowClose{}
 		for i, x := range y.([]interface{}) {
 			switch i {
@@ -448,15 +492,17 @@ func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
 }
 
 // GetDepth returns the orderbook for a particular currency
-func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
-	values := url.Values{}
-	values.Set("pair", symbol)
-
+func (k *Kraken) GetDepth(symbol currency.Pair) (Orderbook, error) {
 	var result interface{}
 	var orderBook Orderbook
-
+	values := url.Values{}
+	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
+	if err != nil {
+		return orderBook, err
+	}
+	values.Set("pair", symbolValue)
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenDepth, values.Encode())
-	err := k.SendHTTPRequest(exchange.RestSpot, path, &result)
+	err = k.SendHTTPRequest(exchange.RestSpot, path, &result)
 	if err != nil {
 		return orderBook, err
 	}
@@ -509,16 +555,21 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 }
 
 // GetTrades returns current trades on Kraken
-func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
+func (k *Kraken) GetTrades(symbol currency.Pair) ([]RecentTrades, error) {
 	values := url.Values{}
-	values.Set("pair", symbol)
+	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	translatedAsset := assetTranslator.LookupCurrency(symbolValue)
+	values.Set("pair", translatedAsset)
 
 	var recentTrades []RecentTrades
 	var result interface{}
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTrades, values.Encode())
 
-	err := k.SendHTTPRequest(exchange.RestSpot, path, &result)
+	err = k.SendHTTPRequest(exchange.RestSpot, path, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -565,7 +616,7 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 
 	var trades []interface{}
 	var tradesForSymbol interface{}
-	tradesForSymbol, ok = tradeInfo[symbol]
+	tradesForSymbol, ok = tradeInfo[translatedAsset]
 	if !ok {
 		return nil, fmt.Errorf("no data returned for symbol %v", symbol)
 	}
@@ -615,16 +666,20 @@ func (k *Kraken) GetTrades(symbol string) ([]RecentTrades, error) {
 }
 
 // GetSpread returns the full spread on Kraken
-func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
+func (k *Kraken) GetSpread(symbol currency.Pair) ([]Spread, error) {
 	values := url.Values{}
-	values.Set("pair", symbol)
+	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	values.Set("pair", symbolValue)
 
 	var peanutButter []Spread
 	var response interface{}
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenSpread, values.Encode())
 
-	err := k.SendHTTPRequest(exchange.RestSpot, path, &response)
+	err = k.SendHTTPRequest(exchange.RestSpot, path, &response)
 	if err != nil {
 		return peanutButter, err
 	}
@@ -632,7 +687,7 @@ func (k *Kraken) GetSpread(symbol string) ([]Spread, error) {
 	data := response.(map[string]interface{})
 	result := data["result"].(map[string]interface{})
 
-	for _, x := range result[symbol].([]interface{}) {
+	for _, x := range result[symbolValue].([]interface{}) {
 		s := Spread{}
 		for i, y := range x.([]interface{}) {
 			switch i {
@@ -997,20 +1052,26 @@ func (k *Kraken) QueryLedgers(id string, ids ...string) (map[string]LedgerInfo, 
 }
 
 // GetTradeVolume returns your trade volume by currency
-func (k *Kraken) GetTradeVolume(feeinfo bool, symbol ...string) (TradeVolumeResponse, error) {
+func (k *Kraken) GetTradeVolume(feeinfo bool, symbol ...currency.Pair) (TradeVolumeResponse, error) {
+	var response struct {
+		Error  []string            `json:"error"`
+		Result TradeVolumeResponse `json:"result"`
+	}
 	params := url.Values{}
-
+	var formattedPairs []string
+	for x := range symbol {
+		symbolValue, err := k.FormatSymbol(symbol[x], asset.Spot)
+		if err != nil {
+			return response.Result, err
+		}
+		formattedPairs = append(formattedPairs, symbolValue)
+	}
 	if symbol != nil {
-		params.Set("pair", strings.Join(symbol, ","))
+		params.Set("pair", strings.Join(formattedPairs, ","))
 	}
 
 	if feeinfo {
 		params.Set("fee-info", "true")
-	}
-
-	var response struct {
-		Error  []string            `json:"error"`
-		Result TradeVolumeResponse `json:"result"`
 	}
 
 	if err := k.SendAuthenticatedHTTPRequest(exchange.RestSpot, krakenTradeVolume, params, &response); err != nil {
@@ -1021,9 +1082,17 @@ func (k *Kraken) GetTradeVolume(feeinfo bool, symbol ...string) (TradeVolumeResp
 }
 
 // AddOrder adds a new order for Kraken exchange
-func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2, leverage float64, args *AddOrderOptions) (AddOrderResponse, error) {
+func (k *Kraken) AddOrder(symbol currency.Pair, side, orderType string, volume, price, price2, leverage float64, args *AddOrderOptions) (AddOrderResponse, error) {
+	var response struct {
+		Error  []string         `json:"error"`
+		Result AddOrderResponse `json:"result"`
+	}
+	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
+	if err != nil {
+		return response.Result, err
+	}
 	params := url.Values{
-		"pair":      {symbol},
+		"pair":      {symbolValue},
 		"type":      {strings.ToLower(side)},
 		"ordertype": {strings.ToLower(orderType)},
 		"volume":    {strconv.FormatFloat(volume, 'f', -1, 64)},
@@ -1067,11 +1136,6 @@ func (k *Kraken) AddOrder(symbol, side, orderType string, volume, price, price2,
 
 	if args.Validate {
 		params.Set("validate", "true")
-	}
-
-	var response struct {
-		Error  []string         `json:"error"`
-		Result AddOrderResponse `json:"result"`
 	}
 
 	if err := k.SendAuthenticatedHTTPRequest(exchange.RestSpot, krakenOrderPlace, params, &response); err != nil {
@@ -1224,23 +1288,19 @@ func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values
 // GetFee returns an estimate of fee based on type of transaction
 func (k *Kraken) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	c := feeBuilder.Pair.Base.String() +
-		feeBuilder.Pair.Delimiter +
-		feeBuilder.Pair.Quote.String()
-
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		feePair, err := k.GetTradeVolume(true, c)
+		feePair, err := k.GetTradeVolume(true, feeBuilder.Pair)
 		if err != nil {
 			return 0, err
 		}
 		if feeBuilder.IsMaker {
-			fee = calculateTradingFee(c,
+			fee = calculateTradingFee(feePair.Currency,
 				feePair.FeesMaker,
 				feeBuilder.PurchasePrice,
 				feeBuilder.Amount)
 		} else {
-			fee = calculateTradingFee(c,
+			fee = calculateTradingFee(feePair.Currency,
 				feePair.Fees,
 				feeBuilder.PurchasePrice,
 				feeBuilder.Amount)

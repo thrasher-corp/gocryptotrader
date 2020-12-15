@@ -172,7 +172,7 @@ func (b *Binance) UFuturesOrderbook(symbol currency.Pair, limit int64) (OrderBoo
 	var resp OrderBook
 	var data OrderbookData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -226,7 +226,7 @@ func (b *Binance) UFuturesOrderbook(symbol currency.Pair, limit int64) (OrderBoo
 func (b *Binance) URecentTrades(symbol currency.Pair, fromID string, limit int64) ([]UPublicTradesData, error) {
 	var resp []UPublicTradesData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -244,7 +244,7 @@ func (b *Binance) URecentTrades(symbol currency.Pair, fromID string, limit int64
 func (b *Binance) UCompressedTrades(symbol currency.Pair, fromID string, limit int64, startTime, endTime time.Time) ([]UCompressedTradeData, error) {
 	var resp []UCompressedTradeData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -270,7 +270,7 @@ func (b *Binance) UKlineData(symbol currency.Pair, interval string, limit int64,
 	var data [][10]interface{}
 	var resp []FuturesCandleStick
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -385,7 +385,7 @@ func (b *Binance) UKlineData(symbol currency.Pair, interval string, limit int64,
 func (b *Binance) UGetMarkPrice(symbol currency.Pair) ([]UMarkPrice, error) {
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return nil, err
 		}
@@ -410,7 +410,7 @@ func (b *Binance) UGetFundingHistory(symbol currency.Pair, limit int64, startTim
 	var resp []FundingRateHistory
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -433,7 +433,7 @@ func (b *Binance) UGetFundingHistory(symbol currency.Pair, limit int64, startTim
 func (b *Binance) U24HTickerPriceChangeStats(symbol currency.Pair) ([]U24HrPriceChangeStats, error) {
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return nil, err
 		}
@@ -454,7 +454,7 @@ func (b *Binance) U24HTickerPriceChangeStats(symbol currency.Pair) ([]U24HrPrice
 func (b *Binance) USymbolPriceTicker(symbol currency.Pair) ([]USymbolPriceTicker, error) {
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return nil, err
 		}
@@ -475,7 +475,7 @@ func (b *Binance) USymbolPriceTicker(symbol currency.Pair) ([]USymbolPriceTicker
 func (b *Binance) USymbolOrderbookTicker(symbol currency.Pair) ([]USymbolOrderbookTicker, error) {
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return nil, err
 		}
@@ -497,7 +497,7 @@ func (b *Binance) ULiquidationOrders(symbol currency.Pair, limit int64, startTim
 	var resp []ULiquidationOrdersData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -520,7 +520,7 @@ func (b *Binance) ULiquidationOrders(symbol currency.Pair, limit int64, startTim
 func (b *Binance) UOpenInterest(symbol currency.Pair) (UOpenInterestData, error) {
 	var resp UOpenInterestData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -532,7 +532,7 @@ func (b *Binance) UOpenInterest(symbol currency.Pair) (UOpenInterestData, error)
 func (b *Binance) UOpenInterestStats(symbol currency.Pair, period string, limit int64, startTime, endTime time.Time) ([]UOpenInterestStats, error) {
 	var resp []UOpenInterestStats
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -558,7 +558,7 @@ func (b *Binance) UOpenInterestStats(symbol currency.Pair, period string, limit 
 func (b *Binance) UTopAcccountsLongShortRatio(symbol currency.Pair, period string, limit int64, startTime, endTime time.Time) ([]ULongShortRatio, error) {
 	var resp []ULongShortRatio
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -584,7 +584,7 @@ func (b *Binance) UTopAcccountsLongShortRatio(symbol currency.Pair, period strin
 func (b *Binance) UTopPostionsLongShortRatio(symbol currency.Pair, period string, limit int64, startTime, endTime time.Time) ([]ULongShortRatio, error) {
 	var resp []ULongShortRatio
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -610,7 +610,7 @@ func (b *Binance) UTopPostionsLongShortRatio(symbol currency.Pair, period string
 func (b *Binance) UGlobalLongShortRatio(symbol currency.Pair, period string, limit int64, startTime, endTime time.Time) ([]ULongShortRatio, error) {
 	var resp []ULongShortRatio
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -636,7 +636,7 @@ func (b *Binance) UGlobalLongShortRatio(symbol currency.Pair, period string, lim
 func (b *Binance) UTakerBuySellVol(symbol currency.Pair, period string, limit int64, startTime, endTime time.Time) ([]UTakerVolumeData, error) {
 	var resp []UTakerVolumeData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -664,7 +664,7 @@ func (b *Binance) UFuturesNewOrder(symbol currency.Pair, side, positionSide, ord
 	quantity, price, stopPrice, activationPrice, callbackRate float64, reduceOnly bool) (UOrderData, error) {
 	var resp UOrderData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -722,6 +722,15 @@ func (b *Binance) UPlaceBatchOrders(data []PlaceBatchOrderData) ([]UOrderData, e
 	var resp []UOrderData
 	params := url.Values{}
 	for x := range data {
+		unformattedPair, err := currency.NewPairFromString(data[x].Symbol)
+		if err != nil {
+			return resp, err
+		}
+		formattedPair, err := b.FormatExchangeCurrency(unformattedPair, asset.USDTMarginedFutures)
+		if err != nil {
+			return resp, err
+		}
+		data[x].Symbol = formattedPair.String()
 		if data[x].PositionSide != "" {
 			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
 				return resp, errors.New("invalid positionSide")
@@ -750,7 +759,7 @@ func (b *Binance) UPlaceBatchOrders(data []PlaceBatchOrderData) ([]UOrderData, e
 func (b *Binance) UGetOrderData(symbol currency.Pair, orderID, cliOrderID string) (UOrderData, error) {
 	var resp UOrderData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -768,7 +777,7 @@ func (b *Binance) UGetOrderData(symbol currency.Pair, orderID, cliOrderID string
 func (b *Binance) UCancelOrder(symbol currency.Pair, orderID, cliOrderID string) (UOrderData, error) {
 	var resp UOrderData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -786,7 +795,7 @@ func (b *Binance) UCancelOrder(symbol currency.Pair, orderID, cliOrderID string)
 func (b *Binance) UCancelAllOpenOrders(symbol currency.Pair) (GenericAuthResponse, error) {
 	var resp GenericAuthResponse
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -798,7 +807,7 @@ func (b *Binance) UCancelAllOpenOrders(symbol currency.Pair) (GenericAuthRespons
 func (b *Binance) UCancelBatchOrders(symbol currency.Pair, orderIDList, origCliOrdIDList []string) ([]UOrderData, error) {
 	var resp []UOrderData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -824,7 +833,7 @@ func (b *Binance) UCancelBatchOrders(symbol currency.Pair, orderIDList, origCliO
 func (b *Binance) UAutoCancelAllOpenOrders(symbol currency.Pair, countdownTime int64) (AutoCancelAllOrdersData, error) {
 	var resp AutoCancelAllOrdersData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -838,7 +847,7 @@ func (b *Binance) UFetchOpenOrder(symbol currency.Pair, orderID, origClientOrder
 	var resp UOrderData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -858,7 +867,7 @@ func (b *Binance) UAllAccountOpenOrders(symbol currency.Pair) ([]UOrderData, err
 	var resp []UOrderData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -872,7 +881,7 @@ func (b *Binance) UAllAccountOrders(symbol currency.Pair, orderID, limit int64, 
 	var resp []UFuturesOrderData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -910,7 +919,7 @@ func (b *Binance) UAccountInformationV2() (UAccountInformationV2Data, error) {
 func (b *Binance) UChangeInitialLeverageRequest(symbol currency.Pair, leverage int64) (UChangeInitialLeverage, error) {
 	var resp UChangeInitialLeverage
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -925,7 +934,7 @@ func (b *Binance) UChangeInitialLeverageRequest(symbol currency.Pair, leverage i
 // UChangeInitialMarginType sends a request to change account's initial margin type
 func (b *Binance) UChangeInitialMarginType(symbol currency.Pair, marginType string) error {
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return err
 	}
@@ -941,7 +950,7 @@ func (b *Binance) UChangeInitialMarginType(symbol currency.Pair, marginType stri
 func (b *Binance) UModifyIsolatedPositionMarginReq(symbol currency.Pair, positionSide, changeType string, amount float64) (UModifyIsolatedPosMargin, error) {
 	var resp UModifyIsolatedPosMargin
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -964,7 +973,7 @@ func (b *Binance) UModifyIsolatedPositionMarginReq(symbol currency.Pair, positio
 func (b *Binance) UPositionMarginChangeHistory(symbol currency.Pair, changeType string, limit int64, startTime, endTime time.Time) ([]UPositionMarginChangeHistoryData, error) {
 	var resp []UPositionMarginChangeHistoryData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -992,7 +1001,7 @@ func (b *Binance) UPositionsInfoV2(symbol currency.Pair) ([]UChangeInitialLevera
 	var resp []UChangeInitialLeverage
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1005,7 +1014,7 @@ func (b *Binance) UPositionsInfoV2(symbol currency.Pair) ([]UChangeInitialLevera
 func (b *Binance) UAccountTradesHistory(symbol currency.Pair, fromID string, limit int64, startTime, endTime time.Time) ([]UAccountTradeHistory, error) {
 	var resp []UAccountTradeHistory
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -1030,7 +1039,7 @@ func (b *Binance) UAccountTradesHistory(symbol currency.Pair, fromID string, lim
 func (b *Binance) UAccountIncomeHistory(symbol currency.Pair, incomeType string, limit int64, startTime, endTime time.Time) ([]UAccountIncomeHistory, error) {
 	var resp []UAccountIncomeHistory
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -1059,7 +1068,7 @@ func (b *Binance) UGetNotionalAndLeverageBrackets(symbol currency.Pair) ([]UNoti
 	var resp []UNotionalLeverageAndBrakcetsData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1073,7 +1082,7 @@ func (b *Binance) UPositionsADLEstimate(symbol currency.Pair) (UPositionADLEstim
 	var resp UPositionADLEstimationData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1087,7 +1096,7 @@ func (b *Binance) UAccountForcedOrders(symbol currency.Pair, autoCloseType strin
 	var resp []UForceOrdersData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1125,7 +1134,7 @@ func (b *Binance) GetFuturesOrderbook(symbol currency.Pair, limit int64) (OrderB
 	var resp OrderBook
 	var data OrderbookData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -1173,7 +1182,7 @@ func (b *Binance) GetFuturesOrderbook(symbol currency.Pair, limit int64) (OrderB
 func (b *Binance) GetFuturesPublicTrades(symbol currency.Pair, limit int64) ([]FuturesPublicTradesData, error) {
 	var resp []FuturesPublicTradesData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -1188,7 +1197,7 @@ func (b *Binance) GetFuturesPublicTrades(symbol currency.Pair, limit int64) ([]F
 func (b *Binance) GetFuturesHistoricalTrades(symbol currency.Pair, fromID string, limit int64) ([]UPublicTradesData, error) {
 	var resp []UPublicTradesData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -1206,7 +1215,7 @@ func (b *Binance) GetFuturesHistoricalTrades(symbol currency.Pair, fromID string
 func (b *Binance) GetPastPublicTrades(symbol currency.Pair, limit, fromID int64) ([]FuturesPublicTradesData, error) {
 	var resp []FuturesPublicTradesData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -1224,7 +1233,7 @@ func (b *Binance) GetPastPublicTrades(symbol currency.Pair, limit, fromID int64)
 func (b *Binance) GetFuturesAggregatedTradesList(symbol currency.Pair, fromID, limit int64, startTime, endTime time.Time) ([]AggregatedTrade, error) {
 	var resp []AggregatedTrade
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -1264,7 +1273,7 @@ func (b *Binance) GetFuturesKlineData(symbol currency.Pair, interval string, lim
 	var resp []FuturesCandleStick
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1609,7 +1618,7 @@ func (b *Binance) GetMarkPriceKline(symbol currency.Pair, interval string, limit
 	var data [][10]interface{}
 	var resp []FuturesCandleStick
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -1725,7 +1734,7 @@ func (b *Binance) GetFuturesSwapTickerChangeStats(symbol currency.Pair, pair str
 	var resp []PriceChangeStats
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1742,7 +1751,7 @@ func (b *Binance) FuturesGetFundingHistory(symbol currency.Pair, limit int64, st
 	var resp []FundingRateHistory
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1766,7 +1775,7 @@ func (b *Binance) GetFuturesSymbolPriceTicker(symbol currency.Pair, pair string)
 	var resp []SymbolPriceTicker
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1783,7 +1792,7 @@ func (b *Binance) GetFuturesOrderbookTicker(symbol currency.Pair, pair string) (
 	var resp []SymbolOrderBookTicker
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1800,7 +1809,7 @@ func (b *Binance) GetFuturesLiquidationOrders(symbol currency.Pair, pair string,
 	var resp []AllLiquidationOrders
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -1826,7 +1835,7 @@ func (b *Binance) GetFuturesLiquidationOrders(symbol currency.Pair, pair string,
 func (b *Binance) GetOpenInterest(symbol currency.Pair) (OpenInterestData, error) {
 	var resp OpenInterestData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -1986,7 +1995,7 @@ func (b *Binance) FuturesNewOrder(symbol currency.Pair, side, positionSide, orde
 	quantity, price, stopPrice, activationPrice, callbackRate float64, reduceOnly bool) (FuturesOrderPlaceData, error) {
 	var resp FuturesOrderPlaceData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2044,6 +2053,15 @@ func (b *Binance) FuturesBatchOrder(data []PlaceBatchOrderData) ([]FuturesOrderP
 	var resp []FuturesOrderPlaceData
 	params := url.Values{}
 	for x := range data {
+		unformattedPair, err := currency.NewPairFromString(data[x].Symbol)
+		if err != nil {
+			return resp, err
+		}
+		formattedPair, err := b.FormatExchangeCurrency(unformattedPair, asset.CoinMarginedFutures)
+		if err != nil {
+			return resp, err
+		}
+		data[x].Symbol = formattedPair.String()
 		if data[x].PositionSide != "" {
 			if !common.StringDataCompare(validPositionSide, data[x].PositionSide) {
 				return resp, errors.New("invalid positionSide")
@@ -2072,7 +2090,7 @@ func (b *Binance) FuturesBatchOrder(data []PlaceBatchOrderData) ([]FuturesOrderP
 func (b *Binance) FuturesBatchCancelOrders(symbol currency.Pair, orderList, origClientOrderIDList []string) ([]BatchCancelOrderData, error) {
 	var resp []BatchCancelOrderData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2098,7 +2116,7 @@ func (b *Binance) FuturesBatchCancelOrders(symbol currency.Pair, orderList, orig
 func (b *Binance) FuturesGetOrderData(symbol currency.Pair, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
 	var resp FuturesOrderGetData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2116,7 +2134,7 @@ func (b *Binance) FuturesGetOrderData(symbol currency.Pair, orderID, origClientO
 func (b *Binance) FuturesCancelOrder(symbol currency.Pair, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
 	var resp FuturesOrderGetData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2134,7 +2152,7 @@ func (b *Binance) FuturesCancelOrder(symbol currency.Pair, orderID, origClientOr
 func (b *Binance) FuturesCancelAllOpenOrders(symbol currency.Pair) (GenericAuthResponse, error) {
 	var resp GenericAuthResponse
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2147,7 +2165,7 @@ func (b *Binance) FuturesCancelAllOpenOrders(symbol currency.Pair) (GenericAuthR
 func (b *Binance) AutoCancelAllOpenOrders(symbol currency.Pair, countdownTime int64) (AutoCancelAllOrdersData, error) {
 	var resp AutoCancelAllOrdersData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2160,7 +2178,7 @@ func (b *Binance) AutoCancelAllOpenOrders(symbol currency.Pair, countdownTime in
 func (b *Binance) FuturesOpenOrderData(symbol currency.Pair, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
 	var resp FuturesOrderGetData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2179,7 +2197,7 @@ func (b *Binance) GetFuturesAllOpenOrders(symbol currency.Pair, pair string) ([]
 	var resp []FuturesOrderData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -2196,7 +2214,7 @@ func (b *Binance) GetAllFuturesOrders(symbol currency.Pair, pair string, startTi
 	var resp []FuturesOrderData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -2237,7 +2255,7 @@ func (b *Binance) GetFuturesAccountInfo() (FuturesAccountInformation, error) {
 func (b *Binance) FuturesChangeInitialLeverage(symbol currency.Pair, leverage int64) (FuturesLeverageData, error) {
 	var resp FuturesLeverageData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2253,7 +2271,7 @@ func (b *Binance) FuturesChangeInitialLeverage(symbol currency.Pair, leverage in
 func (b *Binance) FuturesChangeMarginType(symbol currency.Pair, marginType string) (GenericAuthResponse, error) {
 	var resp GenericAuthResponse
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2269,7 +2287,7 @@ func (b *Binance) FuturesChangeMarginType(symbol currency.Pair, marginType strin
 func (b *Binance) ModifyIsolatedPositionMargin(symbol currency.Pair, positionSide, changeType string, amount float64) (GenericAuthResponse, error) {
 	var resp GenericAuthResponse
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2291,7 +2309,7 @@ func (b *Binance) ModifyIsolatedPositionMargin(symbol currency.Pair, positionSid
 func (b *Binance) FuturesMarginChangeHistory(symbol currency.Pair, changeType string, startTime, endTime time.Time, limit int64) ([]GetPositionMarginChangeHistoryData, error) {
 	var resp []GetPositionMarginChangeHistoryData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2332,7 +2350,7 @@ func (b *Binance) FuturesTradeHistory(symbol currency.Pair, pair string, startTi
 	var resp []FuturesAccountTradeList
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -2362,7 +2380,7 @@ func (b *Binance) FuturesIncomeHistory(symbol currency.Pair, incomeType string, 
 	var resp []FuturesIncomeHistoryData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -2402,7 +2420,7 @@ func (b *Binance) FuturesForceOrders(symbol currency.Pair, autoCloseType string,
 	var resp []ForcedOrdersData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -2429,7 +2447,7 @@ func (b *Binance) FuturesPositionsADLEstimate(symbol currency.Pair) ([]ADLEstima
 	var resp []ADLEstimateData
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
-		symbolValue, err := b.formatSymbol(symbol, asset.CoinMarginedFutures)
+		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
@@ -2465,7 +2483,7 @@ func (b *Binance) GetMarginMarkets() (PerpsExchangeInfo, error) {
 func (b *Binance) GetFundingRates(symbol currency.Pair, limit string, startTime, endTime time.Time) ([]FundingRateData, error) {
 	var resp []FundingRateData
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.USDTMarginedFutures)
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
@@ -2501,7 +2519,7 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 	}
 
 	params := url.Values{}
-	symbol, err := b.formatSymbol(obd.Symbol, asset.Spot)
+	symbol, err := b.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
 		return orderbook, err
 	}
@@ -2557,7 +2575,7 @@ func (b *Binance) GetMostRecentTrades(rtr RecentTradeRequestParams) ([]RecentTra
 	var resp []RecentTrade
 
 	params := url.Values{}
-	symbol, err := b.formatSymbol(rtr.Symbol, asset.Spot)
+	symbol, err := b.FormatSymbol(rtr.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -2587,7 +2605,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	symbol, err := b.formatSymbol(arg.Symbol, asset.Spot)
+	symbol, err := b.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -2713,7 +2731,7 @@ func (b *Binance) GetSpotKline(arg *KlinesRequestParams) ([]CandleStick, error) 
 	var klineData []CandleStick
 
 	params := url.Values{}
-	symbol, err := b.formatSymbol(arg.Symbol, asset.Spot)
+	symbol, err := b.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -2784,7 +2802,7 @@ func (b *Binance) GetSpotKline(arg *KlinesRequestParams) ([]CandleStick, error) 
 func (b *Binance) GetAveragePrice(symbol currency.Pair) (AveragePrice, error) {
 	resp := AveragePrice{}
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.Spot)
+	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return resp, err
 	}
@@ -2801,7 +2819,7 @@ func (b *Binance) GetAveragePrice(symbol currency.Pair) (AveragePrice, error) {
 func (b *Binance) GetPriceChangeStats(symbol currency.Pair) (PriceChangeStats, error) {
 	resp := PriceChangeStats{}
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.Spot)
+	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return resp, err
 	}
@@ -2824,7 +2842,7 @@ func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 func (b *Binance) GetLatestSpotPrice(symbol currency.Pair) (SymbolPrice, error) {
 	resp := SymbolPrice{}
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.Spot)
+	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return resp, err
 	}
@@ -2841,7 +2859,7 @@ func (b *Binance) GetLatestSpotPrice(symbol currency.Pair) (SymbolPrice, error) 
 func (b *Binance) GetBestPrice(symbol currency.Pair) (BestPrice, error) {
 	resp := BestPrice{}
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.Spot)
+	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return resp, err
 	}
@@ -2874,7 +2892,7 @@ func (b *Binance) NewOrderTest(o *NewOrderRequest) error {
 
 func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderResponse) error {
 	params := url.Values{}
-	symbol, err := b.formatSymbol(o.Symbol, asset.Spot)
+	symbol, err := b.FormatSymbol(o.Symbol, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -2915,7 +2933,7 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 func (b *Binance) CancelExistingOrder(symbol currency.Pair, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
 	var resp CancelOrderResponse
 
-	symbolValue, err := b.formatSymbol(symbol, asset.Spot)
+	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return resp, err
 	}
@@ -2943,7 +2961,7 @@ func (b *Binance) OpenOrders(pair *currency.Pair) ([]QueryOrderData, error) {
 	var symbol string
 	if pair != nil {
 		var err error
-		symbol, err = b.formatSymbol(*pair, asset.Spot)
+		symbol, err = b.FormatSymbol(*pair, asset.Spot)
 		if err != nil {
 			return resp, err
 		}
@@ -2966,7 +2984,7 @@ func (b *Binance) AllOrders(symbol currency.Pair, orderID, limit string) ([]Quer
 	var resp []QueryOrderData
 
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.Spot)
+	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return resp, err
 	}
@@ -2989,7 +3007,7 @@ func (b *Binance) QueryOrder(symbol currency.Pair, origClientOrderID string, ord
 	var resp QueryOrderData
 
 	params := url.Values{}
-	symbolValue, err := b.formatSymbol(symbol, asset.Spot)
+	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return resp, err
 	}

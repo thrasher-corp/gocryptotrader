@@ -169,7 +169,11 @@ func TestFuturesSendOrder(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
 	t.Parallel()
-	_, err := k.FuturesSendOrder(order.Limit, "PI_XBTUSD", "buy", "", "", "", 1, 1, 0.9)
+	cp, err := currency.NewPairFromString("PI_XBTUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.FuturesSendOrder(order.Limit, cp, "buy", "", "", "", 1, 1, 0.9)
 	if err != nil {
 		t.Error(err)
 	}
@@ -235,7 +239,11 @@ func TestFuturesCancelAllOrders(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
 	t.Parallel()
-	_, err := k.FuturesCancelAllOrders("PI_XBTUSD")
+	cp, err := currency.NewPairFromString("PI_XBTUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.FuturesCancelAllOrders(cp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -279,7 +287,11 @@ func TestFuturesRecentOrders(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := k.FuturesRecentOrders("PI_XBTUSD")
+	cp, err := currency.NewPairFromString("PI_XBTUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.FuturesRecentOrders(cp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -309,7 +321,11 @@ func TestFuturesGetTransfers(t *testing.T) {
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetFuturesOrderbook("FI_xbtusd_200925")
+	cp, err := currency.NewPairFromString("FI_xbtusd_200925")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetFuturesOrderbook(cp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -333,7 +349,11 @@ func TestGetFuturesTickers(t *testing.T) {
 
 func TestGetFuturesTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetFuturesTradeHistory("pi_xbtusd", time.Now().Add(-time.Hour*24))
+	cp, err := currency.NewPairFromString("pi_xbtusd")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetFuturesTradeHistory(cp, time.Now().Add(-time.Hour*24))
 	if err != nil {
 		t.Error(err)
 	}
@@ -426,7 +446,11 @@ func TestGetAssetPairs(t *testing.T) {
 // TestGetTicker API endpoint test
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTicker("BCHEUR")
+	cp, err := currency.NewPairFromString("BCHEUR")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetTicker(cp)
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
@@ -444,7 +468,11 @@ func TestGetTickers(t *testing.T) {
 // TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetOHLC("XXBTZUSD", "1440")
+	cp, err := currency.NewPairFromString("XXBTZUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetOHLC(cp, "1440")
 	if err != nil {
 		t.Error("GetOHLC() error", err)
 	}
@@ -453,7 +481,11 @@ func TestGetOHLC(t *testing.T) {
 // TestGetDepth API endpoint test
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetDepth("BCHEUR")
+	cp, err := currency.NewPairFromString("BCHEUR")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetDepth(cp)
 	if err != nil {
 		t.Error("GetDepth() error", err)
 	}
@@ -462,12 +494,19 @@ func TestGetDepth(t *testing.T) {
 // TestGetTrades API endpoint test
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTrades("BCHEUR")
+	cp, err := currency.NewPairFromString("BCHEUR")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetTrades(cp)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
-
-	_, err = k.GetTrades("MADEUP")
+	cp2, err := currency.NewPairFromString("MADEUP")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetTrades(cp2)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -476,7 +515,11 @@ func TestGetTrades(t *testing.T) {
 // TestGetSpread API endpoint test
 func TestGetSpread(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetSpread("BCHEUR")
+	cp, err := currency.NewPairFromString("BCHEUR")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetSpread(cp)
 	if err != nil {
 		t.Error("GetSpread() error", err)
 	}
@@ -581,7 +624,11 @@ func TestQueryLedgers(t *testing.T) {
 // TestGetTradeVolume API endpoint test
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTradeVolume(true, "OAVY7T-MV5VK-KHDF5X")
+	cp, err := currency.NewPairFromString("OAVY7T-MV5VK-KHDF5X")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetTradeVolume(true, cp)
 	if err == nil {
 		t.Error("GetTradeVolume() Expected error")
 	}
@@ -591,7 +638,11 @@ func TestGetTradeVolume(t *testing.T) {
 func TestAddOrder(t *testing.T) {
 	t.Parallel()
 	args := AddOrderOptions{OrderFlags: "fcib"}
-	_, err := k.AddOrder("XXBTZUSD",
+	cp, err := currency.NewPairFromString("XXBTZUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.AddOrder(cp,
 		order.Sell.Lower(), order.Limit.Lower(),
 		0.00000001, 0, 0, 0, &args)
 	if err == nil {
