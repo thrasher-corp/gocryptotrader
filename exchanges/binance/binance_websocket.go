@@ -619,7 +619,6 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
 func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
-	var fetching bool
 	fetching, err := b.obm.checkIsFetchingBook(pair)
 	if err != nil {
 		return err
@@ -645,38 +644,44 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 		for {
 			select {
 			case j := <-b.obm.jobs:
-				err := b.SeedLocalCache(j.Pair)
+				err := b.processJob(j.Pair)
 				if err != nil {
-					log.Errorln(log.WebsocketMgr, "seeding local cache for orderbook error", err)
-					continue
+					log.Errorln(log.WebsocketMgr, err)
 				}
-
-				// Immediately apply the buffer updates so we don't wait for a
-				// new update to initiate this.
-				err = b.obm.stopFetchingBook(j.Pair)
-				if err != nil {
-					log.Errorln(log.WebsocketMgr, "applying orderbook updates error", err)
-					continue
-				}
-				err = b.applyBufferUpdate(j.Pair)
-				if err != nil {
-					log.Errorln(log.WebsocketMgr, "applying orderbook updates error", err)
-					err = b.Websocket.Orderbook.FlushOrderbook(j.Pair, asset.Spot)
-					if err != nil {
-						log.Errorln(log.WebsocketMgr, "flushing websocket error:", err)
-					}
-					err = b.obm.cleanup(j.Pair)
-					if err != nil {
-						log.Errorln(log.WebsocketMgr, "cleanup websocket error:", err)
-					}
-					continue
-				}
-
 			case <-b.Websocket.ShutdownC:
 				return
 			}
 		}
 	}()
+}
+
+// processJob fetches and processes orderbook updates
+func (b *Binance) processJob(p currency.Pair) error {
+	err := b.SeedLocalCache(p)
+	if err != nil {
+		return fmt.Errorf("seeding local cache for orderbook error: %s", err)
+	}
+
+	err = b.obm.stopFetchingBook(p)
+	if err != nil {
+		return err
+	}
+
+	// Immediately apply the buffer updates so we don't wait for a
+	// new update to initiate this.
+	err = b.applyBufferUpdate(p)
+	if err != nil {
+		errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
+		if err != nil {
+			log.Errorln(log.WebsocketMgr, "flushing websocket error:", errClean)
+		}
+		errClean = b.obm.cleanup(p)
+		if err != nil {
+			log.Errorln(log.WebsocketMgr, "cleanup websocket error:", errClean)
+		}
+		return fmt.Errorf("applying orderbook updates error: %s", err)
+	}
+	return nil
 }
 
 // stageWsUpdate stages websocket update to roll through updates that need to
@@ -731,20 +736,6 @@ func (o *orderbookManager) checkIsFetchingBook(pair currency.Pair) (bool, error)
 				asset.Spot)
 	}
 	return state.fetchingBook, nil
-}
-
-// checkInitialSync checks if book is ready for initial sync
-func (o *orderbookManager) checkInitialSync(pair currency.Pair) (bool, error) {
-	o.Lock()
-	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-	if !ok {
-		return false,
-			fmt.Errorf("check initial sync cannot match currency pair %s asset type %s",
-				pair,
-				asset.Spot)
-	}
-	return state.initialSync, nil
 }
 
 // stopFetchingBook completes the book fetching.
@@ -824,7 +815,7 @@ buffer:
 	for {
 		select {
 		case d := <-state.buffer:
-			process, err := validate(d, recent, &state.initialSync)
+			process, err := state.validate(d, recent)
 			if err != nil {
 				return err
 			}
@@ -842,14 +833,14 @@ buffer:
 }
 
 // validate checks for correct update alignment
-func validate(updt *WebsocketDepthStream, recent *orderbook.Base, initialSync *bool) (bool, error) {
+func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Base) (bool, error) {
 	if updt.LastUpdateID <= recent.LastUpdateID {
 		// Drop any event where u is <= lastUpdateId in the snapshot.
 		return false, nil
 	}
 
 	id := recent.LastUpdateID + 1
-	if *initialSync {
+	if u.initialSync {
 		// The first processed event should have U <= lastUpdateId+1 AND
 		// u >= lastUpdateId+1.
 		if updt.FirstUpdateID > id && updt.LastUpdateID < id {
@@ -857,7 +848,7 @@ func validate(updt *WebsocketDepthStream, recent *orderbook.Base, initialSync *b
 				recent.Pair,
 				asset.Spot)
 		}
-		*initialSync = false
+		u.initialSync = false
 	} else if updt.FirstUpdateID != id {
 		// While listening to the stream, each new event's U should be
 		// equal to the previous event's u+1.
@@ -871,10 +862,9 @@ func validate(updt *WebsocketDepthStream, recent *orderbook.Base, initialSync *b
 // cleanup cleans up buffer and reset fetch and init
 func (o *orderbookManager) cleanup(pair currency.Pair) error {
 	o.Lock()
-	defer o.Unlock()
-
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
 	if !ok {
+		o.Unlock()
 		return fmt.Errorf("cleanup cannot match %s %s to hash table",
 			pair,
 			asset.Spot)
@@ -884,12 +874,12 @@ bufferEmpty:
 	for {
 		select {
 		case <-state.buffer:
-			// bleed and disgard buffer
+			// bleed and discard buffer
 		default:
 			break bufferEmpty
 		}
 	}
-
+	o.Unlock()
 	// reset underlying bools
 	_ = o.stopFetchingBook(pair)
 	_ = o.completeInitialSync(pair)
