@@ -1049,7 +1049,7 @@ channels:
 				// on websocket orderbooks, to subscribe to the channel while
 				// actually receiving the snapshots a rudimentary sleep is
 				// imposed and requests are batched in allotments of 20 items.
-				time.Sleep(1 * time.Second)
+				time.Sleep(time.Second)
 			}
 			_, err := k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
 			if err != nil {
