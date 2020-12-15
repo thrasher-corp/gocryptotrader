@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -91,7 +90,11 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 	}
 
 	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(obd.Symbol))
+	symbol, err := b.formatSymbol(obd.Symbol)
+	if err != nil {
+		return orderbook, err
+	}
+	params.Set("symbol", symbol)
 	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
 
 	var resp OrderBookData
@@ -144,7 +147,11 @@ func (b *Binance) GetMostRecentTrades(rtr RecentTradeRequestParams) ([]RecentTra
 	var resp []RecentTrade
 
 	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(rtr.Symbol))
+	symbol, err := b.formatSymbol(rtr.Symbol)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("symbol", symbol)
 	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, recentTrades, params.Encode())
@@ -170,7 +177,11 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	params.Set("symbol", arg.Symbol)
+	symbol, err := b.formatSymbol(arg.Symbol)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("symbol", symbol)
 	// if the user request is directly not supported by the exchange, we might be able to fulfill it
 	// by merging results from multiple API requests
 	needBatch := false
@@ -293,7 +304,11 @@ func (b *Binance) GetSpotKline(arg *KlinesRequestParams) ([]CandleStick, error) 
 	var klineData []CandleStick
 
 	params := url.Values{}
-	params.Set("symbol", arg.Symbol)
+	symbol, err := b.formatSymbol(arg.Symbol)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
 		params.Set("limit", strconv.Itoa(arg.Limit))
@@ -357,10 +372,14 @@ func (b *Binance) GetSpotKline(arg *KlinesRequestParams) ([]CandleStick, error) 
 // GetAveragePrice returns current average price for a symbol.
 //
 // symbol: string of currency pair
-func (b *Binance) GetAveragePrice(symbol string) (AveragePrice, error) {
+func (b *Binance) GetAveragePrice(symbol currency.Pair) (AveragePrice, error) {
 	resp := AveragePrice{}
 	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(symbol))
+	symbolValue, err := b.formatSymbol(symbol)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, averagePrice, params.Encode())
 
@@ -370,10 +389,14 @@ func (b *Binance) GetAveragePrice(symbol string) (AveragePrice, error) {
 // GetPriceChangeStats returns price change statistics for the last 24 hours
 //
 // symbol: string of currency pair
-func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
+func (b *Binance) GetPriceChangeStats(symbol currency.Pair) (PriceChangeStats, error) {
 	resp := PriceChangeStats{}
 	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(symbol))
+	symbolValue, err := b.formatSymbol(symbol)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, priceChange, params.Encode())
 
@@ -390,27 +413,35 @@ func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
+func (b *Binance) GetLatestSpotPrice(symbol currency.Pair) (SymbolPrice, error) {
 	resp := SymbolPrice{}
 	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(symbol))
+	symbolValue, err := b.formatSymbol(symbol)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, symbolPrice, params.Encode())
 
-	return resp, b.SendHTTPRequest(path, symbolPriceLimit(symbol), &resp)
+	return resp, b.SendHTTPRequest(path, symbolPriceLimit(symbolValue), &resp)
 }
 
 // GetBestPrice returns the latest best price for symbol
 //
 // symbol: string of currency pair
-func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
+func (b *Binance) GetBestPrice(symbol currency.Pair) (BestPrice, error) {
 	resp := BestPrice{}
 	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(symbol))
+	symbolValue, err := b.formatSymbol(symbol)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, bestPrice, params.Encode())
 
-	return resp, b.SendHTTPRequest(path, bestPriceLimit(symbol), &resp)
+	return resp, b.SendHTTPRequest(path, bestPriceLimit(symbolValue), &resp)
 }
 
 // NewOrder sends a new order to Binance
@@ -437,7 +468,11 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 	path := b.API.Endpoints.URL + api
 
 	params := url.Values{}
-	params.Set("symbol", o.Symbol)
+	symbol, err := b.formatSymbol(o.Symbol)
+	if err != nil {
+		return err
+	}
+	params.Set("symbol", symbol)
 	params.Set("side", o.Side)
 	params.Set("type", string(o.TradeType))
 	if o.QuoteOrderQty > 0 {
@@ -471,13 +506,17 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 }
 
 // CancelExistingOrder sends a cancel order to Binance
-func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
+func (b *Binance) CancelExistingOrder(symbol currency.Pair, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
 	var resp CancelOrderResponse
 
 	path := b.API.Endpoints.URL + cancelOrder
 
+	symbolValue, err := b.formatSymbol(symbol)
+	if err != nil {
+		return resp, err
+	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbolValue)
 
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
@@ -493,15 +532,23 @@ func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOr
 // OpenOrders Current open orders. Get all open orders on a symbol.
 // Careful when accessing this with no symbol: The number of requests counted against the rate limiter
 // is significantly higher
-func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
+func (b *Binance) OpenOrders(pair *currency.Pair) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
 	path := b.API.Endpoints.URL + openOrders
 
 	params := url.Values{}
 
+	var symbol string
+	if pair != nil {
+		var err error
+		symbol, err = b.formatSymbol(*pair)
+		if err != nil {
+			return resp, err
+		}
+	}
 	if symbol != "" {
-		params.Set("symbol", strings.ToUpper(symbol))
+		params.Set("symbol", symbol)
 	}
 
 	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, openOrdersLimit(symbol), &resp); err != nil {
@@ -514,13 +561,17 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 // AllOrders Get all account orders; active, canceled, or filled.
 // orderId optional param
 // limit optional param, default 500; max 500
-func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, error) {
+func (b *Binance) AllOrders(symbol currency.Pair, orderID, limit string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
 	path := b.API.Endpoints.URL + allOrders
 
 	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(symbol))
+	symbolValue, err := b.formatSymbol(symbol)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 	if orderID != "" {
 		params.Set("orderId", orderID)
 	}
@@ -535,13 +586,17 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 }
 
 // QueryOrder returns information on a past order
-func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (QueryOrderData, error) {
+func (b *Binance) QueryOrder(symbol currency.Pair, origClientOrderID string, orderID int64) (QueryOrderData, error) {
 	var resp QueryOrderData
 
 	path := b.API.Endpoints.URL + queryOrder
 
 	params := url.Values{}
-	params.Set("symbol", strings.ToUpper(symbol))
+	symbolValue, err := b.formatSymbol(symbol)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}

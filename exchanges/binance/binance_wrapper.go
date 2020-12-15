@@ -401,13 +401,8 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fpair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
 	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: fpair.String(),
+		Symbol: p,
 		Limit:  1000})
 	if err != nil {
 		return nil, err
@@ -521,14 +516,9 @@ func (b *Binance) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdr
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
-	p, err = b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
 	var resp []trade.Data
 	limit := 1000
-	tradeData, err := b.GetMostRecentTrades(RecentTradeRequestParams{p.String(), limit})
+	tradeData, err := b.GetMostRecentTrades(RecentTradeRequestParams{p, limit})
 	if err != nil {
 		return nil, err
 	}
@@ -556,12 +546,8 @@ func (b *Binance) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trad
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (b *Binance) GetHistoricTrades(p currency.Pair, a asset.Item, from, to time.Time) ([]trade.Data, error) {
-	p, err := b.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return nil, err
-	}
 	req := AggregatedTradeRequestParams{
-		Symbol:    p.String(),
+		Symbol:    p,
 		StartTime: from,
 		EndTime:   to,
 	}
@@ -618,13 +604,8 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, errors.New("unsupported order type")
 	}
 
-	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
-	if err != nil {
-		return submitOrderResponse, err
-	}
-
 	var orderRequest = NewOrderRequest{
-		Symbol:      fPair.String(),
+		Symbol:      s.Pair,
 		Side:        sideType,
 		Price:       s.Price,
 		Quantity:    s.Amount,
@@ -674,12 +655,7 @@ func (b *Binance) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 
-	fpair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
-	if err != nil {
-		return err
-	}
-
-	_, err = b.CancelExistingOrder(fpair.String(),
+	_, err = b.CancelExistingOrder(o.Pair,
 		orderIDInt,
 		o.AccountID)
 	return err
@@ -695,15 +671,18 @@ func (b *Binance) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, err
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	openOrders, err := b.OpenOrders("")
+	openOrders, err := b.OpenOrders(nil)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	for i := range openOrders {
-		_, err = b.CancelExistingOrder(openOrders[i].Symbol,
-			openOrders[i].OrderID,
-			"")
+		pair, _, err := b.GetRequestFormattedPairAndAssetType(openOrders[i].Symbol)
+		if err != nil {
+			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
+			continue
+		}
+		_, err = b.CancelExistingOrder(pair, openOrders[i].OrderID, "")
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
 		}
@@ -718,17 +697,12 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		assetType = asset.Spot
 	}
 
-	formattedPair, err := b.FormatExchangeCurrency(pair, assetType)
-	if err != nil {
-		return
-	}
-
 	orderIDInt64, err := convert.Int64FromString(orderID)
 	if err != nil {
 		return
 	}
 
-	resp, err := b.QueryOrder(formattedPair.String(), "", orderIDInt64)
+	resp, err := b.QueryOrder(pair, "", orderIDInt64)
 	if err != nil {
 		return
 	}
@@ -756,7 +730,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		ID:             strconv.FormatInt(resp.OrderID, 10),
 		Side:           orderSide,
 		Type:           orderType,
-		Pair:           formattedPair,
+		Pair:           pair,
 		Cost:           resp.CummulativeQuoteQty,
 		AssetType:      assetType,
 		CloseTime:      resp.UpdateTime,
@@ -824,13 +798,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		fpair, err := b.FormatExchangeCurrency(req.Pairs[x],
-			asset.Spot)
-		if err != nil {
-			return nil, err
-		}
-
-		resp, err := b.OpenOrders(fpair.String())
+		resp, err := b.OpenOrders(&req.Pairs[x])
 		if err != nil {
 			return nil, err
 		}
@@ -877,11 +845,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		fpair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := b.AllOrders(fpair.String(),
+		resp, err := b.AllOrders(req.Pairs[x],
 			"",
 			"1000")
 		if err != nil {
@@ -949,13 +913,9 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	fpair, err := b.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
 	req := KlinesRequestParams{
 		Interval:  b.FormatExchangeKlineInterval(interval),
-		Symbol:    fpair.String(),
+		Symbol:    pair,
 		StartTime: start,
 		EndTime:   end,
 		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
@@ -1001,16 +961,11 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		Interval: interval,
 	}
 
-	formattedPair, err := b.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
-			Symbol:    formattedPair.String(),
+			Symbol:    pair,
 			StartTime: dates[x].Start,
 			EndTime:   dates[x].End,
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),

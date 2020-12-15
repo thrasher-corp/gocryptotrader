@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // binanceTime provides an internal conversion helper
@@ -343,4 +345,14 @@ func (a *wsListStatus) UnmarshalJSON(data []byte) error {
 	a.Data.EventTime = aux.Data.EventTime.Time()
 	a.Data.TransactionTime = aux.Data.TransactionTime.Time()
 	return nil
+}
+
+// formatSymbol formats the given pair to a string suitable for exchange API requests
+// currently applicable to Spot and Margin assets
+func (b *Binance) formatSymbol(pair currency.Pair) (string, error) {
+	pairFmt, err := b.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return pair.String(), err
+	}
+	return pairFmt.Format(pair), nil
 }

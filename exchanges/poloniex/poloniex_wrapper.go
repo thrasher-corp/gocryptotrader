@@ -590,8 +590,64 @@ func (p *Poloniex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, er
 
 // GetOrderInfo returns order information based on order ID
 func (p *Poloniex) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
-	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	orderInfo := order.Detail{
+		Exchange: p.Name,
+		Pair:     pair,
+	}
+
+	trades, err := p.GetAuthenticatedOrderTrades(orderID)
+	if err != nil && !strings.Contains(err.Error(), "Order not found") {
+		return orderInfo, err
+	}
+
+	for i := range trades {
+		var tradeHistory order.TradeHistory
+		tradeHistory.Exchange = p.Name
+		tradeHistory.Side, err = order.StringToOrderSide(trades[i].Type)
+		if err != nil {
+			return orderInfo, err
+		}
+		tradeHistory.TID = strconv.FormatInt(trades[i].GlobalTradeID, 10)
+		tradeHistory.Timestamp, err = time.Parse(common.SimpleTimeFormat, trades[i].Date)
+		if err != nil {
+			return orderInfo, err
+		}
+		tradeHistory.Price = trades[i].Rate
+		tradeHistory.Amount = trades[i].Amount
+		tradeHistory.Total = trades[i].Total
+		tradeHistory.Fee = trades[i].Fee
+		orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
+	}
+
+	resp, err := p.GetAuthenticatedOrderStatus(orderID)
+	if err != nil {
+		if len(orderInfo.Trades) > 0 { // on closed orders return trades only
+			if strings.Contains(err.Error(), "Order not found") {
+				orderInfo.Status = order.Closed
+			}
+			return orderInfo, nil
+		}
+		return orderInfo, err
+	}
+
+	orderInfo.Status, _ = order.StringToOrderStatus(resp.Status)
+	orderInfo.Price = resp.Rate
+	orderInfo.Amount = resp.Amount
+	orderInfo.Cost = resp.Total
+	orderInfo.Fee = resp.Fee
+	orderInfo.TargetAmount = resp.StartingAmount
+
+	orderInfo.Side, err = order.StringToOrderSide(resp.Type)
+	if err != nil {
+		return orderInfo, err
+	}
+
+	orderInfo.Date, err = time.Parse(common.SimpleTimeFormat, resp.Date)
+	if err != nil {
+		return orderInfo, err
+	}
+
+	return orderInfo, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
