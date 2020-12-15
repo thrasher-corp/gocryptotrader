@@ -10,9 +10,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-type Reporto struct {
-	Candles    DetailedKline
-	Statistics statistics.Statistic
+type Handler interface {
+	GenerateReport() error
+}
+
+type Data struct {
+	OriginalCandles []*kline.Item
+	Candles         []DetailedKline
+	Statistics      *statistics.Statistic
 }
 
 type DetailedKline struct {

@@ -20,7 +20,7 @@
 		<script type="application/javascript" src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 	</head>
 	<body>
-		{{- /*gotype: github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics.Statistic*/ -}}
+		{{- /*gotype: github.com/thrasher-corp/gocryptotrader/backtester/report.Data*/ -}}
 		<header style="margin-bottom: 120px">
 		  <nav class="navbar fixed-top navbar-expand-lg navbar-dark black scrolling-navbar">
 			<a class="navbar-brand" href="#">
@@ -72,7 +72,7 @@
 		</header>
 		<div class="container">
 			<div class="row">
-			<h1 class="text-primary">{{.StrategyName}} Results</h1>
+			<h1 class="text-primary">{{.Statistics.StrategyName}} Results</h1>
 			</div>
 			<div class="row">
 				<div class="card card-cascade narrower">
@@ -120,6 +120,7 @@
 
 		</div>
 	<script>
+		{{ range .Candles}}
         var chart = LightweightCharts.createChart(document.body, {
             width: 600,
             height: 300,
@@ -154,6 +155,35 @@
             wickDownColor: 'rgba(255, 144, 0, 1)',
             wickUpColor: 'rgba(255, 144, 0, 1)',
         });
+
+        candleSeries.setData([
+            {{ range .Candles}}
+            {
+                time: {{.Time.Format("2006-01-02-15-04")}},
+				open: {{.Open}},
+				high: {{.High}},
+				low:{{.Low}},
+				close: {{.Close}}
+			},
+			{{ end }}
+		])
+
+        candleSeries.setMarkers([
+			{{ range .Candles}}
+            {
+                time: {{.Time.Format("2006-01-02-15-04")}},
+                position: 'aboveBar',
+                color: 'red',
+                shape: 'arrowDown',
+                id: 'id3',
+                text: 'sell',
+            },
+			{{end}}
+			])
+		{{end}}
+
+
+
 
         candleSeries.setData([
             { time: '2018-10-19', open: 180.34, high: 180.99, low: 178.57, close: 179.85 },

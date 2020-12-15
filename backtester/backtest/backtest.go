@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -63,8 +64,9 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	var e exchange.Exchange
 	bt.Datas = &data.DataHolder{}
 	bt.EventQueue = &eventholder.Holder{}
+	reports := &report.Data{}
 
-	e, err = bt.setupExchangeSettings(cfg)
+	e, err = bt.setupExchangeSettings(cfg, reports)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +97,6 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 			MaxDiversificationPercentage: nil,
 		},
 	}
-
 	for i := range e.CurrencySettings {
 		lookup := p.SetupExchangeAssetPairMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
 		lookup.Fee = e.CurrencySettings[i].TakerFee
@@ -121,29 +122,37 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	} else {
 		bt.Strategy.SetDefaults()
 	}
-	bt.Statistic = &statistics.Statistic{
+	stats := &statistics.Statistic{
 		StrategyName:                cfg.StrategySettings.Name,
 		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic),
 		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,
 	}
+	bt.Statistic = stats
+	reports.Statistics = stats
+
+	bt.Reports = reports
 
 	cfg.PrintSetting()
 
 	return bt, nil
 }
 
-func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
+func (bt *BackTest) setupExchangeSettings(cfg *config.Config, reports *report.Data) (exchange.Exchange, error) {
 	resp := exchange.Exchange{}
 
 	for i := range cfg.CurrencySettings {
-		exch, p, a, err := bt.loadExchangePairAssetBase(cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote, cfg.CurrencySettings[i].Asset)
+		exch, p, a, err := bt.loadExchangePairAssetBase(
+			cfg.CurrencySettings[i].ExchangeName,
+			cfg.CurrencySettings[i].Base,
+			cfg.CurrencySettings[i].Quote,
+			cfg.CurrencySettings[i].Asset)
 		if err != nil {
 			return resp, err
 		}
 
 		z := strings.ToLower(exch.GetName())
 		bt.Datas.Setup()
-		e, err := loadData(cfg, exch, p, a)
+		e, err := loadData(cfg, exch, p, a, reports)
 		if err != nil {
 			return resp, err
 		}
@@ -299,7 +308,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float
 
 // loadData will create kline data from the sources defined in strat config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
-func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
+func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, reports *report.Data) (*kline.DataFromKline, error) {
 	base := exch.GetBase()
 	if cfg.DatabaseData == nil && cfg.LiveData == nil && cfg.APIData == nil && cfg.CSVData == nil {
 		return nil, errors.New("no data settings set in config")
@@ -373,7 +382,7 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 	if err != nil {
 		return nil, err
 	}
-
+	reports.OriginalCandles = append(reports.OriginalCandles, candles)
 	return resp, nil
 }
 
