@@ -4113,6 +4113,10 @@
         "fee": {
           "type": "number",
           "format": "double"
+        },
+        "total": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

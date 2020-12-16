@@ -10060,6 +10060,113 @@
        "09c436ba3cbb06aa182ea43f85e368258d3da18fc948ca980d431cf2779f7626226129ce3482ebbeb7a0804c1b0a1155a977d6f79fff5fadedb2199f900d6a07"
       ]
      }
+    },
+    {
+     "data": [
+      {
+       "globalTradeID": 394127362,
+       "tradeID": 13536351,
+       "currencyPair": "BTC_STR",
+       "type": "buy",
+       "rate": "0.00003432",
+       "amount": "3696.05342780",
+       "total": "0.12684855",
+       "fee": "0.00200000",
+       "date": "2018-10-16 17:03:43"
+      },
+      {
+       "globalTradeID": 394127361,
+       "tradeID": 13536350,
+       "currencyPair": "BTC_STR",
+       "type": "buy",
+       "rate": "0.00003432",
+       "amount": "3600.53748129",
+       "total": "0.12357044",
+       "fee": "0.00200000",
+       "date": "2018-10-16 17:03:43"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "command=returnOrderTrades\u0026nonce=1594157624217368019\u0026orderNumber=96238912841",
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ],
+      "Key": [
+       ""
+      ],
+      "Sign": [
+       "db30a451e3277242dd56ba0d0f73e1ca58b6b6891afbc8a5ae13c388a95ffd6ae6f6e63d0b6915e481f35bfcc84b3c73395666f28e76912c7178a440d46de43c"
+      ]
+     }
+    },
+    {
+     "data": {
+      "error": "Order not found, or you are not the person who placed it."
+     },
+     "queryString": "",
+     "bodyParams": "command=returnOrderTrades\u0026nonce=1594157624217368020\u0026orderNumber=96238912842",
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ],
+      "Key": [
+       ""
+      ],
+      "Sign": [
+       "db30a451e3277242dd56ba0d0f73e1ca58b6b6891afbc8a5ae13c388a95ffd6ae6f6e63d0b6915e481f35bfcc84b3c73395666f28e76912c7178a440d46de43c"
+      ]
+     }
+    },
+    {
+     "data": {
+      "result":{
+       "6071071":{
+        "status":"Open",
+        "rate":"0.40000000",
+        "amount":"1.00000000",
+        "currencyPair":"BTC_ETH",
+        "date":"2018-10-17 17:04:50",
+        "total":"0.40000000",
+        "type":"buy",
+        "startingAmount":"1.00000"
+       }
+      },
+      "success":1
+     },
+     "queryString": "",
+     "bodyParams": "command=returnOrderStatus\u0026nonce=1594157624217368022\u0026orderNumber=96238912841",
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ],
+      "Key": [
+       ""
+      ],
+      "Sign": [
+       "db30a451e3277242dd56ba0d0f73e1ca58b6b6891afbc8a5ae13c388a95ffd6ae6f6e63d0b6915e481f35bfcc84b3c73395666f28e76912c7178a440d46de43c"
+      ]
+     }
+    },
+    {
+     "data": {
+      "result":{
+       "error": "Order not found, or you are not the person who placed it."
+      }
+     },
+     "queryString": "",
+     "bodyParams": "command=returnOrderStatus\u0026nonce=1594157624217368022\u0026orderNumber=96238912842",
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ],
+      "Key": [
+       ""
+      ],
+      "Sign": [
+       "db30a451e3277242dd56ba0d0f73e1ca58b6b6891afbc8a5ae13c388a95ffd6ae6f6e63d0b6915e481f35bfcc84b3c73395666f28e76912c7178a440d46de43c"
+      ]
+     }
     }
    ]
   }
