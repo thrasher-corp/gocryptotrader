@@ -299,7 +299,7 @@ func (h *HUOBI) FQueryTieredAdjustmentFactor(symbol string) (FTieredAdjustmentFa
 }
 
 // FQueryHisOpenInterest gets open interest for futures contract
-func (h *HUOBI) FQueryHisOpenInterest(symbol string, contractType, period, amountType string, size int64) (FOIData, error) {
+func (h *HUOBI) FQueryHisOpenInterest(symbol, contractType, period, amountType string, size int64) (FOIData, error) {
 	var resp FOIData
 	params := url.Values{}
 	if symbol != "" {
