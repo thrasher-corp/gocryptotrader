@@ -689,17 +689,18 @@ func (h *HUOBI) PlaceSwapBatchOrders(data BatchOrderRequestType) (BatchOrderData
 		return resp, fmt.Errorf("invalid data provided: maximum of 10 batch orders supported")
 	}
 	for x := range data.Data {
-		if data.Data[x].ContractCode != "" {
-			unformattedPair, err := currency.NewPairFromString(data.Data[x].ContractCode)
-			if err != nil {
-				return resp, err
-			}
-			codeValue, err := h.FormatSymbol(unformattedPair, asset.CoinMarginedFutures)
-			if err != nil {
-				return resp, err
-			}
-			data.Data[x].ContractCode = codeValue
+		if data.Data[x].ContractCode == "" {
+			continue
 		}
+		unformattedPair, err := currency.NewPairFromString(data.Data[x].ContractCode)
+		if err != nil {
+			return resp, err
+		}
+		codeValue, err := h.FormatSymbol(unformattedPair, asset.CoinMarginedFutures)
+		if err != nil {
+			return resp, err
+		}
+		data.Data[x].ContractCode = codeValue
 	}
 	req["orders_data"] = data.Data
 	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.RestFutures, http.MethodPost, huobiSwapPlaceBatchOrder, nil, req, &resp)

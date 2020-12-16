@@ -172,10 +172,6 @@ func (h *HUOBI) FGetMarketDepth(symbol currency.Pair, dataType string) (OBData, 
 	if err != nil {
 		return resp, err
 	}
-	symbolValue, err = h.FormatSymbol(symbol, asset.Futures)
-	if err != nil {
-		return resp, err
-	}
 	params.Set("symbol", symbolValue)
 	params.Set("type", dataType)
 	path := fContractMarketDepth + params.Encode()
