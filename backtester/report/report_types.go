@@ -1,8 +1,6 @@
 package report
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -12,6 +10,7 @@ import (
 
 type Handler interface {
 	GenerateReport() error
+	AddCandles(*kline.Item)
 }
 
 type Data struct {
@@ -21,22 +20,28 @@ type Data struct {
 }
 
 type DetailedKline struct {
-	Exchange string
-	Asset    asset.Item
-	Pair     currency.Pair
-	Interval kline.Interval
-	Candles  []DetailedCandle
+	Watermark string
+	Exchange  string
+	Asset     asset.Item
+	Pair      currency.Pair
+	Interval  kline.Interval
+	Candles   []DetailedCandle
 }
 
 type DetailedCandle struct {
-	Time           time.Time
+	Time           int64
 	Open           float64
 	High           float64
 	Low            float64
 	Close          float64
 	Volume         float64
+	VolumeColour   string
 	MadeOrder      bool
 	OrderDirection order.Side
 	OrderAmount    float64
+	Shape          string
+	Text           string
+	Position       string
+	Colour         string
 	PurchasePrice  float64
 }

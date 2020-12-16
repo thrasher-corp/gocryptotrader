@@ -17,7 +17,9 @@ type DataHolder struct {
 }
 
 func (d *DataHolder) Setup() {
-	d.Data = make(map[string]map[asset.Item]map[currency.Pair]Handler)
+	if d.Data == nil {
+		d.Data = make(map[string]map[asset.Item]map[currency.Pair]Handler)
+	}
 }
 
 func (d *DataHolder) AddDataForCurrency(e string, a asset.Item, p currency.Pair, k Handler) {

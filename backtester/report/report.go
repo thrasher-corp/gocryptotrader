@@ -5,15 +5,30 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // GenerateReport sends final data from statistics to a template
 // to create a lovely final report for someone to view
 func (d *Data) GenerateReport() error {
-	tmpl := template.Must(template.ParseFiles("tpl.gohtml"))
+	err := d.enhanceCandles()
+	if err != nil {
+		return err
+	}
+
+	curr, _ := os.Getwd()
+	tmpl := template.Must(
+		template.ParseFiles(
+			filepath.Join(curr, "backtester", "report", "tpl.gohtml"),
+		),
+	)
 	file, err := os.Create(
 		filepath.Join(
-			"..",
+			curr,
+			"backtester",
 			"results",
 			fmt.Sprintf(
 				"%v%v.html",
@@ -34,29 +49,42 @@ func (d *Data) GenerateReport() error {
 	return nil
 }
 
+func (d *Data) AddCandles(k *kline.Item) {
+	d.OriginalCandles = append(d.OriginalCandles, k)
+}
+
 // enhanceCandles will enhance candle data with order information allowing
 // report charts to have annotations to highlight buy and sell events
 func (d *Data) enhanceCandles() error {
 	for i := range d.OriginalCandles {
 		lookup := d.OriginalCandles[i]
 		enhancedKline := DetailedKline{
-			Exchange: lookup.Exchange,
-			Asset:    lookup.Asset,
-			Pair:     lookup.Pair,
-			Interval: lookup.Interval,
+			Exchange:  lookup.Exchange,
+			Asset:     lookup.Asset,
+			Pair:      lookup.Pair,
+			Interval:  lookup.Interval,
+			Watermark: fmt.Sprintf("%v - %v - %v", strings.Title(lookup.Exchange), lookup.Asset.String(), strings.ToUpper(lookup.Pair.String())),
 		}
 
 		statsForCandles :=
 			d.Statistics.ExchangeAssetPairStatistics[lookup.Exchange][lookup.Asset][lookup.Pair]
-
+		if statsForCandles == nil {
+			continue
+		}
 		for j := range d.OriginalCandles[i].Candles {
 			enhancedCandle := DetailedCandle{
-				Time:   d.OriginalCandles[i].Candles[j].Time,
-				Open:   d.OriginalCandles[i].Candles[j].Open,
-				High:   d.OriginalCandles[i].Candles[j].High,
-				Low:    d.OriginalCandles[i].Candles[j].Low,
-				Close:  d.OriginalCandles[i].Candles[j].Close,
-				Volume: d.OriginalCandles[i].Candles[j].Volume,
+				Time:         d.OriginalCandles[i].Candles[j].Time.Unix(),
+				Open:         d.OriginalCandles[i].Candles[j].Open,
+				High:         d.OriginalCandles[i].Candles[j].High,
+				Low:          d.OriginalCandles[i].Candles[j].Low,
+				Close:        d.OriginalCandles[i].Candles[j].Close,
+				Volume:       d.OriginalCandles[i].Candles[j].Volume,
+				VolumeColour: "rgba(47, 194, 27, 0.8)",
+			}
+			if j != 0 {
+				if d.OriginalCandles[i].Candles[j].Close < d.OriginalCandles[i].Candles[j-1].Close {
+					enhancedCandle.VolumeColour = "rgba(252, 3, 3, 0.8)"
+				}
 			}
 			for k := range statsForCandles.Orders.Orders {
 				if statsForCandles.Orders.Orders[k].Date.Equal(
@@ -66,6 +94,16 @@ func (d *Data) enhanceCandles() error {
 					enhancedCandle.OrderAmount = statsForCandles.Orders.Orders[k].Amount
 					enhancedCandle.PurchasePrice = statsForCandles.Orders.Orders[k].Price
 					enhancedCandle.OrderDirection = statsForCandles.Orders.Orders[k].Side
+					if enhancedCandle.OrderDirection == order.Buy {
+						enhancedCandle.Colour = "green"
+						enhancedCandle.Position = "aboveBar"
+						enhancedCandle.Shape = "arrowDown"
+					} else if enhancedCandle.OrderDirection == order.Sell {
+						enhancedCandle.Colour = "red"
+						enhancedCandle.Position = "belowBar"
+						enhancedCandle.Shape = "arrowUp"
+					}
+					enhancedCandle.Text = fmt.Sprintf("%v", enhancedCandle.OrderDirection)
 				}
 			}
 			enhancedKline.Candles = append(enhancedKline.Candles, enhancedCandle)

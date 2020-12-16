@@ -65,8 +65,9 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	bt.Datas = &data.DataHolder{}
 	bt.EventQueue = &eventholder.Holder{}
 	reports := &report.Data{}
+	bt.Reports = reports
 
-	e, err = bt.setupExchangeSettings(cfg, reports)
+	e, err = bt.setupExchangeSettings(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -130,18 +131,16 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	bt.Statistic = stats
 	reports.Statistics = stats
 
-	bt.Reports = reports
-
 	cfg.PrintSetting()
 
 	return bt, nil
 }
 
-func (bt *BackTest) setupExchangeSettings(cfg *config.Config, reports *report.Data) (exchange.Exchange, error) {
+func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
 	resp := exchange.Exchange{}
 
 	for i := range cfg.CurrencySettings {
-		exch, p, a, err := bt.loadExchangePairAssetBase(
+		exch, pair, a, err := bt.loadExchangePairAssetBase(
 			cfg.CurrencySettings[i].ExchangeName,
 			cfg.CurrencySettings[i].Base,
 			cfg.CurrencySettings[i].Quote,
@@ -150,13 +149,13 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config, reports *report.Da
 			return resp, err
 		}
 
-		z := strings.ToLower(exch.GetName())
+		exchangeName := strings.ToLower(exch.GetName())
 		bt.Datas.Setup()
-		e, err := loadData(cfg, exch, p, a, reports)
+		klineData, err := bt.loadData(cfg, exch, pair, a)
 		if err != nil {
 			return resp, err
 		}
-		bt.Datas.AddDataForCurrency(z, a, p, e)
+		bt.Datas.AddDataForCurrency(exchangeName, a, pair, klineData)
 		var makerFee, takerFee float64
 
 		if cfg.CurrencySettings[i].MakerFee > 0 {
@@ -167,7 +166,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config, reports *report.Da
 		}
 		if makerFee == 0 || takerFee == 0 {
 			var apiMakerFee, apiTakerFee float64
-			apiMakerFee, apiTakerFee, err = getFees(exch, p)
+			apiMakerFee, apiTakerFee, err = getFees(exch, pair)
 			if err != nil {
 				return resp, err
 			}
@@ -194,7 +193,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config, reports *report.Da
 			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
 			MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
 			MaximumSlippageRate: cfg.CurrencySettings[i].MaximumSlippagePercent,
-			CurrencyPair:        p,
+			CurrencyPair:        pair,
 			AssetType:           a,
 			ExchangeFee:         takerFee,
 			MakerFee:            takerFee,
@@ -308,7 +307,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float
 
 // loadData will create kline data from the sources defined in strat config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
-func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, reports *report.Data) (*kline.DataFromKline, error) {
+func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	base := exch.GetBase()
 	if cfg.DatabaseData == nil && cfg.LiveData == nil && cfg.APIData == nil && cfg.CSVData == nil {
 		return nil, errors.New("no data settings set in config")
@@ -382,7 +381,7 @@ func loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.
 	if err != nil {
 		return nil, err
 	}
-	reports.OriginalCandles = append(reports.OriginalCandles, candles)
+	bt.Reports.AddCandles(candles)
 	return resp, nil
 }
 

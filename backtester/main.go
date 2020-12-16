@@ -8,7 +8,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
-	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
@@ -22,7 +21,7 @@ func main() {
 			"C:\\Users\\ScottGrant\\go\\src\\github.com\\thrasher-corp\\gocryptotrader\\backtester",
 			"config",
 			"examples",
-			"dollar-cost-average.strat"),
+			"dollar-cost-average-multi-currency-assessment.strat"),
 		"the config containing strategy params")
 	flag.Parse()
 
@@ -62,7 +61,8 @@ func main() {
 	if err != nil {
 		gctlog.Error(gctlog.BackTester, err)
 	}
-	err = report.GenerateReport(bt.Statistic.GetBase())
+
+	err = bt.Reports.GenerateReport()
 	if err != nil {
 		gctlog.Error(gctlog.BackTester, err)
 	}

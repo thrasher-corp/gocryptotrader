@@ -35,7 +35,6 @@ func (s *Strategy) OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.Si
 	var resp []signal.SignalEvent
 	for i := range d {
 		es := s.GetBase(d[i])
-
 		es.SetPrice(d[i].Latest().Price())
 		es.SetDirection(order.Buy)
 		es.AppendWhy("DCA purchases on every iteration")
