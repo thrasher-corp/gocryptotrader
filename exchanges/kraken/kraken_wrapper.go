@@ -1170,10 +1170,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 			}
 		}
 		for p := range pairs {
-			fPair, err := k.FormatExchangeCurrency(pairs[p], asset.Futures)
-			if err != nil {
-				return orders, err
-			}
 			orderHistory, err = k.FuturesRecentOrders(pairs[p])
 			if err != nil {
 				return orders, err
@@ -1204,7 +1200,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						Date:      timeVar,
 						Side:      vars.Side,
 						Exchange:  k.Name,
-						Pair:      fPair,
+						Pair:      pairs[p],
 					})
 				case orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID != "":
 					timeVar, err := time.Parse(krakenFormat,
@@ -1231,7 +1227,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						Date:      timeVar,
 						Side:      vars.Side,
 						Exchange:  k.Name,
-						Pair:      fPair,
+						Pair:      pairs[p],
 						Status:    order.Rejected,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID != "":
@@ -1259,7 +1255,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						Date:      timeVar,
 						Side:      vars.Side,
 						Exchange:  k.Name,
-						Pair:      fPair,
+						Pair:      pairs[p],
 						Status:    order.Cancelled,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID != "":
@@ -1287,7 +1283,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						Date:      timeVar,
 						Side:      vars.Side,
 						Exchange:  k.Name,
-						Pair:      fPair,
+						Pair:      pairs[p],
 					})
 				default:
 					return orders, fmt.Errorf("invalid orderHistory data")

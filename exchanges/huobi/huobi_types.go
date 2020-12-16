@@ -677,11 +677,11 @@ type FIndexKlineData struct {
 type FBasisData struct {
 	Ch   string `json:"ch"`
 	Data []struct {
-		Basis         float64 `json:"basis"`
-		BasisRate     float64 `json:"basis_rate"`
-		ContractPrice float64 `json:"contract_price"`
+		Basis         float64 `json:"basis,string"`
+		BasisRate     float64 `json:"basis_rate,string"`
+		ContractPrice float64 `json:"contract_price,string"`
 		ID            int64   `json:"id"`
-		IndexPrice    float64 `json:"index_price"`
+		IndexPrice    float64 `json:"index_price,string"`
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
 }

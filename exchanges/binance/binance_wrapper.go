@@ -1446,10 +1446,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 	case asset.USDTMarginedFutures:
 		for i := range req.Pairs {
-			fPair, err := b.FormatExchangeCurrency(req.Pairs[i], req.AssetType)
-			if err != nil {
-				return orders, err
-			}
 			switch {
 			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
 				if req.EndTicks.After(req.StartTicks) {
@@ -1464,7 +1460,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 						var feeBuilder exchange.FeeBuilder
 						feeBuilder.Amount = orderHistory[y].ExecutedQty
 						feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-						feeBuilder.Pair = fPair
+						feeBuilder.Pair = req.Pairs[i]
 						fee, err := b.GetFee(&feeBuilder)
 						if err != nil {
 							return orders, err
@@ -1482,7 +1478,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 							Type:            orderVars.OrderType,
 							Side:            orderVars.Side,
 							Status:          orderVars.Status,
-							Pair:            fPair,
+							Pair:            req.Pairs[i],
 							AssetType:       asset.USDTMarginedFutures,
 						})
 					}
@@ -1500,7 +1496,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 					var feeBuilder exchange.FeeBuilder
 					feeBuilder.Amount = orderHistory[y].ExecutedQty
 					feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-					feeBuilder.Pair = fPair
+					feeBuilder.Pair = req.Pairs[i]
 					fee, err := b.GetFee(&feeBuilder)
 					if err != nil {
 						return orders, err
@@ -1518,7 +1514,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 						Type:            orderVars.OrderType,
 						Side:            orderVars.Side,
 						Status:          orderVars.Status,
-						Pair:            fPair,
+						Pair:            req.Pairs[i],
 						AssetType:       asset.USDTMarginedFutures,
 					})
 				}

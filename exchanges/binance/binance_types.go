@@ -188,6 +188,17 @@ type UTakerVolumeData struct {
 	Timestamp    int64   `json:"timestamp"`
 }
 
+// UCompositeIndexInfoData stores composite index data for usdt margined futures
+type UCompositeIndexInfoData struct {
+	Symbol        string `json:"symbol"`
+	Time          int64  `json:"time"`
+	BaseAssetList []struct {
+		BaseAsset          string  `json:"baseAsset"`
+		WeightInQuantity   float64 `json:"weightInQuantity,string"`
+		WeightInPercentage float64 `json:"weightInPercentage,string"`
+	} `json:"baseAssetList"`
+}
+
 // UOrderData stores order data
 type UOrderData struct {
 	ClientOrderID string  `json:"clientOrderId"`

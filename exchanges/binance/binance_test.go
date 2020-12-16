@@ -269,6 +269,22 @@ func TestUTakerBuySellVol(t *testing.T) {
 	}
 }
 
+func TestUCompositeIndexInfo(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("DEFI-USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UCompositeIndexInfo(cp)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UCompositeIndexInfo(currency.Pair{})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestUFuturesNewOrder(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {

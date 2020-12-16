@@ -170,6 +170,7 @@ type Cancel struct {
 	AssetType     asset.Item
 	Date          time.Time
 	Pair          currency.Pair
+	Symbol        string
 	Trades        []TradeHistory
 }
 
