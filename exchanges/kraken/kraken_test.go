@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -1527,5 +1528,51 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = k.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+var testOb = orderbook.Base{
+	Asks: []orderbook.Item{
+		{Price: 0.05005, Amount: 0.00000500},
+		{Price: 0.05010, Amount: 0.00000500},
+		{Price: 0.05015, Amount: 0.00000500},
+		{Price: 0.05020, Amount: 0.00000500},
+		{Price: 0.05025, Amount: 0.00000500},
+		{Price: 0.05030, Amount: 0.00000500},
+		{Price: 0.05035, Amount: 0.00000500},
+		{Price: 0.05040, Amount: 0.00000500},
+		{Price: 0.05045, Amount: 0.00000500},
+		{Price: 0.05050, Amount: 0.00000500},
+	},
+	Bids: []orderbook.Item{
+		{Price: 0.05000, Amount: 0.00000500},
+		{Price: 0.04995, Amount: 0.00000500},
+		{Price: 0.04990, Amount: 0.00000500},
+		{Price: 0.04980, Amount: 0.00000500},
+		{Price: 0.04975, Amount: 0.00000500},
+		{Price: 0.04970, Amount: 0.00000500},
+		{Price: 0.04965, Amount: 0.00000500},
+		{Price: 0.04960, Amount: 0.00000500},
+		{Price: 0.04955, Amount: 0.00000500},
+		{Price: 0.04950, Amount: 0.00000500},
+	},
+}
+
+const krakenAPIDocChecksum = 974947235
+
+func TestChecksumCalculation(t *testing.T) {
+	expected := "5005"
+	if v := trim("0.05005"); v != expected {
+		t.Fatalf("expected %s but received %s", expected, v)
+	}
+
+	expected = "500"
+	if v := trim("0.00000500"); v != expected {
+		t.Fatalf("expected %s but received %s", expected, v)
+	}
+
+	err := validateCRC32(&testOb, krakenAPIDocChecksum)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

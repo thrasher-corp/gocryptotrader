@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"net/http"
 	"strconv"
 	"strings"
@@ -400,11 +401,35 @@ func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 			}
 			return k.wsProcessCandles(&channelData, o)
 		case krakenWsOrderbook:
-			ob, ok := response[1].(map[string]interface{})
-			if !ok {
-				return errors.New("received invalid orderbook data")
+			switch len(response) {
+			case 4:
+				ob, ok := response[1].(map[string]interface{})
+				if !ok {
+					return errors.New("received invalid orderbook data")
+				}
+				return k.wsProcessOrderBook(&channelData, ob)
+			case 5:
+				ob, ok := response[1].(map[string]interface{})
+				if !ok {
+					return errors.New("received invalid orderbook data")
+				}
+
+				ob2, ok := response[2].(map[string]interface{})
+				if !ok {
+					return errors.New("received invalid orderbook data")
+				}
+
+				// Squish both maps together to process
+				for k, v := range ob2 {
+					if _, ok := ob[k]; ok {
+						return errors.New("cannot merge maps, conflict is present")
+					}
+					ob[k] = v
+				}
+				return k.wsProcessOrderBook(&channelData, ob)
+			default:
+				return errors.New("unexpected data structure returned")
 			}
-			return k.wsProcessOrderBook(&channelData, ob)
 		case krakenWsSpread:
 			s, ok := response[1].([]interface{})
 			if !ok {
@@ -744,10 +769,14 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 	} else {
 		askData, asksExist := data["a"].([]interface{})
 		bidData, bidsExist := data["b"].([]interface{})
+		checksum, ok := data["c"].(string)
+		if !ok {
+			return fmt.Errorf("could not process orderbook update checksum not found")
+		}
 		if asksExist || bidsExist {
 			k.wsRequestMtx.Lock()
 			defer k.wsRequestMtx.Unlock()
-			err := k.wsProcessOrderBookUpdate(channelData, askData, bidData)
+			err := k.wsProcessOrderBookUpdate(channelData, askData, bidData, checksum)
 			if err != nil {
 				go func(resub *stream.ChannelSubscription) {
 					// This was locking the main websocket reader routine and a
@@ -834,7 +863,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 }
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
-func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, askData, bidData []interface{}) error {
+func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, askData, bidData []interface{}, checksum string) error {
 	update := buffer.Update{
 		Asset: asset.Spot,
 		Pair:  channelData.Pair,
@@ -897,7 +926,56 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		}
 	}
 	update.UpdateTime = highestLastUpdate
-	return k.Websocket.Orderbook.Update(&update)
+	err := k.Websocket.Orderbook.Update(&update)
+	if err != nil {
+		return err
+	}
+
+	book := k.Websocket.Orderbook.GetOrderbook(channelData.Pair, asset.Spot)
+	if book == nil {
+		return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s",
+			channelData.Pair,
+			asset.Spot)
+	}
+
+	token, err := strconv.ParseInt(checksum, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	return validateCRC32(book, uint32(token))
+}
+
+func validateCRC32(b *orderbook.Base, token uint32) error {
+	if len(b.Asks) < 10 || len(b.Bids) < 10 {
+		return errors.New("insufficient bid and asks to calculate checksum")
+	}
+	var checkStr strings.Builder
+	for i := 0; i < 10; i++ {
+		priceStr := trim(strconv.FormatFloat(b.Asks[i].Price, 'f', 5, 64))
+		checkStr.WriteString(priceStr)
+		amountStr := trim(strconv.FormatFloat(b.Asks[i].Amount, 'f', 8, 64))
+		checkStr.WriteString(amountStr)
+	}
+
+	for i := 0; i < 10; i++ {
+		priceStr := trim(strconv.FormatFloat(b.Bids[i].Price, 'f', 5, 64))
+		checkStr.WriteString(priceStr)
+		amountStr := trim(strconv.FormatFloat(b.Bids[i].Amount, 'f', 8, 64))
+		checkStr.WriteString(amountStr)
+	}
+
+	if check := crc32.ChecksumIEEE([]byte(checkStr.String())); check != token {
+		return fmt.Errorf("invalid checksum %d, expected %d", check, token)
+	}
+	return nil
+}
+
+// trim removes '.' and prefixed '0' from subsequent string
+func trim(s string) string {
+	s = strings.Replace(s, ".", "", 1)
+	s = strings.TrimLeft(s, "0")
+	return s
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
