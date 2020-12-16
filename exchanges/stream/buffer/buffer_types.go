@@ -37,6 +37,11 @@ type Update struct {
 	Bids []orderbook.Item
 	Asks []orderbook.Item
 	Pair currency.Pair
+
+	// Determines if there is a max depth of orderbooks and after an append we
+	// should remove any items that are outside of this scope. Kraken is the
+	// only exchange utilising this field.
+	MaxDepth int
 }
 
 // Action defines a set of differing states required to implement an incoming

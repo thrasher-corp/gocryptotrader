@@ -165,6 +165,9 @@ askUpdates:
 			continue
 		}
 		insertAsk(updts.Asks[j], &o.ob.Asks)
+		if updts.MaxDepth != 0 && len(o.ob.Asks) > updts.MaxDepth {
+			o.ob.Asks = o.ob.Asks[:updts.MaxDepth]
+		}
 	}
 bidUpdates:
 	for j := range updts.Bids {
@@ -182,6 +185,9 @@ bidUpdates:
 			continue
 		}
 		insertBid(updts.Bids[j], &o.ob.Bids)
+		if updts.MaxDepth != 0 && len(o.ob.Bids) > updts.MaxDepth {
+			o.ob.Bids = o.ob.Bids[:updts.MaxDepth]
+		}
 	}
 	return nil
 }

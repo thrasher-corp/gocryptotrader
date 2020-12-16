@@ -53,6 +53,7 @@ const (
 	krakenWsCancelAllOrderStatus = "cancelAllStatus"
 	krakenWsRateLimit            = 50
 	krakenWsPingDelay            = time.Second * 27
+	krakenWsOrderbookDepth       = 1000
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be
@@ -865,8 +866,9 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, askData, bidData []interface{}, checksum string) error {
 	update := buffer.Update{
-		Asset: asset.Spot,
-		Pair:  channelData.Pair,
+		Asset:    asset.Spot,
+		Pair:     channelData.Pair,
+		MaxDepth: krakenWsOrderbookDepth,
 	}
 
 	var highestLastUpdate time.Time
@@ -1159,7 +1161,7 @@ channels:
 		}
 		var depth int64
 		if channelsToUnsubscribe[x].Channel == "book" {
-			depth = 1000
+			depth = krakenWsOrderbookDepth
 		}
 
 		var id int64
