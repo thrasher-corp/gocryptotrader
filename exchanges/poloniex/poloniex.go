@@ -428,7 +428,7 @@ func (p *Poloniex) GetAuthenticatedOrderStatus(orderID string) (o OrderStatusDat
 
 	values.Set("orderNumber", orderID)
 	var rawOrderStatus OrderStatus
-	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderStatus, values, &rawOrderStatus)
+	err = p.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, poloniexOrderStatus, values, &rawOrderStatus)
 	if err != nil {
 		return o, err
 	}
@@ -466,7 +466,7 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(orderID string) (o []OrderTrade, 
 
 	values.Set("orderNumber", orderID)
 	var result json.RawMessage
-	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderTrades, values, &result)
+	err = p.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, poloniexOrderTrades, values, &result)
 	if err != nil {
 		return nil, err
 	}
