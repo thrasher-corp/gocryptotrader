@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -26,6 +29,15 @@ import (
 
 var comms = make(chan stream.Response)
 
+type checksum struct {
+	Token    int
+	Sequence int64
+}
+
+// checksumStore quick global for now
+var checksumStore = make(map[int]*checksum)
+var cMtx sync.Mutex
+
 // WsConnect starts a new websocket connection
 func (b *Bitfinex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
@@ -39,6 +51,7 @@ func (b *Bitfinex) WsConnect() error {
 			b.Name,
 			err)
 	}
+
 	go b.wsReadData(b.Websocket.Conn)
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
@@ -143,9 +156,18 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 		}
 	case []interface{}:
-		if hb, ok := d[1].(string); ok {
+		if datum, ok := d[1].(string); ok {
 			// Capturing heart beat
-			if hb == "hb" {
+			if datum == "hb" {
+				return nil
+			}
+
+			// Capturing checksum and storing value
+			if datum == "cs" {
+				fmt.Println("Checksum:", string(respRaw))
+				cMtx.Lock()
+				checksumStore[int(d[0].(float64))] = &checksum{Token: int(d[2].(float64)), Sequence: int64(d[3].(float64))}
+				cMtx.Unlock()
 				return nil
 			}
 		}
@@ -202,9 +224,16 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if len(obSnapBundle) == 0 {
 				return errors.New("no data within orderbook snapshot")
 			}
+
+			sequenceNo, ok := d[2].(float64)
+			if !ok {
+				return errors.New("type assertion failure")
+			}
+
 			var fundingRate bool
 			switch id := obSnapBundle[0].(type) {
 			case []interface{}:
+				fmt.Println("Snapshot:", d)
 				for i := range obSnapBundle {
 					data := obSnapBundle[i].([]interface{})
 					id, okAssert := data[0].(float64)
@@ -243,6 +272,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						err)
 				}
 			case float64:
+				fmt.Println("Orderbook Update:", d)
 				d1, okSnap := obSnapBundle[1].(float64)
 				if !okSnap {
 					return errors.New("type assertion failed for orderbook snapshot data")
@@ -269,7 +299,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						Amount: d2})
 				}
 
-				err := b.WsUpdateOrderbook(pair, chanAsset, newOrderbook)
+				err := b.WsUpdateOrderbook(pair, chanAsset, newOrderbook, chanID, int64(sequenceNo))
 				if err != nil {
 					return fmt.Errorf("bitfinex_websocket.go updating orderbook error: %s",
 						err)
@@ -904,7 +934,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook) error {
+func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook, channelID int, sequenceNo int64) error {
 	orderbookUpdate := buffer.Update{Asset: assetType, Pair: p}
 
 	for i := range book {
@@ -941,6 +971,31 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 			}
 		}
 	}
+
+	cMtx.Lock()
+	defer cMtx.Unlock()
+	checkme := checksumStore[channelID]
+	if checkme == nil {
+		return b.Websocket.Orderbook.Update(&orderbookUpdate)
+	}
+	checksumStore[channelID] = nil
+
+	if checkme.Sequence+1 != int64(sequenceNo) {
+		return errors.New("sequence out of order")
+	}
+
+	ob := b.Websocket.Orderbook.GetOrderbook(p, assetType)
+	if ob == nil {
+		return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s",
+			p,
+			assetType)
+	}
+
+	err := validateCRC32(ob, checkme.Token)
+	if err != nil {
+		log.Errorln(log.WebsocketMgr, err)
+	}
+
 	return b.Websocket.Orderbook.Update(&orderbookUpdate)
 }
 
@@ -998,6 +1053,14 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs common.Errors
+	checksum := make(map[string]interface{})
+	checksum["event"] = "conf"
+	checksum["flags"] = bitfinexChecksumFlag + bitfinexWsSequenceFlag
+	err := b.Websocket.Conn.SendJSONMessage(checksum)
+	if err != nil {
+		return err
+	}
+
 	for i := range channelsToSubscribe {
 		req := make(map[string]interface{})
 		req["event"] = "subscribe"
@@ -1228,4 +1291,97 @@ func (b *Bitfinex) WsCancelOffer(orderID int64) error {
 
 func makeRequestInterface(channelName string, data interface{}) []interface{} {
 	return []interface{}{0, channelName, nil, data}
+}
+
+func validateCRC32(book *orderbook.Base, token int) error {
+	// RO precision calculation is based on order ID's and amount values
+	var bids, asks []orderbook.Item
+	for i := 0; i < 25; i++ {
+		if i < len(book.Bids) {
+			bids = append(bids, book.Bids[i])
+		}
+		if i < len(book.Asks) {
+			asks = append(asks, book.Asks[i])
+		}
+	}
+
+	// Order ID's need to be sub-sorted in ascending order
+	reOrderByID(bids, true)
+	reOrderByID(asks, true)
+
+	var check strings.Builder
+	for i := 0; i < 25; i++ {
+		if i < len(book.Bids) {
+			check.WriteString(strconv.FormatInt(book.Bids[i].ID, 10))
+			check.WriteString(":")
+			check.WriteString(strconv.FormatFloat(book.Bids[i].Amount, 'f', -1, 64))
+			check.WriteString(":")
+		}
+		if i < len(book.Asks) {
+			check.WriteString(strconv.FormatInt(book.Asks[i].ID, 10))
+			check.WriteString(":")
+			// ensure '-' (negative amount) is passed back to string buffer as
+			// this is needed for calcs
+			check.WriteString(strconv.FormatFloat(-book.Asks[i].Amount, 'f', -1, 64))
+			check.WriteString(":")
+		}
+	}
+
+	checkStr := check.String()
+	cleaned := checkStr[:len(checkStr)-1]
+	fmt.Println("STRING:", cleaned)
+	crcCheck := crc32.ChecksumIEEE([]byte(cleaned))
+	fmt.Println("CHECKSUM CALC Uint32:", crcCheck)
+	fmt.Println("TOKEN CALC signed:", token)
+	fmt.Println("TOKEN CALC UINT32:", uint32(token))
+	if crcCheck != uint32(token) {
+		for i := range book.Bids {
+			fmt.Println("BIDS:", book.Bids[i])
+		}
+		for i := range book.Asks {
+			fmt.Println("ASKS:", book.Asks[i])
+		}
+		return fmt.Errorf("invalid checksum %d, expected %d", crcCheck, token)
+	}
+	return nil
+}
+
+// reOrderByID sub sorts orderbook items by its corresponding ID when price
+// levels are the same.
+func reOrderByID(depth []orderbook.Item, ask bool) {
+subSort:
+	for x := 0; x < len(depth); {
+		var subset []orderbook.Item
+		// Traverse forward elements
+		for y := x + 1; y < len(depth); y++ {
+			if depth[x].Price == depth[y].Price {
+				// Append element to subset when price match occurs
+				subset = append(subset, depth[y])
+				// Traverse next
+				continue
+			}
+			if len(subset) != 0 {
+				// Append root element
+				subset = append(subset, depth[x])
+				// Sort IDs by ascending
+				if ask {
+					sort.Slice(subset, func(i, j int) bool {
+						return subset[i].ID < subset[j].ID
+					})
+				} else {
+					sort.Slice(subset, func(i, j int) bool {
+						return subset[i].ID > subset[j].ID
+					})
+				}
+				// Re-align elements with sorted ID subset
+				for z := range subset {
+					depth[x+z] = subset[z]
+				}
+			}
+			// When price is not matching change checked element to root
+			x = y
+			continue subSort
+		}
+		break
+	}
 }

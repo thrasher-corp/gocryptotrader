@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"hash/crc32"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1472,5 +1474,69 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*24*100), time.Now().Add(-time.Hour*24*99))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+var testOb = orderbook.Base{
+	Asks: []orderbook.Item{
+		{Price: 0.05005, Amount: 0.00000500},
+		{Price: 0.05010, Amount: 0.00000500},
+		{Price: 0.05015, Amount: 0.00000500},
+		{Price: 0.05020, Amount: 0.00000500},
+		{Price: 0.05025, Amount: 0.00000500},
+		{Price: 0.05030, Amount: 0.00000500},
+		{Price: 0.05035, Amount: 0.00000500},
+		{Price: 0.05040, Amount: 0.00000500},
+		{Price: 0.05045, Amount: 0.00000500},
+		{Price: 0.05050, Amount: 0.00000500},
+	},
+	Bids: []orderbook.Item{
+		{Price: 0.05000, Amount: 0.00000500},
+		{Price: 0.04995, Amount: 0.00000500},
+		{Price: 0.04990, Amount: 0.00000500},
+		{Price: 0.04980, Amount: 0.00000500},
+		{Price: 0.04975, Amount: 0.00000500},
+		{Price: 0.04970, Amount: 0.00000500},
+		{Price: 0.04965, Amount: 0.00000500},
+		{Price: 0.04960, Amount: 0.00000500},
+		{Price: 0.04955, Amount: 0.00000500},
+		{Price: 0.04950, Amount: 0.00000500},
+	},
+}
+
+func TestChecksum(t *testing.T) {
+	err := validateCRC32(&testOb, 1337)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReOrderbyID(t *testing.T) {
+	depth := []orderbook.Item{
+		{ID: 4, Price: 100, Amount: 0.00000500},
+		{ID: 3, Price: 100, Amount: 0.00000500},
+		{ID: 2, Price: 100, Amount: 0.00000500},
+		{ID: 1, Price: 100, Amount: 0.00000500},
+		{ID: 5, Price: 101, Amount: 0.00000500},
+		{ID: 6, Price: 102, Amount: 0.00000500},
+		{ID: 8, Price: 103, Amount: 0.00000500},
+		{ID: 7, Price: 103, Amount: 0.00000500},
+		{ID: 9, Price: 104, Amount: 0.00000500},
+		{ID: 10, Price: 105, Amount: 0.00000500},
+	}
+	reOrderByID(depth, true)
+
+	for i := range depth {
+		if depth[i].ID != int64(i+1) {
+			t.Fatal("order by ID failure")
+		}
+	}
+}
+
+func TestSomething(t *testing.T) {
+	wow := `54965556385:0.01483383:54965554934:-0.4977:54965301720:0.03346812:54965543474:-0.871:54965430915:0.329971:54965546871:-0.13615596:54965549740:0.18985162:54965553719:-0.7:54965557846:1.66771882:54965557735:-0.4654:54965499057:0.04688725:54965540158:-0.4734:54965499089:0.01484262:54964822865:-0.0002:54965499078:0.00468938:54964793428:-0.2191:54965556746:0.71325997:54965539656:-0.13557182:54965426806:0.4:54965547038:-0.1368982:54964875699:0.25:54965550675:-0.44683452:54964875700:0.25:54965557733:-0.23250775:54965556803:0.07909:54965535131:-0.6:54965545555:0.26122:54965358908:-0.0002:54965540661:0.69787:54965497250:-0.0002:54965551127:0.11656:54965553515:-1.79016573:54965554405:0.03790353:54965426407:-0.0008:54965423258:0.0002:54965220224:-0.0002:54965299811:0.0004:54965552691:-0.26771618:54965540157:0.4862:54965526589:-0.00060001:54965220122:0.0002:54965289257:-0.0002:54965497370:0.00242537:54965401605:-0.0008:54965406425:0.0004:54965340611:-0.0002:54965346587:0.0002:54965372690:-0.00060001:54965463555:0.59805624:54965426409:-0.0002`
+
+	if crc32.ChecksumIEEE([]byte(wow)) != 1401807448 {
+		t.Fatal("Unexpected")
 	}
 }
