@@ -96,11 +96,15 @@ func (h *HUOBI) FGetContractInfo(symbol, contractType string, code currency.Pair
 }
 
 // FIndexPriceInfo gets index price info for a futures contract
-func (h *HUOBI) FIndexPriceInfo(symbol string) (FContractIndexPriceInfo, error) {
+func (h *HUOBI) FIndexPriceInfo(symbol currency.Code) (FContractIndexPriceInfo, error) {
 	var resp FContractIndexPriceInfo
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", codeValue)
 	}
 	path := fContractIndexPrice + params.Encode()
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
@@ -115,7 +119,7 @@ func (h *HUOBI) FContractPriceLimitations(symbol, contractType string, code curr
 	}
 	if contractType != "" {
 		if !common.StringDataCompare(validContractTypes, contractType) {
-			return resp, fmt.Errorf("invalid")
+			return resp, fmt.Errorf("invalid contractType: %s", contractType)
 		}
 		params.Set("contract_type", contractType)
 	}
@@ -155,10 +159,14 @@ func (h *HUOBI) FContractOpenInterest(symbol, contractType string, code currency
 }
 
 // FGetEstimatedDeliveryPrice gets estimated delivery price info for futures
-func (h *HUOBI) FGetEstimatedDeliveryPrice(symbol string) (FEstimatedDeliveryPriceInfo, error) {
+func (h *HUOBI) FGetEstimatedDeliveryPrice(symbol currency.Code) (FEstimatedDeliveryPriceInfo, error) {
 	var resp FEstimatedDeliveryPriceInfo
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	codeValue, err := h.formatCode(symbol, asset.Futures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", codeValue)
 	path := fEstimatedDeliveryPrice + params.Encode()
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
 }
@@ -266,33 +274,45 @@ func (h *HUOBI) FRequestPublicBatchTrades(symbol currency.Pair, size int64) (FBa
 }
 
 // FQueryInsuranceAndClawbackData gets insurance and clawback data for a futures contract
-func (h *HUOBI) FQueryInsuranceAndClawbackData(symbol string) (FClawbackRateAndInsuranceData, error) {
+func (h *HUOBI) FQueryInsuranceAndClawbackData(symbol currency.Code) (FClawbackRateAndInsuranceData, error) {
 	var resp FClawbackRateAndInsuranceData
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", codeValue)
 	}
 	path := fInsuranceAndClawback + params.Encode()
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
 }
 
 // FQueryHistoricalInsuranceData gets insurance data
-func (h *HUOBI) FQueryHistoricalInsuranceData(symbol string) (FHistoricalInsuranceRecordsData, error) {
+func (h *HUOBI) FQueryHistoricalInsuranceData(symbol currency.Code) (FHistoricalInsuranceRecordsData, error) {
 	var resp FHistoricalInsuranceRecordsData
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", codeValue)
 	}
 	path := fInsuranceBalanceHistory + params.Encode()
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
 }
 
 // FQueryTieredAdjustmentFactor gets tiered adjustment factor for futures contracts
-func (h *HUOBI) FQueryTieredAdjustmentFactor(symbol string) (FTieredAdjustmentFactorInfo, error) {
+func (h *HUOBI) FQueryTieredAdjustmentFactor(symbol currency.Code) (FTieredAdjustmentFactorInfo, error) {
 	var resp FTieredAdjustmentFactorInfo
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", codeValue)
 	}
 	path := fTieredAdjustmentFactor + params.Encode()
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
@@ -326,11 +346,15 @@ func (h *HUOBI) FQueryHisOpenInterest(symbol, contractType, period, amountType s
 }
 
 // FQuerySystemStatus gets system status data
-func (h *HUOBI) FQuerySystemStatus(symbol string) (FContractOIData, error) {
+func (h *HUOBI) FQuerySystemStatus(symbol currency.Code) (FContractOIData, error) {
 	var resp FContractOIData
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", codeValue)
 	}
 	path := fSystemStatus + params.Encode()
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
@@ -437,31 +461,43 @@ func (h *HUOBI) FGetBasisData(symbol currency.Pair, period, basisPriceType strin
 }
 
 // FGetAccountInfo gets user info for futures account
-func (h *HUOBI) FGetAccountInfo(symbol string) (FUserAccountData, error) {
+func (h *HUOBI) FGetAccountInfo(symbol currency.Code) (FUserAccountData, error) {
 	var resp FUserAccountData
 	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		req["symbol"] = codeValue
 	}
 	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.RestFutures, http.MethodPost, fAccountData, nil, req, &resp)
 }
 
 // FGetPositionsInfo gets positions info for futures account
-func (h *HUOBI) FGetPositionsInfo(symbol string) (FUserAccountData, error) {
+func (h *HUOBI) FGetPositionsInfo(symbol currency.Code) (FUserAccountData, error) {
 	var resp FUserAccountData
 	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		req["symbol"] = codeValue
 	}
 	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.RestFutures, http.MethodPost, fPositionInformation, nil, req, &resp)
 }
 
 // FGetAllSubAccountAssets gets assets info for all futures subaccounts
-func (h *HUOBI) FGetAllSubAccountAssets(symbol string) (FSubAccountAssetsInfo, error) {
+func (h *HUOBI) FGetAllSubAccountAssets(symbol currency.Code) (FSubAccountAssetsInfo, error) {
 	var resp FSubAccountAssetsInfo
 	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		req["symbol"] = codeValue
 	}
 	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.RestFutures, http.MethodPost, fAllSubAccountAssets, nil, req, &resp)
 }
@@ -515,7 +551,7 @@ func (h *HUOBI) FGetFinancialRecords(symbol, recordType string, createDate, page
 }
 
 // FGetSettlementRecords gets settlement records for futures
-func (h *HUOBI) FGetSettlementRecords(symbol string, pageIndex, pageSize int64, startTime, endTime time.Time) (FSettlementRecords, error) {
+func (h *HUOBI) FGetSettlementRecords(symbol currency.Code, pageIndex, pageSize int64, startTime, endTime time.Time) (FSettlementRecords, error) {
 	var resp FSettlementRecords
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
@@ -552,37 +588,49 @@ func (h *HUOBI) FGetOrderLimits(symbol, orderPriceType string) (FContractInfoOnO
 }
 
 // FContractTradingFee gets futures contract trading fees
-func (h *HUOBI) FContractTradingFee(symbol string) (FContractTradingFeeData, error) {
+func (h *HUOBI) FContractTradingFee(symbol currency.Code) (FContractTradingFeeData, error) {
 	var resp FContractTradingFeeData
 	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		req["symbol"] = codeValue
 	}
 	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.RestFutures, http.MethodPost, fContractTradingFee, nil, req, &resp)
 }
 
 // FGetTransferLimits gets transfer limits for futures
-func (h *HUOBI) FGetTransferLimits(symbol string) (FTransferLimitData, error) {
+func (h *HUOBI) FGetTransferLimits(symbol currency.Code) (FTransferLimitData, error) {
 	var resp FTransferLimitData
 	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		req["symbol"] = codeValue
 	}
 	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.RestFutures, http.MethodPost, fTransferLimitInfo, nil, req, &resp)
 }
 
 // FGetPositionLimits gets position limits for futures
-func (h *HUOBI) FGetPositionLimits(symbol string) (FPositionLimitData, error) {
+func (h *HUOBI) FGetPositionLimits(symbol currency.Code) (FPositionLimitData, error) {
 	var resp FPositionLimitData
 	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		req["symbol"] = codeValue
 	}
 	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.RestFutures, http.MethodPost, fPositionLimitInfo, nil, req, &resp)
 }
 
 // FGetAssetsAndPositions gets assets and positions for futures
-func (h *HUOBI) FGetAssetsAndPositions(symbol string) (FAssetsAndPositionsData, error) {
+func (h *HUOBI) FGetAssetsAndPositions(symbol currency.Code) (FAssetsAndPositionsData, error) {
 	var resp FAssetsAndPositionsData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
@@ -628,11 +676,15 @@ func (h *HUOBI) FGetTransferRecords(symbol, transferType string, createDate, pag
 }
 
 // FGetAvailableLeverage gets available leverage data for futures
-func (h *HUOBI) FGetAvailableLeverage(symbol string) (FAvailableLeverageData, error) {
+func (h *HUOBI) FGetAvailableLeverage(symbol currency.Code) (FAvailableLeverageData, error) {
 	var resp FAvailableLeverageData
 	req := make(map[string]interface{})
-	if symbol != "" {
-		req["symbol"] = symbol
+	if symbol != (currency.Code{}) {
+		codeValue, err := h.formatCode(symbol, asset.Futures)
+		if err != nil {
+			return resp, err
+		}
+		req["symbol"] = codeValue
 	}
 	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.RestFutures, http.MethodPost, fAvailableLeverage, nil, req, &resp)
 }
@@ -817,7 +869,7 @@ func (h *HUOBI) FOrderDetails(symbol, orderID, orderType string, createdAt time.
 }
 
 // FGetOpenOrders gets order details for futures orders
-func (h *HUOBI) FGetOpenOrders(symbol string, pageIndex, pageSize int64) (FOpenOrdersData, error) {
+func (h *HUOBI) FGetOpenOrders(symbol currency.Code, pageIndex, pageSize int64) (FOpenOrdersData, error) {
 	var resp FOpenOrdersData
 	req := make(map[string]interface{})
 	req["symbol"] = symbol
@@ -1046,4 +1098,15 @@ func (h *HUOBI) FQueryTriggerOrderHistory(contractCode currency.Pair, symbol, tr
 		req["page_size"] = pageSize
 	}
 	return resp, h.FuturesAuthenticatedHTTPRequest(exchange.RestFutures, http.MethodPost, fTriggerOrderHistory, nil, req, &resp)
+}
+
+func (h *HUOBI) formatCode(p currency.Code, assetType asset.Item) (string, error) {
+	pairFmt, err := h.GetPairFormat(assetType, true)
+	if err != nil {
+		return "NOOO", err
+	}
+	if pairFmt.Uppercase {
+		return p.Upper().String(), nil
+	}
+	return p.Lower().String(), nil
 }

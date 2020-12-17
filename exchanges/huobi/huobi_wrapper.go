@@ -733,7 +733,7 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 			info.Accounts = append(info.Accounts, acc)
 
 		case asset.Futures:
-			subAccsData, err := h.FGetAllSubAccountAssets("")
+			subAccsData, err := h.FGetAllSubAccountAssets(currency.Code{})
 			if err != nil {
 				return info, err
 			}
@@ -842,7 +842,7 @@ func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		var params = SpotNewOrderRequestParams{
 			Amount:    s.Amount,
 			Source:    "api",
-			Symbol:    s.Pair.String(),
+			Symbol:    s.Pair,
 			AccountID: int(accountID),
 		}
 		switch {
@@ -1369,13 +1369,9 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		}
 	case asset.Futures:
 		for x := range req.Pairs {
-			fPair, err := h.FormatExchangeCurrency(req.Pairs[x], req.AssetType)
-			if err != nil {
-				return orders, err
-			}
 			var currentPage int64 = 0
 			for done := false; !done; {
-				openOrders, err := h.FGetOpenOrders(fPair.Base.String(), currentPage, 50)
+				openOrders, err := h.FGetOpenOrders(req.Pairs[x].Base, currentPage, 50)
 				if err != nil {
 					return orders, err
 				}
@@ -1614,13 +1610,9 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 	if err := h.ValidateKline(pair, a, interval); err != nil {
 		return kline.Item{}, err
 	}
-	symbolValue, err := h.FormatSymbol(pair, asset.Spot)
-	if err != nil {
-		return kline.Item{}, err
-	}
 	klineParams := KlinesRequestParams{
 		Period: h.FormatExchangeKlineInterval(interval),
-		Symbol: symbolValue,
+		Symbol: pair,
 	}
 	candles, err := h.GetSpotKline(klineParams)
 	if err != nil {

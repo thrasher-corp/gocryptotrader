@@ -87,7 +87,7 @@ func TestFGetContractInfo(t *testing.T) {
 
 func TestFIndexPriceInfo(t *testing.T) {
 	t.Parallel()
-	_, err := h.FIndexPriceInfo("BTC")
+	_, err := h.FIndexPriceInfo(currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -111,7 +111,7 @@ func TestFContractOpenInterest(t *testing.T) {
 
 func TestFGetEstimatedDeliveryPrice(t *testing.T) {
 	t.Parallel()
-	_, err := h.FGetEstimatedDeliveryPrice("BTC")
+	_, err := h.FGetEstimatedDeliveryPrice(currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -182,7 +182,7 @@ func TestFRequestPublicBatchTrades(t *testing.T) {
 
 func TestFQueryInsuranceAndClawbackData(t *testing.T) {
 	t.Parallel()
-	_, err := h.FQueryInsuranceAndClawbackData("BTC")
+	_, err := h.FQueryInsuranceAndClawbackData(currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -190,7 +190,7 @@ func TestFQueryInsuranceAndClawbackData(t *testing.T) {
 
 func TestFQueryHistoricalInsuranceData(t *testing.T) {
 	t.Parallel()
-	_, err := h.FQueryHistoricalInsuranceData("BTC")
+	_, err := h.FQueryHistoricalInsuranceData(currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -198,7 +198,7 @@ func TestFQueryHistoricalInsuranceData(t *testing.T) {
 
 func TestFQueryTieredAdjustmentFactor(t *testing.T) {
 	t.Parallel()
-	_, err := h.FQueryTieredAdjustmentFactor("BTC")
+	_, err := h.FQueryTieredAdjustmentFactor(currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -215,7 +215,7 @@ func TestFQueryHisOpenInterest(t *testing.T) {
 func TestFQuerySystemStatus(t *testing.T) {
 	t.Parallel()
 
-	_, err := h.FQuerySystemStatus("BTC")
+	_, err := h.FQuerySystemStatus(currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -274,7 +274,7 @@ func TestFGetAccountInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetAccountInfo("")
+	_, err := h.FGetAccountInfo(currency.Code{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -285,7 +285,7 @@ func TestFGetPositionsInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetPositionsInfo("")
+	_, err := h.FGetPositionsInfo(currency.Code{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -296,7 +296,7 @@ func TestFGetAllSubAccountAssets(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetAllSubAccountAssets("")
+	_, err := h.FGetAllSubAccountAssets(currency.Code{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -340,7 +340,7 @@ func TestFGetSettlementRecords(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetSettlementRecords("BTC", 0, 0, time.Now().Add(-1*time.Hour), time.Now())
+	_, err := h.FGetSettlementRecords(currency.BTC, 0, 0, time.Now().Add(-1*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -351,7 +351,7 @@ func TestFContractTradingFee(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FContractTradingFee("")
+	_, err := h.FContractTradingFee(currency.Code{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -362,7 +362,7 @@ func TestFGetTransferLimits(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetTransferLimits("")
+	_, err := h.FGetTransferLimits(currency.Code{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -373,7 +373,7 @@ func TestFGetPositionLimits(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetPositionLimits("")
+	_, err := h.FGetPositionLimits(currency.Code{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -384,7 +384,7 @@ func TestFGetAssetsAndPositions(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetAssetsAndPositions("HT")
+	_, err := h.FGetAssetsAndPositions(currency.HT)
 	if err != nil {
 		t.Error(err)
 	}
@@ -417,7 +417,7 @@ func TestFGetAvailableLeverage(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetAvailableLeverage("BTC")
+	_, err := h.FGetAvailableLeverage(currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -541,7 +541,7 @@ func TestFGetOpenOrders(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetOpenOrders("BTC", 1, 2)
+	_, err := h.FGetOpenOrders(currency.BTC, 1, 2)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1477,8 +1477,12 @@ func TestGetSwapMarkets(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetSpotKline(KlinesRequestParams{
-		Symbol: testSymbol,
+	cp, err := currency.NewPairFromString(testSymbol)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = h.GetSpotKline(KlinesRequestParams{
+		Symbol: cp,
 		Period: "1min",
 		Size:   0,
 	})
@@ -1677,16 +1681,16 @@ func TestSpotNewOrder(t *testing.T) {
 	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
 	}
-
+	cp, err := currency.NewPairFromString(testSymbol)
 	arg := SpotNewOrderRequestParams{
-		Symbol:    testSymbol,
+		Symbol:    cp,
 		AccountID: 1,
 		Amount:    0.01,
 		Price:     10.1,
 		Type:      SpotNewOrderRequestTypeBuyLimit,
 	}
 
-	_, err := h.SpotNewOrder(arg)
+	_, err = h.SpotNewOrder(arg)
 	if err != nil {
 		t.Errorf("Huobi SpotNewOrder: %s", err)
 	}

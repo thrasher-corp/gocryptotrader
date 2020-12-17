@@ -93,15 +93,11 @@ func (h *HUOBI) GetMarginRates(symbol currency.Pair) (MarginRatesData, error) {
 // KlinesRequestParams contains symbol currency.Pair, period and size
 func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
-	unformattedPair, err := currency.NewPairFromString(arg.Symbol)
+	symbolValue, err := h.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	arg.Symbol, err = h.FormatSymbol(unformattedPair, asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	vals.Set("symbol", arg.Symbol)
+	vals.Set("symbol", symbolValue)
 	vals.Set("period", arg.Period)
 
 	if arg.Size != 0 {
@@ -114,9 +110,8 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("/%s", huobiMarketHistoryKline)
 
-	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues(urlPath, vals), &result)
+	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues("/"+huobiMarketHistoryKline, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -126,8 +121,7 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 // GetTickers returns the ticker for the specified symbol
 func (h *HUOBI) GetTickers() (Tickers, error) {
 	var result Tickers
-	urlPath := fmt.Sprintf("/%s", huobiMarketTickers)
-	return result, h.SendHTTPRequest(exchange.RestSpot, urlPath, &result)
+	return result, h.SendHTTPRequest(exchange.RestSpot, "/"+huobiMarketTickers, &result)
 }
 
 // GetMarketDetailMerged returns the ticker for the specified symbol
@@ -145,9 +139,8 @@ func (h *HUOBI) GetMarketDetailMerged(symbol currency.Pair) (DetailMerged, error
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("/%s", huobiMarketDetailMerged)
 
-	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues(urlPath, vals), &result)
+	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues("/"+huobiMarketDetailMerged, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Tick, errors.New(result.ErrorMessage)
 	}
@@ -173,9 +166,8 @@ func (h *HUOBI) GetDepth(obd OrderBookDataRequestParams) (Orderbook, error) {
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("/%s", huobiMarketDepth)
 
-	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues(urlPath, vals), &result)
+	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues("/"+huobiMarketDepth, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Depth, errors.New(result.ErrorMessage)
 	}
@@ -199,9 +191,8 @@ func (h *HUOBI) GetTrades(symbol currency.Pair) ([]Trade, error) {
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("/%s", huobiMarketTrade)
 
-	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues(urlPath, vals), &result)
+	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues("/"+huobiMarketTrade, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -243,9 +234,8 @@ func (h *HUOBI) GetTradeHistory(symbol currency.Pair, size int64) ([]TradeHistor
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("/%s", huobiMarketTradeHistory)
 
-	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues(urlPath, vals), &result)
+	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues("/"+huobiMarketTradeHistory, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -267,9 +257,8 @@ func (h *HUOBI) GetMarketDetail(symbol currency.Pair) (Detail, error) {
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("/%s", huobiMarketDetail)
 
-	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues(urlPath, vals), &result)
+	err = h.SendHTTPRequest(exchange.RestSpot, common.EncodeURLValues("/"+huobiMarketDetail, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Tick, errors.New(result.ErrorMessage)
 	}
@@ -284,9 +273,8 @@ func (h *HUOBI) GetSymbols() ([]Symbol, error) {
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("/v%s/%s", huobiAPIVersion, huobiSymbols)
 
-	err := h.SendHTTPRequest(exchange.RestSpot, urlPath, &result)
+	err := h.SendHTTPRequest(exchange.RestSpot, "/v"+huobiAPIVersion+"/"+huobiSymbols, &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -301,9 +289,8 @@ func (h *HUOBI) GetCurrencies() ([]string, error) {
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("/v%s/%s", huobiAPIVersion, huobiCurrencies)
 
-	err := h.SendHTTPRequest(exchange.RestSpot, urlPath, &result)
+	err := h.SendHTTPRequest(exchange.RestSpot, "/v"+huobiAPIVersion+"/"+"/"+huobiCurrencies, &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -318,9 +305,8 @@ func (h *HUOBI) GetTimestamp() (int64, error) {
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("/v%s/%s", huobiAPIVersion, huobiTimestamp)
 
-	err := h.SendHTTPRequest(exchange.RestSpot, urlPath, &result)
+	err := h.SendHTTPRequest(exchange.RestSpot, "/v"+huobiAPIVersion+"/"+huobiTimestamp, &result)
 	if result.ErrorMessage != "" {
 		return 0, errors.New(result.ErrorMessage)
 	}
@@ -366,6 +352,11 @@ func (h *HUOBI) GetAggregatedBalance() ([]AggregatedBalance, error) {
 
 // SpotNewOrder submits an order to Huobi
 func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
+	symbolValue, err := h.FormatSymbol(arg.Symbol, asset.Spot)
+	if err != nil {
+		return 0, err
+	}
+
 	data := struct {
 		AccountID int    `json:"account-id,string"`
 		Amount    string `json:"amount"`
@@ -376,17 +367,8 @@ func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
 	}{
 		AccountID: arg.AccountID,
 		Amount:    strconv.FormatFloat(arg.Amount, 'f', -1, 64),
-		Symbol:    arg.Symbol,
+		Symbol:    symbolValue,
 		Type:      string(arg.Type),
-	}
-
-	unformattedPair, err := currency.NewPairFromString(arg.Symbol)
-	if err != nil {
-		return 0, err
-	}
-	arg.Symbol, err = h.FormatSymbol(unformattedPair, asset.Spot)
-	if err != nil {
-		return 0, err
 	}
 
 	// Only set price if order type is not equal to buy-market or sell-market

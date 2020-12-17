@@ -59,22 +59,32 @@ const (
 	allOrders     = "/api/v3/allOrders"
 
 	// Withdraw API endpoints
-	withdrawEndpoint            = "/wapi/v3/withdraw.html"
-	depositHistory              = "/wapi/v3/depositHistory.html"
-	withdrawalHistory           = "/wapi/v3/withdrawHistory.html"
-	depositAddress              = "/wapi/v3/depositAddress.html"
-	accountStatus               = "/wapi/v3/accountStatus.html"
-	systemStatus                = "/wapi/v3/systemStatus.html"
-	dustLog                     = "/wapi/v3/userAssetDribbletLog.html"
-	tradeFee                    = "/wapi/v3/tradeFee.html"
-	assetDetail                 = "/wapi/v3/assetDetail.html"
-	undocumentedInterestHistory = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
+	withdrawEndpoint                       = "/wapi/v3/withdraw.html"
+	depositHistory                         = "/wapi/v3/depositHistory.html"
+	withdrawalHistory                      = "/wapi/v3/withdrawHistory.html"
+	depositAddress                         = "/wapi/v3/depositAddress.html"
+	accountStatus                          = "/wapi/v3/accountStatus.html"
+	systemStatus                           = "/wapi/v3/systemStatus.html"
+	dustLog                                = "/wapi/v3/userAssetDribbletLog.html"
+	tradeFee                               = "/wapi/v3/tradeFee.html"
+	assetDetail                            = "/wapi/v3/assetDetail.html"
+	undocumentedInterestHistory            = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
+	undocumentedCrossMarginInterestHistory = "/gateway-api/v1/friendly/margin/vip/spec/list-all"
 )
 
 // GetInterestHistory gets interest history for currency/currencies provided
 func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 	var resp MarginInfoData
 	if err := b.SendHTTPRequest(exchange.EdgeCase1, undocumentedInterestHistory, limitDefault, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// GetCrossMarginInterestHistory gets cross-margin interest history for currency/currencies provided
+func (b *Binance) GetCrossMarginInterestHistory() (CrossMarginInterestData, error) {
+	var resp CrossMarginInterestData
+	if err := b.SendHTTPRequest(exchange.EdgeCase1, undocumentedCrossMarginInterestHistory, limitDefault, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil

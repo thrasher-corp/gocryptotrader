@@ -558,6 +558,14 @@ func TestGetInterestHistory(t *testing.T) {
 	}
 }
 
+func TestGetCrossMarginInterestHistory(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetCrossMarginInterestHistory()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetFundingRates(currency.NewPair(currency.BTC, currency.USDT), "", time.Time{}, time.Time{})
