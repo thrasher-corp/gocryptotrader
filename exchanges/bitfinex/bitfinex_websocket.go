@@ -171,12 +171,13 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 
 			// Capturing checksum and storing value
 			if datum == "cs" {
-				tokenF, ok := d[2].(float64)
+				var tokenF float64
+				tokenF, ok = d[2].(float64)
 				if !ok {
 					return errors.New("checksum token type assertion failure")
 				}
-
-				seqNoF, ok := d[3].(float64)
+				var seqNoF float64
+				seqNoF, ok = d[3].(float64)
 				if !ok {
 					return errors.New("sequence number type assertion failure")
 				}
