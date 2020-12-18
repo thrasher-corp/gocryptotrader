@@ -162,7 +162,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		}
 
 		chanID := int(chanF)
-		if datum, ok := d[1].(string); ok {
+		var datum string
+		if datum, ok = d[1].(string); ok {
 			// Capturing heart beat
 			if datum == "hb" {
 				return nil
@@ -1000,7 +1001,6 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
 				}
 			}
-
 		}
 	}
 
@@ -1013,7 +1013,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 	checksumStore[channelID] = nil
 	cMtx.Unlock()
 
-	if checkme.Sequence+1 == int64(sequenceNo) {
+	if checkme.Sequence+1 == sequenceNo {
 		// Sequence numbers get dropped, if checksum is not in line with
 		// sequence, do not check.
 		ob := b.Websocket.Orderbook.GetOrderbook(p, assetType)
