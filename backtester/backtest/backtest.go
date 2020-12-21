@@ -64,7 +64,9 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	var e exchange.Exchange
 	bt.Datas = &data.DataHolder{}
 	bt.EventQueue = &eventholder.Holder{}
-	reports := &report.Data{}
+	reports := &report.Data{
+		Config: cfg,
+	}
 	bt.Reports = reports
 
 	e, err = bt.setupExchangeSettings(cfg)
@@ -418,23 +420,23 @@ func (bt *BackTest) Run() error {
 dataLoadingIssue:
 	for ev, ok := bt.EventQueue.NextEvent(); true; ev, ok = bt.EventQueue.NextEvent() {
 		if !ok {
-			d := bt.Datas.GetAllData()
-			for i, e := range d {
-				for j, a := range e {
-					var z int64
-					for k, p := range a {
-						d, ok := p.Next()
+			dataHandlerMap := bt.Datas.GetAllData()
+			for exchangeName, exchangeMap := range dataHandlerMap {
+				for assetItem, assetMap := range exchangeMap {
+					var hasProcessedData bool
+					for currencyPair, dataHandler := range assetMap {
+						d, ok := dataHandler.Next()
 						if !ok {
 							if !hasHandledAnEvent {
-								log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", i, j, k)
+								log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
 							}
 							break dataLoadingIssue
 						}
-						if bt.Strategy.IsMultiCurrency() && z != 0 {
+						if bt.Strategy.IsMultiCurrency() && hasProcessedData {
 							continue
 						}
 						bt.EventQueue.AppendEvent(d)
-						z++
+						hasProcessedData = true
 					}
 				}
 			}
@@ -512,13 +514,13 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 func (bt *BackTest) appendSignalEventsFromDataEvents(e interfaces.DataEventHandler) {
 	if bt.Strategy.IsMultiCurrency() {
 		var dataEvents []data.Handler
-		ad := bt.Datas.GetAllData()
-		for _, e := range ad {
-			for _, a := range e {
-				for _, p := range a {
-					latestData := p.Latest()
+		dataHandlerMap := bt.Datas.GetAllData()
+		for _, exchangeMap := range dataHandlerMap {
+			for _, assetMap := range exchangeMap {
+				for _, dataHandler := range assetMap {
+					latestData := dataHandler.Latest()
 					bt.updateStatsForDataEvent(latestData)
-					dataEvents = append(dataEvents, p)
+					dataEvents = append(dataEvents, dataHandler)
 				}
 			}
 		}

@@ -1,6 +1,7 @@
 package report
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -17,6 +18,7 @@ type Data struct {
 	OriginalCandles []*kline.Item
 	Candles         []DetailedKline
 	Statistics      *statistics.Statistic
+	Config          *config.Config
 }
 
 type DetailedKline struct {

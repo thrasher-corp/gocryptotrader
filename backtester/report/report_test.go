@@ -4,7 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -12,13 +15,16 @@ import (
 )
 
 func TestGenerateReport(t *testing.T) {
+	e := "Binance"
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := Data{
 		OriginalCandles: nil,
 		Candles: []DetailedKline{
 			{
-				Exchange:  "Binance",
-				Asset:     asset.Spot,
-				Pair:      currency.NewPair(currency.BTC, currency.USDT),
+				Exchange:  e,
+				Asset:     a,
+				Pair:      p,
 				Interval:  kline.OneHour,
 				Watermark: "Binance - SPOT - BTC-USDT - 1h",
 				Candles: []DetailedCandle{
@@ -103,7 +109,7 @@ func TestGenerateReport(t *testing.T) {
 			},
 			{
 				Exchange:  "Bittrex",
-				Asset:     asset.Spot,
+				Asset:     a,
 				Pair:      currency.NewPair(currency.BTC, currency.USD),
 				Interval:  kline.OneDay,
 				Watermark: "BITTREX - SPOT - BTC-USD - 1d",
@@ -189,19 +195,96 @@ func TestGenerateReport(t *testing.T) {
 			},
 		},
 		Statistics: &statistics.Statistic{
-			StrategyName:                "butts",
-			StartDate:                   time.Time{},
-			IntervalSize:                0,
-			EndDate:                     time.Time{},
-			ExchangeAssetPairStatistics: nil,
-			RiskFreeRate:                0,
-			TotalBuyOrders:              0,
-			TotalSellOrders:             0,
-			TotalOrders:                 0,
-			BiggestDrawdown:             nil,
-			BestStrategyResults:         nil,
-			BestMarketMovement:          nil,
-			AllStats:                    nil,
+			StrategyName: "testStrat",
+			StartDate:    time.Now().Add(-time.Hour * 24 * 36),
+			IntervalSize: kline.OneDay.Duration(),
+			EndDate:      time.Now(),
+			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic{
+				e: {
+					a: {
+						p: &currencystatstics.CurrencyStatistic{
+							Pair:                     p,
+							Asset:                    a,
+							Exchange:                 e,
+							Events:                   nil,
+							DrawDowns:                currencystatstics.SwingHolder{},
+							Upswings:                 currencystatstics.SwingHolder{},
+							LowestClosePrice:         0,
+							HighestClosePrice:        0,
+							MarketMovement:           0,
+							StrategyMovement:         0,
+							SharpeRatio:              0,
+							SortinoRatio:             0,
+							InformationRatio:         0,
+							RiskFreeRate:             0,
+							CalamariRatio:            0,
+							CompoundAnnualGrowthRate: 0,
+							BuyOrders:                0,
+							SellOrders:               0,
+							FinalHoldings:            holdings.Holding{},
+							Orders:                   compliance.Snapshot{},
+						},
+					},
+				},
+			},
+			RiskFreeRate:    0.03,
+			TotalBuyOrders:  1337,
+			TotalSellOrders: 1330,
+			TotalOrders:     200,
+			BiggestDrawdown: &statistics.FinalResultsHolder{
+				Exchange: e,
+				Asset:    a,
+				Pair:     p,
+				MaxDrawdown: currencystatstics.Swing{
+					Highest: currencystatstics.Iteration{
+						Time:  time.Now(),
+						Price: 1337,
+					},
+					Lowest: currencystatstics.Iteration{
+						Time:  time.Now(),
+						Price: 137,
+					},
+					CalculatedDrawDown: 100,
+				},
+				MarketMovement:   1377,
+				StrategyMovement: 1377,
+			},
+			BestStrategyResults: &statistics.FinalResultsHolder{
+				Exchange: e,
+				Asset:    a,
+				Pair:     p,
+				MaxDrawdown: currencystatstics.Swing{
+					Highest: currencystatstics.Iteration{
+						Time:  time.Now(),
+						Price: 1337,
+					},
+					Lowest: currencystatstics.Iteration{
+						Time:  time.Now(),
+						Price: 137,
+					},
+					CalculatedDrawDown: 100,
+				},
+				MarketMovement:   1337,
+				StrategyMovement: 1337,
+			},
+			BestMarketMovement: &statistics.FinalResultsHolder{
+				Exchange: e,
+				Asset:    a,
+				Pair:     p,
+				MaxDrawdown: currencystatstics.Swing{
+					Highest: currencystatstics.Iteration{
+						Time:  time.Now(),
+						Price: 1337,
+					},
+					Lowest: currencystatstics.Iteration{
+						Time:  time.Now(),
+						Price: 137,
+					},
+					CalculatedDrawDown: 100,
+				},
+				MarketMovement:   1337,
+				StrategyMovement: 1337,
+			},
 		},
 	}
 	err := d.GenerateReport()

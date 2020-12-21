@@ -109,27 +109,27 @@ func (s *Statistic) CalculateTheResults() error {
 	s.PrintAllEvents()
 	currCount := 0
 	var finalResults []FinalResultsHolder
-	for e, x := range s.ExchangeAssetPairStatistics {
-		for a, y := range x {
-			for p, z := range y {
+	for exchangeName, exchangeMap := range s.ExchangeAssetPairStatistics {
+		for assetItem, assetMap := range exchangeMap {
+			for pair, stats := range assetMap {
 				currCount++
-				z.CalculateResults()
-				z.PrintResults(e, a, p)
-				last := z.Events[len(z.Events)-1]
-				z.FinalHoldings = last.Holdings
-				z.Orders = last.Transactions
-				s.AllStats = append(s.AllStats, *z)
+				stats.CalculateResults()
+				stats.PrintResults(exchangeName, assetItem, pair)
+				last := stats.Events[len(stats.Events)-1]
+				stats.FinalHoldings = last.Holdings
+				stats.Orders = last.Transactions
+				s.AllStats = append(s.AllStats, *stats)
 
 				finalResults = append(finalResults, FinalResultsHolder{
-					E:                e,
-					A:                a,
-					P:                p,
-					MaxDrawdown:      z.DrawDowns.MaxDrawDown,
-					MarketMovement:   z.MarketMovement,
-					StrategyMovement: z.StrategyMovement,
+					Exchange:         exchangeName,
+					Asset:            assetItem,
+					Pair:             pair,
+					MaxDrawdown:      stats.DrawDowns.MaxDrawDown,
+					MarketMovement:   stats.MarketMovement,
+					StrategyMovement: stats.StrategyMovement,
 				})
-				s.TotalBuyOrders += z.BuyOrders
-				s.TotalSellOrders += z.SellOrders
+				s.TotalBuyOrders += stats.BuyOrders
+				s.TotalSellOrders += stats.SellOrders
 			}
 		}
 	}
@@ -151,7 +151,7 @@ func (s *Statistic) PrintTotalResults(finalResults []FinalResultsHolder) {
 	log.Infof(log.BackTester, "Total orders: %v\n\n", s.TotalOrders)
 
 	log.Info(log.BackTester, "------------------Biggest Drawdown------------------------")
-	log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.E, s.BiggestDrawdown.A, s.BiggestDrawdown.P)
+	log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
 	log.Infof(log.BackTester, "Highest Price: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
 	log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
 	log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
@@ -161,8 +161,8 @@ func (s *Statistic) PrintTotalResults(finalResults []FinalResultsHolder) {
 	log.Infof(log.BackTester, "Drawdown length: %v\n\n", len(s.BiggestDrawdown.MaxDrawdown.Iterations))
 
 	log.Info(log.BackTester, "------------------Orders----------------------------------")
-	log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.E, s.BestMarketMovement.A, s.BestMarketMovement.P, s.BestMarketMovement.MarketMovement)
-	log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%", s.BestStrategyResults.E, s.BestStrategyResults.A, s.BestStrategyResults.P, s.BestStrategyResults.StrategyMovement)
+	log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
+	log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
 }
 
 func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) *FinalResultsHolder {

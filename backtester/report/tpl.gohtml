@@ -66,9 +66,22 @@
 					</div>
 					<div class="card-body card-body-cascade text-center">
 						<ul class="list-group">
-							<li class="list-group-item">Start date: </li>
-							<li class="list-group-item">End date: </li>
-							<li class="list-group-item">Interval size:</li>
+							{{ if  ne .Config.APIData nil }}
+								<li class="list-group-item">Start date: {{.Config.APIData.StartDate }}</li>
+								<li class="list-group-item">End date: {{.Config.APIData.EndDate}}</li>
+								<li class="list-group-item">Interval size: {{.Config.APIData.Interval}}</li>
+							{{ end }}
+                            {{ if  ne .Config.CSVData nil }}
+								<li class="list-group-item">Interval size: {{.Config.CSVData.Interval }}</li>
+                            {{ end }}
+                            {{ if  ne .Config.DatabaseData nil }}
+								<li class="list-group-item">Start date: {{.Config.DatabaseData.StartDate }}</li>
+								<li class="list-group-item">End date: {{.Config.DatabaseData.EndDate}}</li>
+								<li class="list-group-item">Interval size: {{.Config.DatabaseData.Interval }}</li>
+                            {{ end }}
+                            {{ if  ne .Config.LiveData nil }}
+								<li class="list-group-item">Interval size: {{.Config.LiveData.Interval }}</li>
+                            {{ end }}
 						</ul>
 						<table class="table table-hover">
 							<thead>
