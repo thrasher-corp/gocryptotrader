@@ -529,9 +529,12 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 			}
 
 			if !ws.IsConnected() && !ws.IsConnecting() {
-				go WebsocketDataReceiver(ws)
+				go Bot.WebsocketDataReceiver(ws)
 
 				err = ws.Connect()
+				if err == nil {
+					err = ws.FlushChannels()
+				}
 				if err != nil {
 					log.Errorf(log.SyncMgr,
 						"%s websocket failed to connect. Err: %s\n",

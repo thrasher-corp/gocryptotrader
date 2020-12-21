@@ -95,15 +95,6 @@ func (b *Bitmex) WsConnect() error {
 	}
 
 	go b.wsReadData()
-	subs, err := b.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-
-	err = b.Websocket.SubscribeToChannels(subs)
-	if err != nil {
-		return err
-	}
 
 	err = b.websocketSendAuth()
 	if err != nil {

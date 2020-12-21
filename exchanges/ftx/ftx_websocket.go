@@ -69,11 +69,7 @@ func (f *FTX) WsConnect() error {
 		}
 	}
 
-	subs, err := f.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return f.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // WsAuth sends an authentication message to receive auth data

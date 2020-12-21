@@ -41,12 +41,8 @@ func (z *ZB) WsConnect() error {
 		return err
 	}
 
-	subs, err := z.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
 	go z.wsReadData()
-	return z.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData handles all the websocket data coming from the websocket

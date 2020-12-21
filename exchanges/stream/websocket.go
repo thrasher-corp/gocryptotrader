@@ -192,11 +192,6 @@ func (w *Websocket) Connect() error {
 	w.trafficMonitor()
 	w.setConnectingStatus(true)
 
-	// flush any subscriptions from last connection if needed
-	w.subscriptionMutex.Lock()
-	w.subscriptions = nil
-	w.subscriptionMutex.Unlock()
-
 	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
@@ -209,6 +204,14 @@ func (w *Websocket) Connect() error {
 
 	if !w.IsConnectionMonitorRunning() {
 		w.connectionMonitor()
+	}
+
+	// Resubscribe after re-connection
+	if len(w.subscriptions) != 0 {
+		err = w.Subscriber(w.subscriptions)
+		if err != nil {
+			return fmt.Errorf("%v Error subscribing %s", w.exchangeName, err)
+		}
 	}
 
 	return nil

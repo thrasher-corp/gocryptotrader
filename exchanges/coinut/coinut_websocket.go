@@ -61,15 +61,6 @@ func (c *COINUT) WsConnect() error {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Error(log.WebsocketMgr, err)
 	}
-	subs, err := c.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-
-	err = c.Websocket.SubscribeToChannels(subs)
-	if err != nil {
-		return err
-	}
 
 	// define bi-directional communication
 	channels = make(map[string]chan []byte)
