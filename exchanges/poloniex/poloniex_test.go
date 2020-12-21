@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -245,6 +246,109 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error("Expecting an error when no keys are set")
 	case mockTests && err != nil:
 		t.Errorf("Could not mock get order history: %s", err)
+	}
+}
+
+func TestGetOrderStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		mock           bool
+		orderID        string
+		errExpected    bool
+		errMsgExpected string
+	}{
+		{
+			name:           "correct order ID",
+			mock:           true,
+			orderID:        "96238912841",
+			errExpected:    false,
+			errMsgExpected: "",
+		},
+		{
+			name:           "wrong order ID",
+			mock:           true,
+			orderID:        "96238912842",
+			errExpected:    true,
+			errMsgExpected: "Order not found",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.mock != mockTests {
+				t.Skip()
+			}
+
+			_, err := p.GetAuthenticatedOrderStatus(tt.orderID)
+
+			switch {
+			case areTestAPIKeysSet() && err != nil:
+				t.Errorf("Could not get order status: %s", err)
+			case !areTestAPIKeysSet() && err == nil && !mockTests:
+				t.Error("Expecting an error when no keys are set")
+			case mockTests && err != nil:
+				if !tt.errExpected {
+					t.Errorf("Could not mock get order status: %s", err.Error())
+				} else if !(strings.Contains(err.Error(), tt.errMsgExpected)) {
+					t.Errorf("Could not mock get order status: %s", err.Error())
+				}
+			case mockTests:
+				if tt.errExpected {
+					t.Errorf("Mock get order status expect an error '%s', get no error", tt.errMsgExpected)
+				}
+			}
+		})
+	}
+}
+
+func TestGetOrderTrades(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		mock           bool
+		orderID        string
+		errExpected    bool
+		errMsgExpected string
+	}{
+		{
+			name:           "correct order ID",
+			mock:           true,
+			orderID:        "96238912841",
+			errExpected:    false,
+			errMsgExpected: "",
+		},
+		{
+			name:           "wrong order ID",
+			mock:           true,
+			orderID:        "96238912842",
+			errExpected:    true,
+			errMsgExpected: "Order not found",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.mock != mockTests {
+				t.Skip()
+			}
+
+			_, err := p.GetAuthenticatedOrderTrades(tt.orderID)
+			switch {
+			case areTestAPIKeysSet() && err != nil:
+				t.Errorf("Could not get order trades: %s", err)
+			case !areTestAPIKeysSet() && err == nil && !mockTests:
+				t.Error("Expecting an error when no keys are set")
+			case mockTests && err != nil:
+				if !(tt.errExpected && strings.Contains(err.Error(), tt.errMsgExpected)) {
+					t.Errorf("Could not mock get order trades: %s", err)
+				}
+			}
+		})
 	}
 }
 

@@ -29,6 +29,8 @@ const (
 	poloniexDepositsWithdrawals  = "returnDepositsWithdrawals"
 	poloniexOrders               = "returnOpenOrders"
 	poloniexTradeHistory         = "returnTradeHistory"
+	poloniexOrderTrades          = "returnOrderTrades"
+	poloniexOrderStatus          = "returnOrderStatus"
 	poloniexOrderCancel          = "cancelOrder"
 	poloniexOrderMove            = "moveOrder"
 	poloniexWithdraw             = "withdraw"
@@ -416,6 +418,82 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(start, end, limit int64) (Authen
 
 	var mainResult AuthenticatedTradeHistoryAll
 	return mainResult, json.Unmarshal(result, &mainResult.Data)
+}
+
+// GetAuthenticatedOrderStatus returns the status of a given orderId.
+func (p *Poloniex) GetAuthenticatedOrderStatus(orderID string) (o OrderStatusData, err error) {
+	values := url.Values{}
+
+	if orderID == "" {
+		return o, fmt.Errorf("no orderID passed")
+	}
+
+	values.Set("orderNumber", orderID)
+	var rawOrderStatus OrderStatus
+	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderStatus, values, &rawOrderStatus)
+	if err != nil {
+		return o, err
+	}
+
+	switch rawOrderStatus.Success {
+	case 0: // fail
+		var errMsg GenericResponse
+		err = json.Unmarshal(rawOrderStatus.Result, &errMsg)
+		if err != nil {
+			return o, err
+		}
+		return o, fmt.Errorf(errMsg.Error)
+	case 1: // success
+		var status map[string]OrderStatusData
+		err = json.Unmarshal(rawOrderStatus.Result, &status)
+		if err != nil {
+			return o, err
+		}
+
+		for _, o = range status {
+			return o, err
+		}
+	}
+
+	return o, err
+}
+
+// GetAuthenticatedOrderTrades returns all trades involving a given orderId.
+func (p *Poloniex) GetAuthenticatedOrderTrades(orderID string) (o []OrderTrade, err error) {
+	values := url.Values{}
+
+	if orderID == "" {
+		return nil, fmt.Errorf("no orderId passed")
+	}
+
+	values.Set("orderNumber", orderID)
+	var result json.RawMessage
+	err = p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexOrderTrades, values, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("received unexpected response")
+	}
+
+	switch result[0] {
+	case '{': // error message received
+		var resp GenericResponse
+		err = json.Unmarshal(result, &resp)
+		if err != nil {
+			return nil, err
+		}
+		if resp.Error != "" {
+			err = fmt.Errorf(resp.Error)
+		}
+	case '[': // data received
+		err = json.Unmarshal(result, &o)
+	default:
+		return nil, fmt.Errorf("received unexpected response")
+	}
+
+	return o, err
 }
 
 // PlaceOrder places a new order on the exchange

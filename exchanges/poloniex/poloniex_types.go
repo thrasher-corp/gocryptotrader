@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -36,6 +37,7 @@ type OrderbookResponse struct {
 	Bids     [][]interface{} `json:"bids"`
 	IsFrozen string          `json:"isFrozen"`
 	Error    string          `json:"error"`
+	Seq      int64           `json:"seq"`
 }
 
 // OrderbookItem holds data on an individual item
@@ -64,6 +66,39 @@ type TradeHistory struct {
 	Rate          float64 `json:"rate,string"`
 	Amount        float64 `json:"amount,string"`
 	Total         float64 `json:"total,string"`
+}
+
+// OrderStatus holds order status data
+type OrderStatus struct {
+	Result  json.RawMessage `json:"result"`
+	Success int64           `json:"success"`
+}
+
+// OrderStatusData defines order status details
+type OrderStatusData struct {
+	Pair           string  `json:"currencyPair"`
+	Rate           float64 `json:"rate,string"`
+	Amount         float64 `json:"amount,string"`
+	Total          float64 `json:"total,string"`
+	StartingAmount float64 `json:"startingAmount,string"`
+	Type           string  `json:"type"`
+	Status         string  `json:"status"`
+	Date           string  `json:"date"`
+	Fee            float64 `json:"fee,string"`
+}
+
+// OrderTrade holds order trade data
+type OrderTrade struct {
+	Status        string  `json:"status"`
+	GlobalTradeID int64   `json:"globalTradeID"`
+	TradeID       int64   `json:"tradeID"`
+	CurrencyPair  string  `json:"currencyPair"`
+	Type          string  `json:"type"`
+	Rate          float64 `json:"rate,string"`
+	Amount        float64 `json:"amount,string"`
+	Total         float64 `json:"total,string"`
+	Fee           float64 `json:"fee,string"`
+	Date          string  `json:"date"`
 }
 
 // ChartData holds kline data
