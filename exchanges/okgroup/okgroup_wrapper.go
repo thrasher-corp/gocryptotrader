@@ -78,9 +78,14 @@ func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{
+		ExchangeName: o.Name,
+		Pair:         p,
+		AssetType:    a,
+	}
+
 	if a == asset.Index {
-		return orderBook, errors.New("no orderbooks for index")
+		return book, errors.New("no orderbooks for index")
 	}
 
 	fPair, err := o.FormatExchangeCurrency(p, a)
@@ -92,17 +97,17 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		InstrumentID: fPair.String(),
 	}, a)
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	for x := range orderbookNew.Bids {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if convErr != nil {
-			return orderBook, err
+			return book, err
 		}
 		price, convErr := strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
 		if convErr != nil {
-			return orderBook, err
+			return book, err
 		}
 
 		var liquidationOrders, orderCount int64
@@ -110,16 +115,16 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		if len(orderbookNew.Bids[x]) == 4 {
 			liquidationOrders, convErr = strconv.ParseInt(orderbookNew.Bids[x][2], 10, 64)
 			if convErr != nil {
-				return orderBook, err
+				return book, err
 			}
 
 			orderCount, convErr = strconv.ParseInt(orderbookNew.Bids[x][3], 10, 64)
 			if convErr != nil {
-				return orderBook, err
+				return book, err
 			}
 		}
 
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount:            amount,
 			Price:             price,
 			LiquidationOrders: liquidationOrders,
@@ -130,11 +135,11 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 	for x := range orderbookNew.Asks {
 		amount, convErr := strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if convErr != nil {
-			return orderBook, err
+			return book, err
 		}
 		price, convErr := strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
 		if convErr != nil {
-			return orderBook, err
+			return book, err
 		}
 
 		var liquidationOrders, orderCount int64
@@ -142,16 +147,16 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		if len(orderbookNew.Asks[x]) == 4 {
 			liquidationOrders, convErr = strconv.ParseInt(orderbookNew.Asks[x][2], 10, 64)
 			if convErr != nil {
-				return orderBook, err
+				return book, err
 			}
 
 			orderCount, convErr = strconv.ParseInt(orderbookNew.Asks[x][3], 10, 64)
 			if convErr != nil {
-				return orderBook, err
+				return book, err
 			}
 		}
 
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Amount:            amount,
 			Price:             price,
 			LiquidationOrders: liquidationOrders,
@@ -159,13 +164,9 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		})
 	}
 
-	orderBook.Pair = p
-	orderBook.AssetType = a
-	orderBook.ExchangeName = o.Name
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	return orderbook.Get(o.Name, fPair, a)
