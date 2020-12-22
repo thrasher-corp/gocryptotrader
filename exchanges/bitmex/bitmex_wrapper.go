@@ -333,23 +333,28 @@ func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{
+		ExchangeName: b.Name,
+		Pair:         p,
+		AssetType:    assetType,
+	}
+
 	if assetType == asset.Index {
-		return nil, common.ErrFunctionNotSupported
+		return book, common.ErrFunctionNotSupported
 	}
 
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
 		Symbol: fpair.String(),
 		Depth:  500})
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	book := new(orderbook.Base)
 	for i := range orderbookNew {
 		switch {
 		case strings.EqualFold(orderbookNew[i].Side, order.Sell.String()):
@@ -361,19 +366,16 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price})
 		default:
-			return nil,
+			return book,
 				fmt.Errorf("could not process orderbook, order side [%s] could not be matched",
 					orderbookNew[i].Side)
 		}
 	}
 	orderbook.Reverse(book.Asks)
-	book.Pair = p
-	book.ExchangeName = b.Name
-	book.AssetType = assetType
 
 	err = book.Process()
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 	return orderbook.Get(b.Name, p, assetType)
 }
