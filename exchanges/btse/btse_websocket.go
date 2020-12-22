@@ -115,7 +115,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
-		if strings.Contains(string(respRaw), "UNLOGIN_USER connect success") ||
+		if strings.Contains(string(respRaw), "connect success") ||
 			strings.Contains(string(respRaw), "authenticated successfully") {
 			return nil
 		} else if strings.Contains(string(respRaw), "AUTHENTICATE ERROR") {
