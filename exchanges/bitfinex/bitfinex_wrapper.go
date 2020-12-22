@@ -396,7 +396,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		prefix = "f"
 	}
 
-	orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "P0", 100)
+	orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "R0", 100)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +415,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		for x := range orderbookNew.Bids {
 			o.Bids = append(o.Bids, orderbook.Item{
 				ID:     orderbookNew.Bids[x].OrderID,
-				Price:  orderbookNew.Bids[x].Price,
+				Price:  orderbookNew.Bids[x].Rate,
 				Amount: orderbookNew.Bids[x].Amount,
 				Period: int64(orderbookNew.Bids[x].Period),
 			})
