@@ -365,17 +365,38 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			return nil
 		case wsTicker:
 			tickerData := d[1].([]interface{})
-			b.Websocket.DataHandler <- &ticker.Price{
-				ExchangeName: b.Name,
-				Bid:          tickerData[0].(float64),
-				Ask:          tickerData[2].(float64),
-				Last:         tickerData[6].(float64),
-				Volume:       tickerData[7].(float64),
-				High:         tickerData[8].(float64),
-				Low:          tickerData[9].(float64),
-				AssetType:    chanAsset,
-				Pair:         pair,
+			if len(tickerData) == 10 {
+				b.Websocket.DataHandler <- &ticker.Price{
+					ExchangeName: b.Name,
+					Bid:          tickerData[0].(float64),
+					Ask:          tickerData[2].(float64),
+					Last:         tickerData[6].(float64),
+					Volume:       tickerData[7].(float64),
+					High:         tickerData[8].(float64),
+					Low:          tickerData[9].(float64),
+					AssetType:    chanAsset,
+					Pair:         pair,
+				}
+			} else {
+				b.Websocket.DataHandler <- &ticker.Price{
+					ExchangeName:          b.Name,
+					FlashReturnRate:       tickerData[0].(float64),
+					Bid:                   tickerData[1].(float64),
+					BidPeriod:             tickerData[2].(float64),
+					BidSize:               tickerData[3].(float64),
+					Ask:                   tickerData[4].(float64),
+					AskPeriod:             tickerData[5].(float64),
+					AskSize:               tickerData[6].(float64),
+					Last:                  tickerData[9].(float64),
+					Volume:                tickerData[10].(float64),
+					High:                  tickerData[11].(float64),
+					Low:                   tickerData[12].(float64),
+					FlashReturnRateAmount: tickerData[15].(float64),
+					AssetType:             chanAsset,
+					Pair:                  pair,
+				}
 			}
+
 			return nil
 		case wsTrades:
 			if !b.IsSaveTradeDataEnabled() {
@@ -1378,7 +1399,9 @@ func validateCRC32(book *orderbook.Base, token int) error {
 	if checksum == uint32(token) {
 		return nil
 	}
-	return fmt.Errorf("invalid checksum %d, expected %d",
+	return fmt.Errorf("invalid checksum for %s %s: calculated [%d] does not match [%d]",
+		book.AssetType,
+		book.Pair,
 		checksum,
 		uint32(token))
 }
