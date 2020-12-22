@@ -207,7 +207,7 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) (err error) {
 		}
 	case Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
-		bypassErr := o.ob.ExchangeName == "bitfinex" && o.ob.IsFundingRate
+		bypassErr := o.ob.ExchangeName == "Bitfinex" && o.ob.IsFundingRate
 		err = deleteUpdates(updts.Bids, &o.ob.Bids, bypassErr)
 		if err != nil {
 			return err

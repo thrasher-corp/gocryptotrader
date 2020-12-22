@@ -1415,7 +1415,11 @@ subSort:
 		var subset []orderbook.Item
 		// Traverse forward elements
 		for y := x + 1; y < len(depth); y++ {
-			if depth[x].Price == depth[y].Price {
+			if depth[x].Price == depth[y].Price &&
+				// Period matching is for funding rates, this was undocumented
+				// but these need to be matched with price for the correct ID
+				// alignment
+				depth[x].Period == depth[y].Period {
 				// Append element to subset when price match occurs
 				subset = append(subset, depth[y])
 				// Traverse next
