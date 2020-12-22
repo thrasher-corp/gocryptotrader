@@ -210,11 +210,11 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) (err error) {
 		bypassErr := o.ob.ExchangeName == "Bitfinex" && o.ob.IsFundingRate
 		err = deleteUpdates(updts.Bids, &o.ob.Bids, bypassErr)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s %s %v", o.ob.AssetType, o.ob.Pair, err)
 		}
 		err = deleteUpdates(updts.Asks, &o.ob.Asks, bypassErr)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s %s %v", o.ob.AssetType, o.ob.Pair, err)
 		}
 	case Insert:
 		insertUpdatesBid(updts.Bids, &o.ob.Bids)
