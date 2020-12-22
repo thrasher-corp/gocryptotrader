@@ -19,16 +19,21 @@ func (d *Data) GenerateReport() error {
 		return err
 	}
 
+	for i := range d.Candles {
+		if len(d.Candles[i].Candles) >= maxChartLimit {
+			d.Candles[i].IsOverLimit = true
+			d.Candles[i].Candles = d.Candles[i].Candles[0:maxChartLimit]
+		}
+	}
 	curr, _ := os.Getwd()
 	tmpl := template.Must(
 		template.ParseFiles(
-			filepath.Join(curr, "backtester", "report", "tpl.gohtml"),
+			filepath.Join(curr, "report", "tpl.gohtml"),
 		),
 	)
 	file, err := os.Create(
 		filepath.Join(
 			curr,
-			"backtester",
 			"results",
 			fmt.Sprintf(
 				"%v%v.html",

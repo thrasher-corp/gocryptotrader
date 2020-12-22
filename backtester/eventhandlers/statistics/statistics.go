@@ -74,6 +74,22 @@ func (s *Statistic) AddExchangeEventForTime(e order.OrderEvent) {
 
 // AddFillEventForTime adds fill event to the statistics at the time period
 func (s *Statistic) AddFillEventForTime(e fill.FillEvent) {
+	if s.ExchangeAssetPairStatistics == nil {
+		log.Errorf(log.BackTester, "WHAT THE FUCK")
+		return
+	}
+	if e == nil {
+		log.Errorf(log.BackTester, "WHHAAT")
+	}
+	if e.GetExchange() != "" {
+
+	}
+	if e.GetAssetType() != "" {
+
+	}
+	if e.Pair().IsEmpty() {
+
+	}
 	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) {

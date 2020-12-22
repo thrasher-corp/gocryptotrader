@@ -14,11 +14,16 @@ import (
 
 func main() {
 	var configPath string
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
 	flag.StringVar(
 		&configPath,
 		"configpath",
 		filepath.Join(
-			"C:\\Users\\ScottGrant\\go\\src\\github.com\\thrasher-corp\\gocryptotrader\\backtester",
+			wd,
 			"config",
 			"examples",
 			"dollar-cost-average-multi-currency-assessment.strat"),
@@ -26,7 +31,6 @@ func main() {
 	flag.Parse()
 
 	var bt *backtest.BackTest
-	var err error
 	var cfg *config.Config
 	cfg, err = config.ReadConfigFromFile(configPath)
 	if err != nil {

@@ -475,6 +475,11 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 		d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 		f, err := bt.Exchange.ExecuteOrder(ev, d)
 		if err != nil {
+			if f == nil {
+				log.Errorf(log.BackTester, "fill event should always be returned, please fix, %v", err)
+				break
+			}
+			log.Errorf(log.BackTester, "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
 			bt.Statistic.AddFillEventForTime(f)
 			break
 		}

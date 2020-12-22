@@ -9,6 +9,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// lightweight charts can ony render 1100 candles
+const maxChartLimit = 1099
+
 type Handler interface {
 	GenerateReport() error
 	AddCandles(*kline.Item)
@@ -22,12 +25,13 @@ type Data struct {
 }
 
 type DetailedKline struct {
-	Watermark string
-	Exchange  string
-	Asset     asset.Item
-	Pair      currency.Pair
-	Interval  kline.Interval
-	Candles   []DetailedCandle
+	IsOverLimit bool
+	Watermark   string
+	Exchange    string
+	Asset       asset.Item
+	Pair        currency.Pair
+	Interval    kline.Interval
+	Candles     []DetailedCandle
 }
 
 type DetailedCandle struct {

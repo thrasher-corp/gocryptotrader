@@ -1,6 +1,8 @@
 package exchange
 
 import (
+	"fmt"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -52,7 +54,11 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 		volume := data.StreamVol()
 
 		f.VolumeAdjustedPrice, amount = e.ensureOrderFitsWithinHLV(f.ClosePrice, o.GetAmount(), high[len(high)-1], low[len(low)-1], volume[len(volume)-1])
+		if amount <= 0 {
+			return f, fmt.Errorf("amount set to 0, data may be incorrect")
+		}
 		estimatedPrice = f.VolumeAdjustedPrice * slippageRate
+
 	}
 
 	f.Slippage = (slippageRate * 100) - 100
@@ -77,7 +83,7 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 	if false /*e.UseRealOrders*/ {
 		resp, err := engine.Bot.OrderManager.Submit(o2)
 		if err != nil {
-			return nil, err
+			return f, err
 		}
 		orderID = resp.OrderID
 	} else {
@@ -91,7 +97,7 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 		}
 		resp, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
 		if err != nil {
-			return nil, err
+			return f, err
 		}
 		orderID = resp.OrderID
 	}
@@ -140,6 +146,9 @@ func (e *Exchange) ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, vo
 	}
 	if slippagePrice > high {
 		slippagePrice = high
+	}
+	if volume <= 0 {
+		return slippagePrice, 0
 	}
 
 	if amount > volume {

@@ -1,4 +1,5 @@
 {
+ "nickname": "TestGenerateDCALiveCandleStrat",
  "currency-settings": [
   {
    "exchange-name": "binance",

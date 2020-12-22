@@ -1,4 +1,5 @@
 {
+ "nickname": "TestGenerateDCAMultipleCurrencyAPICandleStrat",
  "currency-settings": [
   {
    "exchange-name": "binance",
@@ -79,7 +80,7 @@
  "api-data": {
   "data-type": "candle",
   "interval": 3600000000000,
-  "start-date": "2020-12-09T16:01:02.7573556+11:00",
-  "end-date": "2020-12-16T16:01:02.7573556+11:00"
+  "start-date": "2020-12-15T14:58:59.0633516+11:00",
+  "end-date": "2020-12-22T14:58:59.0633516+11:00"
  }
 }

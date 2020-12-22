@@ -22,6 +22,7 @@ const (
 // these are tests for experimentation more than anything
 func TestGenerateDCACandleAPIStrat(t *testing.T) {
 	cfg := Config{
+		Nickname: "super fun run",
 		StrategySettings: StrategySettings{
 			Name: "dollarcostaverage",
 		},
@@ -94,6 +95,7 @@ func TestGenerateDCACandleAPIStrat(t *testing.T) {
 // these are tests for experimentation more than anything
 func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 	cfg := Config{
+		Nickname: "TestGenerateDCAMultipleCurrencyAPICandleStrat",
 		StrategySettings: StrategySettings{
 			Name: "dollarcostaverage",
 		},
@@ -189,6 +191,7 @@ func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 // these are tests for experimentation more than anything
 func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 	cfg := Config{
+		Nickname: "hello!",
 		StrategySettings: StrategySettings{
 			Name:            "dollarcostaverage",
 			IsMultiCurrency: true,
@@ -201,13 +204,13 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				InitialFunds: 100000,
 				BuySide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
+					MinimumSize:  0.0001,
+					MaximumSize:  5,
 					MaximumTotal: 10000,
 				},
 				SellSide: MinMax{
-					MinimumSize:  0.1,
-					MaximumSize:  1,
+					MinimumSize:  0.0001,
+					MaximumSize:  5,
 					MaximumTotal: 10000,
 				},
 				Leverage: Leverage{
@@ -217,7 +220,7 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
-			{
+			/*{
 				ExchangeName: "binance",
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
@@ -239,11 +242,11 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
-			},
+			},*/
 		},
 		APIData: &APIData{
-			StartDate: time.Now().Add(-time.Hour * 24 * 7),
-			EndDate:   time.Now(),
+			StartDate: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			EndDate:   time.Date(2020, 6, 1, 0, 0, 0, 0, time.UTC),
 			Interval:  kline.OneHour.Duration(),
 			DataType:  common.CandleStr,
 		},
@@ -284,6 +287,7 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 
 func TestGenerateDCALiveCandleStrat(t *testing.T) {
 	cfg := Config{
+		Nickname: "TestGenerateDCALiveCandleStrat",
 		StrategySettings: StrategySettings{
 			Name: "dollarcostaverage",
 		},
@@ -354,6 +358,7 @@ func TestGenerateDCALiveCandleStrat(t *testing.T) {
 // these are tests for experimentation more than anything
 func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 	cfg := Config{
+		Nickname: "TestGenerateRSICandleAPICustomSettingsStrat",
 		StrategySettings: StrategySettings{
 			Name: "rsi420blazeit",
 			CustomSettings: map[string]interface{}{

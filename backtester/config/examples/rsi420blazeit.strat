@@ -1,4 +1,5 @@
 {
+ "nickname": "TestGenerateRSICandleAPICustomSettingsStrat",
  "currency-settings": [
   {
    "exchange-name": "binance",

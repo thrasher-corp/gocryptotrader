@@ -57,7 +57,7 @@
 		</header>
 		<div class="container">
 			<div class="row">
-			<h1 class="text-primary">{{.Statistics.StrategyName}} Results</h1>
+			<h1 class="text-primary">{{.Statistics.StrategyName}} - {{ .Config.Nickname }} Results</h1>
 			</div>
 			<div class="row">
 				<div class="card card-cascade narrower">
@@ -66,20 +66,20 @@
 					</div>
 					<div class="card-body card-body-cascade text-center">
 						<ul class="list-group">
-							{{ if  ne .Config.APIData nil }}
+							{{ if  .Config.APIData }}
 								<li class="list-group-item">Start date: {{.Config.APIData.StartDate }}</li>
 								<li class="list-group-item">End date: {{.Config.APIData.EndDate}}</li>
 								<li class="list-group-item">Interval size: {{.Config.APIData.Interval}}</li>
 							{{ end }}
-                            {{ if  ne .Config.CSVData nil }}
+                            {{ if  .Config.CSVData }}
 								<li class="list-group-item">Interval size: {{.Config.CSVData.Interval }}</li>
                             {{ end }}
-                            {{ if  ne .Config.DatabaseData nil }}
+                            {{ if  .Config.DatabaseData }}
 								<li class="list-group-item">Start date: {{.Config.DatabaseData.StartDate }}</li>
 								<li class="list-group-item">End date: {{.Config.DatabaseData.EndDate}}</li>
 								<li class="list-group-item">Interval size: {{.Config.DatabaseData.Interval }}</li>
                             {{ end }}
-                            {{ if  ne .Config.LiveData nil }}
+                            {{ if  .Config.LiveData }}
 								<li class="list-group-item">Interval size: {{.Config.LiveData.Interval }}</li>
                             {{ end }}
 						</ul>
@@ -119,10 +119,51 @@
 
 				</div>
 			</div>
+			<div class="row">
+				<h2 >Config</h2>
+			</div>
+			<div class="row">
+				<div class="accordion" id="config-settings">
+					<div class="accordion-item">
+						<h2 class="accordion-header" id="strategy-settings" >
+							Strategy settings
+						</h2>
+						<div
+								id="collapseOne"
+								class="accordion-collapse collapse"
+								aria-labelledby="strategy-settings"
+								data-mdb-parent="#config-settings"
+						>
+							<div class="accordion-body">
+								<table>
+									<tbody>
+									<tr>
+										<td>Strategy name</td>
+										<td>{{.Config.StrategySettings.Name}}</td>
+									</tr>
+									<tr>
+										<td>Is multi currency</td>
+										<td>{{.Config.StrategySettings.IsMultiCurrency}}</td>
+									</tr>
+									<tr>
+										<td>Custom settings</td>
+										<td>{{.Config.StrategySettings.CustomSettings}}</td>
+									</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
 			<div class="row"  >
 				<h2 >Charts</h2>
 			</div>
+
 			{{ range .Candles}}
+				{{ if .IsOverLimit}}
+					<p>Note: Number of candles processed is higher than chart can render. Only showing the first 1,100</p>
+					{{end}}
 			<div id="{{.Exchange}}{{.Asset}}{{.Pair}}" >
 				<h3>{{.Exchange}}</h3>
 				<script>
@@ -181,7 +222,9 @@
 
                     candleSeries.setMarkers([
                         {{ range .Candles}}
+						{{ if .Position}}
                         { time: {{.Time }}, position: {{printf "%s" .Position }}, color: {{printf "%s" .Colour }}, shape: {{printf "%s" .Shape }}, text: {{printf "%s" .Text }} },
+						{{end}}
                         {{end}}
                     ])
 

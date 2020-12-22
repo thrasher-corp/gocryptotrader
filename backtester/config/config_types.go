@@ -8,6 +8,7 @@ import (
 
 // Config defines what is in an individual strategy config
 type Config struct {
+	Nickname          string             `json:"nickname"` // this will override the strategy name in report output
 	CurrencySettings  []CurrencySettings `json:"currency-settings"`
 	StrategySettings  StrategySettings   `json:"strategy-settings"`
 	PortfolioSettings PortfolioSettings  `json:"portfolio"`
