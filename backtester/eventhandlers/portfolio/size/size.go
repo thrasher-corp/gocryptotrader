@@ -13,11 +13,12 @@ import (
 
 func (s *Size) SizeOrder(o order.OrderEvent, _ interfaces.DataEventHandler, amountAvailable float64, cs *exchange.CurrencySettings) (*order.Order, error) {
 	retOrder := o.(*order.Order)
-
+	var amount float64
+	var err error
 	switch retOrder.GetDirection() {
 	case gctorder.Buy:
 		// check size against currency specific settings
-		amount, err := s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, cs.BuySide)
+		amount, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, cs.BuySide)
 		if err != nil {
 			return nil, err
 		}
@@ -31,10 +32,9 @@ func (s *Size) SizeOrder(o order.OrderEvent, _ interfaces.DataEventHandler, amou
 			amount = portfolioSize
 		}
 
-		retOrder.SetAmount(amount)
 	case gctorder.Sell:
 		// check size against currency specific settings
-		amount, err := s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, cs.SellSide)
+		amount, err = s.calculateSellSize(retOrder.Price, amountAvailable, cs.ExchangeFee, cs.SellSide)
 		if err != nil {
 			return nil, err
 		}
@@ -48,8 +48,11 @@ func (s *Size) SizeOrder(o order.OrderEvent, _ interfaces.DataEventHandler, amou
 			amount = portfolioSize
 		}
 
-		retOrder.SetAmount(amount)
 	}
+	if amount == 0 {
+		return retOrder, fmt.Errorf("portfolio manager cannot allocate funds for %v %v %v %v", o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
+	}
+	retOrder.SetAmount(amount)
 
 	return retOrder, nil
 }

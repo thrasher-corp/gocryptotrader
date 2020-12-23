@@ -264,6 +264,7 @@ func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out 
 		},
 		}
 	}
+
 	var allDateIntervals []time.Time
 	var y uint32
 	var lastNum int
@@ -271,10 +272,11 @@ func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out 
 		allDateIntervals = append(allDateIntervals, d)
 	}
 	for x := range allDateIntervals {
-		if y == limit {
+
+		if y == limit-1 {
 			out = append(out, DateRange{
-				allDateIntervals[x-int(limit)],
-				allDateIntervals[x],
+				allDateIntervals[x-int(limit)-1],
+				allDateIntervals[x-1],
 			})
 			y = 0
 			lastNum = x
@@ -283,7 +285,7 @@ func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out 
 	}
 	if allDateIntervals != nil && lastNum+1 < len(allDateIntervals) {
 		out = append(out, DateRange{
-			Start: allDateIntervals[lastNum+1],
+			Start: allDateIntervals[lastNum],
 			End:   allDateIntervals[len(allDateIntervals)-1],
 		})
 	}

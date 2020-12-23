@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -20,11 +21,15 @@ func (d *Data) GenerateReport() error {
 	}
 
 	for i := range d.Candles {
+		sort.Slice(d.Candles[i].Candles, func(x, y int) bool {
+			return d.Candles[i].Candles[x].Time < d.Candles[i].Candles[y].Time
+		})
 		if len(d.Candles[i].Candles) >= maxChartLimit {
 			d.Candles[i].IsOverLimit = true
-			d.Candles[i].Candles = d.Candles[i].Candles[0:maxChartLimit]
+			//		d.Candles[i].Candles = d.Candles[i].Candles[:maxChartLimit]
 		}
 	}
+
 	curr, _ := os.Getwd()
 	tmpl := template.Must(
 		template.ParseFiles(
@@ -109,6 +114,7 @@ func (d *Data) enhanceCandles() error {
 						enhancedCandle.Shape = "arrowUp"
 					}
 					enhancedCandle.Text = fmt.Sprintf("%v", enhancedCandle.OrderDirection)
+					break
 				}
 			}
 			enhancedKline.Candles = append(enhancedKline.Candles, enhancedCandle)

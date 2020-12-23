@@ -222,9 +222,7 @@
 
                     candleSeries.setMarkers([
                         {{ range .Candles}}
-						{{ if .Position}}
                         { time: {{.Time }}, position: {{printf "%s" .Position }}, color: {{printf "%s" .Colour }}, shape: {{printf "%s" .Shape }}, text: {{printf "%s" .Text }} },
-						{{end}}
                         {{end}}
                     ])
 

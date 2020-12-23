@@ -36,10 +36,10 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 		ClosePrice:  data.Latest().Price(),
 		ExchangeFee: cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
 	}
-	if o.GetAmount() <= 0 {
+	f.Direction = o.GetDirection()
+	if o.GetDirection() != gctorder.Buy && o.GetDirection() != gctorder.Sell {
 		return f, nil
 	}
-	f.Direction = o.GetDirection()
 	var slippageRate, estimatedPrice, amount float64
 	if false /*e.UseRealOrders*/ {
 		// get current orderbook
@@ -58,7 +58,6 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 			return f, fmt.Errorf("amount set to 0, data may be incorrect")
 		}
 		estimatedPrice = f.VolumeAdjustedPrice * slippageRate
-
 	}
 
 	f.Slippage = (slippageRate * 100) - 100
@@ -110,6 +109,10 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 			f.Order = &ords[i]
 			f.PurchasePrice = ords[i].Price
 		}
+	}
+
+	if f.Order == nil {
+		return nil, fmt.Errorf("something bad")
 	}
 
 	return f, nil

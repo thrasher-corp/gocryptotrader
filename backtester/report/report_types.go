@@ -10,7 +10,7 @@ import (
 )
 
 // lightweight charts can ony render 1100 candles
-const maxChartLimit = 1099
+const maxChartLimit = 1100
 
 type Handler interface {
 	GenerateReport() error

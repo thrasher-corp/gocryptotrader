@@ -18,6 +18,7 @@ import (
 )
 
 type Portfolio struct {
+	iteration                 float64
 	RiskFreeRate              float64
 	SizeManager               SizeHandler
 	RiskManager               risk.RiskHandler

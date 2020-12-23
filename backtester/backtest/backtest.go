@@ -449,7 +449,6 @@ dataLoadingIssue:
 		if !hasHandledAnEvent {
 			hasHandledAnEvent = true
 		}
-		//bt.Statistic.TrackEvent(ev)
 	}
 
 	return nil

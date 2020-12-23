@@ -204,14 +204,14 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 				Quote:        currency.USDT.String(),
 				InitialFunds: 100000,
 				BuySide: MinMax{
-					MinimumSize:  0.0001,
-					MaximumSize:  5,
-					MaximumTotal: 10000,
+					MinimumSize:  0,
+					MaximumSize:  0,
+					MaximumTotal: 1000,
 				},
 				SellSide: MinMax{
-					MinimumSize:  0.0001,
-					MaximumSize:  5,
-					MaximumTotal: 10000,
+					MinimumSize:  0,
+					MaximumSize:  0,
+					MaximumTotal: 1000,
 				},
 				Leverage: Leverage{
 					CanUseLeverage:  false,
@@ -245,7 +245,7 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 			},*/
 		},
 		APIData: &APIData{
-			StartDate: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			StartDate: time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC),
 			EndDate:   time.Date(2020, 6, 1, 0, 0, 0, 0, time.UTC),
 			Interval:  kline.OneHour.Duration(),
 			DataType:  common.CandleStr,

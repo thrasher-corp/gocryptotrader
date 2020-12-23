@@ -47,7 +47,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 
 	lookup := p.ExchangeAssetPairSettings[signal.GetExchange()][signal.GetAssetType()][signal.Pair()]
 	prevHolding := lookup.HoldingsSnapshots.GetLatestSnapshot()
-	if prevHolding.InitialFunds == 0 {
+	if p.iteration == 0 {
 		prevHolding.InitialFunds = lookup.InitialFunds
 		prevHolding.RemainingFunds = lookup.InitialFunds
 		prevHolding.Exchange = signal.GetExchange()
@@ -55,6 +55,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 		prevHolding.Asset = signal.GetAssetType()
 		prevHolding.Timestamp = signal.GetTime()
 	}
+	p.iteration++
 
 	if signal.GetDirection() == common.DoNothing {
 		return o, nil
@@ -88,6 +89,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 		sizingFunds,
 		cs,
 	)
+
 	if err != nil {
 		o.AppendWhy(err.Error())
 		if o.Direction == gctorder.Buy {
@@ -99,6 +101,19 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 		}
 		signal.SetDirection(o.Direction)
 		return o, nil
+	}
+
+	if sizedOrder.Amount == 0 {
+		if o.Direction == gctorder.Buy {
+			o.Direction = common.CouldNotBuy
+		} else if o.Direction == gctorder.Sell {
+			o.Direction = common.CouldNotSell
+		} else {
+			o.Direction = common.DoNothing
+		}
+		signal.SetDirection(o.Direction)
+		o.AppendWhy("sized rder to 0")
+
 	}
 
 	var eo *order.Order
@@ -124,7 +139,11 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ data.Handler) (*fill.Fill
 	lookup := p.ExchangeAssetPairSettings[fillEvent.GetExchange()][fillEvent.GetAssetType()][fillEvent.Pair()]
 	var err error
 	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
-	h := p.ViewHoldingAtTimePeriod(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()))
+	h := lookup.GetLatestHoldings()
+	if !h.Timestamp.Equal(fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration())) && !h.Timestamp.IsZero() {
+		log.Warnf(log.BackTester, "hey, there isn't a matching event. Expected %v, Received %v, please ensure data is correct. %v", fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()), h.Timestamp, fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()).Unix())
+	}
+
 	if !h.Timestamp.IsZero() {
 		h.Update(fillEvent)
 	} else {
