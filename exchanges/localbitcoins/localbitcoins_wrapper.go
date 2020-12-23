@@ -92,7 +92,8 @@ func (l *LocalBitcoins) SetDefaults() {
 	}
 
 	l.Requester = request.New(l.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(SetRateLimit()))
 
 	l.API.Endpoints.URLDefault = localbitcoinsAPIURL
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
@@ -213,34 +214,30 @@ func (l *LocalBitcoins) FetchOrderbook(p currency.Pair, assetType asset.Item) (*
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{ExchangeName: l.Name, Pair: p, AssetType: assetType}
 	orderbookNew, err := l.GetOrderbook(p.Quote.String())
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount / orderbookNew.Bids[x].Price,
 			Price:  orderbookNew.Bids[x].Price,
 		})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount / orderbookNew.Asks[x].Price,
 			Price:  orderbookNew.Asks[x].Price,
 		})
 	}
 
-	orderBook.Pair = p
-	orderBook.ExchangeName = l.Name
-	orderBook.AssetType = assetType
-	orderBook.NotAggregated = true
-
-	err = orderBook.Process()
+	book.NotAggregated = true
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	return orderbook.Get(l.Name, p, assetType)

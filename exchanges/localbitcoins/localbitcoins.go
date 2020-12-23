@@ -651,8 +651,10 @@ func (l *LocalBitcoins) GetBitcoinsOnlineAd() error {
 // GetTicker returns list of all completed trades.
 func (l *LocalBitcoins) GetTicker() (map[string]Ticker, error) {
 	result := make(map[string]Ticker)
-
-	return result, l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPITicker, &result)
+	return result,
+		l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPITicker,
+			&result,
+			tickerLimiter)
 }
 
 // GetTradableCurrencies returns a list of tradable fiat currencies
@@ -688,9 +690,9 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 		Asks [][]string `json:"asks"`
 	}
 
-	path := fmt.Sprintf("%s/%s/orderbook.json", l.API.Endpoints.URL+localbitcoinsAPIBitcoincharts, currency)
+	path := l.API.Endpoints.URL + localbitcoinsAPIBitcoincharts + currency + "/orderbook.json"
 	resp := response{}
-	err := l.SendHTTPRequest(path, &resp)
+	err := l.SendHTTPRequest(path, &resp, orderBookLimiter)
 
 	if err != nil {
 		return Orderbook{}, err
@@ -730,7 +732,11 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
+func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}, endpoint ...request.EndpointLimit) error {
+	var ep request.EndpointLimit
+	for i := range endpoint {
+		ep = endpoint[i]
+	}
 	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
@@ -738,6 +744,7 @@ func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
 		Verbose:       l.Verbose,
 		HTTPDebugging: l.HTTPDebugging,
 		HTTPRecording: l.HTTPRecording,
+		Endpoint:      ep,
 	})
 }
 
