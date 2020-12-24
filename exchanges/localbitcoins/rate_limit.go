@@ -29,9 +29,9 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		// 3 seconds per book fetching is the best time frame to actually
+		// 4 seconds per book fetching is the best time frame to actually
 		// receive without retying. There is undocumentated rate limit.
-		Orderbook: request.NewRateLimit(3*time.Second, 1),
+		Orderbook: request.NewRateLimit(4*time.Second, 1),
 		Ticker:    request.NewRateLimit(time.Second, 1),
 	}
 }
