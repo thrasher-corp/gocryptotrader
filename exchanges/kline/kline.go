@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -254,6 +255,153 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint3
 	return out
 }
 
+type IntervalRangeHolder struct {
+	Start  time.Time
+	End    time.Time
+	Ranges []IntervalRange
+}
+
+type IntervalRange struct {
+	Start     time.Time
+	End       time.Time
+	Intervals []IntervalData
+}
+
+type IntervalData struct {
+	Start   time.Time
+	End     time.Time
+	HasData bool
+}
+
+func (k *Item) FillMissingDataWithEmptyEntries(i IntervalRangeHolder) {
+	var anyChanges bool
+	for x := range i.Ranges {
+		for y := range i.Ranges[x].Intervals {
+			if !i.Ranges[x].Intervals[y].HasData {
+				for z := range k.Candles {
+					if k.Candles[z].Time.Equal(i.Ranges[x].Intervals[y].Start) {
+						break
+					}
+				}
+				anyChanges = true
+				k.Candles = append(k.Candles, Candle{
+					Time: i.Ranges[x].Intervals[y].Start,
+				})
+			}
+		}
+	}
+	if anyChanges {
+		k.SortCandlesByTimestamp(false)
+	}
+}
+
+func CalcSuperDateRanges(start, end time.Time, interval Interval, limit uint32) IntervalRangeHolder {
+	resp := IntervalRangeHolder{
+		Start: start.Truncate(interval.Duration()),
+		End:   end.Truncate(interval.Duration()),
+	}
+	var intervalsInWholePeriod []IntervalData
+	for i := start; !i.After(end); i = i.Add(interval.Duration()) {
+		intervalsInWholePeriod = append(intervalsInWholePeriod, IntervalData{
+			Start: i.Truncate(interval.Duration()),
+			End:   i.Truncate(interval.Duration()).Add(interval.Duration()),
+		})
+	}
+
+	if intervalsInWholePeriod != nil && intervalsInWholePeriod[len(intervalsInWholePeriod)-1].Start.Equal(end) {
+		// remove any extra intervals which have been added due to the "after"
+		intervalsInWholePeriod = intervalsInWholePeriod[:len(intervalsInWholePeriod)-1]
+	}
+	if len(intervalsInWholePeriod) < int(limit) {
+		resp.Ranges = []IntervalRange{{
+			Start:     start,
+			End:       end,
+			Intervals: intervalsInWholePeriod,
+		}}
+		return resp
+	}
+
+	var intervals []IntervalData
+	splitIntervalsByLimit := make([][]IntervalData, 0, len(intervalsInWholePeriod)/int(limit)+1)
+	for len(intervalsInWholePeriod) >= int(limit) {
+		intervals, intervalsInWholePeriod = intervalsInWholePeriod[:limit], intervalsInWholePeriod[limit:]
+		splitIntervalsByLimit = append(splitIntervalsByLimit, intervals)
+	}
+	if len(intervalsInWholePeriod) > 0 {
+		splitIntervalsByLimit = append(splitIntervalsByLimit, intervalsInWholePeriod[:len(intervalsInWholePeriod)])
+	}
+
+	for x := range splitIntervalsByLimit {
+		resp.Ranges = append(resp.Ranges, IntervalRange{
+			Start:     splitIntervalsByLimit[x][0].Start,
+			End:       splitIntervalsByLimit[x][len(splitIntervalsByLimit[x])-1].End,
+			Intervals: splitIntervalsByLimit[x],
+		})
+	}
+
+	return resp
+}
+
+func (i *Item) Validate() {
+	var newCandles []Candle
+	for x := range i.Candles {
+		if x == 0 {
+			continue
+		}
+		if !i.Candles[x].Time.Equal(i.Candles[x-1].Time) {
+			// don't add duplicate
+			newCandles = append(newCandles, i.Candles[x])
+		}
+	}
+
+	i.Candles = newCandles
+}
+
+func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
+	for i := range h.Ranges {
+		if t.Equal(h.Ranges[i].Start) ||
+			(t.After(h.Ranges[i].Start) && t.Before(h.Ranges[i].End)) ||
+			t.Equal(h.Ranges[i].End) {
+			for j := range h.Ranges[i].Intervals {
+				if t.Equal(h.Ranges[i].Intervals[j].Start) ||
+					(t.After(h.Ranges[i].Intervals[j].Start) && t.Before(h.Ranges[i].Intervals[j].End)) ||
+					t.Equal(h.Ranges[i].Intervals[j].End) {
+					return h.Ranges[i].Intervals[j].HasData
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func (h *IntervalRangeHolder) Verify(c []Candle) error {
+	for x := range h.Ranges {
+		for y := range h.Ranges[x].Intervals {
+			for z := range c {
+				if c[z].Time.Equal(h.Ranges[x].Intervals[y].Start) ||
+					(c[z].Time.After(h.Ranges[x].Intervals[y].Start) && c[z].Time.Before(h.Ranges[x].Intervals[y].End)) {
+					h.Ranges[x].Intervals[y].HasData = true
+				}
+			}
+		}
+	}
+
+	var errs common.Errors
+	for x := range h.Ranges {
+		for y := range h.Ranges[x].Intervals {
+			if !h.Ranges[x].Intervals[y].HasData {
+				errs = append(errs, fmt.Errorf("missing candles data between %v (%v) & %v (%v)", h.Ranges[x].Intervals[y].Start, h.Ranges[x].Intervals[y].Start.Unix(), h.Ranges[x].Intervals[y].End, h.Ranges[x].Intervals[y].End.Unix()))
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return errs
+	}
+
+	return nil
+}
+
 // CalcDateRanges returns slice of start/end times based on start & end date
 func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out []DateRange) {
 	total := TotalCandlesPerInterval(start, end, interval)
@@ -272,11 +420,10 @@ func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out 
 		allDateIntervals = append(allDateIntervals, d)
 	}
 	for x := range allDateIntervals {
-
-		if y == limit-1 {
+		if y == limit {
 			out = append(out, DateRange{
-				allDateIntervals[x-int(limit)-1],
-				allDateIntervals[x-1],
+				allDateIntervals[x-int(limit)],
+				allDateIntervals[x],
 			})
 			y = 0
 			lastNum = x
@@ -285,7 +432,7 @@ func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out 
 	}
 	if allDateIntervals != nil && lastNum+1 < len(allDateIntervals) {
 		out = append(out, DateRange{
-			Start: allDateIntervals[lastNum],
+			Start: allDateIntervals[lastNum+1],
 			End:   allDateIntervals[len(allDateIntervals)-1],
 		})
 	}

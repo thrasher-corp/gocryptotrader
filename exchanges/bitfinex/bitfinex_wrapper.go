@@ -995,15 +995,15 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcSuperDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	cf, err := b.fixCasing(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	for x := range dates {
+	for x := range dates.Ranges {
 		candles, err := b.GetCandles(cf, b.FormatExchangeKlineInterval(interval),
-			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000,
+			dates.Ranges[x].Start.Unix()*1000, dates.Ranges[x].End.Unix()*1000,
 			b.Features.Enabled.Kline.ResultLimit, true)
 		if err != nil {
 			return kline.Item{}, err
@@ -1020,7 +1020,10 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			})
 		}
 	}
-
+	err = dates.Verify(ret.Candles)
+	if err != nil {
+		return ret, err
+	}
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

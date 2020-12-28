@@ -57,7 +57,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 	}
 	p.iteration++
 
-	if signal.GetDirection() == common.DoNothing {
+	if signal.GetDirection() == common.DoNothing || signal.GetDirection() == common.MissingData {
 		return o, nil
 	}
 
@@ -162,7 +162,11 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent, _ data.Handler) (*fill.Fill
 		log.Error(log.BackTester, err)
 	}
 
-	if fillEvent.GetDirection() == common.DoNothing || fillEvent.GetDirection() == common.CouldNotBuy || fillEvent.GetDirection() == common.CouldNotSell {
+	direction := fillEvent.GetDirection()
+	if direction == common.DoNothing ||
+		direction == common.CouldNotBuy ||
+		direction == common.CouldNotSell ||
+		direction == common.MissingData {
 		fe := fillEvent.(*fill.Fill)
 		fe.ExchangeFee = 0
 		return fe, nil

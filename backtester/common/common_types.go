@@ -13,6 +13,7 @@ const (
 	DoNothing    order.Side = "DO NOTHING"
 	CouldNotBuy  order.Side = "COULD NOT BUY"
 	CouldNotSell order.Side = "COULD NOT SELL"
+	MissingData  order.Side = "MISSING DATA"
 	// used to identify the type of data in a config
 	CandleStr = "candle"
 	TradeStr  = "trade"

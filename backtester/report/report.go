@@ -26,7 +26,7 @@ func (d *Data) GenerateReport() error {
 		})
 		if len(d.Candles[i].Candles) >= maxChartLimit {
 			d.Candles[i].IsOverLimit = true
-			//		d.Candles[i].Candles = d.Candles[i].Candles[:maxChartLimit]
+			d.Candles[i].Candles = d.Candles[i].Candles[:maxChartLimit]
 		}
 	}
 

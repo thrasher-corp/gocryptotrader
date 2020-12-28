@@ -31,6 +31,12 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.SignalE
 	es := s.GetBase(d)
 	es.SetPrice(d.Latest().Price())
 
+	if !d.HasDataAtTime(d.Latest().GetTime()) {
+		es.SetDirection(common.MissingData)
+		es.AppendWhy(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
+		return &es, nil
+	}
+
 	if d.Offset() <= int(s.rsiPeriod) {
 		es.AppendWhy("Not enough data for signal generation")
 		return &es, errors.New(es.Why)

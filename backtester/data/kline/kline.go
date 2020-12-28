@@ -15,8 +15,13 @@ import (
 type DataFromKline struct {
 	Item gctkline.Item
 	data.Data
+	Range gctkline.IntervalRangeHolder
 
 	addedTimes map[time.Time]bool
+}
+
+func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
+	return d.Range.HasDataAtDate(t)
 }
 
 func (d *DataFromKline) Load() error {

@@ -2,6 +2,7 @@ package data
 
 import (
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -90,4 +91,6 @@ type Streamer interface {
 	StreamLow() []float64
 	StreamClose() []float64
 	StreamVol() []float64
+
+	HasDataAtTime(time.Time) bool
 }

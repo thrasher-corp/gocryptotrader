@@ -326,21 +326,42 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, errors.New("ambiguous settings received. Only one data type can be set")
 	}
 
-	if cfg.CSVData != nil {
+	switch {
+	case cfg.CSVData != nil:
 		resp, err = csv.LoadData(cfg.CSVData.FullPath, cfg.CSVData.DataType, strings.ToLower(exch.GetName()), cfg.CSVData.Interval, fPair, a)
 		if err != nil {
 			return nil, err
 		}
-	} else if cfg.APIData != nil {
+	case cfg.DatabaseData != nil:
+		resp, err = database.LoadData(
+			cfg.DatabaseData.ConfigOverride,
+			cfg.DatabaseData.StartDate,
+			cfg.DatabaseData.EndDate,
+			cfg.DatabaseData.Interval,
+			strings.ToLower(exch.GetName()),
+			cfg.DatabaseData.DataType,
+			fPair,
+			a)
+		if err != nil {
+			return nil, err
+		}
+	case cfg.APIData != nil:
+		dates := gctkline.CalcSuperDateRanges(cfg.APIData.StartDate, cfg.APIData.EndDate, gctkline.Interval(cfg.APIData.Interval), base.Features.Enabled.Kline.ResultLimit)
 		candles, err = api.LoadData(cfg.APIData.DataType, cfg.APIData.StartDate, cfg.APIData.EndDate, cfg.APIData.Interval, exch, fPair, a)
 		if err != nil {
 			return nil, err
 		}
+		err = dates.Verify(candles.Candles)
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
+		candles.FillMissingDataWithEmptyEntries(dates)
 
 		resp = &kline.DataFromKline{
-			Item: *candles,
+			Item:  *candles,
+			Range: dates,
 		}
-	} else if cfg.LiveData != nil {
+	case cfg.LiveData != nil:
 		if cfg.LiveData.APIKeyOverride != "" {
 			base.API.Credentials.Key = cfg.LiveData.APIKeyOverride
 		}
@@ -362,19 +383,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 
 		go loadLiveDataLoop(resp, cfg, exch, fPair, a)
 		return resp, nil
-	} else if cfg.DatabaseData != nil {
-		resp, err = database.LoadData(
-			cfg.DatabaseData.ConfigOverride,
-			cfg.DatabaseData.StartDate,
-			cfg.DatabaseData.EndDate,
-			cfg.DatabaseData.Interval,
-			strings.ToLower(exch.GetName()),
-			cfg.DatabaseData.DataType,
-			fPair,
-			a)
-		if err != nil {
-			return nil, err
-		}
 	}
 	if resp == nil {
 		return nil, fmt.Errorf("SOMEHOW ENDED UP IN THIS HOLE: %+v", cfg)
@@ -541,6 +549,7 @@ func (bt *BackTest) appendSignalEventsFromDataEvents(e interfaces.DataEventHandl
 	} else {
 		bt.updateStatsForDataEvent(e)
 		d := bt.Datas.GetDataForCurrency(e.GetExchange(), e.GetAssetType(), e.Pair())
+
 		s, err := bt.Strategy.OnSignal(d, bt.Portfolio)
 		if err != nil {
 			bt.Statistic.AddSignalEventForTime(s)

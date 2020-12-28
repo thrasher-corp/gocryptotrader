@@ -1,6 +1,9 @@
 package base
 
 import (
+	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -28,4 +31,14 @@ func (s *Strategy) IsMultiCurrency() bool {
 
 func (s *Strategy) SetMultiCurrency(b bool) {
 	s.multiCurrency = b
+}
+
+func (s *Strategy) HasDataAtPresentTime(d data.Handler) bool {
+	es := s.GetBase(d)
+	if !d.HasDataAtTime(d.Latest().GetTime()) {
+		es.SetDirection(common.MissingData)
+		es.AppendWhy(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
+		return false
+	}
+	return true
 }
