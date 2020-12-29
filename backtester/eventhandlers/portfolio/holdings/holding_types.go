@@ -36,6 +36,7 @@ type Holding struct {
 	TotalFees                    float64 `json:"total-fees"`
 	TotalValueLostToVolumeSizing float64 `json:"total-value-lost-to-volume-sizing"`
 	TotalValueLostToSlippage     float64 `json:"total-value-lost-to-slippage"`
+	TotalValueLost               float64 `json:"total-value-lost"`
 
 	RiskFreeRate float64 `json:"risk-free-rate"`
 }

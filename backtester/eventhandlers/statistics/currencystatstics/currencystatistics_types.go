@@ -37,6 +37,8 @@ type CurrencyStatistic struct {
 	Events                   []EventStore        `json:"-"`
 	DrawDowns                SwingHolder         `json:"all-drawdowns,omitempty"`
 	Upswings                 SwingHolder         `jons:"all-upswings,omitempty"`
+	StartingClosePrice       float64             `json:"starting-close-price"`
+	EndingClosePrice         float64             `json:"ending-close-price"`
 	LowestClosePrice         float64             `json:"lowest-close-price"`
 	HighestClosePrice        float64             `json:"highest-close-price"`
 	MarketMovement           float64             `json:"market-movement"`
@@ -49,6 +51,7 @@ type CurrencyStatistic struct {
 	CompoundAnnualGrowthRate float64             `json:"compound-annual-growth-rate"`
 	BuyOrders                int64               `json:"buy-orders"`
 	SellOrders               int64               `json:"sell-orders"`
+	TotalOrders              int64               `json:"total-orders"`
 	FinalHoldings            holdings.Holding    `json:"final-holdings"`
 	Orders                   compliance.Snapshot `json:"final-orders"`
 }

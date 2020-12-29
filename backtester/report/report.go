@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -43,7 +44,7 @@ func (d *Data) GenerateReport() error {
 			fmt.Sprintf(
 				"%v%v.html",
 				d.Statistics.StrategyName,
-				"", /*time.Now().Format("2006-01-02-15-04-05")*/
+				time.Now().Format("2006-01-02-15-04-05"),
 			),
 		),
 	)

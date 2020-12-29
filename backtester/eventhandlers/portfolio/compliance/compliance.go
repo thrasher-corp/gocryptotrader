@@ -31,8 +31,8 @@ func (m *Manager) AddSnapshot(orders []SnapshotOrder, t time.Time, force bool) e
 	return nil
 }
 
-// GetSnapshot returns the snapshot of orders a t time
-func (m *Manager) GetSnapshot(t time.Time) (Snapshot, error) {
+// GetSnapshotAtTime returns the snapshot of orders a t time
+func (m *Manager) GetSnapshotAtTime(t time.Time) (Snapshot, error) {
 	for i := range m.Snapshots {
 		if t.Equal(m.Snapshots[i].Timestamp) {
 			return m.Snapshots[i], nil
@@ -45,15 +45,11 @@ func (m *Manager) SetInterval(i kline.Interval) {
 	m.Interval = i
 }
 
-// GetPreviousSnapshot returns the snapshot of t - 1 interval
-func (m *Manager) GetPreviousSnapshot(t time.Time) Snapshot {
-	for i := range m.Snapshots {
-		if t.Add(-m.Interval.Duration()).Equal(m.Snapshots[i].Timestamp) {
-			return m.Snapshots[i]
-		}
+// GetLatestSnapshot returns the snapshot of t - 1 interval
+func (m *Manager) GetLatestSnapshot() Snapshot {
+	if len(m.Snapshots) == 0 {
+		return Snapshot{}
 	}
-	return Snapshot{
-		Timestamp: t.Add(-m.Interval.Duration()),
-		Orders:    []SnapshotOrder{},
-	}
+
+	return m.Snapshots[len(m.Snapshots)-1]
 }

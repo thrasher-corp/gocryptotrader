@@ -180,6 +180,10 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	})
 	last := c.Events[len(c.Events)-1]
 	first := c.Events[0]
+	c.StartingClosePrice = first.DataEvent.Price()
+	c.EndingClosePrice = last.DataEvent.Price()
+	c.TotalOrders = c.BuyOrders + c.SellOrders
+	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage + last.Holdings.TotalValueLostToVolumeSizing
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v-------------------------", e, a, p)
 	log.Infof(log.BackTester, currStr[:61])
 	log.Infof(log.BackTester, "Initial funds: $%v\n\n", last.Holdings.InitialFunds)
@@ -190,7 +194,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Sell orders: %v", c.SellOrders)
 	log.Infof(log.BackTester, "Sell value: %v", last.Holdings.SoldValue)
 	log.Infof(log.BackTester, "Sell amount: %v", last.Holdings.SoldAmount)
-	log.Infof(log.BackTester, "Total orders: %v\n\n", c.BuyOrders+c.SellOrders)
+	log.Infof(log.BackTester, "Total orders: %v\n\n", c.TotalOrders)
 
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
 	log.Infof(log.BackTester, "Highest Price: $%.2f", c.DrawDowns.MaxDrawDown.Highest.Price)
@@ -219,8 +223,8 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2f\n\n", c.CalamariRatio)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
-	log.Infof(log.BackTester, "Starting Close Price: $%v", first.DataEvent.Price())
-	log.Infof(log.BackTester, "Finishing Close Price: $%v", last.DataEvent.Price())
+	log.Infof(log.BackTester, "Starting Close Price: $%v", c.StartingClosePrice)
+	log.Infof(log.BackTester, "Finishing Close Price: $%v", c.EndingClosePrice)
 	log.Infof(log.BackTester, "Lowest Close Price: $%v", c.LowestClosePrice)
 	log.Infof(log.BackTester, "Highest Close Price: $%v", c.HighestClosePrice)
 
@@ -230,7 +234,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 
 	log.Infof(log.BackTester, "Value lost to volume sizing: $%v", last.Holdings.TotalValueLostToVolumeSizing)
 	log.Infof(log.BackTester, "Value lost to slippage: $%v", last.Holdings.TotalValueLostToSlippage)
-	log.Infof(log.BackTester, "Total Value lost: $%v", last.Holdings.TotalValueLostToSlippage+last.Holdings.TotalValueLostToSlippage)
+	log.Infof(log.BackTester, "Total Value lost: $%v", last.Holdings.TotalValueLost)
 	log.Infof(log.BackTester, "Total Fees: $%v\n\n", last.Holdings.TotalFees)
 
 	log.Infof(log.BackTester, "Final funds: $%v", last.Holdings.RemainingFunds)

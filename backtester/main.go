@@ -26,7 +26,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"dollar-cost-average-multi-currency-assessment.strat"),
+			"rsi420blazeit.strat"),
 		"the config containing strategy params")
 	flag.Parse()
 

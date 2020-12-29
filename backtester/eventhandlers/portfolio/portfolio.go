@@ -185,7 +185,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.FillEvent) error {
 	if complianceManager.Interval == 0 {
 		complianceManager.SetInterval(fillEvent.GetInterval())
 	}
-	prevSnap := complianceManager.GetPreviousSnapshot(fillEvent.GetTime())
+	prevSnap := complianceManager.GetLatestSnapshot()
 	fo := fillEvent.GetOrder()
 	if fo != nil {
 		snapOrder := compliance.SnapshotOrder{

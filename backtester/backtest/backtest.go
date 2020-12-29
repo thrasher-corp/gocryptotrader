@@ -504,10 +504,7 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 		if err != nil {
 			log.Error(log.BackTester, err)
 		}
-		snap, err := cp.GetSnapshot(ev.GetTime())
-		if err != nil {
-			log.Error(log.BackTester, err)
-		}
+		snap := cp.GetLatestSnapshot()
 		bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
 		bt.Statistic.AddFillEventForTime(t)
 	}

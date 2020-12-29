@@ -26,16 +26,6 @@ func (s *Snapshots) GetSnapshotAtTimestamp(t time.Time) Holding {
 	return Holding{}
 }
 
-func (s *Snapshots) GetPreviousSnapshot() Holding {
-	if len(s.Holdings) == 0 {
-		return Holding{}
-	}
-	if len(s.Holdings) == 1 {
-		return s.Holdings[0]
-	}
-	return s.Holdings[len(s.Holdings)-2]
-}
-
 func Create(f fill.FillEvent, initialFunds, riskFreeRate float64) (Holding, error) {
 	if f == nil {
 		return Holding{}, errors.New("nil event received")
