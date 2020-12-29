@@ -402,21 +402,14 @@ func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 			}
 			return k.wsProcessCandles(&channelData, o)
 		case krakenWsOrderbook:
-			switch len(response) {
-			case 4:
-				ob, ok := response[1].(map[string]interface{})
-				if !ok {
-					return errors.New("received invalid orderbook data")
-				}
-				return k.wsProcessOrderBook(&channelData, ob)
-			case 5:
-				ob, ok := response[1].(map[string]interface{})
-				if !ok {
-					return errors.New("received invalid orderbook data")
-				}
+			ob, ok := response[1].(map[string]interface{})
+			if !ok {
+				return errors.New("received invalid orderbook data")
+			}
 
-				ob2, ok := response[2].(map[string]interface{})
-				if !ok {
+			if len(response) == 5 {
+				ob2, okob2 := response[2].(map[string]interface{})
+				if !okob2 {
 					return errors.New("received invalid orderbook data")
 				}
 
@@ -427,10 +420,8 @@ func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 					}
 					ob[k] = v
 				}
-				return k.wsProcessOrderBook(&channelData, ob)
-			default:
-				return errors.New("unexpected data structure returned")
 			}
+			return k.wsProcessOrderBook(&channelData, ob)
 		case krakenWsSpread:
 			s, ok := response[1].([]interface{})
 			if !ok {
@@ -871,16 +862,32 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		MaxDepth: krakenWsOrderbookDepth,
 	}
 
+	// Calculating checksum requires incoming decimal place checks for both
+	// price and amount as there is no set standard between currency pairs. This
+	// is calculated per update as opposed to snapshot because changes to
+	// decimal amounts could occur at any time.
+	var priceDP, amtDP int
 	var highestLastUpdate time.Time
 	// Ask data is not always sent
 	for i := range askData {
 		asks := askData[i].([]interface{})
-		price, err := strconv.ParseFloat(asks[0].(string), 64)
+
+		priceStr, ok := asks[0].(string)
+		if !ok {
+			return errors.New("price type assertion failure")
+		}
+
+		price, err := strconv.ParseFloat(priceStr, 64)
 		if err != nil {
 			return err
 		}
 
-		amount, err := strconv.ParseFloat(asks[1].(string), 64)
+		amountStr, ok := asks[1].(string)
+		if !ok {
+			return errors.New("amount type assertion failure")
+		}
+
+		amount, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
 			return err
 		}
@@ -889,7 +896,13 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			Amount: amount,
 			Price:  price,
 		})
-		timeData, err := strconv.ParseFloat(asks[2].(string), 64)
+
+		timeStr, ok := asks[2].(string)
+		if !ok {
+			return errors.New("time type assertion failure")
+		}
+
+		timeData, err := strconv.ParseFloat(timeStr, 64)
 		if err != nil {
 			return err
 		}
@@ -898,17 +911,43 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		if highestLastUpdate.Before(askUpdatedTime) {
 			highestLastUpdate = askUpdatedTime
 		}
+
+		if i == len(askData)-1 {
+			pSplit := strings.Split(priceStr, ".")
+			if len(pSplit) != 2 {
+				return errors.New("incorrect decimal data returned for price")
+			}
+
+			priceDP = len(pSplit[1])
+			aSplit := strings.Split(amountStr, ".")
+			if len(aSplit) != 2 {
+				return errors.New("incorrect decimal data returned for amount")
+			}
+
+			amtDP = len(aSplit[1])
+		}
 	}
 
 	// Bid data is not always sent
 	for i := range bidData {
 		bids := bidData[i].([]interface{})
-		price, err := strconv.ParseFloat(bids[0].(string), 64)
+
+		priceStr, ok := bids[0].(string)
+		if !ok {
+			return errors.New("price type assertion failure")
+		}
+
+		price, err := strconv.ParseFloat(priceStr, 64)
 		if err != nil {
 			return err
 		}
 
-		amount, err := strconv.ParseFloat(bids[1].(string), 64)
+		amountStr, ok := bids[1].(string)
+		if !ok {
+			return errors.New("amount type assertion failure")
+		}
+
+		amount, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
 			return err
 		}
@@ -917,7 +956,13 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			Amount: amount,
 			Price:  price,
 		})
-		timeData, err := strconv.ParseFloat(bids[2].(string), 64)
+
+		timeStr, ok := bids[2].(string)
+		if !ok {
+			return errors.New("time type assertion failure")
+		}
+
+		timeData, err := strconv.ParseFloat(timeStr, 64)
 		if err != nil {
 			return err
 		}
@@ -925,6 +970,21 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		bidUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(bidUpdatedTime) {
 			highestLastUpdate = bidUpdatedTime
+		}
+
+		if i == len(bidData)-1 {
+			pSplit := strings.Split(priceStr, ".")
+			if len(pSplit) != 2 {
+				return errors.New("incorrect decimal data returned for price")
+			}
+
+			priceDP = len(pSplit[1])
+			aSplit := strings.Split(amountStr, ".")
+			if len(aSplit) != 2 {
+				return errors.New("incorrect decimal data returned for amount")
+			}
+
+			amtDP = len(aSplit[1])
 		}
 	}
 	update.UpdateTime = highestLastUpdate
@@ -945,30 +1005,39 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		return err
 	}
 
-	return validateCRC32(book, uint32(token))
+	return validateCRC32(book, uint32(token), priceDP, amtDP)
 }
 
-func validateCRC32(b *orderbook.Base, token uint32) error {
+func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) error {
 	if len(b.Asks) < 10 || len(b.Bids) < 10 {
 		return errors.New("insufficient bid and asks to calculate checksum")
 	}
+
+	if decPrice == 0 || decAmount == 0 {
+		return errors.New("trailing decimal count not calculated")
+	}
+
 	var checkStr strings.Builder
 	for i := 0; i < 10; i++ {
-		priceStr := trim(strconv.FormatFloat(b.Asks[i].Price, 'f', 5, 64))
+		priceStr := trim(strconv.FormatFloat(b.Asks[i].Price, 'f', decPrice, 64))
 		checkStr.WriteString(priceStr)
-		amountStr := trim(strconv.FormatFloat(b.Asks[i].Amount, 'f', 8, 64))
+		amountStr := trim(strconv.FormatFloat(b.Asks[i].Amount, 'f', decAmount, 64))
 		checkStr.WriteString(amountStr)
 	}
 
 	for i := 0; i < 10; i++ {
-		priceStr := trim(strconv.FormatFloat(b.Bids[i].Price, 'f', 5, 64))
+		priceStr := trim(strconv.FormatFloat(b.Bids[i].Price, 'f', decPrice, 64))
 		checkStr.WriteString(priceStr)
-		amountStr := trim(strconv.FormatFloat(b.Bids[i].Amount, 'f', 8, 64))
+		amountStr := trim(strconv.FormatFloat(b.Bids[i].Amount, 'f', decAmount, 64))
 		checkStr.WriteString(amountStr)
 	}
 
 	if check := crc32.ChecksumIEEE([]byte(checkStr.String())); check != token {
-		return fmt.Errorf("invalid checksum %d, expected %d", check, token)
+		return fmt.Errorf("%s %s invalid checksum %d, expected %d",
+			b.Pair,
+			b.AssetType,
+			check,
+			token)
 	}
 	return nil
 }

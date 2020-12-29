@@ -1643,7 +1643,7 @@ func TestChecksumCalculation(t *testing.T) {
 		t.Fatalf("expected %s but received %s", expected, v)
 	}
 
-	err := validateCRC32(&testOb, krakenAPIDocChecksum)
+	err := validateCRC32(&testOb, krakenAPIDocChecksum, 5, 8)
 	if err != nil {
 		t.Fatal(err)
 	}
