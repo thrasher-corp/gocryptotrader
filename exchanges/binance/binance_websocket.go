@@ -86,11 +86,7 @@ func (b *Binance) WsConnect() error {
 
 	go b.wsReadData()
 
-	subs, err := b.GenerateSubscriptions()
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // KeepAuthKeyAlive will continuously send messages to

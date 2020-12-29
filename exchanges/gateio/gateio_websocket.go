@@ -62,11 +62,7 @@ func (g *Gateio) WsConnect() error {
 		}
 	}
 
-	subs, err := g.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return g.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (g *Gateio) wsServerSignIn() error {
