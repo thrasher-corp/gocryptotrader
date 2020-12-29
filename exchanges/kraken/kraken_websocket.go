@@ -1010,11 +1010,14 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 
 func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) error {
 	if len(b.Asks) < 10 || len(b.Bids) < 10 {
-		return errors.New("insufficient bid and asks to calculate checksum")
+		return fmt.Errorf("%s %s insufficient bid and asks to calculate checksum",
+			b.Pair,
+			b.AssetType)
 	}
 
 	if decPrice == 0 || decAmount == 0 {
-		return errors.New("trailing decimal count not calculated")
+		return fmt.Errorf("%s %s trailing decimal count not calculated", b.Pair,
+			b.AssetType)
 	}
 
 	var checkStr strings.Builder
