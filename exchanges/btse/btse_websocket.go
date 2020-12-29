@@ -246,6 +246,13 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+			if amount == 0 {
+				// This occurs when the amount exceeds the decimal returned.
+				// e.g. {"price":"1.37","size":"0.00"} currency: SFI-ETH_0
+				// Opted to not round up to 0.01 as this might skew calcluations
+				// more than having it not in the books.
+				continue
+			}
 			newOB.Asks = append(newOB.Asks, orderbook.Item{
 				Price:  price,
 				Amount: amount,
@@ -268,6 +275,10 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			amount, err = strconv.ParseFloat(a, 64)
 			if err != nil {
 				return err
+			}
+			if amount == 0 {
+				// See line 250 above.
+				continue
 			}
 			newOB.Bids = append(newOB.Bids, orderbook.Item{
 				Price:  price,
