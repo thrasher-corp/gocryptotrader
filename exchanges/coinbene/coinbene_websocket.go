@@ -49,11 +49,7 @@ func (c *Coinbene) WsConnect() error {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	subs, err := c.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return c.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // GenerateDefaultSubscriptions generates stuff

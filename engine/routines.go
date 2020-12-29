@@ -193,16 +193,16 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 }
 
 // WebsocketRoutine Initial routine management system for websocket
-func WebsocketRoutine() {
-	if Bot.Settings.Verbose {
+func (bot *Engine) WebsocketRoutine() {
+	if bot.Settings.Verbose {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
 
-	exchanges := Bot.GetExchanges()
+	exchanges := bot.GetExchanges()
 	for i := range exchanges {
 		go func(i int) {
 			if exchanges[i].SupportsWebsocket() {
-				if Bot.Settings.Verbose {
+				if bot.Settings.Verbose {
 					log.Debugf(log.WebsocketMgr,
 						"Exchange %s websocket support: Yes Enabled: %v\n",
 						exchanges[i].GetName(),
@@ -228,15 +228,19 @@ func WebsocketRoutine() {
 				}
 
 				// Data handler routine
-				go WebsocketDataReceiver(ws)
+				go bot.WebsocketDataReceiver(ws)
 
 				if ws.IsEnabled() {
 					err = ws.Connect()
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "%v\n", err)
 					}
+					err = ws.FlushChannels()
+					if err != nil {
+						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v\n", err)
+					}
 				}
-			} else if Bot.Settings.Verbose {
+			} else if bot.Settings.Verbose {
 				log.Debugf(log.WebsocketMgr,
 					"Exchange %s websocket support: No\n",
 					exchanges[i].GetName(),
@@ -251,7 +255,7 @@ var wg sync.WaitGroup
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func WebsocketDataReceiver(ws *stream.Websocket) {
+func (bot *Engine) WebsocketDataReceiver(ws *stream.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -260,7 +264,7 @@ func WebsocketDataReceiver(ws *stream.Websocket) {
 		case <-shutdowner:
 			return
 		case data := <-ws.ToRoutine:
-			err := WebsocketDataHandler(ws.GetName(), data)
+			err := bot.WebsocketDataHandler(ws.GetName(), data)
 			if err != nil {
 				log.Error(log.WebsocketMgr, err)
 			}
@@ -270,7 +274,7 @@ func WebsocketDataReceiver(ws *stream.Websocket) {
 
 // WebsocketDataHandler is a central point for exchange websocket implementations to send
 // processed data. WebsocketDataHandler will then pass that to an appropriate handler
-func WebsocketDataHandler(exchName string, data interface{}) error {
+func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error {
 	if data == nil {
 		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket",
 			exchName)
@@ -282,7 +286,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
 	case stream.FundingData:
-		if Bot.Settings.Verbose {
+		if bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
 				exchName,
 				FormatCurrency(d.CurrencyPair),
@@ -290,8 +294,8 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d)
 		}
 	case *ticker.Price:
-		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-			Bot.ExchangeCurrencyPairManager.update(exchName,
+		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
+			bot.ExchangeCurrencyPairManager.update(exchName,
 				d.Pair,
 				d.AssetType,
 				SyncItemTicker,
@@ -300,7 +304,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		err := ticker.ProcessTicker(d)
 		printTickerSummary(d, "websocket", err)
 	case stream.KlineData:
-		if Bot.Settings.Verbose {
+		if bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 				exchName,
 				FormatCurrency(d.Pair),
@@ -308,8 +312,8 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d)
 		}
 	case *orderbook.Base:
-		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-			Bot.ExchangeCurrencyPairManager.update(exchName,
+		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
+			bot.ExchangeCurrencyPairManager.update(exchName,
 				d.Pair,
 				d.AssetType,
 				SyncItemOrderbook,
@@ -317,22 +321,22 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		}
 		printOrderbookSummary(d, "websocket", nil)
 	case *order.Detail:
-		if !Bot.OrderManager.orderStore.exists(d) {
-			err := Bot.OrderManager.orderStore.Add(d)
+		if !bot.OrderManager.orderStore.exists(d) {
+			err := bot.OrderManager.orderStore.Add(d)
 			if err != nil {
 				return err
 			}
 		} else {
-			od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
+			od, err := bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 			if err != nil {
 				return err
 			}
 			od.UpdateOrderFromDetail(d)
 		}
 	case *order.Cancel:
-		return Bot.OrderManager.Cancel(d)
+		return bot.OrderManager.Cancel(d)
 	case *order.Modify:
-		od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
+		od, err := bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 		if err != nil {
 			return err
 		}
@@ -342,7 +346,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	default:
-		if Bot.Settings.Verbose {
+		if bot.Settings.Verbose {
 			log.Warnf(log.WebsocketMgr,
 				"%s websocket Unknown type: %+v",
 				exchName,

@@ -40,12 +40,8 @@ func (b *Bitstamp) WsConnect() error {
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
-	subs, err := b.generateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
 	go b.wsReadData()
-	return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing

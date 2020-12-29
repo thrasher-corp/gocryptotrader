@@ -85,14 +85,8 @@ func (b *Binance) WsConnect() error {
 	}
 
 	go b.wsReadData()
-
 	b.setupOrderbookManager()
-
-	subs, err := b.GenerateSubscriptions()
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (b *Binance) setupOrderbookManager() {

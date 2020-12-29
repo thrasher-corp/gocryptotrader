@@ -73,11 +73,11 @@ func TestLoadConfigWithSettings(t *testing.T) {
 }
 
 func TestStartStopDoesNotCausePanic(t *testing.T) {
-	t.Skip("Due to race condition with global config.Cfg being used from multiple tests and RPC server and REST proxy never properly stopped when engine.Stop() is called")
+	t.Parallel()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
-	}, make(map[string]bool))
+	}, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -87,4 +87,32 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	}
 
 	botOne.Stop()
+}
+
+func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
+	t.Skip("Closing global currency.storage from two bots causes panic")
+	t.Parallel()
+	botOne, err := NewFromSettings(&Settings{
+		ConfigFile:   config.TestFile,
+		EnableDryRun: true,
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	botTwo, err := NewFromSettings(&Settings{
+		ConfigFile:   config.TestFile,
+		EnableDryRun: true,
+	}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if err = botOne.Start(); err != nil {
+		t.Error(err)
+	}
+	if err = botTwo.Start(); err != nil {
+		t.Error(err)
+	}
+
+	botOne.Stop()
+	botTwo.Stop()
 }

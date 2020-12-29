@@ -53,12 +53,8 @@ func (p *Poloniex) WsConnect() error {
 	}
 
 	go p.wsReadData()
-	subs, err := p.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
 
-	return p.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (p *Poloniex) getCurrencyIDMap() error {
