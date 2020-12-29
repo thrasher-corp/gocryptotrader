@@ -480,7 +480,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
-		go WebsocketRoutine()
+		go bot.WebsocketRoutine()
 	}
 
 	if bot.Settings.EnableGCTScriptManager {

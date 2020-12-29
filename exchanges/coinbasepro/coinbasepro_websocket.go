@@ -38,12 +38,8 @@ func (c *CoinbasePro) WsConnect() error {
 		return err
 	}
 
-	subs, err := c.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
 	go c.wsReadData()
-	return c.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
