@@ -245,7 +245,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if amount == 0 {
 				// This occurs when the amount exceeds the decimal returned.
 				// e.g. {"price":"1.37","size":"0.00"} currency: SFI-ETH_0
-				// Opted to not round up to 0.01 as this might skew calcluations
+				// Opted to not round up to 0.01 as this might skew calculations
 				// more than having it not in the books.
 				continue
 			}
