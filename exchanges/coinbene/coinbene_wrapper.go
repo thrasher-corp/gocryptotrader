@@ -405,15 +405,15 @@ func (c *Coinbene) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	resp := new(orderbook.Base)
+	book := &orderbook.Base{ExchangeName: c.Name, Pair: p, AssetType: assetType}
 	if !c.SupportsAsset(assetType) {
-		return nil,
+		return book,
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
 	}
 
 	fpair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	var tempResp Orderbook
@@ -428,11 +428,8 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		)
 	}
 	if err != nil {
-		return nil, err
+		return book, err
 	}
-	resp.ExchangeName = c.Name
-	resp.Pair = p
-	resp.AssetType = assetType
 	for x := range tempResp.Asks {
 		item := orderbook.Item{
 			Price:  tempResp.Asks[x].Price,
@@ -441,7 +438,7 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		if assetType == asset.PerpetualSwap {
 			item.OrderCount = tempResp.Asks[x].Count
 		}
-		resp.Asks = append(resp.Asks, item)
+		book.Asks = append(book.Asks, item)
 	}
 	for x := range tempResp.Bids {
 		item := orderbook.Item{
@@ -451,11 +448,11 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		if assetType == asset.PerpetualSwap {
 			item.OrderCount = tempResp.Bids[x].Count
 		}
-		resp.Bids = append(resp.Bids, item)
+		book.Bids = append(book.Bids, item)
 	}
-	err = resp.Process()
+	err = book.Process()
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 	return orderbook.Get(c.Name, p, assetType)
 }

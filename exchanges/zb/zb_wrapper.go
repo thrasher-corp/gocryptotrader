@@ -292,40 +292,34 @@ func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.B
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{ExchangeName: z.Name, Pair: p, AssetType: assetType}
 	currFormat, err := z.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := z.GetOrderbook(currFormat.String())
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x][1],
 			Price:  orderbookNew.Bids[x][0],
 		})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: orderbookNew.Asks[x][1],
 			Price:  orderbookNew.Asks[x][0],
 		})
 	}
-
-	orderBook.Pair = p
-	orderBook.AssetType = assetType
-	orderBook.ExchangeName = z.Name
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(z.Name, p, assetType)
 }
 

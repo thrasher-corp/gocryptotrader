@@ -272,37 +272,32 @@ func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, as
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{ExchangeName: {{.Variable}}.Name, Pair: p, AssetType: assetType}
 	// NOTE: UPDATE ORDERBOOK EXAMPLE
 	/* 
 	orderbookNew, err := {{.Variable}}.GetOrderBook(exchange.FormatExchangeCurrency({{.Variable}}.Name, p).String(), 1000)
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x].Quantity, 
 			Price: orderbookNew.Bids[x].Price,
 		})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
-			Amount: orderBook.Asks[x].Quantity,
-			Price: orderBook.Asks[x].Price,
+		book.Asks = append(book.Asks, orderbook.Item{
+			Amount: orderBookNew.Asks[x].Quantity,
+			Price: orderBookNew.Asks[x].Price,
 		})
 	}
 	*/
 
-	
-	orderBook.Pair = p
-	orderBook.ExchangeName = {{.Variable}}.Name
-	orderBook.AssetType = assetType
-
-	err := orderBook.Process()
+	err := book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	return orderbook.Get({{.Variable}}.Name, p, assetType)

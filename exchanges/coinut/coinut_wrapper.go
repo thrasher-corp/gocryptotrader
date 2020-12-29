@@ -453,44 +453,42 @@ func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{ExchangeName: c.Name, Pair: p, AssetType: assetType}
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	fpair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	instID := c.instrumentMap.LookupID(fpair.String())
 	if instID == 0 {
-		return orderBook, errLookupInstrumentID
+		return book, errLookupInstrumentID
 	}
 
 	orderbookNew, err := c.GetInstrumentOrderbook(instID, 200)
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	for x := range orderbookNew.Buy {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: orderbookNew.Buy[x].Quantity, Price: orderbookNew.Buy[x].Price})
+		book.Bids = append(book.Bids, orderbook.Item{
+			Amount: orderbookNew.Buy[x].Quantity,
+			Price:  orderbookNew.Buy[x].Price})
 	}
 
 	for x := range orderbookNew.Sell {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: orderbookNew.Sell[x].Quantity, Price: orderbookNew.Sell[x].Price})
+		book.Asks = append(book.Asks, orderbook.Item{
+			Amount: orderbookNew.Sell[x].Quantity,
+			Price:  orderbookNew.Sell[x].Price})
 	}
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = c.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(c.Name, p, assetType)
 }
 

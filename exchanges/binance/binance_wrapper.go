@@ -401,14 +401,14 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{ExchangeName: b.Name, Pair: p, AssetType: assetType}
 	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{
 		Symbol: p,
 		Limit:  1000})
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	book := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x].Quantity,
@@ -422,13 +422,10 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 			Price:  orderbookNew.Asks[x].Price,
 		})
 	}
-	book.Pair = p
-	book.ExchangeName = b.Name
-	book.AssetType = assetType
 
 	err = book.Process()
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	return orderbook.Get(b.Name, p, assetType)

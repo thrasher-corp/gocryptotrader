@@ -425,40 +425,34 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{ExchangeName: k.Name, Pair: p, AssetType: assetType}
 	fpair, err := k.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := k.GetDepth(fpair.String())
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	var orderBook = new(orderbook.Base)
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		})
 	}
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = k.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(k.Name, p, assetType)
 }
 

@@ -319,16 +319,16 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{ExchangeName: b.Name, Pair: p, AssetType: assetType}
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 	a, err := b.FetchOrderBook(fPair.String(), 0, 0, 0, assetType == asset.Spot)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	book := new(orderbook.Base)
 	for x := range a.BuyQuote {
 		book.Bids = append(book.Bids, orderbook.Item{
 			Price:  a.BuyQuote[x].Price,
@@ -345,7 +345,7 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	book.AssetType = assetType
 	err = book.Process()
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 	return orderbook.Get(b.Name, p, assetType)
 }

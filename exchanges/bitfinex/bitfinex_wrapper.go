@@ -386,9 +386,15 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	o := &orderbook.Base{
+		ExchangeName:  b.Name,
+		Pair:          p,
+		AssetType:     assetType,
+		NotAggregated: true}
+
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return o, err
 	}
 	b.appendOptionalDelimiter(&fPair)
 	var prefix = "t"
@@ -398,10 +404,9 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 	orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "R0", 100)
 	if err != nil {
-		return nil, err
+		return o, err
 	}
 
-	var o orderbook.Base
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true
 		for x := range orderbookNew.Asks {
@@ -436,11 +441,6 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 			})
 		}
 	}
-
-	o.Pair = fPair
-	o.ExchangeName = b.Name
-	o.AssetType = assetType
-	o.NotAggregated = true
 
 	err = o.Process()
 	if err != nil {
