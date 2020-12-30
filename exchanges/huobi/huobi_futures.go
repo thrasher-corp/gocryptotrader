@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -171,6 +172,23 @@ func (h *HUOBI) FGetEstimatedDeliveryPrice(symbol currency.Code) (FEstimatedDeli
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
 }
 
+// FormatSymbol overrides and calls the imbedded format symbol implementation on
+// the exchange base struct
+func (h *HUOBI) FormatSymbol(c currency.Pair, assetType asset.Item) (string, error) {
+	formattedSymbol, err := h.Base.FormatSymbol(c, assetType)
+	if err != nil {
+		return "", err
+	}
+
+	if assetType == asset.Futures {
+		wow := strings.Split(formattedSymbol, "_")
+		if len(wow[1]) > 2 {
+			formattedSymbol = strings.Replace(formattedSymbol, "_", "", 1)
+		}
+	}
+	return formattedSymbol, nil
+}
+
 // FGetMarketDepth gets market depth data for futures contracts
 func (h *HUOBI) FGetMarketDepth(symbol currency.Pair, dataType string) (OBData, error) {
 	var resp OBData
@@ -180,6 +198,7 @@ func (h *HUOBI) FGetMarketDepth(symbol currency.Pair, dataType string) (OBData, 
 	if err != nil {
 		return resp, err
 	}
+	fmt.Println(symbolValue)
 	params.Set("symbol", symbolValue)
 	params.Set("type", dataType)
 	path := fContractMarketDepth + params.Encode()
@@ -1103,7 +1122,7 @@ func (h *HUOBI) FQueryTriggerOrderHistory(contractCode currency.Pair, symbol, tr
 func (h *HUOBI) formatFuturesCode(p currency.Code) (string, error) {
 	pairFmt, err := h.GetPairFormat(asset.Futures, true)
 	if err != nil {
-		return "NOOO", err
+		return "", err
 	}
 	if pairFmt.Uppercase {
 		return p.Upper().String(), nil

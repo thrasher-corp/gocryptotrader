@@ -93,9 +93,17 @@ func TestSet(t *testing.T) {
 	if val != "OVERWRITTEN BRO" {
 		t.Error("overwriting failed")
 	}
+	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3", false)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3", false)
+	if err == nil {
+		t.Error("expecting an error since edgecase3 already exists")
+	}
 }
 
-func TestGet(t *testing.T) {
+func TestGetURL(t *testing.T) {
 	t.Parallel()
 	b := Base{
 		Name: "HELAAAAAOOOOOOOOO",
@@ -122,6 +130,10 @@ func TestGet(t *testing.T) {
 	}
 	if getChangedVal != "OVERWRITTEN BRO" {
 		t.Error("couldnt get changed val")
+	}
+	_, err = b.API.Endpoints.GetURL(URL(100))
+	if err == nil {
+		t.Error("expecting error due to invalid URL parsed")
 	}
 }
 
@@ -1549,10 +1561,6 @@ func TestUpdatePairs(t *testing.T) {
 	}
 }
 
-func TestSetAPIURL(t *testing.T) {
-	t.Parallel()
-}
-
 func TestSupportsWebsocket(t *testing.T) {
 	t.Parallel()
 
@@ -2126,6 +2134,87 @@ func TestAddTradesToBuffer(t *testing.T) {
 
 	b.SetSaveTradeDataStatus(true)
 	err = b.AddTradesToBuffer()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestString(t *testing.T) {
+	if RestSpot.String() != "RestSpotURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestSpotSupplementary.String() != "RestSpotSupplementaryURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestUSDTMargined.String() != "RestUSDTMarginedFuturesURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestCoinMargined.String() != "RestCoinMarginedFuturesURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestFutures.String() != "RestFuturesURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestSandbox.String() != "RestSandboxURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestSwap.String() != "RestSwapURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if WebsocketSpot.String() != "WebsocketSpotURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if WebsocketSpotSupplementary.String() != "WebsocketSpotSupplementaryURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if ChainAnalysis.String() != "ChainAnalysisURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if EdgeCase1.String() != "EdgeCase1URL" {
+		t.Errorf("invalid string conversion")
+	}
+	if EdgeCase2.String() != "EdgeCase2URL" {
+		t.Errorf("invalid string conversion")
+	}
+	if EdgeCase3.String() != "EdgeCase3URL" {
+		t.Errorf("invalid string conversion")
+	}
+}
+
+func TestFormatSymbol(t *testing.T) {
+	b := Base{}
+	spotStore := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: currency.DashDelimiter,
+			Uppercase: true,
+		},
+	}
+	err := b.StoreAssetPairFormat(asset.Spot, spotStore)
+	if err != nil {
+		t.Error(err)
+	}
+	pair, err := currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+	sym, err := b.FormatSymbol(pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if sym != "BTCUSD" {
+		t.Error("formatting failed")
+	}
+	_, err = b.FormatSymbol(pair, asset.Futures)
+	if err == nil {
+		t.Error("expecting an error since asset pair format has not been set")
+	}
+}
+
+func TestSetAPIURL(t *testing.T) {
+	b := Base{}
+	// Broken
+	err := b.SetAPIURL()
 	if err != nil {
 		t.Error(err)
 	}

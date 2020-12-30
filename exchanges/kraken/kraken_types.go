@@ -78,8 +78,6 @@ type GenericResponse struct {
 	Result    string `json:"result"`
 }
 
-// RecentOrdersData stores order data of recent orders
-
 // Asset holds asset information
 type Asset struct {
 	Altname         string `json:"altname"`

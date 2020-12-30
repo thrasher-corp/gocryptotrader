@@ -221,7 +221,7 @@ func (h *HitBTC) GetCandles(currencyPair, limit, period string, start, end time.
 // GetBalances returns full balance for your account
 func (h *HitBTC) GetBalances() (map[string]Balance, error) {
 	var result []Balance
-	err := h.SendAuthenticatedHTTPRequest(http.MethodGet,
+	err := h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet,
 		apiV2Balance,
 		url.Values{},
 		otherRequests,
@@ -244,7 +244,7 @@ func (h *HitBTC) GetDepositAddresses(currency string) (DepositCryptoAddresses, e
 	var resp DepositCryptoAddresses
 
 	return resp,
-		h.SendAuthenticatedHTTPRequest(http.MethodGet,
+		h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet,
 			apiV2CryptoAddress+"/"+currency,
 			url.Values{},
 			otherRequests,
@@ -254,7 +254,7 @@ func (h *HitBTC) GetDepositAddresses(currency string) (DepositCryptoAddresses, e
 // GenerateNewAddress generates a new deposit address for a currency
 func (h *HitBTC) GenerateNewAddress(currency string) (DepositCryptoAddresses, error) {
 	resp := DepositCryptoAddresses{}
-	err := h.SendAuthenticatedHTTPRequest(http.MethodPost,
+	err := h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
 		apiV2CryptoAddress+"/"+currency,
 		url.Values{},
 		otherRequests,
@@ -266,7 +266,7 @@ func (h *HitBTC) GenerateNewAddress(currency string) (DepositCryptoAddresses, er
 // GetActiveorders returns all your active orders
 func (h *HitBTC) GetActiveorders(currency string) ([]Order, error) {
 	var resp []Order
-	err := h.SendAuthenticatedHTTPRequest(http.MethodGet,
+	err := h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet,
 		orders+"?symbol="+currency,
 		url.Values{},
 		tradingRequests,
@@ -290,7 +290,7 @@ func (h *HitBTC) GetTradeHistoryForCurrency(currency, start, end string) (Authen
 	values.Set("currencyPair", currency)
 	result := AuthenticatedTradeHistoryResponse{}
 
-	return result, h.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return result, h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
 		apiV2TradeHistory,
 		values,
 		otherRequests,
@@ -312,7 +312,7 @@ func (h *HitBTC) GetTradeHistoryForAllCurrencies(start, end string) (Authenticat
 	values.Set("currencyPair", "all")
 	result := AuthenticatedTradeHistoryAll{}
 
-	return result, h.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return result, h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
 		apiV2TradeHistory,
 		values,
 		otherRequests,
@@ -325,7 +325,7 @@ func (h *HitBTC) GetOrders(currency string) ([]OrderHistoryResponse, error) {
 	values.Set("symbol", currency)
 	var result []OrderHistoryResponse
 
-	return result, h.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return result, h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet,
 		apiV2OrderHistory,
 		values,
 		tradingRequests,
@@ -338,7 +338,7 @@ func (h *HitBTC) GetOpenOrders(currency string) ([]OrderHistoryResponse, error) 
 	values.Set("symbol", currency)
 	var result []OrderHistoryResponse
 
-	return result, h.SendAuthenticatedHTTPRequest(http.MethodGet,
+	return result, h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet,
 		apiv2OpenOrders,
 		values,
 		tradingRequests,
@@ -357,7 +357,7 @@ func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, orderType, si
 	values.Set("price", strconv.FormatFloat(rate, 'f', -1, 64))
 	values.Set("type", orderType)
 
-	return result, h.SendAuthenticatedHTTPRequest(http.MethodPost,
+	return result, h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
 		apiOrder,
 		values,
 		tradingRequests,
@@ -369,7 +369,7 @@ func (h *HitBTC) CancelExistingOrder(orderID int64) (bool, error) {
 	result := GenericResponse{}
 	values := url.Values{}
 
-	err := h.SendAuthenticatedHTTPRequest(http.MethodDelete,
+	err := h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodDelete,
 		apiOrder+"/"+strconv.FormatInt(orderID, 10),
 		values,
 		tradingRequests,
@@ -390,7 +390,7 @@ func (h *HitBTC) CancelExistingOrder(orderID int64) (bool, error) {
 func (h *HitBTC) CancelAllExistingOrders() ([]Order, error) {
 	var result []Order
 	values := url.Values{}
-	return result, h.SendAuthenticatedHTTPRequest(http.MethodDelete,
+	return result, h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodDelete,
 		apiOrder,
 		values,
 		tradingRequests,
@@ -408,7 +408,7 @@ func (h *HitBTC) MoveOrder(orderID int64, rate, amount float64) (MoveOrderRespon
 		values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	}
 
-	err := h.SendAuthenticatedHTTPRequest(http.MethodPost,
+	err := h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
 		orderMove,
 		values,
 		tradingRequests,
@@ -434,7 +434,7 @@ func (h *HitBTC) Withdraw(currency, address string, amount float64) (bool, error
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	values.Set("address", address)
 
-	err := h.SendAuthenticatedHTTPRequest(http.MethodPost,
+	err := h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
 		apiV2CryptoWithdraw,
 		values,
 		otherRequests,
@@ -454,7 +454,7 @@ func (h *HitBTC) Withdraw(currency, address string, amount float64) (bool, error
 // GetFeeInfo returns current fee information
 func (h *HitBTC) GetFeeInfo(currencyPair string) (Fee, error) {
 	result := Fee{}
-	err := h.SendAuthenticatedHTTPRequest(http.MethodGet,
+	err := h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet,
 		apiV2FeeInfo+"/"+currencyPair,
 		url.Values{},
 		tradingRequests,
@@ -470,7 +470,7 @@ func (h *HitBTC) GetTradableBalances() (map[string]map[string]float64, error) {
 	}
 	result := Response{}
 
-	err := h.SendAuthenticatedHTTPRequest(http.MethodPost,
+	err := h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
 		tradableBalances,
 		url.Values{},
 		tradingRequests,
@@ -502,7 +502,7 @@ func (h *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 	values.Set("fromAccount", from)
 	values.Set("toAccount", to)
 
-	err := h.SendAuthenticatedHTTPRequest(http.MethodPost,
+	err := h.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost,
 		transferBalance,
 		values,
 		otherRequests,
@@ -537,15 +537,19 @@ func (h *HitBTC) SendHTTPRequest(ep exchange.URL, path string, result interface{
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
-func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, f request.EndpointLimit, result interface{}) error {
+func (h *HitBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint string, values url.Values, f request.EndpointLimit, result interface{}) error {
 	if !h.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			h.Name)
 	}
+	ePoint, err := h.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
 	headers := make(map[string]string)
 	headers["Authorization"] = "Basic " + crypto.Base64Encode([]byte(h.API.Credentials.Key+":"+h.API.Credentials.Secret))
 
-	path := fmt.Sprintf("/%s", endpoint)
+	path := fmt.Sprintf("%s/%s", ePoint, endpoint)
 
 	return h.SendPayload(context.Background(), &request.Item{
 		Method:        method,

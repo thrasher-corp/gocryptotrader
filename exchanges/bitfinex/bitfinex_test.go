@@ -104,8 +104,7 @@ func TestGetV2Balances(t *testing.T) {
 
 func TestGetDerivativeData(t *testing.T) {
 	t.Parallel()
-	a, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
-	t.Log(a)
+	_, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}

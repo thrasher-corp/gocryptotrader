@@ -390,9 +390,6 @@ func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	if !b.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", assetType, b.Name)
-	}
 	switch assetType {
 	case asset.Spot, asset.Margin:
 		tick, err := b.GetTickers()
@@ -795,7 +792,7 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 	switch s.AssetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		var sideType string
 		if s.Side == order.Buy {
 			sideType = order.Buy.String()
@@ -942,7 +939,7 @@ func (b *Binance) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 	switch o.AssetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 		if err != nil {
 			return err
@@ -976,7 +973,7 @@ func (b *Binance) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse
 func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
 	var cancelAllOrdersResponse order.CancelAllResponse
 	switch req.AssetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		openOrders, err := b.OpenOrders(&req.Pair)
 		if err != nil {
 			return cancelAllOrdersResponse, err
@@ -1149,6 +1146,8 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
+	default:
+		return respData, fmt.Errorf("assetType %s not supported", assetType)
 	}
 	return respData, nil
 }
@@ -1207,7 +1206,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	addAll := len(req.Pairs) == 0
 	var orders []order.Detail
 	switch req.AssetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		resp, err := b.OpenOrders(&currency.Pair{})
 		if err != nil {
 			return nil, err
@@ -1331,7 +1330,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	}
 	var orders []order.Detail
 	switch req.AssetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		for x := range req.Pairs {
 			resp, err := b.AllOrders(req.Pairs[x],
 				"",
