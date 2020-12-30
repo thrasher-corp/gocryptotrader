@@ -267,7 +267,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				// Last level is coming back as a float with not enough decimal
 				// places e.g. ["0.000","1001.95"]],
 				// This needs to be filtered out as this can skew orderbook
-				// transversals
+				// calculations
 				continue
 			}
 
