@@ -1,6 +1,11 @@
 package currencystatstics
 
-import "testing"
+import (
+	"testing"
+	"time"
+
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+)
 
 func TestSortinoRatio(t *testing.T) {
 	rfr := 0.07
@@ -53,7 +58,7 @@ func TestCalmarRatio(t *testing.T) {
 }
 
 func TestCAGR(t *testing.T) {
-	cagr := calculateCompoundAnnualGrowthRate([]float64{100, 123, 125, 126, 134, 147})
+	cagr := calculateCompoundAnnualGrowthRate(100, 147, time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local), gctkline.OneYear)
 	if cagr != 0.08009875865888949 {
 		t.Error(cagr)
 	}

@@ -397,23 +397,6 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 	}
 }
 
-func TestCalcDateRanges(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-
-	v := CalcDateRanges(start, end, OneMin, 300)
-
-	if v[0].Start.Unix() != time.Unix(1546300800, 0).Unix() {
-		t.Errorf("unexpected result received %v", v[0].Start.Unix())
-	}
-
-	v = CalcDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
-	if len(v) != 1 {
-		t.Error("expected CalcDateRanges() with a Item count lower than limit to return 1 result")
-	}
-
-}
-
 func TestCalcSuperDateRanges(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
@@ -446,6 +429,7 @@ func TestCalcSuperDateRanges(t *testing.T) {
 	if !v.Ranges[1].Intervals[4].End.Equal(end) {
 		t.Errorf("expected %v received %v", end, v.Ranges[1].Intervals[4].End)
 	}
+
 }
 
 func TestItem_SortCandlesByTimestamp(t *testing.T) {

@@ -255,24 +255,6 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint3
 	return out
 }
 
-type IntervalRangeHolder struct {
-	Start  time.Time
-	End    time.Time
-	Ranges []IntervalRange
-}
-
-type IntervalRange struct {
-	Start     time.Time
-	End       time.Time
-	Intervals []IntervalData
-}
-
-type IntervalData struct {
-	Start   time.Time
-	End     time.Time
-	HasData bool
-}
-
 func (k *Item) FillMissingDataWithEmptyEntries(i IntervalRangeHolder) {
 	var anyChanges bool
 	for x := range i.Ranges {
@@ -297,18 +279,17 @@ func (k *Item) FillMissingDataWithEmptyEntries(i IntervalRangeHolder) {
 
 func CalcSuperDateRanges(start, end time.Time, interval Interval, limit uint32) IntervalRangeHolder {
 	resp := IntervalRangeHolder{
-		Start: start.Truncate(interval.Duration()),
-		End:   end.Truncate(interval.Duration()),
+		Start: start.Round(interval.Duration()),
+		End:   end.Round(interval.Duration()),
 	}
 	var intervalsInWholePeriod []IntervalData
 	for i := start; !i.After(end); i = i.Add(interval.Duration()) {
 		intervalsInWholePeriod = append(intervalsInWholePeriod, IntervalData{
-			Start: i.Truncate(interval.Duration()),
-			End:   i.Truncate(interval.Duration()).Add(interval.Duration()),
+			Start: i.Round(interval.Duration()),
+			End:   i.Round(interval.Duration()).Add(interval.Duration()),
 		})
 	}
-
-	if intervalsInWholePeriod != nil && intervalsInWholePeriod[len(intervalsInWholePeriod)-1].Start.Equal(end) {
+	for intervalsInWholePeriod[len(intervalsInWholePeriod)-1].Start.After(end) || intervalsInWholePeriod[len(intervalsInWholePeriod)-1].Start.Equal(end) {
 		// remove any extra intervals which have been added due to the "after"
 		intervalsInWholePeriod = intervalsInWholePeriod[:len(intervalsInWholePeriod)-1]
 	}
@@ -400,43 +381,6 @@ func (h *IntervalRangeHolder) Verify(c []Candle) error {
 	}
 
 	return nil
-}
-
-// CalcDateRanges returns slice of start/end times based on start & end date
-func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out []DateRange) {
-	total := TotalCandlesPerInterval(start, end, interval)
-	if total < limit {
-		return []DateRange{{
-			Start: start,
-			End:   end,
-		},
-		}
-	}
-
-	var allDateIntervals []time.Time
-	var y uint32
-	var lastNum int
-	for d := start; !d.After(end); d = d.Add(interval.Duration()) {
-		allDateIntervals = append(allDateIntervals, d)
-	}
-	for x := range allDateIntervals {
-		if y == limit {
-			out = append(out, DateRange{
-				allDateIntervals[x-int(limit)],
-				allDateIntervals[x],
-			})
-			y = 0
-			lastNum = x
-		}
-		y++
-	}
-	if allDateIntervals != nil && lastNum+1 < len(allDateIntervals) {
-		out = append(out, DateRange{
-			Start: allDateIntervals[lastNum+1],
-			End:   allDateIntervals[len(allDateIntervals)-1],
-		})
-	}
-	return out
 }
 
 // SortCandlesByTimestamp sorts candles by timestamp

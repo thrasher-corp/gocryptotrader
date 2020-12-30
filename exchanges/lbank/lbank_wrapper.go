@@ -936,22 +936,22 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, l.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcSuperDateRanges(start, end, interval, l.Features.Enabled.Kline.ResultLimit)
 	formattedPair, err := l.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	for x := range dates {
+	for x := range dates.Ranges {
 		data, err := l.GetKlines(formattedPair.String(),
 			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
 			l.FormatExchangeKlineInterval(interval),
-			strconv.FormatInt(dates[x].Start.UTC().Unix(), 10))
+			strconv.FormatInt(dates.Ranges[x].Start.UTC().Unix(), 10))
 		if err != nil {
 			return kline.Item{}, err
 		}
 		for i := range data {
-			if time.Unix(data[i].TimeStamp, 0).UTC().Before(dates[x].Start.UTC()) || time.Unix(data[i].TimeStamp, 0).UTC().After(dates[x].End.UTC()) {
+			if time.Unix(data[i].TimeStamp, 0).UTC().Before(dates.Ranges[x].Start.UTC()) || time.Unix(data[i].TimeStamp, 0).UTC().After(dates.Ranges[x].End.UTC()) {
 				continue
 			}
 			ret.Candles = append(ret.Candles, kline.Candle{
@@ -965,6 +965,10 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 		}
 	}
 
+	err = dates.Verify(ret.Candles)
+	if err != nil {
+		log.Warn(log.ExchangeSys, err.Error())
+	}
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

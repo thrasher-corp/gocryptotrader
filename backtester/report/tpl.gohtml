@@ -615,7 +615,6 @@
 									<th>Slippage Rate</th>
 									<th>Amount</th>
 									<th>Fees</th>
-									<th>OrderID</th>
 									</thead>
 									<tbody >
                                     {{range .Orders.Orders}}
@@ -627,7 +626,6 @@
 											<td>{{ .SlippageRate }}</td>
 											<td>{{ .Detail.Amount }}</td>
 											<td>{{ .Detail.Fee }}</td>
-											<td>{{ .Detail.ID }}</td>
 										</tr>
                                     {{end}}
 									</tbody>

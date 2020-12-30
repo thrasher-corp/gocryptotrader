@@ -72,7 +72,7 @@ func TestUpdateBuyStats(t *testing.T) {
 	}
 	h.update(&fill.Fill{
 		Event: event.Event{
-			Exchange:     "butts",
+			Exchange:     "binance",
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -88,7 +88,7 @@ func TestUpdateBuyStats(t *testing.T) {
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
-			Exchange:    "butts",
+			Exchange:    "binance",
 			ID:          "1337",
 			Type:        order.Limit,
 			Side:        order.Buy,
@@ -135,7 +135,7 @@ func TestUpdateBuyStats(t *testing.T) {
 
 	h.update(&fill.Fill{
 		Event: event.Event{
-			Exchange:     "butts",
+			Exchange:     "binance",
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -151,7 +151,7 @@ func TestUpdateBuyStats(t *testing.T) {
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      0.5,
-			Exchange:    "butts",
+			Exchange:    "binance",
 			ID:          "1337",
 			Type:        order.Limit,
 			Side:        order.Buy,
@@ -204,7 +204,7 @@ func TestUpdateSellStats(t *testing.T) {
 	}
 	h.update(&fill.Fill{
 		Event: event.Event{
-			Exchange:     "butts",
+			Exchange:     "binance",
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -220,7 +220,7 @@ func TestUpdateSellStats(t *testing.T) {
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
-			Exchange:    "butts",
+			Exchange:    "binance",
 			ID:          "1337",
 			Type:        order.Limit,
 			Side:        order.Buy,
@@ -267,7 +267,7 @@ func TestUpdateSellStats(t *testing.T) {
 
 	h.update(&fill.Fill{
 		Event: event.Event{
-			Exchange:     "butts",
+			Exchange:     "binance",
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -283,7 +283,7 @@ func TestUpdateSellStats(t *testing.T) {
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
-			Exchange:    "butts",
+			Exchange:    "binance",
 			ID:          "1337",
 			Type:        order.Limit,
 			Side:        order.Sell,

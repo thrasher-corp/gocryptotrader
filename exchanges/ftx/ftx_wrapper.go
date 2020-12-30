@@ -1045,18 +1045,18 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcSuperDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
 
 	formattedPair, err := f.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	for x := range dates {
+	for x := range dates.Ranges {
 		ohlcData, err := f.GetHistoricalData(formattedPair.String(),
 			f.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
-			dates[x].Start, dates[x].End)
+			dates.Ranges[x].Start, dates.Ranges[x].End)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -1072,5 +1072,10 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 			})
 		}
 	}
+	err = dates.Verify(ret.Candles)
+	if err != nil {
+		log.Warn(log.ExchangeSys, err.Error())
+	}
+
 	return ret, nil
 }

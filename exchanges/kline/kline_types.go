@@ -109,3 +109,21 @@ type DateRange struct {
 	Start time.Time
 	End   time.Time
 }
+
+type IntervalRangeHolder struct {
+	Start  time.Time
+	End    time.Time
+	Ranges []IntervalRange
+}
+
+type IntervalRange struct {
+	Start     time.Time
+	End       time.Time
+	Intervals []IntervalData
+}
+
+type IntervalData struct {
+	Start   time.Time
+	End     time.Time
+	HasData bool
+}

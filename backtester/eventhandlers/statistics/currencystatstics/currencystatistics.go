@@ -4,24 +4,20 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func calculateCompoundAnnualGrowthRate(values []float64) float64 {
-	first := values[0]
-	last := values[len(values)-1]
-	iterations := len(values) - 1
-	if iterations == 0 || first == 0 {
-		return 0
-	}
-	rate := math.Pow(last/first, 1/float64(iterations))
-	return rate - 1
+func calculateCompoundAnnualGrowthRate(openValue, closeValue float64, start, end time.Time, interval gctkline.Interval) float64 {
+	p := gctkline.TotalCandlesPerInterval(start, end, interval)
+	return math.Pow(closeValue/openValue, 1/float64(p)) - 1
 }
 
 func calculateCalmarRatio(values []float64, maxDrawdown Swing) float64 {
@@ -152,6 +148,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.RiskFreeRate = last.Holdings.RiskFreeRate
 	var returnPerCandle = make([]float64, len(c.Events))
 	var excessReturns = make([]float64, len(c.Events))
+
 	var negativeReturns []float64
 	for i := range c.Events {
 		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
@@ -169,8 +166,12 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, c.RiskFreeRate)
 	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{c.RiskFreeRate})
 	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, c.DrawDowns.MaxDrawDown)
-	c.CompoundAnnualGrowthRate = calculateCompoundAnnualGrowthRate(returnPerCandle)
-
+	c.CompoundAnnualGrowthRate = calculateCompoundAnnualGrowthRate(
+		last.Holdings.InitialFunds,
+		last.Holdings.TotalValue,
+		first.SignalEvent.GetTime(),
+		last.DataEvent.GetTime(),
+		first.SignalEvent.GetInterval())
 }
 
 func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair) {

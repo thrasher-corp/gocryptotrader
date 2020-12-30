@@ -897,17 +897,17 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 	if err != nil {
 		return kline.Item{}, err
 	}
-	dates := kline.CalcDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcSuperDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
 
 	formattedPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	for x := range dates {
+	for x := range dates.Ranges {
 		history, err := c.GetHistoricRates(formattedPair.String(),
-			dates[x].Start.Format(time.RFC3339),
-			dates[x].End.Format(time.RFC3339),
+			dates.Ranges[x].Start.Format(time.RFC3339),
+			dates.Ranges[x].End.Format(time.RFC3339),
 			gran)
 		if err != nil {
 			return kline.Item{}, err
@@ -924,7 +924,10 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 			})
 		}
 	}
-
+	err = dates.Verify(ret.Candles)
+	if err != nil {
+		log.Warn(log.ExchangeSys, err.Error())
+	}
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

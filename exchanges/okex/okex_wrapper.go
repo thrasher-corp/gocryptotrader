@@ -634,16 +634,16 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalcSuperDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
 	formattedPair, err := o.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
-	for x := range dates {
+	for x := range dates.Ranges {
 		req := &okgroup.GetMarketDataRequest{
 			Asset:        a,
-			Start:        dates[x].Start.UTC().Format(time.RFC3339),
-			End:          dates[x].End.UTC().Format(time.RFC3339),
+			Start:        dates.Ranges[x].Start.UTC().Format(time.RFC3339),
+			End:          dates.Ranges[x].End.UTC().Format(time.RFC3339),
 			Granularity:  o.FormatExchangeKlineInterval(interval),
 			InstrumentID: formattedPair.String(),
 		}
@@ -691,6 +691,10 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 		}
 	}
 
+	err = dates.Verify(ret.Candles)
+	if err != nil {
+		log.Warn(log.ExchangeSys, err.Error())
+	}
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
