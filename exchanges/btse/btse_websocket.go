@@ -242,11 +242,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			if amount == 0 {
-				// This occurs when the amount exceeds the decimal returned.
-				// e.g. {"price":"1.37","size":"0.00"} currency: SFI-ETH_0
-				// Opted to not round up to 0.01 as this might skew calculations
-				// more than having it not in the books.
+			if b.orderbookFilter(price, amount) {
 				continue
 			}
 			newOB.Asks = append(newOB.Asks, orderbook.Item{
@@ -260,20 +256,12 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			if price == 0 {
-				// This occurs when we are deep in the bid book and there are
-				// prices that are less than 4 decimal places
-				// e.g. {"price":"0.0000","size":"14219"} currency: TRX-PAX
-				// We cannot load a zero price and this will ruin calculations
-				continue
-			}
 			a := strings.Replace(t.Data.BuyQuote[j].Size, ",", "", -1)
 			amount, err = strconv.ParseFloat(a, 64)
 			if err != nil {
 				return err
 			}
-			if amount == 0 {
-				// See line 250 above.
+			if b.orderbookFilter(price, amount) {
 				continue
 			}
 			newOB.Bids = append(newOB.Bids, orderbook.Item{
@@ -303,6 +291,21 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		return nil
 	}
 	return nil
+}
+
+// orderbookFilter is needed on book levels from this exchange as their data
+// is incorrect
+func (b *BTSE) orderbookFilter(price, amount float64) bool {
+	// Amount filtering occurs when the amount exceeds the decimal returned.
+	// e.g. {"price":"1.37","size":"0.00"} currency: SFI-ETH
+	// Opted to not round up to 0.01 as this might skew calculations
+	// more than removing from the books completely.
+
+	// Price filtering occurs when we are deep in the bid book and there are
+	// prices that are less than 4 decimal places
+	// e.g. {"price":"0.0000","size":"14219"} currency: TRX-PAX
+	// We cannot load a zero price and this will ruin calculations
+	return price == 0 || amount == 0
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
