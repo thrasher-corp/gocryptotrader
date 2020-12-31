@@ -1,16 +1,16 @@
 package signal
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // SignalEvent handler is used for getting trade signal details
 // Example Amount and Price of current candle tick
 type SignalEvent interface {
-	interfaces.EventHandler
-	interfaces.Directioner
+	common.EventHandler
+	common.Directioner
 
 	SetAmount(float64)
 	GetAmount() float64

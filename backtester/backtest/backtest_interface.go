@@ -1,15 +1,15 @@
 package backtest
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 )
 
 // CandleEvent for OHLCV tick data
 type CandleEvent interface {
-	interfaces.DataEventHandler
+	common.DataEventHandler
 }
 
 // TickEvent interface for ticker data (bid/ask)
 type TickEvent interface {
-	interfaces.DataEventHandler
+	common.DataEventHandler
 }

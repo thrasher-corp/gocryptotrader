@@ -34,7 +34,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 #### Creating a strategy
 
-Creation of a strategy is simple and requires an OnSignalEvent method to be imp****lemented
+Creation of a strategy is simple and requires an OnSignalEvent method to be implemented
 
 Example:
 ```

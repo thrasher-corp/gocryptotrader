@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -26,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -464,9 +464,9 @@ dataLoadingIssue:
 
 // handleEvent switches based on the eventHandler type
 // it will then act on the event and if needed, will add more events to the queue to be handled
-func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
+func (bt *BackTest) handleEvent(e common.EventHandler) error {
 	switch ev := e.(type) {
-	case interfaces.DataEventHandler:
+	case common.DataEventHandler:
 		bt.appendSignalEventsFromDataEvents(ev)
 	case signal.SignalEvent:
 		cs := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
@@ -520,7 +520,7 @@ func (bt *BackTest) handleEvent(e interfaces.EventHandler) error {
 //
 // for non-multi-currency-consideration strategies, it will simply process every currency individually
 // against the strategy and generate signals
-func (bt *BackTest) appendSignalEventsFromDataEvents(e interfaces.DataEventHandler) {
+func (bt *BackTest) appendSignalEventsFromDataEvents(e common.DataEventHandler) {
 	if bt.Strategy.IsMultiCurrency() {
 		var dataEvents []data.Handler
 		dataHandlerMap := bt.Datas.GetAllData()
@@ -558,7 +558,7 @@ func (bt *BackTest) appendSignalEventsFromDataEvents(e interfaces.DataEventHandl
 
 // updateStatsForDataEvent makes various systems aware of price movements from
 // data events
-func (bt *BackTest) updateStatsForDataEvent(e interfaces.DataEventHandler) {
+func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
 	// update portfolio with latest price
 	bt.Portfolio.Update(e)
 	// update statistics with latest price

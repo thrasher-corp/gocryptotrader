@@ -3,6 +3,7 @@ package portfolio
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -12,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -38,7 +38,7 @@ type ExchangeAssetPairSettings struct {
 type Handler interface {
 	OnSignal(signal.SignalEvent, data.Handler, *exchange.CurrencySettings) (*order.Order, error)
 	OnFill(fill.FillEvent, data.Handler) (*fill.Fill, error)
-	Update(interfaces.DataEventHandler)
+	Update(common.DataEventHandler)
 
 	SetInitialFunds(string, asset.Item, currency.Pair, float64)
 	GetInitialFunds(string, asset.Item, currency.Pair) float64
@@ -53,5 +53,5 @@ type Handler interface {
 }
 
 type SizeHandler interface {
-	SizeOrder(order.OrderEvent, interfaces.DataEventHandler, float64, *exchange.CurrencySettings) (*order.Order, error)
+	SizeOrder(order.OrderEvent, common.DataEventHandler, float64, *exchange.CurrencySettings) (*order.Order, error)
 }

@@ -4,10 +4,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -30,7 +30,7 @@ func (d *DataFromKline) Load() error {
 		return errors.New("no candle data provided")
 	}
 
-	klineData := make([]interfaces.DataEventHandler, len(d.Item.Candles))
+	klineData := make([]common.DataEventHandler, len(d.Item.Candles))
 	for i := range d.Item.Candles {
 		klineData[i] = &kline.Kline{
 			Event: event.Event{
@@ -57,7 +57,7 @@ func (d *DataFromKline) Append(ki gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[time.Time]bool)
 	}
-	var klineData []interfaces.DataEventHandler
+	var klineData []common.DataEventHandler
 	var gctCandles []gctkline.Candle
 	for i := range ki.Candles {
 		if _, ok := d.addedTimes[ki.Candles[i].Time]; !ok {

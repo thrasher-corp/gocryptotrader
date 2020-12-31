@@ -1,13 +1,15 @@
 package eventholder
 
-import "github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+)
 
 type Holder struct {
-	Queue []interfaces.EventHandler
+	Queue []common.EventHandler
 }
 
 type EventHolder interface {
 	Reset()
-	AppendEvent(interfaces.EventHandler)
-	NextEvent() (e interfaces.EventHandler, ok bool)
+	AppendEvent(common.EventHandler)
+	NextEvent() (e common.EventHandler, ok bool)
 }

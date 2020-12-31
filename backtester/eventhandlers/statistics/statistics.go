@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -23,7 +22,7 @@ func (s *Statistic) Reset() {
 }
 
 // AddDataEventForTime sets up the big map for to store important data at each time interval
-func (s *Statistic) AddDataEventForTime(e interfaces.DataEventHandler) {
+func (s *Statistic) AddDataEventForTime(e common.DataEventHandler) {
 	ex := e.GetExchange()
 	a := e.GetAssetType()
 	p := e.Pair()

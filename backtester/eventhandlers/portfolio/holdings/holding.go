@@ -6,7 +6,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -52,7 +51,7 @@ func (h *Holding) Update(f fill.FillEvent) {
 	h.update(f)
 }
 
-func (h *Holding) UpdateValue(d interfaces.DataEventHandler) {
+func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.Timestamp = d.GetTime()
 	latest := d.Price()
 	h.updateValue(latest)

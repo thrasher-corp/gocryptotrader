@@ -1,4 +1,4 @@
-package RSI420BlazeIt
+package rsi
 
 import (
 	"errors"

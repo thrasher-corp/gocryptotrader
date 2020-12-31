@@ -1,11 +1,11 @@
 package kline
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 )
 
-func (k *Kline) DataType() interfaces.DataType {
+func (k *Kline) DataType() common.DataType {
 	return data.CandleType
 }
 

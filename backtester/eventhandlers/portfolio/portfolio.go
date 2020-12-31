@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -234,7 +233,7 @@ func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pa
 	return h, false
 }
 
-func (p *Portfolio) Update(d interfaces.DataEventHandler) {
+func (p *Portfolio) Update(d common.DataEventHandler) {
 	if h, ok := p.IsInvested(d.GetExchange(), d.GetAssetType(), d.Pair()); ok {
 		h.UpdateValue(d)
 		err := p.SetHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), d.GetTime(), h, true)

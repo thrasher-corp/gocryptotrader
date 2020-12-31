@@ -3,13 +3,13 @@ package statistics
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -41,7 +41,7 @@ type FinalResultsHolder struct {
 // Handler interface handles
 type Handler interface {
 	SetStrategyName(string)
-	AddDataEventForTime(interfaces.DataEventHandler)
+	AddDataEventForTime(common.DataEventHandler)
 	AddSignalEventForTime(signal.SignalEvent)
 	AddExchangeEventForTime(order.OrderEvent)
 	AddFillEventForTime(fill.FillEvent)

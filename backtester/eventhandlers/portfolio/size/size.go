@@ -4,14 +4,14 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (s *Size) SizeOrder(o order.OrderEvent, _ interfaces.DataEventHandler, amountAvailable float64, cs *exchange.CurrencySettings) (*order.Order, error) {
+func (s *Size) SizeOrder(o order.OrderEvent, _ common.DataEventHandler, amountAvailable float64, cs *exchange.CurrencySettings) (*order.Order, error) {
 	retOrder := o.(*order.Order)
 	var amount float64
 	var err error

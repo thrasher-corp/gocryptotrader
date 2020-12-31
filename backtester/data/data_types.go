@@ -4,13 +4,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 const (
-	CandleType interfaces.DataType = iota
+	CandleType common.DataType = iota
 )
 
 type DataHolder struct {
@@ -55,13 +55,13 @@ type Holder interface {
 }
 
 type DataPerCurrency struct {
-	Latest interfaces.DataEventHandler
-	Stream []interfaces.DataEventHandler
+	Latest common.DataEventHandler
+	Stream []common.DataEventHandler
 }
 
 type Data struct {
-	latest interfaces.DataEventHandler
-	stream []interfaces.DataEventHandler
+	latest common.DataEventHandler
+	stream []common.DataEventHandler
 	offset int
 }
 
@@ -79,11 +79,11 @@ type Loader interface {
 
 // Streamer interface handles loading, parsing, distributing BackTest data
 type Streamer interface {
-	Next() (interfaces.DataEventHandler, bool)
-	GetStream() []interfaces.DataEventHandler
-	History() []interfaces.DataEventHandler
-	Latest() interfaces.DataEventHandler
-	List() []interfaces.DataEventHandler
+	Next() (common.DataEventHandler, bool)
+	GetStream() []common.DataEventHandler
+	History() []common.DataEventHandler
+	Latest() common.DataEventHandler
+	List() []common.DataEventHandler
 	Offset() int
 
 	StreamOpen() []float64

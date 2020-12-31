@@ -1,8 +1,8 @@
 package order
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -20,8 +20,8 @@ type Order struct {
 
 // OrderEvent
 type OrderEvent interface {
-	interfaces.EventHandler
-	interfaces.Directioner
+	common.EventHandler
+	common.Directioner
 
 	SetAmount(float64)
 	GetAmount() float64

@@ -21,8 +21,8 @@
     "maximum-size": 1,
     "maximum-total": 10000
    },
-   "MinimumSlippagePercent": 0,
-   "MaximumSlippagePercent": 0,
+   "MinimumSlippagePercent": 3,
+   "MaximumSlippagePercent": 30,
    "maker-fee-override": 0.002,
    "taker-fee-override": 0.001
   },
@@ -46,8 +46,8 @@
     "maximum-size": 1,
     "maximum-total": 10000
    },
-   "MinimumSlippagePercent": 0,
-   "MaximumSlippagePercent": 0,
+   "MinimumSlippagePercent": 0.3,
+   "MaximumSlippagePercent": 0.7,
    "maker-fee-override": 0.002,
    "taker-fee-override": 0.001
   }

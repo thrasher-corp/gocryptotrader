@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/RSI420BlazeIt"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/rsi"
 )
 
 // LoadStrategyByName returns the strategy by its name
@@ -31,7 +31,7 @@ func LoadStrategyByName(name string, isMultiCurrency bool) (Handler, error) {
 func getStrategies() []Handler {
 	var strats []Handler
 	strats = append(strats, new(dollarcostaverage.Strategy))
-	strats = append(strats, new(RSI420BlazeIt.Strategy))
+	strats = append(strats, new(rsi.Strategy))
 
 	return strats
 }

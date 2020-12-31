@@ -360,7 +360,7 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateRSICandleAPICustomSettingsStrat",
 		StrategySettings: StrategySettings{
-			Name: "rsi420blazeit",
+			Name: "rsi",
 			CustomSettings: map[string]interface{}{
 				"rsi-low":    30.0,
 				"rsi-high":   70.0,
@@ -450,7 +450,7 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi420blazeit.strat"), result, 0770)
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi.strat"), result, 0770)
 	if err != nil {
 		t.Error(err)
 	}

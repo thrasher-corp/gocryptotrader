@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -157,7 +157,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 			negativeReturns = append(negativeReturns, c.Events[i].Holdings.ChangeInTotalValuePercent)
 		}
 	}
-	var allDataEvents []interfaces.DataEventHandler
+	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
@@ -254,7 +254,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 
 func (c *CurrencyStatistic) MaxDrawdown() Swing {
 	if len(c.DrawDowns.MaxDrawDown.Iterations) == 0 {
-		var allDataEvents []interfaces.DataEventHandler
+		var allDataEvents []common.DataEventHandler
 		for i := range c.Events {
 			allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 		}
@@ -265,7 +265,7 @@ func (c *CurrencyStatistic) MaxDrawdown() Swing {
 
 func (c *CurrencyStatistic) LongestDrawdown() Swing {
 	if len(c.DrawDowns.LongestDrawDown.Iterations) == 0 {
-		var allDataEvents []interfaces.DataEventHandler
+		var allDataEvents []common.DataEventHandler
 		for i := range c.Events {
 			allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 		}
@@ -274,7 +274,7 @@ func (c *CurrencyStatistic) LongestDrawdown() Swing {
 	return c.DrawDowns.LongestDrawDown
 }
 
-func calculateAllDrawDowns(closePrices []interfaces.DataEventHandler) SwingHolder {
+func calculateAllDrawDowns(closePrices []common.DataEventHandler) SwingHolder {
 	isDrawingDown := false
 
 	var response SwingHolder

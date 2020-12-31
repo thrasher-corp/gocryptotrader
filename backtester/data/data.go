@@ -3,7 +3,7 @@ package data
 import (
 	"sort"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 )
 
 // Load specified data into Candle format
@@ -20,7 +20,7 @@ func (d *Data) Reset() {
 }
 
 // Stream will return entire data list
-func (d *Data) GetStream() []interfaces.DataEventHandler {
+func (d *Data) GetStream() []common.DataEventHandler {
 	return d.stream
 }
 
@@ -28,24 +28,24 @@ func (d *Data) GetOffset() int {
 	return d.offset
 }
 
-func (d *Data) SetStream(s []interfaces.DataEventHandler) {
+func (d *Data) SetStream(s []common.DataEventHandler) {
 	d.stream = s
 }
 
-func (d *Data) SetStrea2m(s []interfaces.DataEventHandler) {
+func (d *Data) SetStrea2m(s []common.DataEventHandler) {
 	d.stream = s
 }
 
 // AppendStream appends new datas onto the stream, however, will not
 // add duplicates. Used for live analysis
-func (d *Data) AppendStream(s ...interfaces.DataEventHandler) {
+func (d *Data) AppendStream(s ...common.DataEventHandler) {
 	for i := range s {
 		d.stream = append(d.stream, s[i])
 	}
 }
 
 // Next will return the next event in the list and also shift the offset one
-func (d *Data) Next() (dh interfaces.DataEventHandler, ok bool) {
+func (d *Data) Next() (dh common.DataEventHandler, ok bool) {
 	if len(d.stream) <= d.offset {
 		return nil, false
 	}
@@ -57,16 +57,16 @@ func (d *Data) Next() (dh interfaces.DataEventHandler, ok bool) {
 }
 
 // History will return all previous data events that have happened
-func (d *Data) History() []interfaces.DataEventHandler {
+func (d *Data) History() []common.DataEventHandler {
 	return d.stream[:d.offset]
 }
 
 // Latest will return latest data event
-func (d *Data) Latest() interfaces.DataEventHandler {
+func (d *Data) Latest() common.DataEventHandler {
 	return d.latest
 }
 
-func (d *Data) List() []interfaces.DataEventHandler {
+func (d *Data) List() []common.DataEventHandler {
 	return d.stream[d.offset:]
 }
 

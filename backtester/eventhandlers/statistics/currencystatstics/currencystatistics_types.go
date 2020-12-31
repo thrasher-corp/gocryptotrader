@@ -3,12 +3,12 @@ package currencystatstics
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/interfaces"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -24,7 +24,7 @@ type CurrencyStats interface {
 type EventStore struct {
 	Holdings      holdings.Holding
 	Transactions  compliance.Snapshot
-	DataEvent     interfaces.DataEventHandler
+	DataEvent     common.DataEventHandler
 	SignalEvent   signal.SignalEvent
 	ExchangeEvent order.OrderEvent
 	FillEvent     fill.FillEvent

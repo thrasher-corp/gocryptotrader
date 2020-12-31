@@ -26,7 +26,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"rsi420blazeit.strat"),
+			"rsi.strat"),
 		"the config containing strategy params")
 	flag.Parse()
 
