@@ -1,110 +1,49 @@
 {{define "backtester" -}}
 {{template "header" .}}
-## Current Features for {{.Name}} package
 
-#### This package collates basic broad functions that are used throughout this codebase.
+# GoCryptoTrader Backtester
 
-- Data loading
-  - OHLCV candle data from kline.Item{}
-  - Ticker price data
-- Strategy support
-  - Will execute a OnSignal() on each tick
+<img src="https://i.imgur.com/PUtldvs.png" width="560px" height="560px">
 
-##### Prerequisites
+An event-driven backtesting tool to test and iterate trading strategies using historical or custom data.
 
-#### Backtest setup
 
-#### Creating a strategy
+## Features
+- Works with all GoCryptoTrader exchanges that support trade/candle retrieval
+- API data retrieval
+- CSV data import
+- Database data import
+- Proof of concept live data running
+- Can run strategies against multiple cryptocurrencies
+- Can run strategies that can assess multiple currencies to make complex decisions
+- Dollar cost strategy implementation
+- RSI strategy implementation
+- Strategy customisation via config `.strat` files
+- Report generation
+- Portfolio manager to help size orders based on config rules, risk and candle volume
+- Order manager to place orders with customisable slippage estimator
+- Helpful statistics to help determine whether a strategy was effective
+- Compliance manager to keep snapshots of every transaction and their changes at every interval
 
-Creation of a strategy is simple and requires an OnSignalEvent method to be implemented
+## How does it work?
+- The application will load a `.strat` config file as specified at runtime
+- The `.strat` config file will contain
+  - Start & end dates
+  - The strategy to run
+  - The candle interval
+  - Where the data is to be sourced (API, CSV, database, live)
+  - What type of data to use (trade or candle)
+  - A nickname for the strategy (to help differentiate between runs/configs using the same strategy)
+  - The currency/currencies to use
+  - The exchange(s) to run against
 
-Example:
-```
-type Strategy struct{}
+# Cool story, how do I use it?
+To run the application using the provided dollar cost average strategy, simply run `go run .` from `gocryptotrader/backtester`. An output of the results will be put in the `results` folder
 
-func (s *Strategy) OnSignal(d backtest.DataHandler, _ backtest.PortfolioHandler) (backtest.SignalEvent, error) {
-	signal := backtest.Signal{
-		Event: backtest.Event{Time: d.Latest().GetTime(),
-			CurrencyPair: d.Latest().Pair()},
-	}
 
-	smaFast := indicators.SMA(d.StreamClose(), 10)
-	smaSlow := indicators.SMA(d.StreamClose(), 30)
+# Things to consider
+- There are many more things to add and tweak. Bring up issues on our Github or Slack.
 
-	ret := indicators.Crossover(smaFast, smaSlow)
-	if ret {
-		signal.SetDirection(order.Buy)
-	} else {
-		signal.SetDirection(order.Sell)
-	}
-
-	return &signal, nil
-}
-
-```
-
-#### Complete Example
-
-```
-package main
-
-type Strategy struct{}
-
-func (s *Strategy) OnSignal(d backtest.DataHandler, _ backtest.PortfolioHandler) (backtest.SignalEvent, error) {
-	signal := backtest.Signal{
-		Event: backtest.Event{Time: d.Latest().GetTime(),
-			CurrencyPair: d.Latest().Pair()},
-	}
-
-	smaFast := indicators.SMA(d.StreamClose(), 10)
-	smaSlow := indicators.SMA(d.StreamClose(), 30)
-
-	ret := indicators.Crossover(smaFast, smaSlow)
-	if ret {
-		signal.SetDirection(order.Buy)
-	} else {
-		signal.SetDirection(order.Sell)
-	}
-
-	return &signal, nil
-}
-
-func main() {
-	bt := New()
-
-	data := DataFromKline{}
-	err := data.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	bt.data = &data
-	bt.portfolio = &Portfolio{
-		initialFunds: 1000,
-		riskManager:  &Risk{},
-		sizeManager: &Size{
-			DefaultSize:  100,
-			DefaultValue: 1000,
-		},
-	}
-        bt.strategy = &Strategy{}
-	bt.exchange = &Exchange{
-		MakerFee: 0.00,
-		TakerFee: 0.00,
-	}
-
-	statistic := Statistic{
-		strategyName: "Example",
-	}
-	bt.statistic = &statistic
-	err = bt.Run()
-	if err != nil {
-	    log.Fatal(err)
-	}
-
-	bt.Reset()
-}
-```
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
