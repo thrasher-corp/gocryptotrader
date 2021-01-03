@@ -1,6 +1,6 @@
-# GoCryptoTrader package Backtest
+# GoCryptoTrader Backtester: Backtest package
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
@@ -19,7 +19,12 @@ You can track ideas, planned features and what's in progress on this Trello boar
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
 
-hi
+## Backtest what
+- Is used to setup the entire backtester
+- Loads the config
+- Gets candle data
+- is what breaks down kline data into events
+- cycles through events
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
