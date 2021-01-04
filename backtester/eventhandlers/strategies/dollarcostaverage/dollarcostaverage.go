@@ -11,14 +11,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const name = "dollarcostaverage"
+// Name is the strategy name
+const Name = "dollarcostaverage"
 
 type Strategy struct {
 	base.Strategy
 }
 
 func (s *Strategy) Name() string {
-	return name
+	return Name
 }
 
 func (s *Strategy) OnSignal(d data.Handler, p portfolio.Handler) (signal.SignalEvent, error) {

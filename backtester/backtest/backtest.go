@@ -55,6 +55,9 @@ func (bt *BackTest) Reset() {
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config) (*BackTest, error) {
+	if cfg == nil {
+		return nil, errors.New("unable to setup backtester with nil config")
+	}
 	bt := New()
 	err := bt.engineBotSetup(cfg)
 	if err != nil {
@@ -149,6 +152,13 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].Asset)
 		if err != nil {
 			return resp, err
+		}
+		if cfg.CurrencySettings[i].InitialFunds <= 0 {
+			return resp, fmt.Errorf("initial funds unset for %s %s %s-%s",
+				cfg.CurrencySettings[i].ExchangeName,
+				cfg.CurrencySettings[i].Asset,
+				cfg.CurrencySettings[i].Base,
+				cfg.CurrencySettings[i].Quote)
 		}
 
 		exchangeName := strings.ToLower(exch.GetName())
@@ -264,6 +274,9 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 	}
 
 	bt.Bot = engine.Bot
+	if len(cfg.CurrencySettings) == 0 {
+		return errors.New("expected at least one currency in the config")
+	}
 
 	for i := range cfg.CurrencySettings {
 		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
@@ -333,54 +346,30 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return nil, err
 		}
 	case cfg.DatabaseData != nil:
-		resp, err = database.LoadData(
-			cfg.DatabaseData.ConfigOverride,
-			cfg.DatabaseData.StartDate,
-			cfg.DatabaseData.EndDate,
-			cfg.DatabaseData.Interval,
-			strings.ToLower(exch.GetName()),
-			cfg.DatabaseData.DataType,
-			fPair,
-			a)
+		if cfg.DatabaseData.ConfigOverride != nil {
+			bt.Bot.Config.Database = *cfg.DatabaseData.ConfigOverride
+			err = bt.Bot.DatabaseManager.Start(bt.Bot)
+			if err != nil {
+				return nil, err
+			}
+			defer func() {
+				err = bt.Bot.DatabaseManager.Stop()
+				if err != nil {
+					log.Error(log.BackTester, err)
+				}
+			}()
+		}
+		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a)
 		if err != nil {
-			return nil, err
+			return resp, err
 		}
 	case cfg.APIData != nil:
-		dates := gctkline.CalcSuperDateRanges(cfg.APIData.StartDate, cfg.APIData.EndDate, gctkline.Interval(cfg.APIData.Interval), base.Features.Enabled.Kline.ResultLimit)
-		candles, err = api.LoadData(cfg.APIData.DataType, cfg.APIData.StartDate, cfg.APIData.EndDate, cfg.APIData.Interval, exch, fPair, a)
+		resp, err = loadAPIData(cfg, exch, fPair, a, base.Features.Enabled.Kline.ResultLimit)
 		if err != nil {
-			return nil, err
-		}
-		err = dates.Verify(candles.Candles)
-		if err != nil {
-			log.Error(log.BackTester, err)
-		}
-		candles.FillMissingDataWithEmptyEntries(dates)
-
-		resp = &kline.DataFromKline{
-			Item:  *candles,
-			Range: dates,
+			return resp, err
 		}
 	case cfg.LiveData != nil:
-		if cfg.LiveData.APIKeyOverride != "" {
-			base.API.Credentials.Key = cfg.LiveData.APIKeyOverride
-		}
-		if cfg.LiveData.APISecretOverride != "" {
-			base.API.Credentials.Secret = cfg.LiveData.APISecretOverride
-		}
-		if cfg.LiveData.APIClientIDOverride != "" {
-			base.API.Credentials.ClientID = cfg.LiveData.APIClientIDOverride
-		}
-		if cfg.LiveData.API2FAOverride != "" {
-			base.API.Credentials.PEMKey = cfg.LiveData.API2FAOverride
-		}
-		validated := base.ValidateAPICredentials()
-		base.API.AuthenticatedSupport = validated
-		if !validated {
-			log.Warn(log.BackTester, "bad credentials received, no live trading for you")
-			cfg.LiveData.RealOrders = false
-		}
-
+		loadLiveData(cfg, base)
 		go loadLiveDataLoop(resp, cfg, exch, fPair, a)
 		return resp, nil
 	}
@@ -393,6 +382,78 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	}
 	bt.Reports.AddCandles(candles)
 	return resp, nil
+}
+
+func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
+	if cfg == nil || cfg.DatabaseData == nil {
+		return nil, errors.New("nil config data received")
+	}
+	if cfg.DatabaseData.StartDate.IsZero() || cfg.DatabaseData.EndDate.IsZero() ||
+		cfg.DatabaseData.StartDate.After(cfg.DatabaseData.EndDate) {
+		return nil, errors.New("database data start and end dates must be set")
+	}
+	resp, err := database.LoadData(
+		cfg.DatabaseData.StartDate,
+		cfg.DatabaseData.EndDate,
+		cfg.DatabaseData.Interval,
+		strings.ToLower(name),
+		cfg.DatabaseData.DataType,
+		fPair,
+		a)
+	if err != nil {
+		return nil, err
+	}
+	return resp, err
+}
+
+func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32) (*kline.DataFromKline, error) {
+	if cfg.APIData.StartDate.IsZero() || cfg.APIData.EndDate.IsZero() ||
+		cfg.APIData.StartDate.After(cfg.APIData.EndDate) {
+		return nil, errors.New("api data start and end dates must be set")
+	}
+	if cfg.APIData.Interval == 0 {
+		return nil, errors.New("api data interval unset")
+	}
+	dates := gctkline.CalcSuperDateRanges(cfg.APIData.StartDate, cfg.APIData.EndDate, gctkline.Interval(cfg.APIData.Interval), resultLimit)
+	candles, err := api.LoadData(cfg.APIData.DataType, cfg.APIData.StartDate, cfg.APIData.EndDate, cfg.APIData.Interval, exch, fPair, a)
+	if err != nil {
+		return nil, err
+	}
+	err = dates.Verify(candles.Candles)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
+	candles.FillMissingDataWithEmptyEntries(dates)
+	return &kline.DataFromKline{
+		Item:  *candles,
+		Range: dates,
+	}, nil
+}
+
+func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
+	if cfg == nil || base == nil || cfg.LiveData == nil {
+		return errors.New("received nil argument(s)")
+	}
+
+	if cfg.LiveData.APIKeyOverride != "" {
+		base.API.Credentials.Key = cfg.LiveData.APIKeyOverride
+	}
+	if cfg.LiveData.APISecretOverride != "" {
+		base.API.Credentials.Secret = cfg.LiveData.APISecretOverride
+	}
+	if cfg.LiveData.APIClientIDOverride != "" {
+		base.API.Credentials.ClientID = cfg.LiveData.APIClientIDOverride
+	}
+	if cfg.LiveData.API2FAOverride != "" {
+		base.API.Credentials.PEMKey = cfg.LiveData.API2FAOverride
+	}
+	validated := base.ValidateAPICredentials()
+	base.API.AuthenticatedSupport = validated
+	if !validated {
+		log.Warn(log.BackTester, "bad credentials received, no live trading for you")
+		cfg.LiveData.RealOrders = false
+	}
+	return nil
 }
 
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
@@ -462,57 +523,26 @@ dataLoadingIssue:
 	return nil
 }
 
-// handleEvent switches based on the eventHandler type
-// it will then act on the event and if needed, will add more events to the queue to be handled
+// handleEvent is the main processor of data for the backtester
+// after data has been loaded and Run has appended a data event to the queue,
+// handle event will process events and add further events to the queue if they
+// are required
 func (bt *BackTest) handleEvent(e common.EventHandler) error {
 	switch ev := e.(type) {
 	case common.DataEventHandler:
-		bt.appendSignalEventsFromDataEvents(ev)
+		bt.processDataEvent(ev)
 	case signal.SignalEvent:
-		cs := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-		d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-		o, err := bt.Portfolio.OnSignal(ev, d, &cs)
-		if err != nil {
-			bt.Statistic.AddExchangeEventForTime(o)
-			break
-		}
-
-		bt.EventQueue.AppendEvent(o)
+		bt.processSignalEvent(ev)
 	case order.OrderEvent:
-		d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-		f, err := bt.Exchange.ExecuteOrder(ev, d)
-		if err != nil {
-			if f == nil {
-				log.Errorf(log.BackTester, "fill event should always be returned, please fix, %v", err)
-				break
-			}
-			log.Errorf(log.BackTester, "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
-			bt.Statistic.AddFillEventForTime(f)
-			break
-		}
-		bt.EventQueue.AppendEvent(f)
+		bt.processOrderEvent(ev)
 	case fill.FillEvent:
-		d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-		t, err := bt.Portfolio.OnFill(ev, d)
-		if err != nil {
-			bt.Statistic.AddFillEventForTime(t)
-			break
-		}
-		holding := bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
-		bt.Statistic.AddHoldingsForTime(holding)
-		cp, err := bt.Portfolio.GetComplianceManager(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-		if err != nil {
-			log.Error(log.BackTester, err)
-		}
-		snap := cp.GetLatestSnapshot()
-		bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
-		bt.Statistic.AddFillEventForTime(t)
+		bt.processFillEvent(ev)
 	}
 
 	return nil
 }
 
-// appendSignalEventsFromDataEvents determines what signal events are generated and appended
+// processDataEvent determines what signal events are generated and appended
 // to the event queue based on whether it is running a multi-currency consideration strategy order not
 //
 // for multi-currency-consideration it will pass all currency datas to the strategy for it to determine what
@@ -520,7 +550,7 @@ func (bt *BackTest) handleEvent(e common.EventHandler) error {
 //
 // for non-multi-currency-consideration strategies, it will simply process every currency individually
 // against the strategy and generate signals
-func (bt *BackTest) appendSignalEventsFromDataEvents(e common.DataEventHandler) {
+func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 	if bt.Strategy.IsMultiCurrency() {
 		var dataEvents []data.Handler
 		dataHandlerMap := bt.Datas.GetAllData()
@@ -563,6 +593,52 @@ func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
 	bt.Portfolio.Update(e)
 	// update statistics with latest price
 	bt.Statistic.AddDataEventForTime(e)
+}
+
+func (bt *BackTest) processSignalEvent(ev signal.SignalEvent) {
+	cs := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	o, err := bt.Portfolio.OnSignal(ev, d, &cs)
+	if err != nil {
+		bt.Statistic.AddExchangeEventForTime(o)
+		return
+	}
+
+	bt.EventQueue.AppendEvent(o)
+}
+
+func (bt *BackTest) processOrderEvent(ev order.OrderEvent) {
+	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	f, err := bt.Exchange.ExecuteOrder(ev, d)
+	if err != nil {
+		if f == nil {
+			log.Errorf(log.BackTester, "fill event should always be returned, please fix, %v", err)
+			return
+		}
+		log.Errorf(log.BackTester, "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
+		bt.Statistic.AddFillEventForTime(f)
+		return
+	}
+	bt.EventQueue.AppendEvent(f)
+}
+
+func (bt *BackTest) processFillEvent(ev fill.FillEvent) {
+	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	t, err := bt.Portfolio.OnFill(ev, d)
+	if err != nil {
+		bt.Statistic.AddFillEventForTime(t)
+		return
+	}
+	holding := bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
+	bt.Statistic.AddHoldingsForTime(holding)
+	var cp *compliance.Manager
+	cp, err = bt.Portfolio.GetComplianceManager(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
+	snap := cp.GetLatestSnapshot()
+	bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
+	bt.Statistic.AddFillEventForTime(t)
 }
 
 // RunLive is a proof of concept function that does not yet support multi currency usage

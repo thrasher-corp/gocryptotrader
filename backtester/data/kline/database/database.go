@@ -8,30 +8,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	kline2 "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func LoadData(configOverride *database.Config, startDate, endDate time.Time, interval time.Duration, exchangeName, dataType string, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
+func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName, dataType string, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	resp := &kline.DataFromKline{}
-	var err error
-	if configOverride != nil {
-		engine.Bot.Config.Database = *configOverride
-		err = engine.Bot.DatabaseManager.Start(engine.Bot)
-		if err != nil {
-			return nil, err
-		}
-	}
-	defer func() {
-		err = engine.Bot.DatabaseManager.Stop()
-		if err != nil {
-			log.Error(log.BackTester, err)
-		}
-	}()
 	switch dataType {
 	case common.CandleStr:
 		datarino, err := getCandleDatabaseData(

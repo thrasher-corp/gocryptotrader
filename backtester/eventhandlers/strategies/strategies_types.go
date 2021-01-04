@@ -17,4 +17,4 @@ type Handler interface {
 	SetDefaults()
 }
 
-const errNotFound = "strategy %v not found"
+const errNotFound = "strategy '%v' not found"
