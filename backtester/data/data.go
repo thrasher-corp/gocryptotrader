@@ -32,10 +32,6 @@ func (d *Data) SetStream(s []common.DataEventHandler) {
 	d.stream = s
 }
 
-func (d *Data) SetStrea2m(s []common.DataEventHandler) {
-	d.stream = s
-}
-
 // AppendStream appends new datas onto the stream, however, will not
 // add duplicates. Used for live analysis
 func (d *Data) AppendStream(s ...common.DataEventHandler) {
@@ -96,8 +92,4 @@ func (d *Data) StreamClose() []float64 {
 
 func (d *Data) StreamVol() []float64 {
 	return []float64{}
-}
-
-func (d *Data) Offset() int {
-	return d.offset
 }
