@@ -492,20 +492,16 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) error {
 		cleanupErr := b.Websocket.Orderbook.FlushOrderbook(currencyPair, asset.Spot)
 		if cleanupErr != nil {
 			log.Errorf(log.WebsocketMgr,
-				"%s %s %s flushing websocket error: %v",
+				"%s flushing websocket error: %v",
 				b.Name,
-				currencyPair,
-				asset.Spot,
 				cleanupErr)
 		}
 
 		cleanupErr = b.obm.cleanup(currencyPair)
 		if cleanupErr != nil {
 			log.Errorf(log.WebsocketMgr,
-				"%s %s %s cleanup websocket orderbook error: %v",
+				"%s cleanup websocket orderbook error: %v",
 				b.Name,
-				currencyPair,
-				asset.Spot,
 				cleanupErr)
 		}
 
@@ -657,7 +653,9 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 			case j := <-b.obm.jobs:
 				err := b.processJob(j.Pair)
 				if err != nil {
-					log.Errorln(log.WebsocketMgr, err)
+					log.Errorf(log.WebsocketMgr,
+						"%s processing websocket orderbook error %v",
+						b.Name, err)
 				}
 			case <-b.Websocket.ShutdownC:
 				return
@@ -670,7 +668,8 @@ func (b *Binance) SynchroniseWebsocketOrderbook() {
 func (b *Binance) processJob(p currency.Pair) error {
 	err := b.SeedLocalCache(p)
 	if err != nil {
-		return fmt.Errorf("seeding local cache for orderbook error: %s", err)
+		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
+			p, asset.Spot, err)
 	}
 
 	err = b.obm.stopFetchingBook(p)
@@ -685,25 +684,17 @@ func (b *Binance) processJob(p currency.Pair) error {
 		errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr,
-				"%s %s %s flushing websocket error: %v",
+				"%s flushing websocket error: %v",
 				b.Name,
-				p,
-				asset.Spot,
 				errClean)
 		}
 		errClean = b.obm.cleanup(p)
 		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%s %s %s cleanup websocket error: %v",
+			log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
 				b.Name,
-				p,
-				asset.Spot,
 				errClean)
 		}
-		return fmt.Errorf("%s %s %s applying orderbook updates error: %v",
-			b.Name,
-			p,
-			asset.Spot,
-			err)
+		return err
 	}
 	return nil
 }
@@ -820,7 +811,9 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 	case o.jobs <- job{pair}:
 		return nil
 	default:
-		return errors.New("book synchronisation channel blocked up")
+		return fmt.Errorf("%s %s book synchronisation channel blocked up",
+			pair,
+			asset.Spot)
 	}
 }
 
@@ -846,7 +839,8 @@ buffer:
 			if process {
 				err := processor(pair, asset.Spot, d)
 				if err != nil {
-					return err
+					return fmt.Errorf("%s %s processing update error: %w",
+						pair, asset.Spot, err)
 				}
 			}
 		default:
