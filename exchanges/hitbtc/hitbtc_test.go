@@ -661,7 +661,7 @@ func TestWsOrderbook(t *testing.T) {
       },
       {
         "price": "0.054590",
-        "size": "0.000"
+        "size": "1.000"
       },
       {
         "price": "0.054591",

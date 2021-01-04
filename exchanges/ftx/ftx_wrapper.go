@@ -177,6 +177,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            f.GenerateDefaultSubscriptions,
 		Features:                         &f.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 	})
 	if err != nil {
 		return err
@@ -332,31 +333,28 @@ func (f *FTX) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*ord
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{ExchangeName: f.Name, Pair: p, AssetType: assetType}
 	formattedPair, err := f.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
-	tempResp, err := f.GetOrderbook(formattedPair.String(), 0)
+	tempResp, err := f.GetOrderbook(formattedPair.String(), 100)
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 	for x := range tempResp.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: tempResp.Bids[x].Size,
 			Price:  tempResp.Bids[x].Price})
 	}
 	for y := range tempResp.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: tempResp.Asks[y].Size,
 			Price:  tempResp.Asks[y].Price})
 	}
-	orderBook.Pair = p
-	orderBook.ExchangeName = f.Name
-	orderBook.AssetType = assetType
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 	return orderbook.Get(f.Name, p, assetType)
 }

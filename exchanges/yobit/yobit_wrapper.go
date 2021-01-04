@@ -236,18 +236,18 @@ func (y *Yobit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{ExchangeName: y.Name, Pair: p, AssetType: assetType}
 	fpair, err := y.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 	orderbookNew, err := y.GetDepth(fpair.String())
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	for i := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids,
+		book.Bids = append(book.Bids,
 			orderbook.Item{
 				Price:  orderbookNew.Bids[i][0],
 				Amount: orderbookNew.Bids[i][1],
@@ -255,22 +255,16 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	}
 
 	for i := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks,
+		book.Asks = append(book.Asks,
 			orderbook.Item{
 				Price:  orderbookNew.Asks[i][0],
 				Amount: orderbookNew.Asks[i][1],
 			})
 	}
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = y.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(y.Name, p, assetType)
 }
 

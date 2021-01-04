@@ -108,14 +108,13 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.AuthenticatedWebsocketAPISupport)
 
-	w.Orderbook.Setup(s.OrderbookBufferLimit,
+	return w.Orderbook.Setup(s.OrderbookBufferLimit,
 		s.BufferEnabled,
 		s.SortBuffer,
 		s.SortBufferByUpdateIDs,
 		s.UpdateEntriesByID,
 		w.exchangeName,
 		w.DataHandler)
-	return nil
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection

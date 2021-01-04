@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"os"
@@ -46,14 +47,7 @@ func TestSubscribeOrderbook(t *testing.T) {
 	}
 
 	b.ExchangeName = "SubscribeOBTest"
-
-	err = b.Process()
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
-
-	b.Bids = []Item{{}}
-
+	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	err = b.Process()
 	if err != nil {
 		t.Error("process error", err)
@@ -61,7 +55,7 @@ func TestSubscribeOrderbook(t *testing.T) {
 
 	_, err = SubscribeOrderbook("SubscribeOBTest", p, asset.Spot)
 	if err != nil {
-		t.Error("error cannot be nil")
+		t.Error(err)
 	}
 
 	// process redundant update
@@ -120,7 +114,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 		Pair:         p,
 		AssetType:    asset.Spot,
 		ExchangeName: "SubscribeToExchangeOrderbooks",
-		Bids:         []Item{{}},
+		Bids:         []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
 	}
 
 	err = b.Process()
@@ -138,21 +132,87 @@ func TestVerify(t *testing.T) {
 	t.Parallel()
 	b := Base{
 		ExchangeName: "TestExchange",
+		AssetType:    asset.Spot,
 		Pair:         currency.NewPair(currency.BTC, currency.USD),
-		Bids: []Item{
-			{Price: 100}, {Price: 101}, {Price: 99},
-		},
-		Asks: []Item{
-			{Price: 100}, {Price: 99}, {Price: 101},
-		},
 	}
 
-	b.Verify()
-	if r := b.Bids[1].Price; r != 100 {
-		t.Error("unexpected result")
+	err := b.Verify()
+	if err != nil {
+		t.Fatalf("expecting %v error but received %v", nil, err)
 	}
-	if r := b.Asks[1].Price; r != 100 {
-		t.Error("unexpected result")
+
+	b.Asks = []Item{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errIDDuplication) {
+		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
+	}
+
+	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errDuplication) {
+		t.Fatalf("expecting %s error but received %v", errDuplication, err)
+	}
+
+	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
+	b.IsFundingRate = true
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errPeriodUnset) {
+		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
+	}
+	b.IsFundingRate = false
+
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errOutOfOrder) {
+		t.Fatalf("expecting %s error but received %v", errOutOfOrder, err)
+	}
+
+	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errAmountInvalid) {
+		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
+	}
+
+	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errPriceNotSet) {
+		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
+	}
+
+	b.Bids = []Item{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errIDDuplication) {
+		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
+	}
+
+	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errDuplication) {
+		t.Fatalf("expecting %s error but received %v", errDuplication, err)
+	}
+
+	b.Bids = []Item{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
+	b.IsFundingRate = true
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errPeriodUnset) {
+		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
+	}
+	b.IsFundingRate = false
+
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errOutOfOrder) {
+		t.Fatalf("expecting %s error but received %v", errOutOfOrder, err)
+	}
+
+	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errAmountInvalid) {
+		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
+	}
+
+	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	err = b.Verify()
+	if err == nil || !errors.Is(err, errPriceNotSet) {
+		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
 	}
 }
 
@@ -517,16 +577,172 @@ func TestProcessOrderbook(t *testing.T) {
 	wg.Wait()
 }
 
-func TestSetNewData(t *testing.T) {
-	err := service.SetNewData(nil, "")
+func deployUnorderedSlice() []Item {
+	var items []Item
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < 1000; i++ {
+		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
+	}
+	return items
+}
+
+func TestSorting(t *testing.T) {
+	var b Base
+
+	b.Asks = deployUnorderedSlice()
+	err := b.Verify()
 	if err == nil {
-		t.Error("error cannot be nil")
+		t.Fatal("error cannot be nil")
+	}
+
+	SortAsks(nil)
+
+	SortAsks(b.Asks)
+	err = b.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.Bids = deployUnorderedSlice()
+	err = b.Verify()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	SortBids(nil)
+
+	SortBids(b.Bids)
+	err = b.Verify()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
-func TestGetAssociations(t *testing.T) {
-	_, err := service.GetAssociations(nil, "")
+func deploySliceOrdered() []Item {
+	rand.Seed(time.Now().UnixNano())
+	var items []Item
+	for i := 0; i < 1000; i++ {
+		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) // nolint:gosec // Not needed in tests
+	}
+	return items
+}
+
+func TestReverse(t *testing.T) {
+	var b Base
+
+	length := 1000
+	b.Bids = deploySliceOrdered()
+	if len(b.Bids) != length {
+		t.Fatal("incorrect length")
+	}
+
+	err := b.Verify()
 	if err == nil {
-		t.Error("error cannot be nil")
+		t.Fatal("error cannot be nil")
+	}
+
+	Reverse(nil)
+	Reverse(b.Bids)
+	err = b.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.Asks = append(b.Bids[:0:0], b.Bids...) // nolint:gocritic //  Short hand
+	err = b.Verify()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	Reverse(b.Asks)
+	err = b.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// 705985	      1856 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkReverse(b *testing.B) {
+	length := 1000
+	s := deploySliceOrdered()
+	if len(s) != length {
+		b.Fatal("incorrect length")
+	}
+
+	for i := 0; i < b.N; i++ {
+		Reverse(s)
+	}
+}
+
+//   20209	     56385 ns/op	   49189 B/op	       2 allocs/op
+func BenchmarkSortAsksDecending(b *testing.B) {
+	s := deploySliceOrdered()
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortAsks(ts)
+	}
+}
+
+// 14924	     79199 ns/op	   49206 B/op	       3 allocs/op
+func BenchmarkSortBidsAscending(b *testing.B) {
+	s := deploySliceOrdered()
+	Reverse(s)
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortBids(ts)
+	}
+}
+
+// 9842	    133761 ns/op	   49194 B/op	       2 allocs/op
+func BenchmarkSortAsksStandard(b *testing.B) {
+	s := deployUnorderedSlice()
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortAsks(ts)
+	}
+}
+
+// 7058	    155057 ns/op	   49214 B/op	       3 allocs/op
+func BenchmarkSortBidsStandard(b *testing.B) {
+	s := deployUnorderedSlice()
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortBids(ts)
+	}
+}
+
+// 20565	     57001 ns/op	   49188 B/op	       2 allocs/op
+func BenchmarkSortAsksAscending(b *testing.B) {
+	s := deploySliceOrdered()
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortAsks(ts)
+	}
+}
+
+// 12565	     97257 ns/op	   49208 B/op	       3 allocs/op
+func BenchmarkSortBidsDescending(b *testing.B) {
+	s := deploySliceOrdered()
+	Reverse(s)
+	for i := 0; i < b.N; i++ {
+		ts := append(s[:0:0], s...)
+		SortBids(ts)
+	}
+}
+
+// 923154	      1169 ns/op	    4096 B/op	       1 allocs/op
+func BenchmarkDuplicatingSlice(b *testing.B) {
+	s := deploySliceOrdered()
+	for i := 0; i < b.N; i++ {
+		_ = append(s[:0:0], s...)
+	}
+}
+
+// 705922	      1546 ns/op	    4096 B/op	       1 allocs/op
+func BenchmarkCopySlice(b *testing.B) {
+	s := deploySliceOrdered()
+	for i := 0; i < b.N; i++ {
+		cpy := make([]Item, len(s))
+		copy(cpy, s)
 	}
 }

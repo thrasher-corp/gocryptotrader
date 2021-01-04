@@ -111,7 +111,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
-		if strings.Contains(string(respRaw), "UNLOGIN_USER connect success") ||
+		if strings.Contains(string(respRaw), "connect success") ||
 			strings.Contains(string(respRaw), "authenticated successfully") {
 			return nil
 		} else if strings.Contains(string(respRaw), "AUTHENTICATE ERROR") {
@@ -223,7 +223,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			})
 		}
 		return trade.AddTradesToBuffer(b.Name, trades...)
-	case strings.Contains(result["topic"].(string), "orderBookApi"):
+	case strings.Contains(result["topic"].(string), "orderBookL2Api"):
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)
 		if err != nil {
@@ -242,6 +242,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+			if b.orderbookFilter(price, amount) {
+				continue
+			}
 			newOB.Asks = append(newOB.Asks, orderbook.Item{
 				Price:  price,
 				Amount: amount,
@@ -257,6 +260,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			amount, err = strconv.ParseFloat(a, 64)
 			if err != nil {
 				return err
+			}
+			if b.orderbookFilter(price, amount) {
+				continue
 			}
 			newOB.Bids = append(newOB.Bids, orderbook.Item{
 				Price:  price,
@@ -275,6 +281,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		newOB.Pair = p
 		newOB.AssetType = a
 		newOB.ExchangeName = b.Name
+		orderbook.Reverse(newOB.Asks) // Reverse asks for correct alignment
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {
 			return err
@@ -286,9 +293,24 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
+// orderbookFilter is needed on book levels from this exchange as their data
+// is incorrect
+func (b *BTSE) orderbookFilter(price, amount float64) bool {
+	// Amount filtering occurs when the amount exceeds the decimal returned.
+	// e.g. {"price":"1.37","size":"0.00"} currency: SFI-ETH
+	// Opted to not round up to 0.01 as this might skew calculations
+	// more than removing from the books completely.
+
+	// Price filtering occurs when we are deep in the bid book and there are
+	// prices that are less than 4 decimal places
+	// e.g. {"price":"0.0000","size":"14219"} currency: TRX-PAX
+	// We cannot load a zero price and this will ruin calculations
+	return price == 0 || amount == 0
+}
+
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"orderBookApi:%s_0", "tradeHistory:%s"}
+	var channels = []string{"orderBookL2Api:%s_0", "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

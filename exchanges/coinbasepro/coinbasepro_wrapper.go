@@ -167,7 +167,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
 		Features:                         &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    true,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 		SortBuffer:                       true,
 	})
 	if err != nil {
@@ -400,35 +400,33 @@ func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (*or
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{ExchangeName: c.Name, Pair: p, AssetType: assetType}
 	fpair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := c.GetOrderbook(fpair.String(), 2)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	obNew := orderbookNew.(OrderbookL1L2)
-	orderBook := new(orderbook.Base)
 	for x := range obNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
+		book.Bids = append(book.Bids, orderbook.Item{
+			Amount: obNew.Bids[x].Amount,
+			Price:  obNew.Bids[x].Price})
 	}
 
 	for x := range obNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: obNew.Asks[x].Amount, Price: obNew.Asks[x].Price})
+		book.Asks = append(book.Asks, orderbook.Item{
+			Amount: obNew.Asks[x].Amount,
+			Price:  obNew.Asks[x].Price})
 	}
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = c.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(c.Name, p, assetType)
 }
 

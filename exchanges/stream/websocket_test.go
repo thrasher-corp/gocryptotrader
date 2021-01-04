@@ -92,7 +92,7 @@ func TestSetup(t *testing.T) {
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
-	w = &Websocket{}
+	w = &Websocket{DataHandler: make(chan interface{})}
 	err = w.Setup(nil)
 	if err == nil {
 		t.Fatal("error cannot be nil")
@@ -1207,6 +1207,7 @@ func TestSetupNewConnection(t *testing.T) {
 		Init:              true,
 		TrafficAlert:      make(chan struct{}),
 		ReadMessageErrors: make(chan error),
+		DataHandler:       make(chan interface{}),
 	}
 
 	err = web.Setup(defaultSetup)

@@ -77,6 +77,9 @@ const (
 	// activity. Cancelling orders will be possible.
 	bitfinexMaintenanceMode = 0
 	bitfinexOperativeMode   = 1
+
+	bitfinexChecksumFlag   = 131072
+	bitfinexWsSequenceFlag = 65536
 )
 
 // Bitfinex is the overarching type across the bitfinex package

@@ -166,7 +166,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
 		Features:                         &h.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    true,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 		SortBuffer:                       true,
 		SortBufferByUpdateIDs:            true,
 	})
@@ -366,40 +366,34 @@ func (h *HitBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HitBTC) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{ExchangeName: h.Name, Pair: c, AssetType: assetType}
 	fpair, err := h.FormatExchangeCurrency(c, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := h.GetOrderbook(fpair.String(), 1000)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		})
 	}
-
-	orderBook.Pair = c
-	orderBook.ExchangeName = h.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(h.Name, c, assetType)
 }
 

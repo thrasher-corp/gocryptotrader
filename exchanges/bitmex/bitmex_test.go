@@ -868,8 +868,11 @@ func TestWSOrderbookHandling(t *testing.T) {
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
-	if err != nil {
+	if err != nil && err.Error() != "perpetualcontract ETHUSD update cannot be deleted id: 17999995000 not found" {
 		t.Error(err)
+	}
+	if err == nil {
+		t.Error("expecting error")
 	}
 }
 

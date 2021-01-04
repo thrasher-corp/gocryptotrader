@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -1085,7 +1086,7 @@ func TestWsOrdrbook(t *testing.T) {
   "channelID": 13333337,
   "channelName": "book",
   "event": "subscriptionStatus",
-  "pair": "XBT/EUR",
+  "pair": "XBT/USD",
   "status": "subscribed",
   "subscription": {
     "name": "book"
@@ -1113,7 +1114,42 @@ func TestWsOrdrbook(t *testing.T) {
         "5542.70000",
         "0.64700000",
         "1534614244.654432"
-      ]
+	  ],
+	  [
+        "5544.30000",
+        "2.50700000",
+        "1534614248.123678"
+      ],
+      [
+        "5545.80000",
+        "0.33000000",
+        "1534614098.345543"
+      ],
+      [
+        "5546.70000",
+        "0.64700000",
+        "1534614244.654432"
+	  ],
+	  [
+        "5547.70000",
+        "0.64700000",
+        "1534614244.654432"
+	  ],
+	  [
+        "5548.30000",
+        "2.50700000",
+        "1534614248.123678"
+      ],
+      [
+        "5549.80000",
+        "0.33000000",
+        "1534614098.345543"
+      ],
+      [
+        "5550.70000",
+        "0.64700000",
+        "1534614244.654432"
+	  ]
     ],
     "bs": [
       [
@@ -1130,7 +1166,42 @@ func TestWsOrdrbook(t *testing.T) {
         "5539.50000",
         "5.00000000",
         "1534613831.243486"
-      ]
+	  ],
+	  [
+        "5538.20000",
+        "1.52900000",
+        "1534614248.765567"
+      ],
+      [
+        "5537.90000",
+        "0.30000000",
+        "1534614241.769870"
+      ],
+      [
+        "5536.50000",
+        "5.00000000",
+        "1534613831.243486"
+	  ],
+	  [
+        "5535.20000",
+        "1.52900000",
+        "1534614248.765567"
+      ],
+      [
+        "5534.90000",
+        "0.30000000",
+        "1534614241.769870"
+      ],
+      [
+        "5533.50000",
+        "5.00000000",
+        "1534613831.243486"
+	  ],
+	  [
+        "5532.50000",
+        "5.00000000",
+        "1534613831.243486"
+	  ]
     ]
   },
   "book-100",
@@ -1154,7 +1225,8 @@ func TestWsOrdrbook(t *testing.T) {
         "0.40100000",
         "1534614248.456738"
       ]
-    ]
+	],
+	"c": "4187525586"
   },
   "book-10",
   "XBT/USD"
@@ -1172,7 +1244,8 @@ func TestWsOrdrbook(t *testing.T) {
         "0.00000000",
         "1534614335.345903"
       ]
-    ]
+	],
+	"c": "4187525586"
   },
   "book-10",
   "XBT/USD"
@@ -1528,5 +1601,51 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = k.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
+	}
+}
+
+var testOb = orderbook.Base{
+	Asks: []orderbook.Item{
+		{Price: 0.05005, Amount: 0.00000500},
+		{Price: 0.05010, Amount: 0.00000500},
+		{Price: 0.05015, Amount: 0.00000500},
+		{Price: 0.05020, Amount: 0.00000500},
+		{Price: 0.05025, Amount: 0.00000500},
+		{Price: 0.05030, Amount: 0.00000500},
+		{Price: 0.05035, Amount: 0.00000500},
+		{Price: 0.05040, Amount: 0.00000500},
+		{Price: 0.05045, Amount: 0.00000500},
+		{Price: 0.05050, Amount: 0.00000500},
+	},
+	Bids: []orderbook.Item{
+		{Price: 0.05000, Amount: 0.00000500},
+		{Price: 0.04995, Amount: 0.00000500},
+		{Price: 0.04990, Amount: 0.00000500},
+		{Price: 0.04980, Amount: 0.00000500},
+		{Price: 0.04975, Amount: 0.00000500},
+		{Price: 0.04970, Amount: 0.00000500},
+		{Price: 0.04965, Amount: 0.00000500},
+		{Price: 0.04960, Amount: 0.00000500},
+		{Price: 0.04955, Amount: 0.00000500},
+		{Price: 0.04950, Amount: 0.00000500},
+	},
+}
+
+const krakenAPIDocChecksum = 974947235
+
+func TestChecksumCalculation(t *testing.T) {
+	expected := "5005"
+	if v := trim("0.05005"); v != expected {
+		t.Fatalf("expected %s but received %s", expected, v)
+	}
+
+	expected = "500"
+	if v := trim("0.00000500"); v != expected {
+		t.Fatalf("expected %s but received %s", expected, v)
+	}
+
+	err := validateCRC32(&testOb, krakenAPIDocChecksum, 5, 8)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

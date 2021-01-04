@@ -220,10 +220,10 @@ type WsOrderbookData struct {
 	Topic  string `json:"topic"`
 	Action string `json:"action"`
 	Data   []struct {
-		Bids      [][]string `json:"bids"`
-		Asks      [][]string `json:"asks"`
-		Version   int64      `json:"version"`
-		Timestamp int64      `json:"timestamp"`
+		Bids      [][2]string `json:"bids"`
+		Asks      [][2]string `json:"asks"`
+		Version   int64       `json:"version"`
+		Timestamp int64       `json:"timestamp"`
 	} `json:"data"`
 }
 
