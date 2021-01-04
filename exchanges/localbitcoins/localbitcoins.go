@@ -128,7 +128,7 @@ func (l *LocalBitcoins) GetAccountInformation(username string, self bool) (Accou
 		}
 	} else {
 		path := fmt.Sprintf("%s/%s/%s/", l.API.Endpoints.URL, localbitcoinsAPIAccountInfo, username)
-		err := l.SendHTTPRequest(path, &resp)
+		err := l.SendHTTPRequest(path, &resp, request.Unset)
 		if err != nil {
 			return resp.Data, err
 		}
@@ -335,14 +335,14 @@ func (l *LocalBitcoins) GetTradeInfo(contactID string) (dbi DashBoardInfo, err e
 
 // GetCountryCodes returns a list of valid and recognized countrycodes
 func (l *LocalBitcoins) GetCountryCodes() error {
-	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPICountryCodes, nil)
+	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPICountryCodes, nil, request.Unset)
 }
 
 // GetCurrencies returns a list of valid and recognized fiat currencies. Also
 // contains human readable name for every currency and boolean that tells if
 // currency is an altcoin.
 func (l *LocalBitcoins) GetCurrencies() error {
-	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPICurrencies, nil)
+	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPICurrencies, nil, request.Unset)
 }
 
 // GetDashboardInfo returns a list of trades on the data key contact_list. This
@@ -470,13 +470,13 @@ func (l *LocalBitcoins) MarkNotifications() error {
 // and code for payment methods, and possible limitations in currencies and bank
 // name choices.
 func (l *LocalBitcoins) GetPaymentMethods() error {
-	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPIPaymentMethods, nil)
+	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPIPaymentMethods, nil, request.Unset)
 }
 
 // GetPaymentMethodsByCountry returns a list of valid payment methods filtered
 // by countrycodes.
 func (l *LocalBitcoins) GetPaymentMethodsByCountry(countryCode string) error {
-	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPIPaymentMethods+countryCode, nil)
+	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPIPaymentMethods+countryCode, nil, request.Unset)
 }
 
 // CheckPincode checks the given PIN code against the token owners currently
@@ -511,7 +511,7 @@ func (l *LocalBitcoins) CheckPincode(pin int) (bool, error) {
 // sell listings for each.
 // TODO
 func (l *LocalBitcoins) GetPlaces() error {
-	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPIPlaces, nil)
+	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPIPlaces, nil, request.Unset)
 }
 
 // VerifyUsername returns list of real name verifiers for the user. Returns a
@@ -639,20 +639,22 @@ func (l *LocalBitcoins) GetWalletAddress() (string, error) {
 // GetBitcoinsWithCashAd returns buy or sell as cash local advertisements.
 // TODO
 func (l *LocalBitcoins) GetBitcoinsWithCashAd() error {
-	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPICashBuy, nil)
+	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPICashBuy, nil, request.Unset)
 }
 
 // GetBitcoinsOnlineAd this API returns buy or sell Bitcoin online ads.
 // TODO
 func (l *LocalBitcoins) GetBitcoinsOnlineAd() error {
-	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPIOnlineBuy, nil)
+	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPIOnlineBuy, nil, request.Unset)
 }
 
 // GetTicker returns list of all completed trades.
 func (l *LocalBitcoins) GetTicker() (map[string]Ticker, error) {
 	result := make(map[string]Ticker)
-
-	return result, l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPITicker, &result)
+	return result,
+		l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPITicker,
+			&result,
+			tickerLimiter)
 }
 
 // GetTradableCurrencies returns a list of tradable fiat currencies
@@ -673,9 +675,11 @@ func (l *LocalBitcoins) GetTradableCurrencies() ([]string, error) {
 // GetTrades returns all closed trades in online buy and online sell categories,
 // updated every 15 minutes.
 func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]Trade, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s%s/trades.json", l.API.Endpoints.URL+localbitcoinsAPIBitcoincharts, currency), values)
+	path := common.EncodeURLValues(fmt.Sprintf("%s%s/trades.json",
+		l.API.Endpoints.URL+localbitcoinsAPIBitcoincharts, currency),
+		values)
 	var result []Trade
-	return result, l.SendHTTPRequest(path, &result)
+	return result, l.SendHTTPRequest(path, &result, request.Unset)
 }
 
 // GetOrderbook returns buy and sell bitcoin online advertisements. Amount is
@@ -688,9 +692,9 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 		Asks [][]string `json:"asks"`
 	}
 
-	path := fmt.Sprintf("%s/%s/orderbook.json", l.API.Endpoints.URL+localbitcoinsAPIBitcoincharts, currency)
+	path := l.API.Endpoints.URL + localbitcoinsAPIBitcoincharts + currency + "/orderbook.json"
 	resp := response{}
-	err := l.SendHTTPRequest(path, &resp)
+	err := l.SendHTTPRequest(path, &resp, orderBookLimiter)
 
 	if err != nil {
 		return Orderbook{}, err
@@ -730,7 +734,7 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
+func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}, ep request.EndpointLimit) error {
 	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
@@ -738,6 +742,7 @@ func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
 		Verbose:       l.Verbose,
 		HTTPDebugging: l.HTTPDebugging,
 		HTTPRecording: l.HTTPRecording,
+		Endpoint:      ep,
 	})
 }
 

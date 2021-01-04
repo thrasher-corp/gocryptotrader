@@ -491,27 +491,29 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 	switch action {
 	case bitmexActionInitialData:
-		var newOrderBook orderbook.Base
+		var book orderbook.Base
 		for i := range data {
-			if strings.EqualFold(data[i].Side, order.Sell.String()) {
-				newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-					Price:  data[i].Price,
-					Amount: float64(data[i].Size),
-					ID:     data[i].ID,
-				})
-				continue
-			}
-			newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+			item := orderbook.Item{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
-			})
+			}
+			switch {
+			case strings.EqualFold(data[i].Side, order.Sell.String()):
+				book.Asks = append(book.Asks, item)
+			case strings.EqualFold(data[i].Side, order.Buy.String()):
+				book.Bids = append(book.Bids, item)
+			default:
+				return fmt.Errorf("could not process websocket orderbook update, order side could not be matched for %s",
+					data[i].Side)
+			}
 		}
-		newOrderBook.AssetType = a
-		newOrderBook.Pair = p
-		newOrderBook.ExchangeName = b.Name
+		orderbook.Reverse(book.Asks) // Reverse asks for correct alignment
+		book.AssetType = a
+		book.Pair = p
+		book.ExchangeName = b.Name
 
-		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		err := b.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
 			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 				err)
@@ -519,17 +521,16 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 	default:
 		var asks, bids []orderbook.Item
 		for i := range data {
-			if strings.EqualFold(data[i].Side, "Sell") {
-				asks = append(asks, orderbook.Item{
-					Amount: float64(data[i].Size),
-					ID:     data[i].ID,
-				})
-				continue
-			}
-			bids = append(bids, orderbook.Item{
+			nItem := orderbook.Item{
+				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
-			})
+			}
+			if strings.EqualFold(data[i].Side, "Sell") {
+				asks = append(asks, nItem)
+				continue
+			}
+			bids = append(bids, nItem)
 		}
 
 		err := b.Websocket.Orderbook.Update(&buffer.Update{
@@ -537,7 +538,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			Asks:   asks,
 			Pair:   p,
 			Asset:  a,
-			Action: action,
+			Action: buffer.Action(action),
 		})
 		if err != nil {
 			return err
@@ -548,24 +549,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	assets := b.GetAssetTypes()
-	var allPairs currency.Pairs
-	var associatedAssets []asset.Item
-	for x := range assets {
-		contracts, err := b.GetEnabledPairs(assets[x])
-		if err != nil {
-			return nil, err
-		}
-		for y := range contracts {
-			allPairs = allPairs.Add(contracts[y])
-			associatedAssets = append(associatedAssets, assets[x])
-		}
-	}
-
-	if len(allPairs) != len(associatedAssets) {
-		return nil, fmt.Errorf("%s generate default subscriptions: pair and asset type len mismatch", b.Name)
-	}
-
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
 	subscriptions := []stream.ChannelSubscription{
 		{
@@ -573,13 +556,24 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		},
 	}
 
-	for i := range channels {
-		for j := range allPairs {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[i] + ":" + allPairs[j].String(),
-				Currency: allPairs[j],
-				Asset:    associatedAssets[j],
-			})
+	assets := b.GetAssetTypes()
+	for x := range assets {
+		contracts, err := b.GetEnabledPairs(assets[x])
+		if err != nil {
+			return nil, err
+		}
+		for y := range contracts {
+			for z := range channels {
+				if assets[x] == asset.Index && channels[z] == bitmexWSOrderbookL2 {
+					// There are no L2 orderbook for index assets
+					continue
+				}
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  channels[z] + ":" + contracts[y].String(),
+					Currency: contracts[y],
+					Asset:    assets[x],
+				})
+			}
 		}
 	}
 	return subscriptions, nil

@@ -39,6 +39,8 @@ func TestMain(m *testing.M) {
 		log.Fatal("Binance setup error", err)
 	}
 
+	b.setupOrderbookManager()
+
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
 		log.Fatalf("Mock server error %s", err)

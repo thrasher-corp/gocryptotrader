@@ -6,8 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// AcceptedOrderType defines the accepted market types, exchange strings denote
-// non-contract order types.
+// AcceptedOrderType defines the accepted market types, exchange strings denote non-contract order types.
 var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
 	"fill-or-kill", "exchange market", "exchange limit", "exchange stop",
 	"exchange trailing-stop", "exchange fill-or-kill"}
@@ -377,7 +376,6 @@ type WebsocketBook struct {
 	ID     int64
 	Price  float64
 	Amount float64
-	Rate   float64
 	Period int64
 }
 

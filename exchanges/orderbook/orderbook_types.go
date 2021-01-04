@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -12,21 +13,31 @@ import (
 
 // const values for orderbook package
 const (
-	errExchangeNameUnset = "orderbook exchange name not set"
-	errPairNotSet        = "orderbook currency pair not set"
-	errAssetTypeNotSet   = "orderbook asset type not set"
-	errNoOrderbook       = "orderbook bids and asks are empty"
+	bidLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Bids: %w"
+	askLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Asks: %w"
+	bookLengthIssue    = "Potential book issue for exchange %s pair %s asset %s length Bids %d length Asks %d"
 )
 
 // Vars for the orderbook package
 var (
 	service *Service
+
+	errExchangeNameUnset = errors.New("orderbook exchange name not set")
+	errPairNotSet        = errors.New("orderbook currency pair not set")
+	errAssetTypeNotSet   = errors.New("orderbook asset type not set")
+	errNoOrderbook       = errors.New("orderbook bids and asks are empty")
+	errPriceNotSet       = errors.New("price cannot be zero")
+	errAmountInvalid     = errors.New("amount cannot be less or equal to zero")
+	errOutOfOrder        = errors.New("pricing out of order")
+	errDuplication       = errors.New("price duplication")
+	errIDDuplication     = errors.New("id duplication")
+	errPeriodUnset       = errors.New("funding rate period is unset")
 )
 
 func init() {
 	service = new(Service)
 	service.mux = dispatch.GetNewMux()
-	service.Books = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
+	service.Books = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Book)
 	service.Exchange = make(map[string]uuid.UUID)
 }
 
@@ -39,10 +50,10 @@ type Book struct {
 
 // Service holds orderbook information for each individual exchange
 type Service struct {
-	Books    map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Book
+	Books    map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Book
 	Exchange map[string]uuid.UUID
 	mux      *dispatch.Mux
-	sync.RWMutex
+	sync.Mutex
 }
 
 // Item stores the amount and price values
@@ -50,6 +61,9 @@ type Item struct {
 	Amount float64
 	Price  float64
 	ID     int64
+
+	// Funding rate field
+	Period int64
 
 	// Contract variables
 	LiquidationOrders int64
@@ -65,6 +79,10 @@ type Base struct {
 	LastUpdateID int64         `json:"lastUpdateId"`
 	AssetType    asset.Item    `json:"assetType"`
 	ExchangeName string        `json:"exchangeName"`
+	// NotAggregated defines whether an orderbook can contain duplicate prices
+	// in a payload
+	NotAggregated bool `json:"-"`
+	IsFundingRate bool `json:"fundingRate"`
 }
 
 type byOBPrice []Item

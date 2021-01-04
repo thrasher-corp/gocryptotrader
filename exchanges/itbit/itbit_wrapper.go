@@ -186,9 +186,10 @@ func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{ExchangeName: i.Name, Pair: p, AssetType: assetType, NotAggregated: true}
 	fpair, err := i.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := i.GetOrderbook(fpair.String())
@@ -196,18 +197,17 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		return nil, err
 	}
 
-	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
 		if err != nil {
-			return orderBook, err
+			return book, err
 		}
 		amount, err = strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if err != nil {
-			return orderBook, err
+			return book, err
 		}
-		orderBook.Bids = append(orderBook.Bids,
+		book.Bids = append(book.Bids,
 			orderbook.Item{
 				Amount: amount,
 				Price:  price,
@@ -218,28 +218,22 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
 		if err != nil {
-			return orderBook, err
+			return book, err
 		}
 		amount, err = strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if err != nil {
-			return orderBook, err
+			return book, err
 		}
-		orderBook.Asks = append(orderBook.Asks,
+		book.Asks = append(book.Asks,
 			orderbook.Item{
 				Amount: amount,
 				Price:  price,
 			})
 	}
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = i.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(i.Name, p, assetType)
 }
 

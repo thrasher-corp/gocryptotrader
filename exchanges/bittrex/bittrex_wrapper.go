@@ -328,9 +328,10 @@ func (b *Bittrex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{ExchangeName: b.Name, Pair: p, AssetType: assetType}
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := b.GetOrderbook(fpair.String())
@@ -338,9 +339,8 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 		return nil, err
 	}
 
-	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Result.Buy {
-		orderBook.Bids = append(orderBook.Bids,
+		book.Bids = append(book.Bids,
 			orderbook.Item{
 				Amount: orderbookNew.Result.Buy[x].Quantity,
 				Price:  orderbookNew.Result.Buy[x].Rate,
@@ -349,23 +349,17 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	}
 
 	for x := range orderbookNew.Result.Sell {
-		orderBook.Asks = append(orderBook.Asks,
+		book.Asks = append(book.Asks,
 			orderbook.Item{
 				Amount: orderbookNew.Result.Sell[x].Quantity,
 				Price:  orderbookNew.Result.Sell[x].Rate,
 			},
 		)
 	}
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(b.Name, p, assetType)
 }
 

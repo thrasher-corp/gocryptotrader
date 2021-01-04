@@ -123,7 +123,13 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 	result := struct {
 		Data TempOBData `json:"result"`
 	}{}
-	strDepth := strconv.FormatInt(depth, 10)
+
+	strDepth := "20" // If we send a zero value we get zero asks from the
+	// endpoint
+	if depth != 0 {
+		strDepth = strconv.FormatInt(depth, 10)
+	}
+
 	var resp OrderbookData
 	err := f.SendHTTPRequest(fmt.Sprintf(ftxAPIURL+getOrderbook, marketName, strDepth), &result)
 	if err != nil {
@@ -131,13 +137,15 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 	}
 	resp.MarketName = marketName
 	for x := range result.Data.Asks {
-		resp.Asks = append(resp.Asks, OData{Price: result.Data.Asks[x][0],
-			Size: result.Data.Asks[x][1],
+		resp.Asks = append(resp.Asks, OData{
+			Price: result.Data.Asks[x][0],
+			Size:  result.Data.Asks[x][1],
 		})
 	}
 	for y := range result.Data.Bids {
-		resp.Bids = append(resp.Bids, OData{Price: result.Data.Bids[y][0],
-			Size: result.Data.Bids[y][1],
+		resp.Bids = append(resp.Bids, OData{
+			Price: result.Data.Bids[y][0],
+			Size:  result.Data.Bids[y][1],
 		})
 	}
 	return resp, nil

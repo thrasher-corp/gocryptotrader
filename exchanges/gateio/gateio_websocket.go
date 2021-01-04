@@ -297,7 +297,8 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	case strings.Contains(result.Method, "depth"):
 		var IsSnapshot bool
 		var c string
-		var data = make(map[string][][]string)
+		var data wsOrderbook
+
 		err = json.Unmarshal(result.Params[0], &IsSnapshot)
 		if err != nil {
 			return err
@@ -314,42 +315,29 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		}
 
 		var asks, bids []orderbook.Item
-		askData, askOk := data["asks"]
-		for i := range askData {
-			var amount, price float64
-			amount, err = strconv.ParseFloat(askData[i][1], 64)
+		var amount, price float64
+		for i := range data.Asks {
+			amount, err = strconv.ParseFloat(data.Asks[i][1], 64)
 			if err != nil {
 				return err
 			}
-			price, err = strconv.ParseFloat(askData[i][0], 64)
+			price, err = strconv.ParseFloat(data.Asks[i][0], 64)
 			if err != nil {
 				return err
 			}
-			asks = append(asks, orderbook.Item{
-				Amount: amount,
-				Price:  price,
-			})
+			asks = append(asks, orderbook.Item{Amount: amount, Price: price})
 		}
 
-		bidData, bidOk := data["bids"]
-		for i := range bidData {
-			var amount, price float64
-			amount, err = strconv.ParseFloat(bidData[i][1], 64)
+		for i := range data.Bids {
+			amount, err = strconv.ParseFloat(data.Bids[i][1], 64)
 			if err != nil {
 				return err
 			}
-			price, err = strconv.ParseFloat(bidData[i][0], 64)
+			price, err = strconv.ParseFloat(data.Bids[i][0], 64)
 			if err != nil {
 				return err
 			}
-			bids = append(bids, orderbook.Item{
-				Amount: amount,
-				Price:  price,
-			})
-		}
-
-		if !askOk && !bidOk {
-			g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access ask or bid data")
+			bids = append(bids, orderbook.Item{Amount: amount, Price: price})
 		}
 
 		var p currency.Pair
@@ -359,14 +347,6 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		}
 
 		if IsSnapshot {
-			if !askOk {
-				g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access ask data")
-			}
-
-			if !bidOk {
-				g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access bid data")
-			}
-
 			var newOrderBook orderbook.Base
 			newOrderBook.Asks = asks
 			newOrderBook.Bids = bids

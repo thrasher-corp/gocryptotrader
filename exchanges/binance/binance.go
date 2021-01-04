@@ -65,6 +65,8 @@ type Binance struct {
 
 	// Valid string list that is required by the exchange
 	validLimits []int
+
+	obm *orderbookManager
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more

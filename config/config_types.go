@@ -113,23 +113,24 @@ type ConnectionMonitorConfig struct {
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
 type ExchangeConfig struct {
-	Name                          string                 `json:"name"`
-	Enabled                       bool                   `json:"enabled"`
-	Verbose                       bool                   `json:"verbose"`
-	UseSandbox                    bool                   `json:"useSandbox,omitempty"`
-	HTTPTimeout                   time.Duration          `json:"httpTimeout"`
-	HTTPUserAgent                 string                 `json:"httpUserAgent,omitempty"`
-	HTTPDebugging                 bool                   `json:"httpDebugging,omitempty"`
-	WebsocketResponseCheckTimeout time.Duration          `json:"websocketResponseCheckTimeout"`
-	WebsocketResponseMaxLimit     time.Duration          `json:"websocketResponseMaxLimit"`
-	WebsocketTrafficTimeout       time.Duration          `json:"websocketTrafficTimeout"`
-	WebsocketOrderbookBufferLimit int                    `json:"websocketOrderbookBufferLimit"`
-	ProxyAddress                  string                 `json:"proxyAddress,omitempty"`
-	BaseCurrencies                currency.Currencies    `json:"baseCurrencies"`
-	CurrencyPairs                 *currency.PairsManager `json:"currencyPairs"`
-	API                           APIConfig              `json:"api"`
-	Features                      *FeaturesConfig        `json:"features"`
-	BankAccounts                  []banking.Account      `json:"bankAccounts,omitempty"`
+	Name                            string                 `json:"name"`
+	Enabled                         bool                   `json:"enabled"`
+	Verbose                         bool                   `json:"verbose"`
+	UseSandbox                      bool                   `json:"useSandbox,omitempty"`
+	HTTPTimeout                     time.Duration          `json:"httpTimeout"`
+	HTTPUserAgent                   string                 `json:"httpUserAgent,omitempty"`
+	HTTPDebugging                   bool                   `json:"httpDebugging,omitempty"`
+	WebsocketResponseCheckTimeout   time.Duration          `json:"websocketResponseCheckTimeout"`
+	WebsocketResponseMaxLimit       time.Duration          `json:"websocketResponseMaxLimit"`
+	WebsocketTrafficTimeout         time.Duration          `json:"websocketTrafficTimeout"`
+	WebsocketOrderbookBufferLimit   int                    `json:"websocketOrderbookBufferLimit"`
+	WebsocketOrderbookBufferEnabled bool                   `json:"websocketOrderbookBufferEnabled"`
+	ProxyAddress                    string                 `json:"proxyAddress,omitempty"`
+	BaseCurrencies                  currency.Currencies    `json:"baseCurrencies"`
+	CurrencyPairs                   *currency.PairsManager `json:"currencyPairs"`
+	API                             APIConfig              `json:"api"`
+	Features                        *FeaturesConfig        `json:"features"`
+	BankAccounts                    []banking.Account      `json:"bankAccounts,omitempty"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
