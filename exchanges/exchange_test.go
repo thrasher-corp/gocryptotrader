@@ -2226,10 +2226,10 @@ func TestSetAPIURL(t *testing.T) {
 	// if err != nil {
 	// 	t.Error(err)
 	// }
-	b.NewEndpoints()
-	b.API.Endpoints.CreateMap()
-	err := b.SetAPIURL()
-	if err != nil {
-		t.Error(err)
-	}
+	// b.NewEndpoints()
+	// b.API.Endpoints.CreateMap()
+	// err := b.SetAPIURL()
+	// if err != nil {
+	// 	t.Error(err)
+	// }
 }
