@@ -682,14 +682,14 @@ func (b *Binance) processJob(p currency.Pair) error {
 	err = b.applyBufferUpdate(p)
 	if err != nil {
 		errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
-		if err != nil {
+		if errClean != nil {
 			log.Errorf(log.WebsocketMgr,
 				"%s flushing websocket error: %v",
 				b.Name,
 				errClean)
 		}
 		errClean = b.obm.cleanup(p)
-		if err != nil {
+		if errClean != nil {
 			log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
 				b.Name,
 				errClean)
