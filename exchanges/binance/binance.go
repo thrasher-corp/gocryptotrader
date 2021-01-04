@@ -404,7 +404,7 @@ func (b *Binance) GetAveragePrice(symbol currency.Pair) (AveragePrice, error) {
 	}
 	params.Set("symbol", symbolValue)
 
-	path := fmt.Sprintf("%s?%s", averagePrice, params.Encode())
+	path := averagePrice + "?" + params.Encode()
 
 	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, limitDefault, &resp)
 }
@@ -421,7 +421,7 @@ func (b *Binance) GetPriceChangeStats(symbol currency.Pair) (PriceChangeStats, e
 	}
 	params.Set("symbol", symbolValue)
 
-	path := fmt.Sprintf("%s?%s", priceChange, params.Encode())
+	path := priceChange + "?" + params.Encode()
 
 	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, limitDefault, &resp)
 }
@@ -444,7 +444,7 @@ func (b *Binance) GetLatestSpotPrice(symbol currency.Pair) (SymbolPrice, error) 
 	}
 	params.Set("symbol", symbolValue)
 
-	path := fmt.Sprintf("%s?%s", symbolPrice, params.Encode())
+	path := symbolPrice + "?" + params.Encode()
 
 	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, symbolPriceLimit(symbolValue), &resp)
 }
@@ -461,7 +461,7 @@ func (b *Binance) GetBestPrice(symbol currency.Pair) (BestPrice, error) {
 	}
 	params.Set("symbol", symbolValue)
 
-	path := fmt.Sprintf("%s?%s", bestPrice, params.Encode())
+	path := bestPrice + "?" + params.Encode()
 
 	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, bestPriceLimit(symbolValue), &resp)
 }

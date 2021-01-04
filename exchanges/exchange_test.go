@@ -2213,7 +2213,21 @@ func TestFormatSymbol(t *testing.T) {
 
 func TestSetAPIURL(t *testing.T) {
 	b := Base{}
-	// Broken
+	b.Config = &config.ExchangeConfig{}
+	var mappy struct {
+		Mappymap map[string]string `json:"urlEndpoints"`
+	}
+	mappy.Mappymap = make(map[string]string)
+	mappy.Mappymap["hi"] = "bye"
+	b.Config.API.Endpoints = mappy.Mappymap
+	// // b.NewEndpoints()
+	// // Broken
+	// err := b.SetAPIURL()
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+	b.NewEndpoints()
+	b.API.Endpoints.CreateMap()
 	err := b.SetAPIURL()
 	if err != nil {
 		t.Error(err)

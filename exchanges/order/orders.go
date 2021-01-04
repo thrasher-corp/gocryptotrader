@@ -745,6 +745,9 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 	if g == nil {
 		return ErrGetOrdersRequestIsNil
 	}
+	if !g.AssetType.IsValid() {
+		return fmt.Errorf("assetType cannot be empty")
+	}
 	var errs common.Errors
 	for _, o := range opt {
 		err := o.Check()

@@ -858,7 +858,7 @@ func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			params.Price = s.Price
 		}
 		params.Type = formattedType
-		response, err := h.SpotNewOrder(params)
+		response, err := h.SpotNewOrder(&params)
 		if err != nil {
 			return submitOrderResponse, err
 		}

@@ -90,6 +90,11 @@ const (
 	getOTCQuoteStatus        = "/otc/quotes/"
 	acceptOTCQuote           = "/otc/quotes/%s/accept"
 
+	// Margin Endpoints
+	marginBorrowRates    = "/spot_margin/borrow_rates"
+	maringLendingRates   = "/spot_margin/lending_rates"
+	dailyBorrowedAmounts = "/spot_margin/borrow_summary"
+
 	// Other Consts
 	trailingStopOrderType = "trailingStop"
 	takeProfitOrderType   = "takeProfit"
@@ -245,6 +250,18 @@ func (f *FTX) SendHTTPRequest(ep exchange.URL, path string, result interface{}) 
 		HTTPDebugging: f.HTTPDebugging,
 		HTTPRecording: f.HTTPRecording,
 	})
+}
+
+// GetMarginBorrowRates gets borrowing rates for margin trading
+func (f *FTX) GetMarginBorrowRates() (MarginFundingData, error) {
+	var resp MarginFundingData
+	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginBorrowRates, nil, &resp)
+}
+
+// GetMarginLendingRates gets lending rates for margin trading
+func (f *FTX) GetMarginLendingRates() (MarginFundingData, error) {
+	var resp MarginFundingData
+	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, maringLendingRates, nil, &resp)
 }
 
 // GetAccountInfo gets account info

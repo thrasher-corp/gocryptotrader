@@ -351,7 +351,7 @@ func (h *HUOBI) GetAggregatedBalance() ([]AggregatedBalance, error) {
 }
 
 // SpotNewOrder submits an order to Huobi
-func (h *HUOBI) SpotNewOrder(arg SpotNewOrderRequestParams) (int64, error) {
+func (h *HUOBI) SpotNewOrder(arg *SpotNewOrderRequestParams) (int64, error) {
 	symbolValue, err := h.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return 0, err
@@ -896,9 +896,9 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint s
 	values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
 
 	if isVersion2API {
-		endpoint = fmt.Sprintf("/v%s/%s", huobiAPIVersion2, endpoint)
+		endpoint = "/v" + huobiAPIVersion2 + "/" + endpoint
 	} else {
-		endpoint = fmt.Sprintf("/v%s/%s", huobiAPIVersion, endpoint)
+		endpoint = "/v" + huobiAPIVersion + "/" + endpoint
 	}
 
 	payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",

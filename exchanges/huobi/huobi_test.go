@@ -1684,6 +1684,9 @@ func TestSpotNewOrder(t *testing.T) {
 		t.Skip()
 	}
 	cp, err := currency.NewPairFromString(testSymbol)
+	if err != nil {
+		t.Error(err)
+	}
 	arg := SpotNewOrderRequestParams{
 		Symbol:    cp,
 		AccountID: 1,
@@ -1692,7 +1695,7 @@ func TestSpotNewOrder(t *testing.T) {
 		Type:      SpotNewOrderRequestTypeBuyLimit,
 	}
 
-	_, err = h.SpotNewOrder(arg)
+	_, err = h.SpotNewOrder(&arg)
 	if err != nil {
 		t.Errorf("Huobi SpotNewOrder: %s", err)
 	}
