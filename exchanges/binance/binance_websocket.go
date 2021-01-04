@@ -28,6 +28,18 @@ const (
 
 var listenKey string
 
+var (
+	// maxWSUpdateBuffer defines max websocket updates to apply when an
+	// orderbook is initially fetched
+	maxWSUpdateBuffer = 100
+	// maxWSOrderbookJobs defines max websocket orderbook jobs in queue to fetch
+	// an orderbook snapshot via REST
+	maxWSOrderbookJobs = 2000
+	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
+	// jobs from the job channel
+	maxWSOrderbookWorkers = 10
+)
+
 // WsConnect initiates a websocket connection
 func (b *Binance) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
@@ -93,10 +105,10 @@ func (b *Binance) setupOrderbookManager() {
 	if b.obm == nil {
 		b.obm = &orderbookManager{
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
-			jobs:  make(chan job, 2000),
+			jobs:  make(chan job, maxWSOrderbookJobs),
 		}
 
-		for i := 0; i < 10; i++ {
+		for i := 0; i < maxWSOrderbookWorkers; i++ {
 			// 10 workers for synchronising book
 			b.SynchroniseWebsocketOrderbook()
 		}
@@ -479,12 +491,22 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) error {
 	if err != nil {
 		cleanupErr := b.Websocket.Orderbook.FlushOrderbook(currencyPair, asset.Spot)
 		if cleanupErr != nil {
-			log.Errorln(log.WebsocketMgr, "flushing websocket error:", cleanupErr)
+			log.Errorf(log.WebsocketMgr,
+				"%s %s %s flushing websocket error: %v",
+				b.Name,
+				currencyPair,
+				asset.Spot,
+				cleanupErr)
 		}
 
 		cleanupErr = b.obm.cleanup(currencyPair)
 		if cleanupErr != nil {
-			log.Errorln(log.WebsocketMgr, "cleanup websocket orderbook error:", cleanupErr)
+			log.Errorf(log.WebsocketMgr,
+				"%s %s %s cleanup websocket orderbook error: %v",
+				b.Name,
+				currencyPair,
+				asset.Spot,
+				cleanupErr)
 		}
 
 		return err
@@ -662,13 +684,26 @@ func (b *Binance) processJob(p currency.Pair) error {
 	if err != nil {
 		errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
 		if err != nil {
-			log.Errorln(log.WebsocketMgr, "flushing websocket error:", errClean)
+			log.Errorf(log.WebsocketMgr,
+				"%s %s %s flushing websocket error: %v",
+				b.Name,
+				p,
+				asset.Spot,
+				errClean)
 		}
 		errClean = b.obm.cleanup(p)
 		if err != nil {
-			log.Errorln(log.WebsocketMgr, "cleanup websocket error:", errClean)
+			log.Errorf(log.WebsocketMgr, "%s %s %s cleanup websocket error: %v",
+				b.Name,
+				p,
+				asset.Spot,
+				errClean)
 		}
-		return fmt.Errorf("applying orderbook updates error: %s", err)
+		return fmt.Errorf("%s %s %s applying orderbook updates error: %v",
+			b.Name,
+			p,
+			asset.Spot,
+			err)
 	}
 	return nil
 }
@@ -695,7 +730,7 @@ func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.
 		state = &update{
 			// 100ms update assuming we might have up to a 10 second delay.
 			// There could be a potential 100 updates for the currency.
-			buffer:       make(chan *WebsocketDepthStream, 100),
+			buffer:       make(chan *WebsocketDepthStream, maxWSUpdateBuffer),
 			fetchingBook: false,
 			initialSync:  true,
 		}
