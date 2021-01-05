@@ -275,9 +275,11 @@ func (b *Base) Process() error {
 		b.LastUpdated = time.Now()
 	}
 
-	err := b.Verify()
-	if err != nil {
-		return err
+	if !b.HasChecksumValidation {
+		err := b.Verify()
+		if err != nil {
+			return err
+		}
 	}
 
 	return service.Update(b)
