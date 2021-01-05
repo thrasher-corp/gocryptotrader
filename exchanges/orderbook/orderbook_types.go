@@ -85,9 +85,9 @@ type Base struct {
 	NotAggregated bool `json:"-"`
 	IsFundingRate bool `json:"fundingRate"`
 
-	// ChecksumBypass defines an allowance to bypass internal verification if
-	// the book has been verified by checksum.
-	ChecksumBypass bool `json:"-"`
+	// HasChecksumValidation defines an allowance to bypass internal
+	// verification if the book has been verified by checksum.
+	HasChecksumValidation bool `json:"-"`
 }
 
 type byOBPrice []Item

@@ -275,7 +275,7 @@ func (b *Base) Process() error {
 		b.LastUpdated = time.Now()
 	}
 
-	if !b.ChecksumBypass {
+	if !b.HasChecksumValidation {
 		err := b.Verify()
 		if err != nil {
 			return err
