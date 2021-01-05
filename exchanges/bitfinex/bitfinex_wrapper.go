@@ -387,10 +387,12 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	o := &orderbook.Base{
-		ExchangeName:  b.Name,
-		Pair:          p,
-		AssetType:     assetType,
-		NotAggregated: true}
+		ExchangeName:       b.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		NotAggregated:      true,
+		VerificationBypass: b.OrderbookVerificationBypass,
+	}
 
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {

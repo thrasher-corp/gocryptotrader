@@ -131,6 +131,7 @@ type ExchangeConfig struct {
 	API                             APIConfig              `json:"api"`
 	Features                        *FeaturesConfig        `json:"features"`
 	BankAccounts                    []banking.Account      `json:"bankAccounts,omitempty"`
+	OrderbookVerificationBypass     bool                   `json:"orderbookVerificationBypass"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`

@@ -366,7 +366,12 @@ func (h *HitBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HitBTC) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: h.Name, Pair: c, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       h.Name,
+		Pair:               c,
+		AssetType:          assetType,
+		VerificationBypass: h.OrderbookVerificationBypass,
+	}
 	fpair, err := h.FormatExchangeCurrency(c, assetType)
 	if err != nil {
 		return book, err

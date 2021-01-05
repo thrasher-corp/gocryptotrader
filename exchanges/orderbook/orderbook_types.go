@@ -83,6 +83,10 @@ type Base struct {
 	// in a payload
 	NotAggregated bool `json:"-"`
 	IsFundingRate bool `json:"fundingRate"`
+
+	// VerificationBypass is a complete orderbook verification bypass set by
+	// user configuration
+	VerificationBypass bool `json:"-"`
 }
 
 type byOBPrice []Item

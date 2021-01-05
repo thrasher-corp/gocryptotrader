@@ -239,12 +239,13 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Bids:         bids,
-		Asks:         asks,
-		Pair:         p,
-		LastUpdated:  time.Unix(update.Timestamp, 0),
-		AssetType:    assetType,
-		ExchangeName: b.Name,
+		Bids:               bids,
+		Asks:               asks,
+		Pair:               p,
+		LastUpdated:        time.Unix(update.Timestamp, 0),
+		AssetType:          assetType,
+		ExchangeName:       b.Name,
+		VerificationBypass: b.OrderbookVerificationBypass,
 	})
 }
 

@@ -333,7 +333,12 @@ func (f *FTX) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*ord
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: f.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       f.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: f.OrderbookVerificationBypass,
+	}
 	formattedPair, err := f.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
