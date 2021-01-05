@@ -2221,14 +2221,7 @@ func TestSetAPIURL(t *testing.T) {
 	mappy.Mappymap = make(map[string]string)
 	mappy.Mappymap["hi"] = "bye"
 	b.Config.API.Endpoints = mappy.Mappymap
-	// // b.NewEndpoints()
-	// // Broken
-	// err := b.SetAPIURL()
-	// if err != nil {
-	// 	t.Error(err)
-	// }
 	b.API.Endpoints = b.NewEndpoints()
-	// b.API.Endpoints.CreateMap()
 	err := b.SetAPIURL()
 	if err != nil {
 		t.Error(err)
