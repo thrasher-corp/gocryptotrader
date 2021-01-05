@@ -15,13 +15,13 @@ import (
 )
 
 func TestNewFromConfig(t *testing.T) {
-	_, err := NewFromConfig(nil)
+	_, err := NewFromConfig(nil, "")
 	if err == nil {
 		t.Error("expected error for nil config")
 	}
 
 	cfg := &config.Config{}
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err == nil {
 		t.Error("expected error for nil config")
 	}
@@ -37,13 +37,13 @@ func TestNewFromConfig(t *testing.T) {
 			Quote:        "test",
 		},
 	}
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err != nil && err.Error() != "exchange not found" {
 		t.Error(err)
 	}
 
 	cfg.CurrencySettings[0].ExchangeName = "binance"
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err != nil && !strings.Contains(err.Error(), "cannot create new asset") {
 		t.Error(err)
 	}
@@ -51,14 +51,14 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	cfg.CurrencySettings[0].Base = "BTC"
 	cfg.CurrencySettings[0].Quote = "USDT"
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err != nil && !strings.Contains(err.Error(), "initial funds unset") {
 		t.Error(err)
 	}
 
 	cfg.CurrencySettings[0].InitialFunds = 1337
 
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err != nil && err.Error() != "no data settings set in config" {
 		t.Error(err)
 	}
@@ -70,26 +70,26 @@ func TestNewFromConfig(t *testing.T) {
 		EndDate:   time.Time{},
 	}
 
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err != nil && err.Error() != "api data start and end dates must be set" {
 		t.Error(err)
 	}
 
 	cfg.APIData.StartDate = time.Now().Add(-time.Hour)
 	cfg.APIData.EndDate = time.Now()
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err != nil && err.Error() != "api data interval unset" {
 		t.Error(err)
 	}
 
 	cfg.APIData.Interval = gctkline.FifteenMin.Duration()
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err != nil && err.Error() != "unrecognised api datatype received: ''" {
 		t.Error(err)
 	}
 
 	cfg.APIData.DataType = common.CandleStr
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err != nil && err.Error() != "strategy '' not found" {
 		t.Error(err)
 	}
@@ -102,7 +102,7 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.CurrencySettings[0].MakerFee = 1337
 	cfg.CurrencySettings[0].TakerFee = 1337
-	_, err = NewFromConfig(cfg)
+	_, err = NewFromConfig(cfg, "")
 	if err != nil {
 		t.Error(err)
 	}

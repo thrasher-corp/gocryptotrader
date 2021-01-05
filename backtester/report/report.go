@@ -1,6 +1,7 @@
 package report
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"os"
@@ -16,31 +17,30 @@ import (
 // GenerateReport sends final data from statistics to a template
 // to create a lovely final report for someone to view
 func (d *Data) GenerateReport() error {
+
 	err := d.enhanceCandles()
 	if err != nil {
 		return err
 	}
 
-	for i := range d.Candles {
-		sort.Slice(d.Candles[i].Candles, func(x, y int) bool {
-			return d.Candles[i].Candles[x].Time < d.Candles[i].Candles[y].Time
+	for i := range d.EnhancedCandles {
+		sort.Slice(d.EnhancedCandles[i].Candles, func(x, y int) bool {
+			return d.EnhancedCandles[i].Candles[x].Time < d.EnhancedCandles[i].Candles[y].Time
 		})
-		if len(d.Candles[i].Candles) >= maxChartLimit {
-			d.Candles[i].IsOverLimit = true
-			d.Candles[i].Candles = d.Candles[i].Candles[:maxChartLimit]
+		if len(d.EnhancedCandles[i].Candles) >= maxChartLimit {
+			d.EnhancedCandles[i].IsOverLimit = true
+			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]
 		}
 	}
 
-	curr, _ := os.Getwd()
 	tmpl := template.Must(
 		template.ParseFiles(
-			filepath.Join(curr, "report", "tpl.gohtml"),
+			filepath.Join(d.TemplatePath),
 		),
 	)
-	file, err := os.Create(
-		filepath.Join(
-			curr,
-			"results",
+	var f *os.File
+	f, err = os.Create(
+		filepath.Join(d.OutputPath,
 			fmt.Sprintf(
 				"%v%v.html",
 				d.Statistics.StrategyName,
@@ -52,7 +52,7 @@ func (d *Data) GenerateReport() error {
 		return err
 	}
 
-	err = tmpl.Execute(file, d)
+	err = tmpl.Execute(f, d)
 	if err != nil {
 		return err
 	}
@@ -60,13 +60,21 @@ func (d *Data) GenerateReport() error {
 	return nil
 }
 
-func (d *Data) AddCandles(k *kline.Item) {
+// AddKlineItem appends a SET of candles for the report to enhance upon
+// generation
+func (d *Data) AddKlineItem(k *kline.Item) {
 	d.OriginalCandles = append(d.OriginalCandles, k)
 }
 
 // enhanceCandles will enhance candle data with order information allowing
 // report charts to have annotations to highlight buy and sell events
 func (d *Data) enhanceCandles() error {
+	if len(d.OriginalCandles) == 0 {
+		return errors.New("no candles to enhance")
+	}
+	if d.Statistics == nil {
+		return errors.New("unable to proceed with unset Statistics property")
+	}
 	for i := range d.OriginalCandles {
 		lookup := d.OriginalCandles[i]
 		enhancedKline := DetailedKline{
@@ -97,14 +105,17 @@ func (d *Data) enhanceCandles() error {
 					enhancedCandle.VolumeColour = "rgba(252, 3, 3, 0.8)"
 				}
 			}
-			for k := range statsForCandles.Orders.Orders {
-				if statsForCandles.Orders.Orders[k].Date.Equal(
+			for k := range statsForCandles.FinalOrders.Orders {
+				if statsForCandles.FinalOrders.Orders[k].Detail == nil {
+					continue
+				}
+				if statsForCandles.FinalOrders.Orders[k].Date.Equal(
 					d.OriginalCandles[i].Candles[j].Time) {
 					// an order was placed here, can enhance chart!
 					enhancedCandle.MadeOrder = true
-					enhancedCandle.OrderAmount = statsForCandles.Orders.Orders[k].Amount
-					enhancedCandle.PurchasePrice = statsForCandles.Orders.Orders[k].Price
-					enhancedCandle.OrderDirection = statsForCandles.Orders.Orders[k].Side
+					enhancedCandle.OrderAmount = statsForCandles.FinalOrders.Orders[k].Amount
+					enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Price
+					enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Side
 					if enhancedCandle.OrderDirection == order.Buy {
 						enhancedCandle.Colour = "green"
 						enhancedCandle.Position = "aboveBar"
@@ -120,7 +131,7 @@ func (d *Data) enhanceCandles() error {
 			}
 			enhancedKline.Candles = append(enhancedKline.Candles, enhancedCandle)
 		}
-		d.Candles = append(d.Candles, enhancedKline)
+		d.EnhancedCandles = append(d.EnhancedCandles, enhancedKline)
 	}
 
 	return nil

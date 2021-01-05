@@ -995,7 +995,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		log.Warn(log.ExchangeSys, err.Error())
 	}
 
-	ret.Validate()
+	ret.RemoveDuplicates()
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

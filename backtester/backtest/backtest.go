@@ -54,7 +54,7 @@ func (bt *BackTest) Reset() {
 }
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
-func NewFromConfig(cfg *config.Config) (*BackTest, error) {
+func NewFromConfig(cfg *config.Config, templatePath string, output string) (*BackTest, error) {
 	if cfg == nil {
 		return nil, errors.New("unable to setup backtester with nil config")
 	}
@@ -68,7 +68,9 @@ func NewFromConfig(cfg *config.Config) (*BackTest, error) {
 	bt.Datas = &data.DataHolder{}
 	bt.EventQueue = &eventholder.Holder{}
 	reports := &report.Data{
-		Config: cfg,
+		Config:       cfg,
+		TemplatePath: templatePath,
+		OutputPath:   output,
 	}
 	bt.Reports = reports
 
@@ -169,7 +171,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 		bt.Datas.AddDataForCurrency(exchangeName, a, pair, klineData)
 		var makerFee, takerFee float64
-
 		if cfg.CurrencySettings[i].MakerFee > 0 {
 			makerFee = cfg.CurrencySettings[i].MakerFee
 		}
@@ -328,7 +329,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, errors.New("no data settings set in config")
 	}
 	resp := &kline.DataFromKline{}
-	var candles *gctkline.Item
 	var err error
 	if (cfg.APIData != nil && cfg.DatabaseData != nil) ||
 		(cfg.APIData != nil && cfg.LiveData != nil) ||
@@ -369,18 +369,27 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.LiveData != nil:
-		loadLiveData(cfg, base)
+		err = loadLiveData(cfg, base)
+		if err != nil {
+			return nil, err
+		}
 		go loadLiveDataLoop(resp, cfg, exch, fPair, a)
 		return resp, nil
 	}
 	if resp == nil {
-		return nil, fmt.Errorf("SOMEHOW ENDED UP IN THIS HOLE: %+v", cfg)
+		return nil, fmt.Errorf("processing error, response returned nil")
 	}
+
+	err = base.ValidateKline(fPair, a, resp.Item.Interval)
+	if err != nil {
+		return nil, err
+	}
+
 	err = resp.Load()
 	if err != nil {
 		return nil, err
 	}
-	bt.Reports.AddCandles(candles)
+	bt.Reports.AddKlineItem(&resp.Item)
 	return resp, nil
 }
 

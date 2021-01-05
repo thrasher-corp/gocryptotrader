@@ -53,7 +53,7 @@ type CurrencyStatistic struct {
 	SellOrders               int64               `json:"sell-orders"`
 	TotalOrders              int64               `json:"total-orders"`
 	FinalHoldings            holdings.Holding    `json:"final-holdings"`
-	Orders                   compliance.Snapshot `json:"final-orders"`
+	FinalOrders              compliance.Snapshot `json:"final-orders"`
 }
 
 // DrawdownHolder holds two types of drawdowns, the largest and longest

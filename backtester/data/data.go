@@ -24,7 +24,7 @@ func (d *Data) GetStream() []common.DataEventHandler {
 	return d.stream
 }
 
-func (d *Data) GetOffset() int {
+func (d *Data) Offset() int {
 	return d.offset
 }
 

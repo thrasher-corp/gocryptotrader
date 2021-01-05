@@ -91,7 +91,7 @@ func (d *DataFromKline) Append(ki gctkline.Item) {
 
 func (d *DataFromKline) StreamOpen() []float64 {
 	s := d.GetStream()
-	o := d.GetOffset()
+	o := d.Offset()
 
 	ret := make([]float64, o)
 	for x := range s[:o] {
@@ -102,7 +102,7 @@ func (d *DataFromKline) StreamOpen() []float64 {
 
 func (d *DataFromKline) StreamHigh() []float64 {
 	s := d.GetStream()
-	o := d.GetOffset()
+	o := d.Offset()
 
 	ret := make([]float64, o)
 	for x := range s[:o] {
@@ -113,7 +113,7 @@ func (d *DataFromKline) StreamHigh() []float64 {
 
 func (d *DataFromKline) StreamLow() []float64 {
 	s := d.GetStream()
-	o := d.GetOffset()
+	o := d.Offset()
 
 	ret := make([]float64, o)
 	for x := range s[:o] {
@@ -124,7 +124,7 @@ func (d *DataFromKline) StreamLow() []float64 {
 
 func (d *DataFromKline) StreamClose() []float64 {
 	s := d.GetStream()
-	o := d.GetOffset()
+	o := d.Offset()
 
 	ret := make([]float64, o)
 	for x := range s[:o] {
@@ -135,7 +135,7 @@ func (d *DataFromKline) StreamClose() []float64 {
 
 func (d *DataFromKline) StreamVol() []float64 {
 	s := d.GetStream()
-	o := d.GetOffset()
+	o := d.Offset()
 
 	ret := make([]float64, o)
 	for x := range s[:o] {

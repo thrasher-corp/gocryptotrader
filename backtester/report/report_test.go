@@ -1,16 +1,18 @@
 package report
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -18,14 +20,18 @@ func TestGenerateReport(t *testing.T) {
 	e := "Binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
+
 	d := Data{
+		Config:          &config.Config{},
+		OutputPath:      filepath.Join("..", "results"),
+		TemplatePath:    filepath.Join("tpl.gohtml"),
 		OriginalCandles: nil,
-		Candles: []DetailedKline{
+		EnhancedCandles: []DetailedKline{
 			{
 				Exchange:  e,
 				Asset:     a,
 				Pair:      p,
-				Interval:  kline.OneHour,
+				Interval:  gctkline.OneHour,
 				Watermark: "Binance - SPOT - BTC-USDT",
 				Candles: []DetailedCandle{
 					{
@@ -111,7 +117,7 @@ func TestGenerateReport(t *testing.T) {
 				Exchange:  "Bittrex",
 				Asset:     a,
 				Pair:      currency.NewPair(currency.BTC, currency.USD),
-				Interval:  kline.OneDay,
+				Interval:  gctkline.OneDay,
 				Watermark: "BITTREX - SPOT - BTC-USD - 1d",
 				Candles: []DetailedCandle{
 					{
@@ -252,7 +258,7 @@ func TestGenerateReport(t *testing.T) {
 								TotalValueLostToSlippage:     0,
 								RiskFreeRate:                 0,
 							},
-							Orders: compliance.Snapshot{},
+							FinalOrders: compliance.Snapshot{},
 						},
 					},
 				},
@@ -320,5 +326,165 @@ func TestGenerateReport(t *testing.T) {
 	err := d.GenerateReport()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestEnhanceCandles(t *testing.T) {
+	tt := time.Now()
+	var d Data
+	err := d.enhanceCandles()
+	if err != nil && err.Error() != "no candles to enhance" {
+		t.Error(err)
+	}
+	d.AddKlineItem(&gctkline.Item{})
+	err = d.enhanceCandles()
+	if err != nil && err.Error() != "unable to proceed with unset Statistics property" {
+		t.Error(err)
+	}
+	d.Statistics = &statistics.Statistic{}
+	err = d.enhanceCandles()
+	if err != nil {
+		t.Error(err)
+	}
+
+	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	d.Statistics.ExchangeAssetPairStatistics["binance"] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatstics.CurrencyStatistic{
+		Pair:                     currency.NewPair(currency.BTC, currency.USDT),
+		Asset:                    asset.Spot,
+		Exchange:                 "binance",
+		Events:                   nil,
+		DrawDowns:                currencystatstics.SwingHolder{},
+		Upswings:                 currencystatstics.SwingHolder{},
+		StartingClosePrice:       0,
+		EndingClosePrice:         0,
+		LowestClosePrice:         0,
+		HighestClosePrice:        0,
+		MarketMovement:           0,
+		StrategyMovement:         0,
+		SharpeRatio:              0,
+		SortinoRatio:             0,
+		InformationRatio:         0,
+		RiskFreeRate:             0,
+		CalamariRatio:            0,
+		CompoundAnnualGrowthRate: 0,
+		BuyOrders:                0,
+		SellOrders:               0,
+		TotalOrders:              0,
+		FinalHoldings:            holdings.Holding{},
+		FinalOrders:              compliance.Snapshot{},
+	}
+
+	d.AddKlineItem(&gctkline.Item{
+		Exchange: "binance",
+		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Asset:    asset.Spot,
+		Interval: gctkline.OneDay,
+		Candles: []gctkline.Candle{
+			{
+				Time:   tt,
+				Open:   1336,
+				High:   1338,
+				Low:    1336,
+				Close:  1337,
+				Volume: 1337,
+			},
+		},
+	})
+	err = d.enhanceCandles()
+	if err != nil {
+		t.Error(err)
+	}
+
+	d.AddKlineItem(&gctkline.Item{
+		Exchange: "binance",
+		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Asset:    asset.Spot,
+		Interval: gctkline.OneDay,
+		Candles: []gctkline.Candle{
+			{
+				Time:   tt,
+				Open:   1336,
+				High:   1338,
+				Low:    1336,
+				Close:  1336,
+				Volume: 1337,
+			},
+			{
+				Time:   tt,
+				Open:   1336,
+				High:   1338,
+				Low:    1336,
+				Close:  1335,
+				Volume: 1337,
+			},
+		},
+	})
+
+	err = d.enhanceCandles()
+	if err != nil {
+		t.Error(err)
+	}
+
+	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
+		Orders: []compliance.SnapshotOrder{
+			{
+				ClosePrice:          1335,
+				VolumeAdjustedPrice: 1337,
+				SlippageRate:        1,
+				CostBasis:           1337,
+				Detail:              nil,
+			},
+		},
+		Timestamp: tt,
+	}
+	err = d.enhanceCandles()
+	if err != nil {
+		t.Error(err)
+	}
+
+	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
+		Orders: []compliance.SnapshotOrder{
+			{
+				ClosePrice:          1335,
+				VolumeAdjustedPrice: 1337,
+				SlippageRate:        1,
+				CostBasis:           1337,
+				Detail: &order.Detail{
+					Date: tt,
+					Side: order.Buy,
+				},
+			},
+		},
+		Timestamp: tt,
+	}
+	err = d.enhanceCandles()
+	if err != nil {
+		t.Error(err)
+	}
+
+	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
+		Orders: []compliance.SnapshotOrder{
+			{
+				ClosePrice:          1335,
+				VolumeAdjustedPrice: 1337,
+				SlippageRate:        1,
+				CostBasis:           1337,
+				Detail: &order.Detail{
+					Date: tt,
+					Side: order.Sell,
+				},
+			},
+		},
+		Timestamp: tt,
+	}
+	err = d.enhanceCandles()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(d.EnhancedCandles) == 0 {
+		t.Error("expected enhanced candles")
 	}
 }

@@ -14,14 +14,16 @@ const maxChartLimit = 1100
 
 type Handler interface {
 	GenerateReport() error
-	AddCandles(*kline.Item)
+	AddKlineItem(*kline.Item)
 }
 
 type Data struct {
 	OriginalCandles []*kline.Item
-	Candles         []DetailedKline
+	EnhancedCandles []DetailedKline
 	Statistics      *statistics.Statistic
 	Config          *config.Config
+	TemplatePath    string
+	OutputPath      string
 }
 
 type DetailedKline struct {

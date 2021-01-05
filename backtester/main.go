@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	var configPath string
+	var configPath, templatePath, reportOutput string
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Print(err)
@@ -28,6 +28,21 @@ func main() {
 			"examples",
 			"rsi.strat"),
 		"the config containing strategy params")
+	flag.StringVar(
+		&templatePath,
+		"templatepath",
+		filepath.Join(
+			wd,
+			"report",
+			"tpl.gohtml"),
+		"the report template to use")
+	flag.StringVar(
+		&reportOutput,
+		"outputpath",
+		filepath.Join(
+			wd,
+			"results"),
+		"the path where to output results")
 	flag.Parse()
 
 	var bt *backtest.BackTest
@@ -37,7 +52,7 @@ func main() {
 		fmt.Print(err)
 		os.Exit(1)
 	}
-	bt, err = backtest.NewFromConfig(cfg)
+	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput)
 	if err != nil {
 		fmt.Print(err)
 		os.Exit(1)

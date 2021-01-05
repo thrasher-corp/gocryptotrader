@@ -323,7 +323,8 @@ func CalcSuperDateRanges(start, end time.Time, interval Interval, limit uint32) 
 	return resp
 }
 
-func (i *Item) Validate() {
+// RemoveDuplicates removes any duplicate candles
+func (i *Item) RemoveDuplicates() {
 	var newCandles []Candle
 	for x := range i.Candles {
 		if x == 0 {

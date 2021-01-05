@@ -132,7 +132,7 @@ func (s *Statistic) CalculateTheResults() error {
 				stats.PrintResults(exchangeName, assetItem, pair)
 				last := stats.Events[len(stats.Events)-1]
 				stats.FinalHoldings = last.Holdings
-				stats.Orders = last.Transactions
+				stats.FinalOrders = last.Transactions
 				s.AllStats = append(s.AllStats, *stats)
 
 				finalResults = append(finalResults, FinalResultsHolder{

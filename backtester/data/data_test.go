@@ -10,7 +10,7 @@ func TestSomething(t *testing.T) {
 	}
 	d.Latest()
 	d.Next()
-	o := d.GetOffset()
+	o := d.Offset()
 	if o != 0 {
 		t.Error("something went wrong")
 	}
@@ -18,7 +18,7 @@ func TestSomething(t *testing.T) {
 	d.AppendStream(nil)
 
 	d.Next()
-	o = d.GetOffset()
+	o = d.Offset()
 	if o != 1 {
 		t.Error("expected 1")
 	}
