@@ -470,7 +470,8 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	var err error
 	switch assetType {
 	case asset.Spot:
-		orderbookNew, err := k.GetDepth(p)
+		var orderbookNew Orderbook
+		orderbookNew, err = k.GetDepth(p)
 		if err != nil {
 			return nil, err
 		}
@@ -487,7 +488,8 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 			})
 		}
 	case asset.Futures:
-		futuresOB, err := k.GetFuturesOrderbook(p)
+		var futuresOB FuturesOrderbookData
+		futuresOB, err = k.GetFuturesOrderbook(p)
 		if err != nil {
 			return nil, err
 		}

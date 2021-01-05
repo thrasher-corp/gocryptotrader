@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -2226,10 +2227,11 @@ func TestSetAPIURL(t *testing.T) {
 	// if err != nil {
 	// 	t.Error(err)
 	// }
-	// b.NewEndpoints()
+	b.API.Endpoints = b.NewEndpoints()
 	// b.API.Endpoints.CreateMap()
-	// err := b.SetAPIURL()
-	// if err != nil {
-	// 	t.Error(err)
-	// }
+	err := b.SetAPIURL()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(b.API.Endpoints.defaults)
 }
