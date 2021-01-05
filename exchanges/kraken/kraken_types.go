@@ -65,6 +65,9 @@ const (
 	krakenRateInterval = time.Second
 	krakenRequestRate  = 1
 
+	// Status consts
+	statusOpen = "open"
+
 	krakenFormat = "2006-01-02T15:04:05.000Z"
 )
 

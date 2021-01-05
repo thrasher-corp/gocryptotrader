@@ -532,7 +532,7 @@ func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-book := &orderbook.Base{ExchangeName: h.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{ExchangeName: h.Name, Pair: p, AssetType: assetType}
 	var err error
 	switch assetType {
 	case asset.Spot:
@@ -546,14 +546,14 @@ book := &orderbook.Base{ExchangeName: h.Name, Pair: p, AssetType: assetType}
 		}
 
 		for x := range orderbookNew.Bids {
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: orderbookNew.Bids[x][1],
 				Price:  orderbookNew.Bids[x][0],
 			})
 		}
 
 		for x := range orderbookNew.Asks {
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: orderbookNew.Asks[x][1],
 				Price:  orderbookNew.Asks[x][0],
 			})
@@ -567,13 +567,13 @@ book := &orderbook.Base{ExchangeName: h.Name, Pair: p, AssetType: assetType}
 		}
 
 		for x := range orderbookNew.Asks {
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: orderbookNew.Asks[x].Quantity,
 				Price:  orderbookNew.Asks[x].Price,
 			})
 		}
 		for y := range orderbookNew.Bids {
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: orderbookNew.Bids[y].Quantity,
 				Price:  orderbookNew.Bids[y].Price,
 			})
@@ -587,13 +587,13 @@ book := &orderbook.Base{ExchangeName: h.Name, Pair: p, AssetType: assetType}
 		}
 
 		for x := range orderbookNew.Tick.Asks {
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: orderbookNew.Tick.Asks[x][1],
 				Price:  orderbookNew.Tick.Asks[x][0],
 			})
 		}
 		for y := range orderbookNew.Tick.Bids {
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: orderbookNew.Tick.Bids[y][1],
 				Price:  orderbookNew.Tick.Bids[y][0],
 			})

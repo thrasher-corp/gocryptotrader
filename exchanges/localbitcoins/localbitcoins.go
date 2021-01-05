@@ -646,13 +646,11 @@ func (l *LocalBitcoins) GetBitcoinsWithCashAd() error {
 // TODO
 func (l *LocalBitcoins) GetBitcoinsOnlineAd() error {
 	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPIOnlineBuy, request.Unset)
-	return l.SendHTTPRequest(l.API.Endpoints.URL+localbitcoinsAPIOnlineBuy, nil)
 }
 
 // GetTicker returns list of all completed trades.
 func (l *LocalBitcoins) GetTicker() (map[string]Ticker, error) {
 	result := make(map[string]Ticker)
-
 	return result, l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPITicker, &result, tickerLimiter)
 }
 

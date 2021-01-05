@@ -466,7 +466,7 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-book := &orderbook.Base{ExchangeName: k.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{ExchangeName: k.Name, Pair: p, AssetType: assetType}
 	switch assetType {
 	case asset.Spot:
 		orderbookNew, err := k.GetDepth(p)
@@ -503,12 +503,9 @@ book := &orderbook.Base{ExchangeName: k.Name, Pair: p, AssetType: assetType}
 			})
 		}
 	default:
-		return orderBook, fmt.Errorf("invalid assetType: %v", assetType)
+		return book, fmt.Errorf("invalid assetType: %v", assetType)
 	}
-	orderBook.Pair = p
-	orderBook.ExchangeName = k.Name
-	orderBook.AssetType = assetType
-	err := orderBook.Process()
+	err = book.Process()
 	if err != nil {
 		return book, err
 	}
