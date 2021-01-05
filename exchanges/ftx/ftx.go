@@ -94,6 +94,12 @@ const (
 	marginBorrowRates    = "/spot_margin/borrow_rates"
 	maringLendingRates   = "/spot_margin/lending_rates"
 	dailyBorrowedAmounts = "/spot_margin/borrow_summary"
+	marginMarketInfo     = "/spot_margin/market_info?market=%s"
+	marginBorrowHistory  = "/spot_margin/borrow_history"
+	marginLendHistory    = "/spot_margin/lending_history"
+	marginLendingOffers  = "/spot_margin/offers"
+	marginLendingInfo    = "/spot_margin/lending_info"
+	submitLendingOrder   = "/spot_margin/offers"
 
 	// Other Consts
 	trailingStopOrderType = "trailingStop"
@@ -270,6 +276,52 @@ func (f *FTX) GetMarginBorrowRates() (MarginFundingData, error) {
 func (f *FTX) GetMarginLendingRates() (MarginFundingData, error) {
 	var resp MarginFundingData
 	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, maringLendingRates, nil, &resp)
+}
+
+// MarginDailyBorrowedAmounts gets daily borrowed amounts for margin
+func (f *FTX) MarginDailyBorrowedAmounts() (DailyBorrowedData, error) {
+	var resp DailyBorrowedData
+	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, dailyBorrowedAmounts, nil, &resp)
+}
+
+// GetMarginMarketInfo gets margin market data
+func (f *FTX) GetMarginMarketInfo(market string) (MarginMarketInfo, error) {
+	var resp MarginMarketInfo
+	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, fmt.Sprintf(marginMarketInfo, market), nil, &resp)
+}
+
+// GetMarginBorrowHistory gets margin borrowing history
+func (f *FTX) GetMarginBorrowHistory() (MarginTransactionHistoryData, error) {
+	var resp MarginTransactionHistoryData
+	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginBorrowHistory, nil, &resp)
+}
+
+// GetMarginLendingHistory gets margin lending history
+func (f *FTX) GetMarginLendingHistory() (MarginTransactionHistoryData, error) {
+	var resp MarginTransactionHistoryData
+	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendHistory, nil, &resp)
+}
+
+// GetMarginLendingOffers gets margin lending offers
+func (f *FTX) GetMarginLendingOffers() (LendingOffersData, error) {
+	var resp LendingOffersData
+	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendingOffers, nil, &resp)
+}
+
+// GetLendingInfo gets margin lending info
+func (f *FTX) GetLendingInfo() (LendingInfoData, error) {
+	var resp LendingInfoData
+	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendingInfo, nil, &resp)
+}
+
+// SubmitLendingOffer submits an offer for margin lending
+func (f *FTX) SubmitLendingOffer(coin string, size, rate float64) (interface{}, error) {
+	var resp interface{}
+	req := make(map[string]interface{})
+	req["coin"] = coin
+	req["size"] = size
+	req["rate"] = rate
+	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendingInfo, req, &resp)
 }
 
 // GetAccountInfo gets account info

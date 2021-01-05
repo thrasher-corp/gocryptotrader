@@ -16,8 +16,8 @@ type MarginFundingData struct {
 	} `json:"result"`
 }
 
-// DailyMarginLimitData stores daily borrow limits data
-type DailyMarginLimitData struct {
+// DailyBorrowedData stores daily borrow data for margin
+type DailyBorrowedData struct {
 	Result []struct {
 		Coin          string  `json:"coin"`
 		Borrowed      float64 `json:"borrowed"`
@@ -27,7 +27,47 @@ type DailyMarginLimitData struct {
 	} `json:"result"`
 }
 
-// MarginMarket
+// MarginMarketInfo stores margin market info
+type MarginMarketInfo struct {
+	Result []struct {
+		Coin          string  `json:"coin"`
+		Borrowed      float64 `json:"borrowed"`
+		Free          float64 `json:"free"`
+		EstimatedRate float64 `json:"estimatedRate"`
+		PreviousRate  float64 `json:"previousRate"`
+	} `json:"result"`
+}
+
+// MarginTransactionHistoryData stores margin borrowing/lending history
+type MarginTransactionHistoryData struct {
+	Result []struct {
+		Coin string    `json:"coin"`
+		Cost float64   `json:"cost"`
+		Rate float64   `json:"rate"`
+		Size float64   `json:"size"`
+		Time time.Time `json:"time"`
+	} `json:"result"`
+}
+
+// LendingOffersData stores data for lending offers
+type LendingOffersData struct {
+	Result []struct {
+		Coin string  `json:"coin"`
+		Rate float64 `json:"rate"`
+		Size float64 `json:"size"`
+	} `json:"result"`
+}
+
+// LendingInfoData stores margin lending info
+type LendingInfoData struct {
+	Result []struct {
+		Coin     string  `json:"coin"`
+		Lendable float64 `json:"lendable"`
+		Locked   float64 `json:"locked"`
+		MinRate  float64 `json:"minRate"`
+		Offered  float64 `json:"offered"`
+	} `json:"result"`
+}
 
 // MarketData stores market data
 type MarketData struct {

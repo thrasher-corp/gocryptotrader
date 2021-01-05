@@ -408,8 +408,8 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		if assetType == asset.MarginFunding {
 			prefix = "f"
 		}
-
-		orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "R0", 100)
+		var orderbookNew Orderbook
+		orderbookNew, err = b.GetOrderbook(prefix+fPair.String(), "R0", 100)
 		if err != nil {
 			return nil, err
 		}

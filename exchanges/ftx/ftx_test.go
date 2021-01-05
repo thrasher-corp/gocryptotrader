@@ -219,23 +219,78 @@ func TestGetMarginLendingRates(t *testing.T) {
 	}
 }
 
-func TestGetBalances(t *testing.T) {
+func TestMarginDailyBorrowedAmounts(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetBalances()
+	_, err := f.MarginDailyBorrowedAmounts()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetAllWalletBalances(t *testing.T) {
+func TestGetMarginMarketInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetAllWalletBalances()
+	_, err := f.GetMarginMarketInfo("btc")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginBorrowHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetMarginBorrowHistory()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginLendingHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetMarginLendingHistory()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginLendingOffers(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetMarginLendingOffers()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLendingInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetLendingInfo()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubmitLendingOffer(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.SubmitLendingOffer("btc", 0.1, 500)
 	if err != nil {
 		t.Error(err)
 	}
