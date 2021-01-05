@@ -1,7 +1,6 @@
 package ftx
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -200,12 +199,10 @@ func TestGetCoins(t *testing.T) {
 
 func TestGetMarginBorrowRates(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	a, err := f.GetMarginBorrowRates()
-	fmt.Println(a)
+	_, err := f.GetMarginBorrowRates()
 	if err != nil {
 		t.Error(err)
 	}
@@ -213,12 +210,10 @@ func TestGetMarginBorrowRates(t *testing.T) {
 
 func TestGetMarginLendingRates(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	a, err := f.GetMarginLendingRates()
-	fmt.Println(a)
+	_, err := f.GetMarginLendingRates()
 	if err != nil {
 		t.Error(err)
 	}

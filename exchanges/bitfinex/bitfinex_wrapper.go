@@ -447,6 +447,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 				})
 			}
 		}
+	}
 	err = o.Process()
 	if err != nil {
 		return nil, err

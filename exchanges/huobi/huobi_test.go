@@ -1,7 +1,6 @@
 package huobi
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -707,7 +706,6 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(cp2)
 	_, err = h.UpdateOrderbook(cp2, asset.Futures)
 	if err != nil {
 		t.Error(err)

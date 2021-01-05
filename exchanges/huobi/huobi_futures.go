@@ -181,8 +181,8 @@ func (h *HUOBI) FormatSymbol(c currency.Pair, assetType asset.Item) (string, err
 	}
 
 	if assetType == asset.Futures {
-		wow := strings.Split(formattedSymbol, "_")
-		if len(wow[1]) > 2 {
+		splitSymbol := strings.Split(formattedSymbol, "_")
+		if len(splitSymbol[1]) > 2 {
 			formattedSymbol = strings.Replace(formattedSymbol, "_", "", 1)
 		}
 	}
