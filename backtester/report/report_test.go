@@ -22,10 +22,16 @@ func TestGenerateReport(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 
 	d := Data{
-		Config:          &config.Config{},
-		OutputPath:      filepath.Join("..", "results"),
-		TemplatePath:    filepath.Join("tpl.gohtml"),
-		OriginalCandles: nil,
+		Config:       &config.Config{},
+		OutputPath:   filepath.Join("..", "results"),
+		TemplatePath: filepath.Join("tpl.gohtml"),
+		OriginalCandles: []*gctkline.Item{
+			{
+				Candles: []gctkline.Candle{
+					{},
+				},
+			},
+		},
 		EnhancedCandles: []DetailedKline{
 			{
 				Exchange:  e,

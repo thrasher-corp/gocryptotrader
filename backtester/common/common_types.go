@@ -10,9 +10,6 @@ import (
 )
 
 const (
-	// DecimalPlaces is a lovely little holder
-	// for the amount of decimal places we want to allow
-	DecimalPlaces = 8
 	// DoNothing is an explicit signal for the backtester to not perform an action
 	// based upon indicator results
 	DoNothing order.Side = "DO NOTHING"

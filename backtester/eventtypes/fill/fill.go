@@ -3,7 +3,6 @@ package fill
 import (
 	"github.com/shopspring/decimal"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -46,7 +45,7 @@ func (f *Fill) SetExchangeFee(fee float64) {
 func (f *Fill) Value() float64 {
 	amount := decimal.NewFromFloat(f.Amount)
 	price := decimal.NewFromFloat(f.PurchasePrice)
-	value, _ := amount.Mul(price).Round(common.DecimalPlaces).Float64()
+	value, _ := amount.Mul(price).Float64()
 	return value
 }
 
@@ -55,10 +54,10 @@ func (f *Fill) NetValue() float64 {
 	price := decimal.NewFromFloat(f.PurchasePrice)
 	fee := decimal.NewFromFloat(f.ExchangeFee)
 	if f.Direction == order.Buy {
-		netValue, _ := amount.Mul(price).Add(fee).Round(common.DecimalPlaces).Float64()
+		netValue, _ := amount.Mul(price).Add(fee).Float64()
 		return netValue
 	}
-	netValue, _ := amount.Mul(price).Sub(fee).Round(common.DecimalPlaces).Float64()
+	netValue, _ := amount.Mul(price).Sub(fee).Float64()
 	return netValue
 }
 
