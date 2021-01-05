@@ -212,7 +212,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            k.GenerateDefaultSubscriptions,
 		Features:                         &k.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    true,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 		SortBuffer:                       true,
 	})
 	if err != nil {
@@ -466,7 +466,7 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	var orderBook = new(orderbook.Base)
+book := &orderbook.Base{ExchangeName: k.Name, Pair: p, AssetType: assetType}
 	switch assetType {
 	case asset.Spot:
 		orderbookNew, err := k.GetDepth(p)
@@ -474,13 +474,13 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 			return nil, err
 		}
 		for x := range orderbookNew.Bids {
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: orderbookNew.Bids[x].Amount,
 				Price:  orderbookNew.Bids[x].Price,
 			})
 		}
 		for y := range orderbookNew.Asks {
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: orderbookNew.Asks[y].Amount,
 				Price:  orderbookNew.Asks[y].Price,
 			})
@@ -491,13 +491,13 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 			return nil, err
 		}
 		for x := range futuresOB.Orderbook.Asks {
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Item{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
 			})
 		}
 		for y := range futuresOB.Orderbook.Bids {
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Item{
 				Price:  futuresOB.Orderbook.Bids[y][0],
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			})
@@ -510,7 +510,7 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	orderBook.AssetType = assetType
 	err := orderBook.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 	return orderbook.Get(k.Name, p, assetType)
 }

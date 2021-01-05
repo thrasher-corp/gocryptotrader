@@ -236,25 +236,31 @@ func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	callingBook := &orderbook.Base{ExchangeName: e.Name, Pair: p, AssetType: assetType}
 	enabledPairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
-		return nil, err
+		return callingBook, err
 	}
 
 	pairsCollated, err := e.FormatExchangeCurrencies(enabledPairs, assetType)
 	if err != nil {
-		return nil, err
+		return callingBook, err
 	}
 
 	result, err := e.GetOrderbook(pairsCollated)
 	if err != nil {
-		return nil, err
+		return callingBook, err
 	}
 
 	for i := range enabledPairs {
+		book := &orderbook.Base{
+			ExchangeName: e.Name,
+			Pair:         enabledPairs[i],
+			AssetType:    assetType}
+
 		curr, err := e.FormatExchangeCurrency(enabledPairs[i], assetType)
 		if err != nil {
-			return nil, err
+			return callingBook, err
 		}
 
 		data, ok := result[curr.String()]
@@ -262,20 +268,19 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 			continue
 		}
 
-		orderBook := new(orderbook.Base)
 		for y := range data.Ask {
 			var price, amount float64
 			price, err = strconv.ParseFloat(data.Ask[y][0], 64)
 			if err != nil {
-				return orderBook, err
+				return book, err
 			}
 
 			amount, err = strconv.ParseFloat(data.Ask[y][1], 64)
 			if err != nil {
-				return orderBook, err
+				return book, err
 			}
 
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Item{
 				Price:  price,
 				Amount: amount,
 			})
@@ -285,27 +290,23 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 			var price, amount float64
 			price, err = strconv.ParseFloat(data.Bid[y][0], 64)
 			if err != nil {
-				return orderBook, err
+				return book, err
 			}
 
 			amount, err = strconv.ParseFloat(data.Bid[y][1], 64)
 			if err != nil {
-				return orderBook, err
+				return book, err
 			}
 
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Item{
 				Price:  price,
 				Amount: amount,
 			})
 		}
 
-		orderBook.Pair = enabledPairs[i]
-		orderBook.ExchangeName = e.Name
-		orderBook.AssetType = assetType
-
-		err = orderBook.Process()
+		err = book.Process()
 		if err != nil {
-			return orderBook, err
+			return book, err
 		}
 	}
 	return orderbook.Get(e.Name, p, assetType)

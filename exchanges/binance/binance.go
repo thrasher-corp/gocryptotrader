@@ -30,6 +30,8 @@ type Binance struct {
 	CoinMarginFuturesWS stream.WebsocketConnection
 	// Valid string list that is required by the exchange
 	validLimits []int
+
+	obm *orderbookManager
 }
 
 const (

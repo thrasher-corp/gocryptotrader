@@ -49,11 +49,7 @@ func (c *Coinbene) WsConnect() error {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	subs, err := c.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return c.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // GenerateDefaultSubscriptions generates stuff
@@ -237,6 +233,10 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
+		if len(orderBook.Data) != 1 {
+			return errors.New("incomplete orderbook data has been received")
+		}
+
 		newPair, err = c.getCurrencyFromWsTopic(assetType, orderBook.Topic)
 		if err != nil {
 			return err
@@ -258,14 +258,24 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			})
 		}
 		for j := range orderBook.Data[0].Bids {
-			amount, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][1], 64)
-			if err != nil {
-				return err
-			}
 			price, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][0], 64)
 			if err != nil {
 				return err
 			}
+
+			if price == 0 {
+				// Last level is coming back as a float with not enough decimal
+				// places e.g. ["0.000","1001.95"]],
+				// This needs to be filtered out as this can skew orderbook
+				// calculations
+				continue
+			}
+
+			amount, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][1], 64)
+			if err != nil {
+				return err
+			}
+
 			bids = append(bids, orderbook.Item{
 				Amount: amount,
 				Price:  price,
@@ -431,11 +441,18 @@ func (c *Coinbene) getCurrencyFromWsTopic(assetType asset.Item, channelTopic str
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *Coinbene) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	maxSubsPerHour := 240
+	if len(channelsToSubscribe) > maxSubsPerHour {
+		return fmt.Errorf("channel subscriptions length %d exceeds coinbene's limit of %d, try reducing enabled pairs",
+			len(channelsToSubscribe),
+			maxSubsPerHour)
+	}
+
 	var sub WsSub
 	sub.Operation = "subscribe"
 	// enabling all currencies can lead to a message too large being sent
 	// and no subscriptions being made
-	chanLimit := 10
+	chanLimit := 15
 	for i := range channelsToSubscribe {
 		if len(sub.Arguments) > chanLimit {
 			err := c.Websocket.Conn.SendJSONMessage(sub)
@@ -460,7 +477,7 @@ func (c *Coinbene) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription
 	unsub.Operation = "unsubscribe"
 	// enabling all currencies can lead to a message too large being sent
 	// and no unsubscribes being made
-	chanLimit := 10
+	chanLimit := 15
 	for i := range channelToUnsubscribe {
 		if len(unsub.Arguments) > chanLimit {
 			err := c.Websocket.Conn.SendJSONMessage(unsub)

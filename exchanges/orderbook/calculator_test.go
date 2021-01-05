@@ -25,7 +25,7 @@ func TestWhaleBomb(t *testing.T) {
 	t.Parallel()
 	b := testSetup()
 
-	// invalid price amout
+	// invalid price amount
 	_, err := b.WhaleBomb(-1, true)
 	if err == nil {
 		t.Error("unexpected result")

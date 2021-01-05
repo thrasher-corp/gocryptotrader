@@ -526,7 +526,7 @@ type WebsocketErrorResponse struct {
 type WebsocketChannelData struct {
 	Subscription string
 	Pair         currency.Pair
-	ChannelID    int64
+	ChannelID    *int64
 }
 
 // WsTokenResponse holds the WS auth token
@@ -546,7 +546,7 @@ type wsSystemStatus struct {
 }
 
 type wsSubscription struct {
-	ChannelID    int64  `json:"channelID"`
+	ChannelID    *int64 `json:"channelID"`
 	ChannelName  string `json:"channelName"`
 	ErrorMessage string `json:"errorMessage"`
 	Event        string `json:"event"`

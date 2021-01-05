@@ -11,18 +11,19 @@ import (
 
 var ordersSetupRan bool
 
-func OrdersSetup(t *testing.T) {
-	SetupTestHelpers(t)
+func OrdersSetup(t *testing.T) *Engine {
+	bot := SetupTestHelpers(t)
 	if !ordersSetupRan {
-		err := Bot.OrderManager.Start()
+		err := bot.OrderManager.Start()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !Bot.OrderManager.Started() {
+		if !bot.OrderManager.Started() {
 			t.Fatal("Order manager not started")
 		}
 		ordersSetupRan = true
 	}
+	return bot
 }
 
 func TestOrdersGet(t *testing.T) {

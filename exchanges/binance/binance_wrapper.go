@@ -217,6 +217,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            b.GenerateSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 		SortBuffer:                       true,
 		SortBufferByUpdateIDs:            true,
 	})
@@ -559,10 +560,7 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
+	book := &orderbook.Base{ExchangeName: b.Name, Pair: p, AssetType: assetType}
 	var orderbookNew OrderBook
 	var err error
 	switch assetType {
@@ -576,25 +574,24 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 		orderbookNew, err = b.GetFuturesOrderbook(p, 1000)
 	}
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids,
-			orderbook.Item{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price:  orderbookNew.Bids[x].Price,
-			})
+		book.Bids = append(book.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x].Quantity,
+			Price:  orderbookNew.Bids[x].Price,
+		})
 	}
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks,
-			orderbook.Item{
-				Amount: orderbookNew.Asks[x].Quantity,
-				Price:  orderbookNew.Asks[x].Price,
-			})
+		book.Asks = append(book.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x].Quantity,
+			Price:  orderbookNew.Asks[x].Price,
+		})
 	}
-	err = orderBook.Process()
+
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 	return orderbook.Get(b.Name, p, assetType)
 }

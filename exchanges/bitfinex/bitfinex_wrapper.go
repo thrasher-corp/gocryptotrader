@@ -204,6 +204,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 		UpdateEntriesByID:                true,
 	})
 	if err != nil {
@@ -390,9 +391,15 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	o := &orderbook.Base{
+		ExchangeName:  b.Name,
+		Pair:          p,
+		AssetType:     assetType,
+		NotAggregated: true}
+
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return o, err
 	}
 	switch assetType {
 	case asset.Spot, asset.Margin, asset.MarginFunding:
@@ -402,36 +409,47 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 			prefix = "f"
 		}
 
-		orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "P0", 100)
+		orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "R0", 100)
 		if err != nil {
 			return nil, err
 		}
-
-		var o orderbook.Base
-		for x := range orderbookNew.Asks {
-			o.Asks = append(o.Asks, orderbook.Item{
-				Price:  orderbookNew.Asks[x].Price,
-				Amount: orderbookNew.Asks[x].Amount,
-			})
+		if assetType == asset.MarginFunding {
+			o.IsFundingRate = true
+			for x := range orderbookNew.Asks {
+				o.Asks = append(o.Asks, orderbook.Item{
+					ID:     orderbookNew.Asks[x].OrderID,
+					Price:  orderbookNew.Asks[x].Rate,
+					Amount: orderbookNew.Asks[x].Amount,
+					Period: int64(orderbookNew.Asks[x].Period),
+				})
+			}
+			for x := range orderbookNew.Bids {
+				o.Bids = append(o.Bids, orderbook.Item{
+					ID:     orderbookNew.Bids[x].OrderID,
+					Price:  orderbookNew.Bids[x].Rate,
+					Amount: orderbookNew.Bids[x].Amount,
+					Period: int64(orderbookNew.Bids[x].Period),
+				})
+			}
+		} else {
+			for x := range orderbookNew.Asks {
+				o.Asks = append(o.Asks, orderbook.Item{
+					ID:     orderbookNew.Asks[x].OrderID,
+					Price:  orderbookNew.Asks[x].Price,
+					Amount: orderbookNew.Asks[x].Amount,
+				})
+			}
+			for x := range orderbookNew.Bids {
+				o.Bids = append(o.Bids, orderbook.Item{
+					ID:     orderbookNew.Bids[x].OrderID,
+					Price:  orderbookNew.Bids[x].Price,
+					Amount: orderbookNew.Bids[x].Amount,
+				})
+			}
 		}
-
-		for x := range orderbookNew.Bids {
-			o.Bids = append(o.Bids, orderbook.Item{
-				Price:  orderbookNew.Bids[x].Price,
-				Amount: orderbookNew.Bids[x].Amount,
-			})
-		}
-
-		o.Pair = fPair
-		o.ExchangeName = b.Name
-		o.AssetType = assetType
-
-		err = o.Process()
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, errors.New("asset type not supported")
+	err = o.Process()
+	if err != nil {
+		return nil, err
 	}
 	return orderbook.Get(b.Name, fPair, assetType)
 }

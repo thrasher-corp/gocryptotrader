@@ -161,6 +161,7 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
 		UpdateEntriesByID:                true,
 	})
 	if err != nil {
@@ -341,46 +342,50 @@ func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{
+		ExchangeName: b.Name,
+		Pair:         p,
+		AssetType:    assetType,
+	}
+
 	if assetType == asset.Index {
-		return nil, common.ErrFunctionNotSupported
+		return book, common.ErrFunctionNotSupported
 	}
 
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
 		Symbol: fpair.String(),
 		Depth:  500})
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	orderBook := new(orderbook.Base)
 	for i := range orderbookNew {
-		if strings.EqualFold(orderbookNew[i].Side, order.Sell.String()) {
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		switch {
+		case strings.EqualFold(orderbookNew[i].Side, order.Sell.String()):
+			book.Asks = append(book.Asks, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price})
-			continue
-		}
-		if strings.EqualFold(orderbookNew[i].Side, order.Buy.String()) {
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		case strings.EqualFold(orderbookNew[i].Side, order.Buy.String()):
+			book.Bids = append(book.Bids, orderbook.Item{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price})
+		default:
+			return book,
+				fmt.Errorf("could not process orderbook, order side [%s] could not be matched",
+					orderbookNew[i].Side)
 		}
 	}
+	orderbook.Reverse(book.Asks)
 
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(b.Name, p, assetType)
 }
 

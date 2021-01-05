@@ -170,7 +170,7 @@ func (z *ZB) GetTicker(symbol string) (TickerResponse, error) {
 	return res, err
 }
 
-// GetTrades gets trades
+// GetTrades returns trades for a given symbol
 func (z *ZB) GetTrades(symbol string) (TradeHistory, error) {
 	urlPath := fmt.Sprintf("/%s/%s/%s?market=%s", zbData, zbAPIVersion, zbTrades, symbol)
 	var res TradeHistory

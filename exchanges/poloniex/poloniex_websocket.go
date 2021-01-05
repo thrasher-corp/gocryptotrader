@@ -53,12 +53,8 @@ func (p *Poloniex) WsConnect() error {
 	}
 
 	go p.wsReadData()
-	subs, err := p.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
 
-	return p.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (p *Poloniex) getCurrencyIDMap() error {
@@ -467,57 +463,58 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot into a local
 // of orderbooks
 func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) error {
-	askdata := ob[0].(map[string]interface{})
-	var asks []orderbook.Item
+	if len(ob) != 2 {
+		return errors.New("incorrect orderbook data returned")
+	}
+
+	askdata, ok := ob[0].(map[string]interface{})
+	if !ok {
+		return errors.New("assertion failed for ask data")
+	}
+
+	var book orderbook.Base
 	for price, volume := range askdata {
-		assetPrice, err := strconv.ParseFloat(price, 64)
+		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
-
-		assetVolume, err := strconv.ParseFloat(volume.(string), 64)
+		a, err := strconv.ParseFloat(volume.(string), 64)
 		if err != nil {
 			return err
 		}
-
-		asks = append(asks, orderbook.Item{
-			Price:  assetPrice,
-			Amount: assetVolume,
-		})
+		book.Asks = append(book.Asks, orderbook.Item{Price: p, Amount: a})
 	}
 
-	bidData := ob[1].(map[string]interface{})
-	var bids []orderbook.Item
+	bidData, ok := ob[1].(map[string]interface{})
+	if !ok {
+		return errors.New("assertion failed for bid data")
+	}
+
 	for price, volume := range bidData {
-		assetPrice, err := strconv.ParseFloat(price, 64)
+		p, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			return err
 		}
-
-		assetVolume, err := strconv.ParseFloat(volume.(string), 64)
+		a, err := strconv.ParseFloat(volume.(string), 64)
 		if err != nil {
 			return err
 		}
-
-		bids = append(bids, orderbook.Item{
-			Price:  assetPrice,
-			Amount: assetVolume,
-		})
+		book.Bids = append(book.Bids, orderbook.Item{Price: p, Amount: a})
 	}
 
-	var newOrderBook orderbook.Base
-	newOrderBook.Asks = asks
-	newOrderBook.Bids = bids
-	newOrderBook.AssetType = asset.Spot
+	// Both sides are completely out of order - sort needs to be used
+	book.Asks = orderbook.SortAsks(book.Asks)
+	book.Bids = orderbook.SortBids(book.Bids)
+	book.AssetType = asset.Spot
 
 	var err error
-	newOrderBook.Pair, err = currency.NewPairFromString(symbol)
+	book.Pair, err = currency.NewPairFromString(symbol)
 	if err != nil {
 		return err
 	}
-	newOrderBook.ExchangeName = p.Name
+	book.ExchangeName = p.Name
 
-	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return p.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
 // WsProcessOrderbookUpdate processes new orderbook updates

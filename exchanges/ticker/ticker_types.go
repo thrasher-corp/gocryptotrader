@@ -47,6 +47,14 @@ type Price struct {
 	ExchangeName string        `json:"exchangeName"`
 	AssetType    asset.Item    `json:"assetType"`
 	LastUpdated  time.Time
+
+	// Funding rate field variables
+	FlashReturnRate       float64
+	BidPeriod             float64
+	BidSize               float64
+	AskPeriod             float64
+	AskSize               float64
+	FlashReturnRateAmount float64
 }
 
 // Ticker struct holds the ticker information for a currency pair and type

@@ -50,11 +50,7 @@ func (l *LakeBTC) WsConnect() error {
 		return err
 	}
 	go l.wsHandleIncomingData()
-	subs, err := l.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return l.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (l *LakeBTC) listenToEndpoints() error {

@@ -21,11 +21,46 @@ import (
 )
 
 const (
-	krakenAPIURL     = "https://api.kraken.com"
-	krakenFuturesURL = "https://futures.kraken.com"
-	futuresURL       = "https://futures.kraken.com/derivatives"
-	// StatusOpen consts
-	StatusOpen = "open"
+	krakenAPIURL           = "https://api.kraken.com"
+	krakenFuturesURL       = "https://futures.kraken.com"
+	futuresURL             = "https://futures.kraken.com/derivatives"
+	krakenAPIURL           = "https://api.kraken.com"
+	krakenAPIVersion       = "0"
+	krakenServerTime       = "Time"
+	krakenAssets           = "Assets"
+	krakenAssetPairs       = "AssetPairs"
+	krakenTicker           = "Ticker"
+	krakenOHLC             = "OHLC"
+	krakenDepth            = "Depth"
+	krakenTrades           = "Trades"
+	krakenSpread           = "Spread"
+	krakenBalance          = "Balance"
+	krakenTradeBalance     = "TradeBalance"
+	krakenOpenOrders       = "OpenOrders"
+	krakenClosedOrders     = "ClosedOrders"
+	krakenQueryOrders      = "QueryOrders"
+	krakenTradeHistory     = "TradesHistory"
+	krakenQueryTrades      = "QueryTrades"
+	krakenOpenPositions    = "OpenPositions"
+	krakenLedgers          = "Ledgers"
+	krakenQueryLedgers     = "QueryLedgers"
+	krakenTradeVolume      = "TradeVolume"
+	krakenOrderCancel      = "CancelOrder"
+	krakenOrderPlace       = "AddOrder"
+	krakenWithdrawInfo     = "WithdrawInfo"
+	krakenWithdraw         = "Withdraw"
+	krakenDepositMethods   = "DepositMethods"
+	krakenDepositAddresses = "DepositAddresses"
+	krakenWithdrawStatus   = "WithdrawStatus"
+	krakenWithdrawCancel   = "WithdrawCancel"
+	krakenWebsocketToken   = "GetWebSocketsToken"
+
+	// Rate limit consts
+	krakenRateInterval = time.Second
+	krakenRequestRate  = 1
+
+	// Status consts
+	statusOpen = "open"
 )
 
 // Kraken is the overarching type across the alphapoint package

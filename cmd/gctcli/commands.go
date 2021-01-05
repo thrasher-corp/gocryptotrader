@@ -3152,7 +3152,7 @@ func getOrderbookStream(c *cli.Context) error {
 				askPrice = resp.Asks[i].Price
 			}
 
-			fmt.Printf("%f %s @ %f %s\t\t%f %s @ %f %s\n",
+			fmt.Printf("%.8f %s @ %.8f %s\t\t%.8f %s @ %.8f %s\n",
 				bidAmount,
 				resp.Pair.Base,
 				bidPrice,

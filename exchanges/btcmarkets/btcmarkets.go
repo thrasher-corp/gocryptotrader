@@ -670,7 +670,7 @@ func (b *BTCMarkets) GetBatchTrades(ids []string) (BatchTradeResponse, error) {
 		request.Auth)
 }
 
-// CancelBatchOrders cancels given ids
+// CancelBatch cancels given ids
 func (b *BTCMarkets) CancelBatch(ids []string) (BatchCancelResponse, error) {
 	var resp BatchCancelResponse
 	marketIDs := strings.Join(ids, ",")

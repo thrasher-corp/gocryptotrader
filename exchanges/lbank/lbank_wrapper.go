@@ -243,51 +243,46 @@ func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*o
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{ExchangeName: l.Name, Pair: p, AssetType: assetType}
 	fpair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	a, err := l.GetMarketDepths(fpair.String(), "60", "1")
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-	var price, amount float64
-	for i := range a.Data.Asks {
-		price, err = strconv.ParseFloat(a.Data.Asks[i][0], 64)
-		if err != nil {
-			return orderBook, err
+	for i := range a.Asks {
+		price, convErr := strconv.ParseFloat(a.Asks[i][0], 64)
+		if convErr != nil {
+			return book, convErr
 		}
-		amount, err = strconv.ParseFloat(a.Data.Asks[i][1], 64)
-		if err != nil {
-			return orderBook, err
+		amount, convErr := strconv.ParseFloat(a.Asks[i][1], 64)
+		if convErr != nil {
+			return book, convErr
 		}
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Price:  price,
 			Amount: amount})
 	}
-	for i := range a.Data.Bids {
-		price, err = strconv.ParseFloat(a.Data.Bids[i][0], 64)
-		if err != nil {
-			return orderBook, err
+	for i := range a.Bids {
+		price, convErr := strconv.ParseFloat(a.Bids[i][0], 64)
+		if convErr != nil {
+			return book, convErr
 		}
-		amount, err = strconv.ParseFloat(a.Data.Bids[i][1], 64)
-		if err != nil {
-			return orderBook, err
+		amount, convErr := strconv.ParseFloat(a.Bids[i][1], 64)
+		if convErr != nil {
+			return book, convErr
 		}
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Price:  price,
 			Amount: amount})
 	}
-	orderBook.Pair = p
-	orderBook.ExchangeName = l.Name
-	orderBook.AssetType = assetType
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(l.Name, p, assetType)
 }
 

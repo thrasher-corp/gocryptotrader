@@ -40,11 +40,7 @@ func (b *BTCMarkets) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
 	go b.wsReadData()
-	subs, err := b.generateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -123,7 +119,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		if ob.Snapshot {
 			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Pair:         p,
-				Bids:         bids,
+				Bids:         orderbook.SortBids(bids), // Alignment completely out sort is needed
 				Asks:         asks,
 				LastUpdated:  ob.Timestamp,
 				AssetType:    asset.Spot,

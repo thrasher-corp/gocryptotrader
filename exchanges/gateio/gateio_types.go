@@ -525,3 +525,10 @@ type TradeHistoryEntry struct {
 	TradeID   string  `json:"tradeID"`
 	Type      string  `json:"type"`
 }
+
+// wsOrderbook defines a websocket orderbook
+type wsOrderbook struct {
+	Asks [][]string `json:"asks"`
+	Bids [][]string `json:"bids"`
+	ID   int64      `json:"id"`
+}

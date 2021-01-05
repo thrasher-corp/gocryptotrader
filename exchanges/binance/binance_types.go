@@ -1,9 +1,11 @@
 package binance
 
 import (
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // withdrawals status codes description
@@ -102,13 +104,13 @@ type DepthUpdateParams []struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string          `json:"e"`
-	Timestamp     time.Time       `json:"E"`
-	Pair          string          `json:"s"`
-	FirstUpdateID int64           `json:"U"`
-	LastUpdateID  int64           `json:"u"`
-	UpdateBids    [][]interface{} `json:"b"`
-	UpdateAsks    [][]interface{} `json:"a"`
+	Event         string           `json:"e"`
+	Timestamp     time.Time        `json:"E"`
+	Pair          string           `json:"s"`
+	FirstUpdateID int64            `json:"U"`
+	LastUpdateID  int64            `json:"u"`
+	UpdateBids    [][2]interface{} `json:"b"`
+	UpdateAsks    [][2]interface{} `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.
@@ -768,4 +770,25 @@ type CrossMarginInterestData struct {
 		} `json:"specs"`
 	} `json:"data"`
 	Success bool `json:"success"`
+}
+
+// orderbookManager defines a way of managing and maintaining synchronisation
+// across connections and assets.
+type orderbookManager struct {
+	state map[currency.Code]map[currency.Code]map[asset.Item]*update
+	sync.Mutex
+
+	jobs chan job
+}
+
+type update struct {
+	buffer       chan *WebsocketDepthStream
+	fetchingBook bool
+	initialSync  bool
+}
+
+// job defines a synchonisation job that tells a go routine to fetch an
+// orderbook via the REST protocol
+type job struct {
+	Pair currency.Pair
 }

@@ -856,3 +856,19 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error("unexpected error")
 	}
 }
+
+func TestOrderbookFilter(t *testing.T) {
+	t.Parallel()
+	if !b.orderbookFilter(0, 1) {
+		t.Fatal("incorrect filtering")
+	}
+	if !b.orderbookFilter(1, 0) {
+		t.Fatal("incorrect filtering")
+	}
+	if !b.orderbookFilter(0, 0) {
+		t.Fatal("incorrect filtering")
+	}
+	if b.orderbookFilter(1, 1) {
+		t.Fatal("incorrect filtering")
+	}
+}
