@@ -79,10 +79,15 @@ type Base struct {
 	LastUpdateID int64         `json:"lastUpdateId"`
 	AssetType    asset.Item    `json:"assetType"`
 	ExchangeName string        `json:"exchangeName"`
+
 	// NotAggregated defines whether an orderbook can contain duplicate prices
 	// in a payload
 	NotAggregated bool `json:"-"`
 	IsFundingRate bool `json:"fundingRate"`
+
+	// ChecksumBypass defines an allowance to bypass internal verification if
+	// the book has been verified by checksum.
+	ChecksumBypass bool `json:"-"`
 }
 
 type byOBPrice []Item
