@@ -848,6 +848,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 	}
 	base.LastUpdated = highestLastUpdate
 	base.ExchangeName = k.Name
+	base.HasChecksumValidation = true
 	return k.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
