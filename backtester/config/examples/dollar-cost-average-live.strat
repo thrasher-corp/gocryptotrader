@@ -33,7 +33,7 @@
   "custom-settings": null
  },
  "portfolio": {
-  "diversification-something": 0,
+  "diversification-ratio": 0,
   "leverage": {
    "can-use-leverage": false,
    "maximum-leverage": 102

@@ -58,7 +58,7 @@
   "custom-settings": null
  },
  "portfolio": {
-  "diversification-something": 0,
+  "diversification-ratio": 0,
   "leverage": {
    "can-use-leverage": false,
    "maximum-leverage": 102
@@ -80,7 +80,7 @@
  "api-data": {
   "data-type": "candle",
   "interval": 3600000000000,
-  "start-date": "2020-12-15T14:58:59.0633516+11:00",
-  "end-date": "2020-12-22T14:58:59.0633516+11:00"
+  "start-date": "2020-12-29T16:09:21.8711491+11:00",
+  "end-date": "2021-01-05T16:09:21.8711491+11:00"
  }
 }
