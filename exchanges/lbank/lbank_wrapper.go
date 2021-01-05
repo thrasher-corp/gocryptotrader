@@ -253,7 +253,7 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	if err != nil {
 		return book, err
 	}
-	for i := range a.Asks {
+	for i := range a.Data.Asks {
 		price, convErr := strconv.ParseFloat(a.Data.Asks[i][0], 64)
 		if convErr != nil {
 			return book, convErr
@@ -266,7 +266,7 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 			Price:  price,
 			Amount: amount})
 	}
-	for i := range a.Bids {
+	for i := range a.Data.Bids {
 		price, convErr := strconv.ParseFloat(a.Data.Bids[i][0], 64)
 		if convErr != nil {
 			return book, convErr
