@@ -467,6 +467,7 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{ExchangeName: k.Name, Pair: p, AssetType: assetType}
+	var err error
 	switch assetType {
 	case asset.Spot:
 		orderbookNew, err := k.GetDepth(p)
@@ -865,7 +866,7 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 		}
 
 		price := orderInfo.Price
-		if orderInfo.Status == StatusOpen {
+		if orderInfo.Status == statusOpen {
 			price = orderInfo.Description.Price
 		}
 

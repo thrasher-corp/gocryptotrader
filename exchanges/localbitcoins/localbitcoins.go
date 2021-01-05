@@ -645,7 +645,7 @@ func (l *LocalBitcoins) GetBitcoinsWithCashAd() error {
 // GetBitcoinsOnlineAd this API returns buy or sell Bitcoin online ads.
 // TODO
 func (l *LocalBitcoins) GetBitcoinsOnlineAd() error {
-	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPIOnlineBuy, request.Unset)
+	return l.SendHTTPRequest(exchange.RestSpot, localbitcoinsAPIOnlineBuy, nil, request.Unset)
 }
 
 // GetTicker returns list of all completed trades.
@@ -729,14 +729,14 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (l *LocalBitcoins) SendHTTPRequest(ep exchange.URL, path string, result interface{}, ep request.EndpointLimit) error {
-	endpoint, err := l.API.Endpoints.GetURL(ep)
+func (l *LocalBitcoins) SendHTTPRequest(endpoint exchange.URL, path string, result interface{}, ep request.EndpointLimit) error {
+	ePoint, err := l.API.Endpoints.GetURL(endpoint)
 	if err != nil {
 		return err
 	}
 	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          endpoint + path,
+		Path:          ePoint + path,
 		Result:        result,
 		Verbose:       l.Verbose,
 		HTTPDebugging: l.HTTPDebugging,
