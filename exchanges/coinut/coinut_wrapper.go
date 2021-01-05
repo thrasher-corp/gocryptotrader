@@ -149,8 +149,8 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
 		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 		SortBufferByUpdateIDs:            true,
 	})

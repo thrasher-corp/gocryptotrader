@@ -161,7 +161,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 
 	// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
 	{{.Variable}}.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
+		exch.OrderbookConfig.WebsocketBufferLimit,
 		true,
 		true,
 		false,

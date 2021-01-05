@@ -142,8 +142,8 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        g.WsConnect,
 		Features:                         &g.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 	})
 }

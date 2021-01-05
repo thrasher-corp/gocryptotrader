@@ -186,8 +186,8 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     k.Unsubscribe,
 		GenerateSubscriptions:            k.GenerateDefaultSubscriptions,
 		Features:                         &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 	})
 	if err != nil {

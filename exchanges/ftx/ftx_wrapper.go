@@ -176,8 +176,8 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     f.Unsubscribe,
 		GenerateSubscriptions:            f.GenerateDefaultSubscriptions,
 		Features:                         &f.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {
 		return err
