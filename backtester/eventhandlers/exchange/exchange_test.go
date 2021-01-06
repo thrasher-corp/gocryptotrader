@@ -178,7 +178,7 @@ func TestExecuteOrder(t *testing.T) {
 		SellSide:            config.MinMax{},
 		Leverage:            config.Leverage{},
 		MinimumSlippageRate: 0,
-		MaximumSlippageRate: 0,
+		MaximumSlippageRate: 1,
 	}
 	e := Exchange{
 		CurrencySettings: []CurrencySettings{cs},

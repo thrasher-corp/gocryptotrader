@@ -276,8 +276,3 @@ func (s *Statistic) Serialise() string {
 
 	return string(resp)
 }
-
-// GetBase for reporting purposes, likely bad practice
-func (s *Statistic) GetBase() Statistic {
-	return *s
-}

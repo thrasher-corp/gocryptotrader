@@ -50,7 +50,6 @@ type Handler interface {
 	CalculateTheResults() error
 	Reset()
 	Serialise() string
-	GetBase() Statistic
 }
 
 type Results struct {

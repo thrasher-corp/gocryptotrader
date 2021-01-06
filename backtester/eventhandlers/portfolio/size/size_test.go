@@ -53,10 +53,6 @@ func TestSizingOverMaxSize(t *testing.T) {
 	if amount > globalMinMax.MaximumSize {
 		t.Error("greater than max")
 	}
-	if amount+feeRate > globalMinMax.MaximumSize {
-		t.Error("greater than max")
-
-	}
 }
 
 func TestSizingUnderMinSize(t *testing.T) {
