@@ -775,7 +775,7 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 		RemainingAmount: orderInfo.Volume - orderInfo.VolumeExecuted,
 		Fee:             orderInfo.Fee,
 		Trades:          trades,
-		Cost:			 orderInfo.Cost,
+		Cost:            orderInfo.Cost,
 	}
 
 	return orderDetail, nil
