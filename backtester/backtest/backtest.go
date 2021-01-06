@@ -605,7 +605,7 @@ func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
 }
 
 func (bt *BackTest) processSignalEvent(ev signal.SignalEvent) {
-	cs := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	cs, _ := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	o, err := bt.Portfolio.OnSignal(ev, d, &cs)
 	if err != nil {

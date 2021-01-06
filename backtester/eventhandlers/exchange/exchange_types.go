@@ -11,7 +11,7 @@ import (
 
 type ExecutionHandler interface {
 	SetCurrency(string, asset.Item, currency.Pair, CurrencySettings)
-	GetCurrencySettings(string, asset.Item, currency.Pair) CurrencySettings
+	GetCurrencySettings(string, asset.Item, currency.Pair) (CurrencySettings, error)
 	ExecuteOrder(order.OrderEvent, data.Handler) (*fill.Fill, error)
 	Reset()
 }

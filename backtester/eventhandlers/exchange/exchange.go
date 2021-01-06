@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gofrs/uuid"
@@ -21,7 +22,7 @@ func (e *Exchange) Reset() {
 }
 
 func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fill, error) {
-	cs := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
+	cs, _ := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	f := &fill.Fill{
 		Event: event.Event{
 			Exchange:     o.GetExchange(),
@@ -31,74 +32,43 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 			Interval:     o.GetInterval(),
 			Why:          o.GetWhy(),
 		},
-		Direction:   o.GetDirection(),
-		Amount:      o.GetAmount(),
+		Direction: o.GetDirection(),
+		Amount:    o.GetAmount(),
+
 		ClosePrice:  data.Latest().Price(),
 		ExchangeFee: cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
 	}
+
 	f.Direction = o.GetDirection()
 	if o.GetDirection() != gctorder.Buy && o.GetDirection() != gctorder.Sell {
 		return f, nil
 	}
-	var slippageRate, estimatedPrice, amount float64
-	if false /*e.UseRealOrders*/ {
+	highStr := data.StreamHigh()
+	high := highStr[len(highStr)-1]
+
+	lowStr := data.StreamLow()
+	low := lowStr[len(lowStr)-1]
+
+	volStr := data.StreamVol()
+	volume := volStr[len(volStr)-1]
+	var adjustedPrice, amount float64
+	var err error
+	if cs.UseRealOrders {
 		// get current orderbook
 		// calculate an estimated slippage rate
-		slippageRate = slippage.CalculateSlippage(nil)
-		estimatedPrice = f.ClosePrice * slippageRate
-	} else {
-		// provide n history and estimate volatility
-		slippageRate = slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate, o.GetDirection())
-		high := data.StreamHigh()
-		low := data.StreamLow()
-		volume := data.StreamVol()
-
-		f.VolumeAdjustedPrice, amount = e.ensureOrderFitsWithinHLV(f.ClosePrice, o.GetAmount(), high[len(high)-1], low[len(low)-1], volume[len(volume)-1])
-		if amount <= 0 {
-			return f, fmt.Errorf("amount set to 0, data may be incorrect")
-		}
-		estimatedPrice = f.VolumeAdjustedPrice * slippageRate
+		slippageRate := slippage.CalculateSlippage(nil)
+		adjustedPrice = f.ClosePrice * slippageRate
+		amount = f.Amount
+	}
+	adjustedPrice, amount, err = e.sizeOrder(high, low, volume, &cs, f)
+	if err != nil {
+		return f, err
 	}
 
-	f.Slippage = (slippageRate * 100) - 100
-	f.ExchangeFee = e.calculateExchangeFee(estimatedPrice, amount, cs.ExchangeFee)
-
-	u, _ := uuid.NewV4()
 	var orderID string
-	o2 := &gctorder.Submit{
-		Price:       estimatedPrice,
-		Amount:      amount,
-		Fee:         f.ExchangeFee,
-		Exchange:    f.Exchange,
-		ID:          u.String(),
-		Side:        f.Direction,
-		AssetType:   f.AssetType,
-		Date:        o.GetTime(),
-		LastUpdated: o.GetTime(),
-		Pair:        o.Pair(),
-		Type:        gctorder.Market,
-	}
-
-	if false /*e.UseRealOrders*/ {
-		resp, err := engine.Bot.OrderManager.Submit(o2)
-		if err != nil {
-			return f, err
-		}
-		orderID = resp.OrderID
-	} else {
-		o2Response := gctorder.SubmitResponse{
-			IsOrderPlaced: true,
-			OrderID:       u.String(),
-			Rate:          f.Amount,
-			Fee:           f.ExchangeFee,
-			Cost:          estimatedPrice,
-			FullyMatched:  true,
-		}
-		resp, err := engine.Bot.OrderManager.SubmitFakeOrder(o2, o2Response)
-		if err != nil {
-			return f, err
-		}
-		orderID = resp.OrderID
+	orderID, err = e.placeOrder(adjustedPrice, amount, cs.UseRealOrders, f)
+	if err != nil {
+		return f, err
 	}
 	ords, _ := engine.Bot.OrderManager.GetOrdersSnapshot("")
 	for i := range ords {
@@ -112,58 +82,137 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 	}
 
 	if f.Order == nil {
-		return nil, fmt.Errorf("something bad")
+		return nil, fmt.Errorf("placed order %v not found in order manager", orderID)
 	}
 
 	return f, nil
 }
 
+func (e *Exchange) placeOrder(price float64, amount float64, useRealOrders bool, f *fill.Fill) (string, error) {
+	if f == nil {
+		return "", errors.New("received nil event")
+	}
+	u, err := uuid.NewV4()
+	if err != nil {
+		return "", err
+	}
+	var orderID string
+	o := &gctorder.Submit{
+		Price:       price,
+		Amount:      amount,
+		Fee:         f.ExchangeFee,
+		Exchange:    f.Exchange,
+		ID:          u.String(),
+		Side:        f.Direction,
+		AssetType:   f.AssetType,
+		Date:        f.GetTime(),
+		LastUpdated: f.GetTime(),
+		Pair:        f.Pair(),
+		Type:        gctorder.Market,
+	}
+
+	if useRealOrders {
+		resp, err := engine.Bot.OrderManager.Submit(o)
+		if resp != nil {
+			orderID = resp.OrderID
+		}
+		if err != nil {
+			return orderID, err
+		}
+	} else {
+		submitResponse := gctorder.SubmitResponse{
+			IsOrderPlaced: true,
+			OrderID:       u.String(),
+			Rate:          f.Amount,
+			Fee:           f.ExchangeFee,
+			Cost:          price,
+			FullyMatched:  true,
+		}
+		resp, err := engine.Bot.OrderManager.SubmitFakeOrder(o, submitResponse)
+		if resp != nil {
+			orderID = resp.OrderID
+		}
+		if err != nil {
+			return orderID, err
+		}
+	}
+	return orderID, nil
+}
+
+func (e *Exchange) sizeOrder(high, low, volume float64, cs *CurrencySettings, f *fill.Fill) (adjustedPrice float64, adjustedAmount float64, err error) {
+	if cs == nil || f == nil {
+		return 0, 0, errors.New("received nil arguments")
+	}
+	var slippageRate float64
+	// provide n history and estimate volatility
+	slippageRate = slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate, f.GetDirection())
+	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
+	if adjustedAmount <= 0 {
+		return 0, 0, fmt.Errorf("amount set to 0, data may be incorrect")
+	}
+	adjustedPrice = f.VolumeAdjustedPrice * slippageRate
+
+	f.Slippage = (slippageRate * 100) - 100
+	f.ExchangeFee = calculateExchangeFee(adjustedPrice, adjustedAmount, cs.ExchangeFee)
+	return adjustedPrice, adjustedAmount, nil
+}
+
 func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c CurrencySettings) {
+	if c.ExchangeName == "" ||
+		c.AssetType == "" ||
+		c.CurrencyPair.IsEmpty() {
+		return
+	}
+
+	for i := range e.CurrencySettings {
+		if e.CurrencySettings[i].CurrencyPair == cp &&
+			e.CurrencySettings[i].AssetType == a &&
+			exch == e.CurrencySettings[i].ExchangeName {
+			e.CurrencySettings[i] = c
+			return
+		}
+	}
+	e.CurrencySettings = append(e.CurrencySettings, c)
+}
+
+func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) (CurrencySettings, error) {
 	for i := range e.CurrencySettings {
 		if e.CurrencySettings[i].CurrencyPair == cp {
 			if e.CurrencySettings[i].AssetType == a {
 				if exch == e.CurrencySettings[i].ExchangeName {
-					e.CurrencySettings[i] = c
+					return e.CurrencySettings[i], nil
 				}
 			}
 		}
 	}
+	return CurrencySettings{}, fmt.Errorf("no currency settings found for %v %v %v", exch, a, cp)
 }
 
-func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) CurrencySettings {
-	for i := range e.CurrencySettings {
-		if e.CurrencySettings[i].CurrencyPair == cp {
-			if e.CurrencySettings[i].AssetType == a {
-				if exch == e.CurrencySettings[i].ExchangeName {
-					return e.CurrencySettings[i]
-				}
-			}
-		}
+func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (adjustedPrice float64, adjustedAmount float64) {
+	adjustedPrice = slippagePrice
+	if adjustedPrice < low {
+		adjustedPrice = low
 	}
-	return CurrencySettings{}
-}
-
-func (e *Exchange) ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (float64, float64) {
-	if slippagePrice < low {
-		slippagePrice = low
-	}
-	if slippagePrice > high {
-		slippagePrice = high
+	if adjustedPrice > high {
+		adjustedPrice = high
 	}
 	if volume <= 0 {
-		return slippagePrice, 0
+		return adjustedPrice, adjustedAmount
 	}
-
-	if amount > volume {
+	currentVolume := amount * adjustedPrice
+	if currentVolume > volume {
 		// hey, this order is too big here
-		for amount > volume {
-			amount *= 0.99999
+		for currentVolume > volume {
+			// reduce the volume by a fraction until it is within the candle's volume
+			currentVolume *= 0.99999999
 		}
 	}
+	// extract the amount from the adjusted volume
+	adjustedAmount = currentVolume / adjustedPrice
 
-	return slippagePrice, amount
+	return adjustedPrice, adjustedAmount
 }
 
-func (e *Exchange) calculateExchangeFee(price, amount, fee float64) float64 {
+func calculateExchangeFee(price, amount, fee float64) float64 {
 	return fee * price * amount
 }
