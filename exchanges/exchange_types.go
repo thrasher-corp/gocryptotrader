@@ -254,20 +254,6 @@ var keyURLs = []URL{RestSpot,
 	EdgeCase2,
 	EdgeCase3}
 
-// var validBitches = RestSpot |
-// RestSpotSupplementary |
-// RestUSDTMargined |
-// RestCoinMargined |
-// RestFutures |
-// RestSwap |
-// RestSandbox |
-// WebsocketSpot |
-// WebsocketSpotSupplementary |
-// ChainAnalysis |
-// EdgeCase1 |
-// EdgeCase2 |
-// EdgeCase3
-
 // URL stores uint conversions
 type URL uint16
 
