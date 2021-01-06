@@ -277,6 +277,7 @@ func (b *Bitstamp) seedOrderBook() error {
 		newOrderBook.Pair = p[x]
 		newOrderBook.AssetType = asset.Spot
 		newOrderBook.ExchangeName = b.Name
+		newOrderBook.VerificationBypass = b.OrderbookVerificationBypass
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
