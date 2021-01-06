@@ -710,10 +710,6 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 	}
 
 	orderSide := order.Side(resp.Side)
-	orderDate, err := convert.TimeFromUnixTimestampFloat(resp.Time)
-	if err != nil {
-		return
-	}
 
 	status, err := order.StringToOrderStatus(resp.Status)
 	if err != nil {
@@ -727,7 +723,7 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 
 	return order.Detail{
 		Amount:         resp.OrigQty,
-		Date:           orderDate,
+		Date:           resp.Time,
 		Exchange:       b.Name,
 		ID:             strconv.FormatInt(resp.OrderID, 10),
 		Side:           orderSide,
