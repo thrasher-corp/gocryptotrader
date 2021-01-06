@@ -240,8 +240,36 @@ const (
 	EdgeCase3
 )
 
+var keyURLs = []URL{RestSpot,
+	RestSpotSupplementary,
+	RestUSDTMargined,
+	RestCoinMargined,
+	RestFutures,
+	RestSwap,
+	RestSandbox,
+	WebsocketSpot,
+	WebsocketSpotSupplementary,
+	ChainAnalysis,
+	EdgeCase1,
+	EdgeCase2,
+	EdgeCase3}
+
+// var validBitches = RestSpot |
+// RestSpotSupplementary |
+// RestUSDTMargined |
+// RestCoinMargined |
+// RestFutures |
+// RestSwap |
+// RestSandbox |
+// WebsocketSpot |
+// WebsocketSpotSupplementary |
+// ChainAnalysis |
+// EdgeCase1 |
+// EdgeCase2 |
+// EdgeCase3
+
 // URL stores uint conversions
-type URL uint8
+type URL uint16
 
 func (u URL) String() string {
 	switch u {

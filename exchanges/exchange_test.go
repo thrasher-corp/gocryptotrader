@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -2223,8 +2222,15 @@ func TestSetAPIURL(t *testing.T) {
 	b.Config.API.Endpoints = mappy.Mappymap
 	b.API.Endpoints = b.NewEndpoints()
 	err := b.SetAPIURL()
+	if err == nil {
+		t.Error("expecting an error since the key provided is invalid")
+	}
+	mappy.Mappymap = make(map[string]string)
+	b.Config.API.Endpoints = mappy.Mappymap
+	mappy.Mappymap["RestSpotURL"] = "hi"
+	b.API.Endpoints = b.NewEndpoints()
+	err = b.SetAPIURL()
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(b.API.Endpoints.defaults)
 }
