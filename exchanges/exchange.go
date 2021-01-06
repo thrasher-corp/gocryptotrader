@@ -783,17 +783,12 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL() error {
 	var err error
-	// e.Config.API.OldEndPoints = nil
 	if e.Config.API.Endpoints != nil {
 		for key, val := range e.Config.API.Endpoints {
 			if val == "" ||
 				val == config.APIURLNonDefaultMessage ||
 				val == config.WebsocketURLNonDefaultMessage {
 				continue
-			}
-			err = validateKey(key)
-			if err != nil {
-				return err
 			}
 			err = e.API.Endpoints.SetRunning(key, val, true)
 			if err != nil {
@@ -1145,6 +1140,10 @@ func (e *Endpoints) SetRunning(key, val string, overwrite bool) error {
 		if ok && oldVal == val {
 			return fmt.Errorf("given key and val are already set")
 		}
+	}
+	err := validateKey(key)
+	if err != nil {
+		return err
 	}
 	e.defaults[key] = val
 	return nil
