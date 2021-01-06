@@ -34,7 +34,7 @@ func SetupTestHelpers(t *testing.T) *Engine {
 		if Bot == nil {
 			Bot = new(Engine)
 		}
-		Bot.Config = &config.Cfg
+		Bot.Config = config.GetConfig()
 		err := Bot.Config.LoadConfig(config.TestFile, true)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load config: %s", err)

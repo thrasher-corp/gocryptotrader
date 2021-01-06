@@ -13,7 +13,7 @@ func TestNewCurrencyPairSyncer(t *testing.T) {
 	if Bot == nil {
 		Bot = new(Engine)
 	}
-	Bot.Config = &config.Cfg
+	Bot.Config = config.GetConfig()
 	err := Bot.Config.LoadConfig("", true)
 	if err != nil {
 		t.Fatalf("TestNewExchangeSyncer: Failed to load config: %s", err)

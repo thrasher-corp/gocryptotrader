@@ -38,7 +38,7 @@ func TestConfigAllJsonResponse(t *testing.T) {
 		t.Error("Response not parseable as json", err)
 	}
 
-	if reflect.DeepEqual(responseConfig, Bot.Config) {
+	if reflect.DeepEqual(&responseConfig, Bot.Config) {
 		t.Error("Json not equal to config")
 	}
 }

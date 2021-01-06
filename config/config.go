@@ -36,8 +36,8 @@ func (c *Config) GetCurrencyConfig() CurrencyConfig {
 // GetExchangeBankAccounts returns banking details associated with an exchange
 // for depositing funds
 func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency string) (*banking.Account, error) {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	for x := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
@@ -60,8 +60,8 @@ func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency st
 // UpdateExchangeBankAccounts updates the configuration for the associated
 // exchange bank
 func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []banking.Account) error {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	for i := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[i].Name, exchangeName) {
@@ -76,8 +76,8 @@ func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []banki
 // GetClientBankAccounts returns banking details used for a given exchange
 // and currency
 func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (*banking.Account, error) {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	for x := range c.BankAccounts {
 		if (strings.Contains(c.BankAccounts[x].SupportedExchanges, exchangeName) ||
@@ -93,8 +93,8 @@ func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (*ba
 
 // UpdateClientBankAccounts updates the configuration for a bank
 func (c *Config) UpdateClientBankAccounts(bankCfg *banking.Account) error {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	for i := range c.BankAccounts {
 		if c.BankAccounts[i].BankName == bankCfg.BankName && c.BankAccounts[i].AccountNumber == bankCfg.AccountNumber {
@@ -108,8 +108,8 @@ func (c *Config) UpdateClientBankAccounts(bankCfg *banking.Account) error {
 
 // CheckClientBankAccounts checks client bank details
 func (c *Config) CheckClientBankAccounts() {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if len(c.BankAccounts) == 0 {
 		c.BankAccounts = append(c.BankAccounts,
@@ -144,8 +144,8 @@ func (c *Config) CheckClientBankAccounts() {
 
 // PurgeExchangeAPICredentials purges the stored API credentials
 func (c *Config) PurgeExchangeAPICredentials() {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	for x := range c.Exchanges {
 		if !c.Exchanges[x].API.AuthenticatedSupport && !c.Exchanges[x].API.AuthenticatedWebsocketSupport {
 			continue
@@ -172,40 +172,40 @@ func (c *Config) PurgeExchangeAPICredentials() {
 
 // GetCommunicationsConfig returns the communications configuration
 func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
-	m.Lock()
+	c.Lock()
 	comms := c.Communications
-	m.Unlock()
+	c.Unlock()
 	return comms
 }
 
 // UpdateCommunicationsConfig sets a new updated version of a Communications
 // configuration
 func (c *Config) UpdateCommunicationsConfig(config *CommunicationsConfig) {
-	m.Lock()
+	c.Lock()
 	c.Communications = *config
-	m.Unlock()
+	c.Unlock()
 }
 
 // GetCryptocurrencyProviderConfig returns the communications configuration
 func (c *Config) GetCryptocurrencyProviderConfig() CryptocurrencyProvider {
-	m.Lock()
+	c.Lock()
 	provider := c.Currency.CryptocurrencyProvider
-	m.Unlock()
+	c.Unlock()
 	return provider
 }
 
 // UpdateCryptocurrencyProviderConfig returns the communications configuration
 func (c *Config) UpdateCryptocurrencyProviderConfig(config CryptocurrencyProvider) {
-	m.Lock()
+	c.Lock()
 	c.Currency.CryptocurrencyProvider = config
-	m.Unlock()
+	c.Unlock()
 }
 
 // CheckCommunicationsConfig checks to see if the variables are set correctly
 // from config.json
 func (c *Config) CheckCommunicationsConfig() {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	// If the communications config hasn't been populated, populate
 	// with example settings
@@ -734,16 +734,16 @@ func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
 
 // GetAllExchangeConfigs returns all exchange configurations
 func (c *Config) GetAllExchangeConfigs() []ExchangeConfig {
-	m.Lock()
+	c.Lock()
 	configs := c.Exchanges
-	m.Unlock()
+	c.Unlock()
 	return configs
 }
 
 // GetExchangeConfig returns exchange configurations by its indivdual name
 func (c *Config) GetExchangeConfig(name string) (*ExchangeConfig, error) {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	for i := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[i].Name, name) {
 			return &c.Exchanges[i], nil
@@ -754,8 +754,8 @@ func (c *Config) GetExchangeConfig(name string) (*ExchangeConfig, error) {
 
 // GetForexProvider returns a forex provider configuration by its name
 func (c *Config) GetForexProvider(name string) (currency.FXSettings, error) {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	for i := range c.Currency.ForexProviders {
 		if strings.EqualFold(c.Currency.ForexProviders[i].Name, name) {
 			return c.Currency.ForexProviders[i], nil
@@ -766,16 +766,16 @@ func (c *Config) GetForexProvider(name string) (currency.FXSettings, error) {
 
 // GetForexProviders returns a list of available forex providers
 func (c *Config) GetForexProviders() []currency.FXSettings {
-	m.Lock()
+	c.Lock()
 	fxProviders := c.Currency.ForexProviders
-	m.Unlock()
+	c.Unlock()
 	return fxProviders
 }
 
 // GetPrimaryForexProvider returns the primary forex provider
 func (c *Config) GetPrimaryForexProvider() string {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].PrimaryProvider {
 			return c.Currency.ForexProviders[i].Name
@@ -786,8 +786,8 @@ func (c *Config) GetPrimaryForexProvider() string {
 
 // UpdateExchangeConfig updates exchange configurations
 func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	for i := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[i].Name, e.Name) {
 			c.Exchanges[i] = *e
@@ -1276,8 +1276,8 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool, assetType asset.I
 // CheckLoggerConfig checks to see logger values are present and valid in config
 // if not creates a default instance of the logger
 func (c *Config) CheckLoggerConfig() error {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if c.Logging.Enabled == nil || c.Logging.Output == "" {
 		c.Logging = log.GenDefaultSettings()
@@ -1315,8 +1315,8 @@ func (c *Config) CheckLoggerConfig() error {
 }
 
 func (c *Config) checkGCTScriptConfig() error {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if c.GCTScript.ScriptTimeout <= 0 {
 		c.GCTScript.ScriptTimeout = gctscript.DefaultTimeoutValue
@@ -1344,8 +1344,8 @@ func (c *Config) checkGCTScriptConfig() error {
 }
 
 func (c *Config) checkDatabaseConfig() error {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if (c.Database == database.Config{}) {
 		c.Database.Driver = database.DBSQLite3
@@ -1377,8 +1377,8 @@ func (c *Config) checkDatabaseConfig() error {
 
 // CheckNTPConfig checks for missing or incorrectly configured NTPClient and recreates with known safe defaults
 func (c *Config) CheckNTPConfig() {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if c.NTPClient.AllowedDifference == nil || *c.NTPClient.AllowedDifference == 0 {
 		c.NTPClient.AllowedDifference = new(time.Duration)
@@ -1398,8 +1398,8 @@ func (c *Config) CheckNTPConfig() {
 
 // DisableNTPCheck allows the user to change how they are prompted for timesync alerts
 func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	reader := bufio.NewReader(input)
 	log.Warnln(log.ConfigMgr, "Your system time is out of sync, this may cause issues with trading")
@@ -1437,8 +1437,8 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if c.ConnectionMonitor.CheckInterval == 0 {
 		c.ConnectionMonitor.CheckInterval = connchecker.DefaultCheckInterval
@@ -1560,12 +1560,10 @@ func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
 		return err
 	}
 	defer confFile.Close()
-	result, wasEncrypted, err := ReadConfig(confFile, func() ([]byte, error) { return PromptForConfigKey(false) })
+	wasEncrypted, err := c.ReadConfig(confFile, func() ([]byte, error) { return PromptForConfigKey(false) })
 	if err != nil {
 		return fmt.Errorf("error reading config %w", err)
 	}
-	// Override values in the current config
-	*c = *result
 
 	if dryrun || wasEncrypted || c.EncryptConfig == fileEncryptionDisabled {
 		return nil
@@ -1594,31 +1592,29 @@ func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
 // ReadConfig verifies and checks for encryption and loads the config from a JSON object.
 // Prompts for decryption key, if target data is encrypted.
 // Returns the loaded configuration and whether it was encrypted.
-func ReadConfig(configReader io.Reader, keyProvider func() ([]byte, error)) (*Config, bool, error) {
+func (c *Config) ReadConfig(configReader io.Reader, keyProvider func() ([]byte, error)) (bool, error) {
 	reader := bufio.NewReader(configReader)
-
 	pref, err := reader.Peek(len(EncryptConfirmString))
 	if err != nil {
-		return nil, false, err
+		return false, err
 	}
 
 	if !ConfirmECS(pref) {
 		// Read unencrypted configuration
 		decoder := json.NewDecoder(reader)
-		c := &Config{}
 		err = decoder.Decode(c)
-		return c, false, err
+		return false, err
 	}
 
-	conf, err := readEncryptedConfWithKey(reader, keyProvider)
-	return conf, true, err
+	err = c.readEncryptedConfWithKey(reader, keyProvider)
+	return true, err
 }
 
 // readEncryptedConf reads encrypted configuration and requests key from provider
-func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, error)) (*Config, error) {
+func (c *Config) readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, error)) error {
 	fileData, err := ioutil.ReadAll(reader)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for errCounter := 0; errCounter < maxAuthFailures; errCounter++ {
 		key, err := keyProvider()
@@ -1627,26 +1623,22 @@ func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, 
 			continue
 		}
 
-		var c *Config
-		c, err = readEncryptedConf(bytes.NewReader(fileData), key)
+		err = c.readEncryptedConf(bytes.NewReader(fileData), key)
 		if err != nil {
 			log.Error(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
 			continue
 		}
-		return c, nil
+		return nil
 	}
-	return nil, errors.New("failed to decrypt config after 3 attempts")
+	return errors.New("failed to decrypt config after 3 attempts")
 }
 
-func readEncryptedConf(reader io.Reader, key []byte) (*Config, error) {
-	c := &Config{}
+func (c *Config) readEncryptedConf(reader io.Reader, key []byte) error {
 	data, err := c.decryptConfigData(reader, key)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	err = json.Unmarshal(data, c)
-	return c, err
+	return json.Unmarshal(data, c)
 }
 
 // SaveConfigToFile saves your configuration to your desired path as a JSON object.
@@ -1709,8 +1701,8 @@ func (c *Config) Save(writerProvider func() (io.Writer, error), keyProvider func
 // CheckRemoteControlConfig checks to see if the old c.Webserver field is used
 // and migrates the existing settings to the new RemoteControl struct
 func (c *Config) CheckRemoteControlConfig() {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if c.Webserver != nil {
 		port := common.ExtractPort(c.Webserver.ListenAddress)
@@ -1840,13 +1832,13 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 
 // GetConfig returns a pointer to a configuration object
 func GetConfig() *Config {
-	return &Cfg
+	return config
 }
 
 // RemoveExchange removes an exchange config
 func (c *Config) RemoveExchange(exchName string) bool {
-	m.Lock()
-	defer m.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	for x := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[x].Name, exchName) {
 			c.Exchanges = append(c.Exchanges[:x], c.Exchanges[x+1:]...)

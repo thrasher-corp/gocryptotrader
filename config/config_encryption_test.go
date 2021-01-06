@@ -285,10 +285,11 @@ func TestReadConfigWithPrompt(t *testing.T) {
 }
 
 func TestReadEncryptedConfigFromReader(t *testing.T) {
+	conf := &Config{}
 	keyProvider := func() ([]byte, error) { return []byte("pass"), nil }
 	// Encrypted conf for: `{"name":"test"}` with key `pass`
 	confBytes := []byte{84, 72, 79, 82, 83, 45, 72, 65, 77, 77, 69, 82, 126, 71, 67, 84, 126, 83, 79, 126, 83, 65, 76, 84, 89, 126, 246, 110, 128, 3, 30, 168, 172, 160, 198, 176, 136, 62, 152, 155, 253, 176, 16, 48, 52, 246, 44, 29, 151, 47, 217, 226, 178, 12, 218, 113, 248, 172, 195, 232, 136, 104, 9, 199, 20, 4, 71, 4, 253, 249}
-	conf, encrypted, err := ReadConfig(bytes.NewReader(confBytes), keyProvider)
+	encrypted, err := conf.ReadConfig(bytes.NewReader(confBytes), keyProvider)
 	if err != nil {
 		t.Errorf("TestReadConfig %s", err)
 	}
@@ -301,7 +302,7 @@ func TestReadEncryptedConfigFromReader(t *testing.T) {
 
 	// Change the salt
 	confBytes[20] = 0
-	conf, _, err = ReadConfig(bytes.NewReader(confBytes), keyProvider)
+	_, err = conf.ReadConfig(bytes.NewReader(confBytes), keyProvider)
 	if err == nil {
 		t.Errorf("Expected unable to decrypt, but got %+v", conf)
 	}

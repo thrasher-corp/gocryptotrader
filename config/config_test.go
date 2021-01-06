@@ -1660,8 +1660,9 @@ func TestReadConfigFromFile(t *testing.T) {
 }
 
 func TestReadConfigFromReader(t *testing.T) {
+	conf := GetConfig()
 	confString := `{"name":"test"}`
-	conf, encrypted, err := ReadConfig(strings.NewReader(confString), Unencrypted)
+	encrypted, err := conf.ReadConfig(strings.NewReader(confString), Unencrypted)
 	if err != nil {
 		t.Errorf("TestReadConfig %s", err)
 	}
@@ -1671,8 +1672,7 @@ func TestReadConfigFromReader(t *testing.T) {
 	if conf.Name != "test" {
 		t.Errorf("Conf not properly loaded %s", err)
 	}
-
-	_, _, err = ReadConfig(strings.NewReader("{}"), Unencrypted)
+	_, err = conf.ReadConfig(strings.NewReader("{}"), Unencrypted)
 	if err == nil {
 		t.Error("TestReadConfig error cannot be nil")
 	}
@@ -1823,19 +1823,18 @@ func TestUpdateConfig(t *testing.T) {
 		t.Errorf("%s", err)
 	}
 
-	newCfg := c
-	err = c.UpdateConfig(TestFile, &newCfg, true)
+	err = c.UpdateConfig(TestFile, &c, true)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
 
-	err = c.UpdateConfig("//non-existantpath\\", &newCfg, false)
+	err = c.UpdateConfig("//non-existantpath\\", &c, false)
 	if err == nil {
 		t.Fatalf("Error should have been thrown for invalid path")
 	}
 
-	newCfg.Currency.Cryptocurrencies = currency.NewCurrenciesFromStringArray([]string{""})
-	err = c.UpdateConfig(TestFile, &newCfg, true)
+	c.Currency.Cryptocurrencies = currency.NewCurrenciesFromStringArray([]string{""})
+	err = c.UpdateConfig(TestFile, &c, true)
 	if err != nil {
 		t.Errorf("%s", err)
 	}
@@ -1851,9 +1850,8 @@ func BenchmarkUpdateConfig(b *testing.B) {
 		b.Errorf("Unable to benchmark UpdateConfig(): %s", err)
 	}
 
-	newCfg := c
 	for i := 0; i < b.N; i++ {
-		_ = c.UpdateConfig(TestFile, &newCfg, true)
+		_ = c.UpdateConfig(TestFile, &c, true)
 	}
 }
 

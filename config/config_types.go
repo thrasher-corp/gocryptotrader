@@ -67,8 +67,7 @@ const (
 
 // Variables here are used for configuration
 var (
-	Cfg Config
-	m   sync.Mutex
+	config = new(Config)
 )
 
 // Config is the overarching object that holds all the information for
@@ -101,6 +100,7 @@ type Config struct {
 	// encryption session values
 	storedSalt []byte
 	sessionDK  []byte
+	sync.Mutex
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure
