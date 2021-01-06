@@ -219,6 +219,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type: order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := p.GetActiveOrders(&getOrdersRequest)
@@ -236,6 +237,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type: order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := p.GetOrderHistory(&getOrdersRequest)

@@ -1027,8 +1027,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	}
 
 	getOrders = new(GetOrdersRequest)
-	if getOrders.Validate() != nil {
-		t.Fatal("should not error")
+	if getOrders.Validate() == nil {
+		t.Fatal("should error since assetType hasn't been provided")
 	}
 
 	if getOrders.Validate(validate.Check(func() error {
@@ -1039,8 +1039,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	if getOrders.Validate(validate.Check(func() error {
 		return nil
-	})) != nil {
-		t.Fatal("unexpected error")
+	})) == nil {
+		t.Fatal("should output an error since assetType isn't provided")
 	}
 
 	var modifyOrder *Modify

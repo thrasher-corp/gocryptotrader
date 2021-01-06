@@ -2369,7 +2369,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if len(subs) != 4 {
 		t.Fatal("unexpected subscription length")
 	}
