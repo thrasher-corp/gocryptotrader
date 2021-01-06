@@ -166,8 +166,8 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		GenerateSubscriptions:            z.GenerateDefaultSubscriptions,
 		Subscriber:                       z.Subscribe,
 		Features:                         &z.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {
 		return err
@@ -292,7 +292,12 @@ func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.B
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: z.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       z.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: z.OrderbookVerificationBypass,
+	}
 	currFormat, err := z.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err

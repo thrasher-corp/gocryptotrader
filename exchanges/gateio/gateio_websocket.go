@@ -353,6 +353,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			newOrderBook.AssetType = asset.Spot
 			newOrderBook.Pair = p
 			newOrderBook.ExchangeName = g.Name
+			newOrderBook.VerificationBypass = g.OrderbookVerificationBypass
 
 			err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 			if err != nil {

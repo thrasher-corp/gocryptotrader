@@ -685,6 +685,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 		Pair:                  instrument,
 		ExchangeName:          o.Name,
 		HasChecksumValidation: true,
+		VerificationBypass:    o.OrderbookVerificationBypass,
 	}
 	return o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

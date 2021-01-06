@@ -166,8 +166,8 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
 		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 	})
 	if err != nil {
@@ -400,7 +400,12 @@ func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (*or
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: c.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       c.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: c.OrderbookVerificationBypass,
+	}
 	fpair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err

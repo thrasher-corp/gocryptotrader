@@ -289,6 +289,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			newOB.Pair = newPair
 			newOB.ExchangeName = c.Name
 			newOB.LastUpdated = time.Unix(orderBook.Data[0].Timestamp, 0)
+			newOB.VerificationBypass = c.OrderbookVerificationBypass
 			err = c.Websocket.Orderbook.LoadSnapshot(&newOB)
 			if err != nil {
 				return err

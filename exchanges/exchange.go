@@ -590,6 +590,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 		return err
 	}
 	e.BaseCurrencies = exch.BaseCurrencies
+	e.OrderbookVerificationBypass = exch.OrderbookConfig.VerificationBypass
 	return nil
 }
 

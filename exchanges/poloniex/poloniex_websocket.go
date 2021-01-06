@@ -506,6 +506,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	book.Asks = orderbook.SortAsks(book.Asks)
 	book.Bids = orderbook.SortBids(book.Bids)
 	book.AssetType = asset.Spot
+	book.VerificationBypass = p.OrderbookVerificationBypass
 
 	var err error
 	book.Pair, err = currency.NewPairFromString(symbol)
