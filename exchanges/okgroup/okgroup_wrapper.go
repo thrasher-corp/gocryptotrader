@@ -53,8 +53,8 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     o.Unsubscribe,
 		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
 		Features:                         &o.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {
 		return err
@@ -83,9 +83,10 @@ func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName: o.Name,
-		Pair:         p,
-		AssetType:    a,
+		ExchangeName:       o.Name,
+		Pair:               p,
+		AssetType:          a,
+		VerificationBypass: o.OrderbookVerificationBypass,
 	}
 
 	if a == asset.Index {

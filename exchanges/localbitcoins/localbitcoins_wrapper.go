@@ -214,7 +214,12 @@ func (l *LocalBitcoins) FetchOrderbook(p currency.Pair, assetType asset.Item) (*
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: l.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       l.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: l.OrderbookVerificationBypass,
+	}
 	orderbookNew, err := l.GetOrderbook(p.Quote.String())
 	if err != nil {
 		return book, err

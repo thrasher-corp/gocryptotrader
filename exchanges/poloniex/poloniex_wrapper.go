@@ -172,8 +172,8 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     p.Unsubscribe,
 		GenerateSubscriptions:            p.GenerateDefaultSubscriptions,
 		Features:                         &p.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 		SortBufferByUpdateIDs:            true,
 	})
@@ -326,7 +326,12 @@ func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType asset.It
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	callingBook := &orderbook.Base{ExchangeName: p.Name, Pair: c, AssetType: assetType}
+	callingBook := &orderbook.Base{
+		ExchangeName:       p.Name,
+		Pair:               c,
+		AssetType:          assetType,
+		VerificationBypass: p.OrderbookVerificationBypass,
+	}
 	orderbookNew, err := p.GetOrderbook("", poloniexMaxOrderbookDepth)
 	if err != nil {
 		return callingBook, err
@@ -338,9 +343,11 @@ func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orde
 	}
 	for i := range enabledPairs {
 		book := &orderbook.Base{
-			ExchangeName: p.Name,
-			Pair:         enabledPairs[i],
-			AssetType:    assetType}
+			ExchangeName:       p.Name,
+			Pair:               enabledPairs[i],
+			AssetType:          assetType,
+			VerificationBypass: p.OrderbookVerificationBypass,
+		}
 
 		fpair, err := p.FormatExchangeCurrency(enabledPairs[i], assetType)
 		if err != nil {

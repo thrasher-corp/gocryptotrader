@@ -143,8 +143,8 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     l.Unsubscribe,
 		GenerateSubscriptions:            l.GenerateDefaultSubscriptions,
 		Features:                         &l.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 }
 
@@ -275,7 +275,12 @@ func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: l.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       l.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: l.OrderbookVerificationBypass,
+	}
 	fPair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err

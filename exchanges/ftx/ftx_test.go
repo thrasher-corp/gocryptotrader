@@ -25,7 +25,7 @@ const (
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	spotPair                = "FTT/BTC"
-	futuresPair             = "LEO-0327"
+	futuresPair             = "DOGE-PERP"
 	testToken               = "ADAMOON"
 	btcusd                  = "BTC/USD"
 )

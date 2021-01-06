@@ -216,8 +216,8 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     b.Unsubscribe,
 		GenerateSubscriptions:            b.GenerateSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 		SortBufferByUpdateIDs:            true,
 	})
@@ -560,7 +560,12 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: b.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       b.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: b.OrderbookVerificationBypass,
+	}
 	var orderbookNew OrderBook
 	var err error
 	switch assetType {

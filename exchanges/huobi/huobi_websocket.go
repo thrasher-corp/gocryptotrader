@@ -466,6 +466,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	newOrderBook.Pair = p
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.ExchangeName = h.Name
+	newOrderBook.VerificationBypass = h.OrderbookVerificationBypass
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

@@ -218,8 +218,9 @@ type Base struct {
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
 	*request.Requester
-	Config        *config.ExchangeConfig
-	settingsMutex sync.RWMutex
+	Config                      *config.ExchangeConfig
+	settingsMutex               sync.RWMutex
+	OrderbookVerificationBypass bool
 }
 
 // url lookup consts

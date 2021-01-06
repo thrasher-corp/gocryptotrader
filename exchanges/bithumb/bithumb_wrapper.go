@@ -242,7 +242,12 @@ func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: b.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       b.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: b.OrderbookVerificationBypass,
+	}
 	curr := p.Base.String()
 
 	orderbookNew, err := b.GetOrderBook(curr)

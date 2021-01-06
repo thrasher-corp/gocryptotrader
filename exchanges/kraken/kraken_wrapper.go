@@ -211,8 +211,8 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     k.Unsubscribe,
 		GenerateSubscriptions:            k.GenerateDefaultSubscriptions,
 		Features:                         &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 	})
 	if err != nil {
@@ -466,7 +466,12 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: k.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       k.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: k.OrderbookVerificationBypass,
+	}
 	var err error
 	switch assetType {
 	case asset.Spot:

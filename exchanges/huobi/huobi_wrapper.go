@@ -201,8 +201,8 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     h.Unsubscribe,
 		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
 		Features:                         &h.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {
 		return err
@@ -532,7 +532,12 @@ func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: h.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       h.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: h.OrderbookVerificationBypass,
+	}
 	var err error
 	switch assetType {
 	case asset.Spot:

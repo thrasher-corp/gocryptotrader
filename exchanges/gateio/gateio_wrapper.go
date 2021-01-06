@@ -168,8 +168,8 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       g.Subscribe,
 		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
 		Features:                         &g.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {
 		return err
@@ -283,7 +283,12 @@ func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: g.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       g.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: g.OrderbookVerificationBypass,
+	}
 	curr, err := g.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err

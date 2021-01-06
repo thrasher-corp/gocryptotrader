@@ -250,7 +250,12 @@ func (b *Bitflyer) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: b.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       b.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: b.OrderbookVerificationBypass,
+	}
 
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {

@@ -236,7 +236,12 @@ func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	callingBook := &orderbook.Base{ExchangeName: e.Name, Pair: p, AssetType: assetType}
+	callingBook := &orderbook.Base{
+		ExchangeName:       e.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: e.OrderbookVerificationBypass,
+	}
 	enabledPairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
 		return callingBook, err
@@ -254,9 +259,11 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 	for i := range enabledPairs {
 		book := &orderbook.Base{
-			ExchangeName: e.Name,
-			Pair:         enabledPairs[i],
-			AssetType:    assetType}
+			ExchangeName:       e.Name,
+			Pair:               enabledPairs[i],
+			AssetType:          assetType,
+			VerificationBypass: e.OrderbookVerificationBypass,
+		}
 
 		curr, err := e.FormatExchangeCurrency(enabledPairs[i], assetType)
 		if err != nil {

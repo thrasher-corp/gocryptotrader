@@ -1095,7 +1095,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		Features:                         &f.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
 
 		// Orderbook buffer specific variables for processing orderbook updates via websocket feed. 
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
 		// Other orderbook buffer vars:
 		// BufferEnabled         bool 
 		// SortBuffer            bool 

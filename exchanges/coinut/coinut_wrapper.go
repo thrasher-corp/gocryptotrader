@@ -155,8 +155,8 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
 		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 		SortBufferByUpdateIDs:            true,
 	})
@@ -459,7 +459,12 @@ func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: c.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       c.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: c.OrderbookVerificationBypass,
+	}
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return book, err
