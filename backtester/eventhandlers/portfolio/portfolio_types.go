@@ -53,5 +53,5 @@ type Handler interface {
 }
 
 type SizeHandler interface {
-	SizeOrder(order.OrderEvent, common.DataEventHandler, float64, *exchange.CurrencySettings) (*order.Order, error)
+	SizeOrder(order.OrderEvent, float64, *exchange.CurrencySettings) (*order.Order, error)
 }

@@ -82,12 +82,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 	if signal.GetDirection() == gctorder.Sell {
 		sizingFunds = prevHolding.PositionsSize
 	}
-	sizedOrder, err := p.SizeManager.SizeOrder(
-		o,
-		latest,
-		sizingFunds,
-		cs,
-	)
+	sizedOrder, err := p.SizeManager.SizeOrder(o, sizingFunds, cs)
 
 	if err != nil {
 		o.AppendWhy(err.Error())

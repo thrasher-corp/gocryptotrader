@@ -4,14 +4,19 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (s *Size) SizeOrder(o order.OrderEvent, _ common.DataEventHandler, amountAvailable float64, cs *exchange.CurrencySettings) (*order.Order, error) {
+func (s *Size) SizeOrder(o order.OrderEvent, amountAvailable float64, cs *exchange.CurrencySettings) (*order.Order, error) {
+	if o == nil || cs == nil {
+		return nil, errors.New("nil arguments received, cannot size order")
+	}
+	if amountAvailable <= 0 {
+		return nil, errors.New("received availableFunds <= 0, cannot size order")
+	}
 	retOrder := o.(*order.Order)
 	var amount float64
 	var err error
@@ -49,8 +54,8 @@ func (s *Size) SizeOrder(o order.OrderEvent, _ common.DataEventHandler, amountAv
 		}
 
 	}
-	if amount == 0 {
-		return retOrder, fmt.Errorf("portfolio manager cannot allocate funds for %v %v %v %v", o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
+	if amount <= 0 {
+		return retOrder, fmt.Errorf("portfolio manager cannot allocate funds for an order at %v for %v %v %v", o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}
 	retOrder.SetAmount(amount)
 
