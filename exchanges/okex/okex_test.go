@@ -80,6 +80,33 @@ func areTestAPIKeysSet() bool {
 	return o.ValidateAPICredentials()
 }
 
+func TestUpdateOrderbook(t *testing.T) {
+	cp, err := currency.NewPairFromString("BTC-USD-210108")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = o.UpdateOrderbook(cp, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	cp, err = currency.NewPairFromString("BTC-USD-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = o.UpdateOrderbook(cp, asset.PerpetualSwap)
+	if err != nil {
+		t.Error(err)
+	}
+	cp, err = currency.NewPairFromString("BTC-USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = o.UpdateOrderbook(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetMarginRates(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")

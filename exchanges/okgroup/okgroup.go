@@ -333,7 +333,7 @@ func (o *OKGroup) GetOrderBook(request GetOrderBookRequest, a asset.Item) (resp 
 	default:
 		return resp, errors.New("unhandled asset type")
 	}
-	requestURL := fmt.Sprintf("%v/%v/%v/%v",
+	requestURL := fmt.Sprintf("%v/%v/%v%v",
 		OKGroupInstruments,
 		request.InstrumentID,
 		endpoint,

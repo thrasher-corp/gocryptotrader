@@ -845,8 +845,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].WebsocketURL = nil
 		}
 
-		c.Exchanges[i].API.OldEndPoints = nil
-
 		if c.Exchanges[i].Features == nil {
 			c.Exchanges[i].Features = &FeaturesConfig{}
 		}
