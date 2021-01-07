@@ -44,7 +44,7 @@ func TestEncryptConfigFile(t *testing.T) {
 	}
 
 	c := &Config{
-		sessionDK: []byte("a"),
+		d: Details{sessionDK: []byte("a")},
 	}
 	_, err = c.encryptConfigFile([]byte("test"))
 	if err == nil {
@@ -57,8 +57,10 @@ func TestEncryptConfigFile(t *testing.T) {
 	}
 
 	c = &Config{
-		sessionDK:  sessDk,
-		storedSalt: salt,
+		d: Details{
+			sessionDK:  sessDk,
+			storedSalt: salt,
+		},
 	}
 	_, err = c.encryptConfigFile([]byte("test"))
 	if err != nil {
@@ -136,7 +138,7 @@ func TestMakeNewSessionDK(t *testing.T) {
 
 func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 	c := &Config{}
-	c.EncryptConfig = 1
+	c.d.EncryptConfig = 1
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
@@ -193,8 +195,8 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 
 func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 	c := &Config{}
-	c.Name = "myCustomName"
-	c.EncryptConfig = 1
+	c.d.Name = "myCustomName"
+	c.d.EncryptConfig = 1
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
@@ -221,7 +223,7 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 		t.Fatalf("Problem reading config in file %s: %s\n", enc, err)
 	}
 
-	if c.Name != readConf.Name || c.EncryptConfig != readConf.EncryptConfig {
+	if c.d.Name != readConf.d.Name || c.d.EncryptConfig != readConf.d.EncryptConfig {
 		t.Error("Loaded conf not the same as original")
 	}
 }
@@ -252,7 +254,7 @@ func TestReadConfigWithPrompt(t *testing.T) {
 
 	// Ensure we'll get the prompt when loading
 	c := &Config{
-		EncryptConfig: 0,
+		d: Details{EncryptConfig: 0},
 	}
 
 	// Save config
@@ -276,7 +278,7 @@ func TestReadConfigWithPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Problem reading saved file at %s: %s\n", testConfigFile, err)
 	}
-	if c.EncryptConfig != fileEncryptionEnabled {
+	if c.d.EncryptConfig != fileEncryptionEnabled {
 		t.Error("Config encryption flag should be set after prompts")
 	}
 	if !ConfirmECS(data) {
@@ -296,7 +298,7 @@ func TestReadEncryptedConfigFromReader(t *testing.T) {
 	if !encrypted {
 		t.Errorf("Expected encrypted config %s", err)
 	}
-	if conf.Name != "test" {
+	if conf.d.Name != "test" {
 		t.Errorf("Conf not properly loaded %s", err)
 	}
 
@@ -311,8 +313,10 @@ func TestReadEncryptedConfigFromReader(t *testing.T) {
 // TestSaveConfigToFileWithErrorInPasswordPrompt should preserve the original file
 func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
 	c := &Config{
-		Name:          "test",
-		EncryptConfig: fileEncryptionEnabled,
+		d: Details{
+			Name:          "test",
+			EncryptConfig: fileEncryptionEnabled,
+		},
 	}
 	testData := []byte("testdata")
 	f, err := ioutil.TempFile("", "")

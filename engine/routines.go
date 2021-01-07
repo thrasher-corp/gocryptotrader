@@ -18,7 +18,7 @@ import (
 )
 
 func printCurrencyFormat(price float64) string {
-	displaySymbol, err := currency.GetSymbolByCurrencyName(Bot.Config.Currency.FiatDisplayCurrency)
+	displaySymbol, err := currency.GetSymbolByCurrencyName(Bot.Config.GetCurrency().FiatDisplayCurrency)
 	if err != nil {
 		log.Errorf(log.Global, "Failed to get display symbol: %s\n", err)
 	}
@@ -27,7 +27,7 @@ func printCurrencyFormat(price float64) string {
 }
 
 func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) string {
-	displayCurrency := Bot.Config.Currency.FiatDisplayCurrency
+	displayCurrency := Bot.Config.GetCurrency().FiatDisplayCurrency
 	conv, err := currency.ConvertCurrency(origPrice,
 		origCurrency,
 		displayCurrency)
@@ -72,8 +72,9 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 	}
 
 	stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+	displayCurrency := Bot.Config.GetCurrency().FiatDisplayCurrency
 	if result.Pair.Quote.IsFiatCurrency() &&
-		result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency {
+		result.Pair.Quote != displayCurrency {
 		origCurrency := result.Pair.Quote.Upper()
 		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 			result.ExchangeName,
@@ -88,7 +89,7 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 			result.Volume)
 	} else {
 		if result.Pair.Quote.IsFiatCurrency() &&
-			result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency {
+			result.Pair.Quote == displayCurrency {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 				result.ExchangeName,
 				protocol,
@@ -149,13 +150,14 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	bidsAmount, bidsValue := result.TotalBidsAmount()
 	asksAmount, asksValue := result.TotalAsksAmount()
 
+	displayCurrency := Bot.Config.GetCurrency().FiatDisplayCurrency
 	var bidValueResult, askValueResult string
 	switch {
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency:
+	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != displayCurrency:
 		origCurrency := result.Pair.Quote.Upper()
 		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue)
 		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue)
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency:
+	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == displayCurrency:
 		bidValueResult = printCurrencyFormat(bidsValue)
 		askValueResult = printCurrencyFormat(asksValue)
 	default:

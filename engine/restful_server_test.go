@@ -89,8 +89,7 @@ func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
 		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
 	}
 
-	Bot.Config.Profiler.Enabled = true
-	Bot.Config.Profiler.MutexProfileFraction = 5
+	Bot.Config.SetProfiler(config.Profiler{Enabled: true, MutexProfileFraction: 5})
 	req, err = http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
 	if err != nil {
 		t.Fatal(err)

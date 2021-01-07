@@ -139,7 +139,7 @@ func TestIsOnline(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	if err := e.ConnectionManager.Start(&e.Config.ConnectionMonitor); err != nil {
+	if err := e.ConnectionManager.Start(e.Config.GetConnectionMonitor()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -763,8 +763,8 @@ func TestGetExchangeNames(t *testing.T) {
 	if e := bot.GetExchangeNames(true); common.StringDataCompare(e, testExchange) {
 		t.Error("Bitstamp should be missing")
 	}
-	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.Exchanges) {
-		t.Errorf("Expected %v Received %v", len(e), len(bot.Config.Exchanges))
+	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.GetAllExchangeConfigs()) {
+		t.Errorf("Expected %v Received %v", len(e), len(bot.Config.GetAllExchangeConfigs()))
 	}
 }
 

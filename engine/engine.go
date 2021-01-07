@@ -58,7 +58,8 @@ func New() (*Engine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
-	b.GctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
+	confScript := b.Config.GetGCTScript()
+	b.GctScriptManager, err = gctscript.NewManager(&confScript)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
 	}
@@ -80,9 +81,10 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
 
-	if *b.Config.Logging.Enabled {
+	confLog := b.Config.GetLogging()
+	if *confLog.Enabled {
 		gctlog.SetupGlobalLogger()
-		gctlog.SetupSubLoggers(b.Config.Logging.SubLoggers)
+		gctlog.SetupSubLoggers(confLog.SubLoggers)
 		gctlog.Infoln(gctlog.Global, "Logger initialised.")
 	}
 
@@ -94,8 +96,8 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	if err != nil {
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
 	}
-
-	b.GctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
+	confScript := b.Config.GetGCTScript()
+	b.GctScriptManager, err = gctscript.NewManager(&confScript)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
 	}
@@ -125,7 +127,7 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 			log.Println("Command line argument '-datadir' induces dry run mode.")
 		}
 		settings.EnableDryRun = true
-		conf.DataDirectory = settings.DataDir
+		conf.SetDataDirectory(settings.DataDir)
 	}
 
 	return conf, conf.CheckConfig()
@@ -139,7 +141,9 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings.EnableAllPairs = s.EnableAllPairs
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
-	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager && (flagSet["gctscriptmanager"] || b.Config.GCTScript.Enabled)
+	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager &&
+		(flagSet["gctscriptmanager"] ||
+			b.Config.GetGCTScript().Enabled)
 	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
 	b.Settings.EnableDispatcher = s.EnableDispatcher
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
@@ -152,28 +156,30 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		}
 	}
 
+	confRC := b.Config.GetRemoteControl()
+
 	if flagSet["grpc"] {
 		b.Settings.EnableGRPC = s.EnableGRPC
 	} else {
-		b.Settings.EnableGRPC = b.Config.RemoteControl.GRPC.Enabled
+		b.Settings.EnableGRPC = confRC.GRPC.Enabled
 	}
 
 	if flagSet["grpcproxy"] {
 		b.Settings.EnableGRPCProxy = s.EnableGRPCProxy
 	} else {
-		b.Settings.EnableGRPCProxy = b.Config.RemoteControl.GRPC.GRPCProxyEnabled
+		b.Settings.EnableGRPCProxy = confRC.GRPC.GRPCProxyEnabled
 	}
 
 	if flagSet["websocketrpc"] {
 		b.Settings.EnableWebsocketRPC = s.EnableWebsocketRPC
 	} else {
-		b.Settings.EnableWebsocketRPC = b.Config.RemoteControl.WebsocketRPC.Enabled
+		b.Settings.EnableWebsocketRPC = confRC.WebsocketRPC.Enabled
 	}
 
 	if flagSet["deprecatedrpc"] {
 		b.Settings.EnableDeprecatedRPC = s.EnableDeprecatedRPC
 	} else {
-		b.Settings.EnableDeprecatedRPC = b.Config.RemoteControl.DeprecatedRPC.Enabled
+		b.Settings.EnableDeprecatedRPC = confRC.DeprecatedRPC.Enabled
 	}
 
 	if flagSet["maxvirtualmachines"] {
@@ -244,7 +250,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	if s.HTTPTimeout != time.Duration(0) && s.HTTPTimeout > 0 {
 		b.Settings.HTTPTimeout = s.HTTPTimeout
 	} else {
-		b.Settings.HTTPTimeout = b.Config.GlobalHTTPTimeout
+		b.Settings.HTTPTimeout = b.Config.GetGlobalHTTPTimeout()
 	}
 
 	b.Settings.HTTPUserAgent = s.HTTPUserAgent
@@ -253,7 +259,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	if s.GlobalHTTPTimeout != time.Duration(0) && s.GlobalHTTPTimeout > 0 {
 		b.Settings.GlobalHTTPTimeout = s.GlobalHTTPTimeout
 	} else {
-		b.Settings.GlobalHTTPTimeout = b.Config.GlobalHTTPTimeout
+		b.Settings.GlobalHTTPTimeout = b.Config.GetGlobalHTTPTimeout()
 	}
 	common.HTTPClient = common.NewHTTPClientWithTimeout(b.Settings.GlobalHTTPTimeout)
 
@@ -352,7 +358,7 @@ func (bot *Engine) Start() error {
 
 	// Sets up internet connectivity monitor
 	if bot.Settings.EnableConnectivityMonitor {
-		if err := bot.ConnectionManager.Start(&bot.Config.ConnectionMonitor); err != nil {
+		if err := bot.ConnectionManager.Start(bot.Config.GetConnectionMonitor()); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to start: %v", err)
 		}
 	}
@@ -364,11 +370,13 @@ func (bot *Engine) Start() error {
 	}
 
 	bot.Uptime = time.Now()
-	gctlog.Debugf(gctlog.Global, "Bot '%s' started.\n", bot.Config.Name)
+	gctlog.Debugf(gctlog.Global, "Bot '%s' started.\n", bot.Config.GetName())
 	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", bot.Settings.DataDir)
-	if *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
+
+	confLog := bot.Config.GetLogging()
+	if *confLog.Enabled && strings.Contains(confLog.Output, "file") {
 		gctlog.Debugf(gctlog.Global, "Using log file: %s\n",
-			filepath.Join(gctlog.LogPath, bot.Config.Logging.LoggerFileConfig.FileName))
+			filepath.Join(gctlog.LogPath, confLog.LoggerFileConfig.FileName))
 	}
 	gctlog.Debugf(gctlog.Global,
 		"Using %d out of %d logical processors for runtime performance\n",
@@ -376,12 +384,12 @@ func (bot *Engine) Start() error {
 
 	enabledExchanges := bot.Config.CountEnabledExchanges()
 	if bot.Settings.EnableAllExchanges {
-		enabledExchanges = len(bot.Config.Exchanges)
+		enabledExchanges = len(bot.Config.GetAllExchangeConfigs())
 	}
 
 	gctlog.Debugln(gctlog.Global, "EXCHANGE COVERAGE")
 	gctlog.Debugf(gctlog.Global, "\t Available Exchanges: %d. Enabled Exchanges: %d.\n",
-		len(bot.Config.Exchanges), enabledExchanges)
+		len(bot.Config.GetAllExchangeConfigs()), enabledExchanges)
 
 	if bot.Settings.ExchangePurgeCredentials {
 		gctlog.Debugln(gctlog.Global, "Purging exchange API credentials.")
@@ -400,6 +408,8 @@ func (bot *Engine) Start() error {
 		}
 	}
 
+	confCurrency := bot.Config.GetCurrency()
+
 	err := currency.RunStorageUpdater(currency.BotOverrides{
 		Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
 		FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,
@@ -409,11 +419,11 @@ func (bot *Engine) Start() error {
 	},
 		&currency.MainConfiguration{
 			ForexProviders:         bot.Config.GetForexProviders(),
-			CryptocurrencyProvider: coinmarketcap.Settings(bot.Config.Currency.CryptocurrencyProvider),
-			Cryptocurrencies:       bot.Config.Currency.Cryptocurrencies,
-			FiatDisplayCurrency:    bot.Config.Currency.FiatDisplayCurrency,
-			CurrencyDelay:          bot.Config.Currency.CurrencyFileUpdateDuration,
-			FxRateDelay:            bot.Config.Currency.ForeignExchangeUpdateDuration,
+			CryptocurrencyProvider: coinmarketcap.Settings(confCurrency.CryptocurrencyProvider),
+			Cryptocurrencies:       confCurrency.Cryptocurrencies,
+			FiatDisplayCurrency:    confCurrency.FiatDisplayCurrency,
+			CurrencyDelay:          confCurrency.CurrencyFileUpdateDuration,
+			FxRateDelay:            confCurrency.ForeignExchangeUpdateDuration,
 		},
 		bot.Settings.DataDir)
 	if err != nil {
@@ -491,7 +501,7 @@ func (bot *Engine) Stop() {
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
 	if len(portfolio.Portfolio.Addresses) != 0 {
-		bot.Config.Portfolio = portfolio.Portfolio
+		bot.Config.SetPortfolio(portfolio.Portfolio)
 	}
 
 	if bot.GctScriptManager.Started() {

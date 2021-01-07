@@ -42,13 +42,17 @@ func (n *ntpManager) Start() (err error) {
 		}
 	}()
 
-	if Bot.Config.NTPClient.Level == -1 {
+	confNTP := Bot.Config.GetNTPClient()
+
+	if confNTP.Level == -1 {
 		err = errors.New("NTP client disabled")
 		return
 	}
 
+	confLog := Bot.Config.GetLogging()
+
 	log.Debugln(log.TimeMgr, "NTP manager starting...")
-	if Bot.Config.NTPClient.Level == 0 && *Bot.Config.Logging.Enabled {
+	if confNTP.Level == 0 && *confLog.Enabled {
 		// Initial NTP check (prompts user on how we should proceed)
 		n.inititalCheck = true
 
@@ -111,18 +115,24 @@ func (n *ntpManager) run() {
 }
 
 func (n *ntpManager) FetchNTPTime() time.Time {
-	return ntpclient.NTPClient(Bot.Config.NTPClient.Pool)
+	return ntpclient.NTPClient(Bot.Config.GetNTPClient().Pool)
 }
 
 func (n *ntpManager) processTime() error {
 	NTPTime := n.FetchNTPTime()
-
 	currentTime := time.Now()
 	NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
-	configNTPTime := *Bot.Config.NTPClient.AllowedDifference
-	configNTPNegativeTime := (*Bot.Config.NTPClient.AllowedNegativeDifference - (*Bot.Config.NTPClient.AllowedNegativeDifference * 2))
-	if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
-		log.Warnf(log.TimeMgr, "NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
+	conf := Bot.Config.GetNTPClient()
+	configNTPNegativeTime := (*conf.AllowedNegativeDifference - (*conf.AllowedNegativeDifference * 2))
+	if NTPcurrentTimeDifference > *conf.AllowedDifference ||
+		NTPcurrentTimeDifference < configNTPNegativeTime {
+		log.Warnf(log.TimeMgr,
+			"NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n",
+			NTPTime,
+			currentTime,
+			NTPcurrentTimeDifference,
+			conf.AllowedDifference,
+			configNTPNegativeTime)
 		if n.inititalCheck {
 			n.inititalCheck = false
 			disable, err := Bot.Config.DisableNTPCheck(os.Stdin)
@@ -130,7 +140,7 @@ func (n *ntpManager) processTime() error {
 				return fmt.Errorf("unable to disable NTP check: %s", err)
 			}
 			log.Infoln(log.TimeMgr, disable)
-			if Bot.Config.NTPClient.Level == -1 {
+			if conf.Level == -1 {
 				return errNTPDisabled
 			}
 		}

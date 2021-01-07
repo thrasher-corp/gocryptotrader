@@ -70,10 +70,15 @@ var (
 	config = new(Config)
 )
 
-// Config is the overarching object that holds all the information for
-// prestart management of Portfolio, Communications, Webserver and Enabled
-// Exchanges
+// Config defines the exported protected object of configuration details
 type Config struct {
+	d Details
+	sync.Mutex
+}
+
+// Details define configuration parameters for prestart management of portfolio,
+// communications, webserver and enabled exchanges
+type Details struct {
 	Name              string                  `json:"name"`
 	DataDirectory     string                  `json:"dataDirectory"`
 	EncryptConfig     int                     `json:"encryptConfig"`
@@ -100,7 +105,6 @@ type Config struct {
 	// encryption session values
 	storedSalt []byte
 	sessionDK  []byte
-	sync.Mutex
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure

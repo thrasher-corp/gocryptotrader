@@ -436,7 +436,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 									}
 									printTickerSummary(result, "REST", err)
 									if err == nil {
-										if Bot.Config.RemoteControl.WebsocketRPC.Enabled {
+										if Bot.Config.GetRemoteControl().WebsocketRPC.Enabled {
 											relayWebsocketEvent(result, "ticker_update", c.AssetType.String(), exchangeName)
 										}
 									}
@@ -475,7 +475,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 								result, err := exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
 								printOrderbookSummary(result, "REST", err)
 								if err == nil {
-									if Bot.Config.RemoteControl.WebsocketRPC.Enabled {
+									if Bot.Config.GetRemoteControl().WebsocketRPC.Enabled {
 										relayWebsocketEvent(result, "orderbook_update", c.AssetType.String(), exchangeName)
 									}
 								}

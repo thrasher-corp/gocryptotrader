@@ -32,10 +32,12 @@ func RESTLogger(inner http.Handler, name string) http.Handler {
 
 // StartRESTServer starts a REST server
 func StartRESTServer(bot *Engine) {
-	listenAddr := bot.Config.RemoteControl.DeprecatedRPC.ListenAddress
+	confRC := bot.Config.GetRemoteControl()
+	listenAddr := confRC.DeprecatedRPC.ListenAddress
 	log.Debugf(log.RESTSys,
 		"Deprecated RPC server support enabled. Listen URL: http://%s:%d\n",
-		common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
+		common.ExtractHost(listenAddr),
+		common.ExtractPort(listenAddr))
 	err := http.ListenAndServe(listenAddr, newRouter(bot, true))
 	if err != nil {
 		log.Errorf(log.RESTSys, "Failed to start deprecated RPC server. Err: %s", err)
@@ -44,10 +46,12 @@ func StartRESTServer(bot *Engine) {
 
 // StartWebsocketServer starts a Websocket server
 func StartWebsocketServer(bot *Engine) {
-	listenAddr := bot.Config.RemoteControl.WebsocketRPC.ListenAddress
+	confRC := bot.Config.GetRemoteControl()
+	listenAddr := confRC.WebsocketRPC.ListenAddress
 	log.Debugf(log.RESTSys,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
-		common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
+		common.ExtractHost(listenAddr),
+		common.ExtractPort(listenAddr))
 	err := http.ListenAndServe(listenAddr, newRouter(bot, false))
 	if err != nil {
 		log.Errorf(log.RESTSys, "Failed to start websocket RPC server. Err: %s", err)
@@ -60,11 +64,11 @@ func newRouter(bot *Engine, isREST bool) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	var routes []Route
 	var listenAddr string
-
+	confRC := bot.Config.GetRemoteControl()
 	if isREST {
-		listenAddr = bot.Config.RemoteControl.DeprecatedRPC.ListenAddress
+		listenAddr = confRC.DeprecatedRPC.ListenAddress
 	} else {
-		listenAddr = bot.Config.RemoteControl.WebsocketRPC.ListenAddress
+		listenAddr = confRC.WebsocketRPC.ListenAddress
 	}
 
 	if common.ExtractPort(listenAddr) == 80 {
@@ -84,10 +88,10 @@ func newRouter(bot *Engine, isREST bool) *mux.Router {
 			{"GetPortfolio", http.MethodGet, "/portfolio/all", RESTGetPortfolio},
 			{"AllActiveExchangesAndOrderbooks", http.MethodGet, "/exchanges/orderbook/latest/all", RESTGetAllActiveOrderbooks},
 		}
-
-		if bot.Config.Profiler.Enabled {
-			if bot.Config.Profiler.MutexProfileFraction > 0 {
-				runtime.SetMutexProfileFraction(bot.Config.Profiler.MutexProfileFraction)
+		confProf := bot.Config.GetProfiler()
+		if confProf.Enabled {
+			if confProf.MutexProfileFraction > 0 {
+				runtime.SetMutexProfileFraction(confProf.MutexProfileFraction)
 			}
 			log.Debugf(log.RESTSys,
 				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof/\n",

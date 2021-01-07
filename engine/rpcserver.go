@@ -93,7 +93,9 @@ func (bot *Engine) authenticateClient(ctx context.Context) (context.Context, err
 	username := strings.Split(string(decoded), ":")[0]
 	password := strings.Split(string(decoded), ":")[1]
 
-	if username != bot.Config.RemoteControl.Username || password != bot.Config.RemoteControl.Password {
+	confRC := bot.Config.GetRemoteControl()
+
+	if username != confRC.Username || password != confRC.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
 
@@ -109,8 +111,12 @@ func StartRPCServer(engine *Engine) {
 		return
 	}
 
-	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress)
+	confRC := engine.Config.GetRemoteControl()
+
+	log.Debugf(log.GRPCSys,
+		"gRPC server support enabled. Starting gRPC server on https://%v.\n",
+		confRC.GRPC.ListenAddress)
+	lis, err := net.Listen("tcp", confRC.GRPC.ListenAddress)
 	if err != nil {
 		log.Errorf(log.GRPCSys, "gRPC server failed to bind to port: %s", err)
 		return
@@ -146,7 +152,11 @@ func StartRPCServer(engine *Engine) {
 
 // StartRPCRESTProxy starts a gRPC proxy
 func (s *RPCServer) StartRPCRESTProxy() {
-	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
+	confRC := s.Config.GetRemoteControl()
+
+	log.Debugf(log.GRPCSys,
+		"gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n",
+		confRC.GRPC.GRPCProxyListenAddress)
 
 	targetDir := utils.GetTLSDir(s.Settings.DataDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
@@ -158,19 +168,19 @@ func (s *RPCServer) StartRPCRESTProxy() {
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
-			Username: s.Config.RemoteControl.Username,
-			Password: s.Config.RemoteControl.Password,
+			Username: confRC.Username,
+			Password: confRC.Password,
 		}),
 	}
 	err = gctrpc.RegisterGoCryptoTraderHandlerFromEndpoint(context.Background(),
-		mux, s.Config.RemoteControl.GRPC.ListenAddress, opts)
+		mux, confRC.GRPC.ListenAddress, opts)
 	if err != nil {
 		log.Errorf(log.GRPCSys, "Failed to register gRPC proxy. Err: %s\n", err)
 		return
 	}
 
 	go func() {
-		if err := http.ListenAndServe(s.Config.RemoteControl.GRPC.GRPCProxyListenAddress, mux); err != nil {
+		if err := http.ListenAndServe(confRC.GRPC.GRPCProxyListenAddress, mux); err != nil {
 			log.Errorf(log.GRPCSys, "gRPC proxy failed to server: %s\n", err)
 			return
 		}
@@ -185,8 +195,8 @@ func (s *RPCServer) GetInfo(_ context.Context, r *gctrpc.GetInfoRequest) (*gctrp
 	resp := gctrpc.GetInfoResponse{
 		Uptime:               d.String(),
 		EnabledExchanges:     int64(s.Config.CountEnabledExchanges()),
-		AvailableExchanges:   int64(len(s.Config.Exchanges)),
-		DefaultFiatCurrency:  s.Config.Currency.FiatDisplayCurrency.String(),
+		AvailableExchanges:   int64(len(s.Config.GetAllExchangeConfigs())),
+		DefaultFiatCurrency:  s.Config.GetCurrency().FiatDisplayCurrency.String(),
 		DefaultForexProvider: s.Config.GetPrimaryForexProvider(),
 		SubsystemStatus:      s.GetSubsystemsStatus(),
 	}
@@ -1250,7 +1260,7 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 
 // WithdrawalEventByID returns previous withdrawal request details
 func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalEventByIDRequest) (*gctrpc.WithdrawalEventByIDResponse, error) {
-	if !s.Config.Database.Enabled {
+	if !s.Config.GetDatabase().Enabled {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
 	v, err := WithdrawalEventByID(r.Id)
@@ -1312,7 +1322,7 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 
 // WithdrawalEventsByExchange returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.WithdrawalEventsByExchangeRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
-	if !s.Config.Database.Enabled {
+	if !s.Config.GetDatabase().Enabled {
 		if r.Id == "" {
 			exch := s.GetExchangeByName(r.Exchange)
 			if exch == nil {

@@ -94,8 +94,10 @@ func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 		return nil, err
 	}
 	c := &Config{
-		sessionDK:  sessionDK,
-		storedSalt: salt,
+		d: Details{
+			sessionDK:  sessionDK,
+			storedSalt: salt,
+		},
 	}
 	return c.encryptConfigFile(configData)
 }
@@ -103,7 +105,7 @@ func EncryptConfigFile(configData, key []byte) ([]byte, error) {
 // encryptConfigFile encrypts configuration data that is parsed in with a key
 // and returns it as a byte array with an error
 func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
-	block, err := aes.NewCipher(c.sessionDK)
+	block, err := aes.NewCipher(c.d.sessionDK)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +120,7 @@ func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], configData)
 
 	appendedFile := []byte(EncryptConfirmString)
-	appendedFile = append(appendedFile, c.storedSalt...)
+	appendedFile = append(appendedFile, c.d.storedSalt...)
 	appendedFile = append(appendedFile, ciphertext...)
 	return appendedFile, nil
 }
@@ -175,7 +177,7 @@ func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	c.sessionDK, c.storedSalt = sessionDK, storedSalt
+	c.d.sessionDK, c.d.storedSalt = sessionDK, storedSalt
 
 	return result, nil
 }

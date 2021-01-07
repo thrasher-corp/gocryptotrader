@@ -64,8 +64,8 @@ func TestLoadConfigWithSettings(t *testing.T) {
 			if got != nil || tt.want != nil {
 				if (got == nil && tt.want != nil) || (got != nil && tt.want == nil) {
 					t.Errorf("loadConfigWithSettings() = is nil %v, want nil %v", got == nil, tt.want == nil)
-				} else if got.DataDirectory != *tt.want {
-					t.Errorf("loadConfigWithSettings() = %v, want %v", got.DataDirectory, *tt.want)
+				} else if got.GetDataDirectory() != *tt.want {
+					t.Errorf("loadConfigWithSettings() = %v, want %v", got.GetDataDirectory(), *tt.want)
 				}
 			}
 		})

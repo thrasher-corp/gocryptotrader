@@ -42,20 +42,21 @@ func (a *databaseManager) Start(bot *Engine) (err error) {
 
 	a.shutdown = make(chan struct{})
 
-	if bot.Config.Database.Enabled {
-		if bot.Config.Database.Driver == database.DBPostgreSQL {
+	confDB := bot.Config.GetDatabase()
+	if confDB.Enabled {
+		if confDB.Driver == database.DBPostgreSQL {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
-				bot.Config.Database.Host,
-				bot.Config.Database.Database,
-				bot.Config.Database.Driver)
+				confDB.Host,
+				confDB.Database,
+				confDB.Driver)
 			dbConn, err = dbpsql.Connect()
-		} else if bot.Config.Database.Driver == database.DBSQLite ||
-			bot.Config.Database.Driver == database.DBSQLite3 {
+		} else if confDB.Driver == database.DBSQLite ||
+			confDB.Driver == database.DBSQLite3 {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to %s utilising %s driver\n",
-				bot.Config.Database.Database,
-				bot.Config.Database.Driver)
+				confDB.Database,
+				confDB.Driver)
 			dbConn, err = dbsqlite3.Connect()
 		}
 		if err != nil {
@@ -64,7 +65,7 @@ func (a *databaseManager) Start(bot *Engine) (err error) {
 		dbConn.Connected = true
 
 		DBLogger := database.Logger{}
-		if bot.Config.Database.Verbose {
+		if confDB.Verbose {
 			boil.DebugMode = true
 			boil.DebugWriter = DBLogger
 		}

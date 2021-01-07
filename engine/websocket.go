@@ -212,14 +212,14 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 	if !wsHubStarted {
 		StartWebsocketHandler()
 	}
-
-	connectionLimit := Bot.Config.RemoteControl.WebsocketRPC.ConnectionLimit
+	rc := Bot.Config.GetRemoteControl()
 	numClients := len(wsHub.Clients)
 
-	if numClients >= connectionLimit {
+	if numClients >= rc.WebsocketRPC.ConnectionLimit {
 		log.Warnf(log.WebsocketMgr,
 			"websocket: client rejected due to websocket client limit reached. Number of clients %d. Limit %d.\n",
-			numClients, connectionLimit)
+			numClients,
+			rc.WebsocketRPC.ConnectionLimit)
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -231,7 +231,7 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Allow insecure origin if the Origin request header is present and not
 	// equal to the Host request header. Default to false
-	if Bot.Config.RemoteControl.WebsocketRPC.AllowInsecureOrigin {
+	if rc.WebsocketRPC.AllowInsecureOrigin {
 		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	}
 
@@ -245,7 +245,8 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 	client.Hub.Register <- client
 	log.Debugf(log.WebsocketMgr,
 		"websocket: client connected. Connected clients: %d. Limit %d.\n",
-		numClients+1, connectionLimit)
+		numClients+1,
+		rc.WebsocketRPC.ConnectionLimit)
 
 	go client.read()
 	go client.write()
@@ -264,8 +265,9 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	hashPW := crypto.HexEncodeToString(crypto.GetSHA256([]byte(Bot.Config.RemoteControl.Password)))
-	if auth.Username == Bot.Config.RemoteControl.Username && auth.Password == hashPW {
+	rc := Bot.Config.GetRemoteControl()
+	hashPW := crypto.HexEncodeToString(crypto.GetSHA256([]byte(rc.Password)))
+	if auth.Username == rc.Username && auth.Password == hashPW {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
 		log.Debugln(log.WebsocketMgr,
@@ -276,17 +278,17 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	wsResp.Error = "invalid username/password"
 	client.authFailures++
 	client.SendWebsocketMessage(wsResp)
-	if client.authFailures >= Bot.Config.RemoteControl.WebsocketRPC.MaxAuthFailures {
+	if client.authFailures >= rc.WebsocketRPC.MaxAuthFailures {
 		log.Debugf(log.WebsocketMgr,
 			"websocket: disconnecting client, maximum auth failures threshold reached (failures: %d limit: %d)\n",
-			client.authFailures, Bot.Config.RemoteControl.WebsocketRPC.MaxAuthFailures)
+			client.authFailures, rc.WebsocketRPC.MaxAuthFailures)
 		wsHub.Unregister <- client
 		return nil
 	}
 
 	log.Debugf(log.WebsocketMgr,
 		"websocket: client sent wrong username/password (failures: %d limit: %d)\n",
-		client.authFailures, Bot.Config.RemoteControl.WebsocketRPC.MaxAuthFailures)
+		client.authFailures, rc.WebsocketRPC.MaxAuthFailures)
 	return nil
 }
 

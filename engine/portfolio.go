@@ -31,7 +31,7 @@ func (p *portfolioManager) Start() error {
 
 	log.Debugln(log.PortfolioMgr, "Portfolio manager starting...")
 	Bot.Portfolio = &portfolio.Portfolio
-	Bot.Portfolio.Seed(Bot.Config.Portfolio)
+	Bot.Portfolio.Seed(Bot.Config.GetPortfolio())
 	p.shutdown = make(chan struct{})
 	portfolio.Verbose = Bot.Settings.Verbose
 

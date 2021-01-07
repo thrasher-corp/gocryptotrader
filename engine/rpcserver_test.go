@@ -58,7 +58,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
-	engerino.Config.Database = dbConf
+	engerino.Config.SetDatabase(dbConf)
 	err = engerino.DatabaseManager.Start(engerino)
 	if err != nil {
 		log.Fatal(err)

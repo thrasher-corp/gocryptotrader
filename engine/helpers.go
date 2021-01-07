@@ -65,22 +65,23 @@ type RPCEndpoint struct {
 
 // GetRPCEndpoints returns a list of RPC endpoints and their listen addrs
 func GetRPCEndpoints() map[string]RPCEndpoint {
+	confRC := Bot.Config.GetRemoteControl()
 	endpoints := make(map[string]RPCEndpoint)
 	endpoints["grpc"] = RPCEndpoint{
 		Started:    Bot.Settings.EnableGRPC,
-		ListenAddr: "grpc://" + Bot.Config.RemoteControl.GRPC.ListenAddress,
+		ListenAddr: "grpc://" + confRC.GRPC.ListenAddress,
 	}
 	endpoints["grpc_proxy"] = RPCEndpoint{
 		Started:    Bot.Settings.EnableGRPCProxy,
-		ListenAddr: "http://" + Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+		ListenAddr: "http://" + confRC.GRPC.GRPCProxyListenAddress,
 	}
 	endpoints["deprecated_rpc"] = RPCEndpoint{
 		Started:    Bot.Settings.EnableDeprecatedRPC,
-		ListenAddr: "http://" + Bot.Config.RemoteControl.DeprecatedRPC.ListenAddress,
+		ListenAddr: "http://" + confRC.DeprecatedRPC.ListenAddress,
 	}
 	endpoints["websocket_rpc"] = RPCEndpoint{
 		Started:    Bot.Settings.EnableWebsocketRPC,
-		ListenAddr: "ws://" + Bot.Config.RemoteControl.WebsocketRPC.ListenAddress,
+		ListenAddr: "ws://" + confRC.WebsocketRPC.ListenAddress,
 	}
 	return endpoints
 }
@@ -95,7 +96,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.CommsManager.Stop()
 	case "internet_monitor":
 		if enable {
-			return bot.ConnectionManager.Start(&bot.Config.ConnectionMonitor)
+			return bot.ConnectionManager.Start(bot.Config.GetConnectionMonitor())
 		}
 		return bot.CommsManager.Stop()
 	case "orders":
@@ -142,9 +143,10 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 // stored
 func (bot *Engine) GetExchangeOTPs() (map[string]string, error) {
 	otpCodes := make(map[string]string)
-	for x := range bot.Config.Exchanges {
-		if otpSecret := bot.Config.Exchanges[x].API.Credentials.OTPSecret; otpSecret != "" {
-			exchName := bot.Config.Exchanges[x].Name
+	confExch := bot.Config.GetAllExchangeConfigs()
+	for x := range confExch {
+		if otpSecret := confExch[x].API.Credentials.OTPSecret; otpSecret != "" {
+			exchName := confExch[x].Name
 			o, err := totp.GenerateCode(otpSecret, time.Now())
 			if err != nil {
 				log.Errorf(log.Global, "Unable to generate OTP code for exchange %s. Err: %s\n",
@@ -165,12 +167,13 @@ func (bot *Engine) GetExchangeOTPs() (map[string]string, error) {
 // GetExchangeoOTPByName returns a OTP code for the desired exchange
 // if it exists
 func (bot *Engine) GetExchangeoOTPByName(exchName string) (string, error) {
-	for x := range bot.Config.Exchanges {
-		if !strings.EqualFold(bot.Config.Exchanges[x].Name, exchName) {
+	confExch := bot.Config.GetAllExchangeConfigs()
+	for x := range confExch {
+		if !strings.EqualFold(confExch[x].Name, exchName) {
 			continue
 		}
 
-		if otpSecret := bot.Config.Exchanges[x].API.Credentials.OTPSecret; otpSecret != "" {
+		if otpSecret := confExch[x].API.Credentials.OTPSecret; otpSecret != "" {
 			return totp.GenerateCode(otpSecret, time.Now())
 		}
 	}
@@ -198,10 +201,11 @@ func (bot *Engine) IsOnline() bool {
 
 // GetAvailableExchanges returns a list of enabled exchanges
 func (bot *Engine) GetAvailableExchanges() []string {
+	confExch := bot.Config.GetAllExchangeConfigs()
 	var enExchanges []string
-	for x := range bot.Config.Exchanges {
-		if bot.Config.Exchanges[x].Enabled {
-			enExchanges = append(enExchanges, bot.Config.Exchanges[x].Name)
+	for x := range confExch {
+		if confExch[x].Enabled {
+			enExchanges = append(enExchanges, confExch[x].Name)
 		}
 	}
 	return enExchanges
@@ -210,13 +214,14 @@ func (bot *Engine) GetAvailableExchanges() []string {
 // GetAllAvailablePairs returns a list of all available pairs on either enabled
 // or disabled exchanges
 func (bot *Engine) GetAllAvailablePairs(enabledExchangesOnly bool, assetType asset.Item) currency.Pairs {
+	confExch := bot.Config.GetAllExchangeConfigs()
 	var pairList currency.Pairs
-	for x := range bot.Config.Exchanges {
-		if enabledExchangesOnly && !bot.Config.Exchanges[x].Enabled {
+	for x := range confExch {
+		if enabledExchangesOnly && !confExch[x].Enabled {
 			continue
 		}
 
-		exchName := bot.Config.Exchanges[x].Name
+		exchName := confExch[x].Name
 		pairs, err := bot.Config.GetAvailablePairs(exchName, assetType)
 		if err != nil {
 			continue
@@ -282,13 +287,14 @@ func IsRelatablePairs(p1, p2 currency.Pair, includeUSDT bool) bool {
 // MapCurrenciesByExchange returns a list of currency pairs mapped to an
 // exchange
 func (bot *Engine) MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetType asset.Item) map[string]currency.Pairs {
+	confExch := bot.Config.GetAllExchangeConfigs()
 	currencyExchange := make(map[string]currency.Pairs)
 	for x := range p {
-		for y := range bot.Config.Exchanges {
-			if enabledExchangesOnly && !bot.Config.Exchanges[y].Enabled {
+		for y := range confExch {
+			if enabledExchangesOnly && !confExch[y].Enabled {
 				continue
 			}
-			exchName := bot.Config.Exchanges[y].Name
+			exchName := confExch[y].Name
 			if !bot.Config.SupportsPair(exchName, p[x], assetType) {
 				continue
 			}
@@ -313,13 +319,14 @@ func (bot *Engine) MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnl
 // GetExchangeNamesByCurrency returns a list of exchanges supporting
 // a currency pair based on whether the exchange is enabled or not
 func (bot *Engine) GetExchangeNamesByCurrency(p currency.Pair, enabled bool, assetType asset.Item) []string {
+	confExch := bot.Config.GetAllExchangeConfigs()
 	var exchanges []string
-	for x := range bot.Config.Exchanges {
-		if enabled != bot.Config.Exchanges[x].Enabled {
+	for x := range confExch {
+		if enabled != confExch[x].Enabled {
 			continue
 		}
 
-		exchName := bot.Config.Exchanges[x].Name
+		exchName := confExch[x].Name
 		if !bot.Config.SupportsPair(exchName, p, assetType) {
 			continue
 		}
@@ -580,12 +587,13 @@ func SeedExchangeAccountInfo(accounts []account.Holdings) {
 
 // GetCryptocurrenciesByExchange returns a list of cryptocurrencies the exchange supports
 func (bot *Engine) GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, enabledPairs bool, assetType asset.Item) ([]string, error) {
+	confExch := bot.Config.GetAllExchangeConfigs()
 	var cryptocurrencies []string
-	for x := range bot.Config.Exchanges {
-		if !strings.EqualFold(bot.Config.Exchanges[x].Name, exchangeName) {
+	for x := range confExch {
+		if !strings.EqualFold(confExch[x].Name, exchangeName) {
 			continue
 		}
-		if enabledExchangesOnly && !bot.Config.Exchanges[x].Enabled {
+		if enabledExchangesOnly && !confExch[x].Enabled {
 			continue
 		}
 
@@ -683,8 +691,9 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func FormatCurrency(p currency.Pair) currency.Pair {
-	return p.Format(Bot.Config.Currency.CurrencyPairFormat.Delimiter,
-		Bot.Config.Currency.CurrencyPairFormat.Uppercase)
+	conf := Bot.Config.GetCurrency()
+	return p.Format(conf.CurrencyPairFormat.Delimiter,
+		conf.CurrencyPairFormat.Uppercase)
 }
 
 // GetExchangeNames returns a list of enabled or disabled exchanges

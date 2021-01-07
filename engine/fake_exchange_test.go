@@ -36,12 +36,11 @@ func addPassingFakeExchange(baseExchangeName string) error {
 		return ErrExchangeNotFound
 	}
 	base := testExch.GetBase()
-	Bot.Config.Exchanges = append(Bot.Config.Exchanges, config.ExchangeConfig{
+	Bot.Config.AddExchangeConfig(config.ExchangeConfig{
 		Name:    fakePassExchange,
 		Enabled: true,
 		Verbose: false,
 	})
-
 	Bot.exchangeManager.add(&FakePassingExchange{
 		Base: exchange.Base{
 			Name:                          fakePassExchange,
