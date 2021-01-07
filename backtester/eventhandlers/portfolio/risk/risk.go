@@ -4,72 +4,70 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // EvaluateOrder goes through a standard list of evaluations to make to ensure that
 // we are in a position to follow through with an order
-func (r *Risk) EvaluateOrder(o order.OrderEvent, _ common.DataEventHandler, latestHoldings []holdings.Holding) (*order.Order, error) {
+func (r *Risk) EvaluateOrder(o order.OrderEvent, latestHoldings []holdings.Holding, s compliance.Snapshot) (*order.Order, error) {
+	if o == nil || latestHoldings == nil {
+		return nil, errors.New("received nil argument(s)")
+	}
 	retOrder := o.(*order.Order)
 	if o.IsLeveraged() {
 		if !r.CanUseLeverage {
-			return nil, errors.New("order says to use leverage, but its not allowed damnit")
+			return nil, errors.New("order says to use leverage, but it is not allowed")
 		}
-		ratio := existingLeverageRatio()
-
-		if ratio > r.MaxLeverageRatio[o.GetExchange()][o.GetAssetType()][o.Pair()] {
-			return nil, fmt.Errorf("leveraged ratio over maximum threshold for order %v", o)
+		ratio := existingLeverageRatio(s)
+		lookupRatio := r.MaxLeverageRatio[o.GetExchange()][o.GetAssetType()][o.Pair()]
+		if ratio > lookupRatio && lookupRatio > 0 {
+			return nil, fmt.Errorf("proceeding with the order would put leverage ratio beyond its limit of %v to %v and cannot be placed", lookupRatio, ratio)
 		}
-		if retOrder.GetLeverage() > r.MaxLeverageRate[o.GetExchange()][o.GetAssetType()][o.Pair()] {
-			return nil, fmt.Errorf("leverage level over maximum for order %v", o)
+		lookupRate := r.MaxLeverageRate[o.GetExchange()][o.GetAssetType()][o.Pair()]
+		if retOrder.GetLeverage() > lookupRate && lookupRate > 0 {
+			{
+				return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and cannot be placed", lookupRate, retOrder.GetLeverage())
+			}
 		}
 	}
-	allIn := areWeAllInOnOneCurrency(o.Pair(), latestHoldings)
-	if allIn {
-
-	}
-	ratios := assessHoldingsRatio(o.Pair(), latestHoldings)
-	if len(ratios) == 0 {
-
+	if len(latestHoldings) > 1 {
+		ratio := assessHoldingsRatio(o.Pair(), latestHoldings)
+		lookupHolding := r.MaximumHoldingRatio[o.GetExchange()][o.GetAssetType()][o.Pair()]
+		if lookupHolding > 0 && ratio > lookupHolding {
+			return nil, fmt.Errorf("proceeding with the order would put holdings ratio beyond its limit of %v to %v and cannot be placed", lookupHolding, ratio)
+		}
 	}
 	return retOrder, nil
 }
 
-func existingLeverageRatio() float64 {
-	os, _ := engine.Bot.OrderManager.GetOrdersSnapshot(gctorder.AnyStatus)
-	if len(os) == 0 {
+func existingLeverageRatio(s compliance.Snapshot) float64 {
+	if len(s.Orders) == 0 {
 		return 0
 	}
 	var ordersWithLeverage float64
-	for o := range os {
-		if os[o].Leverage != "" {
+	for o := range s.Orders {
+		if s.Orders[o].Leverage != "" {
 			ordersWithLeverage++
 		}
 	}
-	return ordersWithLeverage / float64(len(os))
-}
-
-func areWeAllInOnOneCurrency(c currency.Pair, h []holdings.Holding) bool {
-	for i := range h {
-		if !h[i].Pair.Equal(c) {
-			return false
-		}
-	}
-	return true
+	return ordersWithLeverage / float64(len(s.Orders))
 }
 
 // add additional assessing rules, such as what the maximum ratio is allowed to be
-func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) map[currency.Pair]float64 {
+func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) float64 {
 	resp := make(map[currency.Pair]float64)
 	for i := range h {
-		if h[i].Pair.Equal(c) {
-			resp[c] += h[i].PositionsSize
-		}
+		resp[h[i].Pair] += h[i].PositionsSize
 	}
-	return resp
+	totalPosition := 0.0
+
+	for _, v := range resp {
+		totalPosition += v
+	}
+	ratio := resp[c] / totalPosition
+
+	return ratio
 }

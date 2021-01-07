@@ -1,7 +1,7 @@
 package risk
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -9,15 +9,15 @@ import (
 )
 
 type RiskHandler interface {
-	EvaluateOrder(order.OrderEvent, common.DataEventHandler, []holdings.Holding) (*order.Order, error)
+	EvaluateOrder(order.OrderEvent, []holdings.Holding, compliance.Snapshot) (*order.Order, error)
 }
 
 type Risk struct {
-	MaxLeverageRatio             map[string]map[asset.Item]map[currency.Pair]float64
-	MaxLeverageRate              map[string]map[asset.Item]map[currency.Pair]float64
-	MaxDiversificationPercentage map[string]map[asset.Item]map[currency.Pair]float64 // I cant think of a term, but the ratio between the entire portfolio, eg BTC cannot be more than 50% of holdings
-	CanUseLeverage               bool
-	MaximumLeverage              float64
+	MaxLeverageRatio    map[string]map[asset.Item]map[currency.Pair]float64
+	MaxLeverageRate     map[string]map[asset.Item]map[currency.Pair]float64
+	MaximumHoldingRatio map[string]map[asset.Item]map[currency.Pair]float64 // I cant think of a term, but the ratio between the entire portfolio, eg BTC cannot be more than 50% of holdings
+	CanUseLeverage      bool
+	MaximumLeverage     float64
 }
 
 type Settings struct {

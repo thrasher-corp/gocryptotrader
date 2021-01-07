@@ -99,11 +99,7 @@ func NewFromConfig(cfg *config.Config, templatePath string, output string) (*Bac
 				MaximumLeverage: cfg.PortfolioSettings.Leverage.MaximumLeverage,
 			},
 		},
-		RiskManager: &risk.Risk{
-			MaxLeverageRatio:             nil,
-			MaxLeverageRate:              nil,
-			MaxDiversificationPercentage: nil,
-		},
+		RiskManager: &risk.Risk{},
 	}
 	for i := range e.CurrencySettings {
 		lookup := p.SetupExchangeAssetPairMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)

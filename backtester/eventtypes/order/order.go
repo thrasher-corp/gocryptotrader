@@ -50,7 +50,7 @@ func (o *Order) GetLimit() float64 {
 }
 
 func (o *Order) IsLeveraged() bool {
-	return o.Leverage > 0.0
+	return o.Leverage > 1.0
 }
 
 func (o *Order) GetLeverage() float64 {

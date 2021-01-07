@@ -116,7 +116,12 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, data data.Handler, cs *e
 	}
 
 	var eo *order.Order
-	eo, err = p.RiskManager.EvaluateOrder(sizedOrder, latest, p.GetLatestHoldingsForAllCurrencies())
+	var cm *compliance.Manager
+	cm, err = p.GetComplianceManager(o.GetExchange(), o.GetAssetType(), o.Pair())
+	if err != nil {
+		return nil, err
+	}
+	eo, err = p.RiskManager.EvaluateOrder(sizedOrder, p.GetLatestHoldingsForAllCurrencies(), cm.GetLatestSnapshot())
 	if err != nil {
 		o.AppendWhy(err.Error())
 		if signal.GetDirection() == gctorder.Buy {
