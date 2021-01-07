@@ -1,7 +1,7 @@
 package compliance
 
 import (
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -17,7 +17,7 @@ func (m *Manager) AddSnapshot(orders []SnapshotOrder, t time.Time, force bool) e
 			if force {
 				m.Snapshots[i].Orders = orders
 			} else {
-				return errors.New("already exists buttts")
+				return fmt.Errorf("snapshot at timestamp %v already exists. Use force to overwrite", m.Snapshots[i].Timestamp)
 			}
 		}
 	}
@@ -38,7 +38,7 @@ func (m *Manager) GetSnapshotAtTime(t time.Time) (Snapshot, error) {
 			return m.Snapshots[i], nil
 		}
 	}
-	return Snapshot{}, errors.New("not found")
+	return Snapshot{}, fmt.Errorf("snapshot at %v not found", t)
 }
 
 func (m *Manager) SetInterval(i kline.Interval) {

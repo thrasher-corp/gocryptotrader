@@ -241,3 +241,14 @@ func TestExecuteOrder(t *testing.T) {
 	}
 
 }
+
+func TestApplySlippageToPrice(t *testing.T) {
+	resp := applySlippageToPrice(gctorder.Buy, 1, 0.9)
+	if resp != 1.1 {
+		t.Errorf("expected 1.1, received %v", resp)
+	}
+	resp = applySlippageToPrice(gctorder.Sell, 1, 0.9)
+	if resp != 0.9 {
+		t.Errorf("expected 0.9, received %v", resp)
+	}
+}

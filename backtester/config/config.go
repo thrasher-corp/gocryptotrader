@@ -60,6 +60,8 @@ func (cfg *Config) PrintSetting() {
 		log.Infof(log.BackTester, "Initial funds: %v", cfg.CurrencySettings[i].InitialFunds)
 		log.Infof(log.BackTester, "Maker fee: %v", cfg.CurrencySettings[i].TakerFee)
 		log.Infof(log.BackTester, "Taker fee: %v", cfg.CurrencySettings[i].MakerFee)
+		log.Infof(log.BackTester, "Minimum slippage percent %v", cfg.CurrencySettings[i].MinimumSlippagePercent)
+		log.Infof(log.BackTester, "Maximum slippage percent: %v", cfg.CurrencySettings[i].MaximumSlippagePercent)
 		log.Infof(log.BackTester, "Buy rules: %+v", cfg.CurrencySettings[i].BuySide)
 		log.Infof(log.BackTester, "Sell rules: %+v", cfg.CurrencySettings[i].SellSide)
 		log.Infof(log.BackTester, "Leverage rules: %+v", cfg.CurrencySettings[i].Leverage)

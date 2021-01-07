@@ -327,3 +327,48 @@ func TestUpdateSellStats(t *testing.T) {
 	}
 
 }
+func TestGetLatestSnapshot(t *testing.T) {
+	tt := time.Now()
+	s := Snapshots{}
+	h := s.GetLatestSnapshot()
+	if !h.Timestamp.IsZero() {
+		t.Error("expected zero timestamp")
+	}
+
+	s.Holdings = []Holding{
+		{
+			Timestamp: tt,
+		},
+		{
+			Timestamp: tt.Add(time.Hour),
+		},
+	}
+	h = s.GetLatestSnapshot()
+	if !h.Timestamp.Equal(tt.Add(time.Hour)) {
+		t.Errorf("expected %v, received %v", tt.Add(time.Hour), h.Timestamp)
+	}
+
+}
+
+func TestGetSnapshotAtTime(t *testing.T) {
+	tt := time.Now()
+	s := Snapshots{}
+	h := s.GetSnapshotAtTimestamp(tt)
+	if !h.Timestamp.IsZero() {
+		t.Error("expected zero timestamp")
+	}
+
+	s.Holdings = []Holding{
+		{
+			Timestamp: tt,
+		},
+		{
+			Timestamp: tt.Add(time.Hour),
+		},
+	}
+	h = s.GetSnapshotAtTimestamp(tt)
+	if !h.Timestamp.Equal(tt) {
+		t.Errorf("expected %v, received %v", tt, h.Timestamp)
+	}
+
+}

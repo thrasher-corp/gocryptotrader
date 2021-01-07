@@ -191,13 +191,19 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			}
 		}
 
-		if cfg.CurrencySettings[i].MaximumSlippagePercent <= 0 {
+		if cfg.CurrencySettings[i].MaximumSlippagePercent < 1 {
+			log.Warnf(log.BackTester, "Invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
+				cfg.CurrencySettings[i].MaximumSlippagePercent,
+				slippage.DefaultMaximumSlippagePercent)
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
-		if cfg.CurrencySettings[i].MinimumSlippagePercent <= 0 {
+		if cfg.CurrencySettings[i].MinimumSlippagePercent < 1 {
+			log.Warnf(log.BackTester, "Invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
+				cfg.CurrencySettings[i].MinimumSlippagePercent,
+				slippage.DefaultMinimumSlippagePercent)
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
 		}
-		if cfg.CurrencySettings[i].MaximumSlippagePercent <= cfg.CurrencySettings[i].MinimumSlippagePercent {
+		if cfg.CurrencySettings[i].MaximumSlippagePercent < cfg.CurrencySettings[i].MinimumSlippagePercent {
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 

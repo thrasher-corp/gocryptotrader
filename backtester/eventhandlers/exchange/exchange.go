@@ -145,16 +145,26 @@ func (e *Exchange) sizeOrder(high, low, volume float64, cs *CurrencySettings, f 
 	}
 	var slippageRate float64
 	// provide n history and estimate volatility
-	slippageRate = slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate, f.GetDirection())
+	slippageRate = slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
 	if adjustedAmount <= 0 {
 		return 0, 0, fmt.Errorf("amount set to 0, data may be incorrect")
 	}
-	adjustedPrice = f.VolumeAdjustedPrice * slippageRate
+	adjustedPrice = applySlippageToPrice(f.GetDirection(), f.GetVolumeAdjustedPrice(), slippageRate)
 
 	f.Slippage = (slippageRate * 100) - 100
 	f.ExchangeFee = calculateExchangeFee(adjustedPrice, adjustedAmount, cs.ExchangeFee)
 	return adjustedPrice, adjustedAmount, nil
+}
+
+func applySlippageToPrice(direction gctorder.Side, price, slippageRate float64) float64 {
+	adjustedPrice := price
+	if direction == gctorder.Buy {
+		adjustedPrice = price + (price * (1 - slippageRate))
+	} else if direction == gctorder.Sell {
+		adjustedPrice = price * slippageRate
+	}
+	return adjustedPrice
 }
 
 func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c CurrencySettings) {
