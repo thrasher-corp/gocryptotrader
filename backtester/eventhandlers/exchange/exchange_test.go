@@ -19,7 +19,7 @@ import (
 
 func TestReset(t *testing.T) {
 	e := Exchange{
-		CurrencySettings: []CurrencySettings{},
+		CurrencySettings: []Settings{},
 	}
 	e.Reset()
 	if e.CurrencySettings != nil {
@@ -29,11 +29,11 @@ func TestReset(t *testing.T) {
 
 func TestSetCurrency(t *testing.T) {
 	e := Exchange{}
-	e.SetCurrency("", "", currency.Pair{}, CurrencySettings{})
+	e.SetCurrency("", "", currency.Pair{}, Settings{})
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
-	cs := CurrencySettings{
+	cs := Settings{
 		ExchangeName:        "binance",
 		UseRealOrders:       false,
 		InitialFunds:        1337,
@@ -98,7 +98,7 @@ func TestSizeOrder(t *testing.T) {
 	if err != nil && err.Error() != "received nil arguments" {
 		t.Error(err)
 	}
-	cs := &CurrencySettings{}
+	cs := &Settings{}
 	f := &fill.Fill{
 		ClosePrice: 1337,
 		Amount:     1,
@@ -165,7 +165,7 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 func TestExecuteOrder(t *testing.T) {
-	cs := CurrencySettings{
+	cs := Settings{
 		ExchangeName:        "binance",
 		UseRealOrders:       false,
 		InitialFunds:        1337,
@@ -181,7 +181,7 @@ func TestExecuteOrder(t *testing.T) {
 		MaximumSlippageRate: 1,
 	}
 	e := Exchange{
-		CurrencySettings: []CurrencySettings{cs},
+		CurrencySettings: []Settings{cs},
 	}
 	ev := event.Event{
 		Exchange:     "binance",
@@ -234,7 +234,7 @@ func TestExecuteOrder(t *testing.T) {
 
 	cs.UseRealOrders = true
 	o.Direction = gctorder.Sell
-	e.CurrencySettings = []CurrencySettings{cs}
+	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)

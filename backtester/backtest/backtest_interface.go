@@ -8,8 +8,3 @@ import (
 type CandleEvent interface {
 	common.DataEventHandler
 }
-
-// TickEvent interface for ticker data (bid/ask)
-type TickEvent interface {
-	common.DataEventHandler
-}

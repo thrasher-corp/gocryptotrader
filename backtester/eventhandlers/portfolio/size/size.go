@@ -10,7 +10,7 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (s *Size) SizeOrder(o order.OrderEvent, amountAvailable float64, cs *exchange.CurrencySettings) (*order.Order, error) {
+func (s *Size) SizeOrder(o order.OrderEvent, amountAvailable float64, cs *exchange.Settings) (*order.Order, error) {
 	if o == nil || cs == nil {
 		return nil, errors.New("nil arguments received, cannot size order")
 	}
@@ -71,7 +71,9 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSe
 	if availableFunds <= 0 {
 		return 0, errors.New("no fund available")
 	}
-
+	if price == 0 {
+		return 0, nil
+	}
 	amount := availableFunds * (1 - feeRate) / price
 	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
 		amount = minMaxSettings.MaximumSize * (1 - feeRate)
@@ -95,7 +97,9 @@ func (s *Size) calculateSellSize(price, availableFunds, feeRate float64, minMaxS
 	if availableFunds <= 0 {
 		return 0, errors.New("no fund available")
 	}
-
+	if price == 0 {
+		return 0, nil
+	}
 	amount := availableFunds * (1 - feeRate)
 	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
 		amount = minMaxSettings.MaximumSize * (1 - feeRate)

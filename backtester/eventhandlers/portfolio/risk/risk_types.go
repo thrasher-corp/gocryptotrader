@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-type RiskHandler interface {
+type Handler interface {
 	EvaluateOrder(order.OrderEvent, []holdings.Holding, compliance.Snapshot) (*order.Order, error)
 }
 

@@ -10,17 +10,17 @@ import (
 )
 
 type ExecutionHandler interface {
-	SetCurrency(string, asset.Item, currency.Pair, CurrencySettings)
-	GetCurrencySettings(string, asset.Item, currency.Pair) (CurrencySettings, error)
+	SetCurrency(string, asset.Item, currency.Pair, Settings)
+	GetCurrencySettings(string, asset.Item, currency.Pair) (Settings, error)
 	ExecuteOrder(order.OrderEvent, data.Handler) (*fill.Fill, error)
 	Reset()
 }
 
 type Exchange struct {
-	CurrencySettings []CurrencySettings
+	CurrencySettings []Settings
 }
 
-type CurrencySettings struct {
+type Settings struct {
 	ExchangeName  string
 	UseRealOrders bool
 

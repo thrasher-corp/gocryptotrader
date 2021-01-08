@@ -75,7 +75,7 @@ func (h *Holding) update(f fill.FillEvent) {
 		h.TotalFees += o.Fee
 		h.SoldAmount += o.Amount
 		h.SoldValue += o.Amount * o.Price
-	case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData:
+	case common.DoNothing, common.CouldNotSell, common.CouldNotBuy, common.MissingData, "":
 	}
 	h.TotalValueLostToSlippage += (f.GetVolumeAdjustedPrice() - f.GetPurchasePrice()) * f.GetAmount()
 	h.TotalValueLostToVolumeSizing += (f.GetClosePrice() - f.GetVolumeAdjustedPrice()) * f.GetAmount()

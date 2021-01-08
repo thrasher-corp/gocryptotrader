@@ -140,7 +140,7 @@ func TestSizeOrder(t *testing.T) {
 		t.Error(err)
 	}
 	o := &order.Order{}
-	cs := &exchange.CurrencySettings{}
+	cs := &exchange.Settings{}
 	_, err = s.SizeOrder(o, 0, cs)
 	if err != nil && err.Error() != "received availableFunds <= 0, cannot size order" {
 		t.Error(err)

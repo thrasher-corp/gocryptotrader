@@ -65,7 +65,7 @@ func NewFromConfig(cfg *config.Config, templatePath string, output string) (*Bac
 	}
 
 	var e exchange.Exchange
-	bt.Datas = &data.DataHolder{}
+	bt.Datas = &data.HandlerPerCurrency{}
 	bt.EventQueue = &eventholder.Holder{}
 	reports := &report.Data{
 		Config:       cfg,
@@ -81,33 +81,34 @@ func NewFromConfig(cfg *config.Config, templatePath string, output string) (*Bac
 
 	bt.Exchange = &e
 
-	p := &portfolio.Portfolio{
-		RiskFreeRate: cfg.StatisticSettings.RiskFreeRate,
-		SizeManager: &size.Size{
-			BuySide: config.MinMax{
-				MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
-				MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
-				MaximumTotal: cfg.PortfolioSettings.BuySide.MaximumTotal,
-			},
-			SellSide: config.MinMax{
-				MinimumSize:  cfg.PortfolioSettings.SellSide.MinimumSize,
-				MaximumSize:  cfg.PortfolioSettings.SellSide.MaximumSize,
-				MaximumTotal: cfg.PortfolioSettings.SellSide.MaximumTotal,
-			},
-			Leverage: config.Leverage{
-				CanUseLeverage:  cfg.PortfolioSettings.Leverage.CanUseLeverage,
-				MaximumLeverage: cfg.PortfolioSettings.Leverage.MaximumLeverage,
-			},
+	sizeManager := &size.Size{
+		BuySide: config.MinMax{
+			MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
+			MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
+			MaximumTotal: cfg.PortfolioSettings.BuySide.MaximumTotal,
 		},
-		RiskManager: &risk.Risk{},
+		SellSide: config.MinMax{
+			MinimumSize:  cfg.PortfolioSettings.SellSide.MinimumSize,
+			MaximumSize:  cfg.PortfolioSettings.SellSide.MaximumSize,
+			MaximumTotal: cfg.PortfolioSettings.SellSide.MaximumTotal,
+		},
+		Leverage: config.Leverage{
+			CanUseLeverage:  cfg.PortfolioSettings.Leverage.CanUseLeverage,
+			MaximumLeverage: cfg.PortfolioSettings.Leverage.MaximumLeverage,
+		},
+	}
+	var p *portfolio.Portfolio
+	p, err = portfolio.Setup(sizeManager, &risk.Risk{}, cfg.StatisticSettings.RiskFreeRate)
+	if err != nil {
+		return nil, err
 	}
 	for i := range e.CurrencySettings {
-		lookup := p.SetupExchangeAssetPairMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
+		lookup, _ := p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
 		lookup.Fee = e.CurrencySettings[i].TakerFee
 		lookup.Leverage = e.CurrencySettings[i].Leverage
 		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
 		lookup.SellSideSizing = e.CurrencySettings[i].SellSide
-		lookup.SetInitialFunds(e.CurrencySettings[i].InitialFunds)
+		lookup.InitialFunds = e.CurrencySettings[i].InitialFunds
 		lookup.ComplianceManager = compliance.Manager{
 			Snapshots: []compliance.Snapshot{},
 		}
@@ -165,7 +166,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		if err != nil {
 			return resp, err
 		}
-		bt.Datas.AddDataForCurrency(exchangeName, a, pair, klineData)
+		bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
 		var makerFee, takerFee float64
 		if cfg.CurrencySettings[i].MakerFee > 0 {
 			makerFee = cfg.CurrencySettings[i].MakerFee
@@ -203,7 +204,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 
-		resp.CurrencySettings = append(resp.CurrencySettings, exchange.CurrencySettings{
+		resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
 			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
 			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
 			MinimumSlippageRate: cfg.CurrencySettings[i].MinimumSlippagePercent,
@@ -601,15 +602,17 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 // data events
 func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
 	// update portfolio with latest price
-	bt.Portfolio.Update(e)
+	err := bt.Portfolio.Update(e)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
 	// update statistics with latest price
 	bt.Statistic.AddDataEventForTime(e)
 }
 
 func (bt *BackTest) processSignalEvent(ev signal.SignalEvent) {
 	cs, _ := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	o, err := bt.Portfolio.OnSignal(ev, d, &cs)
+	o, err := bt.Portfolio.OnSignal(ev, &cs)
 	if err != nil {
 		bt.Statistic.AddExchangeEventForTime(o)
 		return
@@ -634,13 +637,12 @@ func (bt *BackTest) processOrderEvent(ev order.OrderEvent) {
 }
 
 func (bt *BackTest) processFillEvent(ev fill.FillEvent) {
-	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	t, err := bt.Portfolio.OnFill(ev, d)
+	t, err := bt.Portfolio.OnFill(ev)
 	if err != nil {
 		bt.Statistic.AddFillEventForTime(t)
 		return
 	}
-	holding := bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
+	holding, _ := bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
 	bt.Statistic.AddHoldingsForTime(holding)
 	var cp *compliance.Manager
 	cp, err = bt.Portfolio.GetComplianceManager(ev.GetExchange(), ev.GetAssetType(), ev.Pair())

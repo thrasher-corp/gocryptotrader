@@ -2,9 +2,41 @@ package data
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+func (d *HandlerPerCurrency) Setup() {
+	if d.data == nil {
+		d.data = make(map[string]map[asset.Item]map[currency.Pair]Handler)
+	}
+}
+
+func (d *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p currency.Pair, k Handler) {
+	e = strings.ToLower(e)
+	if d.data[e] == nil {
+		d.data[e] = make(map[asset.Item]map[currency.Pair]Handler)
+	}
+	if d.data[e][a] == nil {
+		d.data[e][a] = make(map[currency.Pair]Handler)
+	}
+	d.data[e][a][p] = k
+}
+
+func (d *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler {
+	return d.data
+}
+
+func (d *HandlerPerCurrency) GetDataForCurrency(e string, a asset.Item, p currency.Pair) Handler {
+	return d.data[e][a][p]
+}
+
+func (d *HandlerPerCurrency) Reset() {
+	d.data = nil
+}
 
 // Load specified data into Candle format
 // this is empty and loader types will have their own implementation
@@ -36,6 +68,9 @@ func (d *Data) SetStream(s []common.DataEventHandler) {
 // add duplicates. Used for live analysis
 func (d *Data) AppendStream(s ...common.DataEventHandler) {
 	for i := range s {
+		if s[i] == nil {
+			continue
+		}
 		d.stream = append(d.stream, s[i])
 	}
 }

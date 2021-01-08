@@ -19,6 +19,43 @@ const (
 	takerFee = 0.001
 )
 
+func TestLoadConfig(t *testing.T) {
+	_, err := LoadConfig([]byte(`{}`))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestReadConfigFromFile(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
+	}
+	defer func() {
+		err = os.RemoveAll(tempDir)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+	var passFile *os.File
+	passFile, err = ioutil.TempFile(tempDir, "*.strat")
+	if err != nil {
+		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
+	}
+	_, err = passFile.WriteString("{}")
+	if err != nil {
+		t.Error(err)
+	}
+	err = passFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ReadConfigFromFile(passFile.Name())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // these are tests for experimentation more than anything
 func TestGenerateDCACandleAPIStrat(t *testing.T) {
 	cfg := Config{

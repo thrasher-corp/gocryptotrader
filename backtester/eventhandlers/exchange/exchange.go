@@ -139,7 +139,7 @@ func (e *Exchange) placeOrder(price float64, amount float64, useRealOrders bool,
 	return orderID, nil
 }
 
-func (e *Exchange) sizeOrder(high, low, volume float64, cs *CurrencySettings, f *fill.Fill) (adjustedPrice float64, adjustedAmount float64, err error) {
+func (e *Exchange) sizeOrder(high, low, volume float64, cs *Settings, f *fill.Fill) (adjustedPrice float64, adjustedAmount float64, err error) {
 	if cs == nil || f == nil {
 		return 0, 0, errors.New("received nil arguments")
 	}
@@ -167,7 +167,7 @@ func applySlippageToPrice(direction gctorder.Side, price, slippageRate float64) 
 	return adjustedPrice
 }
 
-func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c CurrencySettings) {
+func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c Settings) {
 	if c.ExchangeName == "" ||
 		c.AssetType == "" ||
 		c.CurrencyPair.IsEmpty() {
@@ -185,7 +185,7 @@ func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c Cu
 	e.CurrencySettings = append(e.CurrencySettings, c)
 }
 
-func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) (CurrencySettings, error) {
+func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) (Settings, error) {
 	for i := range e.CurrencySettings {
 		if e.CurrencySettings[i].CurrencyPair == cp {
 			if e.CurrencySettings[i].AssetType == a {
@@ -195,7 +195,7 @@ func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pa
 			}
 		}
 	}
-	return CurrencySettings{}, fmt.Errorf("no currency settings found for %v %v %v", exch, a, cp)
+	return Settings{}, fmt.Errorf("no currency settings found for %v %v %v", exch, a, cp)
 }
 
 func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (adjustedPrice float64, adjustedAmount float64) {

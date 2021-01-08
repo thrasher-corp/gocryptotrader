@@ -227,7 +227,8 @@ func (s *Statistic) PrintAllEvents() {
 						if direction == common.CouldNotBuy ||
 							direction == common.CouldNotSell ||
 							direction == common.DoNothing ||
-							direction == common.MissingData {
+							direction == common.MissingData ||
+							direction == "" {
 							log.Infof(log.BackTester, "%v | Price: $%v - Direction: %v - Why: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								c.Events[i].FillEvent.GetClosePrice(),
