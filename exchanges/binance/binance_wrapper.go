@@ -1049,37 +1049,32 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 			return respData, err
 		}
 
-		orderSide := order.Side(resp.Side)
-		orderDate, err := convert.TimeFromUnixTimestampFloat(resp.Time)
-		if err != nil {
-			return respData, err
-		}
+	orderSide := order.Side(resp.Side)
 
 		status, err := order.StringToOrderStatus(resp.Status)
 		if err != nil {
 			return respData, err
 		}
 
-		orderType := order.Limit
-		if resp.Type == "MARKET" {
-			orderType = order.Market
-		}
+orderType := order.Limit
+if resp.Type == "MARKET" {
+	orderType = order.Market
+}
 
-		return order.Detail{
-			Amount:         resp.OrigQty,
-			Date:           orderDate,
-			Exchange:       b.Name,
-			ID:             strconv.FormatInt(resp.OrderID, 10),
-			Side:           orderSide,
-			Type:           orderType,
-			Pair:           pair,
-			Cost:           resp.CummulativeQuoteQty,
-			AssetType:      assetType,
-			CloseTime:      resp.UpdateTime,
-			Status:         status,
-			Price:          resp.Price,
-			ExecutedAmount: resp.ExecutedQty,
-		}, nil
+return order.Detail{
+	Amount:         resp.OrigQty,
+	Exchange:       b.Name,
+	ID:             strconv.FormatInt(resp.OrderID, 10),
+	Side:           orderSide,
+	Type:           orderType,
+	Pair:           pair,
+	Cost:           resp.CummulativeQuoteQty,
+	AssetType:      assetType,
+	CloseTime:      resp.UpdateTime,
+	Status:         status,
+	Price:          resp.Price,
+	ExecutedAmount: resp.ExecutedQty,
+}, nil
 	case asset.CoinMarginedFutures:
 		orderData, err := b.GetAllFuturesOrders(currency.Pair{}, "", time.Time{}, time.Time{}, orderIDInt, 0)
 		if err != nil {
@@ -1152,14 +1147,13 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		return respData, fmt.Errorf("assetType %s not supported", assetType)
 	}
 	return respData, nil
-}
+	orderType := order.Limit
+	if resp.Type == "MARKET" {
+		orderType = order.Market
+	}
 
-// GetDepositAddress returns a deposit address for a specified currency
-func (b *Binance) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
-	return b.GetDepositAddressForCurrency(cryptocurrency.String())
-}
-
-// WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
+	return order.Detail{
+		Amount:         resp.OrigQty,
 // submitted
 func (b *Binance) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
