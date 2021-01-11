@@ -21,7 +21,7 @@ func (e *Exchange) Reset() {
 	*e = Exchange{}
 }
 
-func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler, bot *engine.Engine) (*fill.Fill, error) {
 	cs, _ := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	f := &fill.Fill{
 		Event: event.Event{
@@ -66,11 +66,11 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 	}
 
 	var orderID string
-	orderID, err = e.placeOrder(adjustedPrice, amount, cs.UseRealOrders, f)
+	orderID, err = e.placeOrder(adjustedPrice, amount, cs.UseRealOrders, f, bot)
 	if err != nil {
 		return f, err
 	}
-	ords, _ := engine.Bot.OrderManager.GetOrdersSnapshot("")
+	ords, _ := bot.OrderManager.GetOrdersSnapshot("")
 	for i := range ords {
 		if ords[i].ID == orderID {
 			ords[i].Date = o.GetTime()
@@ -88,7 +88,7 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler) (*fill.Fi
 	return f, nil
 }
 
-func (e *Exchange) placeOrder(price float64, amount float64, useRealOrders bool, f *fill.Fill) (string, error) {
+func (e *Exchange) placeOrder(price float64, amount float64, useRealOrders bool, f *fill.Fill, bot *engine.Engine) (string, error) {
 	if f == nil {
 		return "", errors.New("received nil event")
 	}
@@ -112,7 +112,7 @@ func (e *Exchange) placeOrder(price float64, amount float64, useRealOrders bool,
 	}
 
 	if useRealOrders {
-		resp, err := engine.Bot.OrderManager.Submit(o)
+		resp, err := bot.OrderManager.Submit(o)
 		if resp != nil {
 			orderID = resp.OrderID
 		}
@@ -128,7 +128,7 @@ func (e *Exchange) placeOrder(price float64, amount float64, useRealOrders bool,
 			Cost:          price,
 			FullyMatched:  true,
 		}
-		resp, err := engine.Bot.OrderManager.SubmitFakeOrder(o, submitResponse)
+		resp, err := bot.OrderManager.SubmitFakeOrder(o, submitResponse)
 		if resp != nil {
 			orderID = resp.OrderID
 		}

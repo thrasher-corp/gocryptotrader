@@ -26,7 +26,9 @@ func (s *Statistic) AddDataEventForTime(e common.DataEventHandler) {
 	ex := e.GetExchange()
 	a := e.GetAssetType()
 	p := e.Pair()
-
+	if s.ExchangeAssetPairStatistics == nil {
+		s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	}
 	if s.ExchangeAssetPairStatistics[ex] == nil {
 		s.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
 	}

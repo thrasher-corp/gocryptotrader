@@ -7,8 +7,20 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -103,6 +115,102 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.CurrencySettings[0].MakerFee = 1337
 	cfg.CurrencySettings[0].TakerFee = 1337
 	_, err = NewFromConfig(cfg, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLoadData(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.CurrencySettings = []config.CurrencySettings{
+		{
+			ExchangeName: "test",
+			Asset:        "test",
+			Base:         "test",
+			Quote:        "test",
+		},
+	}
+	cfg.CurrencySettings[0].ExchangeName = "binance"
+	cfg.CurrencySettings[0].Asset = asset.Spot.String()
+	cfg.CurrencySettings[0].Base = "BTC"
+	cfg.CurrencySettings[0].Quote = "USDT"
+	cfg.CurrencySettings[0].InitialFunds = 1337
+	cfg.APIData = &config.APIData{
+		DataType:  "",
+		Interval:  0,
+		StartDate: time.Time{},
+		EndDate:   time.Time{},
+	}
+	cfg.APIData.StartDate = time.Now().Add(-time.Hour)
+	cfg.APIData.EndDate = time.Now()
+	cfg.APIData.Interval = gctkline.FifteenMin.Duration()
+	cfg.APIData.DataType = common.CandleStr
+	cfg.StrategySettings = config.StrategySettings{
+		Name: dollarcostaverage.Name,
+		CustomSettings: map[string]interface{}{
+			"hello": "moto",
+		},
+	}
+	cfg.CurrencySettings[0].MakerFee = 1337
+	cfg.CurrencySettings[0].TakerFee = 1337
+	_, err := NewFromConfig(cfg, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+	bt := BackTest{
+		Reports: &report.Data{},
+	}
+	bot, err := engine.NewFromSettings(&engine.Settings{}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	bot.LoadExchange("binance", false, nil)
+	exch := bot.GetExchangeByName("binance")
+	if exch == nil {
+		t.Error("expected not nil")
+	}
+
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	cfg.APIData = nil
+	cfg.DatabaseData = &config.DatabaseData{
+		DataType:       common.CandleStr,
+		Interval:       gctkline.FifteenMin.Duration(),
+		StartDate:      time.Now().Add(-time.Hour),
+		EndDate:        time.Now(),
+		ConfigOverride: nil,
+	}
+	bt.Bot = bot
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	if err != nil && err.Error() != "database support is disabled" {
+		t.Error(err)
+	}
+
+	cfg.DatabaseData = nil
+	cfg.CSVData = &config.CSVData{
+		DataType: common.CandleStr,
+		Interval: gctkline.FifteenMin.Duration(),
+		FullPath: "test",
+	}
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
+	if err != nil && !strings.Contains(err.Error(), "The system cannot find the file specified.") {
+		t.Error(err)
+	}
+	cfg.CSVData = nil
+	cfg.LiveData = &config.LiveData{
+		Interval:            gctkline.FifteenMin.Duration(),
+		DataType:            common.CandleStr,
+		APIKeyOverride:      "test",
+		APISecretOverride:   "test",
+		APIClientIDOverride: "test",
+		API2FAOverride:      "test",
+		RealOrders:          true,
+	}
+	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -207,6 +315,240 @@ func TestLoadLiveData(t *testing.T) {
 	cfg.LiveData.APIClientIDOverride = "1234"
 	cfg.LiveData.API2FAOverride = "1234"
 	err = loadLiveData(cfg, b)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestReset(t *testing.T) {
+	bt := BackTest{
+		Bot:        &engine.Engine{},
+		shutdown:   nil,
+		Datas:      &data.HandlerPerCurrency{},
+		Strategy:   &dollarcostaverage.Strategy{},
+		Portfolio:  &portfolio.Portfolio{},
+		Exchange:   &exchange.Exchange{},
+		Statistic:  &statistics.Statistic{},
+		EventQueue: &eventholder.Holder{},
+		Reports:    &report.Data{},
+	}
+	bt.Reset()
+	if bt.Bot != nil {
+		t.Error("expected nil")
+	}
+}
+
+func TestFullCycle(t *testing.T) {
+	ex := "binance"
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	a := asset.Spot
+	tt := time.Now()
+
+	stats := &statistics.Statistic{}
+	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
+
+	port, err := portfolio.Setup(&size.Size{
+		Leverage: config.Leverage{},
+		BuySide:  config.MinMax{},
+		SellSide: config.MinMax{},
+	}, &risk.Risk{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = port.SetupCurrencySettingsMap(ex, a, cp)
+	if err != nil {
+		t.Error(err)
+	}
+	err = port.SetInitialFunds(ex, a, cp, 1333337)
+	if err != nil {
+		t.Error(err)
+	}
+
+	bot, err := engine.NewFromSettings(&engine.Settings{}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	// Bad global use requires this
+	engine.Bot = bot
+
+	err = bot.OrderManager.Start()
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.LoadExchange(ex, false, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	bt := BackTest{
+		Bot:        bot,
+		shutdown:   nil,
+		Datas:      &data.HandlerPerCurrency{},
+		Strategy:   &dollarcostaverage.Strategy{},
+		Portfolio:  port,
+		Exchange:   &exchange.Exchange{},
+		Statistic:  stats,
+		EventQueue: &eventholder.Holder{},
+		Reports:    &report.Data{},
+	}
+
+	bt.Datas.Setup()
+	k := kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: ex,
+			Pair:     cp,
+			Asset:    a,
+			Interval: gctkline.FifteenMin,
+			Candles: []gctkline.Candle{{
+				Time:   tt,
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			}},
+		},
+		Data: data.Data{},
+		Range: gctkline.IntervalRangeHolder{
+			Start: tt,
+			End:   tt.Add(gctkline.FifteenMin.Duration()),
+			Ranges: []gctkline.IntervalRange{
+				{
+					Start: tt,
+					End:   tt.Add(gctkline.FifteenMin.Duration()),
+					Intervals: []gctkline.IntervalData{
+						{
+							Start:   tt,
+							End:     tt.Add(gctkline.FifteenMin.Duration()),
+							HasData: true,
+						},
+					},
+				},
+			},
+		},
+	}
+	err = k.Load()
+	if err != nil {
+		t.Error(err)
+	}
+	bt.Datas.SetDataForCurrency(ex, a, cp, &k)
+
+	err = bt.Run()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestStop(t *testing.T) {
+	bt := BackTest{shutdown: make(chan struct{})}
+	bt.Stop()
+}
+
+func TestFullCycleMulti(t *testing.T) {
+	ex := "binance"
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	a := asset.Spot
+	tt := time.Now()
+
+	stats := &statistics.Statistic{}
+	stats.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	stats.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
+
+	port, err := portfolio.Setup(&size.Size{
+		Leverage: config.Leverage{},
+		BuySide:  config.MinMax{},
+		SellSide: config.MinMax{},
+	}, &risk.Risk{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = port.SetupCurrencySettingsMap(ex, a, cp)
+	if err != nil {
+		t.Error(err)
+	}
+	err = port.SetInitialFunds(ex, a, cp, 1333337)
+	if err != nil {
+		t.Error(err)
+	}
+
+	bot, err := engine.NewFromSettings(&engine.Settings{}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	// Bad global use requires this
+	engine.Bot = bot
+
+	err = bot.OrderManager.Start()
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.LoadExchange(ex, false, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	bt := BackTest{
+		Bot:        bot,
+		shutdown:   nil,
+		Datas:      &data.HandlerPerCurrency{},
+		Portfolio:  port,
+		Exchange:   &exchange.Exchange{},
+		Statistic:  stats,
+		EventQueue: &eventholder.Holder{},
+		Reports:    &report.Data{},
+	}
+
+	bt.Strategy, err = strategies.LoadStrategyByName(dollarcostaverage.Name, true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	bt.Datas.Setup()
+	k := kline.DataFromKline{
+		Item: gctkline.Item{
+			Exchange: ex,
+			Pair:     cp,
+			Asset:    a,
+			Interval: gctkline.FifteenMin,
+			Candles: []gctkline.Candle{{
+				Time:   tt,
+				Open:   1337,
+				High:   1337,
+				Low:    1337,
+				Close:  1337,
+				Volume: 1337,
+			}},
+		},
+		Data: data.Data{},
+		Range: gctkline.IntervalRangeHolder{
+			Start: tt,
+			End:   tt.Add(gctkline.FifteenMin.Duration()),
+			Ranges: []gctkline.IntervalRange{
+				{
+					Start: tt,
+					End:   tt.Add(gctkline.FifteenMin.Duration()),
+					Intervals: []gctkline.IntervalData{
+						{
+							Start:   tt,
+							End:     tt.Add(gctkline.FifteenMin.Duration()),
+							HasData: true,
+						},
+					},
+				},
+			},
+		},
+	}
+	err = k.Load()
+	if err != nil {
+		t.Error(err)
+	}
+
+	bt.Datas.SetDataForCurrency(ex, a, cp, &k)
+
+	err = bt.Run()
 	if err != nil {
 		t.Error(err)
 	}

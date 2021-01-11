@@ -6,13 +6,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 type ExecutionHandler interface {
 	SetCurrency(string, asset.Item, currency.Pair, Settings)
 	GetCurrencySettings(string, asset.Item, currency.Pair) (Settings, error)
-	ExecuteOrder(order.OrderEvent, data.Handler) (*fill.Fill, error)
+	ExecuteOrder(order.OrderEvent, data.Handler, *engine.Engine) (*fill.Fill, error)
 	Reset()
 }
 

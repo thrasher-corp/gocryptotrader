@@ -109,7 +109,7 @@ func TestSizeOrder(t *testing.T) {
 		t.Error(err)
 	}
 	p, a, err = e.sizeOrder(10, 2, 10, cs, f)
-	if err != nil && err.Error() != "amount set to 0, data may be incorradsect" {
+	if err != nil && err.Error() != "amount set to 0, data may be incorrect" {
 		t.Error(err)
 	}
 	if p != 10 {
@@ -121,44 +121,43 @@ func TestSizeOrder(t *testing.T) {
 }
 
 func TestPlaceOrder(t *testing.T) {
-	var err error
-	engine.Bot, err = engine.New()
+	bot, err := engine.New()
 	if err != nil {
 		t.Error(err)
 	}
-	err = engine.Bot.OrderManager.Start()
+	err = bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
 	}
-	err = engine.Bot.LoadExchange("binance", false, nil)
+	err = bot.LoadExchange("binance", false, nil)
 	if err != nil {
 		t.Error(err)
 	}
 	e := Exchange{}
-	_, err = e.placeOrder(1, 1, false, nil)
+	_, err = e.placeOrder(1, 1, false, nil, nil)
 	if err != nil && err.Error() != "received nil event" {
 		t.Error(err)
 	}
 	f := &fill.Fill{}
-	_, err = e.placeOrder(1, 1, false, f)
+	_, err = e.placeOrder(1, 1, false, f, bot)
 	if err != nil && err.Error() != "order exchange name must be specified" {
 		t.Error(err)
 	}
 
 	f.Exchange = "binance"
-	_, err = e.placeOrder(1, 1, false, f)
+	_, err = e.placeOrder(1, 1, false, f, bot)
 	if err != nil && err.Error() != "order pair is empty" {
 		t.Error(err)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(1, 1, false, f)
+	_, err = e.placeOrder(1, 1, false, f, bot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = e.placeOrder(1, 1, true, f)
+	_, err = e.placeOrder(1, 1, true, f, bot)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -196,16 +195,15 @@ func TestExecuteOrder(t *testing.T) {
 		Amount:    1,
 	}
 
-	var err error
-	engine.Bot, err = engine.New()
+	bot, err := engine.New()
 	if err != nil {
 		t.Error(err)
 	}
-	err = engine.Bot.OrderManager.Start()
+	err = bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
 	}
-	err = engine.Bot.LoadExchange("binance", false, nil)
+	err = bot.LoadExchange("binance", false, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -227,7 +225,7 @@ func TestExecuteOrder(t *testing.T) {
 	}
 	d.Load()
 	d.Next()
-	_, err = e.ExecuteOrder(o, d)
+	_, err = e.ExecuteOrder(o, d, bot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -235,7 +233,7 @@ func TestExecuteOrder(t *testing.T) {
 	cs.UseRealOrders = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
-	_, err = e.ExecuteOrder(o, d)
+	_, err = e.ExecuteOrder(o, d, bot)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}

@@ -492,7 +492,7 @@ func loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexc
 }
 
 func (bt *BackTest) Stop() {
-	bt.shutdown <- struct{}{}
+	close(bt.shutdown)
 }
 
 // Run will iterate over loaded data events
@@ -623,7 +623,7 @@ func (bt *BackTest) processSignalEvent(ev signal.SignalEvent) {
 
 func (bt *BackTest) processOrderEvent(ev order.OrderEvent) {
 	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	f, err := bt.Exchange.ExecuteOrder(ev, d)
+	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.Bot)
 	if err != nil {
 		if f == nil {
 			log.Errorf(log.BackTester, "fill event should always be returned, please fix, %v", err)

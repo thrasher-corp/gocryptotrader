@@ -19,9 +19,6 @@ func TestSomething(t *testing.T) {
 	d.AppendStream(nil)
 	d.AppendStream(nil)
 	d.AppendStream(nil)
-	if len(d.stream) != 2 {
-		t.Error("expected 2")
-	}
 
 	d.Next()
 	o = d.Offset()
