@@ -129,6 +129,88 @@ func TestGenerateDCACandleAPIStrat(t *testing.T) {
 	}
 }
 
+func TestPrintSettings(t *testing.T) {
+	cfg := Config{
+		Nickname: "super fun run",
+		StrategySettings: StrategySettings{
+			Name: "dollarcostaverage",
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: "binance",
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				InitialFunds: 100000,
+				BuySide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				SellSide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				Leverage: Leverage{
+					CanUseLeverage:  false,
+					MaximumLeverage: 102,
+				},
+				MakerFee: makerFee,
+				TakerFee: takerFee,
+			},
+		},
+		APIData: &APIData{
+			StartDate: time.Now().Add(-time.Hour * 24 * 365),
+			EndDate:   time.Now(),
+			Interval:  kline.OneDay.Duration(),
+			DataType:  common.CandleStr,
+		},
+		CSVData: &CSVData{
+			DataType: common.CandleStr,
+			Interval: kline.OneDay.Duration(),
+			FullPath: "fake",
+		},
+		LiveData: &LiveData{
+			Interval:            kline.OneDay.Duration(),
+			DataType:            common.CandleStr,
+			APIKeyOverride:      "",
+			APISecretOverride:   "",
+			APIClientIDOverride: "",
+			API2FAOverride:      "",
+			RealOrders:          false,
+		},
+		DatabaseData: &DatabaseData{
+			DataType:       common.CandleStr,
+			Interval:       kline.OneDay.Duration(),
+			StartDate:      time.Now().Add(-time.Hour * 24 * 365),
+			EndDate:        time.Now(),
+			ConfigOverride: nil,
+		},
+		PortfolioSettings: PortfolioSettings{
+			MaximumHoldingsRatio: 0,
+			BuySide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			SellSide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			Leverage: Leverage{
+				CanUseLeverage:  false,
+				MaximumLeverage: 102,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: 0.03,
+		},
+	}
+	cfg.PrintSetting()
+}
+
 // these are tests for experimentation more than anything
 func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 	cfg := Config{

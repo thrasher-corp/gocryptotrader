@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	kline2 "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
@@ -40,7 +40,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 			return nil, err
 		}
 		datarino, err := trade.ConvertTradesToCandles(
-			kline2.Interval(interval),
+			gctkline.Interval(interval),
 			trades...)
 		if err != nil {
 			return nil, err
@@ -54,16 +54,16 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 	return resp, nil
 }
 
-func getCandleDatabaseData(startDate, endDate time.Time, interval time.Duration, exchangeName string, fPair currency.Pair, a asset.Item) (kline2.Item, error) {
-	datarino, err := kline2.LoadFromDatabase(
+func getCandleDatabaseData(startDate, endDate time.Time, interval time.Duration, exchangeName string, fPair currency.Pair, a asset.Item) (gctkline.Item, error) {
+	datarino, err := gctkline.LoadFromDatabase(
 		exchangeName,
 		fPair,
 		a,
-		kline2.Interval(interval),
+		gctkline.Interval(interval),
 		startDate,
 		endDate)
 	if err != nil {
-		return kline2.Item{}, err
+		return gctkline.Item{}, err
 	}
 	return datarino, nil
 }
