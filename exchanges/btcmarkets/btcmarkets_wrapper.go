@@ -155,8 +155,8 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       b.Subscribe,
 		GenerateSubscriptions:            b.generateDefaultSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 	})
 	if err != nil {
@@ -352,9 +352,12 @@ func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (*ord
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName: b.Name,
-		Pair:         p,
-		AssetType:    assetType, NotAggregated: true}
+		ExchangeName:       b.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		NotAggregated:      true,
+		VerificationBypass: b.OrderbookVerificationBypass,
+	}
 
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {

@@ -704,7 +704,7 @@ func (o *OKEX) GetWithdrawalsHistory(c currency.Code) (resp []exchange.Withdrawa
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetHistoricTrades returns historic trade data within the timeframe provided
+// GetRecentTrades returns recent trade data
 func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = o.FormatExchangeCurrency(p, assetType)

@@ -154,8 +154,8 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     b.Unsubscribe,
 		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    exch.WebsocketOrderbookBufferEnabled,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		UpdateEntriesByID:                true,
 	})
 	if err != nil {
@@ -334,9 +334,10 @@ func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName: b.Name,
-		Pair:         p,
-		AssetType:    assetType,
+		ExchangeName:       b.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: b.OrderbookVerificationBypass,
 	}
 
 	if assetType == asset.Index {

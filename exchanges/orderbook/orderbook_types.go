@@ -85,6 +85,9 @@ type Base struct {
 	NotAggregated bool `json:"-"`
 	IsFundingRate bool `json:"fundingRate"`
 
+	// VerificationBypass is a complete orderbook verification bypass set by
+	// user configuration
+	VerificationBypass bool `json:"-"`
 	// HasChecksumValidation defines an allowance to bypass internal
 	// verification if the book has been verified by checksum.
 	HasChecksumValidation bool `json:"-"`

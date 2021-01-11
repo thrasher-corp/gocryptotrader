@@ -513,6 +513,7 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 		Pair:                  p,
 		ExchangeName:          f.Name,
 		HasChecksumValidation: true,
+		VerificationBypass:    f.OrderbookVerificationBypass,
 	}
 	return f.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

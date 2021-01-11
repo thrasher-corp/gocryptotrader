@@ -243,7 +243,12 @@ func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*o
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{ExchangeName: l.Name, Pair: p, AssetType: assetType}
+	book := &orderbook.Base{
+		ExchangeName:       l.Name,
+		Pair:               p,
+		AssetType:          assetType,
+		VerificationBypass: l.OrderbookVerificationBypass,
+	}
 	fpair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return book, err
