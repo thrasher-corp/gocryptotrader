@@ -15,7 +15,12 @@ import (
 )
 
 // Name is the strategy name
-const Name = "rsi"
+const (
+	Name         = "rsi"
+	rsiPeriodKey = "rsi-period"
+	rsiLowKey    = "rsi-low"
+	rsiHighKey   = "rsi-high"
+)
 
 type Strategy struct {
 	base.Strategy
@@ -29,6 +34,9 @@ func (s *Strategy) Name() string {
 }
 
 func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.SignalEvent, error) {
+	if d == nil {
+		return nil, errors.New("received nil data")
+	}
 	es, _ := s.GetBase(d)
 	es.SetPrice(d.Latest().Price())
 
@@ -58,38 +66,44 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.SignalE
 	return &es, nil
 }
 
+// SupportsMultiCurrency highlights whether the strategy can handle multiple currency calculation
+// There is nothing actually stopping this strategy from considering multiple currencies at once
+// but for demonstration purposes, this strategy does not
 func (s *Strategy) SupportsMultiCurrency() bool {
 	return false
 }
 
-// OnSignals
+// OnSignals analyses multiple data points simultaneously, allowing flexibility
+// in allowing a strategy to only place an order for X currency if Y currency's price is Z
+// For rsi, multi-currency signal processing is unsupported for demonstration purposes
 func (s *Strategy) OnSignals(_ []data.Handler, _ portfolio.Handler) ([]signal.SignalEvent, error) {
 	return nil, errors.New("unsupported")
 }
 
 func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
-	if rsiLowInterface, ok := customSettings["rsi-low"]; ok {
-		rsiLow, ok := rsiLowInterface.(float64)
-		if !ok {
-			return fmt.Errorf("provided rsi-low value could not be parsed: %v", rsiLowInterface)
+	for k, v := range customSettings {
+		switch k {
+		case rsiHighKey:
+			rsiHigh, ok := v.(float64)
+			if !ok {
+				return fmt.Errorf("provided rsi-high value could not be parsed: %v", v)
+			}
+			s.rsiHigh = rsiHigh
+		case rsiLowKey:
+			rsiLow, ok := v.(float64)
+			if !ok {
+				return fmt.Errorf("provided rsi-low value could not be parsed: %v", v)
+			}
+			s.rsiLow = rsiLow
+		case rsiPeriodKey:
+			rsiPeriod, ok := v.(float64)
+			if !ok {
+				return fmt.Errorf("provided rsi-period value could not be parsed: %v", v)
+			}
+			s.rsiPeriod = rsiPeriod
+		default:
+			return fmt.Errorf("unrecognised custom setting key %v with value %v. Cannot apply", k, v)
 		}
-		s.rsiLow = rsiLow
-	}
-
-	if rsiHighInterface, ok := customSettings["rsi-high"]; ok {
-		rsiHigh, ok := rsiHighInterface.(float64)
-		if !ok {
-			return fmt.Errorf("provided rsi-high value could not be parsed: %v", rsiHighInterface)
-		}
-		s.rsiHigh = rsiHigh
-	}
-
-	if rsiPeriodInterface, ok := customSettings["rsi-period"]; ok {
-		rsiPeriod, ok := rsiPeriodInterface.(float64)
-		if !ok {
-			return fmt.Errorf("provided rsi-period value could not be parsed: %v", rsiPeriodInterface)
-		}
-		s.rsiPeriod = rsiPeriod
 	}
 
 	return nil
