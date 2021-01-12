@@ -138,7 +138,7 @@ func (o *OKCoin) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate)),
 	)
 	o.API.Endpoints = o.NewEndpoints()
-	o.API.Endpoints.CreateMap(map[exchange.URL]string{
+	o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      okCoinAPIURL,
 		exchange.WebsocketSpot: okCoinWebsocketURL,
 	})

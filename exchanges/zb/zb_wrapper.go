@@ -132,7 +132,7 @@ func (z *ZB) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	z.API.Endpoints = z.NewEndpoints()
-	z.API.Endpoints.CreateMap(map[exchange.URL]string{
+	z.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              zbTradeURL,
 		exchange.RestSpotSupplementary: zbMarketURL,
 		exchange.WebsocketSpot:         zbWebsocketAPI,

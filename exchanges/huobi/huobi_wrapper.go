@@ -160,7 +160,7 @@ func (h *HUOBI) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	h.API.Endpoints = h.NewEndpoints()
-	h.API.Endpoints.CreateMap(map[exchange.URL]string{
+	h.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      huobiAPIURL,
 		exchange.RestFutures:   huobiURL,
 		exchange.WebsocketSpot: wsMarketURL,

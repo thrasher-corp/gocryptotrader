@@ -21,7 +21,7 @@ func (a *Alphapoint) WebsocketClient() {
 		var httpResp *http.Response
 		endpoint, err := a.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Error(log.WebsocketMgr, err)
 		}
 		a.WebsocketConn, httpResp, err = dialer.Dial(endpoint, http.Header{})
 		httpResp.Body.Close() // not used, so safely free the body

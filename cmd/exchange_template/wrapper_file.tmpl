@@ -115,7 +115,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 
 	// NOTE: SET THE URLs HERE
 	{{.Variable}}.API.Endpoints = {{.Variable}}.NewEndpoints()
-	{{.Variable}}.API.Endpoints.CreateMap(map[exchange.URL]string{
+	{{.Variable}}.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:  {{.Name}}APIURL,
 		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
 	})

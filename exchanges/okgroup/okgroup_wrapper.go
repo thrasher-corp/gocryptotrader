@@ -100,7 +100,7 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 
 	orderbookNew, err := o.GetOrderBook(GetOrderBookRequest{
 		InstrumentID: fPair.String(),
-		Size:         50,
+		Size:         200,
 	}, a)
 	if err != nil {
 		return book, err

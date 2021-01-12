@@ -31,7 +31,7 @@ func (a *Alphapoint) SetDefaults() {
 	a.Enabled = true
 	a.Verbose = true
 	a.API.Endpoints = a.NewEndpoints()
-	a.API.Endpoints.CreateMap(map[exchange.URL]string{
+	a.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      alphapointDefaultAPIURL,
 		exchange.WebsocketSpot: alphapointDefaultWebsocketURL,
 	})

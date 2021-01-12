@@ -147,7 +147,7 @@ func (c *Coinbene) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	c.API.Endpoints = c.NewEndpoints()
-	c.API.Endpoints.CreateMap(map[exchange.URL]string{
+	c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      coinbeneAPIURL,
 		exchange.RestSwap:      coinbeneSwapAPIURL,
 		exchange.WebsocketSpot: wsContractURL,

@@ -256,36 +256,3 @@ var keyURLs = []URL{RestSpot,
 
 // URL stores uint conversions
 type URL uint16
-
-func (u URL) String() string {
-	switch u {
-	case RestSpot:
-		return "RestSpotURL"
-	case RestSpotSupplementary:
-		return "RestSpotSupplementaryURL"
-	case RestUSDTMargined:
-		return "RestUSDTMarginedFuturesURL"
-	case RestCoinMargined:
-		return "RestCoinMarginedFuturesURL"
-	case RestFutures:
-		return "RestFuturesURL"
-	case RestSandbox:
-		return "RestSandboxURL"
-	case RestSwap:
-		return "RestSwapURL"
-	case WebsocketSpot:
-		return "WebsocketSpotURL"
-	case WebsocketSpotSupplementary:
-		return "WebsocketSpotSupplementaryURL"
-	case ChainAnalysis:
-		return "ChainAnalysisURL"
-	case EdgeCase1:
-		return "EdgeCase1URL"
-	case EdgeCase2:
-		return "EdgeCase2URL"
-	case EdgeCase3:
-		return "EdgeCase3URL"
-	default:
-		return ""
-	}
-}

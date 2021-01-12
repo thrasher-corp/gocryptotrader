@@ -175,6 +175,28 @@ func TestGetPositions(t *testing.T) {
 	}
 }
 
+func TestGetBalances(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetBalances()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllWalletBalances(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetAllWalletBalances()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestChangeAccountLeverage(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
@@ -235,7 +257,7 @@ func TestGetMarginMarketInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetMarginMarketInfo("btc")
+	_, err := f.GetMarginMarketInfo("BTC")
 	if err != nil {
 		t.Error(err)
 	}
@@ -818,6 +840,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var orderReq order.GetOrdersRequest
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
+	orderReq.AssetType = asset.Spot
 	_, err := f.GetOrderHistory(&orderReq)
 	if err != nil {
 		t.Fatal(err)

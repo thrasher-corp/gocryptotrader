@@ -120,7 +120,7 @@ func (b *Bitmex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[exchange.URL]string{
+	b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      bitmexAPIURL,
 		exchange.WebsocketSpot: bitmexWSURL,
 	})
@@ -187,7 +187,7 @@ func (b *Bitmex) Run() {
 	if b.Verbose {
 		wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Error(log.ExchangeSys, err)
 		}
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",

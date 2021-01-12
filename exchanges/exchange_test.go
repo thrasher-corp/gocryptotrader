@@ -62,7 +62,7 @@ func TestCreateMap(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[URL]string{
+	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
 	})
@@ -78,7 +78,7 @@ func TestSet(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[URL]string{
+	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
 	})
@@ -109,7 +109,7 @@ func TestGetURL(t *testing.T) {
 		Name: "HELAAAAAOOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[URL]string{
+	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
 	})
@@ -143,7 +143,7 @@ func TestGetAll(t *testing.T) {
 		Name: "HELLLLLLO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.CreateMap(map[URL]string{
+	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "test1url",
 		EdgeCase2: "test2url",
 	})
@@ -2218,7 +2218,7 @@ func TestSetAPIURL(t *testing.T) {
 		Mappymap map[string]string `json:"urlEndpoints"`
 	}
 	mappy.Mappymap = make(map[string]string)
-	mappy.Mappymap["hi"] = "bye"
+	mappy.Mappymap["hi"] = "www.google.com"
 	b.Config.API.Endpoints = mappy.Mappymap
 	b.API.Endpoints = b.NewEndpoints()
 	err := b.SetAPIURL()
@@ -2230,7 +2230,15 @@ func TestSetAPIURL(t *testing.T) {
 	mappy.Mappymap["RestSpotURL"] = "hi"
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.SetAPIURL()
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("expecting an error since invalid url value is input")
+	}
+	mappy.Mappymap = make(map[string]string)
+	b.Config.API.Endpoints = mappy.Mappymap
+	mappy.Mappymap["RestSpotURL"] = "www.google.com"
+	b.API.Endpoints = b.NewEndpoints()
+	err = b.SetAPIURL()
+	if err == nil {
+		t.Error("expecting an error since invalid url value is input")
 	}
 }

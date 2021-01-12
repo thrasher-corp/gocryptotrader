@@ -796,11 +796,8 @@ func (e *Base) SetAPIURL() error {
 			}
 		}
 	}
-	e.Config.API.Endpoints = e.API.Endpoints.GetURLMap()
 	runningMap := e.API.Endpoints.GetURLMap()
-	for r, s := range runningMap {
-		e.Config.API.Endpoints[r] = s
-	}
+	e.Config.API.Endpoints = runningMap
 	return nil
 }
 
@@ -1124,8 +1121,8 @@ func (e *Base) NewEndpoints() *Endpoints {
 	}
 }
 
-// CreateMap declares and sets running and default URLs maps
-func (e *Endpoints) CreateMap(m map[URL]string) {
+// SetDefaultEndpoints declares and sets the default URLs map
+func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) {
 	for k, v := range m {
 		e.defaults[k.String()] = v
 	}
@@ -1135,13 +1132,17 @@ func (e *Endpoints) CreateMap(m map[URL]string) {
 func (e *Endpoints) SetRunning(key, val string, overwrite bool) error {
 	e.Lock()
 	defer e.Unlock()
+	_, err := url.ParseRequestURI(val)
+	if err != nil {
+		return fmt.Errorf("invalid url: %v", err)
+	}
 	if !overwrite {
 		oldVal, ok := e.defaults[key]
 		if ok && oldVal == val {
 			return fmt.Errorf("given key and val are already set")
 		}
 	}
-	err := validateKey(key)
+	err = validateKey(key)
 	if err != nil {
 		return err
 	}
@@ -1187,4 +1188,37 @@ func (e *Base) FormatSymbol(pair currency.Pair, assetType asset.Item) (string, e
 		return pair.String(), err
 	}
 	return pairFmt.Format(pair), nil
+}
+
+func (u URL) String() string {
+	switch u {
+	case RestSpot:
+		return "RestSpotURL"
+	case RestSpotSupplementary:
+		return "RestSpotSupplementaryURL"
+	case RestUSDTMargined:
+		return "RestUSDTMarginedFuturesURL"
+	case RestCoinMargined:
+		return "RestCoinMarginedFuturesURL"
+	case RestFutures:
+		return "RestFuturesURL"
+	case RestSandbox:
+		return "RestSandboxURL"
+	case RestSwap:
+		return "RestSwapURL"
+	case WebsocketSpot:
+		return "WebsocketSpotURL"
+	case WebsocketSpotSupplementary:
+		return "WebsocketSpotSupplementaryURL"
+	case ChainAnalysis:
+		return "ChainAnalysisURL"
+	case EdgeCase1:
+		return "EdgeCase1URL"
+	case EdgeCase2:
+		return "EdgeCase2URL"
+	case EdgeCase3:
+		return "EdgeCase3URL"
+	default:
+		return ""
+	}
 }

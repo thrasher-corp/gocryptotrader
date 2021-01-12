@@ -107,7 +107,7 @@ func (g *Gemini) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	g.API.Endpoints = g.NewEndpoints()
-	g.API.Endpoints.CreateMap(map[exchange.URL]string{
+	g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      geminiAPIURL,
 		exchange.WebsocketSpot: geminiWebsocketEndpoint,
 	})
@@ -132,7 +132,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 	if exch.UseSandbox {
 		err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL, true)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Error(log.ExchangeSys, err)
 		}
 	}
 

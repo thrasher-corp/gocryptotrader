@@ -198,7 +198,7 @@ func (o *OKEX) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
 	o.API.Endpoints = o.NewEndpoints()
-	o.API.Endpoints.CreateMap(map[exchange.URL]string{
+	o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      okExAPIURL,
 		exchange.WebsocketSpot: OkExWebsocketURL,
 	})
@@ -223,7 +223,7 @@ func (o *OKEX) Run() {
 	if o.Verbose {
 		wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
-			log.Error(log.Global, err)
+			log.Error(log.ExchangeSys, err)
 		}
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",

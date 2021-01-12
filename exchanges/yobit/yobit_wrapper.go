@@ -99,7 +99,7 @@ func (y *Yobit) SetDefaults() {
 		// Server responses are cached every 2 seconds.
 		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1)))
 	y.API.Endpoints = y.NewEndpoints()
-	y.API.Endpoints.CreateMap(map[exchange.URL]string{
+	y.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              apiPublicURL,
 		exchange.RestSpotSupplementary: apiPrivateURL,
 	})

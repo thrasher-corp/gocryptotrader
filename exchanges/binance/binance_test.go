@@ -1079,6 +1079,7 @@ func TestGetMarginExchangeInfo(t *testing.T) {
 
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	info, err := b.GetExchangeInfo()
 	if err != nil {
 		t.Error(err)

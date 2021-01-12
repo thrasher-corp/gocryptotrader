@@ -94,7 +94,7 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	l.API.Endpoints = l.NewEndpoints()
-	l.API.Endpoints.CreateMap(map[exchange.URL]string{
+	l.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot: localbitcoinsAPIURL,
 	})
 }
