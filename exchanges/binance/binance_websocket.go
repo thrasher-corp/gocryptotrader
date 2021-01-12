@@ -906,7 +906,7 @@ bufferEmpty:
 		}
 	}
 	o.Unlock()
-	// reset underlying books
+	// disable rest orderbook synchronisation
 	_ = o.stopFetchingBook(pair)
 	_ = o.completeInitialSync(pair)
 	return nil
