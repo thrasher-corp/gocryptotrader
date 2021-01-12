@@ -1,9 +1,8 @@
 package base
 
 import (
-	"fmt"
+	"errors"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -13,16 +12,23 @@ type Strategy struct {
 	multiCurrency bool
 }
 
-func (s *Strategy) GetBase(d data.Handler) signal.Signal {
+func (s *Strategy) GetBase(d data.Handler) (signal.Signal, error) {
+	if d == nil {
+		return signal.Signal{}, errors.New("nil data handler received")
+	}
+	latest := d.Latest()
+	if latest == nil {
+		return signal.Signal{}, errors.New("could not retrieve latest data for strategy")
+	}
 	return signal.Signal{
 		Event: event.Event{
-			Exchange:     d.Latest().GetExchange(),
-			Time:         d.Latest().GetTime(),
-			CurrencyPair: d.Latest().Pair(),
-			AssetType:    d.Latest().GetAssetType(),
-			Interval:     d.Latest().GetInterval(),
+			Exchange:     latest.GetExchange(),
+			Time:         latest.GetTime(),
+			CurrencyPair: latest.Pair(),
+			AssetType:    latest.GetAssetType(),
+			Interval:     latest.GetInterval(),
 		},
-	}
+	}, nil
 }
 
 func (s *Strategy) IsMultiCurrency() bool {
@@ -31,14 +37,4 @@ func (s *Strategy) IsMultiCurrency() bool {
 
 func (s *Strategy) SetMultiCurrency(b bool) {
 	s.multiCurrency = b
-}
-
-func (s *Strategy) HasDataAtPresentTime(d data.Handler) bool {
-	es := s.GetBase(d)
-	if !d.HasDataAtTime(d.Latest().GetTime()) {
-		es.SetDirection(common.MissingData)
-		es.AppendWhy(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
-		return false
-	}
-	return true
 }

@@ -140,7 +140,7 @@ func (s *Statistic) AddHoldingsForTime(h holdings.Holding) error {
 // AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period
 func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.FillEvent) error {
 	if e == nil {
-		return errors.New("nil compliance snapshot received")
+		return errors.New("nil fill event received")
 	}
 	if s.ExchangeAssetPairStatistics == nil {
 		return errors.New("ExchangeAssetPairStatistics not setup")

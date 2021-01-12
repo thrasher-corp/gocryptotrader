@@ -29,7 +29,7 @@ func (s *Strategy) Name() string {
 }
 
 func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.SignalEvent, error) {
-	es := s.GetBase(d)
+	es, _ := s.GetBase(d)
 	es.SetPrice(d.Latest().Price())
 
 	if !d.HasDataAtTime(d.Latest().GetTime()) {

@@ -1,6 +1,7 @@
 package dollarcostaverage
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -22,8 +23,11 @@ func (s *Strategy) Name() string {
 	return Name
 }
 
-func (s *Strategy) OnSignal(d data.Handler, p portfolio.Handler) (signal.SignalEvent, error) {
-	es := s.GetBase(d)
+func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.SignalEvent, error) {
+	if d == nil {
+		return nil, errors.New("received nil data")
+	}
+	es, _ := s.GetBase(d)
 
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(common.MissingData)
@@ -44,7 +48,7 @@ func (s *Strategy) SupportsMultiCurrency() bool {
 func (s *Strategy) OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.SignalEvent, error) {
 	var resp []signal.SignalEvent
 	for i := range d {
-		es := s.GetBase(d[i])
+		es, _ := s.GetBase(d[i])
 		if !d[i].HasDataAtTime(d[i].Latest().GetTime()) {
 			es.SetDirection(common.MissingData)
 			es.AppendWhy(fmt.Sprintf("missing data at %v, cannot perform any actions", d[i].Latest().GetTime()))
@@ -62,9 +66,8 @@ func (s *Strategy) OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.Si
 
 // SetCustomSettings not required for DCA
 func (s *Strategy) SetCustomSettings(_ map[string]interface{}) error {
-	return nil
+	return errors.New("unsupported")
 }
 
 // SetDefaults not required for DCA
-func (s *Strategy) SetDefaults() {
-}
+func (s *Strategy) SetDefaults() {}
