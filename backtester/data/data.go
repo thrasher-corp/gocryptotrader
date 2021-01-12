@@ -16,6 +16,9 @@ func (d *HandlerPerCurrency) Setup() {
 }
 
 func (d *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p currency.Pair, k Handler) {
+	if d.data == nil {
+		d.Setup()
+	}
 	e = strings.ToLower(e)
 	if d.data[e] == nil {
 		d.data[e] = make(map[asset.Item]map[currency.Pair]Handler)

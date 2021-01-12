@@ -55,28 +55,7 @@
  "api-data": {
   "data-type": "candle",
   "interval": 86400000000000,
-  "start-date": "2020-01-12T16:17:11.2500903+11:00",
-  "end-date": "2021-01-11T16:17:11.2500903+11:00"
- },
- "database-data": {
-  "data-type": "candle",
-  "interval": 86400000000000,
-  "start-date": "2020-01-12T16:17:11.2500903+11:00",
-  "end-date": "2021-01-11T16:17:11.2500903+11:00",
-  "config-override": null
- },
- "live-data": {
-  "interval": 86400000000000,
-  "data-type": "candle",
-  "api-key-override": "",
-  "api-secret-override": "",
-  "api-client-id-override": "",
-  "api-2fa-override": "",
-  "fake-orders": false
- },
- "csv-data": {
-  "data-type": "candle",
-  "interval": 86400000000000,
-  "full-path": "fake"
+  "start-date": "2020-01-13T14:27:17.0538973+11:00",
+  "end-date": "2021-01-12T14:27:17.0538973+11:00"
  }
 }

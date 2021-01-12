@@ -174,12 +174,14 @@ func (o *orderManager) gracefulShutdown() {
 func (o *orderManager) run() {
 	log.Debugln(log.OrderBook, "Order manager started.")
 	tick := time.NewTicker(OrderManagerDelay)
-	Bot.ServicesWG.Add(1)
-	defer func() {
-		log.Debugln(log.OrderMgr, "Order manager shutdown.")
-		tick.Stop()
-		Bot.ServicesWG.Done()
-	}()
+	if Bot != nil && !Bot.Uptime.IsZero() {
+		Bot.ServicesWG.Add(1)
+		defer func() {
+			log.Debugln(log.OrderMgr, "Order manager shutdown.")
+			tick.Stop()
+			Bot.ServicesWG.Done()
+		}()
+	}
 
 	for {
 		select {

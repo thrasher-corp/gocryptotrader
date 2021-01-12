@@ -22,12 +22,12 @@ type CurrencyStats interface {
 }
 
 type EventStore struct {
-	Holdings      holdings.Holding
-	Transactions  compliance.Snapshot
-	DataEvent     common.DataEventHandler
-	SignalEvent   signal.SignalEvent
-	ExchangeEvent order.OrderEvent
-	FillEvent     fill.FillEvent
+	Holdings     holdings.Holding
+	Transactions compliance.Snapshot
+	DataEvent    common.DataEventHandler
+	SignalEvent  signal.SignalEvent
+	OrderEvent   order.OrderEvent
+	FillEvent    fill.FillEvent
 }
 
 type CurrencyStatistic struct {

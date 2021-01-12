@@ -41,15 +41,15 @@ type FinalResultsHolder struct {
 // Handler interface handles
 type Handler interface {
 	SetStrategyName(string)
-	AddDataEventForTime(common.DataEventHandler)
-	AddSignalEventForTime(signal.SignalEvent)
-	AddExchangeEventForTime(order.OrderEvent)
-	AddFillEventForTime(fill.FillEvent)
-	AddHoldingsForTime(holdings.Holding)
-	AddComplianceSnapshotForTime(compliance.Snapshot, fill.FillEvent)
+	AddDataEventForTime(common.DataEventHandler) error
+	AddSignalEventForTime(signal.SignalEvent) error
+	AddOrderEventForTime(order.OrderEvent) error
+	AddFillEventForTime(fill.FillEvent) error
+	AddHoldingsForTime(holdings.Holding) error
+	AddComplianceSnapshotForTime(compliance.Snapshot, fill.FillEvent) error
 	CalculateTheResults() error
 	Reset()
-	Serialise() string
+	Serialise() (string, error)
 }
 
 type Results struct {

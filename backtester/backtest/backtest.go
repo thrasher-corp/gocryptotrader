@@ -614,7 +614,7 @@ func (bt *BackTest) processSignalEvent(ev signal.SignalEvent) {
 	cs, _ := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	o, err := bt.Portfolio.OnSignal(ev, &cs)
 	if err != nil {
-		bt.Statistic.AddExchangeEventForTime(o)
+		bt.Statistic.AddOrderEventForTime(o)
 		return
 	}
 

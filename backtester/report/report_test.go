@@ -217,12 +217,12 @@ func TestGenerateReport(t *testing.T) {
 							Exchange: e,
 							Events: []currencystatstics.EventStore{
 								{
-									Holdings:      holdings.Holding{},
-									Transactions:  compliance.Snapshot{},
-									DataEvent:     nil,
-									SignalEvent:   nil,
-									ExchangeEvent: nil,
-									FillEvent:     nil,
+									Holdings:     holdings.Holding{},
+									Transactions: compliance.Snapshot{},
+									DataEvent:    nil,
+									SignalEvent:  nil,
+									OrderEvent:   nil,
+									FillEvent:    nil,
 								},
 							},
 							DrawDowns:                currencystatstics.SwingHolder{},

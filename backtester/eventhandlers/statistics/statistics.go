@@ -2,6 +2,7 @@ package statistics
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -22,7 +23,10 @@ func (s *Statistic) Reset() {
 }
 
 // AddDataEventForTime sets up the big map for to store important data at each time interval
-func (s *Statistic) AddDataEventForTime(e common.DataEventHandler) {
+func (s *Statistic) AddDataEventForTime(e common.DataEventHandler) error {
+	if e == nil {
+		return errors.New("nil data event received")
+	}
 	ex := e.GetExchange()
 	a := e.GetAssetType()
 	p := e.Pair()
@@ -49,10 +53,20 @@ func (s *Statistic) AddDataEventForTime(e common.DataEventHandler) {
 		},
 	)
 	s.ExchangeAssetPairStatistics[ex][a][p] = lookup
+	return nil
 }
 
 // AddSignalEventForTime adds strategy signal event to the statistics at the time period
-func (s *Statistic) AddSignalEventForTime(e signal.SignalEvent) {
+func (s *Statistic) AddSignalEventForTime(e signal.SignalEvent) error {
+	if e == nil {
+		return errors.New("nil signal event received")
+	}
+	if s.ExchangeAssetPairStatistics == nil {
+		return errors.New("ExchangeAssetPairStatistics not setup")
+	}
+	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
+		return fmt.Errorf("no data for %v %v %v to set signal event", e.GetExchange(), e.GetAssetType(), e.Pair())
+	}
 	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) {
@@ -60,36 +74,40 @@ func (s *Statistic) AddSignalEventForTime(e signal.SignalEvent) {
 			s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
 		}
 	}
+	return nil
 }
 
-// AddExchangeEventForTime adds exchange event to the statistics at the time period
-func (s *Statistic) AddExchangeEventForTime(e order.OrderEvent) {
+// AddOrderEventForTime adds order event to the statistics at the time period
+func (s *Statistic) AddOrderEventForTime(e order.OrderEvent) error {
+	if e == nil {
+		return errors.New("nil order event received")
+	}
+	if s.ExchangeAssetPairStatistics == nil {
+		return errors.New("ExchangeAssetPairStatistics not setup")
+	}
+	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
+		return fmt.Errorf("no data for %v %v %v to set exchange event", e.GetExchange(), e.GetAssetType(), e.Pair())
+	}
 	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) {
-			lookup.Events[i].ExchangeEvent = e
+			lookup.Events[i].OrderEvent = e
 			s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
 		}
 	}
+	return nil
 }
 
 // AddFillEventForTime adds fill event to the statistics at the time period
-func (s *Statistic) AddFillEventForTime(e fill.FillEvent) {
-	if s.ExchangeAssetPairStatistics == nil {
-		log.Errorf(log.BackTester, "WHAT THE FUCK")
-		return
-	}
+func (s *Statistic) AddFillEventForTime(e fill.FillEvent) error {
 	if e == nil {
-		log.Errorf(log.BackTester, "WHHAAT")
+		return errors.New("nil fill event received")
 	}
-	if e.GetExchange() != "" {
-
+	if s.ExchangeAssetPairStatistics == nil {
+		return errors.New("ExchangeAssetPairStatistics not setup")
 	}
-	if e.GetAssetType() != "" {
-
-	}
-	if e.Pair().IsEmpty() {
-
+	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
+		return fmt.Errorf("no data for %v %v %v to set fill event", e.GetExchange(), e.GetAssetType(), e.Pair())
 	}
 	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	for i := range lookup.Events {
@@ -98,10 +116,17 @@ func (s *Statistic) AddFillEventForTime(e fill.FillEvent) {
 			s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
 		}
 	}
+	return nil
 }
 
 // AddHoldingsForTime adds all holdings to the statistics at the time period
-func (s *Statistic) AddHoldingsForTime(h holdings.Holding) {
+func (s *Statistic) AddHoldingsForTime(h holdings.Holding) error {
+	if s.ExchangeAssetPairStatistics == nil {
+		return errors.New("ExchangeAssetPairStatistics not setup")
+	}
+	if s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair] == nil {
+		return fmt.Errorf("no data for %v %v %v to set holding event", h.Exchange, h.Asset, h.Pair)
+	}
 	lookup := s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(h.Timestamp) {
@@ -109,10 +134,20 @@ func (s *Statistic) AddHoldingsForTime(h holdings.Holding) {
 			s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair] = lookup
 		}
 	}
+	return nil
 }
 
 // AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period
-func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.FillEvent) {
+func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.FillEvent) error {
+	if e == nil {
+		return errors.New("nil compliance snapshot received")
+	}
+	if s.ExchangeAssetPairStatistics == nil {
+		return errors.New("ExchangeAssetPairStatistics not setup")
+	}
+	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
+		return fmt.Errorf("no data for %v %v %v to set compliance snapshot", e.GetExchange(), e.GetAssetType(), e.Pair())
+	}
 	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(c.Timestamp) {
@@ -120,6 +155,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.F
 			s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
 		}
 	}
+	return nil
 }
 
 func (s *Statistic) CalculateTheResults() error {
@@ -270,12 +306,11 @@ func (s *Statistic) SetStrategyName(name string) {
 	s.StrategyName = name
 }
 
-func (s *Statistic) Serialise() string {
+func (s *Statistic) Serialise() (string, error) {
 	resp, err := json.MarshalIndent(s, "", " ")
 	if err != nil {
-		log.Errorf(log.BackTester, "unable to serialise results: '%v'", err)
-		return ""
+		return "", err
 	}
 
-	return string(resp)
+	return string(resp), nil
 }

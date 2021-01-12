@@ -121,15 +121,16 @@ func TestSizeOrder(t *testing.T) {
 }
 
 func TestPlaceOrder(t *testing.T) {
-	bot, err := engine.New()
+	var err error
+	engine.Bot, err = engine.New()
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.OrderManager.Start()
+	err = engine.Bot.OrderManager.Start()
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.LoadExchange("binance", false, nil)
+	err = engine.Bot.LoadExchange("binance", false, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -139,25 +140,25 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	f := &fill.Fill{}
-	_, err = e.placeOrder(1, 1, false, f, bot)
+	_, err = e.placeOrder(1, 1, false, f, engine.Bot)
 	if err != nil && err.Error() != "order exchange name must be specified" {
 		t.Error(err)
 	}
 
 	f.Exchange = "binance"
-	_, err = e.placeOrder(1, 1, false, f, bot)
+	_, err = e.placeOrder(1, 1, false, f, engine.Bot)
 	if err != nil && err.Error() != "order pair is empty" {
 		t.Error(err)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(1, 1, false, f, bot)
+	_, err = e.placeOrder(1, 1, false, f, engine.Bot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = e.placeOrder(1, 1, true, f, bot)
+	_, err = e.placeOrder(1, 1, true, f, engine.Bot)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}

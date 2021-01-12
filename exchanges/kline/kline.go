@@ -293,7 +293,7 @@ func CalcSuperDateRanges(start, end time.Time, interval Interval, limit uint32) 
 		// remove any extra intervals which have been added due to the "after"
 		intervalsInWholePeriod = intervalsInWholePeriod[:len(intervalsInWholePeriod)-1]
 	}
-	if len(intervalsInWholePeriod) < int(limit) {
+	if len(intervalsInWholePeriod) < int(limit) || limit == 0 {
 		resp.Ranges = []IntervalRange{{
 			Start:     start,
 			End:       end,
@@ -342,12 +342,10 @@ func (i *Item) RemoveDuplicates() {
 func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	for i := range h.Ranges {
 		if t.Equal(h.Ranges[i].Start) ||
-			(t.After(h.Ranges[i].Start) && t.Before(h.Ranges[i].End)) ||
-			t.Equal(h.Ranges[i].End) {
+			(t.After(h.Ranges[i].Start) && t.Before(h.Ranges[i].End)) {
 			for j := range h.Ranges[i].Intervals {
 				if t.Equal(h.Ranges[i].Intervals[j].Start) ||
-					(t.After(h.Ranges[i].Intervals[j].Start) && t.Before(h.Ranges[i].Intervals[j].End)) ||
-					t.Equal(h.Ranges[i].Intervals[j].End) {
+					(t.After(h.Ranges[i].Intervals[j].Start) && t.Before(h.Ranges[i].Intervals[j].End)) {
 					return h.Ranges[i].Intervals[j].HasData
 				}
 			}
