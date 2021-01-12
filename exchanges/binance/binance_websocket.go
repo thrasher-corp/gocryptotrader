@@ -99,7 +99,7 @@ func (b *Binance) orderBookProcess() {
 	for i := range enabledPairs {
 		err = b.SeedLocalCache(enabledPairs[i])
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "orderBookProcess, SeedLocalCache error: %s", err)
+		log.Errorf(log.ExchangeSys, "%s orderBookProcess, SeedLocalCache error: %s", b.Name, err)
 			return
 		}
 	}
