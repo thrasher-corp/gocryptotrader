@@ -790,7 +790,7 @@ func (e *Base) SetAPIURL() error {
 				val == config.WebsocketURLNonDefaultMessage {
 				continue
 			}
-			err = e.API.Endpoints.SetRunning(key, val, true)
+			err = e.API.Endpoints.SetRunning(key, val)
 			if err != nil {
 				return err
 			}
@@ -1122,25 +1122,24 @@ func (e *Base) NewEndpoints() *Endpoints {
 }
 
 // SetDefaultEndpoints declares and sets the default URLs map
-func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) {
+func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 	for k, v := range m {
-		e.defaults[k.String()] = v
+		err := e.SetRunning(k.String(), v)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // SetRunning populates running URLs map
-func (e *Endpoints) SetRunning(key, val string, overwrite bool) error {
+func (e *Endpoints) SetRunning(key, val string) error {
 	e.Lock()
 	defer e.Unlock()
 	_, err := url.ParseRequestURI(val)
 	if err != nil {
-		return fmt.Errorf("invalid url: %v", err)
-	}
-	if !overwrite {
-		oldVal, ok := e.defaults[key]
-		if ok && oldVal == val {
-			return fmt.Errorf("given key and val are already set")
-		}
+		log.Warn(log.ExchangeSys, fmt.Sprintf("Could not set custom URL for %s to %s. invalid URI for request.", key, val))
+		return nil
 	}
 	err = validateKey(key)
 	if err != nil {

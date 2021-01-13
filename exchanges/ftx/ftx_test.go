@@ -257,7 +257,7 @@ func TestGetMarginMarketInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetMarginMarketInfo("BTC")
+	_, err := f.GetMarginMarketInfo("BTC_USD")
 	if err != nil {
 		t.Error(err)
 	}

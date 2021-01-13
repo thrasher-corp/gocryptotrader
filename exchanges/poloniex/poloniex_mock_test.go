@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	p.HTTPClient = newClient
 	endpoints := p.API.Endpoints.GetURLMap()
 	for k := range endpoints {
-		err = p.API.Endpoints.SetRunning(k, serverDetails, true)
+		err = p.API.Endpoints.SetRunning(k, serverDetails)
 		if err != nil {
 			log.Fatal(err)
 		}

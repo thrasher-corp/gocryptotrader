@@ -62,13 +62,16 @@ func TestCreateMap(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
-		EdgeCase1: "test1url",
-		EdgeCase2: "test2url",
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "http://test1url.com/",
+		EdgeCase2: "http://test2url.com/",
 	})
-	_, ok := b.API.Endpoints.defaults[EdgeCase1.String()]
-	if !ok {
-		t.Errorf("CreateMap failed, no value for for the given key")
+	if err != nil {
+		t.Error(err)
+	}
+	val, ok := b.API.Endpoints.defaults[EdgeCase1.String()]
+	if !ok || val != "http://test1url.com/" {
+		t.Errorf("CreateMap failed, incorrect value received for the given key")
 	}
 }
 
@@ -78,11 +81,14 @@ func TestSet(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
-		EdgeCase1: "test1url",
-		EdgeCase2: "test2url",
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "http://test1url.com/",
+		EdgeCase2: "http://test2url.com/",
 	})
-	err := b.API.Endpoints.SetRunning(EdgeCase2.String(), "OVERWRITTEN BRO", true)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "http://google.com/")
 	if err != nil {
 		t.Error(err)
 	}
@@ -90,16 +96,12 @@ func TestSet(t *testing.T) {
 	if !ok {
 		t.Error("set method or createmap failed")
 	}
-	if val != "OVERWRITTEN BRO" {
-		t.Error("overwriting failed")
+	if val != "http://google.com/" {
+		t.Errorf("vals didnt match. expecting: %s, got: %s\n", "http://google.com/", val)
 	}
-	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3", false)
+	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3")
 	if err != nil {
-		t.Error(err)
-	}
-	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3", false)
-	if err == nil {
-		t.Error("expecting an error since edgecase3 already exists")
+		t.Errorf("not expecting an error since invalid url val err should be logged but received: %v", err)
 	}
 }
 
@@ -110,17 +112,17 @@ func TestGetURL(t *testing.T) {
 	}
 	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
-		EdgeCase1: "test1url",
-		EdgeCase2: "test2url",
+		EdgeCase1: "http://test1.com/",
+		EdgeCase2: "http://test2.com/",
 	})
 	getVal, err := b.API.Endpoints.GetURL(EdgeCase1)
 	if err != nil {
 		t.Error(err)
 	}
-	if getVal != "test1url" {
+	if getVal != "http://test1.com/" {
 		t.Errorf("getVal failed")
 	}
-	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "OVERWRITTEN BRO", true)
+	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "http://OVERWRITTENBRO.com.au/")
 	if err != nil {
 		t.Error(err)
 	}
@@ -128,12 +130,12 @@ func TestGetURL(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if getChangedVal != "OVERWRITTEN BRO" {
+	if getChangedVal != "http://OVERWRITTENBRO.com.au/" {
 		t.Error("couldnt get changed val")
 	}
 	_, err = b.API.Endpoints.GetURL(URL(100))
 	if err == nil {
-		t.Error("expecting error due to invalid URL parsed")
+		t.Error("expecting error due to invalid URL key parsed")
 	}
 }
 
@@ -144,8 +146,8 @@ func TestGetAll(t *testing.T) {
 	}
 	b.API.Endpoints = b.NewEndpoints()
 	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
-		EdgeCase1: "test1url",
-		EdgeCase2: "test2url",
+		EdgeCase1: "http://test1.com.au/",
+		EdgeCase2: "http://test2.com.au/",
 	})
 	allRunning := b.API.Endpoints.GetURLMap()
 	if len(allRunning) != 2 {
@@ -2218,7 +2220,7 @@ func TestSetAPIURL(t *testing.T) {
 		Mappymap map[string]string `json:"urlEndpoints"`
 	}
 	mappy.Mappymap = make(map[string]string)
-	mappy.Mappymap["hi"] = "www.google.com"
+	mappy.Mappymap["hi"] = "http://google.com/"
 	b.Config.API.Endpoints = mappy.Mappymap
 	b.API.Endpoints = b.NewEndpoints()
 	err := b.SetAPIURL()
@@ -2230,15 +2232,26 @@ func TestSetAPIURL(t *testing.T) {
 	mappy.Mappymap["RestSpotURL"] = "hi"
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.SetAPIURL()
-	if err == nil {
-		t.Error("expecting an error since invalid url value is input")
+	if err != nil {
+		t.Errorf("expecting no error since invalid url value should be logged but received the following error: %v", err)
 	}
 	mappy.Mappymap = make(map[string]string)
 	b.Config.API.Endpoints = mappy.Mappymap
-	mappy.Mappymap["RestSpotURL"] = "www.google.com"
+	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.SetAPIURL()
-	if err == nil {
-		t.Error("expecting an error since invalid url value is input")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetRunning(t *testing.T) {
+	b := Base{
+		Name: "HELOOOOOOOO",
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	err := b.API.Endpoints.SetRunning(EdgeCase1.String(), "http://google.com/")
+	if err != nil {
+		t.Error(err)
 	}
 }

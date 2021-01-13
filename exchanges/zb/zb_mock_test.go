@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	z.HTTPClient = newClient
 	endpoints := z.API.Endpoints.GetURLMap()
 	for k := range endpoints {
-		err = z.API.Endpoints.SetRunning(k, serverDetails, true)
+		err = z.API.Endpoints.SetRunning(k, serverDetails)
 		if err != nil {
 			log.Fatal(err)
 		}
