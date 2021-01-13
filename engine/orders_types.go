@@ -20,6 +20,7 @@ type orderManagerConfig struct {
 type orderStore struct {
 	m      sync.RWMutex
 	Orders map[string][]*order.Detail
+	bot    *Engine
 }
 
 type orderManager struct {

@@ -100,7 +100,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.CommsManager.Stop()
 	case "orders":
 		if enable {
-			return bot.OrderManager.Start()
+			return bot.OrderManager.Start(bot)
 		}
 		return bot.OrderManager.Stop()
 	case "portfolio":

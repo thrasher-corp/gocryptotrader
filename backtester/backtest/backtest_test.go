@@ -19,6 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -160,11 +162,36 @@ func TestLoadData(t *testing.T) {
 	bt := BackTest{
 		Reports: &report.Data{},
 	}
-	bot, err := engine.NewFromSettings(&engine.Settings{}, nil)
+	bot := &engine.Engine{
+		Config: &gctconfig.Config{
+			Exchanges: []gctconfig.ExchangeConfig{
+				{
+					Name:    "binance",
+					Enabled: true,
+					API: gctconfig.APIConfig{
+						Endpoints: gctconfig.APIEndpointsConfig{
+							URL:          "https://api.binance.com",
+							URLSecondary: "https://test.test",
+							WebsocketURL: "wss://test.test",
+						},
+					},
+					HTTPTimeout:                   time.Hour,
+					WebsocketResponseCheckTimeout: time.Hour,
+					WebsocketTrafficTimeout:       time.Hour,
+					Websocket:                     convert.BoolPtr(false),
+					CurrencyPairs: &currency.PairsManager{
+						Pairs: map[asset.Item]*currency.PairStore{
+							asset.Spot: {AssetEnabled: convert.BoolPtr(true)},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = bot.LoadExchange("binance", false, nil)
 	if err != nil {
 		t.Error(err)
 	}
-	bot.LoadExchange("binance", false, nil)
 	exch := bot.GetExchangeByName("binance")
 	if exch == nil {
 		t.Error("expected not nil")
@@ -323,7 +350,7 @@ func TestLoadLiveData(t *testing.T) {
 func TestReset(t *testing.T) {
 	bt := BackTest{
 		Bot:        &engine.Engine{},
-		shutdown:   nil,
+		shutdown:   make(chan struct{}),
 		Datas:      &data.HandlerPerCurrency{},
 		Strategy:   &dollarcostaverage.Strategy{},
 		Portfolio:  &portfolio.Portfolio{},
@@ -366,14 +393,33 @@ func TestFullCycle(t *testing.T) {
 		t.Error(err)
 	}
 
-	bot, err := engine.NewFromSettings(&engine.Settings{}, nil)
-	if err != nil {
-		t.Error(err)
+	bot := &engine.Engine{
+		Config: &gctconfig.Config{
+			Exchanges: []gctconfig.ExchangeConfig{
+				{
+					Name:    "binance",
+					Enabled: true,
+					API: gctconfig.APIConfig{
+						Endpoints: gctconfig.APIEndpointsConfig{
+							URL:          "https://api.binance.com",
+							URLSecondary: "https://test.test",
+							WebsocketURL: "wss://test.test",
+						},
+					},
+					HTTPTimeout:                   time.Hour,
+					WebsocketResponseCheckTimeout: time.Hour,
+					WebsocketTrafficTimeout:       time.Hour,
+					Websocket:                     convert.BoolPtr(false),
+					CurrencyPairs: &currency.PairsManager{
+						Pairs: map[asset.Item]*currency.PairStore{
+							asset.Spot: {AssetEnabled: convert.BoolPtr(true)},
+						},
+					},
+				},
+			},
+		},
 	}
-	// Bad global use requires this
-	engine.Bot = bot
-
-	err = bot.OrderManager.Start()
+	err = bot.OrderManager.Start(bot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -474,14 +520,33 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Error(err)
 	}
 
-	bot, err := engine.NewFromSettings(&engine.Settings{}, nil)
-	if err != nil {
-		t.Error(err)
+	bot := &engine.Engine{
+		Config: &gctconfig.Config{
+			Exchanges: []gctconfig.ExchangeConfig{
+				{
+					Name:    "binance",
+					Enabled: true,
+					API: gctconfig.APIConfig{
+						Endpoints: gctconfig.APIEndpointsConfig{
+							URL:          "https://api.binance.com",
+							URLSecondary: "https://test.test",
+							WebsocketURL: "wss://test.test",
+						},
+					},
+					HTTPTimeout:                   time.Hour,
+					WebsocketResponseCheckTimeout: time.Hour,
+					WebsocketTrafficTimeout:       time.Hour,
+					Websocket:                     convert.BoolPtr(false),
+					CurrencyPairs: &currency.PairsManager{
+						Pairs: map[asset.Item]*currency.PairStore{
+							asset.Spot: {AssetEnabled: convert.BoolPtr(true)},
+						},
+					},
+				},
+			},
+		},
 	}
-	// Bad global use requires this
-	engine.Bot = bot
-
-	err = bot.OrderManager.Start()
+	err = bot.OrderManager.Start(bot)
 	if err != nil {
 		t.Error(err)
 	}

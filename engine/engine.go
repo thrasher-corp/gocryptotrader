@@ -451,7 +451,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableOrderManager {
-		if err = bot.OrderManager.Start(); err != nil {
+		if err = bot.OrderManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
 		}
 	}

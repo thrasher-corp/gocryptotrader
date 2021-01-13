@@ -14,7 +14,7 @@ var ordersSetupRan bool
 func OrdersSetup(t *testing.T) *Engine {
 	bot := SetupTestHelpers(t)
 	if !ordersSetupRan {
-		err := bot.OrderManager.Start()
+		err := bot.OrderManager.Start(bot)
 		if err != nil {
 			t.Fatal(err)
 		}

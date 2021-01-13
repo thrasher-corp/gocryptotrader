@@ -53,10 +53,7 @@ func TestLoadDataCandles(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var err error
-	engine.Bot, err = engine.NewFromSettings(&engine.Settings{}, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	bot := &engine.Engine{}
 	dbConfg := database.Config{
 		Enabled: true,
 		Verbose: false,
@@ -66,11 +63,11 @@ func TestLoadDataCandles(t *testing.T) {
 			Database: "test",
 		},
 	}
-	engine.Bot.Config = &config.Config{
+	bot.Config = &config.Config{
 		Database: dbConfg,
 	}
 
-	err = engine.Bot.Config.CheckConfig()
+	err = bot.Config.CheckConfig()
 	if err != nil && verbose {
 		// this loads the database config to the global database
 		// the errors are unrelated and likely prone to change for reasons that
@@ -87,7 +84,7 @@ func TestLoadDataCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = engine.Bot.DatabaseManager.Start(engine.Bot)
+	err = bot.DatabaseManager.Start(bot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -132,10 +129,7 @@ func TestLoadDataTrades(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var err error
-	engine.Bot, err = engine.NewFromSettings(&engine.Settings{}, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	bot := &engine.Engine{}
 	dbConfg := database.Config{
 		Enabled: true,
 		Verbose: false,
@@ -145,11 +139,11 @@ func TestLoadDataTrades(t *testing.T) {
 			Database: "test",
 		},
 	}
-	engine.Bot.Config = &config.Config{
+	bot.Config = &config.Config{
 		Database: dbConfg,
 	}
 
-	err = engine.Bot.Config.CheckConfig()
+	err = bot.Config.CheckConfig()
 	if err != nil && verbose {
 		// this loads the database config to the global database
 		// the errors are unrelated and likely prone to change for reasons that
@@ -166,7 +160,7 @@ func TestLoadDataTrades(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = engine.Bot.DatabaseManager.Start(engine.Bot)
+	err = bot.DatabaseManager.Start(bot)
 	if err != nil {
 		t.Error(err)
 	}

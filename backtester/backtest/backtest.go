@@ -269,7 +269,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 // as well as process orders
 func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 	var err error
-	engine.Bot, err = engine.NewFromSettings(&engine.Settings{
+	bt.Bot, err = engine.NewFromSettings(&engine.Settings{
 		EnableDryRun:   true,
 		EnableAllPairs: true,
 	}, nil)
@@ -277,7 +277,6 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 		return err
 	}
 
-	bt.Bot = engine.Bot
 	if len(cfg.CurrencySettings) == 0 {
 		return errors.New("expected at least one currency in the config")
 	}
@@ -289,7 +288,7 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 		}
 	}
 
-	err = bt.Bot.OrderManager.Start()
+	err = bt.Bot.OrderManager.Start(bt.Bot)
 	if err != nil {
 		return err
 	}
@@ -327,6 +326,9 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float
 // loadData will create kline data from the sources defined in strat config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
 func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
+	if exch == nil {
+		return nil, errors.New("nil exchange received")
+	}
 	base := exch.GetBase()
 	if cfg.DatabaseData == nil && cfg.LiveData == nil && cfg.APIData == nil && cfg.CSVData == nil {
 		return nil, errors.New("no data settings set in config")

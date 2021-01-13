@@ -99,7 +99,7 @@ func (o *orderStore) Add(det *order.Detail) error {
 	if det == nil {
 		return errors.New("order store: Order is nil")
 	}
-	exch := Bot.GetExchangeByName(det.Exchange)
+	exch := o.bot.GetExchangeByName(det.Exchange)
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
@@ -132,15 +132,18 @@ func (o *orderManager) Started() bool {
 }
 
 // Start will boot up the orderManager
-func (o *orderManager) Start() error {
+func (o *orderManager) Start(bot *Engine) error {
 	if atomic.AddInt32(&o.started, 1) != 1 {
 		return errors.New("order manager already started")
 	}
-
+	if bot == nil {
+		return errors.New("cannot start with nil bot")
+	}
 	log.Debugln(log.OrderBook, "Order manager starting...")
 
 	o.shutdown = make(chan struct{})
 	o.orderStore.Orders = make(map[string][]*order.Detail)
+	o.orderStore.bot = bot
 	go o.run()
 	return nil
 }
@@ -167,21 +170,19 @@ func (o *orderManager) Stop() error {
 func (o *orderManager) gracefulShutdown() {
 	if o.cfg.CancelOrdersOnShutdown {
 		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
-		o.CancelAllOrders(Bot.Config.GetEnabledExchanges())
+		o.CancelAllOrders(o.orderStore.bot.Config.GetEnabledExchanges())
 	}
 }
 
 func (o *orderManager) run() {
 	log.Debugln(log.OrderBook, "Order manager started.")
 	tick := time.NewTicker(OrderManagerDelay)
-	if Bot != nil && !Bot.Uptime.IsZero() {
-		Bot.ServicesWG.Add(1)
-		defer func() {
-			log.Debugln(log.OrderMgr, "Order manager shutdown.")
-			tick.Stop()
-			Bot.ServicesWG.Done()
-		}()
-	}
+	o.orderStore.bot.ServicesWG.Add(1)
+	defer func() {
+		log.Debugln(log.OrderMgr, "Order manager shutdown.")
+		tick.Stop()
+		o.orderStore.bot.ServicesWG.Done()
+	}()
 
 	for {
 		select {
@@ -233,7 +234,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 	var err error
 	defer func() {
 		if err != nil {
-			Bot.CommsManager.PushEvent(base.Event{
+			o.orderStore.bot.CommsManager.PushEvent(base.Event{
 				Type:    "order",
 				Message: err.Error(),
 			})
@@ -253,7 +254,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 		return err
 	}
 
-	exch := Bot.GetExchangeByName(cancel.Exchange)
+	exch := o.orderStore.bot.GetExchangeByName(cancel.Exchange)
 	if exch == nil {
 		err = ErrExchangeNotFound
 		return err
@@ -283,7 +284,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 	msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
 		od.Exchange, od.ID)
 	log.Debugln(log.OrderMgr, msg)
-	Bot.CommsManager.PushEvent(base.Event{
+	o.orderStore.bot.CommsManager.PushEvent(base.Event{
 		Type:    "order",
 		Message: msg,
 	})
@@ -298,7 +299,7 @@ func (o *orderManager) GetOrderInfo(exchangeName, orderID string, cp currency.Pa
 		return order.Detail{}, errors.New("order cannot be empty")
 	}
 
-	exch := Bot.GetExchangeByName(exchangeName)
+	exch := o.orderStore.bot.GetExchangeByName(exchangeName)
 	if exch == nil {
 		return order.Detail{}, ErrExchangeNotFound
 	}
@@ -356,7 +357,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 	if err != nil {
 		return nil, err
 	}
-	exch := Bot.GetExchangeByName(newOrder.Exchange)
+	exch := o.orderStore.bot.GetExchangeByName(newOrder.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
@@ -376,7 +377,7 @@ func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 	if err != nil {
 		return nil, err
 	}
-	exch := Bot.GetExchangeByName(newOrder.Exchange)
+	exch := o.orderStore.bot.GetExchangeByName(newOrder.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
@@ -463,7 +464,7 @@ func (o *orderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 		newOrder.Date)
 
 	log.Debugln(log.OrderMgr, msg)
-	Bot.CommsManager.PushEvent(base.Event{
+	o.orderStore.bot.CommsManager.PushEvent(base.Event{
 		Type:    "order",
 		Message: msg,
 	})
@@ -514,13 +515,13 @@ func (o *orderManager) processSubmittedOrder(newOrder *order.Submit, result orde
 }
 
 func (o *orderManager) processOrders() {
-	authExchanges := Bot.GetAuthAPISupportedExchanges()
+	authExchanges := o.orderStore.bot.GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
 		log.Debugf(log.OrderMgr,
 			"Order manager: Processing orders for exchange %v.",
 			authExchanges[x])
 
-		exch := Bot.GetExchangeByName(authExchanges[x])
+		exch := o.orderStore.bot.GetExchangeByName(authExchanges[x])
 		supportedAssets := exch.GetAssetTypes()
 		for y := range supportedAssets {
 			pairs, err := exch.GetEnabledPairs(supportedAssets[y])
@@ -534,7 +535,7 @@ func (o *orderManager) processOrders() {
 			}
 
 			if len(pairs) == 0 {
-				if Bot.Settings.Verbose {
+				if o.orderStore.bot.Settings.Verbose {
 					log.Debugf(log.OrderMgr,
 						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
 						authExchanges[x],
@@ -565,7 +566,7 @@ func (o *orderManager) processOrders() {
 					msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
 						ord.Exchange, ord.ID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)
 					log.Debugf(log.OrderMgr, "%v", msg)
-					Bot.CommsManager.PushEvent(base.Event{
+					o.orderStore.bot.CommsManager.PushEvent(base.Event{
 						Type:    "order",
 						Message: msg,
 					})
