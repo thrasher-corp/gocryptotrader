@@ -212,9 +212,6 @@ func TestGenerateReport(t *testing.T) {
 				e: {
 					a: {
 						p: &currencystatstics.CurrencyStatistic{
-							Pair:     p,
-							Asset:    a,
-							Exchange: e,
 							Events: []currencystatstics.EventStore{
 								{
 									Holdings:     holdings.Holding{},
@@ -357,9 +354,6 @@ func TestEnhanceCandles(t *testing.T) {
 	d.Statistics.ExchangeAssetPairStatistics["binance"] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
 	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
 	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatstics.CurrencyStatistic{
-		Pair:                     currency.NewPair(currency.BTC, currency.USDT),
-		Asset:                    asset.Spot,
-		Exchange:                 "binance",
 		Events:                   nil,
 		DrawDowns:                currencystatstics.SwingHolder{},
 		Upswings:                 currencystatstics.SwingHolder{},

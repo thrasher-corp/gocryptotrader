@@ -369,3 +369,234 @@ func TestSetStrategyName(t *testing.T) {
 		t.Error("expected test")
 	}
 }
+
+func TestPrintTotalResults(t *testing.T) {
+	s := Statistic{}
+	s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
+		{
+			Exchange: "test",
+			MaxDrawdown: currencystatstics.Swing{
+				CalculatedDrawDown: 1337,
+			},
+		},
+	})
+	s.BestStrategyResults = s.GetBestStrategyPerformer([]FinalResultsHolder{
+		{
+			Exchange:         "test",
+			Asset:            asset.Spot,
+			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
+			MaxDrawdown:      currencystatstics.Swing{},
+			MarketMovement:   1337,
+			StrategyMovement: 1337,
+		},
+	})
+	s.BestMarketMovement = s.GetBestMarketPerformer([]FinalResultsHolder{
+		{
+			Exchange:       "test",
+			MarketMovement: 1337,
+		},
+	})
+	s.PrintTotalResults()
+}
+
+func TestGetBestStrategyPerformer(t *testing.T) {
+	s := Statistic{}
+	resp := s.GetBestStrategyPerformer(nil)
+	if resp.Exchange != "" {
+		t.Error("expected unset details")
+	}
+
+	resp = s.GetBestStrategyPerformer([]FinalResultsHolder{
+		{
+			Exchange:         "test",
+			Asset:            asset.Spot,
+			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
+			MaxDrawdown:      currencystatstics.Swing{},
+			MarketMovement:   1337,
+			StrategyMovement: 1337,
+		},
+		{
+			Exchange:         "test2",
+			Asset:            asset.Spot,
+			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
+			MaxDrawdown:      currencystatstics.Swing{},
+			MarketMovement:   1338,
+			StrategyMovement: 1338,
+		},
+	})
+
+	if resp.Exchange != "test2" {
+		t.Error("expected test2")
+	}
+}
+
+func TestGetTheBiggestDrawdownAcrossCurrencies(t *testing.T) {
+	s := Statistic{}
+	result := s.GetTheBiggestDrawdownAcrossCurrencies(nil)
+	if result.Exchange != "" {
+		t.Error("expected empty")
+	}
+
+	result = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
+		{
+			Exchange: "test",
+			MaxDrawdown: currencystatstics.Swing{
+				CalculatedDrawDown: 1337,
+			},
+		},
+		{
+			Exchange: "test2",
+			MaxDrawdown: currencystatstics.Swing{
+				CalculatedDrawDown: 1338,
+			},
+		},
+	})
+	if result.Exchange != "test2" {
+		t.Error("expected test2")
+	}
+}
+
+func TestGetBestMarketPerformer(t *testing.T) {
+	s := Statistic{}
+	result := s.GetBestMarketPerformer(nil)
+	if result.Exchange != "" {
+		t.Error("expected empty")
+	}
+
+	result = s.GetBestMarketPerformer([]FinalResultsHolder{
+		{
+			Exchange:       "test",
+			MarketMovement: 1337,
+		},
+		{
+			Exchange:       "test2",
+			MarketMovement: 1336,
+		},
+	})
+	if result.Exchange != "test" {
+		t.Error("expected test")
+	}
+}
+
+func TestPrintAllEvents(t *testing.T) {
+	s := Statistic{}
+	s.PrintAllEvents()
+	tt := time.Now()
+	exch := "binance"
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	err := s.AddDataEventForTime(nil)
+	if err != nil && err.Error() != "nil data event received" {
+		t.Error(err)
+	}
+	err = s.AddDataEventForTime(&kline.Kline{
+		Event: event.Event{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		},
+		Open:   1337,
+		Close:  1337,
+		Low:    1337,
+		High:   1337,
+		Volume: 1337,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.AddFillEventForTime(&fill.Fill{
+		Event: event.Event{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		},
+		Direction:           gctorder.Buy,
+		Amount:              1337,
+		ClosePrice:          1337,
+		VolumeAdjustedPrice: 1337,
+		PurchasePrice:       1337,
+		ExchangeFee:         1337,
+		Slippage:            1337,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.AddSignalEventForTime(&signal.Signal{
+		Event: event.Event{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		},
+		Amount:    1337,
+		Price:     1337,
+		Direction: gctorder.Buy,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	s.PrintAllEvents()
+}
+
+func TestCalculateTheResults(t *testing.T) {
+	s := Statistic{}
+	err := s.CalculateTheResults()
+	if err != nil {
+		t.Error(err)
+	}
+
+	tt := time.Now()
+	exch := "binance"
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	err = s.AddDataEventForTime(nil)
+	if err != nil && err.Error() != "nil data event received" {
+		t.Error(err)
+	}
+	err = s.AddDataEventForTime(&kline.Kline{
+		Event: event.Event{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		},
+		Open:   1337,
+		Close:  1337,
+		Low:    1337,
+		High:   1337,
+		Volume: 1337,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = s.AddDataEventForTime(&kline.Kline{
+		Event: event.Event{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: currency.NewPair(currency.DOCK, currency.AAA),
+			AssetType:    a,
+		},
+		Open:   1338,
+		Close:  1338,
+		Low:    1338,
+		High:   1338,
+		Volume: 1338,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = s.CalculateTheResults()
+	if err != nil {
+		t.Error(err)
+	}
+}

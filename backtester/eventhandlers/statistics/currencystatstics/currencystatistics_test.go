@@ -63,3 +63,7 @@ func TestCAGR(t *testing.T) {
 		t.Error(cagr)
 	}
 }
+
+func TestCalculateSharpeRatio(t *testing.T) {
+	calculateSharpeRatio()
+}

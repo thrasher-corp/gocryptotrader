@@ -146,13 +146,13 @@
 					<th>Market Movement</th>
 					</thead>
 					<tbody>
-                    {{ range  .Statistics.ExchangeAssetPairStatistics}}
-                        {{ range .}}
-                            {{ range .}}
+                    {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+                        {{ range $asset, $unused := .}}
+                            {{ range $pair, $unused := .}}
 								<tr>
-									<td>{{ .Exchange}}</td>
-									<td>{{ .Asset}}</td>
-									<td>{{ .Pair}}</td>
+									<td>{{ $exchange}}</td>
+									<td>{{ $asset}}</td>
+									<td>{{ $pair}}</td>
 									<td>${{ printf "%.2f" .FinalHoldings.InitialFunds }}</td>
 									<td>${{ printf "%.2f" .FinalHoldings.TotalValue }}</td>
 									<td>{{ gt  .FinalHoldings.TotalValue .FinalHoldings.InitialFunds }}</td>
@@ -450,12 +450,12 @@
 				</table>
 			</div>
 		</div>
-        {{ range .Statistics.ExchangeAssetPairStatistics}}
-            {{ range .}}
-                {{ range .}}
+        {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+            {{ range $asset, $unused := .}}
+                {{ range $pair, $unused := .}}
 					<div class="card card-cascade narrower">
 						<div class="view view-cascade bg-info">
-							<h2  class="px-4 card-header-title white-text">Statistics for {{.Exchange}} {{ .Asset}} {{ .Pair}}</h2>
+							<h2  class="px-4 card-header-title white-text">Statistics for {{$exchange}} {{ $asset}} {{ $pair}}</h2>
 						</div>
 						<div class="card-body card-body-cascade ">
 							<table class="table table-hover table-bordered table-striped">
@@ -604,11 +604,11 @@
 			</div>
 			<div class="card-body card-body-cascade ">
 
-                {{ range  .Statistics.ExchangeAssetPairStatistics}}
-                    {{ range .}}
-                        {{ range .}}
+                {{ range $exchange, $unused :=  .Statistics.ExchangeAssetPairStatistics}}
+                    {{ range $asset, $unused := .}}
+                        {{ range $pair, $unused := .}}
 							<div  >
-								<h3>{{.Exchange}} {{.Asset}} {{ .Pair }}</h3>
+								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
 							</div>
 							<div >
 								<table class="table table-hover table-bordered table-striped">
@@ -648,11 +648,11 @@
 				<h2  class="px-4 card-header-title white-text">Events</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
-                {{ range  .Statistics.ExchangeAssetPairStatistics}}
-                    {{ range .}}
-                        {{ range .}}
+                {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
+                    {{ range $asset, $unused :=.}}
+                        {{ range $pair, $unused := .}}
 							<div >
-								<h3>{{.Exchange}} {{.Asset}} {{ .Pair }}</h3>
+								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
 							</div>
 							<div >
 								<table class="table table-hover table-bordered table-striped">

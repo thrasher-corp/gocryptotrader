@@ -169,9 +169,9 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.CompoundAnnualGrowthRate = calculateCompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
 		last.Holdings.TotalValue,
-		first.SignalEvent.GetTime(),
+		first.DataEvent.GetTime(),
 		last.DataEvent.GetTime(),
-		first.SignalEvent.GetInterval())
+		first.DataEvent.GetInterval())
 }
 
 func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair) {

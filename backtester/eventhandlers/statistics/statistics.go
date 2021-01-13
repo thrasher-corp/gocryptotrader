@@ -41,11 +41,7 @@ func (s *Statistic) AddDataEventForTime(e common.DataEventHandler) error {
 	}
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
-		lookup = &currencystatstics.CurrencyStatistic{
-			Pair:     p,
-			Exchange: ex,
-			Asset:    a,
-		}
+		lookup = &currencystatstics.CurrencyStatistic{}
 	}
 	lookup.Events = append(lookup.Events,
 		currencystatstics.EventStore{
@@ -186,36 +182,39 @@ func (s *Statistic) CalculateTheResults() error {
 			}
 		}
 	}
+	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
 	if currCount > 1 {
-		s.PrintTotalResults(finalResults)
+		s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies(finalResults)
+		s.BestMarketMovement = s.GetBestMarketPerformer(finalResults)
+		s.BestStrategyResults = s.GetBestStrategyPerformer(finalResults)
+		s.PrintTotalResults()
 	}
 	return nil
 }
 
-func (s *Statistic) PrintTotalResults(finalResults []FinalResultsHolder) {
-	s.TotalOrders = s.TotalBuyOrders + s.TotalSellOrders
-	s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies(finalResults)
-	s.BestMarketMovement = s.GetBestMarketPerformer(finalResults)
-	s.BestStrategyResults = s.GetBestStrategyPerformer(finalResults)
+func (s *Statistic) PrintTotalResults() {
 	log.Info(log.BackTester, "------------------Total Results------------------------------")
 	log.Info(log.BackTester, "------------------Orders----------------------------------")
 	log.Infof(log.BackTester, "Total buy orders: %v", s.TotalBuyOrders)
 	log.Infof(log.BackTester, "Total sell orders: %v", s.TotalSellOrders)
 	log.Infof(log.BackTester, "Total orders: %v\n\n", s.TotalOrders)
 
-	log.Info(log.BackTester, "------------------Biggest Drawdown------------------------")
-	log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
-	log.Infof(log.BackTester, "Highest Price: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
-	log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
-	log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
-	log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
-	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", s.BiggestDrawdown.MaxDrawdown.CalculatedDrawDown)
-	log.Infof(log.BackTester, "Difference: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price-s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
-	log.Infof(log.BackTester, "Drawdown length: %v\n\n", len(s.BiggestDrawdown.MaxDrawdown.Iterations))
-
-	log.Info(log.BackTester, "------------------Orders----------------------------------")
-	log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
-	log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
+	if s.BiggestDrawdown != nil {
+		log.Info(log.BackTester, "------------------Biggest Drawdown------------------------")
+		log.Infof(log.BackTester, "Exchange: %v Asset: %v Currency: %v", s.BiggestDrawdown.Exchange, s.BiggestDrawdown.Asset, s.BiggestDrawdown.Pair)
+		log.Infof(log.BackTester, "Highest Price: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price)
+		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
+		log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
+		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
+		log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", s.BiggestDrawdown.MaxDrawdown.CalculatedDrawDown)
+		log.Infof(log.BackTester, "Difference: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price-s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
+		log.Infof(log.BackTester, "Drawdown length: %v\n\n", len(s.BiggestDrawdown.MaxDrawdown.Iterations))
+	}
+	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
+		log.Info(log.BackTester, "------------------Orders----------------------------------")
+		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
+		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
+	}
 }
 
 func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) *FinalResultsHolder {

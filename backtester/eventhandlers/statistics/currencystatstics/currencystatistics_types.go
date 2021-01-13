@@ -9,8 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 type CurrencyStats interface {
@@ -31,9 +29,6 @@ type EventStore struct {
 }
 
 type CurrencyStatistic struct {
-	Pair                     currency.Pair       `json:"pair"`
-	Asset                    asset.Item          `json:"asset"`
-	Exchange                 string              `json:"exchange"`
 	Events                   []EventStore        `json:"-"`
 	DrawDowns                SwingHolder         `json:"all-drawdowns,omitempty"`
 	Upswings                 SwingHolder         `jons:"all-upswings,omitempty"`
