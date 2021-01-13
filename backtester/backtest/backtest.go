@@ -121,7 +121,7 @@ func NewFromConfig(cfg *config.Config, templatePath string, output string) (*Bac
 	}
 	if cfg.StrategySettings.CustomSettings != nil {
 		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
-		if err != nil {
+		if err != nil && err.Error() != "unsupported" {
 			return nil, err
 		}
 	} else {
