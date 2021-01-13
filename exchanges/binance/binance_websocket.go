@@ -92,7 +92,7 @@ func (b *Binance) WsConnect() error {
 func (b *Binance) orderBookProcess() {
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "orderBookProcess, GetEnabledPairs error: %s", err)
+		log.Errorf(log.ExchangeSys, "%s orderBookProcess, GetEnabledPairs error: %s", b.Name, err)
 		return
 	}
 
