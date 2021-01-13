@@ -578,6 +578,21 @@ func TestCalculateTheResults(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	err = s.AddSignalEventForTime(&signal.Signal{
+		Event: event.Event{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		},
+		Amount:    1337,
+		Price:     1337,
+		Direction: gctorder.Buy,
+	})
+	if err != nil {
+		t.Error(err)
+	}
 	err = s.AddDataEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
@@ -592,6 +607,22 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   1338,
 		Volume: 1338,
 	})
+	err = s.AddSignalEventForTime(&signal.Signal{
+		Event: event.Event{
+			Exchange:     exch,
+			Time:         tt,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: currency.NewPair(currency.DOCK, currency.AAA),
+			AssetType:    a,
+		},
+		Amount:    1337,
+		Price:     1337,
+		Direction: gctorder.Buy,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
 	if err != nil {
 		t.Error(err)
 	}

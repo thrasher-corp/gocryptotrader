@@ -66,6 +66,27 @@ func calculateStandardDeviation(values []float64) float64 {
 	return math.Sqrt(calculateTheAverage(diffs))
 }
 
+// calculateSampleStandardDeviation is used in sharpe ratio calculations
+// calculates the sample rate standard deviation
+func calculateSampleStandardDeviation(vals []float64) float64 {
+	if len(vals) <= 1 {
+		return 0
+	}
+	mean := calculateTheAverage(vals)
+	var superMean []float64
+	for i := range vals {
+		result := math.Pow(vals[i]-mean, 2)
+		superMean = append(superMean, result)
+	}
+
+	var combined float64
+	for i := range superMean {
+		combined += superMean[i]
+	}
+	avg := combined / (float64(len(superMean)) - 1)
+	return math.Sqrt(avg)
+}
+
 func calculateTheAverage(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
@@ -78,9 +99,7 @@ func calculateTheAverage(values []float64) float64 {
 	return avg
 }
 
-// SharpeRatio returns sharpe ratio of backtest compared to risk-free
-// fun fact! You can also calculate the sortino ratio here if `movementPerCandle` and `excessMovement`
-// only use negative events
+// calculateSortinoRatio returns sortino ratio of backtest compared to risk-free
 func calculateSortinoRatio(movementPerCandle []float64, excessMovement []float64, riskFreeRate float64) float64 {
 	mean := calculateTheAverage(movementPerCandle)
 	if mean == 0 {
@@ -99,12 +118,13 @@ func calculateSortinoRatio(movementPerCandle []float64, excessMovement []float64
 	return (mean - riskFreeRate) / averageDownsideDeviation
 }
 
-// SharpeRatio returns sharpe ratio of backtest compared to risk-free
-// fun fact! You can also calculate the sortino ratio here if `movementPerCandle` and `excessMovement`
-// only use negative events
-func calculateSharpeRatio(movementPerCandle []float64, excessMovement []float64, riskFreeRate float64) float64 {
+// calculateSharpeRatio returns sharpe ratio of backtest compared to risk-free
+func calculateSharpeRatio(movementPerCandle []float64, riskFreeRate float64) float64 {
+	if len(movementPerCandle) <= 1 {
+		return 0
+	}
 	mean := calculateTheAverage(movementPerCandle)
-	standardDeviation := calculateStandardDeviation(excessMovement)
+	standardDeviation := calculateSampleStandardDeviation(movementPerCandle)
 
 	if standardDeviation == 0 {
 		return 0
@@ -115,18 +135,10 @@ func calculateSharpeRatio(movementPerCandle []float64, excessMovement []float64,
 func (c *CurrencyStatistic) CalculateResults() {
 	first := c.Events[0]
 	var firstPrice float64
-	if first.SignalEvent != nil {
-		firstPrice = first.SignalEvent.GetPrice()
-	} else if first.FillEvent != nil {
-		firstPrice = first.FillEvent.GetClosePrice()
-	}
+	firstPrice = first.SignalEvent.GetPrice()
 	last := c.Events[len(c.Events)-1]
 	var lastPrice float64
-	if last.SignalEvent != nil {
-		lastPrice = last.SignalEvent.GetPrice()
-	} else if last.FillEvent != nil {
-		lastPrice = last.FillEvent.GetClosePrice()
-	}
+	lastPrice = last.SignalEvent.GetPrice()
 	for i := range last.Transactions.Orders {
 		if last.Transactions.Orders[i].Side == gctorder.Buy {
 			c.BuyOrders++
@@ -147,12 +159,10 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.StrategyMovement = ((last.Holdings.TotalValue - last.Holdings.InitialFunds) / last.Holdings.InitialFunds) * 100
 	c.RiskFreeRate = last.Holdings.RiskFreeRate
 	var returnPerCandle = make([]float64, len(c.Events))
-	var excessReturns = make([]float64, len(c.Events))
 
 	var negativeReturns []float64
 	for i := range c.Events {
 		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
-		excessReturns[i] = c.Events[i].Holdings.ExcessReturnPercent
 		if c.Events[i].Holdings.ChangeInTotalValuePercent < 0 {
 			negativeReturns = append(negativeReturns, c.Events[i].Holdings.ChangeInTotalValuePercent)
 		}
@@ -162,7 +172,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
 	c.DrawDowns = calculateAllDrawDowns(allDataEvents)
-	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, excessReturns, c.RiskFreeRate)
+	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, c.RiskFreeRate)
 	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, c.RiskFreeRate)
 	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{c.RiskFreeRate})
 	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, c.DrawDowns.MaxDrawDown)
