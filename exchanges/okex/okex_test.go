@@ -81,7 +81,18 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestUpdateOrderbook(t *testing.T) {
-	cp, err := currency.NewPairFromString("BTC-USD-210108")
+	enabledPairs, err := o.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(enabledPairs) == 0 {
+		t.Errorf("no pairs enabled")
+	}
+	reqPair, err := o.FormatExchangeCurrency(enabledPairs[0], asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	cp, err := currency.NewPairFromString(reqPair.String())
 	if err != nil {
 		t.Error(err)
 	}
