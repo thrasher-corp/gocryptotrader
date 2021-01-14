@@ -376,7 +376,7 @@ func TestPrintTotalResults(t *testing.T) {
 		{
 			Exchange: "test",
 			MaxDrawdown: currencystatstics.Swing{
-				CalculatedDrawDown: 1337,
+				DrawdownPercent: 1337,
 			},
 		},
 	})
@@ -441,13 +441,13 @@ func TestGetTheBiggestDrawdownAcrossCurrencies(t *testing.T) {
 		{
 			Exchange: "test",
 			MaxDrawdown: currencystatstics.Swing{
-				CalculatedDrawDown: 1337,
+				DrawdownPercent: 1337,
 			},
 		},
 		{
 			Exchange: "test2",
 			MaxDrawdown: currencystatstics.Swing{
-				CalculatedDrawDown: 1338,
+				DrawdownPercent: 1338,
 			},
 		},
 	})

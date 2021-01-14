@@ -380,14 +380,151 @@ func TestDrawdowns(t *testing.T) {
 		Time:  tt3,
 		Price: 1337,
 	}
+	it4 := Iteration{
+		Time:  tt1,
+		Price: 1,
+	}
+	it5 := Iteration{
+		Time:  tt2,
+		Price: 1000,
+	}
+	it6 := Iteration{
+		Time:  tt3,
+		Price: 10000,
+	}
 	cs.DrawDowns = SwingHolder{
 		DrawDowns: []Swing{
 			{
+				Highest:    it1,
+				Lowest:     it3,
 				Iterations: []Iteration{it1, it2, it3},
+			},
+			{
+				Highest:    it6,
+				Lowest:     it4,
+				Iterations: []Iteration{it4, it5, it6},
 			},
 		},
 	}
 	cs.DrawDowns.calculateMaxAndLongestDrawDowns()
-	if cs.DrawDowns.MaxDrawDown.CalculatedDrawDown == 0 {
+	if cs.DrawDowns.MaxDrawDown.DrawdownPercent == 0 {
+	}
+}
+
+func TestMaxDrawdown(t *testing.T) {
+	cs := CurrencyStatistic{}
+	tt1 := time.Now()
+	tt2 := time.Now().Add(time.Second)
+	exch := "binance"
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	even := event.Event{
+		Exchange:     exch,
+		Time:         tt1,
+		Interval:     gctkline.OneDay,
+		CurrencyPair: p,
+		AssetType:    a,
+	}
+	ev := EventStore{
+		DataEvent: &kline.Kline{
+			Event: even,
+			Close: 1337,
+		},
+	}
+	even.Time = tt2
+	ev2 := EventStore{
+		DataEvent: &kline.Kline{
+			Event: even,
+			Close: 1338,
+		},
+	}
+	ev3 := EventStore{
+		DataEvent: &kline.Kline{
+			Event: even,
+			Close: 1331,
+		},
+	}
+
+	cs.Events = append(cs.Events, ev, ev2, ev3)
+	max := cs.MaxDrawdown()
+	if max.Highest.Price != 1337 {
+		t.Error("expected 1337")
+	}
+	if max.Lowest.Price != 1331 {
+		t.Error("expected 1331")
+	}
+	if len(max.Iterations) != 2 {
+		t.Error("expected 2 iterations")
+	}
+	if max.DrawdownPercent != -0.44876589379207177 {
+		t.Error("incorrect max drawdown calculation")
+	}
+}
+
+func TestLongestDrawdown(t *testing.T) {
+	cs := CurrencyStatistic{}
+	tt1 := time.Now()
+	tt2 := time.Now().Add(time.Second)
+	exch := "binance"
+	a := asset.Spot
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	even := event.Event{
+		Exchange:     exch,
+		Time:         tt1,
+		Interval:     gctkline.OneDay,
+		CurrencyPair: p,
+		AssetType:    a,
+	}
+	ev := EventStore{
+		DataEvent: &kline.Kline{
+			Event: even,
+			Close: 2337,
+		},
+	}
+	even.Time = tt2
+	ev2 := EventStore{
+		DataEvent: &kline.Kline{
+			Event: even,
+			Close: 1337,
+		},
+	}
+	ev3 := EventStore{
+		DataEvent: &kline.Kline{
+			Event: even,
+			Close: 1338,
+		},
+	}
+	ev4 := EventStore{
+		DataEvent: &kline.Kline{
+			Event: even,
+			Close: 1337,
+		},
+	}
+	ev5 := EventStore{
+		DataEvent: &kline.Kline{
+			Event: even,
+			Close: 1336,
+		},
+	}
+	ev6 := EventStore{
+		DataEvent: &kline.Kline{
+			Event: even,
+			Close: 1335,
+		},
+	}
+
+	cs.Events = append(cs.Events, ev, ev2, ev3, ev4, ev5, ev6)
+	longest := cs.LongestDrawdown()
+	if longest.Highest.Price != 1338 {
+		t.Error("expected 1338")
+	}
+	if longest.Lowest.Price != 1335 {
+		t.Error("expected 1335")
+	}
+	if len(longest.Iterations) != 4 {
+		t.Error("expected 4 iterations")
+	}
+	if longest.DrawdownPercent != -0.2242152466367713 {
+		t.Error("incorrect longest drawdown calculation")
 	}
 }

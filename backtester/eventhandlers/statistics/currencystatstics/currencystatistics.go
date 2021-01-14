@@ -212,7 +212,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Highest Price Time: %v", c.DrawDowns.MaxDrawDown.Highest.Time)
 	log.Infof(log.BackTester, "Lowest Price: $%v", c.DrawDowns.MaxDrawDown.Lowest.Price)
 	log.Infof(log.BackTester, "Lowest Price Time: %v", c.DrawDowns.MaxDrawDown.Lowest.Time)
-	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.DrawDowns.MaxDrawDown.CalculatedDrawDown)
+	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.DrawDowns.MaxDrawDown.DrawdownPercent)
 	log.Infof(log.BackTester, "Difference: $%.2f", c.DrawDowns.MaxDrawDown.Highest.Price-c.DrawDowns.MaxDrawDown.Lowest.Price)
 	log.Infof(log.BackTester, "Drawdown length: %v", len(c.DrawDowns.MaxDrawDown.Iterations))
 
@@ -221,7 +221,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Highest Price Time: %v", c.DrawDowns.LongestDrawDown.Highest.Time)
 	log.Infof(log.BackTester, "Lowest Price: $%.2f", c.DrawDowns.LongestDrawDown.Lowest.Price)
 	log.Infof(log.BackTester, "Lowest Price Time: %v", c.DrawDowns.LongestDrawDown.Lowest.Time)
-	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.DrawDowns.LongestDrawDown.CalculatedDrawDown)
+	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.DrawDowns.LongestDrawDown.DrawdownPercent)
 	log.Infof(log.BackTester, "Difference: $%.2f", c.DrawDowns.LongestDrawDown.Highest.Price-c.DrawDowns.LongestDrawDown.Lowest.Price)
 	log.Infof(log.BackTester, "Drawdown length: %v\n\n", len(c.DrawDowns.LongestDrawDown.Iterations))
 
@@ -308,15 +308,13 @@ func calculateAllDrawDowns(closePrices []common.DataEventHandler) SwingHolder {
 		if !isDrawingDown && activeDraw.Highest.Price > p {
 			isDrawingDown = true
 			activeDraw = Swing{
-				Highest: Iteration{
-					Price: p,
-					Time:  t,
-				},
+				Highest: activeDraw.Highest,
 				Lowest: Iteration{
 					Price: p,
 					Time:  t,
 				},
 			}
+			activeDraw.Iterations = append(activeDraw.Iterations, activeDraw.Highest)
 		}
 
 		// close
@@ -352,10 +350,15 @@ func calculateAllDrawDowns(closePrices []common.DataEventHandler) SwingHolder {
 			})
 		}
 	}
+	// ensure a lingering drawdown is closed
+	if isDrawingDown {
+		response.DrawDowns = append(response.DrawDowns, activeDraw)
+		isDrawingDown = false
+	}
 
 	response.calculateMaxAndLongestDrawDowns()
-	response.MaxDrawDown.CalculatedDrawDown = ((response.MaxDrawDown.Lowest.Price - response.MaxDrawDown.Highest.Price) / response.MaxDrawDown.Highest.Price) * 100
-	response.LongestDrawDown.CalculatedDrawDown = ((response.LongestDrawDown.Lowest.Price - response.LongestDrawDown.Highest.Price) / response.LongestDrawDown.Highest.Price) * 100
+	response.MaxDrawDown.DrawdownPercent = ((response.MaxDrawDown.Lowest.Price - response.MaxDrawDown.Highest.Price) / response.MaxDrawDown.Highest.Price) * 100
+	response.LongestDrawDown.DrawdownPercent = ((response.LongestDrawDown.Lowest.Price - response.LongestDrawDown.Highest.Price) / response.LongestDrawDown.Highest.Price) * 100
 
 	return response
 }
@@ -369,4 +372,5 @@ func (s *SwingHolder) calculateMaxAndLongestDrawDowns() {
 			s.LongestDrawDown = s.DrawDowns[i]
 		}
 	}
+
 }

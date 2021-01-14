@@ -206,7 +206,7 @@ func (s *Statistic) PrintTotalResults() {
 		log.Infof(log.BackTester, "Highest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Highest.Time)
 		log.Infof(log.BackTester, "Lowest Price: $%v", s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
 		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
-		log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", s.BiggestDrawdown.MaxDrawdown.CalculatedDrawDown)
+		log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent)
 		log.Infof(log.BackTester, "Difference: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price-s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
 		log.Infof(log.BackTester, "Drawdown length: %v\n\n", len(s.BiggestDrawdown.MaxDrawdown.Iterations))
 	}
@@ -244,7 +244,7 @@ func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResults
 		MaxDrawdown: currencystatstics.Swing{},
 	}
 	for i := range results {
-		if results[i].MaxDrawdown.CalculatedDrawDown > result.MaxDrawdown.CalculatedDrawDown || result.MaxDrawdown.CalculatedDrawDown == 0 {
+		if results[i].MaxDrawdown.DrawdownPercent > result.MaxDrawdown.DrawdownPercent || result.MaxDrawdown.DrawdownPercent == 0 {
 			result = &results[i]
 		}
 	}

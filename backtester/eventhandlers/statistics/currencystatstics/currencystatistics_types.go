@@ -61,10 +61,10 @@ type SwingHolder struct {
 
 // Swing holds a drawdown
 type Swing struct {
-	Highest            Iteration   `json:"highest"`
-	Lowest             Iteration   `json:"lowest"`
-	CalculatedDrawDown float64     `json:"drawdown"`
-	Iterations         []Iteration `json:"-"`
+	Highest         Iteration   `json:"highest"`
+	Lowest          Iteration   `json:"lowest"`
+	DrawdownPercent float64     `json:"drawdown"`
+	Iterations      []Iteration `json:"-"`
 }
 
 // Iteration is an individual iteration of price at a time

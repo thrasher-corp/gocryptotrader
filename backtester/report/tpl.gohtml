@@ -431,7 +431,7 @@
                     {{ if .Statistics.BiggestDrawdown}}
 						<tr>
 							<td><b>Biggest Drawdown</b></td>
-							<td><b>Start:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>End:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>Drop:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.CalculatedDrawDown}}</td>
+							<td><b>Start:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>End:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>Drop:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.DrawdownPercent}}</td>
 						</tr>
                     {{end}}
                     {{ if .Statistics.BestMarketMovement}}
