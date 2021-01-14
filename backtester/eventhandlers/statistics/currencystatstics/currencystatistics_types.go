@@ -23,9 +23,9 @@ type EventStore struct {
 	Holdings     holdings.Holding
 	Transactions compliance.Snapshot
 	DataEvent    common.DataEventHandler
-	SignalEvent  signal.SignalEvent
-	OrderEvent   order.OrderEvent
-	FillEvent    fill.FillEvent
+	SignalEvent  signal.Event
+	OrderEvent   order.Event
+	FillEvent    fill.Event
 }
 
 type CurrencyStatistic struct {

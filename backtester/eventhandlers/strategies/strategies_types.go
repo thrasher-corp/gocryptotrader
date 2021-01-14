@@ -8,8 +8,8 @@ import (
 
 type Handler interface {
 	Name() string
-	OnSignal(data.Handler, portfolio.Handler) (signal.SignalEvent, error)
-	OnSignals([]data.Handler, portfolio.Handler) ([]signal.SignalEvent, error)
+	OnSignal(data.Handler, portfolio.Handler) (signal.Event, error)
+	OnSignals([]data.Handler, portfolio.Handler) ([]signal.Event, error)
 	IsMultiCurrency() bool
 	SupportsMultiCurrency() bool
 	SetMultiCurrency(bool)

@@ -20,7 +20,7 @@ type Config struct {
 	CSVData      *CSVData      `json:"csv-data,omitempty"`
 }
 
-// StrategySettings contains what strategy to load, along with custom settins map
+// StrategySettings contains what strategy to load, along with custom settings map
 // (variables defined per strategy)
 // along with defining whether the strategy will assess all currencies at once, or individually
 type StrategySettings struct {
@@ -72,8 +72,8 @@ type CurrencySettings struct {
 	BuySide  MinMax   `json:"buy-side"`
 	SellSide MinMax   `json:"sell-side"`
 
-	MinimumSlippagePercent float64 `json:min-slippage-percent`
-	MaximumSlippagePercent float64 `json:max-slippage-percent`
+	MinimumSlippagePercent float64 `json:"min-slippage-percent"`
+	MaximumSlippagePercent float64 `json:"max-slippage-percent"`
 
 	MakerFee float64 `json:"maker-fee-override"`
 	TakerFee float64 `json:"taker-fee-override"`

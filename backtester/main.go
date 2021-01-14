@@ -69,7 +69,7 @@ func main() {
 		gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
 		bt.Stop()
 	} else {
-		err := bt.Run()
+		err = bt.Run()
 		if err != nil {
 			fmt.Print(err)
 			os.Exit(1)

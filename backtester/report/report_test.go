@@ -16,8 +16,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+const testExchange = "binance"
+
 func TestGenerateReport(t *testing.T) {
-	e := "Binance"
+	e := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 
@@ -351,9 +353,9 @@ func TestEnhanceCandles(t *testing.T) {
 	}
 
 	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics["binance"] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatstics.CurrencyStatistic{
+	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatstics.CurrencyStatistic{
 		Events:                   nil,
 		DrawDowns:                currencystatstics.SwingHolder{},
 		Upswings:                 currencystatstics.SwingHolder{},
@@ -377,7 +379,7 @@ func TestEnhanceCandles(t *testing.T) {
 	}
 
 	d.AddKlineItem(&gctkline.Item{
-		Exchange: "binance",
+		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
 		Interval: gctkline.OneDay,
@@ -398,7 +400,7 @@ func TestEnhanceCandles(t *testing.T) {
 	}
 
 	d.AddKlineItem(&gctkline.Item{
-		Exchange: "binance",
+		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
 		Interval: gctkline.OneDay,
@@ -427,7 +429,7 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          1335,
@@ -444,7 +446,7 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          1335,
@@ -464,7 +466,7 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics["binance"][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
 				ClosePrice:          1335,

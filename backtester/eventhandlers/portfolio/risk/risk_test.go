@@ -118,5 +118,4 @@ func TestEvaluateOrder(t *testing.T) {
 	if err != nil && err.Error() != "proceeding with the order would put leverage rate beyond its limit of 0.3 to 1.1 and cannot be placed" {
 		t.Error(err)
 	}
-
 }

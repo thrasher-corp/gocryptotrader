@@ -7,6 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+const testExchange = "binance"
+
 func TestSomething(t *testing.T) {
 	// This test is more fully implemented in the fully implemented kline_test
 	var d Data
@@ -56,7 +58,7 @@ func TestSetup(t *testing.T) {
 
 func TestSetDataForCurrency(t *testing.T) {
 	d := HandlerPerCurrency{}
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d.SetDataForCurrency(exch, a, p, nil)
@@ -70,7 +72,7 @@ func TestSetDataForCurrency(t *testing.T) {
 
 func TestGetAllData(t *testing.T) {
 	d := HandlerPerCurrency{}
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d.SetDataForCurrency(exch, a, p, nil)
@@ -86,7 +88,7 @@ func TestGetAllData(t *testing.T) {
 
 func TestGetDataForCurrency(t *testing.T) {
 	d := HandlerPerCurrency{}
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d.SetDataForCurrency(exch, a, p, nil)
@@ -99,7 +101,7 @@ func TestGetDataForCurrency(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	d := HandlerPerCurrency{}
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d.SetDataForCurrency(exch, a, p, nil)

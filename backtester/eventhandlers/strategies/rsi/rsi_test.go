@@ -109,7 +109,7 @@ func TestOnSignal(t *testing.T) {
 		Data:  d,
 		Range: gctkline.IntervalRangeHolder{},
 	}
-	var resp signal.SignalEvent
+	var resp signal.Event
 	resp, err = s.OnSignal(da, nil)
 	if err != nil {
 		t.Error(err)

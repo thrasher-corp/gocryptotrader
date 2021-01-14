@@ -12,6 +12,8 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+const testExchange = "binance"
+
 func TestLoadCandles(t *testing.T) {
 	tt1 := time.Now().Add(-time.Hour)
 	tt2 := time.Now()
@@ -21,11 +23,11 @@ func TestLoadCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.LoadExchange("binance", false, nil)
+	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
-	exch := bot.GetExchangeByName("binance")
+	exch := bot.GetExchangeByName(testExchange)
 	if exch == nil {
 		t.Error("expected binance")
 	}
@@ -55,11 +57,11 @@ func TestLoadTrades(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.LoadExchange("binance", false, nil)
+	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
-	exch := bot.GetExchangeByName("binance")
+	exch := bot.GetExchangeByName(testExchange)
 	if exch == nil {
 		t.Error("expected binance")
 	}
@@ -73,5 +75,4 @@ func TestLoadTrades(t *testing.T) {
 	if len(data.Candles) == 0 {
 		t.Error("expected candles")
 	}
-
 }

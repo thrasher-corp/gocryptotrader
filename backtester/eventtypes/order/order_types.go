@@ -18,8 +18,8 @@ type Order struct {
 	Leverage  float64
 }
 
-// OrderEvent
-type OrderEvent interface {
+// Event
+type Event interface {
 	common.EventHandler
 	common.Directioner
 

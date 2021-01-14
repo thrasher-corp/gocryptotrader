@@ -22,6 +22,8 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+const testExchange = "binance"
+
 func TestReset(t *testing.T) {
 	p := Portfolio{
 		exchangeAssetPairSettings: make(map[string]map[asset.Item]map[currency.Pair]*settings.Settings),
@@ -30,7 +32,6 @@ func TestReset(t *testing.T) {
 	if p.exchangeAssetPairSettings != nil {
 		t.Error("expected nil")
 	}
-
 }
 
 func TestSetup(t *testing.T) {
@@ -95,17 +96,17 @@ func TestSetHoldings(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.setHoldings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, false)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, false)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = p.setHoldings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, false)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, false)
 	if err != nil && !strings.Contains(err.Error(), "holdings for binance spot BTCUSD at") {
 		t.Error(err)
 	}
 
-	err = p.setHoldings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -118,15 +119,15 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 		t.Error("expected 0")
 	}
 	tt := time.Now()
-	err := p.setHoldings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, true)
+	err := p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, true)
 	if err != nil {
 		t.Error(err)
 	}
-	err = p.setHoldings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), holdings.Holding{Timestamp: tt}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), holdings.Holding{Timestamp: tt}, true)
 	if err != nil {
 		t.Error(err)
 	}
-	err = p.setHoldings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), holdings.Holding{Timestamp: tt.Add(time.Minute)}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), holdings.Holding{Timestamp: tt.Add(time.Minute)}, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -148,12 +149,12 @@ func TestGetInitialFunds(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.SetInitialFunds("binance", asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), 1)
+	err = p.SetInitialFunds(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), 1)
 	if err != nil {
 		t.Error(err)
 	}
 
-	f = p.GetInitialFunds("binance", asset.Spot, currency.NewPair(currency.BTC, currency.DOGE))
+	f = p.GetInitialFunds(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE))
 	if f != 1 {
 		t.Error("expected 1")
 	}
@@ -167,22 +168,21 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.setHoldings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, true)
-	err = p.setHoldings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt.Add(time.Hour)}, true)
-	_, err = p.ViewHoldingAtTimePeriod("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USD), tt)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt.Add(time.Hour)}, true)
+	_, err = p.ViewHoldingAtTimePeriod(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), tt)
 	if err != nil && !strings.Contains(err.Error(), "no holdings found for") {
 		t.Error(err)
 	}
 
 	var h holdings.Holding
-	h, err = p.ViewHoldingAtTimePeriod("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USD), tt)
+	h, err = p.ViewHoldingAtTimePeriod(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), tt)
 	if err != nil {
 		t.Error(err)
 	}
 	if !h.Timestamp.Equal(tt) {
 		t.Errorf("expected %v received %v", tt, h.Timestamp)
 	}
-
 }
 
 func TestUpdate(t *testing.T) {
@@ -199,7 +199,7 @@ func TestUpdate(t *testing.T) {
 
 	err = p.Update(&kline.Kline{
 		Event: event.Event{
-			Exchange:     "binance",
+			Exchange:     testExchange,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 			AssetType:    asset.Spot,
 		},
@@ -209,14 +209,14 @@ func TestUpdate(t *testing.T) {
 	}
 
 	tt := time.Now()
-	err = p.setHoldings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt, PositionsSize: 1337}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt, PositionsSize: 1337}, true)
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = p.Update(&kline.Kline{
 		Event: event.Event{
-			Exchange:     "binance",
+			Exchange:     testExchange,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 			AssetType:    asset.Spot,
 			Time:         tt,

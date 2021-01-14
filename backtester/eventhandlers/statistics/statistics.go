@@ -53,7 +53,7 @@ func (s *Statistic) AddDataEventForTime(e common.DataEventHandler) error {
 }
 
 // AddSignalEventForTime adds strategy signal event to the statistics at the time period
-func (s *Statistic) AddSignalEventForTime(e signal.SignalEvent) error {
+func (s *Statistic) AddSignalEventForTime(e signal.Event) error {
 	if e == nil {
 		return errors.New("nil signal event received")
 	}
@@ -74,7 +74,7 @@ func (s *Statistic) AddSignalEventForTime(e signal.SignalEvent) error {
 }
 
 // AddOrderEventForTime adds order event to the statistics at the time period
-func (s *Statistic) AddOrderEventForTime(e order.OrderEvent) error {
+func (s *Statistic) AddOrderEventForTime(e order.Event) error {
 	if e == nil {
 		return errors.New("nil order event received")
 	}
@@ -95,7 +95,7 @@ func (s *Statistic) AddOrderEventForTime(e order.OrderEvent) error {
 }
 
 // AddFillEventForTime adds fill event to the statistics at the time period
-func (s *Statistic) AddFillEventForTime(e fill.FillEvent) error {
+func (s *Statistic) AddFillEventForTime(e fill.Event) error {
 	if e == nil {
 		return errors.New("nil fill event received")
 	}
@@ -134,7 +134,7 @@ func (s *Statistic) AddHoldingsForTime(h holdings.Holding) error {
 }
 
 // AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period
-func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.FillEvent) error {
+func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.Event) error {
 	if e == nil {
 		return errors.New("nil fill event received")
 	}

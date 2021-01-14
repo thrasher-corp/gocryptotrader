@@ -2,7 +2,6 @@ package fill
 
 import (
 	"github.com/shopspring/decimal"
-
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 

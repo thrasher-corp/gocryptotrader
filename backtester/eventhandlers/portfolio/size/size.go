@@ -10,7 +10,7 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-func (s *Size) SizeOrder(o order.OrderEvent, amountAvailable float64, cs *exchange.Settings) (*order.Order, error) {
+func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Settings) (*order.Order, error) {
 	if o == nil || cs == nil {
 		return nil, errors.New("nil arguments received, cannot size order")
 	}
@@ -52,7 +52,6 @@ func (s *Size) SizeOrder(o order.OrderEvent, amountAvailable float64, cs *exchan
 		if amount > portfolioSize {
 			amount = portfolioSize
 		}
-
 	}
 	if amount <= 0 {
 		return retOrder, fmt.Errorf("portfolio manager cannot allocate funds for an order at %v for %v %v %v", o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())

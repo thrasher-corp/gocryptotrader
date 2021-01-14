@@ -9,7 +9,7 @@ import (
 )
 
 type Handler interface {
-	EvaluateOrder(order.OrderEvent, []holdings.Holding, compliance.Snapshot) (*order.Order, error)
+	EvaluateOrder(order.Event, []holdings.Holding, compliance.Snapshot) (*order.Order, error)
 }
 
 type Risk struct {

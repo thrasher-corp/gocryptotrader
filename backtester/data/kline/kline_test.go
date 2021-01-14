@@ -12,8 +12,10 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+const testExchange = "binance"
+
 func TestLoad(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	tt := time.Now()
@@ -48,7 +50,7 @@ func TestHasDataAtTime(t *testing.T) {
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
@@ -90,11 +92,10 @@ func TestHasDataAtTime(t *testing.T) {
 	if !has {
 		t.Error("expected true")
 	}
-
 }
 
 func TestAppend(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
@@ -114,14 +115,14 @@ func TestAppend(t *testing.T) {
 			},
 		},
 	}
-	d.Append(item)
+	d.Append(&item)
 	if len(d.addedTimes) == 0 {
 		t.Error("expected added time")
 	}
 }
 
 func TestStreamOpen(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
@@ -152,7 +153,7 @@ func TestStreamOpen(t *testing.T) {
 }
 
 func TestStreamVolume(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
@@ -183,7 +184,7 @@ func TestStreamVolume(t *testing.T) {
 }
 
 func TestStreamClose(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
@@ -214,7 +215,7 @@ func TestStreamClose(t *testing.T) {
 }
 
 func TestStreamHigh(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}
@@ -245,7 +246,7 @@ func TestStreamHigh(t *testing.T) {
 }
 
 func TestStreamLow(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{}

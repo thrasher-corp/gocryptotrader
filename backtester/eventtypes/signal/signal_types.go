@@ -6,9 +6,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// SignalEvent handler is used for getting trade signal details
+// Event handler is used for getting trade signal details
 // Example Amount and Price of current candle tick
-type SignalEvent interface {
+type Event interface {
 	common.EventHandler
 	common.Directioner
 

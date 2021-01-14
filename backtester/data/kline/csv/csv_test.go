@@ -11,8 +11,10 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+const testExchange = "binance"
+
 func TestLoadDataCandles(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := LoadData(filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"),
@@ -27,7 +29,7 @@ func TestLoadDataCandles(t *testing.T) {
 }
 
 func TestLoadDataTrades(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := LoadData(
@@ -43,7 +45,7 @@ func TestLoadDataTrades(t *testing.T) {
 }
 
 func TestLoadDataInvalid(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := LoadData(

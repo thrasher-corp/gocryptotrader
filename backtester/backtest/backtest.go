@@ -54,7 +54,7 @@ func (bt *BackTest) Reset() {
 }
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
-func NewFromConfig(cfg *config.Config, templatePath string, output string) (*BackTest, error) {
+func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, error) {
 	if cfg == nil {
 		return nil, errors.New("unable to setup backtester with nil config")
 	}
@@ -297,7 +297,7 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
-func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float64, takerFee float64, err error) {
+func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee float64, err error) {
 	takerFee, err = exch.GetFeeByType(&gctexchange.FeeBuilder{
 		FeeType:       gctexchange.OfflineTradeFee,
 		Pair:          fPair,
@@ -323,7 +323,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee float
 	return makerFee, takerFee, err
 }
 
-// loadData will create kline data from the sources defined in strat config files. It can exist from databases, csv or API endpoints
+// loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
 func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	if exch == nil {
@@ -378,7 +378,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		go loadLiveDataLoop(resp, cfg, exch, fPair, a)
+		go bt.loadLiveDataLoop(resp, cfg, exch, fPair, a)
 		return resp, nil
 	}
 	if resp == nil {
@@ -472,23 +472,25 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
 // from live. Its purpose is to be able to perform strategy analysis against current data
-func loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
+func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
 	candles, err := live.LoadData(exch, cfg.LiveData.DataType, cfg.LiveData.Interval, fPair, a)
 	if err != nil {
 		log.Error(log.BackTester, err)
 		return
 	}
-	resp.Append(*candles)
+	resp.Append(candles)
 	timerino := time.NewTicker(time.Minute)
 	for {
 		select {
+		case <-bt.shutdown:
+			return
 		case <-timerino.C:
 			candles, err := live.LoadData(exch, cfg.LiveData.DataType, cfg.LiveData.Interval, fPair, a)
 			if err != nil {
 				log.Error(log.BackTester, err)
 				return
 			}
-			resp.Append(*candles)
+			resp.Append(candles)
 		}
 	}
 }
@@ -545,11 +547,11 @@ func (bt *BackTest) handleEvent(e common.EventHandler) error {
 	switch ev := e.(type) {
 	case common.DataEventHandler:
 		bt.processDataEvent(ev)
-	case signal.SignalEvent:
+	case signal.Event:
 		bt.processSignalEvent(ev)
-	case order.OrderEvent:
+	case order.Event:
 		bt.processOrderEvent(ev)
-	case fill.FillEvent:
+	case fill.Event:
 		bt.processFillEvent(ev)
 	}
 
@@ -612,7 +614,7 @@ func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
 	bt.Statistic.AddDataEventForTime(e)
 }
 
-func (bt *BackTest) processSignalEvent(ev signal.SignalEvent) {
+func (bt *BackTest) processSignalEvent(ev signal.Event) {
 	cs, _ := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	o, err := bt.Portfolio.OnSignal(ev, &cs)
 	if err != nil {
@@ -623,7 +625,7 @@ func (bt *BackTest) processSignalEvent(ev signal.SignalEvent) {
 	bt.EventQueue.AppendEvent(o)
 }
 
-func (bt *BackTest) processOrderEvent(ev order.OrderEvent) {
+func (bt *BackTest) processOrderEvent(ev order.Event) {
 	d := bt.Datas.GetDataForCurrency(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	f, err := bt.Exchange.ExecuteOrder(ev, d, bt.Bot)
 	if err != nil {
@@ -638,7 +640,7 @@ func (bt *BackTest) processOrderEvent(ev order.OrderEvent) {
 	bt.EventQueue.AppendEvent(f)
 }
 
-func (bt *BackTest) processFillEvent(ev fill.FillEvent) {
+func (bt *BackTest) processFillEvent(ev fill.Event) {
 	t, err := bt.Portfolio.OnFill(ev)
 	if err != nil {
 		bt.Statistic.AddFillEventForTime(t)

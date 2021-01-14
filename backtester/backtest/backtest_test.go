@@ -28,6 +28,8 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+const testExchange = "binance"
+
 func TestNewFromConfig(t *testing.T) {
 	_, err := NewFromConfig(nil, "", "")
 	if err == nil {
@@ -56,7 +58,7 @@ func TestNewFromConfig(t *testing.T) {
 		t.Error(err)
 	}
 
-	cfg.CurrencySettings[0].ExchangeName = "binance"
+	cfg.CurrencySettings[0].ExchangeName = testExchange
 	_, err = NewFromConfig(cfg, "", "")
 	if err != nil && !strings.Contains(err.Error(), "cannot create new asset") {
 		t.Error(err)
@@ -132,7 +134,7 @@ func TestLoadData(t *testing.T) {
 			Quote:        "test",
 		},
 	}
-	cfg.CurrencySettings[0].ExchangeName = "binance"
+	cfg.CurrencySettings[0].ExchangeName = testExchange
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	cfg.CurrencySettings[0].Base = "BTC"
 	cfg.CurrencySettings[0].Quote = "USDT"
@@ -166,7 +168,7 @@ func TestLoadData(t *testing.T) {
 		Config: &gctconfig.Config{
 			Exchanges: []gctconfig.ExchangeConfig{
 				{
-					Name:    "binance",
+					Name:    testExchange,
 					Enabled: true,
 					API: gctconfig.APIConfig{
 						Endpoints: gctconfig.APIEndpointsConfig{
@@ -188,11 +190,11 @@ func TestLoadData(t *testing.T) {
 			},
 		},
 	}
-	err = bot.LoadExchange("binance", false, nil)
+	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
-	exch := bot.GetExchangeByName("binance")
+	exch := bot.GetExchangeByName(testExchange)
 	if exch == nil {
 		t.Error("expected not nil")
 	}
@@ -273,7 +275,7 @@ func TestLoadDatabaseData(t *testing.T) {
 		t.Error(err)
 	}
 	cfg.DatabaseData.Interval = gctkline.OneDay.Duration()
-	_, err = loadDatabaseData(cfg, "binance", cp, asset.Spot)
+	_, err = loadDatabaseData(cfg, testExchange, cp, asset.Spot)
 	if err != nil && !strings.Contains(err.Error(), "database support is disabled") {
 		t.Error(err)
 	}
@@ -290,7 +292,7 @@ func TestLoadLiveData(t *testing.T) {
 		t.Error(err)
 	}
 	b := &gctexchange.Base{
-		Name: "binance",
+		Name: testExchange,
 		API: gctexchange.API{
 			AuthenticatedSupport:          false,
 			AuthenticatedWebsocketSupport: false,
@@ -366,7 +368,7 @@ func TestReset(t *testing.T) {
 }
 
 func TestFullCycle(t *testing.T) {
-	ex := "binance"
+	ex := testExchange
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Spot
 	tt := time.Now()
@@ -397,7 +399,7 @@ func TestFullCycle(t *testing.T) {
 		Config: &gctconfig.Config{
 			Exchanges: []gctconfig.ExchangeConfig{
 				{
-					Name:    "binance",
+					Name:    testExchange,
 					Enabled: true,
 					API: gctconfig.APIConfig{
 						Endpoints: gctconfig.APIEndpointsConfig{
@@ -493,7 +495,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestFullCycleMulti(t *testing.T) {
-	ex := "binance"
+	ex := testExchange
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Spot
 	tt := time.Now()
@@ -524,7 +526,7 @@ func TestFullCycleMulti(t *testing.T) {
 		Config: &gctconfig.Config{
 			Exchanges: []gctconfig.ExchangeConfig{
 				{
-					Name:    "binance",
+					Name:    testExchange,
 					Enabled: true,
 					API: gctconfig.APIConfig{
 						Endpoints: gctconfig.APIEndpointsConfig{

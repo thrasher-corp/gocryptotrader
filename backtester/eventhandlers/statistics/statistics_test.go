@@ -19,6 +19,8 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+const testExchange = "binance"
+
 func TestReset(t *testing.T) {
 	s := Statistic{
 		TotalOrders: 1,
@@ -31,7 +33,7 @@ func TestReset(t *testing.T) {
 
 func TestAddDataEventForTime(t *testing.T) {
 	tt := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
@@ -66,7 +68,7 @@ func TestAddDataEventForTime(t *testing.T) {
 
 func TestAddSignalEventForTime(t *testing.T) {
 	tt := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
@@ -120,7 +122,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 
 func TestAddExchangeEventForTime(t *testing.T) {
 	tt := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
@@ -179,7 +181,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 
 func TestAddFillEventForTime(t *testing.T) {
 	tt := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
@@ -237,7 +239,7 @@ func TestAddFillEventForTime(t *testing.T) {
 
 func TestAddHoldingsForTime(t *testing.T) {
 	tt := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
@@ -302,7 +304,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 
 func TestAddComplianceSnapshotForTime(t *testing.T) {
 	tt := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
@@ -482,7 +484,7 @@ func TestPrintAllEvents(t *testing.T) {
 	s := Statistic{}
 	s.PrintAllEvents()
 	tt := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	err := s.AddDataEventForTime(nil)
@@ -554,7 +556,7 @@ func TestCalculateTheResults(t *testing.T) {
 	}
 
 	tt := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	err = s.AddDataEventForTime(nil)

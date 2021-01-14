@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	makerFee = 0.002
-	takerFee = 0.001
+	makerFee     = 0.002
+	takerFee     = 0.001
+	testExchange = "binance"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -38,7 +39,7 @@ func TestReadConfigFromFile(t *testing.T) {
 		}
 	}()
 	var passFile *os.File
-	passFile, err = ioutil.TempFile(tempDir, "*.strat")
+	passFile, err = ioutil.TempFile(tempDir, "*.start")
 	if err != nil {
 		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
 	}
@@ -65,7 +66,7 @@ func TestGenerateDCACandleAPIStrat(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
@@ -137,7 +138,7 @@ func TestPrintSettings(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
@@ -220,7 +221,7 @@ func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
@@ -243,7 +244,7 @@ func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 				TakerFee: takerFee,
 			},
 			{
-				ExchangeName: "binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
 				Quote:        currency.USDT.String(),
@@ -317,7 +318,7 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
@@ -340,7 +341,7 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 				TakerFee: takerFee,
 			},
 			{
-				ExchangeName: "binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
 				Quote:        currency.USDT.String(),
@@ -412,7 +413,7 @@ func TestGenerateDCALiveCandleStrat(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
@@ -488,7 +489,7 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName: "binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot.String(),
 				Base:         currency.BTC.String(),
 				Quote:        currency.USDT.String(),
@@ -511,7 +512,7 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 				TakerFee: takerFee,
 			},
 			{
-				ExchangeName: "binance",
+				ExchangeName: testExchange,
 				Asset:        asset.Spot.String(),
 				Base:         currency.ETH.String(),
 				Quote:        currency.USDT.String(),

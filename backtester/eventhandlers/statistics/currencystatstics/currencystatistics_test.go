@@ -15,8 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
+
+const testExchange = "binance"
 
 func TestSortinoRatio(t *testing.T) {
 	rfr := 0.07
@@ -62,7 +63,7 @@ func TestInformationRatio(t *testing.T) {
 func TestCalmarRatio(t *testing.T) {
 	drawDown := Swing{Highest: Iteration{Price: 50000}, Lowest: Iteration{Price: 15000}}
 	avg := []float64{0.2}
-	ratio := calculateCalmarRatio(avg, drawDown)
+	ratio := calculateCalmarRatio(avg, &drawDown)
 	if ratio != 0.28571428571428575 {
 		t.Error(ratio)
 	}
@@ -124,7 +125,7 @@ func TestCalculateResults(t *testing.T) {
 	cs := CurrencyStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	even := event.Event{
@@ -143,14 +144,14 @@ func TestCalculateResults(t *testing.T) {
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Buy},
+					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          1337,
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Sell},
+					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -173,14 +174,14 @@ func TestCalculateResults(t *testing.T) {
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Buy},
+					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          1337,
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Sell},
+					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -194,8 +195,7 @@ func TestCalculateResults(t *testing.T) {
 		},
 	}
 
-	cs.Events = append(cs.Events, ev)
-	cs.Events = append(cs.Events, ev2)
+	cs.Events = append(cs.Events, ev, ev2)
 	cs.CalculateResults()
 	if cs.MarketMovement != 0.07479431563201197 {
 		t.Error("expected 0.07479431563201197")
@@ -206,7 +206,7 @@ func TestPrintResults(t *testing.T) {
 	cs := CurrencyStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	even := event.Event{
@@ -225,14 +225,14 @@ func TestPrintResults(t *testing.T) {
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Buy},
+					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          1337,
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Sell},
+					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -255,14 +255,14 @@ func TestPrintResults(t *testing.T) {
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Buy},
+					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          1337,
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Sell},
+					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -276,8 +276,7 @@ func TestPrintResults(t *testing.T) {
 		},
 	}
 
-	cs.Events = append(cs.Events, ev)
-	cs.Events = append(cs.Events, ev2)
+	cs.Events = append(cs.Events, ev, ev2)
 	cs.CalculateResults()
 	cs.PrintResults(exch, a, p)
 }
@@ -286,7 +285,7 @@ func TestCreateDrawdowns(t *testing.T) {
 	cs := CurrencyStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now()
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	even := event.Event{
@@ -305,14 +304,14 @@ func TestCreateDrawdowns(t *testing.T) {
 					VolumeAdjustedPrice: 1338,
 					SlippageRate:        1338,
 					CostBasis:           1338,
-					Detail:              &order.Detail{Side: gctorder.Buy},
+					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          1338,
 					VolumeAdjustedPrice: 1338,
 					SlippageRate:        1338,
 					CostBasis:           1338,
-					Detail:              &order.Detail{Side: gctorder.Sell},
+					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -335,14 +334,14 @@ func TestCreateDrawdowns(t *testing.T) {
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Buy},
+					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
 					ClosePrice:          1337,
 					VolumeAdjustedPrice: 1337,
 					SlippageRate:        1337,
 					CostBasis:           1337,
-					Detail:              &order.Detail{Side: gctorder.Sell},
+					Detail:              &order.Detail{Side: order.Sell},
 				},
 			},
 		},
@@ -356,8 +355,7 @@ func TestCreateDrawdowns(t *testing.T) {
 		},
 	}
 
-	cs.Events = append(cs.Events, ev)
-	cs.Events = append(cs.Events, ev2)
+	cs.Events = append(cs.Events, ev, ev2)
 
 	cs.DrawDowns = calculateAllDrawDowns([]common.DataEventHandler{ev.DataEvent, ev2.DataEvent})
 	t.Log(cs.DrawDowns)
@@ -415,7 +413,7 @@ func TestMaxDrawdown(t *testing.T) {
 	cs := CurrencyStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(time.Second)
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	even := event.Event{
@@ -465,7 +463,7 @@ func TestLongestDrawdown(t *testing.T) {
 	cs := CurrencyStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(time.Second)
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	even := event.Event{

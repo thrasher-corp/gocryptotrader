@@ -30,8 +30,10 @@ func LoadStrategyByName(name string, isMultiCurrency bool) (Handler, error) {
 
 func getStrategies() []Handler {
 	var strats []Handler
-	strats = append(strats, new(dollarcostaverage.Strategy))
-	strats = append(strats, new(rsi.Strategy))
+	strats = append(strats,
+		new(dollarcostaverage.Strategy),
+		new(rsi.Strategy),
+	)
 
 	return strats
 }

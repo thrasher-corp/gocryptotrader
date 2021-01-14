@@ -17,6 +17,8 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+const testExchange = "binance"
+
 func TestReset(t *testing.T) {
 	e := Exchange{
 		CurrencySettings: []Settings{},
@@ -34,7 +36,7 @@ func TestSetCurrency(t *testing.T) {
 		t.Error("expected 0")
 	}
 	cs := Settings{
-		ExchangeName:        "binance",
+		ExchangeName:        testExchange,
 		UseRealOrders:       false,
 		InitialFunds:        1337,
 		CurrencyPair:        currency.NewPair(currency.BTC, currency.USDT),
@@ -48,8 +50,8 @@ func TestSetCurrency(t *testing.T) {
 		MinimumSlippageRate: 0,
 		MaximumSlippageRate: 0,
 	}
-	e.SetCurrency("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
-	result, err := e.GetCurrencySettings("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	e.SetCurrency(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
+	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
@@ -57,7 +59,7 @@ func TestSetCurrency(t *testing.T) {
 		t.Errorf("expected 1337, received %v", result.InitialFunds)
 	}
 
-	e.SetCurrency("binance", asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
+	e.SetCurrency(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	if len(e.CurrencySettings) != 1 {
 		t.Error("expected 1")
 	}
@@ -129,7 +131,7 @@ func TestPlaceOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.LoadExchange("binance", false, nil)
+	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -144,7 +146,7 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	f.Exchange = "binance"
+	f.Exchange = testExchange
 	_, err = e.placeOrder(1, 1, false, f, bot)
 	if err != nil && err.Error() != "order pair is empty" {
 		t.Error(err)
@@ -165,7 +167,7 @@ func TestPlaceOrder(t *testing.T) {
 
 func TestExecuteOrder(t *testing.T) {
 	cs := Settings{
-		ExchangeName:        "binance",
+		ExchangeName:        testExchange,
 		UseRealOrders:       false,
 		InitialFunds:        1337,
 		CurrencyPair:        currency.NewPair(currency.BTC, currency.USDT),
@@ -183,7 +185,7 @@ func TestExecuteOrder(t *testing.T) {
 		CurrencySettings: []Settings{cs},
 	}
 	ev := event.Event{
-		Exchange:     "binance",
+		Exchange:     testExchange,
 		Time:         time.Now(),
 		Interval:     gctkline.FifteenMin,
 		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -203,7 +205,7 @@ func TestExecuteOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.LoadExchange("binance", false, nil)
+	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -237,7 +239,6 @@ func TestExecuteOrder(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
-
 }
 
 func TestApplySlippageToPrice(t *testing.T) {

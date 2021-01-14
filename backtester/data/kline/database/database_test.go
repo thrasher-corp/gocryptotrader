@@ -23,7 +23,10 @@ import (
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var verbose = false
+const (
+	verbose      = false
+	testExchange = "binance"
+)
 
 func TestMain(m *testing.M) {
 	if verbose {
@@ -49,7 +52,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestLoadDataCandles(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var err error
@@ -76,7 +79,6 @@ func TestLoadDataCandles(t *testing.T) {
 		// so we only log the error if verbose
 		t.Log(err)
 	}
-	// oldMigrate = database.MigrationDir
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	_, err = testhelpers.ConnectToDatabase(&dbConfg)
@@ -89,7 +91,7 @@ func TestLoadDataCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: "binance"}})
+	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +127,7 @@ func TestLoadDataCandles(t *testing.T) {
 }
 
 func TestLoadDataTrades(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var err error
@@ -152,7 +154,6 @@ func TestLoadDataTrades(t *testing.T) {
 		// so we only log the error if verbose
 		t.Log(err)
 	}
-	// oldMigrate = database.MigrationDir
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	_, err = testhelpers.ConnectToDatabase(&dbConfg)
@@ -165,7 +166,7 @@ func TestLoadDataTrades(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: "binance"}})
+	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +196,7 @@ func TestLoadDataTrades(t *testing.T) {
 }
 
 func TestLoadDataInvalid(t *testing.T) {
-	exch := "binance"
+	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)

@@ -20,17 +20,19 @@ func calculateCompoundAnnualGrowthRate(openValue, closeValue float64, start, end
 	return math.Pow(closeValue/openValue, 1/float64(p)) - 1
 }
 
-func calculateCalmarRatio(values []float64, maxDrawdown Swing) float64 {
+func calculateCalmarRatio(values []float64, maxDrawdown *Swing) float64 {
+	if maxDrawdown == nil {
+		return 0
+	}
 	avg := calculateTheAverage(values)
 	drawdownDiff := (maxDrawdown.Highest.Price - maxDrawdown.Lowest.Price) / maxDrawdown.Highest.Price
 	if drawdownDiff == 0 {
 		return 0
 	}
-	ratio := avg / drawdownDiff
-	return ratio
+	return avg / drawdownDiff
 }
 
-func calculateInformationRatio(values []float64, riskFreeRates []float64) float64 {
+func calculateInformationRatio(values, riskFreeRates []float64) float64 {
 	if len(riskFreeRates) == 1 {
 		for i := range values {
 			if i == 0 {
@@ -49,8 +51,7 @@ func calculateInformationRatio(values []float64, riskFreeRates []float64) float6
 	if stdDev == 0 {
 		return 0
 	}
-	ratio := (avgValue - avgComparison) / stdDev
-	return ratio
+	return (avgValue - avgComparison) / stdDev
 }
 
 func calculateStandardDeviation(values []float64) float64 {
@@ -95,12 +96,11 @@ func calculateTheAverage(values []float64) float64 {
 	for x := range values {
 		sumOfValues += values[x]
 	}
-	avg := sumOfValues / float64(len(values))
-	return avg
+	return sumOfValues / float64(len(values))
 }
 
 // calculateSortinoRatio returns sortino ratio of backtest compared to risk-free
-func calculateSortinoRatio(movementPerCandle []float64, excessMovement []float64, riskFreeRate float64) float64 {
+func calculateSortinoRatio(movementPerCandle, excessMovement []float64, riskFreeRate float64) float64 {
 	mean := calculateTheAverage(movementPerCandle)
 	if mean == 0 {
 		return 0
@@ -175,7 +175,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, c.RiskFreeRate)
 	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, c.RiskFreeRate)
 	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{c.RiskFreeRate})
-	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, c.DrawDowns.MaxDrawDown)
+	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, &c.DrawDowns.MaxDrawDown)
 	c.CompoundAnnualGrowthRate = calculateCompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
 		last.Holdings.TotalValue,
@@ -259,7 +259,6 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 			log.Info(log.BackTester, errs[i].Error())
 		}
 	}
-
 }
 
 func (c *CurrencyStatistic) MaxDrawdown() Swing {
@@ -372,5 +371,4 @@ func (s *SwingHolder) calculateMaxAndLongestDrawDowns() {
 			s.LongestDrawDown = s.DrawDowns[i]
 		}
 	}
-
 }

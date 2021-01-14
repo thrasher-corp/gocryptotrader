@@ -23,7 +23,7 @@ func (s *Strategy) Name() string {
 	return Name
 }
 
-func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.SignalEvent, error) {
+func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error) {
 	if d == nil {
 		return nil, errors.New("received nil data")
 	}
@@ -48,8 +48,8 @@ func (s *Strategy) SupportsMultiCurrency() bool {
 // OnSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For dollarcostaverage, the strategy is always "buy", so it uses the OnSignal function
-func (s *Strategy) OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.SignalEvent, error) {
-	var resp []signal.SignalEvent
+func (s *Strategy) OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.Event, error) {
+	var resp []signal.Event
 	for i := range d {
 		sigEvent, err := s.OnSignal(d[i], nil)
 		if err != nil {

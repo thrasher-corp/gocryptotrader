@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/gofrs/uuid"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -21,7 +20,7 @@ func (e *Exchange) Reset() {
 	*e = Exchange{}
 }
 
-func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler, bot *engine.Engine) (*fill.Fill, error) {
+func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.Engine) (*fill.Fill, error) {
 	cs, _ := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	f := &fill.Fill{
 		Event: event.Event{
@@ -72,13 +71,14 @@ func (e *Exchange) ExecuteOrder(o order.OrderEvent, data data.Handler, bot *engi
 	}
 	ords, _ := bot.OrderManager.GetOrdersSnapshot("")
 	for i := range ords {
-		if ords[i].ID == orderID {
-			ords[i].Date = o.GetTime()
-			ords[i].LastUpdated = o.GetTime()
-			ords[i].CloseTime = o.GetTime()
-			f.Order = &ords[i]
-			f.PurchasePrice = ords[i].Price
+		if ords[i].ID != orderID {
+			continue
 		}
+		ords[i].Date = o.GetTime()
+		ords[i].LastUpdated = o.GetTime()
+		ords[i].CloseTime = o.GetTime()
+		f.Order = &ords[i]
+		f.PurchasePrice = ords[i].Price
 	}
 
 	if f.Order == nil {
@@ -167,7 +167,7 @@ func applySlippageToPrice(direction gctorder.Side, price, slippageRate float64) 
 	return adjustedPrice
 }
 
-func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c Settings) {
+func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c *Settings) {
 	if c.ExchangeName == "" ||
 		c.AssetType == "" ||
 		c.CurrencyPair.IsEmpty() {
@@ -178,11 +178,11 @@ func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c Se
 		if e.CurrencySettings[i].CurrencyPair == cp &&
 			e.CurrencySettings[i].AssetType == a &&
 			exch == e.CurrencySettings[i].ExchangeName {
-			e.CurrencySettings[i] = c
+			e.CurrencySettings[i] = *c
 			return
 		}
 	}
-	e.CurrencySettings = append(e.CurrencySettings, c)
+	e.CurrencySettings = append(e.CurrencySettings, *c)
 }
 
 func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) (Settings, error) {

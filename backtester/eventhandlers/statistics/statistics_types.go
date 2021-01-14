@@ -24,7 +24,7 @@ type Statistic struct {
 	TotalSellOrders             int64                                                                            `json:"total-sell-orders"`
 	TotalOrders                 int64                                                                            `json:"total-orders"`
 	BiggestDrawdown             *FinalResultsHolder                                                              `json:"biggest-drawdown,omitempty"`
-	BestStrategyResults         *FinalResultsHolder                                                              `json:"best-strat-results,omitempty"`
+	BestStrategyResults         *FinalResultsHolder                                                              `json:"best-start-results,omitempty"`
 	BestMarketMovement          *FinalResultsHolder                                                              `json:"best-market-movement,omitempty"`
 	AllStats                    []currencystatstics.CurrencyStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
 }
@@ -42,11 +42,11 @@ type FinalResultsHolder struct {
 type Handler interface {
 	SetStrategyName(string)
 	AddDataEventForTime(common.DataEventHandler) error
-	AddSignalEventForTime(signal.SignalEvent) error
-	AddOrderEventForTime(order.OrderEvent) error
-	AddFillEventForTime(fill.FillEvent) error
+	AddSignalEventForTime(signal.Event) error
+	AddOrderEventForTime(order.Event) error
+	AddFillEventForTime(fill.Event) error
 	AddHoldingsForTime(holdings.Holding) error
-	AddComplianceSnapshotForTime(compliance.Snapshot, fill.FillEvent) error
+	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
 	CalculateTheResults() error
 	Reset()
 	Serialise() (string, error)

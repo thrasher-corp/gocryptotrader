@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -33,7 +32,7 @@ func (s *Strategy) Name() string {
 	return Name
 }
 
-func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.SignalEvent, error) {
+func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error) {
 	if d == nil {
 		return nil, errors.New("received nil data")
 	}
@@ -76,7 +75,7 @@ func (s *Strategy) SupportsMultiCurrency() bool {
 // OnSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For rsi, multi-currency signal processing is unsupported for demonstration purposes
-func (s *Strategy) OnSignals(_ []data.Handler, _ portfolio.Handler) ([]signal.SignalEvent, error) {
+func (s *Strategy) OnSignals(_ []data.Handler, _ portfolio.Handler) ([]signal.Event, error) {
 	return nil, errors.New("unsupported")
 }
 

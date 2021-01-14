@@ -25,7 +25,7 @@ func (s *Snapshots) GetSnapshotAtTimestamp(t time.Time) Holding {
 	return Holding{}
 }
 
-func Create(f fill.FillEvent, initialFunds, riskFreeRate float64) (Holding, error) {
+func Create(f fill.Event, initialFunds, riskFreeRate float64) (Holding, error) {
 	if f == nil {
 		return Holding{}, errors.New("nil event received")
 	}
@@ -46,7 +46,7 @@ func Create(f fill.FillEvent, initialFunds, riskFreeRate float64) (Holding, erro
 	return h, nil
 }
 
-func (h *Holding) Update(f fill.FillEvent) {
+func (h *Holding) Update(f fill.Event) {
 	h.Timestamp = f.GetTime()
 	h.update(f)
 }
@@ -57,7 +57,7 @@ func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.updateValue(latest)
 }
 
-func (h *Holding) update(f fill.FillEvent) {
+func (h *Holding) update(f fill.Event) {
 	direction := f.GetDirection()
 	o := f.GetOrder()
 	switch direction {

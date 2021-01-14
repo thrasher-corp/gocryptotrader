@@ -44,7 +44,7 @@ func (d *DataFromKline) Load() error {
 	return nil
 }
 
-func (d *DataFromKline) Append(ki gctkline.Item) {
+func (d *DataFromKline) Append(ki *gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[time.Time]bool)
 	}

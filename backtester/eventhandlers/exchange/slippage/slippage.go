@@ -18,7 +18,7 @@ func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate float64
 	// eg 80 means for every dollar, keep 80%
 	randSeed := int(minimumSlippageRate) - int(maximumSlippageRate)
 	if randSeed > 0 {
-		result := float64(rand.Intn(randSeed))
+		result := float64(rand.Intn(randSeed)) // nolint:gosec // basic number generation required, no need for crypto/rand
 		return (result + maximumSlippageRate) / 100
 	}
 	return 1

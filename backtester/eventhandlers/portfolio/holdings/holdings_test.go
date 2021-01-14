@@ -13,7 +13,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var riskFreeRate = 0.03
+const (
+	testExchange = "binance"
+	riskFreeRate = 0.03
+)
 
 func TestCreate(t *testing.T) {
 	_, err := Create(&fill.Fill{}, -1, riskFreeRate)
@@ -72,7 +75,7 @@ func TestUpdateBuyStats(t *testing.T) {
 	}
 	h.update(&fill.Fill{
 		Event: event.Event{
-			Exchange:     "binance",
+			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -88,7 +91,7 @@ func TestUpdateBuyStats(t *testing.T) {
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
-			Exchange:    "binance",
+			Exchange:    testExchange,
 			ID:          "1337",
 			Type:        order.Limit,
 			Side:        order.Buy,
@@ -135,7 +138,7 @@ func TestUpdateBuyStats(t *testing.T) {
 
 	h.update(&fill.Fill{
 		Event: event.Event{
-			Exchange:     "binance",
+			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -151,7 +154,7 @@ func TestUpdateBuyStats(t *testing.T) {
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      0.5,
-			Exchange:    "binance",
+			Exchange:    testExchange,
 			ID:          "1337",
 			Type:        order.Limit,
 			Side:        order.Buy,
@@ -204,7 +207,7 @@ func TestUpdateSellStats(t *testing.T) {
 	}
 	h.update(&fill.Fill{
 		Event: event.Event{
-			Exchange:     "binance",
+			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -220,7 +223,7 @@ func TestUpdateSellStats(t *testing.T) {
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
-			Exchange:    "binance",
+			Exchange:    testExchange,
 			ID:          "1337",
 			Type:        order.Limit,
 			Side:        order.Buy,
@@ -267,7 +270,7 @@ func TestUpdateSellStats(t *testing.T) {
 
 	h.update(&fill.Fill{
 		Event: event.Event{
-			Exchange:     "binance",
+			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
@@ -283,7 +286,7 @@ func TestUpdateSellStats(t *testing.T) {
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
-			Exchange:    "binance",
+			Exchange:    testExchange,
 			ID:          "1337",
 			Type:        order.Limit,
 			Side:        order.Sell,
@@ -325,7 +328,6 @@ func TestUpdateSellStats(t *testing.T) {
 	if h.TotalFees != 2 {
 		t.Errorf("expected '%v' received '%v'", 2, h.TotalFees)
 	}
-
 }
 func TestGetLatestSnapshot(t *testing.T) {
 	tt := time.Now()
@@ -347,7 +349,6 @@ func TestGetLatestSnapshot(t *testing.T) {
 	if !h.Timestamp.Equal(tt.Add(time.Hour)) {
 		t.Errorf("expected %v, received %v", tt.Add(time.Hour), h.Timestamp)
 	}
-
 }
 
 func TestGetSnapshotAtTime(t *testing.T) {
@@ -370,5 +371,4 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	if !h.Timestamp.Equal(tt) {
 		t.Errorf("expected %v, received %v", tt, h.Timestamp)
 	}
-
 }

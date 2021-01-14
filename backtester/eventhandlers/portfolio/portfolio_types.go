@@ -25,8 +25,8 @@ type Portfolio struct {
 }
 
 type Handler interface {
-	OnSignal(signal.SignalEvent, *exchange.Settings) (*order.Order, error)
-	OnFill(fill.FillEvent) (*fill.Fill, error)
+	OnSignal(signal.Event, *exchange.Settings) (*order.Order, error)
+	OnFill(fill.Event) (*fill.Fill, error)
 	Update(common.DataEventHandler) error
 
 	SetInitialFunds(string, asset.Item, currency.Pair, float64) error
@@ -42,5 +42,5 @@ type Handler interface {
 }
 
 type SizeHandler interface {
-	SizeOrder(order.OrderEvent, float64, *exchange.Settings) (*order.Order, error)
+	SizeOrder(order.Event, float64, *exchange.Settings) (*order.Order, error)
 }

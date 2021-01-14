@@ -17,16 +17,17 @@ import (
 // GenerateReport sends final data from statistics to a template
 // to create a lovely final report for someone to view
 func (d *Data) GenerateReport() error {
-
 	err := d.enhanceCandles()
 	if err != nil {
 		return err
 	}
 
 	for i := range d.EnhancedCandles {
-		sort.Slice(d.EnhancedCandles[i].Candles, func(x, y int) bool {
-			return d.EnhancedCandles[i].Candles[x].Time < d.EnhancedCandles[i].Candles[y].Time
+		cands := d.EnhancedCandles[i].Candles
+		sort.Slice(cands, func(x, y int) bool {
+			return cands[x].Time < cands[y].Time
 		})
+		d.EnhancedCandles[i].Candles = cands
 		if len(d.EnhancedCandles[i].Candles) >= maxChartLimit {
 			d.EnhancedCandles[i].IsOverLimit = true
 			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]

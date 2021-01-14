@@ -18,7 +18,7 @@ type Fill struct {
 	Order               *order.Detail `json:"-"`
 }
 
-type FillEvent interface {
+type Event interface {
 	common.EventHandler
 	common.Directioner
 

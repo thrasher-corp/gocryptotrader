@@ -48,7 +48,7 @@ func (p *Portfolio) Reset() {
 // on buy/sell, the portfolio manager will size the order and assess the risk of the order
 // if successful, it will pass on an order.Order to be used by the exchange event handler to place an order based on
 // the portfolio manager's recommendations
-func (p *Portfolio) OnSignal(signal signal.SignalEvent, cs *exchange.Settings) (*order.Order, error) {
+func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order.Order, error) {
 	if signal == nil || cs == nil {
 		return nil, errors.New("received nil arguments, cannot process OnSignal")
 	}
@@ -120,7 +120,7 @@ func (p *Portfolio) OnSignal(signal signal.SignalEvent, cs *exchange.Settings) (
 	return p.evaluateOrder(signal, o, sizedOrder)
 }
 
-func (p *Portfolio) evaluateOrder(signal signal.SignalEvent, originalOrderSignal *order.Order, sizedOrder *order.Order) (*order.Order, error) {
+func (p *Portfolio) evaluateOrder(signal signal.Event, originalOrderSignal *order.Order, sizedOrder *order.Order) (*order.Order, error) {
 	var evaluatedOrder *order.Order
 	cm, err := p.GetComplianceManager(originalOrderSignal.GetExchange(), originalOrderSignal.GetAssetType(), originalOrderSignal.Pair())
 	if err != nil {
@@ -144,7 +144,7 @@ func (p *Portfolio) evaluateOrder(signal signal.SignalEvent, originalOrderSignal
 	return evaluatedOrder, nil
 }
 
-func (p *Portfolio) sizeOrder(signal signal.SignalEvent, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds float64) *order.Order {
+func (p *Portfolio) sizeOrder(signal signal.Event, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds float64) *order.Order {
 	sizedOrder, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil {
 		originalOrderSignal.AppendWhy(err.Error())
@@ -175,7 +175,7 @@ func (p *Portfolio) sizeOrder(signal signal.SignalEvent, cs *exchange.Settings, 
 }
 
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions
-func (p *Portfolio) OnFill(fillEvent fill.FillEvent) (*fill.Fill, error) {
+func (p *Portfolio) OnFill(fillEvent fill.Event) (*fill.Fill, error) {
 	if fillEvent == nil {
 		return nil, errors.New("nil fill event received, cannot process OnFill")
 	}
@@ -224,7 +224,7 @@ func (p *Portfolio) OnFill(fillEvent fill.FillEvent) (*fill.Fill, error) {
 
 // addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fillevent
 // then saves the snapshot to the c
-func (p *Portfolio) addComplianceSnapshot(fillEvent fill.FillEvent) error {
+func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	complianceManager, err := p.GetComplianceManager(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair())
 	if err != nil {
 		return err
