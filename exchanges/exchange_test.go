@@ -2243,6 +2243,27 @@ func TestSetAPIURL(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	mappy.Mappymap = make(map[string]string)
+	b.Config.API.Endpoints = mappy.Mappymap
+	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
+	b.API.Endpoints = b.NewEndpoints()
+	b.Config.API.OldEndPoints.URL = "heloo"
+	err = b.SetAPIURL()
+	if err == nil {
+		t.Error("expecting an error since invalid oldendpoints url is set")
+	}
+	// mappy.Mappymap = make(map[string]string)
+	// b.Config.API.Endpoints = mappy.Mappymap
+	// mappy.Mappymap["RestSpotURL"] = "http://google.com/"
+	// b.API.Endpoints = b.NewEndpoints()
+	// b.Config.API.OldEndPoints.URL = "https://www.bitstamp.net/"
+	// err = b.SetAPIURL()
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+	// if mappy.Mappymap["RestSpotURL"] != "https://www.bitstamp.net/" {
+	// 	t.Error("oldendpoints url setting failed")
+	// }
 }
 
 func TestSetRunning(t *testing.T) {

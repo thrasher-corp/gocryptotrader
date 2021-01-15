@@ -39,14 +39,18 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	coinMarginedPairs, err := b.GetEnabledPairs(asset.CoinMarginedFutures)
+	tradablePairs, err := b.FetchTradablePairs(asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(coinMarginedPairs) == 0 {
-		t.Error("no pairs are enabled")
+	if len(tradablePairs) == 0 {
+		t.Error("no tradable pairs")
 	}
-	_, err = b.UpdateTicker(coinMarginedPairs[0], asset.CoinMarginedFutures)
+	cp, err := currency.NewPairFromString(tradablePairs[0])
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateTicker(cp, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1744,7 +1748,7 @@ func TestWrapperGetActiveOrders(t *testing.T) {
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 		Pairs:     currency.Pairs{p2},
-		AssetType: asset.CoinMarginedFutures,
+		AssetType: asset.USDTMarginedFutures,
 	})
 	if err != nil {
 		t.Error(err)

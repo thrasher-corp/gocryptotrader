@@ -56,7 +56,6 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresClientID = true
-
 	requestFmt := &currency.PairFormat{Uppercase: true}
 	configFmt := &currency.PairFormat{Uppercase: true}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)

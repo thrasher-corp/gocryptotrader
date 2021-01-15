@@ -674,7 +674,14 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cp2, err := currency.NewPairFromString("BTC200918")
+	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(tradablePairs) == 0 {
+		t.Error("no tradable pairs")
+	}
+	cp2, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
 		t.Error(err)
 	}
@@ -702,7 +709,14 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cp2, err := currency.NewPairFromString("BTC_CQ")
+	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(tradablePairs) == 0 {
+		t.Error("no tradable pairs")
+	}
+	cp2, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
 		t.Error(err)
 	}
@@ -749,8 +763,14 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	cp2, err := currency.NewPairFromString("BTC200918")
+	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(tradablePairs) == 0 {
+		t.Error("no tradable pairs")
+	}
+	cp2, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
 		t.Error(err)
 	}

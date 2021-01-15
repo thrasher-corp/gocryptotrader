@@ -101,7 +101,6 @@ func (h *HUOBI) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:    true,
 				TickerFetching:    true,
 				KlineFetching:     true,
 				TradeFetching:     true,
@@ -432,26 +431,19 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 		if err != nil {
 			return nil, err
 		}
-		pairs, err := h.GetEnabledPairs(assetType)
+		fmtPair, err := h.FormatExchangeCurrency(p, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		for i := range pairs {
-			for j := range tickers.Data {
-				pairFmt, err := h.FormatExchangeCurrency(pairs[i], assetType)
-				if err != nil {
-					return nil, err
-				}
-				if !strings.EqualFold(pairFmt.Lower().String(), tickers.Data[j].Symbol) {
-					continue
-				}
+		for x := range tickers.Data {
+			if tickers.Data[x].Symbol == fmtPair.String() {
 				err = ticker.ProcessTicker(&ticker.Price{
-					High:         tickers.Data[j].High,
-					Low:          tickers.Data[j].Low,
-					Volume:       tickers.Data[j].Volume,
-					Open:         tickers.Data[j].Open,
-					Close:        tickers.Data[j].Close,
-					Pair:         pairs[i],
+					High:         tickers.Data[x].High,
+					Low:          tickers.Data[x].Low,
+					Volume:       tickers.Data[x].Volume,
+					Open:         tickers.Data[x].Open,
+					Close:        tickers.Data[x].Close,
+					Pair:         p,
 					ExchangeName: h.Name,
 					AssetType:    assetType})
 				if err != nil {

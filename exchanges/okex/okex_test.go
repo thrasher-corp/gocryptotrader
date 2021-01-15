@@ -81,18 +81,22 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestUpdateOrderbook(t *testing.T) {
-	enabledPairs, err := o.GetEnabledPairs(asset.Futures)
+	tradablePairs, err := o.FetchTradablePairs(asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(enabledPairs) == 0 {
-		t.Errorf("no pairs enabled")
+	if len(tradablePairs) == 0 {
+		t.Error("no tradable pairs")
 	}
-	reqPair, err := o.FormatExchangeCurrency(enabledPairs[0], asset.Futures)
+	cp, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
 		t.Error(err)
 	}
-	cp, err := currency.NewPairFromString(reqPair.String())
+	reqPair, err := o.FormatExchangeCurrency(cp, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	cp, err = currency.NewPairFromString(reqPair.String())
 	if err != nil {
 		t.Error(err)
 	}

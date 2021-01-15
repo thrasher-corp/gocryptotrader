@@ -670,8 +670,8 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			var resp string
 			s.Pair.Delimiter = "/" // required pair format: ISO 4217-A3
 			resp, err = k.wsAddOrder(&WsAddOrderRequest{
-				OrderType: strings.ToLower(s.Type.String()),
-				OrderSide: strings.ToLower(s.Side.String()),
+				OrderType: s.Type.Lower(),
+				OrderSide: s.Side.Lower(),
 				Pair:      s.Pair.String(),
 				Price:     s.Price,
 				Volume:    s.Amount,
@@ -907,7 +907,11 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 			if err != nil {
 				return orderDetail, err
 			}
-			vars, err := compatibleVars(orderInfo.Fills[y].Side, "", "", orderInfo.Fills[y].FillType)
+			oSide, err := compatibleOrderSide(orderInfo.Fills[y].Side)
+			if err != nil {
+				return orderDetail, err
+			}
+			fillOrderType, err := compatibleFillOrderType(orderInfo.Fills[y].FillType)
 			if err != nil {
 				return orderDetail, err
 			}
@@ -919,8 +923,8 @@ func (k *Kraken) GetOrderInfo(orderID string, pair currency.Pair, assetType asse
 				ID:       orderID,
 				Price:    orderInfo.Fills[y].Price,
 				Amount:   orderInfo.Fills[y].Size,
-				Side:     vars.Side,
-				Type:     vars.OrderType,
+				Side:     oSide,
+				Type:     fillOrderType,
 				Date:     timeVar,
 				Pair:     pair,
 				Exchange: k.Name,
@@ -1073,7 +1077,11 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				if activeOrders.OpenOrders[a].Symbol != fPair.String() {
 					continue
 				}
-				vars, err := compatibleVars(activeOrders.OpenOrders[a].Side, "", activeOrders.OpenOrders[a].OrderType, "")
+				oSide, err := compatibleOrderSide(activeOrders.OpenOrders[a].Side)
+				if err != nil {
+					return orders, err
+				}
+				oType, err := compatibleOrderType(activeOrders.OpenOrders[a].OrderType)
 				if err != nil {
 					return orders, err
 				}
@@ -1085,8 +1093,8 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 					ID:       activeOrders.OpenOrders[a].OrderID,
 					Price:    activeOrders.OpenOrders[a].LimitPrice,
 					Amount:   activeOrders.OpenOrders[a].FilledSize,
-					Side:     vars.Side,
-					Type:     vars.OrderType,
+					Side:     oSide,
+					Type:     oType,
 					Date:     timeVar,
 					Pair:     fPair,
 					Exchange: k.Name,
@@ -1188,8 +1196,11 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 					if err != nil {
 						return orders, err
 					}
-					vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Direction,
-						orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.OrderType, "")
+					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Direction)
+					if err != nil {
+						return orders, err
+					}
+					oType, err := compatibleOrderType(orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.OrderType)
 					if err != nil {
 						return orders, err
 					}
@@ -1202,9 +1213,9 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						ID:        orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.UID,
 						ClientID:  orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.ClientID,
 						AssetType: asset.Futures,
-						Type:      vars.OrderType,
+						Type:      oType,
 						Date:      timeVar,
-						Side:      vars.Side,
+						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 					})
@@ -1214,9 +1225,11 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 					if err != nil {
 						return orders, err
 					}
-
-					vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Direction,
-						orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.OrderType, "")
+					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Direction)
+					if err != nil {
+						return orders, err
+					}
+					oType, err := compatibleOrderType(orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.OrderType)
 					if err != nil {
 						return orders, err
 					}
@@ -1229,9 +1242,9 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						ID:        orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID,
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.AccountID,
 						AssetType: asset.Futures,
-						Type:      vars.OrderType,
+						Type:      oType,
 						Date:      timeVar,
-						Side:      vars.Side,
+						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 						Status:    order.Rejected,
@@ -1242,9 +1255,11 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 					if err != nil {
 						return orders, err
 					}
-
-					vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Direction,
-						orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.OrderType, "")
+					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Direction)
+					if err != nil {
+						return orders, err
+					}
+					oType, err := compatibleOrderType(orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.OrderType)
 					if err != nil {
 						return orders, err
 					}
@@ -1257,9 +1272,9 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						ID:        orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID,
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.AccountID,
 						AssetType: asset.Futures,
-						Type:      vars.OrderType,
+						Type:      oType,
 						Date:      timeVar,
-						Side:      vars.Side,
+						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 						Status:    order.Cancelled,
@@ -1270,9 +1285,11 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 					if err != nil {
 						return orders, err
 					}
-
-					vars, err := compatibleVars("", orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Direction,
-						orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.OrderType, "")
+					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Direction)
+					if err != nil {
+						return orders, err
+					}
+					oType, err := compatibleOrderType(orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.OrderType)
 					if err != nil {
 						return orders, err
 					}
@@ -1285,9 +1302,9 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 						ID:        orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID,
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.AccountID,
 						AssetType: asset.Futures,
-						Type:      vars.OrderType,
+						Type:      oType,
 						Date:      timeVar,
-						Side:      vars.Side,
+						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 					})
@@ -1396,45 +1413,40 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 	return ret, nil
 }
 
-// compatibleVars gets compatible variables for order vars
-func compatibleVars(side, direction, orderType, fillType string) (OrderVars, error) {
-	var resp OrderVars
-	if direction != "" {
-		switch direction {
-		case "BUY":
-			resp.Side = order.Buy
-		case "SELL":
-			resp.Side = order.Sell
-		}
+func compatibleOrderSide(side string) (order.Side, error) {
+	switch {
+	case strings.EqualFold(order.Buy.String(), side):
+		return order.Buy, nil
+	case strings.EqualFold(order.Sell.String(), side):
+		return order.Sell, nil
 	}
-	switch side {
-	case "buy":
-		resp.Side = order.Buy
-	case "sell":
-		resp.Side = order.Sell
+	return order.AnySide, fmt.Errorf("invalid side received")
+}
+
+func compatibleOrderType(orderType string) (order.Type, error) {
+	var resp order.Type
+	switch orderType {
+	case "lmt":
+		resp = order.Limit
+	case "stp":
+		resp = order.Stop
+	case "take_profit":
+		resp = order.TakeProfit
 	default:
-		return resp, fmt.Errorf("invalid orderSide")
+		return resp, fmt.Errorf("invalid orderType")
 	}
-	if orderType != "" {
-		switch orderType {
-		case "lmt":
-			resp.OrderType = order.Limit
-		case "stp":
-			resp.OrderType = order.Stop
-		case "take_profit":
-			resp.OrderType = order.TakeProfit
-		default:
-			return resp, fmt.Errorf("invalid orderType")
-		}
-		return resp, nil
-	}
+	return resp, nil
+}
+
+func compatibleFillOrderType(fillType string) (order.Type, error) {
+	var resp order.Type
 	switch fillType {
 	case "maker":
-		resp.OrderType = order.Limit
+		resp = order.Limit
 	case "taker":
-		resp.OrderType = order.Market
+		resp = order.Market
 	case "liquidation":
-		resp.OrderType = order.Liquidation
+		resp = order.Liquidation
 	default:
 		return resp, fmt.Errorf("invalid orderPriceType")
 	}
