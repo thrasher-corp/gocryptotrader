@@ -18,8 +18,16 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
+## config package overview
 
-Breakdown the entire config json
+Current Config Examples:
+| Config | Description |
+| --- | ------ |
+| dollar-cost-average.strat | A simple dollar cost average strategy which makes a purchase on every candle. |
+| dollar-cost-average-live.strat | Using the same dollar cost average strategy, but runs the analysis against live candles |
+| dollar-cost-average-multi-currency-assessment.strat | This strategy will assess multiple currencies in the one `OnSignals` function, however, it also just simply makes a purchase on every candle |
+| dollar-cost-average-multiple-currencies.strat | This runs the same strategy against multiple currencies independently |
+| rsi.strat | Runs a strategy using rsi figures to make buy or sell orders based on market figures |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

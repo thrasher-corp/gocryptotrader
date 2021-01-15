@@ -18,8 +18,15 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
+## data package overview
 
-hi
+The data package defines and implements a base version of the `Streamer` interface which is part of the `Handler` interface. These interfaces allow for the translation of data into individual intervals to be accessed and assessed as part of the `backtest` package.
+This is a base implementation, the more proper implementation that is used throughout the backtester is under `./kline`
+
+This can also be used to implement other means to load data for the backtester to process, however kline is currently the only supported method.
+
+
+
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
