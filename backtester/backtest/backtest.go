@@ -93,12 +93,48 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			MaximumTotal: cfg.PortfolioSettings.SellSide.MaximumTotal,
 		},
 		Leverage: config.Leverage{
-			CanUseLeverage:  cfg.PortfolioSettings.Leverage.CanUseLeverage,
-			MaximumLeverage: cfg.PortfolioSettings.Leverage.MaximumLeverage,
+			CanUseLeverage:       cfg.PortfolioSettings.Leverage.CanUseLeverage,
+			MaximumLeverageRate:  cfg.PortfolioSettings.Leverage.MaximumLeverageRate,
+			MaximumLeverageRatio: cfg.PortfolioSettings.Leverage.MaximumLeverageRatio,
 		},
 	}
+
+	portfolioRisk := &risk.Risk{
+		CurrencySettings: make(map[string]map[asset.Item]map[currency.Pair]*risk.CurrencySettings),
+	}
+	for i := range cfg.CurrencySettings {
+		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] == nil {
+			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[currency.Pair]*risk.CurrencySettings)
+		}
+		a, err := asset.New(cfg.CurrencySettings[i].Asset)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"invalid asset in config for %v %v %v. Err %v",
+				cfg.CurrencySettings[i].ExchangeName,
+				cfg.CurrencySettings[i].Asset,
+				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
+				err)
+		}
+		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] == nil {
+			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] = make(map[currency.Pair]*risk.CurrencySettings)
+		}
+		curr, err := currency.NewPairFromString(cfg.CurrencySettings[i].Base + cfg.CurrencySettings[i].Quote)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"invalid currency in config for %v %v %v. Err %v",
+				cfg.CurrencySettings[i].ExchangeName,
+				cfg.CurrencySettings[i].Asset,
+				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
+				err)
+		}
+		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = &risk.CurrencySettings{
+			MaxLeverageRatio:    cfg.CurrencySettings[i].Leverage.MaximumLeverageRatio,
+			MaxLeverageRate:     cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
+			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
+		}
+	}
 	var p *portfolio.Portfolio
-	p, err = portfolio.Setup(sizeManager, &risk.Risk{}, cfg.StatisticSettings.RiskFreeRate)
+	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate)
 	if err != nil {
 		return nil, err
 	}
@@ -225,8 +261,9 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
 			},
 			Leverage: config.Leverage{
-				CanUseLeverage:  cfg.CurrencySettings[i].Leverage.CanUseLeverage,
-				MaximumLeverage: cfg.CurrencySettings[i].Leverage.MaximumLeverage,
+				CanUseLeverage:       cfg.CurrencySettings[i].Leverage.CanUseLeverage,
+				MaximumLeverageRate:  cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
+				MaximumLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumLeverageRatio,
 			},
 		})
 	}

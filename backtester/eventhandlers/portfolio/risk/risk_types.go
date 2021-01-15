@@ -13,11 +13,15 @@ type Handler interface {
 }
 
 type Risk struct {
-	MaxLeverageRatio    map[string]map[asset.Item]map[currency.Pair]float64
-	MaxLeverageRate     map[string]map[asset.Item]map[currency.Pair]float64
-	MaximumHoldingRatio map[string]map[asset.Item]map[currency.Pair]float64 // I cant think of a term, but the ratio between the entire portfolio, eg BTC cannot be more than 50% of holdings
-	CanUseLeverage      bool
-	MaximumLeverage     float64
+	CurrencySettings map[string]map[asset.Item]map[currency.Pair]*CurrencySettings
+	CanUseLeverage   bool
+	MaximumLeverage  float64
+}
+
+type CurrencySettings struct {
+	MaxLeverageRatio    float64
+	MaxLeverageRate     float64
+	MaximumHoldingRatio float64
 }
 
 type Settings struct {

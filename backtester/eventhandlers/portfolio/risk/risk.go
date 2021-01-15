@@ -22,11 +22,11 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 			return nil, errors.New("order says to use leverage, but it is not allowed")
 		}
 		ratio := existingLeverageRatio(s)
-		lookupRatio := r.MaxLeverageRatio[o.GetExchange()][o.GetAssetType()][o.Pair()]
+		lookupRatio := r.CurrencySettings[o.GetExchange()][o.GetAssetType()][o.Pair()].MaxLeverageRatio
 		if ratio > lookupRatio && lookupRatio > 0 {
 			return nil, fmt.Errorf("proceeding with the order would put leverage ratio beyond its limit of %v to %v and cannot be placed", lookupRatio, ratio)
 		}
-		lookupRate := r.MaxLeverageRate[o.GetExchange()][o.GetAssetType()][o.Pair()]
+		lookupRate := r.CurrencySettings[o.GetExchange()][o.GetAssetType()][o.Pair()].MaxLeverageRate
 		if retOrder.GetLeverage() > lookupRate && lookupRate > 0 {
 			{
 				return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and cannot be placed", lookupRate, retOrder.GetLeverage())
@@ -35,7 +35,7 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 	}
 	if len(latestHoldings) > 1 {
 		ratio := assessHoldingsRatio(o.Pair(), latestHoldings)
-		lookupHolding := r.MaximumHoldingRatio[o.GetExchange()][o.GetAssetType()][o.Pair()]
+		lookupHolding := r.CurrencySettings[o.GetExchange()][o.GetAssetType()][o.Pair()].MaximumHoldingRatio
 		if lookupHolding > 0 && ratio > lookupHolding {
 			return nil, fmt.Errorf("proceeding with the order would put holdings ratio beyond its limit of %v to %v and cannot be placed", lookupHolding, ratio)
 		}

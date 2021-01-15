@@ -62,20 +62,14 @@ func TestEvaluateOrder(t *testing.T) {
 	o.Exchange = e
 	o.AssetType = a
 	o.CurrencyPair = p
-	r.MaximumHoldingRatio = make(map[string]map[asset.Item]map[currency.Pair]float64)
-	r.MaximumHoldingRatio[e] = make(map[asset.Item]map[currency.Pair]float64)
-	r.MaximumHoldingRatio[e][a] = make(map[currency.Pair]float64)
-	r.MaximumHoldingRatio[e][a][p] = 0.3
-
-	r.MaxLeverageRatio = make(map[string]map[asset.Item]map[currency.Pair]float64)
-	r.MaxLeverageRatio[e] = make(map[asset.Item]map[currency.Pair]float64)
-	r.MaxLeverageRatio[e][a] = make(map[currency.Pair]float64)
-	r.MaxLeverageRatio[e][a][p] = 0.3
-
-	r.MaxLeverageRate = make(map[string]map[asset.Item]map[currency.Pair]float64)
-	r.MaxLeverageRate[e] = make(map[asset.Item]map[currency.Pair]float64)
-	r.MaxLeverageRate[e][a] = make(map[currency.Pair]float64)
-	r.MaxLeverageRate[e][a][p] = 0.3
+	r.CurrencySettings = make(map[string]map[asset.Item]map[currency.Pair]*CurrencySettings)
+	r.CurrencySettings[e] = make(map[asset.Item]map[currency.Pair]*CurrencySettings)
+	r.CurrencySettings[e][a] = make(map[currency.Pair]*CurrencySettings)
+	r.CurrencySettings[e][a][p] = &CurrencySettings{
+		MaxLeverageRatio:    0.3,
+		MaxLeverageRate:     0.3,
+		MaximumHoldingRatio: 0.3,
+	}
 
 	h = append(h, holdings.Holding{
 		Pair:          p,
@@ -96,7 +90,7 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	o.Leverage = 1.1
-	r.MaximumHoldingRatio[e][a][p] = 0
+	r.CurrencySettings[e][a][p].MaximumHoldingRatio = 0
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if err != nil && err.Error() != "order says to use leverage, but it is not allowed" {
 		t.Error(err)
@@ -107,13 +101,13 @@ func TestEvaluateOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	r.MaxLeverageRate[e][a][p] = 1.2
+	r.CurrencySettings[e][a][p].MaxLeverageRate = 1.2
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if err != nil && err.Error() != "proceeding with the order would put leverage rate beyond its limit of 0.3 to 1.1 and cannot be placed" {
 		t.Error(err)
 	}
 
-	r.MaxLeverageRatio[e][a][p] = 1
+	r.CurrencySettings[e][a][p].MaxLeverageRatio = 1
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if err != nil && err.Error() != "proceeding with the order would put leverage rate beyond its limit of 0.3 to 1.1 and cannot be placed" {
 		t.Error(err)

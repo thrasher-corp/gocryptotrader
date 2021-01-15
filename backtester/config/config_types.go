@@ -8,10 +8,10 @@ import (
 
 // Config defines what is in an individual strategy config
 type Config struct {
-	Nickname          string             `json:"nickname"` // this will override the strategy name in report output
+	Nickname          string             `json:"nickname"`
 	CurrencySettings  []CurrencySettings `json:"currency-settings"`
 	StrategySettings  StrategySettings   `json:"strategy-settings"`
-	PortfolioSettings PortfolioSettings  `json:"portfolio"`
+	PortfolioSettings PortfolioSettings  `json:"portfolio-settings"`
 	StatisticSettings StatisticSettings  `json:"statistic-settings"`
 	// data source definitions:
 	APIData      *APIData      `json:"api-data,omitempty"`
@@ -39,15 +39,15 @@ type StatisticSettings struct {
 // these settings will override ExchangeSettings that go against it
 // and assess the bigger picture
 type PortfolioSettings struct {
-	MaximumHoldingsRatio float64  `json:"diversification-ratio"`
-	Leverage             Leverage `json:"leverage"`
-	BuySide              MinMax   `json:"buy-side"`
-	SellSide             MinMax   `json:"sell-side"`
+	Leverage Leverage `json:"leverage"`
+	BuySide  MinMax   `json:"buy-side"`
+	SellSide MinMax   `json:"sell-side"`
 }
 
 type Leverage struct {
-	CanUseLeverage  bool    `json:"can-use-leverage"`
-	MaximumLeverage float64 `json:"maximum-leverage"`
+	CanUseLeverage       bool    `json:"can-use-leverage"`
+	MaximumLeverageRatio float64 `json:"maximum-leverage-ratio"`
+	MaximumLeverageRate  float64 `json:"maximum-leverage-rate"`
 }
 
 type MinMax struct {
@@ -77,6 +77,8 @@ type CurrencySettings struct {
 
 	MakerFee float64 `json:"maker-fee-override"`
 	TakerFee float64 `json:"taker-fee-override"`
+
+	MaximumHoldingsRatio float64 `json:"maximum-holdings-ratio"`
 }
 
 // APIData defines all fields to configure API based data

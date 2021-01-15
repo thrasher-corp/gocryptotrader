@@ -96,7 +96,6 @@ func TestGenerateDCACandleAPIStrat(t *testing.T) {
 			DataType:  common.CandleStr,
 		},
 		PortfolioSettings: PortfolioSettings{
-			MaximumHoldingsRatio: 0,
 			BuySide: MinMax{
 				MinimumSize:  0.1,
 				MaximumSize:  1,
@@ -189,7 +188,6 @@ func TestPrintSettings(t *testing.T) {
 			ConfigOverride: nil,
 		},
 		PortfolioSettings: PortfolioSettings{
-			MaximumHoldingsRatio: 0,
 			BuySide: MinMax{
 				MinimumSize:  0.1,
 				MaximumSize:  1,
@@ -274,7 +272,6 @@ func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 			DataType:  common.CandleStr,
 		},
 		PortfolioSettings: PortfolioSettings{
-			MaximumHoldingsRatio: 0,
 			BuySide: MinMax{
 				MinimumSize:  0.1,
 				MaximumSize:  1,
@@ -371,7 +368,6 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 			DataType:  common.CandleStr,
 		},
 		PortfolioSettings: PortfolioSettings{
-			MaximumHoldingsRatio: 0,
 			BuySide: MinMax{
 				MinimumSize:  0.1,
 				MaximumSize:  1,
@@ -441,7 +437,6 @@ func TestGenerateDCALiveCandleStrat(t *testing.T) {
 			DataType: common.CandleStr,
 		},
 		PortfolioSettings: PortfolioSettings{
-			MaximumHoldingsRatio: 0,
 			BuySide: MinMax{
 				MinimumSize:  0.1,
 				MaximumSize:  1,
@@ -542,7 +537,6 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 			DataType:  common.CandleStr,
 		},
 		PortfolioSettings: PortfolioSettings{
-			MaximumHoldingsRatio: 0,
 			BuySide: MinMax{
 				MinimumSize:  0.1,
 				MaximumSize:  1,
