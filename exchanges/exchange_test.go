@@ -2244,26 +2244,38 @@ func TestSetAPIURL(t *testing.T) {
 		t.Error(err)
 	}
 	mappy.Mappymap = make(map[string]string)
+	b.Config.API.OldEndPoints = &config.APIEndpointsConfig{}
 	b.Config.API.Endpoints = mappy.Mappymap
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
 	b.Config.API.OldEndPoints.URL = "heloo"
 	err = b.SetAPIURL()
-	if err == nil {
-		t.Error("expecting an error since invalid oldendpoints url is set")
+	if err != nil {
+		t.Errorf("expecting a warning since invalid oldendpoints url but got an error: %v", err)
 	}
-	// mappy.Mappymap = make(map[string]string)
-	// b.Config.API.Endpoints = mappy.Mappymap
-	// mappy.Mappymap["RestSpotURL"] = "http://google.com/"
-	// b.API.Endpoints = b.NewEndpoints()
-	// b.Config.API.OldEndPoints.URL = "https://www.bitstamp.net/"
-	// err = b.SetAPIURL()
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-	// if mappy.Mappymap["RestSpotURL"] != "https://www.bitstamp.net/" {
-	// 	t.Error("oldendpoints url setting failed")
-	// }
+	mappy.Mappymap = make(map[string]string)
+	b.Config.API.OldEndPoints = &config.APIEndpointsConfig{}
+	b.Config.API.Endpoints = mappy.Mappymap
+	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
+	b.API.Endpoints = b.NewEndpoints()
+	b.Config.API.OldEndPoints.URL = "https://www.bitstamp.net/"
+	err = b.SetAPIURL()
+	if err != nil {
+		t.Error(err)
+	}
+	var urlLookup URL
+	for x := range keyURLs {
+		if keyURLs[x].String() == "RestSpotURL" {
+			urlLookup = keyURLs[x]
+		}
+	}
+	urlData, err := b.API.Endpoints.GetURL(urlLookup)
+	if err != nil {
+		t.Error(err)
+	}
+	if urlData != "https://www.bitstamp.net/" {
+		t.Error("oldendpoints url setting failed")
+	}
 }
 
 func TestSetRunning(t *testing.T) {

@@ -782,7 +782,6 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL() error {
-	fmt.Printf("HELAOOOOOOOOOOOOOOOOOOOOO\n\n\n\n")
 	var err error
 	if e.Config.API.OldEndPoints != nil {
 		if e.Config.API.OldEndPoints.URL != "" && e.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
@@ -803,7 +802,6 @@ func (e *Base) SetAPIURL() error {
 				return err
 			}
 		}
-		fmt.Printf("HEYYYYYYYYY YOUUUU\n\n\n")
 		e.Config.API.OldEndPoints = nil
 	} else if e.Config.API.Endpoints != nil {
 		for key, val := range e.Config.API.Endpoints {
@@ -1158,14 +1156,14 @@ func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 func (e *Endpoints) SetRunning(key, val string) error {
 	e.Lock()
 	defer e.Unlock()
-	_, err := url.ParseRequestURI(val)
+	err := validateKey(key)
+	if err != nil {
+		return err
+	}
+	_, err = url.ParseRequestURI(val)
 	if err != nil {
 		log.Warn(log.ExchangeSys, fmt.Sprintf("Could not set custom URL for %s to %s. invalid URI for request.", key, val))
 		return nil
-	}
-	err = validateKey(key)
-	if err != nil {
-		return err
 	}
 	e.defaults[key] = val
 	return nil
