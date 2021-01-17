@@ -20,7 +20,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## data package overview
 
-This package will retreive data for the backtester via a CSV file
+This package is responsible for the loading of kline data via a CSV file. It can retrieve candle data or trade data which is converted into candle data.
+
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

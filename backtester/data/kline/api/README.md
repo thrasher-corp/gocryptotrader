@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## data package overview
 
-This package will retreive data for the backtester via API
+This package is responsible for the loading of kline data via the API. It can retrieve candle data or trade data which is converted into candle data. This package uses existing GoCryptoTrader exchange implementations. See individual exchange implementations (https://github.com/thrasher-corp/gocryptotrader/tree/master/exchanges)[here] and the interface used (https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/interfaces.go)[here]
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

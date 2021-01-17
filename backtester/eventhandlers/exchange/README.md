@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## eventhandlers package overview
 
-
+The exchange eventhandler
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

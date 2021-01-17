@@ -72,39 +72,39 @@ func (cfg *Config) PrintSetting() {
 	log.Infof(log.BackTester, "Buy rules: %+v", cfg.PortfolioSettings.BuySide)
 	log.Infof(log.BackTester, "Sell rules: %+v", cfg.PortfolioSettings.SellSide)
 	log.Infof(log.BackTester, "Leverage rules: %+v", cfg.PortfolioSettings.Leverage)
-	if cfg.LiveData != nil {
+	if cfg.DataSettings.LiveData != nil {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Info(log.BackTester, "------------------Live Settings------------------------------")
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.LiveData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.LiveData.Interval)
-		log.Infof(log.BackTester, "REAL ORDERS: %v", cfg.LiveData.RealOrders)
-		log.Infof(log.BackTester, "Overriding GCT API settings: %v", cfg.LiveData.APIClientIDOverride != "")
+		log.Infof(log.BackTester, "Data type: %v", cfg.DataSettings.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.DataSettings.Interval)
+		log.Infof(log.BackTester, "REAL ORDERS: %v", cfg.DataSettings.LiveData.RealOrders)
+		log.Infof(log.BackTester, "Overriding GCT API settings: %v", cfg.DataSettings.LiveData.APIClientIDOverride != "")
 	}
-	if cfg.APIData != nil {
+	if cfg.DataSettings.APIData != nil {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Info(log.BackTester, "------------------API Settings-------------------------------")
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.APIData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.APIData.Interval)
-		log.Infof(log.BackTester, "Start date: %v", cfg.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", cfg.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "Data type: %v", cfg.DataSettings.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.DataSettings.Interval)
+		log.Infof(log.BackTester, "Start date: %v", cfg.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "End date: %v", cfg.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
 	}
-	if cfg.CSVData != nil {
+	if cfg.DataSettings.CSVData != nil {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Info(log.BackTester, "------------------CSV Settings-------------------------------")
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.CSVData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.CSVData.Interval)
+		log.Infof(log.BackTester, "Data type: %v", cfg.DataSettings.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.DataSettings.Interval)
 	}
-	if cfg.DatabaseData != nil {
+	if cfg.DataSettings.DatabaseData != nil {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Info(log.BackTester, "------------------Database Settings--------------------------")
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.DatabaseData.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.DatabaseData.Interval)
-		log.Infof(log.BackTester, "Start date: %v", cfg.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", cfg.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "Data type: %v", cfg.DataSettings.DataType)
+		log.Infof(log.BackTester, "Interval: %v", cfg.DataSettings.Interval)
+		log.Infof(log.BackTester, "Start date: %v", cfg.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "End date: %v", cfg.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
 	}
 	log.Info(log.BackTester, "-------------------------------------------------------------\n\n")
 }

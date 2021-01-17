@@ -367,29 +367,38 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, errors.New("nil exchange received")
 	}
 	base := exch.GetBase()
-	if cfg.DatabaseData == nil && cfg.LiveData == nil && cfg.APIData == nil && cfg.CSVData == nil {
+	if cfg.DataSettings.DatabaseData == nil &&
+		cfg.DataSettings.LiveData == nil &&
+		cfg.DataSettings.APIData == nil &&
+		cfg.DataSettings.CSVData == nil {
 		return nil, errors.New("no data settings set in config")
 	}
 	resp := &kline.DataFromKline{}
 	var err error
-	if (cfg.APIData != nil && cfg.DatabaseData != nil) ||
-		(cfg.APIData != nil && cfg.LiveData != nil) ||
-		(cfg.APIData != nil && cfg.CSVData != nil) ||
-		(cfg.DatabaseData != nil && cfg.LiveData != nil) ||
-		(cfg.CSVData != nil && cfg.LiveData != nil) ||
-		(cfg.CSVData != nil && cfg.DatabaseData != nil) {
+	if (cfg.DataSettings.APIData != nil && cfg.DataSettings.DatabaseData != nil) ||
+		(cfg.DataSettings.APIData != nil && cfg.DataSettings.LiveData != nil) ||
+		(cfg.DataSettings.APIData != nil && cfg.DataSettings.CSVData != nil) ||
+		(cfg.DataSettings.DatabaseData != nil && cfg.DataSettings.LiveData != nil) ||
+		(cfg.DataSettings.CSVData != nil && cfg.DataSettings.LiveData != nil) ||
+		(cfg.DataSettings.CSVData != nil && cfg.DataSettings.DatabaseData != nil) {
 		return nil, errors.New("ambiguous settings received. Only one data type can be set")
 	}
 
 	switch {
-	case cfg.CSVData != nil:
-		resp, err = csv.LoadData(cfg.CSVData.FullPath, cfg.CSVData.DataType, strings.ToLower(exch.GetName()), cfg.CSVData.Interval, fPair, a)
+	case cfg.DataSettings.CSVData != nil:
+		resp, err = csv.LoadData(
+			cfg.DataSettings.CSVData.FullPath,
+			cfg.DataSettings.DataType,
+			strings.ToLower(exch.GetName()),
+			cfg.DataSettings.Interval,
+			fPair,
+			a)
 		if err != nil {
 			return nil, err
 		}
-	case cfg.DatabaseData != nil:
-		if cfg.DatabaseData.ConfigOverride != nil {
-			bt.Bot.Config.Database = *cfg.DatabaseData.ConfigOverride
+	case cfg.DataSettings.DatabaseData != nil:
+		if cfg.DataSettings.DatabaseData.ConfigOverride != nil {
+			bt.Bot.Config.Database = *cfg.DataSettings.DatabaseData.ConfigOverride
 			err = bt.Bot.DatabaseManager.Start(bt.Bot)
 			if err != nil {
 				return nil, err
@@ -405,17 +414,27 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return resp, err
 		}
-	case cfg.APIData != nil:
-		resp, err = loadAPIData(cfg, exch, fPair, a, base.Features.Enabled.Kline.ResultLimit)
+	case cfg.DataSettings.APIData != nil:
+		resp, err = loadAPIData(
+			cfg,
+			exch,
+			fPair,
+			a,
+			base.Features.Enabled.Kline.ResultLimit)
 		if err != nil {
 			return resp, err
 		}
-	case cfg.LiveData != nil:
+	case cfg.DataSettings.LiveData != nil:
 		err = loadLiveData(cfg, base)
 		if err != nil {
 			return nil, err
 		}
-		go bt.loadLiveDataLoop(resp, cfg, exch, fPair, a)
+		go bt.loadLiveDataLoop(
+			resp,
+			cfg,
+			exch,
+			fPair,
+			a)
 		return resp, nil
 	}
 	if resp == nil {
@@ -436,19 +455,19 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 }
 
 func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
-	if cfg == nil || cfg.DatabaseData == nil {
+	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
-	if cfg.DatabaseData.StartDate.IsZero() || cfg.DatabaseData.EndDate.IsZero() ||
-		cfg.DatabaseData.StartDate.After(cfg.DatabaseData.EndDate) {
+	if cfg.DataSettings.DatabaseData.StartDate.IsZero() || cfg.DataSettings.DatabaseData.EndDate.IsZero() ||
+		cfg.DataSettings.DatabaseData.StartDate.After(cfg.DataSettings.DatabaseData.EndDate) {
 		return nil, errors.New("database data start and end dates must be set")
 	}
 	resp, err := database.LoadData(
-		cfg.DatabaseData.StartDate,
-		cfg.DatabaseData.EndDate,
-		cfg.DatabaseData.Interval,
+		cfg.DataSettings.DatabaseData.StartDate,
+		cfg.DataSettings.DatabaseData.EndDate,
+		cfg.DataSettings.Interval,
 		strings.ToLower(name),
-		cfg.DatabaseData.DataType,
+		cfg.DataSettings.DataType,
 		fPair,
 		a)
 	if err != nil {
@@ -458,15 +477,26 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 }
 
 func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32) (*kline.DataFromKline, error) {
-	if cfg.APIData.StartDate.IsZero() || cfg.APIData.EndDate.IsZero() ||
-		cfg.APIData.StartDate.After(cfg.APIData.EndDate) {
+	if cfg.DataSettings.APIData.StartDate.IsZero() || cfg.DataSettings.APIData.EndDate.IsZero() ||
+		cfg.DataSettings.APIData.StartDate.After(cfg.DataSettings.APIData.EndDate) {
 		return nil, errors.New("api data start and end dates must be set")
 	}
-	if cfg.APIData.Interval == 0 {
+	if cfg.DataSettings.Interval == 0 {
 		return nil, errors.New("api data interval unset")
 	}
-	dates := gctkline.CalcSuperDateRanges(cfg.APIData.StartDate, cfg.APIData.EndDate, gctkline.Interval(cfg.APIData.Interval), resultLimit)
-	candles, err := api.LoadData(cfg.APIData.DataType, cfg.APIData.StartDate, cfg.APIData.EndDate, cfg.APIData.Interval, exch, fPair, a)
+	dates := gctkline.CalcSuperDateRanges(
+		cfg.DataSettings.APIData.StartDate,
+		cfg.DataSettings.APIData.EndDate,
+		gctkline.Interval(cfg.DataSettings.Interval),
+		resultLimit)
+	candles, err := api.LoadData(
+		cfg.DataSettings.DataType,
+		cfg.DataSettings.APIData.StartDate,
+		cfg.DataSettings.APIData.EndDate,
+		cfg.DataSettings.Interval,
+		exch,
+		fPair,
+		a)
 	if err != nil {
 		return nil, err
 	}
@@ -482,27 +512,27 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 }
 
 func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
-	if cfg == nil || base == nil || cfg.LiveData == nil {
+	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
 		return errors.New("received nil argument(s)")
 	}
 
-	if cfg.LiveData.APIKeyOverride != "" {
-		base.API.Credentials.Key = cfg.LiveData.APIKeyOverride
+	if cfg.DataSettings.LiveData.APIKeyOverride != "" {
+		base.API.Credentials.Key = cfg.DataSettings.LiveData.APIKeyOverride
 	}
-	if cfg.LiveData.APISecretOverride != "" {
-		base.API.Credentials.Secret = cfg.LiveData.APISecretOverride
+	if cfg.DataSettings.LiveData.APISecretOverride != "" {
+		base.API.Credentials.Secret = cfg.DataSettings.LiveData.APISecretOverride
 	}
-	if cfg.LiveData.APIClientIDOverride != "" {
-		base.API.Credentials.ClientID = cfg.LiveData.APIClientIDOverride
+	if cfg.DataSettings.LiveData.APIClientIDOverride != "" {
+		base.API.Credentials.ClientID = cfg.DataSettings.LiveData.APIClientIDOverride
 	}
-	if cfg.LiveData.API2FAOverride != "" {
-		base.API.Credentials.PEMKey = cfg.LiveData.API2FAOverride
+	if cfg.DataSettings.LiveData.API2FAOverride != "" {
+		base.API.Credentials.PEMKey = cfg.DataSettings.LiveData.API2FAOverride
 	}
 	validated := base.ValidateAPICredentials()
 	base.API.AuthenticatedSupport = validated
 	if !validated {
 		log.Warn(log.BackTester, "bad credentials received, no live trading for you")
-		cfg.LiveData.RealOrders = false
+		cfg.DataSettings.LiveData.RealOrders = false
 	}
 	return nil
 }
@@ -510,7 +540,12 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
 // from live. Its purpose is to be able to perform strategy analysis against current data
 func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
-	candles, err := live.LoadData(exch, cfg.LiveData.DataType, cfg.LiveData.Interval, fPair, a)
+	candles, err := live.LoadData(
+		exch,
+		cfg.DataSettings.DataType,
+		cfg.DataSettings.Interval,
+		fPair,
+		a)
 	if err != nil {
 		log.Error(log.BackTester, err)
 		return
@@ -522,7 +557,12 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		case <-bt.shutdown:
 			return
 		case <-timerino.C:
-			candles, err := live.LoadData(exch, cfg.LiveData.DataType, cfg.LiveData.Interval, fPair, a)
+			candles, err := live.LoadData(
+				exch,
+				cfg.DataSettings.DataType,
+				cfg.DataSettings.Interval,
+				fPair,
+				a)
 			if err != nil {
 				log.Error(log.BackTester, err)
 				return
@@ -619,7 +659,10 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 		signals, err := bt.Strategy.OnSignals(dataEvents, bt.Portfolio)
 		if err != nil {
 			for i := range signals {
-				bt.Statistic.AddSignalEventForTime(signals[i])
+				err = bt.Statistic.AddSignalEventForTime(signals[i])
+				if err != nil {
+					log.Error(log.BackTester, err)
+				}
 			}
 			return
 		}
@@ -632,7 +675,10 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 
 		s, err := bt.Strategy.OnSignal(d, bt.Portfolio)
 		if err != nil {
-			bt.Statistic.AddSignalEventForTime(s)
+			err = bt.Statistic.AddSignalEventForTime(s)
+			if err != nil {
+				log.Error(log.BackTester, err)
+			}
 			return
 		}
 		bt.EventQueue.AppendEvent(s)
@@ -648,14 +694,21 @@ func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
 		log.Error(log.BackTester, err)
 	}
 	// update statistics with latest price
-	bt.Statistic.AddDataEventForTime(e)
+	err = bt.Statistic.AddDataEventForTime(e)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
 }
 
 func (bt *BackTest) processSignalEvent(ev signal.Event) {
 	cs, _ := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	o, err := bt.Portfolio.OnSignal(ev, &cs)
 	if err != nil {
-		bt.Statistic.AddOrderEventForTime(o)
+		log.Error(log.BackTester, err)
+		err = bt.Statistic.AddOrderEventForTime(o)
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
 		return
 	}
 
@@ -671,7 +724,10 @@ func (bt *BackTest) processOrderEvent(ev order.Event) {
 			return
 		}
 		log.Errorf(log.BackTester, "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
-		bt.Statistic.AddFillEventForTime(f)
+		err = bt.Statistic.AddFillEventForTime(f)
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
 		return
 	}
 	bt.EventQueue.AppendEvent(f)
@@ -680,19 +736,32 @@ func (bt *BackTest) processOrderEvent(ev order.Event) {
 func (bt *BackTest) processFillEvent(ev fill.Event) {
 	t, err := bt.Portfolio.OnFill(ev)
 	if err != nil {
-		bt.Statistic.AddFillEventForTime(t)
+		log.Error(log.BackTester, err)
+		err = bt.Statistic.AddFillEventForTime(t)
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
 		return
 	}
 	holding, _ := bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
-	bt.Statistic.AddHoldingsForTime(holding)
+	err = bt.Statistic.AddHoldingsForTime(holding)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
 	var cp *compliance.Manager
 	cp, err = bt.Portfolio.GetComplianceManager(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
 	snap := cp.GetLatestSnapshot()
-	bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
-	bt.Statistic.AddFillEventForTime(t)
+	err = bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
+	err = bt.Statistic.AddFillEventForTime(t)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
 }
 
 // RunLive is a proof of concept function that does not yet support multi currency usage

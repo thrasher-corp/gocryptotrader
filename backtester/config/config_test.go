@@ -10,6 +10,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -18,6 +20,7 @@ const (
 	makerFee     = 0.002
 	takerFee     = 0.001
 	testExchange = "binance"
+	dca          = "dollarcostaverage"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -57,12 +60,11 @@ func TestReadConfigFromFile(t *testing.T) {
 	}
 }
 
-// these are tests for experimentation more than anything
-func TestGenerateDCACandleAPIStrat(t *testing.T) {
+func TestPrintSettings(t *testing.T) {
 	cfg := Config{
 		Nickname: "super fun run",
 		StrategySettings: StrategySettings{
-			Name: "dollarcostaverage",
+			Name: dca,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -82,18 +84,34 @@ func TestGenerateDCACandleAPIStrat(t *testing.T) {
 					MaximumTotal: 10000,
 				},
 				Leverage: Leverage{
-					CanUseLeverage:  false,
-					MaximumLeverage: 102,
+					CanUseLeverage: false,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
 		},
-		APIData: &APIData{
-			StartDate: time.Now().Add(-time.Hour * 24 * 365),
-			EndDate:   time.Now(),
-			Interval:  kline.OneDay.Duration(),
-			DataType:  common.CandleStr,
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate: time.Now().Add(-time.Hour * 24 * 365),
+				EndDate:   time.Now(),
+			},
+			CSVData: &CSVData{
+				FullPath: "fake",
+			},
+			LiveData: &LiveData{
+				APIKeyOverride:      "",
+				APISecretOverride:   "",
+				APIClientIDOverride: "",
+				API2FAOverride:      "",
+				RealOrders:          false,
+			},
+			DatabaseData: &DatabaseData{
+				StartDate:      time.Now().Add(-time.Hour * 24 * 365),
+				EndDate:        time.Now(),
+				ConfigOverride: nil,
+			},
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide: MinMax{
@@ -107,8 +125,67 @@ func TestGenerateDCACandleAPIStrat(t *testing.T) {
 				MaximumTotal: 10000,
 			},
 			Leverage: Leverage{
-				CanUseLeverage:  false,
-				MaximumLeverage: 102,
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: 0.03,
+		},
+	}
+	cfg.PrintSetting()
+}
+
+func TestGenerateConfigForDCAAPICandles(t *testing.T) {
+	cfg := Config{
+		Nickname: "TestGenerateConfigForDCAAPICandles",
+		StrategySettings: StrategySettings{
+			Name: dca,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				InitialFunds: 100000,
+				BuySide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				SellSide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				Leverage: Leverage{
+					CanUseLeverage: false,
+				},
+				MakerFee: makerFee,
+				TakerFee: takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate: time.Now().Add(-time.Hour * 24 * 365),
+				EndDate:   time.Now(),
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			SellSide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			Leverage: Leverage{
+				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
@@ -123,17 +200,17 @@ func TestGenerateDCACandleAPIStrat(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dollar-cost-average.strat"), result, 0770)
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, 0770)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestPrintSettings(t *testing.T) {
+func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 	cfg := Config{
-		Nickname: "super fun run",
+		Nickname: "TestGenerateConfigForDCAAPITrades",
 		StrategySettings: StrategySettings{
-			Name: "dollarcostaverage",
+			Name: dca,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -153,39 +230,19 @@ func TestPrintSettings(t *testing.T) {
 					MaximumTotal: 10000,
 				},
 				Leverage: Leverage{
-					CanUseLeverage:  false,
-					MaximumLeverage: 102,
+					CanUseLeverage: false,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
 		},
-		APIData: &APIData{
-			StartDate: time.Now().Add(-time.Hour * 24 * 365),
-			EndDate:   time.Now(),
-			Interval:  kline.OneDay.Duration(),
-			DataType:  common.CandleStr,
-		},
-		CSVData: &CSVData{
-			DataType: common.CandleStr,
+		DataSettings: DataSettings{
 			Interval: kline.OneDay.Duration(),
-			FullPath: "fake",
-		},
-		LiveData: &LiveData{
-			Interval:            kline.OneDay.Duration(),
-			DataType:            common.CandleStr,
-			APIKeyOverride:      "",
-			APISecretOverride:   "",
-			APIClientIDOverride: "",
-			API2FAOverride:      "",
-			RealOrders:          false,
-		},
-		DatabaseData: &DatabaseData{
-			DataType:       common.CandleStr,
-			Interval:       kline.OneDay.Duration(),
-			StartDate:      time.Now().Add(-time.Hour * 24 * 365),
-			EndDate:        time.Now(),
-			ConfigOverride: nil,
+			DataType: common.TradeStr,
+			APIData: &APIData{
+				StartDate: time.Now().Add(-time.Hour * 24 * 365),
+				EndDate:   time.Now(),
+			},
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide: MinMax{
@@ -199,23 +256,32 @@ func TestPrintSettings(t *testing.T) {
 				MaximumTotal: 10000,
 			},
 			Leverage: Leverage{
-				CanUseLeverage:  false,
-				MaximumLeverage: 102,
+				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: 0.03,
 		},
 	}
-	cfg.PrintSetting()
+	result, err := json.MarshalIndent(cfg, "", " ")
+	if err != nil {
+		t.Error(err)
+	}
+	p, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, 0770)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-// these are tests for experimentation more than anything
-func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
+func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateDCAMultipleCurrencyAPICandleStrat",
+		Nickname: "TestGenerateConfigForDCAAPICandlesMultipleCurrencies",
 		StrategySettings: StrategySettings{
-			Name: "dollarcostaverage",
+			Name: dca,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -235,8 +301,7 @@ func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 					MaximumTotal: 10000,
 				},
 				Leverage: Leverage{
-					CanUseLeverage:  false,
-					MaximumLeverage: 102,
+					CanUseLeverage: false,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
@@ -258,18 +323,19 @@ func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 					MaximumTotal: 10000,
 				},
 				Leverage: Leverage{
-					CanUseLeverage:  false,
-					MaximumLeverage: 102,
+					CanUseLeverage: false,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
 		},
-		APIData: &APIData{
-			StartDate: time.Now().Add(-time.Hour * 24 * 7),
-			EndDate:   time.Now(),
-			Interval:  kline.OneHour.Duration(),
-			DataType:  common.CandleStr,
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate: time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:   time.Now(),
+			},
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide: MinMax{
@@ -283,8 +349,7 @@ func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 				MaximumTotal: 10000,
 			},
 			Leverage: Leverage{
-				CanUseLeverage:  false,
-				MaximumLeverage: 102,
+				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
@@ -299,18 +364,18 @@ func TestGenerateDCAMultipleCurrencyAPICandleStrat(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dollar-cost-average-multiple-currencies.strat"), result, 0770)
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, 0770)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 // these are tests for experimentation more than anything
-func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
+func TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment(t *testing.T) {
 	cfg := Config{
-		Nickname: "hello!",
+		Nickname: "TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment",
 		StrategySettings: StrategySettings{
-			Name:            "dollarcostaverage",
+			Name:            dca,
 			IsMultiCurrency: true,
 		},
 		CurrencySettings: []CurrencySettings{
@@ -331,8 +396,7 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 					MaximumTotal: 1000,
 				},
 				Leverage: Leverage{
-					CanUseLeverage:  false,
-					MaximumLeverage: 102,
+					CanUseLeverage: false,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
@@ -354,18 +418,19 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 					MaximumTotal: 10000,
 				},
 				Leverage: Leverage{
-					CanUseLeverage:  false,
-					MaximumLeverage: 102,
+					CanUseLeverage: false,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
 		},
-		APIData: &APIData{
-			StartDate: time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC),
-			EndDate:   time.Date(2020, 5, 20, 0, 0, 0, 0, time.UTC),
-			Interval:  kline.OneHour.Duration(),
-			DataType:  common.CandleStr,
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate: time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC),
+				EndDate:   time.Date(2020, 5, 20, 0, 0, 0, 0, time.UTC),
+			},
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide: MinMax{
@@ -379,8 +444,7 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 				MaximumTotal: 10000,
 			},
 			Leverage: Leverage{
-				CanUseLeverage:  false,
-				MaximumLeverage: 102,
+				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
@@ -395,17 +459,17 @@ func TestGenerateDCAMultiCurrencyAssessmentAPICandleStrat(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dollar-cost-average-multi-currency-assessment.strat"), result, 0770)
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multi-currency-assessment.strat"), result, 0770)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGenerateDCALiveCandleStrat(t *testing.T) {
+func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateDCALiveCandleStrat",
+		Nickname: "TestGenerateConfigForDCALiveCandles",
 		StrategySettings: StrategySettings{
-			Name: "dollarcostaverage",
+			Name: dca,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -425,16 +489,22 @@ func TestGenerateDCALiveCandleStrat(t *testing.T) {
 					MaximumTotal: 10000,
 				},
 				Leverage: Leverage{
-					CanUseLeverage:  false,
-					MaximumLeverage: 102,
+					CanUseLeverage: false,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
 		},
-		LiveData: &LiveData{
-			Interval: kline.OneMin.Duration(),
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
+			LiveData: &LiveData{
+				APIKeyOverride:      "",
+				APISecretOverride:   "",
+				APIClientIDOverride: "",
+				API2FAOverride:      "",
+				RealOrders:          false,
+			},
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide: MinMax{
@@ -448,8 +518,7 @@ func TestGenerateDCALiveCandleStrat(t *testing.T) {
 				MaximumTotal: 10000,
 			},
 			Leverage: Leverage{
-				CanUseLeverage:  false,
-				MaximumLeverage: 102,
+				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
@@ -464,14 +533,13 @@ func TestGenerateDCALiveCandleStrat(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dollar-cost-average-live.strat"), result, 0770)
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, 0770)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-// these are tests for experimentation more than anything
-func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
+func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateRSICandleAPICustomSettingsStrat",
 		StrategySettings: StrategySettings{
@@ -500,8 +568,7 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 					MaximumTotal: 10000,
 				},
 				Leverage: Leverage{
-					CanUseLeverage:  false,
-					MaximumLeverage: 102,
+					CanUseLeverage: false,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
@@ -523,18 +590,19 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 					MaximumTotal: 10000,
 				},
 				Leverage: Leverage{
-					CanUseLeverage:  false,
-					MaximumLeverage: 102,
+					CanUseLeverage: false,
 				},
 				MakerFee: makerFee,
 				TakerFee: takerFee,
 			},
 		},
-		APIData: &APIData{
-			StartDate: time.Date(2018, 5, 1, 0, 0, 0, 0, time.Local),
-			EndDate:   time.Date(2020, 5, 1, 0, 0, 0, 0, time.Local),
-			Interval:  kline.OneDay.Duration(),
-			DataType:  common.CandleStr,
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate: time.Date(2018, 5, 1, 0, 0, 0, 0, time.Local),
+				EndDate:   time.Date(2020, 5, 1, 0, 0, 0, 0, time.Local),
+			},
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide: MinMax{
@@ -548,8 +616,7 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 				MaximumTotal: 10000,
 			},
 			Leverage: Leverage{
-				CanUseLeverage:  false,
-				MaximumLeverage: 102,
+				CanUseLeverage: false,
 			},
 		},
 		StatisticSettings: StatisticSettings{
@@ -564,7 +631,229 @@ func TestGenerateRSICandleAPICustomSettingsStrat(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi.strat"), result, 0770)
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, 0770)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGenerateConfigForDCACSVCandles(t *testing.T) {
+	fp := filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv")
+	cfg := Config{
+		Nickname: "TestGenerateConfigForDCACSVCandles",
+		StrategySettings: StrategySettings{
+			Name: dca,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				InitialFunds: 100000,
+				BuySide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				SellSide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				Leverage: Leverage{
+					CanUseLeverage: false,
+				},
+				MakerFee: makerFee,
+				TakerFee: takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			CSVData: &CSVData{
+				FullPath: fp,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			SellSide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: 0.03,
+		},
+	}
+	result, err := json.MarshalIndent(cfg, "", " ")
+	if err != nil {
+		t.Error(err)
+	}
+	p, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, 0770)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGenerateConfigForDCACSVTrades(t *testing.T) {
+	fp := filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv")
+	cfg := Config{
+		Nickname: "TestGenerateConfigForDCACSVTrades",
+		StrategySettings: StrategySettings{
+			Name: dca,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				InitialFunds: 100000,
+				BuySide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				SellSide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				Leverage: Leverage{
+					CanUseLeverage: false,
+				},
+				MakerFee: makerFee,
+				TakerFee: takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.TradeStr,
+			CSVData: &CSVData{
+				FullPath: fp,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			SellSide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: 0.03,
+		},
+	}
+	result, err := json.MarshalIndent(cfg, "", " ")
+	if err != nil {
+		t.Error(err)
+	}
+	p, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, 0770)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
+	cfg := Config{
+		Nickname: "TestGenerateConfigForDCADatabaseCandles",
+		StrategySettings: StrategySettings{
+			Name: dca,
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName: testExchange,
+				Asset:        asset.Spot.String(),
+				Base:         currency.BTC.String(),
+				Quote:        currency.USDT.String(),
+				InitialFunds: 100000,
+				BuySide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				SellSide: MinMax{
+					MinimumSize:  0.1,
+					MaximumSize:  1,
+					MaximumTotal: 10000,
+				},
+				Leverage: Leverage{
+					CanUseLeverage: false,
+				},
+				MakerFee: makerFee,
+				TakerFee: takerFee,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay.Duration(),
+			DataType: common.CandleStr,
+			DatabaseData: &DatabaseData{
+				StartDate: time.Now().Add(-time.Hour * 24 * 7),
+				EndDate:   time.Now(),
+				ConfigOverride: &database.Config{
+					Enabled: true,
+					Verbose: false,
+					Driver:  "sqlite",
+					ConnectionDetails: drivers.ConnectionDetails{
+						Host:     "localhost",
+						Database: "testsqlite.db",
+					},
+				},
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			BuySide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			SellSide: MinMax{
+				MinimumSize:  0.1,
+				MaximumSize:  1,
+				MaximumTotal: 10000,
+			},
+			Leverage: Leverage{
+				CanUseLeverage: false,
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: 0.03,
+		},
+	}
+	result, err := json.MarshalIndent(cfg, "", " ")
+	if err != nil {
+		t.Error(err)
+	}
+	p, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+	}
+	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, 0770)
 	if err != nil {
 		t.Error(err)
 	}

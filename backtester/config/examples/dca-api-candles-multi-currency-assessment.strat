@@ -1,5 +1,10 @@
 {
- "nickname": "hello!",
+ "nickname": "TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment",
+ "strategy-settings": {
+  "name": "dollarcostaverage",
+  "is-multi-currency": true,
+  "custom-settings": null
+ },
  "currency-settings": [
   {
    "exchange-name": "binance",
@@ -9,7 +14,8 @@
    "initial-funds": 1000000,
    "leverage": {
     "can-use-leverage": false,
-    "maximum-leverage": 102
+    "maximum-leverage-ratio": 0,
+    "maximum-leverage-rate": 0
    },
    "buy-side": {
     "minimum-size": 0,
@@ -21,10 +27,11 @@
     "maximum-size": 0,
     "maximum-total": 1000
    },
-   "MinimumSlippagePercent": 0,
-   "MaximumSlippagePercent": 0,
+   "min-slippage-percent": 0,
+   "max-slippage-percent": 0,
    "maker-fee-override": 0.002,
-   "taker-fee-override": 0.001
+   "taker-fee-override": 0.001,
+   "maximum-holdings-ratio": 0
   },
   {
    "exchange-name": "binance",
@@ -34,7 +41,8 @@
    "initial-funds": 100000,
    "leverage": {
     "can-use-leverage": false,
-    "maximum-leverage": 102
+    "maximum-leverage-ratio": 0,
+    "maximum-leverage-rate": 0
    },
    "buy-side": {
     "minimum-size": 0.1,
@@ -46,22 +54,26 @@
     "maximum-size": 1,
     "maximum-total": 10000
    },
-   "MinimumSlippagePercent": 0,
-   "MaximumSlippagePercent": 0,
+   "min-slippage-percent": 0,
+   "max-slippage-percent": 0,
    "maker-fee-override": 0.002,
-   "taker-fee-override": 0.001
+   "taker-fee-override": 0.001,
+   "maximum-holdings-ratio": 0
   }
  ],
- "strategy-settings": {
-  "name": "dollarcostaverage",
-  "is-multi-currency": true,
-  "custom-settings": null
+ "data-settings": {
+  "interval": 86400000000000,
+  "data-type": "candle",
+  "api-data": {
+   "start-date": "2020-05-01T00:00:00Z",
+   "end-date": "2020-05-20T00:00:00Z"
+  }
  },
- "portfolio": {
-  "diversification-ratio": 0,
+ "portfolio-settings": {
   "leverage": {
    "can-use-leverage": false,
-   "maximum-leverage": 102
+   "maximum-leverage-ratio": 0,
+   "maximum-leverage-rate": 0
   },
   "buy-side": {
    "minimum-size": 0.1,
@@ -76,11 +88,5 @@
  },
  "statistic-settings": {
   "risk-free-rate": 0.03
- },
- "api-data": {
-  "data-type": "candle",
-  "interval": 3600000000000,
-  "start-date": "2020-05-01T00:00:00Z",
-  "end-date": "2020-05-20T00:00:00Z"
  }
 }

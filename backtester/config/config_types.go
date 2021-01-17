@@ -9,11 +9,18 @@ import (
 // Config defines what is in an individual strategy config
 type Config struct {
 	Nickname          string             `json:"nickname"`
-	CurrencySettings  []CurrencySettings `json:"currency-settings"`
 	StrategySettings  StrategySettings   `json:"strategy-settings"`
+	CurrencySettings  []CurrencySettings `json:"currency-settings"`
+	DataSettings      DataSettings       `json:"data-settings"`
 	PortfolioSettings PortfolioSettings  `json:"portfolio-settings"`
 	StatisticSettings StatisticSettings  `json:"statistic-settings"`
-	// data source definitions:
+}
+
+// DataSettings is a container for each type of data retrieval setting.
+// Only ONE can be populated per config
+type DataSettings struct {
+	Interval     time.Duration `json:"interval"`
+	DataType     string        `json:"data-type"`
 	APIData      *APIData      `json:"api-data,omitempty"`
 	DatabaseData *DatabaseData `json:"database-data,omitempty"`
 	LiveData     *LiveData     `json:"live-data,omitempty"`
@@ -83,23 +90,17 @@ type CurrencySettings struct {
 
 // APIData defines all fields to configure API based data
 type APIData struct {
-	DataType  string        `json:"data-type"`
-	Interval  time.Duration `json:"interval"`
-	StartDate time.Time     `json:"start-date"`
-	EndDate   time.Time     `json:"end-date"`
+	StartDate time.Time `json:"start-date"`
+	EndDate   time.Time `json:"end-date"`
 }
 
 // CSVData defines all fields to configure CSV based data
 type CSVData struct {
-	DataType string        `json:"data-type"`
-	Interval time.Duration `json:"interval"`
-	FullPath string        `json:"full-path"`
+	FullPath string `json:"full-path"`
 }
 
 // DatabaseData defines all fields to configure database based data
 type DatabaseData struct {
-	DataType       string           `json:"data-type"`
-	Interval       time.Duration    `json:"interval"`
 	StartDate      time.Time        `json:"start-date"`
 	EndDate        time.Time        `json:"end-date"`
 	ConfigOverride *database.Config `json:"config-override"`
@@ -107,11 +108,9 @@ type DatabaseData struct {
 
 // LiveData defines all fields to configure live data
 type LiveData struct {
-	Interval            time.Duration `json:"interval"`
-	DataType            string        `json:"data-type"`
-	APIKeyOverride      string        `json:"api-key-override"`
-	APISecretOverride   string        `json:"api-secret-override"`
-	APIClientIDOverride string        `json:"api-client-id-override"`
-	API2FAOverride      string        `json:"api-2fa-override"`
-	RealOrders          bool          `json:"fake-orders"`
+	APIKeyOverride      string `json:"api-key-override"`
+	APISecretOverride   string `json:"api-secret-override"`
+	APIClientIDOverride string `json:"api-client-id-override"`
+	API2FAOverride      string `json:"api-2fa-override"`
+	RealOrders          bool   `json:"fake-orders"`
 }

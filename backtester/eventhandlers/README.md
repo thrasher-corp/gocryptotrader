@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## eventhandlers package overview
 
-
+Eventhandlers are a set of interfaces and their implementations for the purpose of analysing and performing actions against data events.
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
