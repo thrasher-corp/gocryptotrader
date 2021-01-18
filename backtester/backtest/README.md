@@ -18,13 +18,18 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
+## Backtest package overview
 
-## Backtest what
-- Is used to setup the entire backtester
-- Loads the config
-- Gets candle data
-- is what breaks down kline data into events
-- cycles through events
+The backtest package is the most important package of the GoCryptoTrader backtester.
+
+It is responsible for the following functionality
+- Loading settings from a provided config file
+- Retreiving data
+- Loading the data into assessible chunks
+- Analysing the data via the `handleEvent` function
+- Looping through all data
+- Outputting results into a report
+
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

@@ -18,12 +18,8 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## backtester package overview
 
 # GoCryptoTrader Backtester
-
-<img src="https://i.imgur.com/PUtldvs.png" width="560px" height="560px">
-
 An event-driven backtesting tool to test and iterate trading strategies using historical or custom data.
 
 

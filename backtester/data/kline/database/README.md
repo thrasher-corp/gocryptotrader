@@ -18,13 +18,13 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## data package overview
+## Data package overview
 
 This package is responsible for the loading of kline data via the database. It can retrieve candle data or trade data which is converted into candle data.
 
 ### Database credentials
 #### Defaults
-The default database will be loaded from your GoCryptoTrader config (see (https://github.com/thrasher-corp/gocryptotrader/tree/master/database)[this] for database configuration and implementation.
+The default database will be loaded from your GoCryptoTrader config. See [this](https://github.com/thrasher-corp/gocryptotrader/tree/master/database) for database configuration and implementation.
 
 #### Overriding the GoCryptoTrader config
 Database configuration details can be overridden in the `.strat` config file to allow other sources to be used and not rely on existing GoCryptoTrader configuration.

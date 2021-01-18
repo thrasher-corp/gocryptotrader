@@ -18,9 +18,9 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## data package overview
+## Data package overview
 
-This package is responsible for the loading of kline data via the API. It can retrieve candle data or trade data which is converted into candle data. This package uses existing GoCryptoTrader exchange implementations. See individual exchange implementations (https://github.com/thrasher-corp/gocryptotrader/tree/master/exchanges)[here] and the interface used (https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/interfaces.go)[here]
+This package is responsible for the loading of kline data via the API. It can retrieve candle data or trade data which is converted into candle data. This package uses existing GoCryptoTrader exchange implementations. See individual exchange implementations [here](https://github.com/thrasher-corp/gocryptotrader/tree/master/exchanges) and the interface used [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/interfaces.go)
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

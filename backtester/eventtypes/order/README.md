@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## eventtypes package overview
+## Eventtypes package overview
 
 The Order Event Type is an event type raised after the portfolio manager has passed all its checks and wishes to make an order
 It is sent to the Exchange to process and if successful, will raise a Fill Event.
