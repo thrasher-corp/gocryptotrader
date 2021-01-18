@@ -26,7 +26,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"rsi.strat"),
+			"dca-api-candles.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,
@@ -57,7 +57,7 @@ func main() {
 		fmt.Print(err)
 		os.Exit(1)
 	}
-	if cfg.LiveData != nil {
+	if cfg.DataSettings.LiveData != nil {
 		go func() {
 			err = bt.RunLive()
 			if err != nil {
