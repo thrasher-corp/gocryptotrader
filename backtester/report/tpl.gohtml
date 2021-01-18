@@ -65,48 +65,48 @@
 				<h2  class="px-4 card-header-title white-text">Executive Summary</h2>
 			</div>
 			<div class="card-body card-body-cascade text-center">
-                {{ if or .Config.APIData .Config.DatabaseData }}
+                {{ if or .Config.DataSettings.APIData .Config.DataSettings.DatabaseData }}
 					<table class="table table-hover table-bordered table-striped">
 						<tbody>
-                        {{ if .Config.APIData}}
+                        {{ if .Config.DataSettings.APIData}}
 							<tr>
 								<td><b>Start Date</b></td>
 								<td>
-                                    {{.Config.APIData.StartDate}}
+                                    {{.Config.DataSettings.APIData.StartDate}}
 								</td>
 							</tr>
 							<tr>
 								<td ><b>End Date</b></td>
 
 								<td>
-                                    {{.Config.APIData.EndDate}}
+                                    {{.Config.DataSettings.APIData.EndDate}}
 								</td>
 							</tr>
 							<tr>
 								<td ><b>Interval</b></td>
 								<td>
-                                    {{.Config.APIData.Interval}}
+                                    {{.Config.DataSettings.Interval}}
 								</td>
 							</tr>
                         {{end}}
-                        {{ if .Config.DatabaseData}}
+                        {{ if .Config.DataSettings.DatabaseData}}
 							<tr>
 								<td ><b>Start Date</b></td>
 								<td>
-                                    {{.Config.DatabaseData.StartDate}}
+                                    {{.Config.DataSettings.DatabaseData.StartDate}}
 								</td>
 							</tr>
 							<tr>
 								<td ><b>End Date</b></td>
 
 								<td>
-                                    {{.Config.DatabaseData.EndDate}}
+                                    {{.Config.DataSettingsDatabaseData.EndDate}}
 								</td>
 							</tr>
 							<tr>
 								<td ><b>Interval</b></td>
 								<td>
-                                    {{.Config.DatabaseData.Interval}}
+                                    {{.Config.DataSettings.Interval}}
 								</td>
 							</tr>
                         {{end}}
@@ -114,21 +114,14 @@
 						</tbody>
 					</table>
                 {{ end }}
-                {{ if or .Config.CSVData .Config.LiveData }}
+                {{ if or .Config.DataSettings.CSVData .Config.DataSettings.LiveData }}
 					<table class="table table-hover table-bordered table-striped">
 						<tbody>
 						<tr>
 							<td ><b>Interval</b></td>
-                            {{ if .Config.LiveData}}
 								<td>
-                                    {{.Config.LiveData.Interval}}
+                                    {{.Config.Interval}}
 								</td>
-                            {{end}}
-                            {{ if .Config.CSVData}}
-								<td>
-                                    {{.Config.DatabaseData.Interval}}
-								</td>
-                            {{end}}
 						</tr>
 						</tbody>
 					</table>
@@ -224,6 +217,7 @@
 					<th>Max Slippage Percent</th>
 					<th>Maker Fee</th>
 					<th>Taker Fee</th>
+					<th>Maximum Holdings Ratio</th>
 					</thead>
 					<tbody>
                     {{ range .Config.CurrencySettings}}
@@ -243,6 +237,7 @@
 							<td>{{.MaximumSlippagePercent}}</td>
 							<td>{{.MakerFee}}</td>
 							<td>{{.TakerFee}}</td>
+							<td>{{.MaximumHoldingsRatio}}</td>
 						</tr>
                     {{end}}
 					</tbody>
@@ -258,9 +253,9 @@
 			<div class="card-body card-body-cascade ">
 				<table class="table table-hover table-bordered table-striped">
 					<thead>
-					<th>Diversification Ratio</th>
 					<th>Can Use Leverage</th>
-					<th>Max Leverage</th>
+					<th>Max Leverage Rate</th>
+					<th>Max Leverage Ratio</th>
 					<th>Buy side Min Amount</th>
 					<th>Buy side Max Amount</th>
 					<th>Buy side Max Total</th>
@@ -270,9 +265,9 @@
 					</thead>
 					<tbody>
 					<tr>
-						<td>{{.Config.PortfolioSettings.MaximumHoldingsRatio}}</td>
 						<td>{{.Config.PortfolioSettings.Leverage.CanUseLeverage}}</td>
-						<td>{{.Config.PortfolioSettings.Leverage.MaximumLeverage}}</td>
+						<td>{{.Config.PortfolioSettings.Leverage.MaximumLeverageRate}}</td>
+						<td>{{.Config.PortfolioSettings.Leverage.MaximumLeverageRatio}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MaximumSize}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
@@ -452,7 +447,7 @@
 		</div>
         {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
             {{ range $asset, $unused := .}}
-                {{ range $pair, $unused := .}}
+                {{ range $pair, $val := .}}
 					<div class="card card-cascade narrower">
 						<div class="view view-cascade bg-info">
 							<h2  class="px-4 card-header-title white-text">Statistics for {{$exchange}} {{ $asset}} {{ $pair}}</h2>
@@ -495,14 +490,13 @@
                                 {{ if gt .DrawDowns.MaxDrawDown.Highest.Price 0.0 }}
 									<tr>
 										<td><b>Biggest Drawdown</b></td>
-										<td><b>Start:</b> {{.DrawDowns.MaxDrawDown.Highest.Price }} <b>End:</b> {{.DrawDowns.MaxDrawDown.Lowest.Price }} <b>Drop:</b> {{printf "%.2f" .DrawDowns.MaxDrawDown.CalculatedDrawDown}}</td>
+										<td><b>Start:</b> {{ .DrawDowns.MaxDrawDown.Highest.Time }} <b>End:</b> {{ .DrawDowns.MaxDrawDown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" .DrawDowns.MaxDrawDown.DrawdownPercent}}%</td>
 									</tr>
                                 {{ end }}
                                 {{ if gt .DrawDowns.LongestDrawDown.Highest.Price 0.0 }}
-
 									<tr>
 										<td><b>Longest Drawdown</b></td>
-										<td><b>Start:</b> {{.DrawDowns.LongestDrawdown.Highest.Price }} <b>End:</b> {{.DrawDowns.LongestDrawdown.Lowest.Price }} <b>Drop:</b> {{printf "%.2f" .DrawDowns.LongestDrawdown.CalculatedDrawDown}}</td>
+										<td><b>Start:</b> {{.DrawDowns.LongestDrawDown.Highest.Time }} <b>End:</b> {{.DrawDowns.LongestDrawDown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" .DrawDowns.LongestDrawDown.DrawdownPercent}}%</td>
 									</tr>
                                 {{ end }}
 								<tr>

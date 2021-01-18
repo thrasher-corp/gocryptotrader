@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -50,15 +51,17 @@ func (s *Strategy) SupportsMultiCurrency() bool {
 // For dollarcostaverage, the strategy is always "buy", so it uses the OnSignal function
 func (s *Strategy) OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.Event, error) {
 	var resp []signal.Event
+	var errs gctcommon.Errors
 	for i := range d {
 		sigEvent, err := s.OnSignal(d[i], nil)
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
+		} else {
+			resp = append(resp, sigEvent)
 		}
-		resp = append(resp, sigEvent)
 	}
 
-	return resp, nil
+	return resp, errs
 }
 
 // SetCustomSettings not required for DCA

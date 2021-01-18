@@ -185,17 +185,18 @@ func (p *Portfolio) OnFill(fillEvent fill.Event) (*fill.Fill, error) {
 	}
 	var err error
 	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
-	h := lookup.GetLatestHoldings()
-	if !h.Timestamp.Equal(fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration())) && !h.Timestamp.IsZero() {
-		log.Warnf(log.BackTester, "hey, there isn't a matching event. Expected %v, Received %v, please ensure data is correct. %v", fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()), h.Timestamp, fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()).Unix())
-	}
-
+	h := lookup.GetHoldingsForTime(fillEvent.GetTime().Add(-fillEvent.GetInterval().Duration()))
 	if !h.Timestamp.IsZero() {
 		h.Update(fillEvent)
 	} else {
-		h, err = holdings.Create(fillEvent, lookup.InitialFunds, p.riskFreeRate)
-		if err != nil {
-			return nil, err
+		h = lookup.GetLatestHoldings()
+		if !h.Timestamp.IsZero() {
+			h.Update(fillEvent)
+		} else {
+			h, err = holdings.Create(fillEvent, lookup.InitialFunds, p.riskFreeRate)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	err = p.setHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), h, true)

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -658,13 +659,13 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 		}
 		signals, err := bt.Strategy.OnSignals(dataEvents, bt.Portfolio)
 		if err != nil {
-			for i := range signals {
-				err = bt.Statistic.AddSignalEventForTime(signals[i])
-				if err != nil {
-					log.Error(log.BackTester, err)
-				}
+			log.Error(log.BackTester, err)
+		}
+		for i := range signals {
+			err = bt.Statistic.AddSignalEventForTime(signals[i])
+			if err != nil {
+				log.Error(log.BackTester, err)
 			}
-			return
 		}
 		for i := range signals {
 			bt.EventQueue.AppendEvent(signals[i])
@@ -675,11 +676,12 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 
 		s, err := bt.Strategy.OnSignal(d, bt.Portfolio)
 		if err != nil {
-			err = bt.Statistic.AddSignalEventForTime(s)
-			if err != nil {
-				log.Error(log.BackTester, err)
-			}
+			log.Error(log.BackTester, err)
 			return
+		}
+		err = bt.Statistic.AddSignalEventForTime(s)
+		if err != nil {
+			log.Error(log.BackTester, err)
 		}
 		bt.EventQueue.AppendEvent(s)
 	}
@@ -705,11 +707,11 @@ func (bt *BackTest) processSignalEvent(ev signal.Event) {
 	o, err := bt.Portfolio.OnSignal(ev, &cs)
 	if err != nil {
 		log.Error(log.BackTester, err)
-		err = bt.Statistic.AddOrderEventForTime(o)
-		if err != nil {
-			log.Error(log.BackTester, err)
-		}
 		return
+	}
+	err = bt.Statistic.AddOrderEventForTime(o)
+	if err != nil {
+		log.Error(log.BackTester, err)
 	}
 
 	bt.EventQueue.AppendEvent(o)
@@ -724,11 +726,10 @@ func (bt *BackTest) processOrderEvent(ev order.Event) {
 			return
 		}
 		log.Errorf(log.BackTester, "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
-		err = bt.Statistic.AddFillEventForTime(f)
-		if err != nil {
-			log.Error(log.BackTester, err)
-		}
-		return
+	}
+	err = bt.Statistic.AddFillEventForTime(f)
+	if err != nil {
+		log.Error(log.BackTester, err)
 	}
 	bt.EventQueue.AppendEvent(f)
 }
@@ -737,28 +738,29 @@ func (bt *BackTest) processFillEvent(ev fill.Event) {
 	t, err := bt.Portfolio.OnFill(ev)
 	if err != nil {
 		log.Error(log.BackTester, err)
-		err = bt.Statistic.AddFillEventForTime(t)
-		if err != nil {
-			log.Error(log.BackTester, err)
-		}
 		return
 	}
-	holding, _ := bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
+
+	err = bt.Statistic.AddFillEventForTime(t)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
+
+	var holding holdings.Holding
+	holding, err = bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
 	err = bt.Statistic.AddHoldingsForTime(holding)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
+
 	var cp *compliance.Manager
 	cp, err = bt.Portfolio.GetComplianceManager(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
+
 	snap := cp.GetLatestSnapshot()
 	err = bt.Statistic.AddComplianceSnapshotForTime(snap, ev)
-	if err != nil {
-		log.Error(log.BackTester, err)
-	}
-	err = bt.Statistic.AddFillEventForTime(t)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
