@@ -746,7 +746,7 @@ func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 		return ErrGetOrdersRequestIsNil
 	}
 	if !g.AssetType.IsValid() {
-		return fmt.Errorf("assetType cannot be empty")
+		return fmt.Errorf("assetType %v not supported", g.AssetType)
 	}
 	var errs common.Errors
 	for _, o := range opt {

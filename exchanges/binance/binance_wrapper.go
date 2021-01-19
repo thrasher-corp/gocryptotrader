@@ -1076,12 +1076,12 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 			ExecutedAmount: resp.ExecutedQty,
 		}, nil
 	case asset.CoinMarginedFutures:
-		orderData, err := b.GetAllFuturesOrders(currency.Pair{}, "", time.Time{}, time.Time{}, orderIDInt, 0)
+		orderData, err := b.GetAllFuturesOrders(pair, "", time.Time{}, time.Time{}, orderIDInt, 0)
 		if err != nil {
 			return respData, err
 		}
 		if len(orderData) != 1 {
-			return respData, fmt.Errorf("invalid data received")
+			return respData, fmt.Errorf("no orders received")
 		}
 		p, err := currency.NewPairFromString(orderData[0].Pair)
 		if err != nil {

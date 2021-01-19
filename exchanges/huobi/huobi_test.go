@@ -1641,7 +1641,20 @@ func TestGetCurrencies(t *testing.T) {
 	}
 }
 
+func TestGet24HrMarketSummary(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("ethusdt")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = h.Get24HrMarketSummary(cp)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetTicker(t *testing.T) {
+	t.Parallel()
 	_, err := h.GetTickers()
 	if err != nil {
 		t.Error(err)

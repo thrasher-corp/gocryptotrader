@@ -547,7 +547,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -564,6 +565,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Type: order.AnyType,
 		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)

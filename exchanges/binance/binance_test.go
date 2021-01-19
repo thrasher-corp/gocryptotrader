@@ -903,8 +903,8 @@ func TestAutoCancelAllOpenOrders(t *testing.T) {
 
 func TestFuturesOpenOrderData(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
 	}
 	_, err := b.FuturesOpenOrderData(currency.NewPair(currency.BTC, currency.USDT), "", "")
 	if err != nil {
@@ -990,8 +990,8 @@ func TestModifyIsolatedPositionMargin(t *testing.T) {
 
 func TestFuturesMarginChangeHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
 	}
 	_, err := b.FuturesMarginChangeHistory(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "add", time.Time{}, time.Time{}, 10)
 	if err != nil {
@@ -1837,10 +1837,22 @@ func TestCancelOrder(t *testing.T) {
 }
 
 func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.GetOrderInfo("123", currency.Pair{}, asset.CoinMarginedFutures)
+	tradablePairs, err := b.FetchTradablePairs(asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(tradablePairs) == 0 {
+		t.Error("no tradable pairs")
+	}
+	cp, err := currency.NewPairFromString(tradablePairs[0])
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetOrderInfo("123", cp, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1848,7 +1860,6 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() error cannot be nil")

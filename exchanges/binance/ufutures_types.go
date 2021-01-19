@@ -320,7 +320,7 @@ type UPositionMarginChangeHistoryData struct {
 type UPositionInformationV2 struct {
 	EntryPrice           float64 `json:"entryPrice,string"`
 	MarginType           string  `json:"marginType"`
-	AutoAddMarginEnabled bool    `json:"isAutoAddMargin"`
+	AutoAddMarginEnabled bool    `json:"isAutoAddMargin,string"`
 	IsolatedMargin       float64 `json:"isolatedMargin,string"`
 	Leverage             float64 `json:"leverage,string"`
 	LiquidationPrice     float64 `json:"liquidationPrice,string"`

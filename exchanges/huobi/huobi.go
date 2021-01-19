@@ -30,6 +30,7 @@ const (
 	huobiMarketHistoryKline    = "market/history/kline"
 	huobiMarketDetail          = "market/detail"
 	huobiMarketDetailMerged    = "market/detail/merged"
+	huobi24HrMarketSummary     = "/market/detail?"
 	huobiMarketDepth           = "market/depth"
 	huobiMarketTrade           = "market/trade"
 	huobiMarketTickers         = "market/tickers"
@@ -116,6 +117,18 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Data, err
+}
+
+// Get24HrMarketSummary returns 24hr market summary for a given market symbol
+func (h *HUOBI) Get24HrMarketSummary(symbol currency.Pair) (MarketSummary24Hr, error) {
+	var result MarketSummary24Hr
+	params := url.Values{}
+	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
+	if err != nil {
+		return result, err
+	}
+	params.Set("symbol", symbolValue)
+	return result, h.SendHTTPRequest(exchange.RestSpot, huobi24HrMarketSummary+params.Encode(), &result)
 }
 
 // GetTickers returns the ticker for the specified symbol

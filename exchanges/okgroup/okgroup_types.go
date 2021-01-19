@@ -27,18 +27,12 @@ type TradingPairData struct {
 
 // MarginCurrencyData stores currency data for margin trading
 type MarginCurrencyData []struct {
-	Base struct {
+	Data map[string]struct {
 		Available     float64 `json:"available,string"`
 		Leverage      float64 `json:"leverage,string"`
 		LeverageRatio float64 `json:"leverage_ratio,string"`
 		Rate          float64 `json:"rate,string"`
-	} `json:"currency:BTC"`
-	Quote struct {
-		Available     float64 `json:"available,string"`
-		Leverage      float64 `json:"leverage,string"`
-		LeverageRatio float64 `json:"leverage_ratio,string"`
-		Rate          float64 `json:"rate,string"`
-	} `json:"currency:USDT"`
+	}
 	InstrumentID string `json:"instrument_id"`
 	ProductID    string `json:"product_id"`
 }

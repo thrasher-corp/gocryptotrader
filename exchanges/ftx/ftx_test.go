@@ -826,6 +826,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var orderReq order.GetOrdersRequest
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
+	orderReq.AssetType = asset.Spot
 	_, err := f.GetActiveOrders(&orderReq)
 	if err != nil {
 		t.Fatal(err)

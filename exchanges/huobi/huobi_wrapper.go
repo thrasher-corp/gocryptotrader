@@ -427,29 +427,22 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 	}
 	switch assetType {
 	case asset.Spot:
-		tickers, err := h.GetTickers()
+		tickerData, err := h.Get24HrMarketSummary(p)
 		if err != nil {
 			return nil, err
 		}
-		fmtPair, err := h.FormatExchangeCurrency(p, asset.Spot)
+		err = ticker.ProcessTicker(&ticker.Price{
+			High:         tickerData.Tick.High,
+			Low:          tickerData.Tick.Low,
+			Volume:       tickerData.Tick.Volume,
+			Open:         tickerData.Tick.Open,
+			Close:        tickerData.Tick.Close,
+			Pair:         p,
+			ExchangeName: h.Name,
+			AssetType:    asset.Spot,
+		})
 		if err != nil {
 			return nil, err
-		}
-		for x := range tickers.Data {
-			if tickers.Data[x].Symbol == fmtPair.String() {
-				err = ticker.ProcessTicker(&ticker.Price{
-					High:         tickers.Data[x].High,
-					Low:          tickers.Data[x].Low,
-					Volume:       tickers.Data[x].Volume,
-					Open:         tickers.Data[x].Open,
-					Close:        tickers.Data[x].Close,
-					Pair:         p,
-					ExchangeName: h.Name,
-					AssetType:    assetType})
-				if err != nil {
-					return nil, err
-				}
-			}
 		}
 	case asset.CoinMarginedFutures:
 		marketData, err := h.GetSwapMarketOverview(p)
@@ -984,7 +977,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 					cancelAllOrdersResponse.Status[split[x]] = "success"
 				}
 				for y := range a.Errors {
-					cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail"
+					cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = fmt.Sprintf("fail: %s", a.Errors[y].ErrMsg)
 				}
 			}
 		} else {
@@ -1016,7 +1009,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 					cancelAllOrdersResponse.Status[split[x]] = "success"
 				}
 				for y := range a.Data.Errors {
-					cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail"
+					cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = fmt.Sprintf("fail: %s", a.Data.Errors[y].ErrMsg)
 				}
 			}
 		} else {

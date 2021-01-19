@@ -916,8 +916,8 @@ func (b *Binance) UPositionMarginChangeHistory(symbol currency.Pair, changeType 
 }
 
 // UPositionsInfoV2 gets positions' info for USDTMarginedFutures
-func (b *Binance) UPositionsInfoV2(symbol currency.Pair) ([]UChangeInitialLeverage, error) {
-	var resp []UChangeInitialLeverage
+func (b *Binance) UPositionsInfoV2(symbol currency.Pair) ([]UPositionInformationV2, error) {
+	var resp []UPositionInformationV2
 	params := url.Values{}
 	if symbol != (currency.Pair{}) {
 		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)

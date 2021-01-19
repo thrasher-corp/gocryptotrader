@@ -403,51 +403,51 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	if err != nil {
 		return o, err
 	}
-	switch assetType {
-	case asset.Spot, asset.Margin, asset.MarginFunding:
-		b.appendOptionalDelimiter(&fPair)
-		var prefix = "t"
-		if assetType == asset.MarginFunding {
-			prefix = "f"
+	if assetType != asset.Spot && assetType != asset.Margin && assetType != asset.MarginFunding {
+		return o, fmt.Errorf("assetType not supported: %v", assetType)
+	}
+	b.appendOptionalDelimiter(&fPair)
+	var prefix = "t"
+	if assetType == asset.MarginFunding {
+		prefix = "f"
+	}
+	var orderbookNew Orderbook
+	orderbookNew, err = b.GetOrderbook(prefix+fPair.String(), "R0", 100)
+	if err != nil {
+		return nil, err
+	}
+	if assetType == asset.MarginFunding {
+		o.IsFundingRate = true
+		for x := range orderbookNew.Asks {
+			o.Asks = append(o.Asks, orderbook.Item{
+				ID:     orderbookNew.Asks[x].OrderID,
+				Price:  orderbookNew.Asks[x].Rate,
+				Amount: orderbookNew.Asks[x].Amount,
+				Period: int64(orderbookNew.Asks[x].Period),
+			})
 		}
-		var orderbookNew Orderbook
-		orderbookNew, err = b.GetOrderbook(prefix+fPair.String(), "R0", 100)
-		if err != nil {
-			return nil, err
+		for x := range orderbookNew.Bids {
+			o.Bids = append(o.Bids, orderbook.Item{
+				ID:     orderbookNew.Bids[x].OrderID,
+				Price:  orderbookNew.Bids[x].Rate,
+				Amount: orderbookNew.Bids[x].Amount,
+				Period: int64(orderbookNew.Bids[x].Period),
+			})
 		}
-		if assetType == asset.MarginFunding {
-			o.IsFundingRate = true
-			for x := range orderbookNew.Asks {
-				o.Asks = append(o.Asks, orderbook.Item{
-					ID:     orderbookNew.Asks[x].OrderID,
-					Price:  orderbookNew.Asks[x].Rate,
-					Amount: orderbookNew.Asks[x].Amount,
-					Period: int64(orderbookNew.Asks[x].Period),
-				})
-			}
-			for x := range orderbookNew.Bids {
-				o.Bids = append(o.Bids, orderbook.Item{
-					ID:     orderbookNew.Bids[x].OrderID,
-					Price:  orderbookNew.Bids[x].Rate,
-					Amount: orderbookNew.Bids[x].Amount,
-					Period: int64(orderbookNew.Bids[x].Period),
-				})
-			}
-		} else {
-			for x := range orderbookNew.Asks {
-				o.Asks = append(o.Asks, orderbook.Item{
-					ID:     orderbookNew.Asks[x].OrderID,
-					Price:  orderbookNew.Asks[x].Price,
-					Amount: orderbookNew.Asks[x].Amount,
-				})
-			}
-			for x := range orderbookNew.Bids {
-				o.Bids = append(o.Bids, orderbook.Item{
-					ID:     orderbookNew.Bids[x].OrderID,
-					Price:  orderbookNew.Bids[x].Price,
-					Amount: orderbookNew.Bids[x].Amount,
-				})
-			}
+	} else {
+		for x := range orderbookNew.Asks {
+			o.Asks = append(o.Asks, orderbook.Item{
+				ID:     orderbookNew.Asks[x].OrderID,
+				Price:  orderbookNew.Asks[x].Price,
+				Amount: orderbookNew.Asks[x].Amount,
+			})
+		}
+		for x := range orderbookNew.Bids {
+			o.Bids = append(o.Bids, orderbook.Item{
+				ID:     orderbookNew.Bids[x].OrderID,
+				Price:  orderbookNew.Bids[x].Price,
+				Amount: orderbookNew.Bids[x].Amount,
+			})
 		}
 	}
 	err = o.Process()

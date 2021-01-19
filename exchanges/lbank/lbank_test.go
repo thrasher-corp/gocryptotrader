@@ -400,6 +400,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 	var input order.GetOrdersRequest
 	input.Side = order.Buy
+	input.AssetType = asset.Spot
 	_, err := l.GetOrderHistory(&input)
 	if err != nil {
 		t.Error(err)

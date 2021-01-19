@@ -12,6 +12,21 @@ type errorCapture struct {
 	Timestamp int64  `json:"ts"`
 }
 
+// MarketSummary24Hr stores past 24hr market summary data of a given symbol
+type MarketSummary24Hr struct {
+	Tick struct {
+		Amount  float64 `json:"amount"`
+		Open    float64 `json:"open"`
+		Close   float64 `json:"close"`
+		High    float64 `json:"high"`
+		ID      int64   `json:"id"`
+		Count   float64 `json:"count"`
+		Low     float64 `json:"low"`
+		Version int64   `json:"version"`
+		Volume  float64 `json:"vol"`
+	}
+}
+
 // WsKlineData stores kline data for futures and swap websocket
 type WsKlineData struct {
 	Channel   string `json:"ch"`

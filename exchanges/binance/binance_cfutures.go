@@ -1182,7 +1182,7 @@ func (b *Binance) GetAllFuturesOrders(symbol currency.Pair, pair string, startTi
 // GetFuturesAccountBalance gets account balance data for CoinMarginedFutures, account
 func (b *Binance) GetFuturesAccountBalance() ([]FuturesAccountBalanceData, error) {
 	var resp []FuturesAccountBalanceData
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAPIURL+cfuturesAccountBalance, nil, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesAccountBalance, nil, limitDefault, &resp)
 }
 
 // GetFuturesAccountInfo gets account info data for CoinMarginedFutures, account

@@ -393,7 +393,8 @@ func TestGetActiveOrders(t *testing.T) {
 				Quote:     currency.USD,
 			},
 		},
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -408,7 +409,8 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Skip("API keys not set, skipping test")
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 	_, err := b.GetOrderHistory(&getOrdersRequest)
 	if err != nil {
