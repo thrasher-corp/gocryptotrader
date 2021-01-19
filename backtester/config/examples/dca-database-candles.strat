@@ -38,8 +38,8 @@
   "interval": 86400000000000,
   "data-type": "candle",
   "database-data": {
-   "start-date": "2021-01-11T10:30:42.9281867+11:00",
-   "end-date": "2021-01-18T10:30:42.9281867+11:00",
+   "start-date": "2021-01-12T14:03:23.8578486+11:00",
+   "end-date": "2021-01-19T14:03:23.8578486+11:00",
    "config-override": {
     "enabled": true,
     "verbose": false,

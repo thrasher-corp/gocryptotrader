@@ -20,7 +20,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Eventhandlers package overview
 
-
+The dollar cost average is a strategy which is designed to purchase on _every_ data candle. Unless data is missing, all output signals will be to buy.
+This strategy supports multi currency consideration, aka `config.StrategySettings.IsMultiCurrency` set to true will use the function `OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.Event, error)`. This function, like the basic `OnSignal` function, will signal to buy on every iteration.
+This strategy does not support customisation
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

@@ -20,8 +20,16 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Eventhandlers package overview
 
+Strategies are programmed instruction sets which act upon pricing data. After data has been loaded into the GoCryptoTrader, each tick is passed through your loaded strategy and is analysed in either the `OnSignal` function or the `OnSignals` function.
 
+### Creating strategies
+The level customisation allowed in a strategy is extensive. They are required to be written in Golang.
+The strategy must adhere to the interface `strategies.Handler` by implementing the function signature `OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error)`. The `data.Handler` allows you to access the current pricing information as well as all previous intervals. You can use this to feed any Technical Analysis package to create strategies based on market movements such as RSI (see `./strategies/rsi/rsi.go`). I also has access to the portfolio which allows analysis of existing holdings value, current orders and positions of other currencies in order to make complex decisions.
+When outputting the `signal.Event`, you are not dictating the price of an order, but rather signalling to the portfolio manager what ideally should occur. These options are to buy, sell or do nothing. Additional signals are to flag missing data, handled via checking `d.HasDataAtTime(d.Latest().GetTime()` to prevent any issues from occurring down the line.
+Additionally, you can utilise the `AppendWhy()` function to help understand what went into make a signalling decision when reviewing the results.
 
+### Loading strategies
+Each strategy has a unique name and is to be added to the function `getStrategies()` in order to be recognised.
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 
