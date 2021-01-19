@@ -120,7 +120,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 	return p.evaluateOrder(signal, o, sizedOrder)
 }
 
-func (p *Portfolio) evaluateOrder(signal signal.Event, originalOrderSignal *order.Order, sizedOrder *order.Order) (*order.Order, error) {
+func (p *Portfolio) evaluateOrder(signal signal.Event, originalOrderSignal, sizedOrder *order.Order) (*order.Order, error) {
 	var evaluatedOrder *order.Order
 	cm, err := p.GetComplianceManager(originalOrderSignal.GetExchange(), originalOrderSignal.GetAssetType(), originalOrderSignal.Pair())
 	if err != nil {
@@ -130,11 +130,12 @@ func (p *Portfolio) evaluateOrder(signal signal.Event, originalOrderSignal *orde
 	evaluatedOrder, err = p.riskManager.EvaluateOrder(sizedOrder, p.GetLatestHoldingsForAllCurrencies(), cm.GetLatestSnapshot())
 	if err != nil {
 		originalOrderSignal.AppendWhy(err.Error())
-		if signal.GetDirection() == gctorder.Buy {
+		switch signal.GetDirection() {
+		case gctorder.Buy:
 			originalOrderSignal.Direction = common.CouldNotBuy
-		} else if signal.GetDirection() == gctorder.Sell {
+		case gctorder.Sell:
 			originalOrderSignal.Direction = common.CouldNotSell
-		} else {
+		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}
 		signal.SetDirection(originalOrderSignal.Direction)
@@ -148,11 +149,12 @@ func (p *Portfolio) sizeOrder(signal signal.Event, cs *exchange.Settings, origin
 	sizedOrder, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil {
 		originalOrderSignal.AppendWhy(err.Error())
-		if originalOrderSignal.Direction == gctorder.Buy {
+		switch originalOrderSignal.Direction {
+		case gctorder.Buy:
 			originalOrderSignal.Direction = common.CouldNotBuy
-		} else if originalOrderSignal.Direction == gctorder.Sell {
+		case gctorder.Sell:
 			originalOrderSignal.Direction = common.CouldNotSell
-		} else {
+		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}
 		signal.SetDirection(originalOrderSignal.Direction)
@@ -160,11 +162,12 @@ func (p *Portfolio) sizeOrder(signal signal.Event, cs *exchange.Settings, origin
 	}
 
 	if sizedOrder.Amount == 0 {
-		if originalOrderSignal.Direction == gctorder.Buy {
+		switch originalOrderSignal.Direction {
+		case gctorder.Buy:
 			originalOrderSignal.Direction = common.CouldNotBuy
-		} else if originalOrderSignal.Direction == gctorder.Sell {
+		case gctorder.Sell:
 			originalOrderSignal.Direction = common.CouldNotSell
-		} else {
+		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}
 		signal.SetDirection(originalOrderSignal.Direction)
@@ -199,7 +202,7 @@ func (p *Portfolio) OnFill(fillEvent fill.Event) (*fill.Fill, error) {
 			}
 		}
 	}
-	err = p.setHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), h, true)
+	err = p.setHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), &h, true)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -298,7 +301,7 @@ func (p *Portfolio) Update(d common.DataEventHandler) error {
 		return nil
 	}
 	h.UpdateValue(d)
-	err := p.setHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), h, true)
+	err := p.setHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), &h, true)
 	if err != nil {
 		return err
 	}
@@ -341,7 +344,7 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 	return resp
 }
 
-func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h holdings.Holding, force bool) error {
+func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h *holdings.Holding, force bool) error {
 	if h.Timestamp.IsZero() {
 		return errors.New("holding with unset timestamp received")
 	}
@@ -358,11 +361,11 @@ func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h h
 			if !force {
 				return fmt.Errorf("holdings for %v %v %v at %v already set", exch, a, cp, h.Timestamp)
 			}
-			lookup.HoldingsSnapshots.Holdings[i] = h
+			lookup.HoldingsSnapshots.Holdings[i] = *h
 			return nil
 		}
 	}
-	lookup.HoldingsSnapshots.Holdings = append(lookup.HoldingsSnapshots.Holdings, h)
+	lookup.HoldingsSnapshots.Holdings = append(lookup.HoldingsSnapshots.Holdings, *h)
 	p.exchangeAssetPairSettings[exch][a][cp] = lookup
 	return nil
 }

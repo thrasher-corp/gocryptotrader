@@ -244,12 +244,12 @@ func TestAddHoldingsForTime(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
 
-	err := s.AddHoldingsForTime(holdings.Holding{})
+	err := s.AddHoldingsForTime(&holdings.Holding{})
 	if err != nil && err.Error() != "ExchangeAssetPairStatistics not setup" {
 		t.Error(err)
 	}
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	err = s.AddHoldingsForTime(holdings.Holding{})
+	err = s.AddHoldingsForTime(&holdings.Holding{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
 	}
@@ -271,7 +271,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.AddHoldingsForTime(holdings.Holding{
+	err = s.AddHoldingsForTime(&holdings.Holding{
 		Pair:                         p,
 		Asset:                        a,
 		Exchange:                     exch,
@@ -609,6 +609,10 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   1338,
 		Volume: 1338,
 	})
+	if err != nil {
+		t.Error(err)
+	}
+
 	err = s.AddSignalEventForTime(&signal.Signal{
 		Event: event.Event{
 			Exchange:     exch,

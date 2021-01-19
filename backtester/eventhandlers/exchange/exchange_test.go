@@ -31,11 +31,11 @@ func TestReset(t *testing.T) {
 
 func TestSetCurrency(t *testing.T) {
 	e := Exchange{}
-	e.SetCurrency("", "", currency.Pair{}, Settings{})
+	e.SetCurrency("", "", currency.Pair{}, &Settings{})
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
-	cs := Settings{
+	cs := &Settings{
 		ExchangeName:        testExchange,
 		UseRealOrders:       false,
 		InitialFunds:        1337,
@@ -105,11 +105,11 @@ func TestSizeOrder(t *testing.T) {
 		ClosePrice: 1337,
 		Amount:     1,
 	}
-	var p, a float64
-	p, a, err = e.sizeOrder(0, 0, 0, cs, f)
+	_, _, err = e.sizeOrder(0, 0, 0, cs, f)
 	if err != nil && err.Error() != "amount set to 0, data may be incorrect" {
 		t.Error(err)
 	}
+	var p, a float64
 	p, a, err = e.sizeOrder(10, 2, 10, cs, f)
 	if err != nil && err.Error() != "amount set to 0, data may be incorrect" {
 		t.Error(err)

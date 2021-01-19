@@ -58,10 +58,11 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		slippageRate := slippage.CalculateSlippage(nil)
 		adjustedPrice = f.ClosePrice * slippageRate
 		amount = f.Amount
-	}
-	adjustedPrice, amount, err = e.sizeOrder(high, low, volume, &cs, f)
-	if err != nil {
-		return f, err
+	} else {
+		adjustedPrice, amount, err = e.sizeOrder(high, low, volume, &cs, f)
+		if err != nil {
+			return f, err
+		}
 	}
 
 	var orderID string
@@ -88,7 +89,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	return f, nil
 }
 
-func (e *Exchange) placeOrder(price float64, amount float64, useRealOrders bool, f *fill.Fill, bot *engine.Engine) (string, error) {
+func (e *Exchange) placeOrder(price, amount float64, useRealOrders bool, f *fill.Fill, bot *engine.Engine) (string, error) {
 	if f == nil {
 		return "", errors.New("received nil event")
 	}
@@ -139,13 +140,12 @@ func (e *Exchange) placeOrder(price float64, amount float64, useRealOrders bool,
 	return orderID, nil
 }
 
-func (e *Exchange) sizeOrder(high, low, volume float64, cs *Settings, f *fill.Fill) (adjustedPrice float64, adjustedAmount float64, err error) {
+func (e *Exchange) sizeOrder(high, low, volume float64, cs *Settings, f *fill.Fill) (adjustedPrice, adjustedAmount float64, err error) {
 	if cs == nil || f == nil {
 		return 0, 0, errors.New("received nil arguments")
 	}
-	var slippageRate float64
-	// provide n history and estimate volatility
-	slippageRate = slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
+	// provide history and estimate volatility
+	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
 	if adjustedAmount <= 0 {
 		return 0, 0, fmt.Errorf("amount set to 0, data may be incorrect")
@@ -198,7 +198,7 @@ func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pa
 	return Settings{}, fmt.Errorf("no currency settings found for %v %v %v", exch, a, cp)
 }
 
-func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (adjustedPrice float64, adjustedAmount float64) {
+func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) (adjustedPrice, adjustedAmount float64) {
 	adjustedPrice = slippagePrice
 	if adjustedPrice < low {
 		adjustedPrice = low

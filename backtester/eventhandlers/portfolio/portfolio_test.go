@@ -49,7 +49,7 @@ func TestSetup(t *testing.T) {
 	if err != nil && err.Error() != "received nil risk handler" {
 		t.Error(err)
 	}
-	p := &Portfolio{}
+	var p *Portfolio
 	p, err = Setup(&size.Size{}, &risk.Risk{}, 1)
 	if err != nil {
 		t.Error(err)
@@ -85,28 +85,28 @@ func TestSetupCurrencySettingsMap(t *testing.T) {
 func TestSetHoldings(t *testing.T) {
 	p := &Portfolio{}
 
-	err := p.setHoldings("", "", currency.Pair{}, holdings.Holding{}, false)
+	err := p.setHoldings("", "", currency.Pair{}, &holdings.Holding{}, false)
 	if err != nil && !strings.Contains(err.Error(), "holding with unset timestamp received") {
 		t.Error(err)
 	}
 	tt := time.Now()
 
-	err = p.setHoldings("", "", currency.Pair{}, holdings.Holding{Timestamp: tt}, false)
+	err = p.setHoldings("", "", currency.Pair{}, &holdings.Holding{Timestamp: tt}, false)
 	if err != nil && !strings.Contains(err.Error(), "received empty exchange name") {
 		t.Error(err)
 	}
 
-	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, false)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt}, false)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, false)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt}, false)
 	if err != nil && !strings.Contains(err.Error(), "holdings for binance spot BTCUSD at") {
 		t.Error(err)
 	}
 
-	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt}, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -119,15 +119,15 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 		t.Error("expected 0")
 	}
 	tt := time.Now()
-	err := p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, true)
+	err := p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt}, true)
 	if err != nil {
 		t.Error(err)
 	}
-	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), holdings.Holding{Timestamp: tt}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), &holdings.Holding{Timestamp: tt}, true)
 	if err != nil {
 		t.Error(err)
 	}
-	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), holdings.Holding{Timestamp: tt.Add(time.Minute)}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), &holdings.Holding{Timestamp: tt.Add(time.Minute)}, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -168,8 +168,14 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt}, true)
-	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt.Add(time.Hour)}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt}, true)
+	if err != nil {
+		t.Error(err)
+	}
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt.Add(time.Hour)}, true)
+	if err != nil {
+		t.Error(err)
+	}
 	_, err = p.ViewHoldingAtTimePeriod(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), tt)
 	if err != nil && !strings.Contains(err.Error(), "no holdings found for") {
 		t.Error(err)
@@ -209,7 +215,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	tt := time.Now()
-	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: tt, PositionsSize: 1337}, true)
+	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt, PositionsSize: 1337}, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -319,7 +325,7 @@ func TestOnFill(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "no currency settings found for") {
 		t.Error(err)
 	}
-	s := &settings.Settings{}
+	var s *settings.Settings
 	s, err = p.SetupCurrencySettingsMap("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
 	if err != nil {
 		t.Error(err)
@@ -373,7 +379,6 @@ func TestOnSignal(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "no portfolio settings for") {
 		t.Error(err)
 	}
-	//set := &settings.Settings{}
 	_, err = p.SetupCurrencySettingsMap("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
 	if err != nil {
 		t.Error(err)
@@ -386,7 +391,7 @@ func TestOnSignal(t *testing.T) {
 		},
 		Direction: gctorder.Buy,
 	}
-	resp := &order.Order{}
+	var resp *order.Order
 	resp, err = p.OnSignal(s, &exchange.Settings{})
 	if err != nil {
 		t.Error(err)
@@ -411,7 +416,7 @@ func TestOnSignal(t *testing.T) {
 	}
 
 	s.Direction = gctorder.Buy
-	err = p.setHoldings("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), holdings.Holding{Timestamp: time.Now(), RemainingFunds: 1337}, true)
+	err = p.setHoldings("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: time.Now(), RemainingFunds: 1337}, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -428,5 +433,8 @@ func TestOnSignal(t *testing.T) {
 	resp, err = p.OnSignal(s, &exchange.Settings{})
 	if err != nil {
 		t.Error(err)
+	}
+	if resp.Amount == 0 {
+		t.Error("expected an amount to be sized")
 	}
 }

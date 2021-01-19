@@ -107,7 +107,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] == nil {
 			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[currency.Pair]*risk.CurrencySettings)
 		}
-		a, err := asset.New(cfg.CurrencySettings[i].Asset)
+		var a asset.Item
+		a, err = asset.New(cfg.CurrencySettings[i].Asset)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"invalid asset in config for %v %v %v. Err %v",
@@ -119,7 +120,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] == nil {
 			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] = make(map[currency.Pair]*risk.CurrencySettings)
 		}
-		curr, err := currency.NewPairFromString(cfg.CurrencySettings[i].Base + cfg.CurrencySettings[i].Quote)
+		var curr currency.Pair
+		curr, err = currency.NewPairFromString(cfg.CurrencySettings[i].Base + cfg.CurrencySettings[i].Quote)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"invalid currency in config for %v %v %v. Err %v",
@@ -748,7 +750,11 @@ func (bt *BackTest) processFillEvent(ev fill.Event) {
 
 	var holding holdings.Holding
 	holding, err = bt.Portfolio.ViewHoldingAtTimePeriod(ev.GetExchange(), ev.GetAssetType(), ev.Pair(), ev.GetTime())
-	err = bt.Statistic.AddHoldingsForTime(holding)
+	if err != nil {
+		log.Error(log.BackTester, err)
+	}
+
+	err = bt.Statistic.AddHoldingsForTime(&holding)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}

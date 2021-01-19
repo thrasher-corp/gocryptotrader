@@ -28,7 +28,8 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 			return nil, err
 		}
 		// check size against portfolio specific settings
-		portfolioSize, err := s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, s.BuySide)
+		var portfolioSize float64
+		portfolioSize, err = s.calculateBuySize(retOrder.Price, amountAvailable, cs.ExchangeFee, s.BuySide)
 		if err != nil {
 			return nil, err
 		}

@@ -79,9 +79,7 @@ func TestNewFromConfig(t *testing.T) {
 		t.Error(err)
 	}
 
-	cfg.APIData = &config.APIData{
-		DataType:  "",
-		Interval:  0,
+	cfg.DataSettings.APIData = &config.APIData{
 		StartDate: time.Time{},
 		EndDate:   time.Time{},
 	}
@@ -91,20 +89,20 @@ func TestNewFromConfig(t *testing.T) {
 		t.Error(err)
 	}
 
-	cfg.APIData.StartDate = time.Now().Add(-time.Hour)
-	cfg.APIData.EndDate = time.Now()
+	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
+	cfg.DataSettings.APIData.EndDate = time.Now()
 	_, err = NewFromConfig(cfg, "", "")
 	if err != nil && err.Error() != "api data interval unset" {
 		t.Error(err)
 	}
 
-	cfg.APIData.Interval = gctkline.FifteenMin.Duration()
+	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
 	_, err = NewFromConfig(cfg, "", "")
 	if err != nil && err.Error() != "unrecognised api datatype received: ''" {
 		t.Error(err)
 	}
 
-	cfg.APIData.DataType = common.CandleStr
+	cfg.DataSettings.DataType = common.CandleStr
 	_, err = NewFromConfig(cfg, "", "")
 	if err != nil && err.Error() != "strategy '' not found" {
 		t.Error(err)
@@ -139,16 +137,14 @@ func TestLoadData(t *testing.T) {
 	cfg.CurrencySettings[0].Base = "BTC"
 	cfg.CurrencySettings[0].Quote = "USDT"
 	cfg.CurrencySettings[0].InitialFunds = 1337
-	cfg.APIData = &config.APIData{
-		DataType:  "",
-		Interval:  0,
+	cfg.DataSettings.APIData = &config.APIData{
 		StartDate: time.Time{},
 		EndDate:   time.Time{},
 	}
-	cfg.APIData.StartDate = time.Now().Add(-time.Hour)
-	cfg.APIData.EndDate = time.Now()
-	cfg.APIData.Interval = gctkline.FifteenMin.Duration()
-	cfg.APIData.DataType = common.CandleStr
+	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
+	cfg.DataSettings.APIData.EndDate = time.Now()
+	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
+	cfg.DataSettings.DataType = common.CandleStr
 	cfg.StrategySettings = config.StrategySettings{
 		Name: dollarcostaverage.Name,
 		CustomSettings: map[string]interface{}{
@@ -205,34 +201,30 @@ func TestLoadData(t *testing.T) {
 		t.Error(err)
 	}
 
-	cfg.APIData = nil
-	cfg.DatabaseData = &config.DatabaseData{
-		DataType:       common.CandleStr,
-		Interval:       gctkline.FifteenMin.Duration(),
+	cfg.DataSettings.APIData = nil
+	cfg.DataSettings.DatabaseData = &config.DatabaseData{
 		StartDate:      time.Now().Add(-time.Hour),
 		EndDate:        time.Now(),
 		ConfigOverride: nil,
 	}
+	cfg.DataSettings.DataType = common.CandleStr
+	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
 	bt.Bot = bot
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil && err.Error() != "database support is disabled" {
 		t.Error(err)
 	}
 
-	cfg.DatabaseData = nil
-	cfg.CSVData = &config.CSVData{
-		DataType: common.CandleStr,
-		Interval: gctkline.FifteenMin.Duration(),
+	cfg.DataSettings.DatabaseData = nil
+	cfg.DataSettings.CSVData = &config.CSVData{
 		FullPath: "test",
 	}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil && !strings.Contains(err.Error(), "The system cannot find the file specified.") {
 		t.Error(err)
 	}
-	cfg.CSVData = nil
-	cfg.LiveData = &config.LiveData{
-		Interval:            gctkline.FifteenMin.Duration(),
-		DataType:            common.CandleStr,
+	cfg.DataSettings.CSVData = nil
+	cfg.DataSettings.LiveData = &config.LiveData{
 		APIKeyOverride:      "test",
 		APISecretOverride:   "test",
 		APIClientIDOverride: "test",
@@ -251,30 +243,32 @@ func TestLoadDatabaseData(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "nil config data received") {
 		t.Error(err)
 	}
-	cfg := &config.Config{DatabaseData: &config.DatabaseData{
-		DataType:       "",
-		Interval:       0,
-		StartDate:      time.Time{},
-		EndDate:        time.Time{},
-		ConfigOverride: nil,
-	}}
+	cfg := &config.Config{
+		DataSettings: config.DataSettings{
+			DatabaseData: &config.DatabaseData{
+				StartDate:      time.Time{},
+				EndDate:        time.Time{},
+				ConfigOverride: nil,
+			},
+		},
+	}
 	_, err = loadDatabaseData(cfg, "", cp, "")
 	if err != nil && !strings.Contains(err.Error(), "database data start and end dates must be set") {
 		t.Error(err)
 	}
-	cfg.DatabaseData.StartDate = time.Now().Add(-time.Hour)
-	cfg.DatabaseData.EndDate = time.Now()
+	cfg.DataSettings.DatabaseData.StartDate = time.Now().Add(-time.Hour)
+	cfg.DataSettings.DatabaseData.EndDate = time.Now()
 	_, err = loadDatabaseData(cfg, "", cp, "")
 	if err != nil && !strings.Contains(err.Error(), "unexpected database datatype: ''") {
 		t.Error(err)
 	}
 
-	cfg.DatabaseData.DataType = common.CandleStr
+	cfg.DataSettings.DataType = common.CandleStr
 	_, err = loadDatabaseData(cfg, "", cp, "")
 	if err != nil && !strings.Contains(err.Error(), "exchange, base, quote, asset, interval, start & end cannot be empty") {
 		t.Error(err)
 	}
-	cfg.DatabaseData.Interval = gctkline.OneDay.Duration()
+	cfg.DataSettings.Interval = gctkline.OneDay.Duration()
 	_, err = loadDatabaseData(cfg, testExchange, cp, asset.Spot)
 	if err != nil && !strings.Contains(err.Error(), "database support is disabled") {
 		t.Error(err)
@@ -329,20 +323,21 @@ func TestLoadLiveData(t *testing.T) {
 	if err != nil && err.Error() != "received nil argument(s)" {
 		t.Error(err)
 	}
-	cfg.LiveData = &config.LiveData{
-		Interval:   gctkline.OneDay.Duration(),
-		DataType:   common.CandleStr,
+	cfg.DataSettings.LiveData = &config.LiveData{
+
 		RealOrders: true,
 	}
+	cfg.DataSettings.Interval = gctkline.OneDay.Duration()
+	cfg.DataSettings.DataType = common.CandleStr
 	err = loadLiveData(cfg, b)
 	if err != nil {
 		t.Error(err)
 	}
 
-	cfg.LiveData.APIKeyOverride = "1234"
-	cfg.LiveData.APISecretOverride = "1234"
-	cfg.LiveData.APIClientIDOverride = "1234"
-	cfg.LiveData.API2FAOverride = "1234"
+	cfg.DataSettings.LiveData.APIKeyOverride = "1234"
+	cfg.DataSettings.LiveData.APISecretOverride = "1234"
+	cfg.DataSettings.LiveData.APIClientIDOverride = "1234"
+	cfg.DataSettings.LiveData.API2FAOverride = "1234"
 	err = loadLiveData(cfg, b)
 	if err != nil {
 		t.Error(err)

@@ -28,9 +28,7 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 		}
 		lookupRate := r.CurrencySettings[o.GetExchange()][o.GetAssetType()][o.Pair()].MaxLeverageRate
 		if retOrder.GetLeverage() > lookupRate && lookupRate > 0 {
-			{
-				return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and cannot be placed", lookupRate, retOrder.GetLeverage())
-			}
+			return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and cannot be placed", lookupRate, retOrder.GetLeverage())
 		}
 	}
 	if len(latestHoldings) > 1 {

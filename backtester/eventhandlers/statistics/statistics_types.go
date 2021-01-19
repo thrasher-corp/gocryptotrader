@@ -45,7 +45,7 @@ type Handler interface {
 	AddSignalEventForTime(signal.Event) error
 	AddOrderEventForTime(order.Event) error
 	AddFillEventForTime(fill.Event) error
-	AddHoldingsForTime(holdings.Holding) error
+	AddHoldingsForTime(*holdings.Holding) error
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
 	CalculateTheResults() error
 	Reset()

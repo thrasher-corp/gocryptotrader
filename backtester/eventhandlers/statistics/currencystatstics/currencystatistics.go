@@ -134,11 +134,9 @@ func calculateSharpeRatio(movementPerCandle []float64, riskFreeRate float64) flo
 
 func (c *CurrencyStatistic) CalculateResults() {
 	first := c.Events[0]
-	var firstPrice float64
-	firstPrice = first.SignalEvent.GetPrice()
+	firstPrice := first.SignalEvent.GetPrice()
 	last := c.Events[len(c.Events)-1]
-	var lastPrice float64
-	lastPrice = last.SignalEvent.GetPrice()
+	lastPrice := last.SignalEvent.GetPrice()
 	for i := range last.Transactions.Orders {
 		if last.Transactions.Orders[i].Side == gctorder.Buy {
 			c.BuyOrders++
@@ -352,7 +350,6 @@ func calculateAllDrawDowns(closePrices []common.DataEventHandler) SwingHolder {
 	// ensure a lingering drawdown is closed
 	if isDrawingDown {
 		response.DrawDowns = append(response.DrawDowns, activeDraw)
-		isDrawingDown = false
 	}
 
 	response.calculateMaxAndLongestDrawDowns()

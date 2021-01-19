@@ -58,7 +58,7 @@ func (s *Statistic) AddSignalEventForTime(e signal.Event) error {
 		return errors.New("nil signal event received")
 	}
 	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("ExchangeAssetPairStatistics not setup")
+		return errors.New("exchangeAssetPairStatistics not setup")
 	}
 	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
 		return fmt.Errorf("no data for %v %v %v to set signal event", e.GetExchange(), e.GetAssetType(), e.Pair())
@@ -79,7 +79,7 @@ func (s *Statistic) AddOrderEventForTime(e order.Event) error {
 		return errors.New("nil order event received")
 	}
 	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("ExchangeAssetPairStatistics not setup")
+		return errors.New("exchangeAssetPairStatistics not setup")
 	}
 	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
 		return fmt.Errorf("no data for %v %v %v to set exchange event", e.GetExchange(), e.GetAssetType(), e.Pair())
@@ -100,7 +100,7 @@ func (s *Statistic) AddFillEventForTime(e fill.Event) error {
 		return errors.New("nil fill event received")
 	}
 	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("ExchangeAssetPairStatistics not setup")
+		return errors.New("exchangeAssetPairStatistics not setup")
 	}
 	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
 		return fmt.Errorf("no data for %v %v %v to set fill event", e.GetExchange(), e.GetAssetType(), e.Pair())
@@ -116,9 +116,9 @@ func (s *Statistic) AddFillEventForTime(e fill.Event) error {
 }
 
 // AddHoldingsForTime adds all holdings to the statistics at the time period
-func (s *Statistic) AddHoldingsForTime(h holdings.Holding) error {
+func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("ExchangeAssetPairStatistics not setup")
+		return errors.New("exchangeAssetPairStatistics not setup")
 	}
 	if s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair] == nil {
 		return fmt.Errorf("no data for %v %v %v to set holding event", h.Exchange, h.Asset, h.Pair)
@@ -126,7 +126,7 @@ func (s *Statistic) AddHoldingsForTime(h holdings.Holding) error {
 	lookup := s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(h.Timestamp) {
-			lookup.Events[i].Holdings = h
+			lookup.Events[i].Holdings = *h
 			s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair] = lookup
 		}
 	}
@@ -139,7 +139,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 		return errors.New("nil fill event received")
 	}
 	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("ExchangeAssetPairStatistics not setup")
+		return errors.New("exchangeAssetPairStatistics not setup")
 	}
 	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
 		return fmt.Errorf("no data for %v %v %v to set compliance snapshot", e.GetExchange(), e.GetAssetType(), e.Pair())
@@ -259,7 +259,8 @@ func (s *Statistic) PrintAllEvents() {
 		for a, y := range x {
 			for p, c := range y {
 				for i := range c.Events {
-					if c.Events[i].FillEvent != nil {
+					switch {
+					case c.Events[i].FillEvent != nil:
 						direction := c.Events[i].FillEvent.GetDirection()
 						if direction == common.CouldNotBuy ||
 							direction == common.CouldNotSell ||
@@ -281,12 +282,12 @@ func (s *Statistic) PrintAllEvents() {
 								c.Events[i].FillEvent.GetWhy(),
 							)
 						}
-					} else if c.Events[i].SignalEvent != nil {
+					case c.Events[i].SignalEvent != nil:
 						log.Infof(log.BackTester, "%v | Price: $%v - Why: %v",
 							c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].SignalEvent.GetPrice(),
 							c.Events[i].SignalEvent.GetWhy())
-					} else {
+					default:
 						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", e, a, p, c.Events[i]))
 					}
 				}

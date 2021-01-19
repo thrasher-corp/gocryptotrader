@@ -34,7 +34,7 @@ type Handler interface {
 
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
 
-	setHoldings(string, asset.Item, currency.Pair, holdings.Holding, bool) error
+	setHoldings(string, asset.Item, currency.Pair, *holdings.Holding, bool) error
 	ViewHoldingAtTimePeriod(string, asset.Item, currency.Pair, time.Time) (holdings.Holding, error)
 	SetFee(string, asset.Item, currency.Pair, float64)
 	GetFee(string, asset.Item, currency.Pair) float64
