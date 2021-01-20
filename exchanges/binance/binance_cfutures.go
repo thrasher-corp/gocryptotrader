@@ -21,7 +21,7 @@ const (
 	cfuturesExchangeInfo       = "/dapi/v1/exchangeInfo?"
 	cfuturesOrderbook          = "/dapi/v1/depth?"
 	cfuturesRecentTrades       = "/dapi/v1/trades?"
-	cfuturesHistoricalTrades   = "/dapi/v1/historicalTrades?"
+	cfuturesHistoricalTrades   = "/dapi/v1/historicalTrades"
 	cfuturesCompressedTrades   = "/dapi/v1/aggTrades?"
 	cfuturesKlineData          = "/dapi/v1/klines?"
 	cfuturesContinuousKline    = "/dapi/v1/continuousKlines?"
@@ -148,7 +148,7 @@ func (b *Binance) GetFuturesHistoricalTrades(symbol currency.Pair, fromID string
 	if limit > 0 && limit < 1000 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesHistoricalTrades+params.Encode(), limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesHistoricalTrades, params, limitDefault, &resp)
 }
 
 // GetPastPublicTrades gets past public trades for CoinMarginedFutures,

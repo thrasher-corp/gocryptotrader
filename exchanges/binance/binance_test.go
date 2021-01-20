@@ -687,7 +687,7 @@ func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 func TestFuturesGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip("skipping test: api keys")
 	}
 	_, err := b.FuturesGetFundingHistory(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5, time.Time{}, time.Time{})
 	if err != nil {
@@ -702,7 +702,7 @@ func TestFuturesGetFundingHistory(t *testing.T) {
 func TestGetFuturesHistoricalTrades(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+		t.Skip("skipping test: api keys not set")
 	}
 	_, err := b.GetFuturesHistoricalTrades(currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", 5)
 	if err != nil {
@@ -1898,7 +1898,6 @@ func TestWithdrawHistory(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
 	_, err := b.GetWithdrawalsHistory(currency.XBT)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
@@ -1910,7 +1909,6 @@ func TestWithdrawHistory(t *testing.T) {
 
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.WithdrawFiatFunds(&withdraw.Request{})
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -1919,7 +1917,6 @@ func TestWithdrawFiat(t *testing.T) {
 
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.WithdrawFiatFundsToInternationalBank(&withdraw.Request{})
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -1928,7 +1925,6 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetDepositAddress(currency.BTC, "")
 	switch {
 	case areTestAPIKeysSet() && err != nil:
@@ -2413,5 +2409,24 @@ func TestProcessUpdate(t *testing.T) {
 	err = b.obm.cleanup(p)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestUFuturesHistoricalTrades(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	cp, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UFuturesHistoricalTrades(cp, "", 5)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UFuturesHistoricalTrades(cp, "", 0)
+	if err != nil {
+		t.Error(err)
 	}
 }

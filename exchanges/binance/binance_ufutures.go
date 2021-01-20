@@ -21,6 +21,7 @@ const (
 	ufuturesExchangeInfo       = "/fapi/v1/exchangeInfo?"
 	ufuturesOrderbook          = "/fapi/v1/depth?"
 	ufuturesRecentTrades       = "/fapi/v1/trades?"
+	ufuturesHistoricalTrades   = "/fapi/v1/historicalTrades"
 	ufuturesCompressedTrades   = "/fapi/v1/aggTrades?"
 	ufuturesKlineData          = "/fapi/v1/klines?"
 	ufuturesMarkPrice          = "/fapi/v1/premiumIndex?"
@@ -137,6 +138,24 @@ func (b *Binance) URecentTrades(symbol currency.Pair, fromID string, limit int64
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp, b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesRecentTrades+params.Encode(), limitDefault, &resp)
+}
+
+// UFuturesHistoricalTrades gets historical public trades for USDTMarginedFutures
+func (b *Binance) UFuturesHistoricalTrades(symbol currency.Pair, fromID string, limit int64) ([]interface{}, error) {
+	var resp []interface{}
+	params := url.Values{}
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
+	if fromID != "" {
+		params.Set("fromID", fromID)
+	}
+	if limit > 0 && limit < 1000 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp, b.SendAuthHTTPRequest(exchange.RestUSDTMargined, http.MethodGet, ufuturesHistoricalTrades, params, limitDefault, &resp)
 }
 
 // UCompressedTrades gets compressed public trades for usdt margined futures
