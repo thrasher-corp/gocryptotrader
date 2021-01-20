@@ -367,10 +367,11 @@ type UNotionalLeverageAndBrakcetsData struct {
 	Symbol   string `json:"symbol"`
 	Brackets []struct {
 		Bracket                int64   `json:"bracket"`
-		InitialLeverage        float64 `json:"initialLeverage,string"`
-		NotionalCap            float64 `json:"notionalCap,string"`
-		NotionalFloor          float64 `json:"notionalFloor,string"`
-		MaintenanceMarginRatio float64 `json:"maintMarginRatio,string"`
+		InitialLeverage        float64 `json:"initialLeverage"`
+		NotionalCap            float64 `json:"notionalCap"`
+		NotionalFloor          float64 `json:"notionalFloor"`
+		MaintenanceMarginRatio float64 `json:"maintMarginRatio"`
+		Cumulative             float64 `json:"cum"`
 	} `json:"brackets"`
 }
 
