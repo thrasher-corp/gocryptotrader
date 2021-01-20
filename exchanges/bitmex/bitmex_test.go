@@ -69,6 +69,11 @@ func TestGetFullFundingHistory(t *testing.T) {
 		t.Error(err)
 	}
 
+	_, err = b.GetFullFundingHistory("", "", "", "", "", true, time.Now().Add(-time.Hour*8), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+
 	_, err = b.GetFullFundingHistory("LTCUSD", "1", "", "", "", true, time.Now().Add(time.Hour*-24), time.Now())
 	if err != nil {
 		t.Error(err)

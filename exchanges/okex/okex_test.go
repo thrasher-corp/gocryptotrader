@@ -133,13 +133,23 @@ func TestGetMarginRates(t *testing.T) {
 }
 
 func TestGetSpotMarkets(t *testing.T) {
+	t.Parallel()
 	_, err := o.GetSpotMarkets()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
+func TestGetSwapMarkets(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetSwapMarkets()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFundingRate(t *testing.T) {
+	t.Parallel()
 	_, err := o.GetFundingRate("BTC-USD-SWAP", "1")
 	if err != nil {
 		t.Error(err)

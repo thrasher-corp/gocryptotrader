@@ -40,6 +40,7 @@ const (
 	okGroupDepth                 = "depth"
 	okGroupFundingTime           = "funding_time"
 	okGroupHistoricalFundingRate = "historical_funding_rate"
+	okGroupSwapInstruments       = "instruments"
 	// ETT endpoints
 	okGroupConstituents   = "constituents"
 	okGroupDefinePrice    = "define-price"
@@ -52,6 +53,14 @@ const (
 // OKEX bases all account, spot and margin methods off okgroup implementation
 type OKEX struct {
 	okgroup.OKGroup
+}
+
+// GetSwapMarkets gets perpetual swap markets
+func (o *OKEX) GetSwapMarkets() ([]okgroup.SwapInstrumentsData, error) {
+	var resp []okgroup.SwapInstrumentsData
+	return resp, o.SendHTTPRequest(exchange.RestSpot, http.MethodGet, okGroupSwapSubsection,
+		okGroupSwapInstruments,
+		nil, &resp, false)
 }
 
 // GetMarginRates gets interest rates for margin currencies

@@ -442,6 +442,10 @@ func TestGetAssetPairs(t *testing.T) {
 	if err != nil {
 		t.Error("GetAssetPairs() error", err)
 	}
+	_, err = k.GetAssetPairs([]string{}, "")
+	if err != nil {
+		t.Error("GetAssetPairs() error", err)
+	}
 }
 
 // TestGetTicker API endpoint test
