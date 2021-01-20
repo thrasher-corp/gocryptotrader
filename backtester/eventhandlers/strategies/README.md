@@ -28,6 +28,14 @@ The strategy must adhere to the interface `strategies.Handler` by implementing t
 When outputting the `signal.Event`, you are not dictating the price of an order, but rather signalling to the portfolio manager what ideally should occur. These options are to buy, sell or do nothing. Additional signals are to flag missing data, handled via checking `d.HasDataAtTime(d.Latest().GetTime()` to prevent any issues from occurring down the line.
 Additionally, you can utilise the `AppendWhy()` function to help understand what went into make a signalling decision when reviewing the results.
 
+### What does MultiCurrency mean?
+GoCryptoTrader Backtester config files may contain multiple `ExchangeSettings` which defined exchange, asset and currency pairs to iterate through a period of time.
+
+If there are multiple entries to `ExchangeSettings` and MultiCurrency is disabled, then each individual exchange, asset and currency pair candle event is evaluated individually and does not know about other exchange, asset and currency pair data events. It is a way to test a singular strategy against multiple assets simultaneously. But it isn't defined as MultiCurrency
+MultiCurrency is a setting which allows multiple `ExchangeSettings` data events for a candle event to be considered simultanesouly. This means that you can check if the price of BTC-USDT is 5% greater on Binance than it is on Kraken and choose to make signal a BUY event for Kraken and not Binance.
+
+It allows for complex strategical decisions to be made when you consider the scope of the entire market at a given time, rather than in a vacuum when MultiCurrency is disabled.
+
 ### Loading strategies
 Each strategy has a unique name and is to be added to the function `getStrategies()` in order to be recognised.
 

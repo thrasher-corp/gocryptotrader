@@ -12,6 +12,6 @@ type Settings struct {
 	BuySideSizing     config.MinMax
 	SellSideSizing    config.MinMax
 	Leverage          config.Leverage
-	HoldingsSnapshots holdings.Snapshots
+	HoldingsSnapshots []holdings.Holding
 	ComplianceManager compliance.Manager
 }

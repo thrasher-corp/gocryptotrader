@@ -2,30 +2,11 @@ package holdings
 
 import (
 	"errors"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
-
-// GetLatestSnapshot returns the last holding snapshot
-func (s *Snapshots) GetLatestSnapshot() Holding {
-	if len(s.Holdings) == 0 {
-		return Holding{}
-	}
-	return s.Holdings[len(s.Holdings)-1]
-}
-
-// GetLatestSnapshot returns a specific snapshot at a given time
-func (s *Snapshots) GetSnapshotAtTimestamp(t time.Time) Holding {
-	for i := range s.Holdings {
-		if t.Equal(s.Holdings[i].Timestamp) {
-			return s.Holdings[i]
-		}
-	}
-	return Holding{}
-}
 
 // Create takes a fill event and creates a new holding for the exchange, asset, pair
 func Create(f fill.Event, initialFunds, riskFreeRate float64) (Holding, error) {

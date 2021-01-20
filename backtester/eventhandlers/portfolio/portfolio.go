@@ -78,7 +78,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 	if lookup == nil {
 		return nil, fmt.Errorf("no portfolio settings for %v %v %v", signal.GetExchange(), signal.GetAssetType(), signal.Pair())
 	}
-	prevHolding := lookup.HoldingsSnapshots.GetLatestSnapshot()
+	prevHolding := lookup.GetLatestHoldings()
 	if p.iteration == 0 {
 		prevHolding.InitialFunds = lookup.InitialFunds
 		prevHolding.RemainingFunds = lookup.InitialFunds
@@ -339,7 +339,7 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 	for _, x := range p.exchangeAssetPairSettings {
 		for _, y := range x {
 			for _, z := range y {
-				resp = append(resp, z.HoldingsSnapshots.GetLatestSnapshot())
+				resp = append(resp, z.GetLatestHoldings())
 			}
 		}
 	}
@@ -358,16 +358,16 @@ func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h *
 			return err
 		}
 	}
-	for i := range lookup.HoldingsSnapshots.Holdings {
-		if lookup.HoldingsSnapshots.Holdings[i].Timestamp.Equal(h.Timestamp) {
+	for i := range lookup.HoldingsSnapshots {
+		if lookup.HoldingsSnapshots[i].Timestamp.Equal(h.Timestamp) {
 			if !force {
 				return fmt.Errorf("holdings for %v %v %v at %v already set", exch, a, cp, h.Timestamp)
 			}
-			lookup.HoldingsSnapshots.Holdings[i] = *h
+			lookup.HoldingsSnapshots[i] = *h
 			return nil
 		}
 	}
-	lookup.HoldingsSnapshots.Holdings = append(lookup.HoldingsSnapshots.Holdings, *h)
+	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
 	p.exchangeAssetPairSettings[exch][a][cp] = lookup
 	return nil
 }
@@ -379,9 +379,9 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp curren
 	if exchangeAssetPairSettings == nil {
 		return holdings.Holding{}, fmt.Errorf("no holdings found for %v %v %v", exch, a, cp)
 	}
-	for i := range exchangeAssetPairSettings.HoldingsSnapshots.Holdings {
-		if t.Equal(exchangeAssetPairSettings.HoldingsSnapshots.Holdings[i].Timestamp) {
-			return exchangeAssetPairSettings.HoldingsSnapshots.Holdings[i], nil
+	for i := range exchangeAssetPairSettings.HoldingsSnapshots {
+		if t.Equal(exchangeAssetPairSettings.HoldingsSnapshots[i].Timestamp) {
+			return exchangeAssetPairSettings.HoldingsSnapshots[i], nil
 		}
 	}
 

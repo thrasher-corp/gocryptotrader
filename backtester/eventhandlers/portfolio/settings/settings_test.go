@@ -14,7 +14,7 @@ func TestGetLatestHoldings(t *testing.T) {
 		t.Error("expected zero time")
 	}
 	tt := time.Now()
-	cs.HoldingsSnapshots.Holdings = append(cs.HoldingsSnapshots.Holdings, holdings.Holding{Timestamp: tt})
+	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{Timestamp: tt})
 
 	h = cs.GetLatestHoldings()
 	if !h.Timestamp.Equal(tt) {
@@ -28,7 +28,7 @@ func TestValue(t *testing.T) {
 	if v != 0 {
 		t.Error("expected 0")
 	}
-	cs.HoldingsSnapshots.Holdings = append(cs.HoldingsSnapshots.Holdings, holdings.Holding{TotalValue: 1337})
+	cs.HoldingsSnapshots = append(cs.HoldingsSnapshots, holdings.Holding{TotalValue: 1337})
 
 	v = cs.Value()
 	if v != 1337 {
