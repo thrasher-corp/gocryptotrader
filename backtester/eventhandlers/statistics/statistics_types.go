@@ -8,14 +8,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Statistic
+// Statistic holds all statistical information for a backtester run, from drawdowns to ratios.
+// Any currency specific information is handled in currencystatistics
 type Statistic struct {
 	StrategyName                string                                                                           `json:"strategy-name"`
 	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic `json:"-"`
@@ -29,6 +28,7 @@ type Statistic struct {
 	AllStats                    []currencystatstics.CurrencyStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
 }
 
+// FinalResultsHolder holds important stats about a currency's performance
 type FinalResultsHolder struct {
 	Exchange         string                  `json:"exchange"`
 	Asset            asset.Item              `json:"asset"`
@@ -38,20 +38,19 @@ type FinalResultsHolder struct {
 	StrategyMovement float64                 `json:"strategy-movement"`
 }
 
-// Handler interface handles
+// Handler interface details what a statistic is expected to do
 type Handler interface {
 	SetStrategyName(string)
-	AddDataEventForTime(common.DataEventHandler) error
-	AddSignalEventForTime(signal.Event) error
-	AddOrderEventForTime(order.Event) error
-	AddFillEventForTime(fill.Event) error
+	SetupEventForTime(common.DataEventHandler) error
+	SetEventForTime(e common.EventHandler) error
 	AddHoldingsForTime(*holdings.Holding) error
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
-	CalculateTheResults() error
+	CalculateAllResults() error
 	Reset()
 	Serialise() (string, error)
 }
 
+// Results holds some statistics on results
 type Results struct {
 	Pair              string               `json:"pair"`
 	TotalEvents       int                  `json:"totalEvents"`
@@ -62,6 +61,7 @@ type Results struct {
 	StrategyName      string               `json:"strategyName"`
 }
 
+// ResultTransactions stores details on a transaction
 type ResultTransactions struct {
 	Time      time.Time     `json:"time"`
 	Direction gctorder.Side `json:"direction"`
@@ -70,6 +70,7 @@ type ResultTransactions struct {
 	Why       string        `json:"why,omitempty"`
 }
 
+// ResultEvent stores the time
 type ResultEvent struct {
 	Time time.Time `json:"time"`
 }

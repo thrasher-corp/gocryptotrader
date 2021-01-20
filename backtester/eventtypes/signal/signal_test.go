@@ -21,16 +21,6 @@ func TestSetDirection(t *testing.T) {
 	}
 }
 
-func TestSetAmount(t *testing.T) {
-	s := Signal{
-		Amount: 1,
-	}
-	s.SetAmount(1337)
-	if s.GetAmount() != 1337 {
-		t.Error("expected 1337")
-	}
-}
-
 func TestSetPrice(t *testing.T) {
 	s := Signal{
 		Price: 1,

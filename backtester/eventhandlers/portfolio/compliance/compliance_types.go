@@ -3,15 +3,17 @@ package compliance
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// Manager holds a snapshot of all orders at each timeperiod, allowing
+// study of all changes across time
 type Manager struct {
-	Interval  kline.Interval
 	Snapshots []Snapshot
 }
 
+// Snapshot consists of the timestamp the snapshot is from, along with all orders made
+// up until that time
 type Snapshot struct {
 	Orders    []SnapshotOrder `json:"orders"`
 	Timestamp time.Time       `json:"timestamp"`

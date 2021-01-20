@@ -12,15 +12,13 @@ type Event interface {
 	common.EventHandler
 	common.Directioner
 
-	SetAmount(float64)
-	GetAmount() float64
 	GetPrice() float64
 	IsSignal() bool
 }
 
+// Signal contains everything needed for a strategy to raise a signal event
 type Signal struct {
 	event.Event
-	Amount    float64
 	Price     float64
 	Direction order.Side
 }

@@ -8,14 +8,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-const (
-	CandleType common.DataType = iota
-)
-
 type HandlerPerCurrency struct {
 	data map[string]map[asset.Item]map[currency.Pair]Handler
 }
 
+// Holder interface dictates what a data holder is expected to do
 type Holder interface {
 	Setup()
 	SetDataForCurrency(string, asset.Item, currency.Pair, Handler)

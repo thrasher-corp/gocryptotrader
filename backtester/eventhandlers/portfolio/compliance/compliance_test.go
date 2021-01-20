@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 func TestAddSnapshot(t *testing.T) {
@@ -88,13 +86,5 @@ func TestGetLatestSnapshot(t *testing.T) {
 	}
 	if !snappySnap.Timestamp.Equal(tt.Add(time.Hour)) {
 		t.Errorf("expected %v", tt.Add(time.Hour))
-	}
-}
-
-func TestSetInterval(t *testing.T) {
-	m := Manager{}
-	m.SetInterval(gctkline.FifteenMin)
-	if m.Interval != gctkline.FifteenMin {
-		t.Error("expected FifteenMin")
 	}
 }

@@ -47,16 +47,6 @@ func TestPair(t *testing.T) {
 	}
 }
 
-func TestCancel(t *testing.T) {
-	o := Order{
-		Status: gctorder.New,
-	}
-	o.Cancel()
-	if o.GetStatus() != gctorder.PendingCancel {
-		t.Error("expected PendingCancel")
-	}
-}
-
 func TestSetID(t *testing.T) {
 	o := Order{
 		ID: "1337",
@@ -64,15 +54,6 @@ func TestSetID(t *testing.T) {
 	o.SetID("1338")
 	if o.GetID() != "1338" {
 		t.Error("expected 1338")
-	}
-}
-
-func TestLimit(t *testing.T) {
-	o := Order{
-		Limit: 1337,
-	}
-	if o.GetLimit() != 1337 {
-		t.Error("expected 1337")
 	}
 }
 

@@ -405,8 +405,8 @@ func TestDrawdowns(t *testing.T) {
 		},
 	}
 	cs.DrawDowns.calculateMaxAndLongestDrawDowns()
-	if cs.DrawDowns.MaxDrawDown.DrawdownPercent == 0 {
-		t.Error("expected > 0")
+	if cs.DrawDowns.MaxDrawDown.Highest.Price != 10000 {
+		t.Error("expected 10000")
 	}
 }
 

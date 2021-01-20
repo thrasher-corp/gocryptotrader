@@ -329,6 +329,7 @@ func TestUpdateSellStats(t *testing.T) {
 		t.Errorf("expected '%v' received '%v'", 2, h.TotalFees)
 	}
 }
+
 func TestGetLatestSnapshot(t *testing.T) {
 	tt := time.Now()
 	s := Snapshots{}

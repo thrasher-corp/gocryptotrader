@@ -1020,7 +1020,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 		Interval: interval,
 	}
 
-	dates := kline.CalcSuperDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	cf, err := b.fixCasing(pair, a)
 	if err != nil {
 		return kline.Item{}, err

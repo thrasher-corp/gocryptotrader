@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
+// LoadData retrieves data from an existing database using GoCryptoTrader's database handling implementation
 func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName, dataType string, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	resp := &kline.DataFromKline{}
 	switch dataType {

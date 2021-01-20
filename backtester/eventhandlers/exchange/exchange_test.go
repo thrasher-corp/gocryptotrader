@@ -96,7 +96,7 @@ func TestCalculateExchangeFee(t *testing.T) {
 
 func TestSizeOrder(t *testing.T) {
 	e := Exchange{}
-	_, _, err := e.sizeOrder(0, 0, 0, nil, nil)
+	_, _, err := e.sizeOfflineOrder(0, 0, 0, nil, nil)
 	if err != nil && err.Error() != "received nil arguments" {
 		t.Error(err)
 	}
@@ -105,12 +105,12 @@ func TestSizeOrder(t *testing.T) {
 		ClosePrice: 1337,
 		Amount:     1,
 	}
-	_, _, err = e.sizeOrder(0, 0, 0, cs, f)
+	_, _, err = e.sizeOfflineOrder(0, 0, 0, cs, f)
 	if err != nil && err.Error() != "amount set to 0, data may be incorrect" {
 		t.Error(err)
 	}
 	var p, a float64
-	p, a, err = e.sizeOrder(10, 2, 10, cs, f)
+	p, a, err = e.sizeOfflineOrder(10, 2, 10, cs, f)
 	if err != nil && err.Error() != "amount set to 0, data may be incorrect" {
 		t.Error(err)
 	}
@@ -166,12 +166,14 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 func TestExecuteOrder(t *testing.T) {
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	a := asset.Spot
 	cs := Settings{
 		ExchangeName:        testExchange,
 		UseRealOrders:       false,
 		InitialFunds:        1337,
-		CurrencyPair:        currency.NewPair(currency.BTC, currency.USDT),
-		AssetType:           asset.Spot,
+		CurrencyPair:        p,
+		AssetType:           a,
 		ExchangeFee:         0.01,
 		MakerFee:            0.01,
 		TakerFee:            0.01,
@@ -188,8 +190,8 @@ func TestExecuteOrder(t *testing.T) {
 		Exchange:     testExchange,
 		Time:         time.Now(),
 		Interval:     gctkline.FifteenMin,
-		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
-		AssetType:    asset.Spot,
+		CurrencyPair: p,
+		AssetType:    a,
 	}
 	o := &order.Order{
 		Event:     ev,
@@ -209,6 +211,11 @@ func TestExecuteOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	b := bot.GetExchangeByName(testExchange)
+	_, err = b.FetchOrderbook(p, a)
+	if err != nil {
+		t.Fatal(err)
+	}
 	d := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: "",
@@ -225,7 +232,10 @@ func TestExecuteOrder(t *testing.T) {
 			},
 		},
 	}
-	d.Load()
+	err = d.Load()
+	if err != nil {
+		t.Error(err)
+	}
 	d.Next()
 	_, err = e.ExecuteOrder(o, d, bot)
 	if err != nil {

@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Eventhandlers package overview
 
-
+The compliance manager is used to store all events at each time interval. When debugging the backtester or wanting to audit backtesting results, you can inspect every single action that has occurred during the backtesting run
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

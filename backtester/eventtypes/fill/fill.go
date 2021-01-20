@@ -1,69 +1,60 @@
 package fill
 
 import (
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// SetDirection sets the direction
 func (f *Fill) SetDirection(s order.Side) {
 	f.Direction = s
 }
 
+// GetDirection returns the direction
 func (f *Fill) GetDirection() order.Side {
 	return f.Direction
 }
 
+// SetAmount sets the amount
 func (f *Fill) SetAmount(i float64) {
 	f.Amount = i
 }
 
+// GetAmount returns the amount
 func (f *Fill) GetAmount() float64 {
 	return f.Amount
 }
 
+// GetClosePrice returns the closing price
 func (f *Fill) GetClosePrice() float64 {
 	return f.ClosePrice
 }
 
+// GetVolumeAdjustedPrice returns the volume adjusted price
 func (f *Fill) GetVolumeAdjustedPrice() float64 {
 	return f.VolumeAdjustedPrice
 }
 
+// GetPurchasePrice returns the purchase price
 func (f *Fill) GetPurchasePrice() float64 {
 	return f.PurchasePrice
 }
 
+// GetExchangeFee returns the exchange fee
 func (f *Fill) GetExchangeFee() float64 {
 	return f.ExchangeFee
 }
 
+// SetExchangeFee sets the exchange fee
 func (f *Fill) SetExchangeFee(fee float64) {
 	f.ExchangeFee = fee
 }
 
-func (f *Fill) Value() float64 {
-	amount := decimal.NewFromFloat(f.Amount)
-	price := decimal.NewFromFloat(f.PurchasePrice)
-	value, _ := amount.Mul(price).Float64()
-	return value
-}
-
-func (f *Fill) NetValue() float64 {
-	amount := decimal.NewFromFloat(f.Amount)
-	price := decimal.NewFromFloat(f.PurchasePrice)
-	fee := decimal.NewFromFloat(f.ExchangeFee)
-	if f.Direction == order.Buy {
-		netValue, _ := amount.Mul(price).Add(fee).Float64()
-		return netValue
-	}
-	netValue, _ := amount.Mul(price).Sub(fee).Float64()
-	return netValue
-}
-
+// GetOrder returns the order
 func (f *Fill) GetOrder() *order.Detail {
 	return f.Order
 }
 
+// GetSlippageRate returns the slippage rate
 func (f *Fill) GetSlippageRate() float64 {
 	return f.Slippage
 }

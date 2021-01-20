@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// Order contains all details for an order event
 type Order struct {
 	event.Event
 	ID        string
@@ -14,11 +15,10 @@ type Order struct {
 	Price     float64
 	Amount    float64
 	OrderType order.Type
-	Limit     float64
 	Leverage  float64
 }
 
-// Event
+// Event inherits common event interfaces along with extra functions related to handling orders
 type Event interface {
 	common.EventHandler
 	common.Directioner
@@ -29,6 +29,5 @@ type Event interface {
 	GetStatus() order.Status
 	SetID(id string)
 	GetID() string
-	GetLimit() float64
 	IsLeveraged() bool
 }

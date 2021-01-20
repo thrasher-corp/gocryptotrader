@@ -37,11 +37,11 @@ func TestAddDataEventForTime(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
-	err := s.AddDataEventForTime(nil)
+	err := s.SetupEventForTime(nil)
 	if err != nil && err.Error() != "nil data event received" {
 		t.Error(err)
 	}
-	err = s.AddDataEventForTime(&kline.Kline{
+	err = s.SetupEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -72,21 +72,22 @@ func TestAddSignalEventForTime(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
-	err := s.AddSignalEventForTime(nil)
-	if err != nil && err.Error() != "nil signal event received" {
+	err := s.SetEventForTime(nil)
+	if err != nil && err.Error() != "nil event received" {
 		t.Error(err)
 	}
-	err = s.AddSignalEventForTime(&signal.Signal{})
-	if err != nil && err.Error() != "ExchangeAssetPairStatistics not setup" {
+	err = s.SetEventForTime(&signal.Signal{})
+	if err != nil && err.Error() != "exchangeAssetPairStatistics not setup" {
 		t.Error(err)
 	}
+	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	err = s.AddSignalEventForTime(&signal.Signal{})
+	err = s.SetEventForTime(&signal.Signal{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
 	}
 
-	err = s.AddDataEventForTime(&kline.Kline{
+	err = s.SetupEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -103,7 +104,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.AddSignalEventForTime(&signal.Signal{
+	err = s.SetEventForTime(&signal.Signal{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -111,7 +112,6 @@ func TestAddSignalEventForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Amount:    1337,
 		Price:     1337,
 		Direction: gctorder.Buy,
 	})
@@ -126,21 +126,22 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
-	err := s.AddOrderEventForTime(nil)
-	if err != nil && err.Error() != "nil order event received" {
+	err := s.SetEventForTime(nil)
+	if err != nil && err.Error() != "nil event received" {
 		t.Error(err)
 	}
-	err = s.AddOrderEventForTime(&order.Order{})
-	if err != nil && err.Error() != "ExchangeAssetPairStatistics not setup" {
+	err = s.SetEventForTime(&order.Order{})
+	if err != nil && err.Error() != "exchangeAssetPairStatistics not setup" {
 		t.Error(err)
 	}
+	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	err = s.AddOrderEventForTime(&order.Order{})
+	err = s.SetEventForTime(&order.Order{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
 	}
 
-	err = s.AddDataEventForTime(&kline.Kline{
+	err = s.SetupEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -157,7 +158,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.AddOrderEventForTime(&order.Order{
+	err = s.SetEventForTime(&order.Order{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -171,7 +172,6 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		Price:     1337,
 		Amount:    1337,
 		OrderType: gctorder.Stop,
-		Limit:     1337,
 		Leverage:  1337,
 	})
 	if err != nil {
@@ -185,21 +185,22 @@ func TestAddFillEventForTime(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
-	err := s.AddFillEventForTime(nil)
-	if err != nil && err.Error() != "nil fill event received" {
+	err := s.SetEventForTime(nil)
+	if err != nil && err.Error() != "nil event received" {
 		t.Error(err)
 	}
-	err = s.AddFillEventForTime(&fill.Fill{})
-	if err != nil && err.Error() != "ExchangeAssetPairStatistics not setup" {
+	err = s.SetEventForTime(&fill.Fill{})
+	if err != nil && err.Error() != "exchangeAssetPairStatistics not setup" {
 		t.Error(err)
 	}
+	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	err = s.AddFillEventForTime(&fill.Fill{})
+	err = s.SetEventForTime(&fill.Fill{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
 	}
 
-	err = s.AddDataEventForTime(&kline.Kline{
+	err = s.SetupEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -216,7 +217,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.AddFillEventForTime(&fill.Fill{
+	err = s.SetEventForTime(&fill.Fill{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -243,9 +244,8 @@ func TestAddHoldingsForTime(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
-
 	err := s.AddHoldingsForTime(&holdings.Holding{})
-	if err != nil && err.Error() != "ExchangeAssetPairStatistics not setup" {
+	if err != nil && err.Error() != "exchangeAssetPairStatistics not setup" {
 		t.Error(err)
 	}
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
@@ -254,7 +254,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = s.AddDataEventForTime(&kline.Kline{
+	err = s.SetupEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -314,16 +314,17 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{})
-	if err != nil && err.Error() != "ExchangeAssetPairStatistics not setup" {
+	if err != nil && err.Error() != "exchangeAssetPairStatistics not setup" {
 		t.Error(err)
 	}
+	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
 	}
 
-	err = s.AddDataEventForTime(&kline.Kline{
+	err = s.SetupEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -487,11 +488,11 @@ func TestPrintAllEvents(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	err := s.AddDataEventForTime(nil)
+	err := s.SetupEventForTime(nil)
 	if err != nil && err.Error() != "nil data event received" {
 		t.Error(err)
 	}
-	err = s.AddDataEventForTime(&kline.Kline{
+	err = s.SetupEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -509,7 +510,7 @@ func TestPrintAllEvents(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = s.AddFillEventForTime(&fill.Fill{
+	err = s.SetEventForTime(&fill.Fill{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -529,7 +530,7 @@ func TestPrintAllEvents(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = s.AddSignalEventForTime(&signal.Signal{
+	err = s.SetEventForTime(&signal.Signal{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -537,7 +538,6 @@ func TestPrintAllEvents(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Amount:    1337,
 		Price:     1337,
 		Direction: gctorder.Buy,
 	})
@@ -550,7 +550,7 @@ func TestPrintAllEvents(t *testing.T) {
 
 func TestCalculateTheResults(t *testing.T) {
 	s := Statistic{}
-	err := s.CalculateTheResults()
+	err := s.CalculateAllResults()
 	if err != nil {
 		t.Error(err)
 	}
@@ -559,11 +559,11 @@ func TestCalculateTheResults(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	err = s.AddDataEventForTime(nil)
+	err = s.SetupEventForTime(nil)
 	if err != nil && err.Error() != "nil data event received" {
 		t.Error(err)
 	}
-	err = s.AddDataEventForTime(&kline.Kline{
+	err = s.SetupEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -580,7 +580,7 @@ func TestCalculateTheResults(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.AddSignalEventForTime(&signal.Signal{
+	err = s.SetEventForTime(&signal.Signal{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -588,14 +588,13 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Amount:    1337,
 		Price:     1337,
 		Direction: gctorder.Buy,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.AddDataEventForTime(&kline.Kline{
+	err = s.SetupEventForTime(&kline.Kline{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -613,7 +612,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = s.AddSignalEventForTime(&signal.Signal{
+	err = s.SetEventForTime(&signal.Signal{
 		Event: event.Event{
 			Exchange:     exch,
 			Time:         tt,
@@ -621,7 +620,6 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: currency.NewPair(currency.DOCK, currency.AAA),
 			AssetType:    a,
 		},
-		Amount:    1337,
 		Price:     1337,
 		Direction: gctorder.Buy,
 	})
@@ -632,7 +630,7 @@ func TestCalculateTheResults(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.CalculateTheResults()
+	err = s.CalculateAllResults()
 	if err != nil {
 		t.Error(err)
 	}

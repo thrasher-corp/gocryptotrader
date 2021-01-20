@@ -13,14 +13,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Name is the strategy name
 const (
+	// Name is the strategy name
 	Name         = "rsi"
 	rsiPeriodKey = "rsi-period"
 	rsiLowKey    = "rsi-low"
 	rsiHighKey   = "rsi-high"
 )
 
+// Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
 	rsiPeriod float64
@@ -28,10 +29,14 @@ type Strategy struct {
 	rsiHigh   float64
 }
 
+// Name returns the name of the strategy
 func (s *Strategy) Name() string {
 	return Name
 }
 
+// OnSignal handles a data event and returns what action the strategy believes should occur
+// For rsi, this means returning a buy signal when rsi is at or below a certain level, and a
+// sell signal when it is at or above a certain level
 func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error) {
 	if d == nil {
 		return nil, errors.New("received nil data")
@@ -80,6 +85,7 @@ func (s *Strategy) OnSignals(_ []data.Handler, _ portfolio.Handler) ([]signal.Ev
 	return nil, errors.New("unsupported")
 }
 
+// SetCustomSettings allows a user to modify the RSI limits in their config
 func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
 	for k, v := range customSettings {
 		switch k {
@@ -109,6 +115,7 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 	return nil
 }
 
+// SetDefaults sets the custom settings to their default values
 func (s *Strategy) SetDefaults() {
 	s.rsiHigh = 70
 	s.rsiLow = 30

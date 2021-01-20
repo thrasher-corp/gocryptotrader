@@ -54,7 +54,6 @@ func existingLeverageRatio(s compliance.Snapshot) float64 {
 	return ordersWithLeverage / float64(len(s.Orders))
 }
 
-// add additional assessing rules, such as what the maximum ratio is allowed to be
 func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) float64 {
 	resp := make(map[currency.Pair]float64)
 	for i := range h {

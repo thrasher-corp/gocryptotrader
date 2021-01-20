@@ -23,6 +23,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 The RSI strategy utilises [the gct-ta RSI package](https://github.com/thrasher-corp/gct-ta) to analyse market signals and output buy or sell signals based on the RSI output.
 This strategy does not multi currency consideration.
 This strategy does support strategy customisation in the following ways:
+
 | Field | Description |  Example |
 | --- | ------- | --- |
 |rsi-high| The upper bounds of RSI that when met, will trigger a Sell signal | 70 |

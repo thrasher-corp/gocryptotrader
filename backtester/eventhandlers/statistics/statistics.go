@@ -18,27 +18,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// Reset returns the struct to defaults
 func (s *Statistic) Reset() {
 	*s = Statistic{}
 }
 
 // AddDataEventForTime sets up the big map for to store important data at each time interval
-func (s *Statistic) AddDataEventForTime(e common.DataEventHandler) error {
+func (s *Statistic) SetupEventForTime(e common.DataEventHandler) error {
 	if e == nil {
 		return errors.New("nil data event received")
 	}
 	ex := e.GetExchange()
 	a := e.GetAssetType()
 	p := e.Pair()
-	if s.ExchangeAssetPairStatistics == nil {
-		s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	}
-	if s.ExchangeAssetPairStatistics[ex] == nil {
-		s.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	}
-	if s.ExchangeAssetPairStatistics[ex][a] == nil {
-		s.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	}
+	s.setupMap(ex, a)
 	lookup := s.ExchangeAssetPairStatistics[ex][a][p]
 	if lookup == nil {
 		lookup = &currencystatstics.CurrencyStatistic{}
@@ -52,64 +45,49 @@ func (s *Statistic) AddDataEventForTime(e common.DataEventHandler) error {
 	return nil
 }
 
-// AddSignalEventForTime adds strategy signal event to the statistics at the time period
-func (s *Statistic) AddSignalEventForTime(e signal.Event) error {
-	if e == nil {
-		return errors.New("nil signal event received")
-	}
+func (s *Statistic) setupMap(ex string, a asset.Item) {
 	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("exchangeAssetPairStatistics not setup")
+		s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
 	}
-	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
-		return fmt.Errorf("no data for %v %v %v to set signal event", e.GetExchange(), e.GetAssetType(), e.Pair())
+	if s.ExchangeAssetPairStatistics[ex] == nil {
+		s.ExchangeAssetPairStatistics[ex] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
 	}
-	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
-	for i := range lookup.Events {
-		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) {
-			lookup.Events[i].SignalEvent = e
-			s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
-		}
+	if s.ExchangeAssetPairStatistics[ex][a] == nil {
+		s.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
 	}
-	return nil
 }
 
-// AddOrderEventForTime adds order event to the statistics at the time period
-func (s *Statistic) AddOrderEventForTime(e order.Event) error {
+// AddEventForTime sets the event for the time period in the event
+func (s *Statistic) SetEventForTime(e common.EventHandler) error {
 	if e == nil {
-		return errors.New("nil order event received")
+		return fmt.Errorf("nil event received")
 	}
 	if s.ExchangeAssetPairStatistics == nil {
 		return errors.New("exchangeAssetPairStatistics not setup")
 	}
-	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
-		return fmt.Errorf("no data for %v %v %v to set exchange event", e.GetExchange(), e.GetAssetType(), e.Pair())
-	}
-	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
-	for i := range lookup.Events {
-		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) {
-			lookup.Events[i].OrderEvent = e
-			s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
-		}
-	}
-	return nil
-}
+	exch := e.GetExchange()
+	a := e.GetAssetType()
+	p := e.Pair()
 
-// AddFillEventForTime adds fill event to the statistics at the time period
-func (s *Statistic) AddFillEventForTime(e fill.Event) error {
-	if e == nil {
-		return errors.New("nil fill event received")
+	if s.ExchangeAssetPairStatistics[exch][a][p] == nil {
+		return fmt.Errorf("no data for %v %v %v to set signal event", exch, a, p)
 	}
-	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("exchangeAssetPairStatistics not setup")
-	}
-	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
-		return fmt.Errorf("no data for %v %v %v to set fill event", e.GetExchange(), e.GetAssetType(), e.Pair())
-	}
-	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) {
-			lookup.Events[i].FillEvent = e
-			s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
+			switch t := e.(type) {
+			case common.DataEventHandler:
+				lookup.Events[i].DataEvent = t
+			case signal.Event:
+				lookup.Events[i].SignalEvent = t
+			case order.Event:
+				lookup.Events[i].OrderEvent = t
+			case fill.Event:
+				lookup.Events[i].FillEvent = t
+			default:
+				return fmt.Errorf("unknown event type received: %v", e)
+			}
+			s.ExchangeAssetPairStatistics[exch][a][p] = lookup
 		}
 	}
 	return nil
@@ -154,7 +132,9 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 	return nil
 }
 
-func (s *Statistic) CalculateTheResults() error {
+// CalculateAllResults calculates the statistics of all exchange asset pair holdings,
+// orders, ratios and drawdowns
+func (s *Statistic) CalculateAllResults() error {
 	s.PrintAllEvents()
 	currCount := 0
 	var finalResults []FinalResultsHolder
@@ -192,6 +172,7 @@ func (s *Statistic) CalculateTheResults() error {
 	return nil
 }
 
+// PrintTotalResults outputs all results to the CMD
 func (s *Statistic) PrintTotalResults() {
 	log.Info(log.BackTester, "------------------Total Results------------------------------")
 	log.Info(log.BackTester, "------------------Orders----------------------------------")
@@ -217,6 +198,7 @@ func (s *Statistic) PrintTotalResults() {
 	}
 }
 
+// GetBestMarketPerformer returns the best final market movement
 func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) *FinalResultsHolder {
 	result := &FinalResultsHolder{}
 	for i := range results {
@@ -228,6 +210,7 @@ func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) *FinalR
 	return result
 }
 
+// GetBestStrategyPerformer returns the best performing strategy result
 func (s *Statistic) GetBestStrategyPerformer(results []FinalResultsHolder) *FinalResultsHolder {
 	result := &FinalResultsHolder{}
 	for i := range results {
@@ -239,6 +222,7 @@ func (s *Statistic) GetBestStrategyPerformer(results []FinalResultsHolder) *Fina
 	return result
 }
 
+// GetTheBiggestDrawdownAcrossCurrencies returns the biggest drawdown across all currencies in a backtesting run
 func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResultsHolder) *FinalResultsHolder {
 	result := &FinalResultsHolder{
 		MaxDrawdown: currencystatstics.Swing{},
@@ -252,6 +236,7 @@ func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResults
 	return result
 }
 
+// PrintAllEvents outputs all event details in the CMD
 func (s *Statistic) PrintAllEvents() {
 	log.Info(log.BackTester, "------------------Events-------------------------------------")
 	var errs gctcommon.Errors
@@ -302,10 +287,12 @@ func (s *Statistic) PrintAllEvents() {
 	}
 }
 
+// SetStrategyName sets the name for statistical identification
 func (s *Statistic) SetStrategyName(name string) {
 	s.StrategyName = name
 }
 
+// Serialise outputs the Statistic struct in json
 func (s *Statistic) Serialise() (string, error) {
 	resp, err := json.MarshalIndent(s, "", " ")
 	if err != nil {

@@ -63,39 +63,6 @@ func TestSetExchangeFee(t *testing.T) {
 	}
 }
 
-func TestValue(t *testing.T) {
-	f := Fill{
-		Amount:        1,
-		PurchasePrice: 3,
-		ExchangeFee:   1,
-	}
-	if f.Value() != 3 {
-		t.Error("expected 3")
-	}
-}
-
-func TestNetValue(t *testing.T) {
-	f := Fill{
-		Amount:        1,
-		PurchasePrice: 3,
-		ExchangeFee:   1,
-		Direction:     gctorder.Buy,
-	}
-	if f.NetValue() != 4 {
-		t.Errorf("expected %v", f.NetValue())
-	}
-
-	f = Fill{
-		Amount:        1,
-		PurchasePrice: 3,
-		ExchangeFee:   1,
-		Direction:     gctorder.Sell,
-	}
-	if f.NetValue() != 2 {
-		t.Errorf("expected %v", f.NetValue())
-	}
-}
-
 func TestGetOrder(t *testing.T) {
 	f := Fill{
 		Order: &gctorder.Detail{},

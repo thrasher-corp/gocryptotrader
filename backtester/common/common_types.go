@@ -41,7 +41,6 @@ type EventHandler interface {
 // DataHandler interface used for loading and interacting with Data
 type DataEventHandler interface {
 	EventHandler
-	DataType() DataType
 	Price() float64
 }
 

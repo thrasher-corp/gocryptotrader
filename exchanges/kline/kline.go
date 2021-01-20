@@ -255,6 +255,8 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint3
 	return out
 }
 
+// FillMissingDataWithEmptyEntries ammends a kline item to have candle entries
+// for every interval between its start and end dates derived from ranges
 func (k *Item) FillMissingDataWithEmptyEntries(i IntervalRangeHolder) {
 	var anyChanges bool
 	for x := range i.Ranges {
@@ -277,7 +279,10 @@ func (k *Item) FillMissingDataWithEmptyEntries(i IntervalRangeHolder) {
 	}
 }
 
-func CalcSuperDateRanges(start, end time.Time, interval Interval, limit uint32) IntervalRangeHolder {
+// CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range
+// If an API is limited in the amount of candles it can make in a request, it will automatically separate
+// ranges into the limit
+func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit uint32) IntervalRangeHolder {
 	resp := IntervalRangeHolder{
 		Start: start.Round(interval.Duration()),
 		End:   end.Round(interval.Duration()),
@@ -324,22 +329,27 @@ func CalcSuperDateRanges(start, end time.Time, interval Interval, limit uint32) 
 }
 
 // RemoveDuplicates removes any duplicate candles
-func (i *Item) RemoveDuplicates() {
+func (k *Item) RemoveDuplicates() {
 	var newCandles []Candle
-	for x := range i.Candles {
+	for x := range k.Candles {
 		if x == 0 {
 			continue
 		}
-		if !i.Candles[x].Time.Equal(i.Candles[x-1].Time) {
+		if !k.Candles[x].Time.Equal(k.Candles[x-1].Time) {
 			// don't add duplicate
-			newCandles = append(newCandles, i.Candles[x])
+			newCandles = append(newCandles, k.Candles[x])
 		}
 	}
 
-	i.Candles = newCandles
+	k.Candles = newCandles
 }
 
+// HasDataAtDate determines whether a there is any data at a set
+// date inside the existing limits
 func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
+	if t.Before(t) || t.After(h.End) {
+		return false
+	}
 	for i := range h.Ranges {
 		if t.Equal(h.Ranges[i].Start) ||
 			(t.After(h.Ranges[i].Start) && t.Before(h.Ranges[i].End)) {
@@ -355,6 +365,8 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	return false
 }
 
+// Verify will calculate whether there is data in each candle
+// allowing any missing data from an API request to be highlighted
 func (h *IntervalRangeHolder) Verify(c []Candle) error {
 	for x := range h.Ranges {
 		for y := range h.Ranges[x].Intervals {

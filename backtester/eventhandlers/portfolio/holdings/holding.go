@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// GetLatestSnapshot returns the last holding snapshot
 func (s *Snapshots) GetLatestSnapshot() Holding {
 	if len(s.Holdings) == 0 {
 		return Holding{}
@@ -16,6 +17,7 @@ func (s *Snapshots) GetLatestSnapshot() Holding {
 	return s.Holdings[len(s.Holdings)-1]
 }
 
+// GetLatestSnapshot returns a specific snapshot at a given time
 func (s *Snapshots) GetSnapshotAtTimestamp(t time.Time) Holding {
 	for i := range s.Holdings {
 		if t.Equal(s.Holdings[i].Timestamp) {
@@ -25,6 +27,7 @@ func (s *Snapshots) GetSnapshotAtTimestamp(t time.Time) Holding {
 	return Holding{}
 }
 
+// Create takes a fill event and creates a new holding for the exchange, asset, pair
 func Create(f fill.Event, initialFunds, riskFreeRate float64) (Holding, error) {
 	if f == nil {
 		return Holding{}, errors.New("nil event received")
@@ -46,11 +49,13 @@ func Create(f fill.Event, initialFunds, riskFreeRate float64) (Holding, error) {
 	return h, nil
 }
 
+// Update calculates holding statistics for the events time
 func (h *Holding) Update(f fill.Event) {
 	h.Timestamp = f.GetTime()
 	h.update(f)
 }
 
+// UpdateValue calculates the holding's value for a data event's time and price
 func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.Timestamp = d.GetTime()
 	latest := d.Price()

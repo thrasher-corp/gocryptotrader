@@ -17,7 +17,6 @@ func TestSizingAccuracy(t *testing.T) {
 		MaximumTotal: 1337,
 	}
 	sizer := Size{
-		Leverage: config.Leverage{},
 		BuySide:  globalMinMax,
 		SellSide: globalMinMax,
 	}
@@ -42,7 +41,6 @@ func TestSizingOverMaxSize(t *testing.T) {
 		MaximumTotal: 1337,
 	}
 	sizer := Size{
-		Leverage: config.Leverage{},
 		BuySide:  globalMinMax,
 		SellSide: globalMinMax,
 	}
@@ -66,7 +64,6 @@ func TestSizingUnderMinSize(t *testing.T) {
 		MaximumTotal: 1337,
 	}
 	sizer := Size{
-		Leverage: config.Leverage{},
 		BuySide:  globalMinMax,
 		SellSide: globalMinMax,
 	}
@@ -87,7 +84,6 @@ func TestSizingErrors(t *testing.T) {
 		MaximumTotal: 1337,
 	}
 	sizer := Size{
-		Leverage: config.Leverage{},
 		BuySide:  globalMinMax,
 		SellSide: globalMinMax,
 	}
@@ -108,7 +104,6 @@ func TestCalculateSellSize(t *testing.T) {
 		MaximumTotal: 1337,
 	}
 	sizer := Size{
-		Leverage: config.Leverage{},
 		BuySide:  globalMinMax,
 		SellSide: globalMinMax,
 	}

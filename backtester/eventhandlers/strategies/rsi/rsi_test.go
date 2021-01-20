@@ -139,7 +139,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error(err)
 	}
 
-	ranger := gctkline.CalcSuperDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
+	ranger := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
 	da.Range = ranger
 	_ = da.Range.Verify(da.Item.Candles)
 	resp, err = s.OnSignal(da, nil)

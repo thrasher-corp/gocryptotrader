@@ -28,6 +28,7 @@ The GoCryptoTrader Backtester runs from reading config files (`.strat` files by 
 See below for a set of tables and fields, expected values and what they can do
 
 #### Config
+
 | Key | Description |
 | --- | ------|
 | Nickname | A nickname for the specific config. When running multiple variants of the same strategy, use the nickname to help differentiate between runs |
@@ -37,6 +38,7 @@ See below for a set of tables and fields, expected values and what they can do
 | StatisticSettings | Contains settings that impact statistics calculation. Such as the risk-free rate for the sharpe ratio |
 
 #### Currency Settings
+
 | Key | Description |
 | --- | -------|
 | ExchangeName | The exchange to load. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges |
@@ -54,6 +56,7 @@ See below for a set of tables and fields, expected values and what they can do
 | MaximumHoldingsRatio | When multiple currency settings are used, you may set a maximum holdings ratio to prevent having too large a stake in a single currency |
 
 #### Strategy Settings
+
 | Key | Description |
 | --- | -------|
 | Name | The strategy to use. |
@@ -61,6 +64,7 @@ See below for a set of tables and fields, expected values and what they can do
 | CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 |
 
 #### PortfolioSettings
+
 | Key | Description |
 | --- | -------|
 | Leverage | This struct defines the leverage rules that this specific currency setting must abide by |
@@ -68,11 +72,13 @@ See below for a set of tables and fields, expected values and what they can do
 | SellSide | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount |
 
 #### StatisticsSettings
+
 | Key | Description |
 | --- | -------|
 | RiskFreeRate | The risk free rate used in the calculation of sharpe and sortino ratios |
 
 #### APIData
+
 | Key | Description |
 | --- | -------|
 | DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles |
@@ -81,6 +87,7 @@ See below for a set of tables and fields, expected values and what they can do
 | EndDate | The end date to retrieve data |
 
 #### CSVData
+
 | Key | Description |
 | --- | -------|
 | DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles |
@@ -88,6 +95,7 @@ See below for a set of tables and fields, expected values and what they can do
 | FullPath | The file to load eg `/data/exchangelist.csv` |
 
 #### DatabaseData
+
 | Key | Description |
 | --- | -------|
 | DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles |
@@ -96,6 +104,7 @@ See below for a set of tables and fields, expected values and what they can do
 | ConfigOverride | Override GoCryptoTrader's config database data with custom settings |
 
 #### LiveData
+
 | Key | Description |
 | --- | -------|
 | DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles |
@@ -107,6 +116,7 @@ See below for a set of tables and fields, expected values and what they can do
 | RealOrders | Whether to place real orders. You really should never consider using this. Ever ever. |
 
 ##### Leverage Settings
+
 | Key | Description |
 | --- | -------|
 | CanUseLeverage | Allows the use of leverage |
@@ -114,6 +124,7 @@ See below for a set of tables and fields, expected values and what they can do
 | MaximumLeverageRate | Orders cannot be placed with leverage over this amount |
 
 ##### Buy/Sell Settings
+
 | Key | Description |
 | --- | -------|
 | MinimumSize | If the order's quantity is below this, the order cannot be placed |

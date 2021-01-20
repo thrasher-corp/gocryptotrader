@@ -108,7 +108,6 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 	}
 
 	o.Price = signal.GetPrice()
-	o.Amount = signal.GetAmount()
 	o.OrderType = gctorder.Market
 	sizingFunds := prevHolding.RemainingFunds
 	if signal.GetDirection() == gctorder.Sell {
@@ -120,7 +119,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 	return p.evaluateOrder(signal, o, sizedOrder)
 }
 
-func (p *Portfolio) evaluateOrder(signal signal.Event, originalOrderSignal, sizedOrder *order.Order) (*order.Order, error) {
+func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, sizedOrder *order.Order) (*order.Order, error) {
 	var evaluatedOrder *order.Order
 	cm, err := p.GetComplianceManager(originalOrderSignal.GetExchange(), originalOrderSignal.GetAssetType(), originalOrderSignal.Pair())
 	if err != nil {
@@ -130,7 +129,7 @@ func (p *Portfolio) evaluateOrder(signal signal.Event, originalOrderSignal, size
 	evaluatedOrder, err = p.riskManager.EvaluateOrder(sizedOrder, p.GetLatestHoldingsForAllCurrencies(), cm.GetLatestSnapshot())
 	if err != nil {
 		originalOrderSignal.AppendWhy(err.Error())
-		switch signal.GetDirection() {
+		switch d.GetDirection() {
 		case gctorder.Buy:
 			originalOrderSignal.Direction = common.CouldNotBuy
 		case gctorder.Sell:
@@ -138,14 +137,14 @@ func (p *Portfolio) evaluateOrder(signal signal.Event, originalOrderSignal, size
 		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}
-		signal.SetDirection(originalOrderSignal.Direction)
+		d.SetDirection(originalOrderSignal.Direction)
 		return originalOrderSignal, nil
 	}
 
 	return evaluatedOrder, nil
 }
 
-func (p *Portfolio) sizeOrder(signal signal.Event, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds float64) *order.Order {
+func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds float64) *order.Order {
 	sizedOrder, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil {
 		originalOrderSignal.AppendWhy(err.Error())
@@ -157,7 +156,7 @@ func (p *Portfolio) sizeOrder(signal signal.Event, cs *exchange.Settings, origin
 		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}
-		signal.SetDirection(originalOrderSignal.Direction)
+		d.SetDirection(originalOrderSignal.Direction)
 		return originalOrderSignal
 	}
 
@@ -170,14 +169,14 @@ func (p *Portfolio) sizeOrder(signal signal.Event, cs *exchange.Settings, origin
 		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}
-		signal.SetDirection(originalOrderSignal.Direction)
+		d.SetDirection(originalOrderSignal.Direction)
 		originalOrderSignal.AppendWhy("sized order to 0")
 	}
 
 	return sizedOrder
 }
 
-// OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions
+// OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions.
 func (p *Portfolio) OnFill(fillEvent fill.Event) (*fill.Fill, error) {
 	if fillEvent == nil {
 		return nil, errors.New("nil fill event received, cannot process OnFill")
@@ -233,9 +232,6 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	if err != nil {
 		return err
 	}
-	if complianceManager.Interval == 0 {
-		complianceManager.SetInterval(fillEvent.GetInterval())
-	}
 	prevSnap := complianceManager.GetLatestSnapshot()
 	fo := fillEvent.GetOrder()
 	if fo != nil {
@@ -255,6 +251,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	return nil
 }
 
+// GetComplianceManager returns the order snapshots for a given exchange, asset, pair
 func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
 	lookup := p.exchangeAssetPairSettings[exchangeName][a][cp]
 	if lookup == nil {
@@ -263,6 +260,7 @@ func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp c
 	return &lookup.ComplianceManager, nil
 }
 
+// SetFee sets the fee rate
 func (p *Portfolio) SetFee(exch string, a asset.Item, cp currency.Pair, fee float64) {
 	lookup := p.exchangeAssetPairSettings[exch][a][cp]
 	lookup.Fee = fee
@@ -280,6 +278,7 @@ func (p *Portfolio) GetFee(exchangeName string, a asset.Item, cp currency.Pair) 
 	return lookup.Fee
 }
 
+// IsInvested determines if there are any holdings for a given exchange, asset, pair
 func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pair) (holdings.Holding, bool) {
 	s := p.exchangeAssetPairSettings[exchangeName][a][cp]
 	if s == nil {
@@ -292,6 +291,7 @@ func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pa
 	return h, false
 }
 
+// Update updates the portfolio holdings for the data event
 func (p *Portfolio) Update(d common.DataEventHandler) error {
 	if d == nil {
 		return errors.New("received nil data event")
@@ -308,6 +308,7 @@ func (p *Portfolio) Update(d common.DataEventHandler) error {
 	return nil
 }
 
+// SetInitialFunds sets the initial funds
 func (p *Portfolio) SetInitialFunds(exch string, a asset.Item, cp currency.Pair, funds float64) error {
 	lookup, ok := p.exchangeAssetPairSettings[exch][a][cp]
 	if !ok {
@@ -322,6 +323,7 @@ func (p *Portfolio) SetInitialFunds(exch string, a asset.Item, cp currency.Pair,
 	return nil
 }
 
+// GetInitialFunds returns the initial funds
 func (p *Portfolio) GetInitialFunds(exch string, a asset.Item, cp currency.Pair) float64 {
 	lookup, ok := p.exchangeAssetPairSettings[exch][a][cp]
 	if !ok {
@@ -386,6 +388,7 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp curren
 	return holdings.Holding{}, fmt.Errorf("no holdings found for %v %v %v at %v", exch, a, cp, t)
 }
 
+// SetupCurrencySettingsMap ensures a map is created and no panics happen
 func (p *Portfolio) SetupCurrencySettingsMap(exch string, a asset.Item, cp currency.Pair) (*settings.Settings, error) {
 	if exch == "" {
 		return nil, errors.New("received empty exchange name")

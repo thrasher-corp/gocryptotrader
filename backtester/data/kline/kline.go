@@ -11,10 +11,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// HasDataAtTime verifies whether
 func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 	return d.Range.HasDataAtDate(t)
 }
 
+// Load sets the candle data to the stream for processing
 func (d *DataFromKline) Load() error {
 	d.addedTimes = make(map[time.Time]bool)
 	if len(d.Item.Candles) == 0 {
@@ -44,6 +46,7 @@ func (d *DataFromKline) Load() error {
 	return nil
 }
 
+// Append adds a candle item and sorts it to ensure it is all in order
 func (d *DataFromKline) Append(ki *gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[time.Time]bool)
@@ -80,6 +83,7 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 	d.SortStream()
 }
 
+// StreamOpen returns all Open prices from the beginning until the current iteration
 func (d *DataFromKline) StreamOpen() []float64 {
 	s := d.GetStream()
 	o := d.Offset()
@@ -91,6 +95,7 @@ func (d *DataFromKline) StreamOpen() []float64 {
 	return ret
 }
 
+// StreamHigh returns all High prices from the beginning until the current iteration
 func (d *DataFromKline) StreamHigh() []float64 {
 	s := d.GetStream()
 	o := d.Offset()
@@ -102,6 +107,7 @@ func (d *DataFromKline) StreamHigh() []float64 {
 	return ret
 }
 
+// StreamLow returns all Low prices from the beginning until the current iteration
 func (d *DataFromKline) StreamLow() []float64 {
 	s := d.GetStream()
 	o := d.Offset()
@@ -113,6 +119,7 @@ func (d *DataFromKline) StreamLow() []float64 {
 	return ret
 }
 
+// StreamClose returns all Close prices from the beginning until the current iteration
 func (d *DataFromKline) StreamClose() []float64 {
 	s := d.GetStream()
 	o := d.Offset()
@@ -124,6 +131,7 @@ func (d *DataFromKline) StreamClose() []float64 {
 	return ret
 }
 
+// StreamVol returns all Volume prices from the beginning until the current iteration
 func (d *DataFromKline) StreamVol() []float64 {
 	s := d.GetStream()
 	o := d.Offset()

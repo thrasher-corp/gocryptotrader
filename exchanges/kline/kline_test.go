@@ -401,13 +401,13 @@ func TestCalcSuperDateRanges(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	v := CalcSuperDateRanges(start, end, OneMin, 300)
+	v := CalculateCandleDateRanges(start, end, OneMin, 300)
 
 	if v.Ranges[0].Start.Unix() != time.Unix(1546300800, 0).Unix() {
 		t.Errorf("expected %v received %v", 1546300800, v.Ranges[0].Start.Unix())
 	}
 
-	v = CalcSuperDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
+	v = CalculateCandleDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
 	if len(v.Ranges) != 1 {
 		t.Fatalf("expected %v received %v", 1, len(v.Ranges))
 	}
@@ -416,7 +416,7 @@ func TestCalcSuperDateRanges(t *testing.T) {
 	}
 	start = time.Now()
 	end = time.Now().AddDate(0, 0, 10)
-	v = CalcSuperDateRanges(start, end, OneDay, 5)
+	v = CalculateCandleDateRanges(start, end, OneDay, 5)
 	if len(v.Ranges) != 2 {
 		t.Errorf("expected %v received %v", 3, len(v.Ranges))
 	}

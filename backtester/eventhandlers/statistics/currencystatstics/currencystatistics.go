@@ -156,7 +156,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.MarketMovement = ((lastPrice - firstPrice) / firstPrice) * 100
 	c.StrategyMovement = ((last.Holdings.TotalValue - last.Holdings.InitialFunds) / last.Holdings.InitialFunds) * 100
 	c.RiskFreeRate = last.Holdings.RiskFreeRate
-	var returnPerCandle = make([]float64, len(c.Events))
+	returnPerCandle := make([]float64, len(c.Events))
 
 	var negativeReturns []float64
 	for i := range c.Events {

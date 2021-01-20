@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 func (e *Exchange) Reset() {
@@ -54,12 +55,17 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	var err error
 	if cs.UseRealOrders {
 		// get current orderbook
+		var ob *orderbook.Base
+		ob, err = orderbook.Get(f.Exchange, f.CurrencyPair, f.AssetType)
+		if err != nil {
+			return f, err
+		}
 		// calculate an estimated slippage rate
-		slippageRate := slippage.CalculateSlippage(nil)
+		slippageRate := slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), f.ClosePrice)
 		adjustedPrice = f.ClosePrice * slippageRate
 		amount = f.Amount
 	} else {
-		adjustedPrice, amount, err = e.sizeOrder(high, low, volume, &cs, f)
+		adjustedPrice, amount, err = e.sizeOfflineOrder(high, low, volume, &cs, f)
 		if err != nil {
 			return f, err
 		}
@@ -140,7 +146,7 @@ func (e *Exchange) placeOrder(price, amount float64, useRealOrders bool, f *fill
 	return orderID, nil
 }
 
-func (e *Exchange) sizeOrder(high, low, volume float64, cs *Settings, f *fill.Fill) (adjustedPrice, adjustedAmount float64, err error) {
+func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *fill.Fill) (adjustedPrice, adjustedAmount float64, err error) {
 	if cs == nil || f == nil {
 		return 0, 0, errors.New("received nil arguments")
 	}

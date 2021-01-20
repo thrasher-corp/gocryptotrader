@@ -3,8 +3,6 @@ package compliance
 import (
 	"fmt"
 	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // AddSnapshot creates a snapshot in time of the orders placed to allow for finer detail tracking
@@ -39,10 +37,6 @@ func (m *Manager) GetSnapshotAtTime(t time.Time) (Snapshot, error) {
 		}
 	}
 	return Snapshot{}, fmt.Errorf("snapshot at %v not found", t)
-}
-
-func (m *Manager) SetInterval(i kline.Interval) {
-	m.Interval = i
 }
 
 // GetLatestSnapshot returns the snapshot of t - 1 interval

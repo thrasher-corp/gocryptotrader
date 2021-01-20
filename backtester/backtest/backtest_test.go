@@ -374,7 +374,6 @@ func TestFullCycle(t *testing.T) {
 	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
 
 	port, err := portfolio.Setup(&size.Size{
-		Leverage: config.Leverage{},
 		BuySide:  config.MinMax{},
 		SellSide: config.MinMax{},
 	}, &risk.Risk{}, 0)
@@ -501,7 +500,6 @@ func TestFullCycleMulti(t *testing.T) {
 	stats.ExchangeAssetPairStatistics[ex][a] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
 
 	port, err := portfolio.Setup(&size.Size{
-		Leverage: config.Leverage{},
 		BuySide:  config.MinMax{},
 		SellSide: config.MinMax{},
 	}, &risk.Risk{}, 0)

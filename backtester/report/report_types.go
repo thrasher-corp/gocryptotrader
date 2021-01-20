@@ -12,11 +12,13 @@ import (
 // lightweight charts can ony render 1100 candles
 const maxChartLimit = 1100
 
+// Handler contains all functions required to generate statistical reporting for backtesting results
 type Handler interface {
 	GenerateReport() error
 	AddKlineItem(*kline.Item)
 }
 
+// Data holds all statistical information required to output detailed backtesting results
 type Data struct {
 	OriginalCandles []*kline.Item
 	EnhancedCandles []DetailedKline
@@ -26,6 +28,7 @@ type Data struct {
 	OutputPath      string
 }
 
+// DetailedKline enhances kline details for the purpose of rich reporting results
 type DetailedKline struct {
 	IsOverLimit bool
 	Watermark   string
@@ -36,6 +39,7 @@ type DetailedKline struct {
 	Candles     []DetailedCandle
 }
 
+// DetailedCandle contains extra details to enable rich reporting results
 type DetailedCandle struct {
 	Time           int64
 	Open           float64

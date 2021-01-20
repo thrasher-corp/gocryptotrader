@@ -76,7 +76,7 @@ func main() {
 		}
 	}
 
-	err = bt.Statistic.CalculateTheResults()
+	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
 		gctlog.Error(gctlog.BackTester, err)
 	}

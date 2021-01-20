@@ -7,10 +7,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// Snapshots contains all calculated holdings per time interval
 type Snapshots struct {
 	Holdings []Holding
 }
 
+// Holding contains pricing statistics for a given time
+// for a given exchange asset pair
 type Holding struct {
 	Pair           currency.Pair `json:"pair"`
 	Asset          asset.Item    `json:"asset"`

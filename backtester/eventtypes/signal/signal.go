@@ -5,34 +5,32 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// IsSignal returns whether the event is a signal type
 func (s *Signal) IsSignal() bool {
 	return true
 }
 
+// SetDirections sets the direction
 func (s *Signal) SetDirection(st order.Side) {
 	s.Direction = st
 }
 
+// GetDirection returns the direction
 func (s *Signal) GetDirection() order.Side {
 	return s.Direction
 }
 
+// Pair returns the currency pair
 func (s *Signal) Pair() currency.Pair {
 	return s.CurrencyPair
 }
 
-func (s *Signal) SetAmount(f float64) {
-	s.Amount = f
-}
-
-func (s *Signal) GetAmount() float64 {
-	return s.Amount
-}
-
+// GetPrice returns the price
 func (s *Signal) GetPrice() float64 {
 	return s.Price
 }
 
+// SetPrice sets the price
 func (s *Signal) SetPrice(f float64) {
 	s.Price = f
 }

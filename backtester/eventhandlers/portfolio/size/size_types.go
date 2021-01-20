@@ -2,8 +2,8 @@ package size
 
 import "github.com/thrasher-corp/gocryptotrader/backtester/config"
 
+// Size contains buy and sell side rules
 type Size struct {
-	Leverage config.Leverage
 	BuySide  config.MinMax
 	SellSide config.MinMax
 }

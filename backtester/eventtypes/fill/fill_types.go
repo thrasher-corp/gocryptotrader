@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// Fill is an event that details the events from placing an order
 type Fill struct {
 	event.Event
 	Direction           order.Side    `json:"side"`
@@ -18,6 +19,7 @@ type Fill struct {
 	Order               *order.Detail `json:"-"`
 }
 
+// Event holds all functions required to handle a fill event
 type Event interface {
 	common.EventHandler
 	common.Directioner
@@ -30,7 +32,5 @@ type Event interface {
 	GetPurchasePrice() float64
 	GetExchangeFee() float64
 	SetExchangeFee(float64)
-	Value() float64
-	NetValue() float64
 	GetOrder() *order.Detail
 }

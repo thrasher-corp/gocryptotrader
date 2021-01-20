@@ -8,10 +8,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 )
 
+// Strategy is base implementation of the Handler interface
 type Strategy struct {
 	multiCurrency bool
 }
 
+// GetBase returns the non-interface version of the Handler
 func (s *Strategy) GetBase(d data.Handler) (signal.Signal, error) {
 	if d == nil {
 		return signal.Signal{}, errors.New("nil data handler received")
@@ -31,10 +33,12 @@ func (s *Strategy) GetBase(d data.Handler) (signal.Signal, error) {
 	}, nil
 }
 
+// IsMultiCurrency returns whether multiple currencies can be assessed in one go
 func (s *Strategy) IsMultiCurrency() bool {
 	return s.multiCurrency
 }
 
+// SetMultiCurrency sets whether multiple currencies can be assessed in one go
 func (s *Strategy) SetMultiCurrency(b bool) {
 	s.multiCurrency = b
 }

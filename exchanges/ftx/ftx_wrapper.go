@@ -1048,7 +1048,7 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	dates := kline.CalcSuperDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalculateCandleDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
 
 	formattedPair, err := f.FormatExchangeCurrency(p, a)
 	if err != nil {

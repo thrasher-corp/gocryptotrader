@@ -85,7 +85,7 @@ func TestHasDataAtTime(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	ranger := gctkline.CalcSuperDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
+	ranger := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
 	d.Range = ranger
 	_ = d.Range.Verify(d.Item.Candles)
 	has = d.HasDataAtTime(dInsert)
@@ -116,9 +116,6 @@ func TestAppend(t *testing.T) {
 		},
 	}
 	d.Append(&item)
-	if len(d.addedTimes) == 0 {
-		t.Error("expected added time")
-	}
 }
 
 func TestStreamOpen(t *testing.T) {
@@ -130,20 +127,21 @@ func TestStreamOpen(t *testing.T) {
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{&kline.Kline{
-		Event: event.Event{
-			Exchange:     exch,
-			Time:         time.Now(),
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
+	d.SetStream([]common.DataEventHandler{
+		&kline.Kline{
+			Event: event.Event{
+				Exchange:     exch,
+				Time:         time.Now(),
+				Interval:     gctkline.OneDay,
+				CurrencyPair: p,
+				AssetType:    a,
+			},
+			Open:   1337,
+			High:   1337,
+			Low:    1337,
+			Close:  1337,
+			Volume: 1337,
 		},
-		Open:   1337,
-		High:   1337,
-		Low:    1337,
-		Close:  1337,
-		Volume: 1337,
-	},
 	})
 	d.Next()
 	open := d.StreamOpen()
@@ -161,20 +159,21 @@ func TestStreamVolume(t *testing.T) {
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{&kline.Kline{
-		Event: event.Event{
-			Exchange:     exch,
-			Time:         time.Now(),
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
+	d.SetStream([]common.DataEventHandler{
+		&kline.Kline{
+			Event: event.Event{
+				Exchange:     exch,
+				Time:         time.Now(),
+				Interval:     gctkline.OneDay,
+				CurrencyPair: p,
+				AssetType:    a,
+			},
+			Open:   1337,
+			High:   1337,
+			Low:    1337,
+			Close:  1337,
+			Volume: 1337,
 		},
-		Open:   1337,
-		High:   1337,
-		Low:    1337,
-		Close:  1337,
-		Volume: 1337,
-	},
 	})
 	d.Next()
 	open := d.StreamVol()
@@ -192,20 +191,21 @@ func TestStreamClose(t *testing.T) {
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{&kline.Kline{
-		Event: event.Event{
-			Exchange:     exch,
-			Time:         time.Now(),
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
+	d.SetStream([]common.DataEventHandler{
+		&kline.Kline{
+			Event: event.Event{
+				Exchange:     exch,
+				Time:         time.Now(),
+				Interval:     gctkline.OneDay,
+				CurrencyPair: p,
+				AssetType:    a,
+			},
+			Open:   1337,
+			High:   1337,
+			Low:    1337,
+			Close:  1337,
+			Volume: 1337,
 		},
-		Open:   1337,
-		High:   1337,
-		Low:    1337,
-		Close:  1337,
-		Volume: 1337,
-	},
 	})
 	d.Next()
 	open := d.StreamClose()
@@ -223,20 +223,21 @@ func TestStreamHigh(t *testing.T) {
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{&kline.Kline{
-		Event: event.Event{
-			Exchange:     exch,
-			Time:         time.Now(),
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
+	d.SetStream([]common.DataEventHandler{
+		&kline.Kline{
+			Event: event.Event{
+				Exchange:     exch,
+				Time:         time.Now(),
+				Interval:     gctkline.OneDay,
+				CurrencyPair: p,
+				AssetType:    a,
+			},
+			Open:   1337,
+			High:   1337,
+			Low:    1337,
+			Close:  1337,
+			Volume: 1337,
 		},
-		Open:   1337,
-		High:   1337,
-		Low:    1337,
-		Close:  1337,
-		Volume: 1337,
-	},
 	})
 	d.Next()
 	open := d.StreamHigh()
@@ -254,20 +255,21 @@ func TestStreamLow(t *testing.T) {
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{&kline.Kline{
-		Event: event.Event{
-			Exchange:     exch,
-			Time:         time.Now(),
-			Interval:     gctkline.OneDay,
-			CurrencyPair: p,
-			AssetType:    a,
+	d.SetStream([]common.DataEventHandler{
+		&kline.Kline{
+			Event: event.Event{
+				Exchange:     exch,
+				Time:         time.Now(),
+				Interval:     gctkline.OneDay,
+				CurrencyPair: p,
+				AssetType:    a,
+			},
+			Open:   1337,
+			High:   1337,
+			Low:    1337,
+			Close:  1337,
+			Volume: 1337,
 		},
-		Open:   1337,
-		High:   1337,
-		Low:    1337,
-		Close:  1337,
-		Volume: 1337,
-	},
 	})
 	d.Next()
 	open := d.StreamLow()

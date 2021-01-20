@@ -9,12 +9,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// Setup creates a basic map
 func (d *HandlerPerCurrency) Setup() {
 	if d.data == nil {
 		d.data = make(map[string]map[asset.Item]map[currency.Pair]Handler)
 	}
 }
 
+// SetDataForCurrency assigns a data Handler to the data map by exchange, asset and currency
 func (d *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p currency.Pair, k Handler) {
 	if d.data == nil {
 		d.Setup()
@@ -29,14 +31,17 @@ func (d *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p curren
 	d.data[e][a][p] = k
 }
 
+// GetAllData returns all set data in the data map
 func (d *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler {
 	return d.data
 }
 
+// GetDataForCurrency returns the Handler for a specific exchange, asset, currency
 func (d *HandlerPerCurrency) GetDataForCurrency(e string, a asset.Item, p currency.Pair) Handler {
 	return d.data[e][a][p]
 }
 
+// Reset returns the struct to defaults
 func (d *HandlerPerCurrency) Reset() {
 	d.data = nil
 }
@@ -100,10 +105,13 @@ func (d *Data) Latest() common.DataEventHandler {
 	return d.latest
 }
 
+// SortStream returns all future data events from the current iteration
+// ill-advised to use this in strategies because you don't know the future in real life
 func (d *Data) List() []common.DataEventHandler {
 	return d.stream[d.offset:]
 }
 
+// SortStream sorts the stream by timestamp
 func (d *Data) SortStream() {
 	sort.Slice(d.stream, func(i, j int) bool {
 		b1 := d.stream[i]
@@ -113,21 +121,32 @@ func (d *Data) SortStream() {
 	})
 }
 
+// StreamOpen returns all Open prices from the beginning until the current iteration
+// Implemented under DataFromKline
 func (d *Data) StreamOpen() []float64 {
 	return []float64{}
 }
 
+// StreamHigh returns all High prices from the beginning until the current iteration
+// Implemented under DataFromKline
 func (d *Data) StreamHigh() []float64 {
 	return []float64{}
 }
 
+// StreamLow returns all Low prices from the beginning until the current iteration
+// Implemented under DataFromKline
 func (d *Data) StreamLow() []float64 {
 	return []float64{}
 }
+
+// StreamClose returns all Close prices from the beginning until the current iteration
+// Implemented under DataFromKline
 func (d *Data) StreamClose() []float64 {
 	return []float64{}
 }
 
+// StreamVol returns all Volume prices from the beginning until the current iteration
+// Implemented under DataFromKline
 func (d *Data) StreamVol() []float64 {
 	return []float64{}
 }

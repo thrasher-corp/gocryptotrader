@@ -93,11 +93,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 			MaximumSize:  cfg.PortfolioSettings.SellSide.MaximumSize,
 			MaximumTotal: cfg.PortfolioSettings.SellSide.MaximumTotal,
 		},
-		Leverage: config.Leverage{
-			CanUseLeverage:       cfg.PortfolioSettings.Leverage.CanUseLeverage,
-			MaximumLeverageRate:  cfg.PortfolioSettings.Leverage.MaximumLeverageRate,
-			MaximumLeverageRatio: cfg.PortfolioSettings.Leverage.MaximumLeverageRatio,
-		},
 	}
 
 	portfolioRisk := &risk.Risk{
@@ -243,6 +238,11 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 
+		realOrders := false
+		if cfg.DataSettings.LiveData != nil {
+			realOrders = cfg.DataSettings.LiveData.RealOrders
+		}
+
 		resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
 			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
 			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
@@ -253,6 +253,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			ExchangeFee:         takerFee,
 			MakerFee:            takerFee,
 			TakerFee:            makerFee,
+			UseRealOrders:       realOrders,
 			BuySide: config.MinMax{
 				MinimumSize:  cfg.CurrencySettings[i].BuySide.MinimumSize,
 				MaximumSize:  cfg.CurrencySettings[i].BuySide.MaximumSize,
@@ -487,7 +488,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if cfg.DataSettings.Interval == 0 {
 		return nil, errors.New("api data interval unset")
 	}
-	dates := gctkline.CalcSuperDateRanges(
+	dates := gctkline.CalculateCandleDateRanges(
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
 		gctkline.Interval(cfg.DataSettings.Interval),
@@ -571,10 +572,16 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 				return
 			}
 			resp.Append(candles)
+			_, err = exch.FetchOrderbook(fPair, a)
+			if err != nil {
+				log.Error(log.BackTester, err)
+				return
+			}
 		}
 	}
 }
 
+// Stop shuts down the live data loop
 func (bt *BackTest) Stop() {
 	close(bt.shutdown)
 }
@@ -592,7 +599,7 @@ dataLoadingIssue:
 					for currencyPair, dataHandler := range assetMap {
 						d, ok := dataHandler.Next()
 						if !ok {
-							if !hasHandledAnEvent {
+							if !bt.hasHandledEvent {
 								log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
 							}
 							break dataLoadingIssue
@@ -611,8 +618,8 @@ dataLoadingIssue:
 		if err != nil {
 			return err
 		}
-		if !hasHandledAnEvent {
-			hasHandledAnEvent = true
+		if !bt.hasHandledEvent {
+			bt.hasHandledEvent = true
 		}
 	}
 
@@ -664,7 +671,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 			log.Error(log.BackTester, err)
 		}
 		for i := range signals {
-			err = bt.Statistic.AddSignalEventForTime(signals[i])
+			err = bt.Statistic.SetEventForTime(signals[i])
 			if err != nil {
 				log.Error(log.BackTester, err)
 			}
@@ -681,7 +688,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 			log.Error(log.BackTester, err)
 			return
 		}
-		err = bt.Statistic.AddSignalEventForTime(s)
+		err = bt.Statistic.SetEventForTime(s)
 		if err != nil {
 			log.Error(log.BackTester, err)
 		}
@@ -698,7 +705,7 @@ func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
 		log.Error(log.BackTester, err)
 	}
 	// update statistics with latest price
-	err = bt.Statistic.AddDataEventForTime(e)
+	err = bt.Statistic.SetupEventForTime(e)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -711,7 +718,7 @@ func (bt *BackTest) processSignalEvent(ev signal.Event) {
 		log.Error(log.BackTester, err)
 		return
 	}
-	err = bt.Statistic.AddOrderEventForTime(o)
+	err = bt.Statistic.SetEventForTime(o)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -729,7 +736,7 @@ func (bt *BackTest) processOrderEvent(ev order.Event) {
 		}
 		log.Errorf(log.BackTester, "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
 	}
-	err = bt.Statistic.AddFillEventForTime(f)
+	err = bt.Statistic.SetEventForTime(f)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -743,7 +750,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event) {
 		return
 	}
 
-	err = bt.Statistic.AddFillEventForTime(t)
+	err = bt.Statistic.SetEventForTime(t)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}

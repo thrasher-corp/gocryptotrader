@@ -2,6 +2,9 @@ package slippage
 
 import (
 	"math/rand"
+
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 // EstimateSlippagePercentage takes in an int range of numbers
@@ -24,6 +27,22 @@ func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate float64
 	return 1
 }
 
-func CalculateSlippage(orderbook interface{}) float64 {
+// CalculateSlippageByOrderbook will analyse a provided orderbook and return the result of attempting to
+// place the order on there
+func CalculateSlippageByOrderbook(ob *orderbook.Base, side gctorder.Side, price float64) float64 {
+	result, err := ob.WhaleBomb(price, side == gctorder.Buy)
+	if err != nil {
+		return 1
+	}
+	rate := (result.MinimumPrice - result.MaximumPrice) / result.MaximumPrice
+	if rate < 0 {
+		rate *= -1
+	}
+	if side == gctorder.Buy {
+		return 1 + rate
+	} else if side == gctorder.Sell {
+		return 1 - rate
+	}
+
 	return 1
 }

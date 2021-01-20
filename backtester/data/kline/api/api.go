@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
+// LoadData retrieves data from a GoCryptoTrader exchange wrapper which calls the exchange's API
 func LoadData(dataType string, startDate, endDate time.Time, interval time.Duration, exch exchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
 	var candles kline.Item
 	var err error

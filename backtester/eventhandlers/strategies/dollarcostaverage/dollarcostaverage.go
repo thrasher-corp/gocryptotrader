@@ -16,14 +16,18 @@ import (
 // Name is the strategy name
 const Name = "dollarcostaverage"
 
+// Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
 }
 
+// Name returns the name
 func (s *Strategy) Name() string {
 	return Name
 }
 
+// OnSignal handles a data event and returns what action the strategy believes should occur
+// For dollarcostaverage, this means returning a buy signal on every event
 func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error) {
 	if d == nil {
 		return nil, errors.New("received nil data")
@@ -42,6 +46,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 	return &es, nil
 }
 
+// SupportsMultiCurrency highlights whether the strategy can handle multiple currency calculation
 func (s *Strategy) SupportsMultiCurrency() bool {
 	return true
 }
@@ -61,7 +66,10 @@ func (s *Strategy) OnSignals(d []data.Handler, p portfolio.Handler) ([]signal.Ev
 		}
 	}
 
-	return resp, errs
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	return resp, nil
 }
 
 // SetCustomSettings not required for DCA

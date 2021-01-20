@@ -21,6 +21,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Config package overview
 
 Current Config Examples:
+
 | Config | Description |
 | --- | ------ |
 | dollar-cost-average.strat | A simple dollar cost average strategy which makes a purchase on every candle. |

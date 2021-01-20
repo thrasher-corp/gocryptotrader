@@ -2,15 +2,18 @@
 {{template "backtester-header" .}}
 ## {{.CapitalName}} package overview
 
-The backtest package is the most important package of the GoCryptoTrader backtester.
-
+The backtest package is the most important package of the GoCryptoTrader backtester. It is the engine which combines all elements.
 It is responsible for the following functionality
 - Loading settings from a provided config file
-- Retreiving data
-- Loading the data into assessible chunks
+- Retrieving data
+- Loading the data into assessable chunks
 - Analysing the data via the `handleEvent` function
 - Looping through all data
 - Outputting results into a report
+
+
+A rough flow of the application is as follows:
+![workflow](https://user-images.githubusercontent.com/9261323/104982257-61d97900-5a5e-11eb-930e-3b431d6e6bab.png)
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

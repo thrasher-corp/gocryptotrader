@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// ExecutionHandler interface dictates what functions are required to submit an order
 type ExecutionHandler interface {
 	SetCurrency(string, asset.Item, currency.Pair, *Settings)
 	GetCurrencySettings(string, asset.Item, currency.Pair) (Settings, error)
@@ -17,10 +18,12 @@ type ExecutionHandler interface {
 	Reset()
 }
 
+// Exchange contains all the currency settings
 type Exchange struct {
 	CurrencySettings []Settings
 }
 
+// Settings allow the eventhandler to size an order within the limitations set by the config file
 type Settings struct {
 	ExchangeName  string
 	UseRealOrders bool

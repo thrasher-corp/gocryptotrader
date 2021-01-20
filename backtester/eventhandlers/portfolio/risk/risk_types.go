@@ -8,26 +8,21 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// Handler defines what is expected to be able to assess risk of an order
 type Handler interface {
 	EvaluateOrder(order.Event, []holdings.Holding, compliance.Snapshot) (*order.Order, error)
 }
 
+// Risk contains all currency settings in order to evaluate potential orders
 type Risk struct {
 	CurrencySettings map[string]map[asset.Item]map[currency.Pair]*CurrencySettings
 	CanUseLeverage   bool
 	MaximumLeverage  float64
 }
 
+// CurrencySettings contains relevant limits to assess risk
 type CurrencySettings struct {
 	MaxLeverageRatio    float64
 	MaxLeverageRate     float64
 	MaximumHoldingRatio float64
-}
-
-type Settings struct {
-	MaxLeverageRatio             float64
-	MaxLeverageRate              float64
-	MaxDiversificationPercentage float64 // I cant think of a term, but the ratio between the entire portfolio, eg BTC cannot be more than 50% of holdings
-	CanUseLeverage               bool
-	MaximumLeverage              float64
 }
