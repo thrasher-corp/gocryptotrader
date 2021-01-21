@@ -21,7 +21,23 @@ const (
 	takerFee     = 0.001
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
+	// change this if you modify a config and want it to save to the example folder
+	saveConfig = false
 )
+
+var (
+	startDate time.Time
+	endDate   time.Time
+)
+
+func TestMain(m *testing.M) {
+	startDate = time.Now().Add(-time.Hour * 24 * 30)
+	endDate = time.Now()
+	startDate = startDate.Truncate(kline.OneDay.Duration())
+	endDate = endDate.Truncate(kline.OneDay.Duration())
+
+	os.Exit(m.Run())
+}
 
 func TestLoadConfig(t *testing.T) {
 	_, err := LoadConfig([]byte(`{}`))
@@ -94,8 +110,8 @@ func TestPrintSettings(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: time.Now().Add(-time.Hour * 24 * 365),
-				EndDate:   time.Now(),
+				StartDate: startDate,
+				EndDate:   endDate,
 			},
 			CSVData: &CSVData{
 				FullPath: "fake",
@@ -108,8 +124,8 @@ func TestPrintSettings(t *testing.T) {
 				RealOrders:          false,
 			},
 			DatabaseData: &DatabaseData{
-				StartDate:      time.Now().Add(-time.Hour * 24 * 365),
-				EndDate:        time.Now(),
+				StartDate:      startDate,
+				EndDate:        endDate,
 				ConfigOverride: nil,
 			},
 		},
@@ -169,8 +185,8 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: time.Now().Add(-time.Hour * 24 * 365),
-				EndDate:   time.Now(),
+				StartDate: startDate,
+				EndDate:   endDate,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -192,17 +208,19 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			RiskFreeRate: 0.03,
 		},
 	}
-	result, err := json.MarshalIndent(cfg, "", " ")
-	if err != nil {
-		t.Error(err)
-	}
-	p, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, 0770)
-	if err != nil {
-		t.Error(err)
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -240,8 +258,8 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.TradeStr,
 			APIData: &APIData{
-				StartDate: time.Now().Add(-time.Hour * 24 * 365),
-				EndDate:   time.Now(),
+				StartDate: startDate,
+				EndDate:   endDate,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -263,17 +281,19 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 			RiskFreeRate: 0.03,
 		},
 	}
-	result, err := json.MarshalIndent(cfg, "", " ")
-	if err != nil {
-		t.Error(err)
-	}
-	p, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, 0770)
-	if err != nil {
-		t.Error(err)
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -333,8 +353,8 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: time.Now().Add(-time.Hour * 24 * 7),
-				EndDate:   time.Now(),
+				StartDate: startDate,
+				EndDate:   endDate,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -356,17 +376,19 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 			RiskFreeRate: 0.03,
 		},
 	}
-	result, err := json.MarshalIndent(cfg, "", " ")
-	if err != nil {
-		t.Error(err)
-	}
-	p, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, 0770)
-	if err != nil {
-		t.Error(err)
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -428,8 +450,8 @@ func TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC),
-				EndDate:   time.Date(2020, 5, 20, 0, 0, 0, 0, time.UTC),
+				StartDate: startDate,
+				EndDate:   endDate,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -451,17 +473,19 @@ func TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment(t *testing.T) {
 			RiskFreeRate: 0.03,
 		},
 	}
-	result, err := json.MarshalIndent(cfg, "", " ")
-	if err != nil {
-		t.Error(err)
-	}
-	p, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multi-currency-assessment.strat"), result, 0770)
-	if err != nil {
-		t.Error(err)
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multi-currency-assessment.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -525,17 +549,19 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			RiskFreeRate: 0.03,
 		},
 	}
-	result, err := json.MarshalIndent(cfg, "", " ")
-	if err != nil {
-		t.Error(err)
-	}
-	p, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, 0770)
-	if err != nil {
-		t.Error(err)
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -600,8 +626,8 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: time.Date(2018, 5, 1, 0, 0, 0, 0, time.Local),
-				EndDate:   time.Date(2020, 5, 1, 0, 0, 0, 0, time.Local),
+				StartDate: startDate,
+				EndDate:   endDate,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -623,17 +649,19 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			RiskFreeRate: 0.03,
 		},
 	}
-	result, err := json.MarshalIndent(cfg, "", " ")
-	if err != nil {
-		t.Error(err)
-	}
-	p, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, 0770)
-	if err != nil {
-		t.Error(err)
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -694,17 +722,19 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 			RiskFreeRate: 0.03,
 		},
 	}
-	result, err := json.MarshalIndent(cfg, "", " ")
-	if err != nil {
-		t.Error(err)
-	}
-	p, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, 0770)
-	if err != nil {
-		t.Error(err)
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -765,17 +795,19 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 			RiskFreeRate: 0.03,
 		},
 	}
-	result, err := json.MarshalIndent(cfg, "", " ")
-	if err != nil {
-		t.Error(err)
-	}
-	p, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, 0770)
-	if err != nil {
-		t.Error(err)
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -813,8 +845,8 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			DatabaseData: &DatabaseData{
-				StartDate: time.Now().Add(-time.Hour * 24 * 7),
-				EndDate:   time.Now(),
+				StartDate: startDate,
+				EndDate:   endDate,
 				ConfigOverride: &database.Config{
 					Enabled: true,
 					Verbose: false,
@@ -845,16 +877,39 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 			RiskFreeRate: 0.03,
 		},
 	}
-	result, err := json.MarshalIndent(cfg, "", " ")
-	if err != nil {
-		t.Error(err)
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Error(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Error(err)
+		}
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, 0770)
+		if err != nil {
+			t.Error(err)
+		}
 	}
-	p, err := os.Getwd()
-	if err != nil {
-		t.Error(err)
+}
+
+func TestValidate(t *testing.T) {
+	m := MinMax{
+		MinimumSize:  -1,
+		MaximumSize:  -1,
+		MaximumTotal: -1,
 	}
-	err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, 0770)
-	if err != nil {
-		t.Error(err)
+	m.Validate()
+	if m.MinimumSize > m.MaximumSize {
+		t.Errorf("expected %v > %v", m.MaximumSize, m.MinimumSize)
+	}
+	if m.MinimumSize < 0 {
+		t.Errorf("expected %v > %v", m.MinimumSize, 0)
+	}
+	if m.MaximumSize < 0 {
+		t.Errorf("expected %v > %v", m.MaximumSize, 0)
+	}
+	if m.MaximumTotal < 0 {
+		t.Errorf("expected %v > %v", m.MaximumTotal, 0)
 	}
 }

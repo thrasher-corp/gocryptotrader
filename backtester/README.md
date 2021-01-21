@@ -22,7 +22,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 # GoCryptoTrader Backtester
 An event-driven backtesting tool to test and iterate trading strategies using historical or custom data.
 
-
 ## Features
 - Works with all GoCryptoTrader exchanges that support trade/candle retrieval
 - API data retrieval
@@ -46,23 +45,36 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
   - Start & end dates
   - The strategy to run
   - The candle interval
-  - Where the data is to be sourced (API, CSV, database, live)
-  - What type of data to use (trade or candle)
+  - Where the data is to be sourced ([API](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/data/kline/api), [CSV](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/data/kline/csv), [database](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/data/kline/database), [live](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/data/kline/live))
+  - Whether to use trade or candle data (readme)
   - A nickname for the strategy (to help differentiate between runs/configs using the same strategy)
   - The currency/currencies to use
   - The exchange(s) to run against
+  - See [readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/config/README.md) for a breakdown of all config features
+- The GoCryptoTrader Backtester will retrieve the data specified in the config ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/backtest/README.md))
+- The data is converted into candles and each candle is streamed as a data event.
+- The data event is analysed by the strategy which will output a purchasing signal such as `BUY`, `SELL` or `DONOTHING` ([readme](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/eventtypes/signal))
+- The purchase signal is then processed by the portfolio manager ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/portfolio/README.md)) which will size the order ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/portfolio/size/README.md)) and assess risk ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/portfolio/risk/README.md)) before sending it to the exchange
+- The exchange order event handler will size to the candle data and run a slippage estimator ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/exchange/slippage/README.md) and place the order ([readme](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/eventhandlers/exchange))
+- Upon an order being placed, the order is snapshot for analysis in both the statistics package ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/statistics/README.md)) and the report package ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/report/README.md))
+
 
 # Cool story, how do I use it?
 To run the application using the provided dollar cost average strategy, simply run `go run .` from `gocryptotrader/backtester`. An output of the results will be put in the `results` folder
 
 # How does it work technically?
-- See [this readme]() for an overview of the backtester
-- See [this readme]() for an overview of config settings
-- See [this readme]() for an overview of the dollar cost average strategy
-- See [this readme]() for an overview of the RSI strategy
+- The readmes linked in the "How does it work" covers the main parts of the application.
+  - If you are still unsure, please raise an issue, ask a question in our Slack or open a pull request
+- Here is an overview
+![workflow](https://user-images.githubusercontent.com/9261323/104982257-61d97900-5a5e-11eb-930e-3b431d6e6bab.png)
 
-# Things to consider
-- There are many more things to add and tweak. Bring up issues on our Github or Slack.
+
+# Important notes
+- This application is not considered production ready and you may experience issues
+  - If you encounter any issues, you can raise them in our Slack channel or via Github issues
+- **Past performance is no guarantee of future results**
+- While an experimental feature, it is **not** recommended to **ever** use live trading and real orders
+- **Past performance is no guarantee of future results**
 
 
 

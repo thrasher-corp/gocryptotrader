@@ -82,17 +82,21 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 
 	bt.Exchange = &e
 
+	buyRule := config.MinMax{
+		MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
+		MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
+		MaximumTotal: cfg.PortfolioSettings.BuySide.MaximumTotal,
+	}
+	buyRule.Validate()
+	sellRule := config.MinMax{
+		MinimumSize:  cfg.PortfolioSettings.SellSide.MinimumSize,
+		MaximumSize:  cfg.PortfolioSettings.SellSide.MaximumSize,
+		MaximumTotal: cfg.PortfolioSettings.SellSide.MaximumTotal,
+	}
+	sellRule.Validate()
 	sizeManager := &size.Size{
-		BuySide: config.MinMax{
-			MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
-			MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,
-			MaximumTotal: cfg.PortfolioSettings.BuySide.MaximumTotal,
-		},
-		SellSide: config.MinMax{
-			MinimumSize:  cfg.PortfolioSettings.SellSide.MinimumSize,
-			MaximumSize:  cfg.PortfolioSettings.SellSide.MaximumSize,
-			MaximumTotal: cfg.PortfolioSettings.SellSide.MaximumTotal,
-		},
+		BuySide:  buyRule,
+		SellSide: sellRule,
 	}
 
 	portfolioRisk := &risk.Risk{
@@ -222,16 +226,22 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			}
 		}
 
-		if cfg.CurrencySettings[i].MaximumSlippagePercent < 1 {
+		if cfg.CurrencySettings[i].MaximumSlippagePercent < 0 {
 			log.Warnf(log.BackTester, "Invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MaximumSlippagePercent,
 				slippage.DefaultMaximumSlippagePercent)
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
-		if cfg.CurrencySettings[i].MinimumSlippagePercent < 1 {
+		if cfg.CurrencySettings[i].MaximumSlippagePercent == 0 {
+			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
+		}
+		if cfg.CurrencySettings[i].MinimumSlippagePercent < 0 {
 			log.Warnf(log.BackTester, "Invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MinimumSlippagePercent,
 				slippage.DefaultMinimumSlippagePercent)
+			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
+		}
+		if cfg.CurrencySettings[i].MinimumSlippagePercent == 0 {
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
 		}
 		if cfg.CurrencySettings[i].MaximumSlippagePercent < cfg.CurrencySettings[i].MinimumSlippagePercent {
@@ -243,6 +253,18 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			realOrders = cfg.DataSettings.LiveData.RealOrders
 		}
 
+		buyRule := config.MinMax{
+			MinimumSize:  cfg.CurrencySettings[i].BuySide.MinimumSize,
+			MaximumSize:  cfg.CurrencySettings[i].BuySide.MaximumSize,
+			MaximumTotal: cfg.CurrencySettings[i].BuySide.MaximumTotal,
+		}
+		buyRule.Validate()
+		sellRule := config.MinMax{
+			MinimumSize:  cfg.CurrencySettings[i].SellSide.MinimumSize,
+			MaximumSize:  cfg.CurrencySettings[i].SellSide.MaximumSize,
+			MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
+		}
+		sellRule.Validate()
 		resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
 			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
 			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
@@ -254,16 +276,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			MakerFee:            takerFee,
 			TakerFee:            makerFee,
 			UseRealOrders:       realOrders,
-			BuySide: config.MinMax{
-				MinimumSize:  cfg.CurrencySettings[i].BuySide.MinimumSize,
-				MaximumSize:  cfg.CurrencySettings[i].BuySide.MaximumSize,
-				MaximumTotal: cfg.CurrencySettings[i].BuySide.MaximumTotal,
-			},
-			SellSide: config.MinMax{
-				MinimumSize:  cfg.CurrencySettings[i].SellSide.MinimumSize,
-				MaximumSize:  cfg.CurrencySettings[i].SellSide.MaximumSize,
-				MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
-			},
+			BuySide:             buyRule,
+			SellSide:            sellRule,
 			Leverage: config.Leverage{
 				CanUseLeverage:       cfg.CurrencySettings[i].Leverage.CanUseLeverage,
 				MaximumLeverageRate:  cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,

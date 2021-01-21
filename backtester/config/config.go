@@ -108,3 +108,23 @@ func (cfg *Config) PrintSetting() {
 	}
 	log.Info(log.BackTester, "-------------------------------------------------------------\n\n")
 }
+
+// Validate ensures no one sets bad config values on purpose
+func (m *MinMax) Validate() {
+	if m.MaximumSize < 0 {
+		m.MaximumSize *= -1
+		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
+	}
+	if m.MinimumSize < 0 {
+		m.MinimumSize *= -1
+		log.Warnf(log.BackTester, "invalid minimum size set to %v", m.MinimumSize)
+	}
+	if m.MaximumSize <= m.MinimumSize {
+		m.MaximumSize = m.MinimumSize + 1
+		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
+	}
+	if m.MaximumTotal < 0 {
+		m.MaximumTotal *= -1
+		log.Warnf(log.BackTester, "invalid maximum total set to %v", m.MaximumTotal)
+	}
+}

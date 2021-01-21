@@ -2,7 +2,18 @@
 {{template "backtester-header" .}}
 ## {{.CapitalName}} package overview
 
-The report package helps generates the output under the `results` folder
+The report package helps generates the output under the `results` folder.
+
+As the application is run, many statistics such as purchase events are tracked. These events are utilised and enhanced in the report package in order to render an HTML report for easy comparison and historical strategy effectiveness.
+
+The report utilises the following sweet technologies:
+- go templating ([tpl.gohtml](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/report/tpl.gohtml))
+- [mdbootstrap](https://mdbootstrap.com/)
+- [lightweightcharts](https://github.com/tradingview/lightweight-charts/) by [TradingView](https://www.tradingview.com/)
+
+Output example:
+![example](https://user-images.githubusercontent.com/9261323/105282683-01d00780-5c03-11eb-813f-6035b4e05954.png)
+
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}

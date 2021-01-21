@@ -283,9 +283,11 @@ func (k *Item) FillMissingDataWithEmptyEntries(i IntervalRangeHolder) {
 // If an API is limited in the amount of candles it can make in a request, it will automatically separate
 // ranges into the limit
 func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit uint32) IntervalRangeHolder {
+	start = start.Round(interval.Duration())
+	end = end.Round(interval.Duration())
 	resp := IntervalRangeHolder{
-		Start: start.Round(interval.Duration()),
-		End:   end.Round(interval.Duration()),
+		Start: start,
+		End:   end,
 	}
 	var intervalsInWholePeriod []IntervalData
 	for i := start; !i.After(end); i = i.Add(interval.Duration()) {
@@ -341,6 +343,17 @@ func (k *Item) RemoveDuplicates() {
 		}
 	}
 
+	k.Candles = newCandles
+}
+
+func (k *Item) RemoveOutsideRange(start, end time.Time) {
+	var newCandles []Candle
+	for i := range k.Candles {
+		if k.Candles[i].Time.Equal(start) ||
+			(k.Candles[i].Time.After(start) && k.Candles[i].Time.Before(end)) {
+			newCandles = append(newCandles, k.Candles[i])
+		}
+	}
 	k.Candles = newCandles
 }
 

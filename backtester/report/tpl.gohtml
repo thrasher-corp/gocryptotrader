@@ -55,9 +55,11 @@
 		</div>
 	</nav>
 </header>
-<div class="container">
+<div class="container" style="max-width: 90%">
 	<div >
-		<h1 >{{ .Config.Nickname }} - {{.Statistics.StrategyName}} -Results</h1>
+		<h1 >{{.Config.Nickname }}</h1>
+		<h2>{{.Statistics.StrategyName}}</h2>
+		<h3>Results</h3>
 	</div>
 	<div >
 		<div class="card card-cascade narrower">
@@ -314,7 +316,7 @@
 						<h3>{{.Exchange}} {{.Asset}} {{.Pair}}</h3>
 						<script>
                             var chart = LightweightCharts.createChart(document.getElementById("{{.Exchange}}{{.Asset}}{{.Pair}}"), {
-                                width: 1050,
+                                width: 1200,
                                 height: 800,
                                 layout: {
                                     backgroundColor: '#000',
@@ -397,7 +399,7 @@
 	</div>
 	<div >
 		<div class="card card-cascade narrower">
-			<div class="view view-cascade bg-success">
+			<div class="view view-cascade bg-primary">
 				<h2  class="px-4 card-header-title white-text">Statistics</h2>
 			</div>
 			<div class="card-body card-body-cascade ">
@@ -638,7 +640,7 @@
 	</div>
 	<div >
 		<div class="card card-cascade narrower">
-			<div class="view view-cascade bg-danger">
+			<div class="view view-cascade bg-warning">
 				<h2  class="px-4 card-header-title white-text">Events</h2>
 			</div>
 			<div class="card-body card-body-cascade ">

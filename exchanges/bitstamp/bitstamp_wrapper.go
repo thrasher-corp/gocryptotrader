@@ -879,6 +879,8 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	if err != nil {
 		log.Warn(log.ExchangeSys, err.Error())
 	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

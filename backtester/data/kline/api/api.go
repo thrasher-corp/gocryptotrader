@@ -47,5 +47,6 @@ func LoadData(dataType string, startDate, endDate time.Time, interval time.Durat
 		return nil, fmt.Errorf("unrecognised api datatype received: '%v'", dataType)
 	}
 	candles.Exchange = strings.ToLower(candles.Exchange)
+
 	return &candles, nil
 }

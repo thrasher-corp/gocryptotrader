@@ -30,7 +30,7 @@ It is responsible for the following functionality
 - Outputting results into a report
 
 
-A rough flow of the application is as follows:
+A flow of the application is as follows:
 ![workflow](https://user-images.githubusercontent.com/9261323/104982257-61d97900-5a5e-11eb-930e-3b431d6e6bab.png)
 
 

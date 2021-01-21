@@ -970,6 +970,8 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 	if err != nil {
 		log.Warn(log.ExchangeSys, err.Error())
 	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

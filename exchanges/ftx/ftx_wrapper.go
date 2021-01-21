@@ -1079,6 +1079,8 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	if err != nil {
 		log.Warn(log.ExchangeSys, err.Error())
 	}
-
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

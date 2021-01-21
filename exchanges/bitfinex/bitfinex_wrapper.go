@@ -1049,6 +1049,8 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	if err != nil {
 		return ret, err
 	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

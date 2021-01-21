@@ -20,7 +20,10 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Eventhandlers package overview
 
-The risk manager is responsible for ensuring that no order can be made if it is deemed too risky. Risk is currently defined by ensuring that orders cannot have too much leverage for the individual order, overall with all orders in the portfolio as well as whether there are too many orders for an individual currency
+The risk manager is responsible for ensuring that no order can be made if it is deemed too risky.
+Risk is currently defined by ensuring that orders cannot have too much leverage for the individual order, overall with all orders in the portfolio as well as whether there are too many orders for an individual currency
+
+See config package [readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/config/README.md) to view the risk related fields to customise
 
 
 

@@ -358,7 +358,6 @@ func TestCreateDrawdowns(t *testing.T) {
 	cs.Events = append(cs.Events, ev, ev2)
 
 	cs.DrawDowns = calculateAllDrawDowns([]common.DataEventHandler{ev.DataEvent, ev2.DataEvent})
-	t.Log(cs.DrawDowns)
 }
 
 func TestDrawdowns(t *testing.T) {
@@ -512,7 +511,7 @@ func TestLongestDrawdown(t *testing.T) {
 		},
 	}
 
-	cs.Events = append(cs.Events, ev, ev2, ev3, ev4, ev5, ev6)
+	cs.Events = append(cs.Events, ev, ev2, ev3, ev4, ev5, ev6, ev5, ev6)
 	longest := cs.LongestDrawdown()
 	if longest.Highest.Price != 1338 {
 		t.Error("expected 1338")

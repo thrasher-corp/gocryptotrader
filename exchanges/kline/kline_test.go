@@ -426,8 +426,8 @@ func TestCalcSuperDateRanges(t *testing.T) {
 	if len(v.Ranges[1].Intervals) != 5 {
 		t.Errorf("expected %v received %v", 5, len(v.Ranges[1].Intervals))
 	}
-	if !v.Ranges[1].Intervals[4].End.Equal(end) {
-		t.Errorf("expected %v received %v", end, v.Ranges[1].Intervals[4].End)
+	if !v.Ranges[1].Intervals[4].End.Equal(end.Round(OneDay.Duration())) {
+		t.Errorf("expected %v received %v", end.Round(OneDay.Duration()), v.Ranges[1].Intervals[4].End)
 	}
 
 }

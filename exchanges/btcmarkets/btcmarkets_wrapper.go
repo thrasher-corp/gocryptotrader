@@ -1014,6 +1014,8 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 	if err != nil {
 		log.Warn(log.ExchangeSys, err.Error())
 	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
