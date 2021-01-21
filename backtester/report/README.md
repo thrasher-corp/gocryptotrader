@@ -30,7 +30,7 @@ The report utilises the following sweet technologies:
 - [lightweightcharts](https://github.com/tradingview/lightweight-charts/) by [TradingView](https://www.tradingview.com/)
 
 Output example:
-![example](https://user-images.githubusercontent.com/9261323/105282683-01d00780-5c03-11eb-813f-6035b4e05954.png)
+![example](https://user-images.githubusercontent.com/9261323/105283038-c124be00-5c03-11eb-88af-d67e727a8c16.png)
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
