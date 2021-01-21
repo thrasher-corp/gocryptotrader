@@ -80,6 +80,9 @@ func (o *OKEX) GetAllMarginRates() ([]okgroup.MarginCurrencyData, error) {
 		nil,
 		&result,
 		true)
+	if err != nil {
+		return resp, err
+	}
 	for i := range result {
 		for k, v := range result[i] {
 			if strings.Contains(k, "currency:") {
