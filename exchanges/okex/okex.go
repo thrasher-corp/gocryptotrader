@@ -87,6 +87,9 @@ func (o *OKEX) GetAllMarginRates() ([]okgroup.MarginCurrencyData, error) {
 				var someData okgroup.MarginData
 				currencyString := strings.Replace(k, "currency:", "", 1)
 				bites, err = json.Marshal(v)
+				if err != nil {
+					return resp, err
+				}
 				err = json.Unmarshal(bites, &someData)
 				if err != nil {
 					return resp, err
@@ -130,6 +133,9 @@ func (o *OKEX) GetMarginRates(instrumentID currency.Pair) (okgroup.MarginCurrenc
 			var bites []byte
 			var someData okgroup.MarginData
 			bites, err = json.Marshal(v)
+			if err != nil {
+				return resp, err
+			}
 			if strings.Contains(k, instrumentID.Base.String()) {
 				err = json.Unmarshal(bites, &someData)
 				if err != nil {
