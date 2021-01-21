@@ -414,6 +414,18 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
+		resp.Item.RemoveDuplicates()
+		resp.Item.SortCandlesByTimestamp(false)
+		resp.Range = gctkline.CalculateCandleDateRanges(
+			resp.Item.Candles[0].Time,
+			resp.Item.Candles[len(resp.Item.Candles)-1].Time,
+			gctkline.Interval(cfg.DataSettings.Interval),
+			0,
+		)
+		err = resp.Range.Verify(resp.Item.Candles)
+		if err != nil {
+			return nil, err
+		}
 	case cfg.DataSettings.DatabaseData != nil:
 		if cfg.DataSettings.DatabaseData.ConfigOverride != nil {
 			bt.Bot.Config.Database = *cfg.DataSettings.DatabaseData.ConfigOverride
@@ -431,6 +443,19 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a)
 		if err != nil {
 			return resp, err
+		}
+
+		resp.Item.RemoveDuplicates()
+		resp.Item.SortCandlesByTimestamp(false)
+		resp.Range = gctkline.CalculateCandleDateRanges(
+			cfg.DataSettings.DatabaseData.StartDate,
+			cfg.DataSettings.DatabaseData.EndDate,
+			gctkline.Interval(cfg.DataSettings.Interval),
+			0,
+		)
+		err = resp.Range.Verify(resp.Item.Candles)
+		if err != nil {
+			return nil, err
 		}
 	case cfg.DataSettings.APIData != nil:
 		resp, err = loadAPIData(
@@ -558,6 +583,7 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
 // from live. Its purpose is to be able to perform strategy analysis against current data
 func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
+	startDate := time.Now()
 	candles, err := live.LoadData(
 		exch,
 		cfg.DataSettings.DataType,
@@ -587,6 +613,29 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 			}
 			resp.Append(candles)
 			_, err = exch.FetchOrderbook(fPair, a)
+			if err != nil {
+				log.Error(log.BackTester, err)
+				return
+			}
+			resp.Item.RemoveDuplicates()
+			resp.Item.SortCandlesByTimestamp(false)
+			endDate := resp.Item.Candles[len(resp.Item.Candles)-1].Time
+			dataRange := gctkline.CalculateCandleDateRanges(
+				startDate,
+				endDate,
+				gctkline.Interval(cfg.DataSettings.Interval),
+				0,
+			)
+			if resp.Range.Ranges == nil {
+				resp.Range = gctkline.IntervalRangeHolder{
+					Start:  startDate,
+					End:    endDate,
+					Ranges: dataRange.Ranges,
+				}
+			} else {
+				resp.Range = dataRange
+			}
+			err = resp.Range.Verify(resp.Item.Candles)
 			if err != nil {
 				log.Error(log.BackTester, err)
 				return

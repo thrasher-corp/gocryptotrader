@@ -272,6 +272,11 @@ func (s *Statistic) PrintAllEvents() {
 							c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].SignalEvent.GetPrice(),
 							c.Events[i].SignalEvent.GetWhy())
+					case c.Events[i].DataEvent != nil:
+						log.Infof(log.BackTester, "%v | Price: $%v - Why: %v",
+							c.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
+							c.Events[i].DataEvent.Price(),
+							c.Events[i].DataEvent.GetWhy())
 					default:
 						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", e, a, p, c.Events[i]))
 					}

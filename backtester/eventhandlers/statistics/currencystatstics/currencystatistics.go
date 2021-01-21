@@ -17,9 +17,9 @@ import (
 
 func (c *CurrencyStatistic) CalculateResults() {
 	first := c.Events[0]
-	firstPrice := first.SignalEvent.GetPrice()
+	firstPrice := first.DataEvent.Price()
 	last := c.Events[len(c.Events)-1]
-	lastPrice := last.SignalEvent.GetPrice()
+	lastPrice := last.DataEvent.Price()
 	for i := range last.Transactions.Orders {
 		if last.Transactions.Orders[i].Side == gctorder.Buy {
 			c.BuyOrders++

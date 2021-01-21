@@ -122,7 +122,7 @@
 						<tr>
 							<td ><b>Interval</b></td>
 								<td>
-                                    {{.Config.Interval}}
+                                    {{.Config.DataSettings.Interval}}
 								</td>
 						</tr>
 						</tbody>
@@ -428,7 +428,7 @@
                     {{ if .Statistics.BiggestDrawdown}}
 						<tr>
 							<td><b>Biggest Drawdown</b></td>
-							<td><b>Start:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>End:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>Drop:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.DrawdownPercent}}</td>
+							<td><b>Start:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Highest.Time }} <b>End:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{.Statistics.BiggestDrawdown.MaxDrawdown.DrawdownPercent}}</td>
 						</tr>
                     {{end}}
                     {{ if .Statistics.BestMarketMovement}}
