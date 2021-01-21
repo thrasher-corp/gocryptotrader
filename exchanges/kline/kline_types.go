@@ -110,18 +110,23 @@ type DateRange struct {
 	End   time.Time
 }
 
+// IntervalRangeHolder holds the entire range of intervals
+// and the start end dates of everything
 type IntervalRangeHolder struct {
 	Start  time.Time
 	End    time.Time
 	Ranges []IntervalRange
 }
 
+// IntervalRange is a subset of candles based on exchange API request limits
 type IntervalRange struct {
 	Start     time.Time
 	End       time.Time
 	Intervals []IntervalData
 }
 
+// IntervalData is used to monitor which candles contain data
+// to determine if any data is missing
 type IntervalData struct {
 	Start   time.Time
 	End     time.Time

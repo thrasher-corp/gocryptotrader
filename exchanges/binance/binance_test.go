@@ -1141,7 +1141,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 	startTime = time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC)
 	end = time.Date(2020, 7, 1, 0, 0, 0, 0, time.UTC)
-	b.Verbose = true
 	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.OneHour)
 	if err != nil {
 		t.Error(err)

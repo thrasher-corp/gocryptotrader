@@ -397,7 +397,7 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 	}
 }
 
-func TestCalcSuperDateRanges(t *testing.T) {
+func TestCalculateCandleDateRanges(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 

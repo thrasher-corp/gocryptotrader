@@ -58,7 +58,6 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestGetMarketsSummary(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	_, err := b.GetMarketSummary("", true)
 	if err != nil {

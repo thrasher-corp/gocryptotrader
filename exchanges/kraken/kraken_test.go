@@ -69,7 +69,6 @@ func TestGetServerTime(t *testing.T) {
 
 // TestGetAssets API endpoint test
 func TestGetAssets(t *testing.T) {
-	k.Verbose = true
 	t.Parallel()
 	_, err := k.GetAssets()
 	if err != nil {
