@@ -122,11 +122,25 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 }
 
+func TestGetAllMarginRates(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := o.GetAllMarginRates()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetMarginRates(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := o.GetMarginRates("XRP-USDT")
+	cp, err := currency.NewPairFromString("XRP-USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = o.GetMarginRates(cp)
 	if err != nil {
 		t.Error(err)
 	}

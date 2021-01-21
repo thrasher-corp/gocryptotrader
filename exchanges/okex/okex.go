@@ -1,12 +1,16 @@
 package okex
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 )
@@ -42,12 +46,13 @@ const (
 	okGroupHistoricalFundingRate = "historical_funding_rate"
 	okGroupSwapInstruments       = "instruments"
 	// ETT endpoints
-	okGroupConstituents   = "constituents"
-	okGroupDefinePrice    = "define-price"
-	okGroupPerpSwapRates  = "instruments/%s/historical_funding_rate?"
-	okGroupPerpTickers    = "instruments/ticker"
-	okGroupMarginPairData = "accounts/%s/availability"
-	okGroupSpotPairs      = "instruments"
+	okGroupConstituents    = "constituents"
+	okGroupDefinePrice     = "define-price"
+	okGroupPerpSwapRates   = "instruments/%s/historical_funding_rate?"
+	okGroupPerpTickers     = "instruments/ticker"
+	okGroupMarginPairData  = "accounts/%s/availability"
+	okGroupMarginPairsData = "accounts/availability"
+	okGroupSpotPairs       = "instruments"
 )
 
 // OKEX bases all account, spot and margin methods off okgroup implementation
@@ -63,15 +68,96 @@ func (o *OKEX) GetSwapMarkets() ([]okgroup.SwapInstrumentsData, error) {
 		nil, &resp, false)
 }
 
+// GetAllMarginRates gets interest rates for all margin currencies on OKEX
+func (o *OKEX) GetAllMarginRates() ([]okgroup.MarginCurrencyData, error) {
+	var resp []okgroup.MarginCurrencyData
+	var result []map[string]interface{}
+	var tempResp okgroup.MarginCurrencyData
+	tempResp.Data = make(map[string]okgroup.MarginData)
+	err := o.SendHTTPRequest(exchange.RestSpot, http.MethodGet,
+		okGroupMarginSubsection,
+		okGroupMarginPairsData,
+		nil,
+		&result,
+		true)
+	for i := range result {
+		for k, v := range result[i] {
+			if strings.Contains(k, "currency:") {
+				var bites []byte
+				var someData okgroup.MarginData
+				currencyString := strings.Replace(k, "currency:", "", 1)
+				bites, err = json.Marshal(v)
+				err = json.Unmarshal(bites, &someData)
+				if err != nil {
+					return resp, err
+				}
+				tempResp.Data[currencyString] = someData
+			}
+			var strData string
+			var ok bool
+			strData, ok = result[i]["instrument_id"].(string)
+			if !ok {
+				return resp, errors.New("type conversion failed for instrument_id")
+			}
+			tempResp.InstrumentID = strData
+			strData, ok = result[i]["product_id"].(string)
+			if !ok {
+				return resp, errors.New("type conversion failed for product_id")
+			}
+			tempResp.ProductID = strData
+			resp = append(resp, tempResp)
+		}
+	}
+	return resp, nil
+}
+
 // GetMarginRates gets interest rates for margin currencies
-func (o *OKEX) GetMarginRates(instrumentID string) (okgroup.MarginCurrencyData, error) {
+func (o *OKEX) GetMarginRates(instrumentID currency.Pair) (okgroup.MarginCurrencyData, error) {
 	var resp okgroup.MarginCurrencyData
-	return resp, o.SendHTTPRequest(exchange.RestSpot, http.MethodGet,
+	resp.Data = make(map[string]okgroup.MarginData)
+	var result []map[string]interface{}
+	err := o.SendHTTPRequest(exchange.RestSpot, http.MethodGet,
 		okGroupMarginSubsection,
 		fmt.Sprintf(okGroupMarginPairData, instrumentID),
 		nil,
-		&resp,
+		&result,
 		true)
+	if err != nil {
+		return resp, err
+	}
+	for i := range result {
+		for k, v := range result[i] {
+			var bites []byte
+			var someData okgroup.MarginData
+			bites, err = json.Marshal(v)
+			if strings.Contains(k, instrumentID.Base.String()) {
+				err = json.Unmarshal(bites, &someData)
+				if err != nil {
+					return resp, err
+				}
+				resp.Data[instrumentID.Base.String()] = someData
+			} else if strings.Contains(k, instrumentID.Quote.String()) {
+				err = json.Unmarshal(bites, &someData)
+				if err != nil {
+					return resp, err
+				}
+				resp.Data[instrumentID.Quote.String()] = someData
+			}
+		}
+		var strData string
+		var ok bool
+		strData, ok = result[i]["instrument_id"].(string)
+		if !ok {
+			return resp, errors.New("type conversion failed for instrument_id")
+		}
+		resp.InstrumentID = strData
+		strData, ok = result[i]["product_id"].(string)
+		if !ok {
+			return resp, errors.New("type conversion failed for product_id")
+		}
+		resp.ProductID = strData
+	}
+	return resp, nil
 }
 
 // GetSpotMarkets gets perpetual swap markets' data
