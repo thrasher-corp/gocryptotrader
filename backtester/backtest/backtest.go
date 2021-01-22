@@ -482,6 +482,9 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
+		if len(cfg.CurrencySettings) > 1 {
+			return nil, errors.New("live data simulation only supports one currency")
+		}
 		err = loadLiveData(cfg, base)
 		if err != nil {
 			return nil, err
@@ -597,78 +600,6 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 		cfg.DataSettings.LiveData.RealOrders = false
 	}
 	return nil
-}
-
-// loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
-// from live. Its purpose is to be able to perform strategy analysis against current data
-func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
-	startDate := time.Now()
-	candles, err := live.LoadData(
-		exch,
-		cfg.DataSettings.DataType,
-		cfg.DataSettings.Interval,
-		fPair,
-		a)
-	if err != nil {
-		log.Error(log.BackTester, err)
-		return
-	}
-	resp.Append(candles)
-	timerino := time.NewTicker(time.Minute)
-	for {
-		select {
-		case <-bt.shutdown:
-			return
-		case <-timerino.C:
-			candles, err := live.LoadData(
-				exch,
-				cfg.DataSettings.DataType,
-				cfg.DataSettings.Interval,
-				fPair,
-				a)
-			if err != nil {
-				log.Error(log.BackTester, err)
-				return
-			}
-			resp.Append(candles)
-			_, err = exch.FetchOrderbook(fPair, a)
-			if err != nil {
-				log.Error(log.BackTester, err)
-				return
-			}
-			resp.Item.RemoveDuplicates()
-			resp.Item.SortCandlesByTimestamp(false)
-			endDate := resp.Item.Candles[len(resp.Item.Candles)-1].Time
-			dataRange := gctkline.CalculateCandleDateRanges(
-				startDate,
-				endDate,
-				gctkline.Interval(cfg.DataSettings.Interval),
-				0,
-			)
-			if resp.Range.Ranges == nil {
-				resp.Range = gctkline.IntervalRangeHolder{
-					Start:  startDate,
-					End:    endDate,
-					Ranges: dataRange.Ranges,
-				}
-			} else {
-				resp.Range = dataRange
-			}
-			err = resp.Range.Verify(resp.Item.Candles)
-			if err != nil {
-				if strings.Contains(err.Error(), "missing candles data between") {
-					log.Warn(log.BackTester, err.Error())
-				} else {
-					log.Error(log.BackTester, err)
-				}
-			}
-		}
-	}
-}
-
-// Stop shuts down the live data loop
-func (bt *BackTest) Stop() {
-	close(bt.shutdown)
 }
 
 // Run will iterate over loaded data events
@@ -879,17 +810,25 @@ func (bt *BackTest) RunLive() error {
 			return errors.New("no data returned in 5 minutes, shutting down")
 		case <-tickerino.C:
 			for e, ok := bt.EventQueue.NextEvent(); true; e, ok = bt.EventQueue.NextEvent() {
-				doneARun = true
 				if !ok {
-					d := bt.Datas.GetDataForCurrency(e.GetExchange(), e.GetAssetType(), e.Pair())
+					// as live only supports singular currency, just get the proper reference manually
+					var d data.Handler
+					dd := bt.Datas.GetAllData()
+					for k1, v1 := range dd {
+						for k2, v2 := range v1 {
+							for k3 := range v2 {
+								d = dd[k1][k2][k3]
+							}
+						}
+					}
 					de, ok := d.Next()
 					if !ok {
 						break
 					}
 					bt.EventQueue.AppendEvent(de)
+					doneARun = true
 					continue
 				}
-
 				err := bt.handleEvent(e)
 				if err != nil {
 					return err
@@ -900,4 +839,98 @@ func (bt *BackTest) RunLive() error {
 			}
 		}
 	}
+}
+
+// loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
+// from live. Its purpose is to be able to perform strategy analysis against current data
+func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
+	startDate := time.Now()
+	candles, err := live.LoadData(
+		exch,
+		cfg.DataSettings.DataType,
+		cfg.DataSettings.Interval,
+		fPair,
+		a)
+	if err != nil {
+		log.Error(log.BackTester, err)
+		return
+	}
+	resp.Item = *candles
+	err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate)
+	if err != nil {
+		log.Error(log.BackTester, err)
+		return
+	}
+
+	timerino := time.NewTicker(time.Second * 30)
+	for {
+		select {
+		case <-bt.shutdown:
+			return
+		case <-timerino.C:
+			err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate)
+			if err != nil {
+				log.Error(log.BackTester, err)
+				return
+			}
+		}
+	}
+}
+
+func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, startDate time.Time) error {
+	candles, err := live.LoadData(
+		exch,
+		cfg.DataSettings.DataType,
+		cfg.DataSettings.Interval,
+		fPair,
+		a)
+	if err != nil {
+		return err
+	}
+	resp.Item.Candles = append(resp.Item.Candles, candles.Candles...)
+	_, err = exch.FetchOrderbook(fPair, a)
+	if err != nil {
+		return err
+	}
+	resp.Item.RemoveDuplicates()
+	resp.Item.SortCandlesByTimestamp(false)
+	if len(candles.Candles) == 0 {
+		return nil
+	}
+	endDate := candles.Candles[len(candles.Candles)-1].Time.Add(cfg.DataSettings.Interval)
+	if resp.Range.Ranges == nil {
+		dataRange := gctkline.CalculateCandleDateRanges(
+			startDate,
+			endDate,
+			gctkline.Interval(cfg.DataSettings.Interval),
+			0,
+		)
+		resp.Range = gctkline.IntervalRangeHolder{
+			Start:  startDate,
+			End:    endDate,
+			Ranges: dataRange.Ranges,
+		}
+	}
+	var intervalData []gctkline.IntervalData
+	for i := range candles.Candles {
+		intervalData = append(intervalData, gctkline.IntervalData{
+			Start:   candles.Candles[i].Time,
+			End:     candles.Candles[i].Time.Add(cfg.DataSettings.Interval),
+			HasData: true,
+		})
+	}
+	resp.Range.Ranges[0].Intervals = intervalData
+	if len(intervalData) > 0 {
+		resp.Range.Ranges[0].End = intervalData[len(intervalData)-1].End
+	}
+
+	resp.Append(candles)
+	bt.Reports.AddKlineItem(&resp.Item)
+	log.Info(log.BackTester, "sleeping for 30 seconds before checking for new candle data")
+	return nil
+}
+
+// Stop shuts down the live data loop
+func (bt *BackTest) Stop() {
+	close(bt.shutdown)
 }

@@ -46,7 +46,7 @@ func (d *DataFromKline) Load() error {
 	return nil
 }
 
-// Append adds a candle item and sorts it to ensure it is all in order
+// Append adds a candle item to the data stream and sorts it to ensure it is all in order
 func (d *DataFromKline) Append(ki *gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[time.Time]bool)

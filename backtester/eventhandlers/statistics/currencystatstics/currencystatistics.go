@@ -172,7 +172,7 @@ func calculateAllDrawDowns(closePrices []common.DataEventHandler) SwingHolder {
 	for i := range closePrices {
 		p := closePrices[i].Price()
 		t := closePrices[i].GetTime()
-		if i == 0 {
+		if i == 0 || (!isDrawingDown && activeDraw.Highest.Price < p) {
 			activeDraw.Highest = Iteration{
 				Price: p,
 				Time:  t,

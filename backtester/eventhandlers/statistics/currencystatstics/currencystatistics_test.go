@@ -197,8 +197,8 @@ func TestCalculateResults(t *testing.T) {
 
 	cs.Events = append(cs.Events, ev, ev2)
 	cs.CalculateResults()
-	if cs.MarketMovement != 0.07479431563201197 {
-		t.Error("expected 0.07479431563201197")
+	if cs.MarketMovement != 0 {
+		t.Error("expected 0")
 	}
 }
 
@@ -445,8 +445,8 @@ func TestMaxDrawdown(t *testing.T) {
 
 	cs.Events = append(cs.Events, ev, ev2, ev3)
 	max := cs.MaxDrawdown()
-	if max.Highest.Price != 1337 {
-		t.Error("expected 1337")
+	if max.Highest.Price != 1338 {
+		t.Error("expected 1338")
 	}
 	if max.Lowest.Price != 1331 {
 		t.Error("expected 1331")
@@ -454,7 +454,7 @@ func TestMaxDrawdown(t *testing.T) {
 	if len(max.Iterations) != 2 {
 		t.Error("expected 2 iterations")
 	}
-	if max.DrawdownPercent != -0.44876589379207177 {
+	if max.DrawdownPercent != -0.523168908819133 {
 		t.Error("incorrect max drawdown calculation")
 	}
 }
