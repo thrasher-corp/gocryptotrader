@@ -18,7 +18,7 @@ type Ticker struct {
 	UnitsTraded24Hr           float64 `json:"units_traded_24H,string"`
 	AccumulatedTradeValue24hr float64 `json:"acc_trade_value_24H,string"`
 	Fluctuate24Hr             float64 `json:"fluctate_24H,string"`
-	FluctuateRate24hr         string  `json:"fluctate_rate_24H"`
+	FluctuateRate24hr         float64 `json:"fluctate_rate_24H,string"`
 	Date                      int64   `json:"date,string"`
 }
 
