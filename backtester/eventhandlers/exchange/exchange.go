@@ -22,6 +22,8 @@ func (e *Exchange) Reset() {
 	*e = Exchange{}
 }
 
+// ExecuteOrder assesses the portfolio manager's order event and if it passes validation
+// will send an order to the exchange/fake order manager to be stored and raise a fill event
 func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.Engine) (*fill.Fill, error) {
 	cs, _ := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	f := &fill.Fill{

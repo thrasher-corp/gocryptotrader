@@ -6,6 +6,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 )
 
+// Settings holds all important information for the portfolio manager
+// to assess purchasing decisions
 type Settings struct {
 	InitialFunds      float64
 	Fee               float64
