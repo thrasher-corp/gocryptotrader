@@ -429,7 +429,6 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	if !v.Ranges[1].Intervals[4].End.Equal(end.Round(OneDay.Duration())) {
 		t.Errorf("expected %v received %v", end.Round(OneDay.Duration()), v.Ranges[1].Intervals[4].End)
 	}
-
 }
 
 func TestItem_SortCandlesByTimestamp(t *testing.T) {

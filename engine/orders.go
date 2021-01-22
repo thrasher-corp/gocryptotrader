@@ -367,7 +367,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		return nil, err
 	}
 
-	return o.processSubmittedOrder(newOrder, result, err)
+	return o.processSubmittedOrder(newOrder, result)
 }
 
 // SubmitFakeOrder runs through the same process as order submission
@@ -382,7 +382,7 @@ func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 		return nil, ErrExchangeNotFound
 	}
 
-	return o.processSubmittedOrder(newOrder, resultingOrder, err)
+	return o.processSubmittedOrder(newOrder, resultingOrder)
 }
 
 // GetOrdersSnapshot returns a snapshot of all orders in the orderstore. It optionally filters any orders that do not match the status
@@ -440,13 +440,12 @@ func (o *orderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.T
 	return os, latestUpdate
 }
 
-func (o *orderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse, err error) (*orderSubmitResponse, error) {
+func (o *orderManager) processSubmittedOrder(newOrder *order.Submit, result order.SubmitResponse) (*orderSubmitResponse, error) {
 	if !result.IsOrderPlaced {
 		return nil, errors.New("order unable to be placed")
 	}
 
-	var id uuid.UUID
-	id, err = uuid.NewV4()
+	id, err := uuid.NewV4()
 	if err != nil {
 		log.Warnf(log.OrderMgr,
 			"Order manager: Unable to generate UUID. Err: %s",

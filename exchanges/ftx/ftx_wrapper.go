@@ -1056,7 +1056,8 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	}
 
 	for x := range dates.Ranges {
-		ohlcData, err := f.GetHistoricalData(formattedPair.String(),
+		var ohlcData []OHLCVData
+		ohlcData, err = f.GetHistoricalData(formattedPair.String(),
 			f.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
 			dates.Ranges[x].Start, dates.Ranges[x].End)

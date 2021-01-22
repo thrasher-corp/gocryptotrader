@@ -944,7 +944,8 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 	}
 
 	for x := range dates.Ranges {
-		data, err := l.GetKlines(formattedPair.String(),
+		var data []KlineResponse
+		data, err = l.GetKlines(formattedPair.String(),
 			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
 			l.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(dates.Ranges[x].Start.UTC().Unix(), 10))

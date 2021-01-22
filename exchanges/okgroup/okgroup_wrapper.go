@@ -682,7 +682,8 @@ func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 			InstrumentID: formattedPair.String(),
 		}
 
-		candles, err := o.GetMarketData(req)
+		var candles GetMarketDataResponse
+		candles, err = o.GetMarketData(req)
 		if err != nil {
 			return kline.Item{}, err
 		}

@@ -850,7 +850,8 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 	}
 
 	for y := range dates.Ranges {
-		data, err := h.GetCandles(formattedPair.String(),
+		var data []ChartData
+		data, err = h.GetCandles(formattedPair.String(),
 			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 			h.FormatExchangeKlineInterval(interval),
 			dates.Ranges[y].Start, dates.Ranges[y].End)

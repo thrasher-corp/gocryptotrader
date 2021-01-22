@@ -849,7 +849,8 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	}
 
 	for x := range dates.Ranges {
-		candles, err := b.OHLC(
+		var candles OHLCResponse
+		candles, err = b.OHLC(
 			formattedPair.Lower().String(),
 			dates.Ranges[x].Start,
 			dates.Ranges[x].End,

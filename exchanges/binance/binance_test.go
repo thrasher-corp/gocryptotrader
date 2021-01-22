@@ -1120,7 +1120,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
-
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
