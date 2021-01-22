@@ -426,7 +426,7 @@ type MarginRatesData struct {
 		Symbol     string `json:"symbol"`
 		Currencies []struct {
 			Currency       string  `json:"currency"`
-			InterestRate   float64 `json:"interestRate,string"`
+			InterestRate   float64 `json:"interest-rate,string"`
 			MinLoanAmount  float64 `json:"min-loan-amt,string"`
 			MaxLoanAmount  float64 `json:"max-loan-amt,string"`
 			LoanableAmount float64 `json:"loanable-amt,string"`
