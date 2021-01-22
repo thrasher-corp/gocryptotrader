@@ -312,7 +312,7 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 		splitIntervalsByLimit = append(splitIntervalsByLimit, intervals)
 	}
 	if len(intervalsInWholePeriod) > 0 {
-		splitIntervalsByLimit = append(splitIntervalsByLimit, intervalsInWholePeriod[:])
+		splitIntervalsByLimit = append(splitIntervalsByLimit, intervalsInWholePeriod)
 	}
 
 	for x := range splitIntervalsByLimit {
