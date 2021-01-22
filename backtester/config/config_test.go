@@ -22,7 +22,7 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = true
 )
 
 var (
@@ -666,7 +666,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 }
 
 func TestGenerateConfigForDCACSVCandles(t *testing.T) {
-	fp := filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv")
+	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv")
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCACSVCandles",
 		StrategySettings: StrategySettings{
@@ -739,7 +739,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 }
 
 func TestGenerateConfigForDCACSVTrades(t *testing.T) {
-	fp := filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv")
+	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv")
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCACSVTrades",
 		StrategySettings: StrategySettings{

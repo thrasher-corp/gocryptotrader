@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -67,6 +68,15 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	} else {
 		adjustedPrice, amount, err = e.sizeOfflineOrder(high, low, volume, &cs, f)
 		if err != nil {
+			switch f.GetDirection() {
+			case gctorder.Buy:
+				f.SetDirection(common.CouldNotBuy)
+			case gctorder.Sell:
+				f.SetDirection(common.CouldNotSell)
+			default:
+				f.SetDirection(common.DoNothing)
+			}
+			f.AppendWhy(err.Error())
 			return f, err
 		}
 	}
@@ -153,7 +163,7 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *
 	// provide history and estimate volatility
 	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
-	if adjustedAmount <= 0 {
+	if adjustedAmount <= 0 && f.Amount > 0 {
 		return 0, 0, fmt.Errorf("amount set to 0, data may be incorrect")
 	}
 	adjustedPrice = applySlippageToPrice(f.GetDirection(), f.GetVolumeAdjustedPrice(), slippageRate)

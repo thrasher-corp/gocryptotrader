@@ -3,6 +3,8 @@ package backtest
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -29,7 +31,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -424,11 +428,17 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		)
 		err = resp.Range.Verify(resp.Item.Candles)
 		if err != nil {
-			return nil, err
+			if strings.Contains(err.Error(), "missing candles data between") {
+				log.Warn(log.BackTester, err.Error())
+			} else {
+				return nil, err
+			}
 		}
 	case cfg.DataSettings.DatabaseData != nil:
 		if cfg.DataSettings.DatabaseData.ConfigOverride != nil {
 			bt.Bot.Config.Database = *cfg.DataSettings.DatabaseData.ConfigOverride
+			gctdatabase.DB.DataPath = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
+			gctdatabase.DB.Config = cfg.DataSettings.DatabaseData.ConfigOverride
 			err = bt.Bot.DatabaseManager.Start(bt.Bot)
 			if err != nil {
 				return nil, err
@@ -455,7 +465,11 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		)
 		err = resp.Range.Verify(resp.Item.Candles)
 		if err != nil {
-			return nil, err
+			if strings.Contains(err.Error(), "missing candles data between") {
+				log.Warn(log.BackTester, err.Error())
+			} else {
+				return nil, err
+			}
 		}
 	case cfg.DataSettings.APIData != nil:
 		resp, err = loadAPIData(
@@ -545,8 +559,13 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	}
 	err = dates.Verify(candles.Candles)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		if strings.Contains(err.Error(), "missing candles data between") {
+			log.Warn(log.BackTester, err.Error())
+		} else {
+			return nil, err
+		}
 	}
+
 	candles.FillMissingDataWithEmptyEntries(dates)
 	return &kline.DataFromKline{
 		Item:  *candles,
@@ -637,8 +656,11 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 			}
 			err = resp.Range.Verify(resp.Item.Candles)
 			if err != nil {
-				log.Error(log.BackTester, err)
-				return
+				if strings.Contains(err.Error(), "missing candles data between") {
+					log.Warn(log.BackTester, err.Error())
+				} else {
+					log.Error(log.BackTester, err)
+				}
 			}
 		}
 	}

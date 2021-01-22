@@ -38,7 +38,7 @@
   "interval": 86400000000000,
   "data-type": "candle",
   "csv-data": {
-   "full-path": "..\\..\\..\\..\\testdata\\binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"
+   "full-path": "..\\testdata\\binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"
   }
  },
  "portfolio-settings": {

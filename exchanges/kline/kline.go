@@ -296,10 +296,6 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 			End:   i.Round(interval.Duration()).Add(interval.Duration()),
 		})
 	}
-	for intervalsInWholePeriod[len(intervalsInWholePeriod)-1].Start.After(end) || intervalsInWholePeriod[len(intervalsInWholePeriod)-1].Start.Equal(end) {
-		// remove any extra intervals which have been added due to the "after"
-		intervalsInWholePeriod = intervalsInWholePeriod[:len(intervalsInWholePeriod)-1]
-	}
 	if len(intervalsInWholePeriod) < int(limit) || limit == 0 {
 		resp.Ranges = []IntervalRange{{
 			Start:     start,
@@ -353,6 +349,10 @@ func (k *Item) RemoveOutsideRange(start, end time.Time) {
 			(k.Candles[i].Time.After(start) && k.Candles[i].Time.Before(end)) {
 			newCandles = append(newCandles, k.Candles[i])
 		}
+		if i == len(k.Candles)-1 &&
+			k.Candles[i].Time.Equal(end) {
+			newCandles = append(newCandles, k.Candles[i])
+		}
 	}
 	k.Candles = newCandles
 }
@@ -365,11 +365,17 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	}
 	for i := range h.Ranges {
 		if t.Equal(h.Ranges[i].Start) ||
-			(t.After(h.Ranges[i].Start) && t.Before(h.Ranges[i].End)) {
+			(t.After(h.Ranges[i].Start) && t.Before(h.Ranges[i].End)) ||
+			t.Equal(h.Ranges[i].End) {
 			for j := range h.Ranges[i].Intervals {
 				if t.Equal(h.Ranges[i].Intervals[j].Start) ||
 					(t.After(h.Ranges[i].Intervals[j].Start) && t.Before(h.Ranges[i].Intervals[j].End)) {
 					return h.Ranges[i].Intervals[j].HasData
+				}
+				if j == len(h.Ranges[i].Intervals)-1 {
+					if t.Equal(h.Ranges[i].Start) {
+						return h.Ranges[i].Intervals[j].HasData
+					}
 				}
 			}
 		}
@@ -386,6 +392,13 @@ func (h *IntervalRangeHolder) Verify(c []Candle) error {
 			for z := range c {
 				if c[z].Time.Equal(h.Ranges[x].Intervals[y].Start) ||
 					(c[z].Time.After(h.Ranges[x].Intervals[y].Start) && c[z].Time.Before(h.Ranges[x].Intervals[y].End)) {
+					h.Ranges[x].Intervals[y].HasData = true
+				}
+
+			}
+			if y == len(h.Ranges[x].Intervals)-1 {
+				if h.End.Equal(h.Ranges[x].Intervals[y].Start) ||
+					(h.End.After(h.Ranges[x].Intervals[y].Start) && h.End.Before(h.Ranges[x].Intervals[y].End)) {
 					h.Ranges[x].Intervals[y].HasData = true
 				}
 			}

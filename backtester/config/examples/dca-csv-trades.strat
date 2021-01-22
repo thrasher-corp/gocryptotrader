@@ -38,7 +38,7 @@
   "interval": 86400000000000,
   "data-type": "trade",
   "csv-data": {
-   "full-path": "..\\..\\..\\..\\testdata\\binance_BTCUSDT_24h-trades_2020_11_16.csv"
+   "full-path": "..\\testdata\\binance_BTCUSDT_24h-trades_2020_11_16.csv"
   }
  },
  "portfolio-settings": {
