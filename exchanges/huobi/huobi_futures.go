@@ -198,7 +198,6 @@ func (h *HUOBI) FGetMarketDepth(symbol currency.Pair, dataType string) (OBData, 
 	if err != nil {
 		return resp, err
 	}
-	fmt.Println(symbolValue)
 	params.Set("symbol", symbolValue)
 	params.Set("type", dataType)
 	path := fContractMarketDepth + params.Encode()
@@ -210,7 +209,7 @@ func (h *HUOBI) FGetMarketDepth(symbol currency.Pair, dataType string) (OBData, 
 	for x := range tempData.Tick.Asks {
 		resp.Asks = append(resp.Asks, obItem{
 			Price:    tempData.Tick.Asks[x][0],
-			Quantity: tempData.Tick.Bids[x][1],
+			Quantity: tempData.Tick.Asks[x][1],
 		})
 	}
 	for y := range tempData.Tick.Bids {
