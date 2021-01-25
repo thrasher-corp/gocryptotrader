@@ -1,6 +1,7 @@
 package live
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -15,18 +16,21 @@ const testExchange = "binance"
 
 func TestLoadCandles(t *testing.T) {
 	interval := gctkline.FifteenMin
-	bot, err := engine.NewFromSettings(&engine.Settings{}, nil)
+	bot, err := engine.NewFromSettings(&engine.Settings{
+		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
+		EnableDryRun: true,
+	}, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch := bot.GetExchangeByName(testExchange)
 	if exch == nil {
-		t.Error("expected binance")
+		t.Fatal("expected binance")
 	}
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -47,18 +51,21 @@ func TestLoadCandles(t *testing.T) {
 
 func TestLoadTrades(t *testing.T) {
 	interval := gctkline.FifteenMin
-	bot, err := engine.NewFromSettings(&engine.Settings{}, nil)
+	bot, err := engine.NewFromSettings(&engine.Settings{
+		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
+		EnableDryRun: true,
+	}, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	err = bot.LoadExchange(testExchange, false, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	exch := bot.GetExchangeByName(testExchange)
 	if exch == nil {
-		t.Error("expected binance")
+		t.Fatal("expected binance")
 	}
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)

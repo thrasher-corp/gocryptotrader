@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -328,9 +329,14 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 // as well as process orders
 func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 	var err error
+	path := gctconfig.DefaultFilePath()
+	if cfg.GoCryptoTraderConfigPath != "" {
+		path = cfg.GoCryptoTraderConfigPath
+	}
 	bt.Bot, err = engine.NewFromSettings(&engine.Settings{
 		EnableDryRun:   true,
 		EnableAllPairs: true,
+		ConfigFile:     path,
 	}, nil)
 	if err != nil {
 		return err

@@ -43,7 +43,8 @@ func (d *Data) GenerateReport() error {
 	f, err = os.Create(
 		filepath.Join(d.OutputPath,
 			fmt.Sprintf(
-				"%v%v.html",
+				"%v-%v-%v.html",
+				d.Config.Nickname,
 				d.Statistics.StrategyName,
 				time.Now().Format("2006-01-02-15-04-05"),
 			),

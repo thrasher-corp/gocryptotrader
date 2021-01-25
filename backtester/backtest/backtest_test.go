@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -36,7 +37,9 @@ func TestNewFromConfig(t *testing.T) {
 		t.Error("expected error for nil config")
 	}
 
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
+	}
 	_, err = NewFromConfig(cfg, "", "")
 	if err == nil {
 		t.Error("expected error for nil config")
@@ -123,7 +126,9 @@ func TestNewFromConfig(t *testing.T) {
 }
 
 func TestLoadData(t *testing.T) {
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
+	}
 	cfg.CurrencySettings = []config.CurrencySettings{
 		{
 			ExchangeName: "test",
@@ -251,6 +256,7 @@ func TestLoadDatabaseData(t *testing.T) {
 				ConfigOverride: nil,
 			},
 		},
+		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
 	}
 	_, err = loadDatabaseData(cfg, "", cp, "")
 	if err != nil && !strings.Contains(err.Error(), "database data start and end dates must be set") {
@@ -280,7 +286,9 @@ func TestLoadLiveData(t *testing.T) {
 	if err != nil && err.Error() != "received nil argument(s)" {
 		t.Error(err)
 	}
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
+	}
 	err = loadLiveData(cfg, nil)
 	if err != nil && err.Error() != "received nil argument(s)" {
 		t.Error(err)

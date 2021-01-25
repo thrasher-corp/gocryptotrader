@@ -413,12 +413,13 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	}
 	if len(v.Ranges[0].Intervals) != 1 {
 		t.Errorf("expected %v received %v", 1, len(v.Ranges[0].Intervals))
+		t.Logf("%+v", v.Ranges[0].Intervals)
 	}
 	start = time.Now()
 	end = time.Now().AddDate(0, 0, 10)
 	v = CalculateCandleDateRanges(start, end, OneDay, 5)
 	if len(v.Ranges) != 2 {
-		t.Errorf("expected %v received %v", 3, len(v.Ranges))
+		t.Errorf("expected %v received %v", 2, len(v.Ranges))
 	}
 	if len(v.Ranges[0].Intervals) != 5 {
 		t.Errorf("expected %v received %v", 5, len(v.Ranges[0].Intervals))
