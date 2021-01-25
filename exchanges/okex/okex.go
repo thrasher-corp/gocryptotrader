@@ -86,18 +86,18 @@ func (o *OKEX) GetAllMarginRates() ([]okgroup.MarginCurrencyData, error) {
 	for i := range result {
 		for k, v := range result[i] {
 			if strings.Contains(k, "currency:") {
-				var bites []byte
-				var someData okgroup.MarginData
+				var byteData []byte
+				var marginData okgroup.MarginData
 				currencyString := strings.Replace(k, "currency:", "", 1)
-				bites, err = json.Marshal(v)
+				byteData, err = json.Marshal(v)
 				if err != nil {
 					return resp, err
 				}
-				err = json.Unmarshal(bites, &someData)
+				err = json.Unmarshal(byteData, &marginData)
 				if err != nil {
 					return resp, err
 				}
-				tempResp.Data[currencyString] = someData
+				tempResp.Data[currencyString] = marginData
 			}
 			var strData string
 			var ok bool
@@ -133,24 +133,24 @@ func (o *OKEX) GetMarginRates(instrumentID currency.Pair) (okgroup.MarginCurrenc
 	}
 	for i := range result {
 		for k, v := range result[i] {
-			var bites []byte
-			var someData okgroup.MarginData
-			bites, err = json.Marshal(v)
+			var byteData []byte
+			var marginData okgroup.MarginData
+			byteData, err = json.Marshal(v)
 			if err != nil {
 				return resp, err
 			}
 			if strings.Contains(k, instrumentID.Base.String()) {
-				err = json.Unmarshal(bites, &someData)
+				err = json.Unmarshal(byteData, &marginData)
 				if err != nil {
 					return resp, err
 				}
-				resp.Data[instrumentID.Base.String()] = someData
+				resp.Data[instrumentID.Base.String()] = marginData
 			} else if strings.Contains(k, instrumentID.Quote.String()) {
-				err = json.Unmarshal(bites, &someData)
+				err = json.Unmarshal(byteData, &marginData)
 				if err != nil {
 					return resp, err
 				}
-				resp.Data[instrumentID.Quote.String()] = someData
+				resp.Data[instrumentID.Quote.String()] = marginData
 			}
 		}
 		var strData string

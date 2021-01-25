@@ -309,7 +309,7 @@ func TestGetLendingInfo(t *testing.T) {
 
 func TestSubmitLendingOffer(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 	_, err := f.SubmitLendingOffer("btc", 0.1, 500)

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -178,13 +177,6 @@ func (h *HUOBI) FormatSymbol(c currency.Pair, assetType asset.Item) (string, err
 	formattedSymbol, err := h.Base.FormatSymbol(c, assetType)
 	if err != nil {
 		return "", err
-	}
-
-	if assetType == asset.Futures {
-		splitSymbol := strings.Split(formattedSymbol, "_")
-		if len(splitSymbol[1]) > 2 {
-			formattedSymbol = strings.Replace(formattedSymbol, "_", "", 1)
-		}
 	}
 	return formattedSymbol, nil
 }

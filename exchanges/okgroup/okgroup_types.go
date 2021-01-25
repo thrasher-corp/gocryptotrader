@@ -36,7 +36,7 @@ type SwapInstrumentsData struct {
 	Delivery              string  `json:"delivery"`
 	SizeIncrement         float64 `json:"size_increment,string"`
 	TickSize              float64 `json:"tick_size,string"`
-	BaseCurrency          string  ` json:"base_currency"`
+	BaseCurrency          string  `json:"base_currency"`
 	Underlying            string  `json:"underlying"`
 	SettlementCurrency    string  `json:"settlement_currency"`
 	IsInverse             bool    `json:"is_inverse,string"`
