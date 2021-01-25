@@ -39,12 +39,16 @@ func (d *Data) GenerateReport() error {
 			filepath.Join(d.TemplatePath),
 		),
 	)
+	var nickName string
+	if d.Config.Nickname != "" {
+		nickName = d.Config.Nickname + "-"
+	}
 	var f *os.File
 	f, err = os.Create(
 		filepath.Join(d.OutputPath,
 			fmt.Sprintf(
-				"%v-%v-%v.html",
-				d.Config.Nickname,
+				"%v%v-%v.html",
+				nickName,
 				d.Statistics.StrategyName,
 				time.Now().Format("2006-01-02-15-04-05"),
 			),

@@ -45,6 +45,7 @@ See below for a set of tables and fields, expected values and what they can do
 | StrategySettings | Select which strategy to run, what custom settings to load and whether the strategy can assess multiple currencies at once to make more in-depth decisions |
 | PortfolioSettings | Contains a list of global rules for the portfolio manager. CurrencySettings contain their own rules on things like how big a position is allowable, the portfolio manager rules are the same, but override any individual currency's settings |
 | StatisticSettings | Contains settings that impact statistics calculation. Such as the risk-free rate for the sharpe ratio |
+| GoCryptoTraderConfigPath | The filepath for the location of GoCryptoTrader's config path. The Backtester utilises settings from GoCryptoTrader. If unset, will utilise the default filepath via `config.DefaultFilePath`, implemented [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/config/config.go#L1460) |
 
 #### Currency Settings
 

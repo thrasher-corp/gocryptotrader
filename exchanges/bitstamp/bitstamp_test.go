@@ -1,7 +1,6 @@
 package bitstamp
 
 import (
-	"net/http"
 	"testing"
 	"time"
 
@@ -691,11 +690,6 @@ func TestBitstamp_GetHistoricCandles(t *testing.T) {
 }
 
 func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
-	b.Verbose = true                     // This will show you some fancy debug output
-	b.HTTPRecording = true               // This will record the request and response payloads
-	b.API.Endpoints.URL = bitstampAPIURL // This will overwrite the current mock url at localhost
-	b.HTTPClient = http.DefaultClient    // This will ensure that a real HTTPClient is used to record
-
 	currencyPair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)

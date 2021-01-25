@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// CalculateResults calculates all statistics for the exchange, asset, currency pair
 func (c *CurrencyStatistic) CalculateResults() {
 	first := c.Events[0]
 	firstPrice := first.DataEvent.Price()
@@ -38,7 +39,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 	}
 	c.MarketMovement = ((lastPrice - firstPrice) / firstPrice) * 100
 	c.StrategyMovement = ((last.Holdings.TotalValue - last.Holdings.InitialFunds) / last.Holdings.InitialFunds) * 100
-	c.RiskFreeRate = last.Holdings.RiskFreeRate
+	c.RiskFreeRate = last.Holdings.RiskFreeRate * 100
 	returnPerCandle := make([]float64, len(c.Events))
 
 	var negativeReturns []float64
@@ -53,9 +54,9 @@ func (c *CurrencyStatistic) CalculateResults() {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
 	c.DrawDowns = calculateAllDrawDowns(allDataEvents)
-	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, c.RiskFreeRate)
-	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, c.RiskFreeRate)
-	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{c.RiskFreeRate})
+	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, last.Holdings.RiskFreeRate)
+	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, last.Holdings.RiskFreeRate)
+	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{last.Holdings.RiskFreeRate})
 	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, &c.DrawDowns.MaxDrawDown)
 	c.CompoundAnnualGrowthRate = calculateCompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
@@ -65,6 +66,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 		first.DataEvent.GetInterval())
 }
 
+// PrintResults outputs all calculated statistics to the command line
 func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair) {
 	var errs gctcommon.Errors
 	sort.Slice(c.Events, func(i, j int) bool {
@@ -112,7 +114,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Sortino ratio: %.3f", c.SortinoRatio)
 	log.Infof(log.BackTester, "Information ratio: %.3f", c.InformationRatio)
 	log.Infof(log.BackTester, "Calmar ratio: %.3f", c.CalamariRatio)
-	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2f\n\n", c.CalamariRatio)
+	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2f\n\n", c.CompoundAnnualGrowthRate)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
 	log.Infof(log.BackTester, "Starting Close Price: $%v", c.StartingClosePrice)
@@ -142,6 +144,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	}
 }
 
+// MaxDrawdown calculates the largest drawdown
 func (c *CurrencyStatistic) MaxDrawdown() Swing {
 	if len(c.DrawDowns.MaxDrawDown.Iterations) == 0 {
 		var allDataEvents []common.DataEventHandler
@@ -153,6 +156,7 @@ func (c *CurrencyStatistic) MaxDrawdown() Swing {
 	return c.DrawDowns.MaxDrawDown
 }
 
+// LongestDrawdown calculates the longest drawdown
 func (c *CurrencyStatistic) LongestDrawdown() Swing {
 	if len(c.DrawDowns.LongestDrawDown.Iterations) == 0 {
 		var allDataEvents []common.DataEventHandler

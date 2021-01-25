@@ -11,6 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 )
 
+// CurrencyStats defines what is expected in order to
+// calculate statistics based on an exchange, asset type and currency pair
 type CurrencyStats interface {
 	TotalEquityReturn() (float64, error)
 	MaxDrawdown() Swing
@@ -19,6 +21,8 @@ type CurrencyStats interface {
 	SortinoRatio(float64) float64
 }
 
+// EventStore is used to hold all event information
+// at a time interval
 type EventStore struct {
 	Holdings     holdings.Holding
 	Transactions compliance.Snapshot
@@ -28,6 +32,7 @@ type EventStore struct {
 	FillEvent    fill.Event
 }
 
+// Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyStatistic struct {
 	Events                   []EventStore        `json:"-"`
 	DrawDowns                SwingHolder         `json:"all-drawdowns,omitempty"`
@@ -51,7 +56,7 @@ type CurrencyStatistic struct {
 	FinalOrders              compliance.Snapshot `json:"final-orders"`
 }
 
-// DrawdownHolder holds two types of drawdowns, the largest and longest
+// SwingHolder holds two types of drawdowns, the largest and longest
 // it stores all of the calculated drawdowns
 type SwingHolder struct {
 	DrawDowns       []Swing `json:"-"`

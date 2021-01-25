@@ -148,8 +148,8 @@
 									<td>{{ $exchange}}</td>
 									<td>{{ $asset}}</td>
 									<td>{{ $pair}}</td>
-									<td>${{ printf "%.2f" .FinalHoldings.InitialFunds }}</td>
-									<td>${{ printf "%.2f" .FinalHoldings.TotalValue }}</td>
+									<td>${{ printf "%.2f" .FinalHoldings.InitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
+									<td>${{ printf "%.2f" .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
 									<td>{{ gt  .FinalHoldings.TotalValue .FinalHoldings.InitialFunds }}</td>
 									<td> {{ gt .StrategyMovement  .MarketMovement }}</td>
 									<td>{{ printf "%.2f" .StrategyMovement }}%</td>
@@ -458,80 +458,80 @@
 							<table class="table table-hover table-bordered table-striped">
 								<tbody>
 								<tr>
-									<td><b>Intial Funds</b></td>
-									<td>{{printf "%.2f" .FinalHoldings.InitialFunds}}</td>
+									<td><b>Initial Funds</b></td>
+									<td>{{printf "%.2f" $val.FinalHoldings.InitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Buy Orders</b></td>
-									<td>{{.BuyOrders}}</td>
+									<td>{{$val.BuyOrders}}</td>
 								</tr>
 								<tr>
 									<td><b>Buy Value</b></td>
-									<td>{{printf "%.2f" .FinalHoldings.BoughtValue}}</td>
+									<td>{{printf "%.2f" $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Buy Amount</b></td>
-									<td>{{.FinalHoldings.BoughtAmount}}</td>
+									<td>{{$val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
 								</tr>
 								<tr>
 									<td><b>Sell Orders</b></td>
-									<td>{{.SellOrders}}</td>
+									<td>{{$val.SellOrders}}</td>
 								</tr>
 								<tr>
 									<td><b>Sell Value</b></td>
-									<td>{{printf "%.2f" .FinalHoldings.SoldValue}}</td>
+									<td>{{printf "%.2f" $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Sell Amount</b></td>
-									<td>{{.FinalHoldings.SoldAmount}}</td>
+									<td>{{$val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Orders</b></td>
-									<td>{{.TotalOrders}}</td>
+									<td>{{$val.TotalOrders}}</td>
 								</tr>
-                                {{ if gt .DrawDowns.MaxDrawDown.Highest.Price 0.0 }}
+                                {{ if gt $val.DrawDowns.MaxDrawDown.Highest.Price 0.0 }}
 									<tr>
 										<td><b>Biggest Drawdown</b></td>
-										<td><b>Start:</b> {{ .DrawDowns.MaxDrawDown.Highest.Time }} <b>End:</b> {{ .DrawDowns.MaxDrawDown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" .DrawDowns.MaxDrawDown.DrawdownPercent}}%</td>
+										<td><b>Start:</b> {{ $val.DrawDowns.MaxDrawDown.Highest.Time }} <b>End:</b> {{ $val.DrawDowns.MaxDrawDown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" $val.DrawDowns.MaxDrawDown.DrawdownPercent}}%</td>
 									</tr>
                                 {{ end }}
-                                {{ if gt .DrawDowns.LongestDrawDown.Highest.Price 0.0 }}
+                                {{ if gt $val.DrawDowns.LongestDrawDown.Highest.Price 0.0 }}
 									<tr>
 										<td><b>Longest Drawdown</b></td>
-										<td><b>Start:</b> {{.DrawDowns.LongestDrawDown.Highest.Time }} <b>End:</b> {{.DrawDowns.LongestDrawDown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" .DrawDowns.LongestDrawDown.DrawdownPercent}}%</td>
+										<td><b>Start:</b> {{$val.DrawDowns.LongestDrawDown.Highest.Time }} <b>End:</b> {{$val.DrawDowns.LongestDrawDown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" $val.DrawDowns.LongestDrawDown.DrawdownPercent}}%</td>
 									</tr>
                                 {{ end }}
 								<tr>
 									<td><b>Risk Free Rate</b></td>
-									<td>{{.RiskFreeRate}}%</td>
+									<td>{{$val.RiskFreeRate}}%</td>
 								</tr>
 								<tr>
 									<td><b>Sharpe Ratio</b></td>
-									<td>{{.SharpeRatio}}</td>
+									<td>{{$val.SharpeRatio}}</td>
 								</tr>
 								<tr>
 									<td><b>Sortino Ratio</b></td>
-									<td>{{.SortinoRatio}}</td>
+									<td>{{$val.SortinoRatio}}</td>
 								</tr>
 								<tr>
 									<td><b>Information Ratio</b></td>
-									<td>{{.InformationRatio}}</td>
+									<td>{{$val.InformationRatio}}</td>
 								</tr>
 								<tr>
 									<td><b>Calmar Ratio</b></td>
-									<td>{{.CalamariRatio}}</td>
+									<td>{{$val.CalamariRatio}}</td>
 								</tr>
 								<tr>
 									<td><b>Compound Annual Growth Rate</b></td>
-									<td>{{.CompoundAnnualGrowthRate}}%</td>
+									<td>{{$val.CompoundAnnualGrowthRate}}%</td>
 								</tr>
 								<tr>
 									<td><b>Starting Close Price</b></td>
-									<td>${{printf "%.2f" .StartingClosePrice}}</td>
+									<td>${{printf "%.2f" $val.StartingClosePrice}}</td>
 								</tr>
 								<tr>
 									<td><b>Ending Close Price</b></td>
-									<td>${{printf "%.2f" .EndingClosePrice}}</td>
+									<td>${{printf "%.2f" $val.EndingClosePrice}}</td>
 								</tr>
 								<tr>
 									<td><b>Lowest Close Price</b></td>
@@ -543,47 +543,47 @@
 								</tr>
 								<tr>
 									<td><b>Market Movement</b></td>
-									<td>{{printf "%.2f" .MarketMovement}}%</td>
+									<td>{{printf "%.2f" $val.MarketMovement}}%</td>
 								</tr>
 								<tr>
 									<td><b>Strategy Movement</b></td>
-									<td>{{ printf "%.2f" .StrategyMovement}}%</td>
+									<td>{{ printf "%.2f" $val.StrategyMovement}}%</td>
 								</tr>
 								<tr>
 									<td><b>Did it beat the market?</b></td>
-									<td>{{ gt .StrategyMovement .MarketMovement}}</td>
+									<td>{{ gt .StrategyMovement $val.MarketMovement}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost to Volume Sizing</b></td>
-									<td>${{printf "%.2f" .FinalHoldings.TotalValueLostToVolumeSizing}}</td>
+									<td>${{printf "%.2f" $val.FinalHoldings.TotalValueLostToVolumeSizing}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost to Slippage</b></td>
-									<td>${{printf "%.2f" .FinalHoldings.TotalValueLostToSlippage}}</td>
+									<td>${{printf "%.2f" $val.FinalHoldings.TotalValueLostToSlippage}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost</b></td>
-									<td>${{printf "%.2f" .FinalHoldings.TotalValueLost}}</td>
+									<td>${{printf "%.2f" $val.FinalHoldings.TotalValueLost}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Fees</b></td>
-									<td>${{.FinalHoldings.TotalFees}}</td>
+									<td>${{$val.FinalHoldings.TotalFees}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Funds</b></td>
-									<td>${{.FinalHoldings.RemainingFunds}}</td>
+									<td>${{$val.FinalHoldings.RemainingFunds}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings</b></td>
-									<td>{{printf "%.2f" .FinalHoldings.PositionsSize}}</td>
+									<td>{{printf "%.2f" $val.FinalHoldings.PositionsSize}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings Value</b></td>
-									<td>${{printf "%.2f" .FinalHoldings.PositionsValue}}</td>
+									<td>${{printf "%.2f" $val.FinalHoldings.PositionsValue}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value</b></td>
-									<td><b>${{printf "%.2f" .FinalHoldings.TotalValue}}</b></td>
+									<td><b>${{printf "%.2f" $val.FinalHoldings.TotalValue}}</b></td>
 								</tr>
 								</tbody>
 							</table>
@@ -602,7 +602,7 @@
 
                 {{ range $exchange, $unused :=  .Statistics.ExchangeAssetPairStatistics}}
                     {{ range $asset, $unused := .}}
-                        {{ range $pair, $unused := .}}
+                        {{ range $pair, $val := .}}
 							<div  >
 								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
 							</div>
@@ -618,7 +618,7 @@
 									<th>Fees</th>
 									</thead>
 									<tbody >
-                                    {{range .FinalOrders.Orders}}
+                                    {{range $val.FinalOrders.Orders}}
 										<tr>
 											<td>{{ .Detail.Date }}</td>
 											<td>{{ .ClosePrice}}</td>
@@ -646,7 +646,7 @@
 			<div class="card-body card-body-cascade ">
                 {{ range $exchange, $unused := .Statistics.ExchangeAssetPairStatistics}}
                     {{ range $asset, $unused :=.}}
-                        {{ range $pair, $unused := .}}
+                        {{ range $pair, $data := .}}
 							<div >
 								<h3>{{$exchange}} {{$asset}} {{ $pair }}</h3>
 							</div>
@@ -659,7 +659,7 @@
 									<th>Why</th>
 									</thead>
 									<tbody >
-                                    {{range .Events}}
+                                    {{range $data.Events}}
 										<tr>
                                             {{ if ne .FillEvent nil }}
 												<td><b>{{.FillEvent.GetTime}}</b></td>
