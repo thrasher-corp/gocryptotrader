@@ -82,7 +82,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 			w.URL)
 	}
 	select {
-	case w.Traffic <- struct{}{}:
+	case w.Traffic <- w.URL:
 	default:
 	}
 	w.setConnectedStatus(true)
@@ -212,7 +212,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	}
 
 	select {
-	case w.Traffic <- struct{}{}:
+	case w.Traffic <- w.URL:
 	default: // causes contention, just bypass if there is no receiver.
 	}
 

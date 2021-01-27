@@ -31,7 +31,7 @@ func New() *Websocket {
 		Init:              true,
 		DataHandler:       make(chan interface{}),
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
-		TrafficAlert:      make(chan struct{}),
+		TrafficAlert:      make(chan string),
 		ReadMessageErrors: make(chan error),
 		Subscribe:         make(chan []ChannelSubscription),
 		Unsubscribe:       make(chan []ChannelSubscription),
@@ -72,6 +72,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Unsubscriber = s.UnSubscriber
 
 	w.GenerateSubs = s.GenerateSubscriptions
+	w.GenerateAuthSubs = s.GenerateAuthenticatedSubscriptions
 
 	w.enabled = s.Enabled
 	if s.DefaultURL == "" {
@@ -205,12 +206,12 @@ func (w *Websocket) Connect() error {
 		w.connectionMonitor()
 	}
 
-	// Resubscribe after re-connection
-	if len(w.subscriptions) != 0 {
-		err = w.Subscriber(w.subscriptions)
-		if err != nil {
-			return fmt.Errorf("%v Error subscribing %s", w.exchangeName, err)
-		}
+	err = w.FlushChannels()
+	if err != nil {
+		w.setConnectingStatus(false)
+		w.setConnectedStatus(false)
+		return fmt.Errorf("%v Error flushing channels: %s",
+			w.exchangeName, err)
 	}
 
 	return nil
@@ -421,6 +422,14 @@ func (w *Websocket) FlushChannels() error {
 			return err
 		}
 
+		if w.CanUseAuthenticatedEndpoints() {
+			newAuthSubs, err := w.GenerateAuthSubs()
+			if err != nil {
+				return err
+			}
+			newsubs = append(newsubs, newAuthSubs...) // add auth websockets subscriptions if enabled
+		}
+
 		subs, unsubs := w.GetChannelDifference(newsubs)
 		if w.features.Unsubscribe {
 			if len(unsubs) != 0 {
@@ -444,6 +453,14 @@ func (w *Websocket) FlushChannels() error {
 		newsubs, err := w.GenerateSubs()
 		if err != nil {
 			return err
+		}
+
+		if w.CanUseAuthenticatedEndpoints() {
+			newAuthSubs, err := w.GenerateAuthSubs()
+			if err != nil {
+				return err
+			}
+			newsubs = append(newsubs, newAuthSubs...) // add auth websockets subscriptions if enabled
 		}
 
 		if len(newsubs) != 0 {
@@ -475,7 +492,11 @@ func (w *Websocket) trafficMonitor() {
 
 	go func() {
 		var trafficTimer = time.NewTimer(w.trafficTimeout)
-		pause := make(chan struct{})
+		var trafficAuthTimer *time.Timer
+		if w.CanUseAuthenticatedEndpoints() {
+			trafficAuthTimer = time.NewTimer(w.trafficTimeout)
+		}
+
 		for {
 			select {
 			case <-w.ShutdownC:
@@ -488,15 +509,26 @@ func (w *Websocket) trafficMonitor() {
 				w.setTrafficMonitorRunning(false)
 				w.Wg.Done()
 				return
-			case <-w.TrafficAlert:
-				if !trafficTimer.Stop() {
-					select {
-					case <-trafficTimer.C:
-					default:
+			case t := <-w.TrafficAlert:
+				if w.AuthConn.GetURL() == t {
+					if !trafficAuthTimer.Stop() {
+						select {
+						case <-trafficAuthTimer.C:
+						default:
+						}
 					}
+					w.setConnectedStatus(true)
+					trafficAuthTimer.Reset(w.trafficTimeout)
+				} else if w.Conn.GetURL() == t {
+					if !trafficTimer.Stop() {
+						select {
+						case <-trafficTimer.C:
+						default:
+						}
+					}
+					w.setConnectedStatus(true)
+					trafficTimer.Reset(w.trafficTimeout)
 				}
-				w.setConnectedStatus(true)
-				trafficTimer.Reset(w.trafficTimeout)
 			case <-trafficTimer.C: // Falls through when timer runs out
 				if w.verbose {
 					log.Warnf(log.WebsocketMgr,
@@ -516,22 +548,26 @@ func (w *Websocket) trafficMonitor() {
 				}
 				w.setTrafficMonitorRunning(false)
 				return
-			}
-
-			if w.IsConnected() {
-				// Routine pausing mechanism
-				go func(p chan<- struct{}) {
-					time.Sleep(defaultTrafficPeriod)
-					p <- struct{}{}
-				}(pause)
-				select {
-				case <-w.ShutdownC:
-					trafficTimer.Stop()
-					w.setTrafficMonitorRunning(false)
-					w.Wg.Done()
-					return
-				case <-pause:
+			case <-trafficAuthTimer.C: // Falls through when auth timer runs out
+				trafficAuthTimer.Reset(w.trafficTimeout)
+				if w.verbose {
+					log.Warnf(log.WebsocketMgr,
+						"%v auth websocket: has not received a traffic alert in %v. Reconnecting",
+						w.exchangeName,
+						w.trafficTimeout)
 				}
+				trafficAuthTimer.Stop()
+				w.Wg.Done()
+				if !w.IsConnecting() && w.IsConnected() {
+					err := w.Shutdown()
+					if err != nil {
+						log.Errorf(log.WebsocketMgr,
+							"%v auth websocket: trafficMonitor shutdown err: %s",
+							w.exchangeName, err)
+					}
+				}
+				w.setTrafficMonitorRunning(false)
+				return
 			}
 		}
 	}()

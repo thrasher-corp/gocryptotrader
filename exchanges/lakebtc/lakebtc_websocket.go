@@ -155,7 +155,7 @@ func (l *LakeBTC) wsHandleIncomingData() {
 			}
 		}
 		select {
-		case l.Websocket.TrafficAlert <- struct{}{}:
+		case l.Websocket.TrafficAlert <- l.GetAPIURL():
 		default:
 		}
 	}
