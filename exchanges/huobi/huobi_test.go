@@ -270,6 +270,7 @@ func TestFGetBasisData(t *testing.T) {
 }
 
 func TestFGetAccountInfo(t *testing.T) {
+	h.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -281,6 +282,7 @@ func TestFGetAccountInfo(t *testing.T) {
 }
 
 func TestFGetPositionsInfo(t *testing.T) {
+	h.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -1681,8 +1683,9 @@ func TestGetAccounts(t *testing.T) {
 }
 
 func TestGetAccountBalance(t *testing.T) {
+	h.Verbose = true
 	t.Parallel()
-	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
+	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
 	result, err := h.GetAccounts()
@@ -2004,6 +2007,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	h.Verbose = true
 	if !areTestAPIKeysSet() {
 		_, err := h.UpdateAccountInfo()
 		if err == nil {

@@ -397,37 +397,27 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 		if err != nil {
 			return nil, err
 		}
-
-		pairs, err := b.GetEnabledPairs(assetType)
-		if err != nil {
-			return nil, err
-		}
-		for i := range pairs {
-			pairFmt, err := b.FormatExchangeCurrency(pairs[i], assetType)
+		for y := range tick {
+			cp, err := currency.NewPairFromString(tick[y].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			for y := range tick {
-				if tick[y].Symbol != pairFmt.String() {
-					continue
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice,
-					High:         tick[y].HighPrice,
-					Low:          tick[y].LowPrice,
-					Bid:          tick[y].BidPrice,
-					Ask:          tick[y].AskPrice,
-					Volume:       tick[y].Volume,
-					QuoteVolume:  tick[y].QuoteVolume,
-					Open:         tick[y].OpenPrice,
-					Close:        tick[y].PrevClosePrice,
-					Pair:         pairs[i],
-					ExchangeName: b.Name,
-					AssetType:    assetType,
-				})
-				if err != nil {
-					return nil, err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice,
+				Low:          tick[y].LowPrice,
+				Bid:          tick[y].BidPrice,
+				Ask:          tick[y].AskPrice,
+				Volume:       tick[y].Volume,
+				QuoteVolume:  tick[y].QuoteVolume,
+				Open:         tick[y].OpenPrice,
+				Close:        tick[y].PrevClosePrice,
+				Pair:         cp,
+				ExchangeName: b.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
+				return nil, err
 			}
 		}
 	case asset.USDTMarginedFutures:
@@ -436,47 +426,25 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 			return nil, err
 		}
 
-		pairs, err := b.GetEnabledPairs(assetType)
-		if err != nil {
-			return nil, err
-		}
-		for i := range pairs {
-			pairFmt, err := b.FormatExchangeCurrency(pairs[i], assetType)
+		for y := range tick {
+			cp, err := currency.NewPairFromString(tick[y].Symbol)
 			if err != nil {
 				return nil, err
 			}
-
-			for y := range tick {
-				if tick[y].Symbol != pairFmt.String() {
-					continue
-				}
-
-				tickData, err := b.USymbolOrderbookTicker(pairs[i])
-				if err != nil {
-					return nil, err
-				}
-
-				if len(tickData) != 1 {
-					return nil, fmt.Errorf("invalid tickData response: only requested tick data for the given symbol")
-				}
-
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice,
-					High:         tick[y].HighPrice,
-					Low:          tick[y].LowPrice,
-					Bid:          tickData[0].BidPrice,
-					Ask:          tickData[0].AskPrice,
-					Volume:       tick[y].Volume,
-					QuoteVolume:  tick[y].QuoteVolume,
-					Open:         tick[y].OpenPrice,
-					Close:        tick[y].PrevClosePrice,
-					Pair:         pairs[i],
-					ExchangeName: b.Name,
-					AssetType:    assetType,
-				})
-				if err != nil {
-					return nil, err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice,
+				Low:          tick[y].LowPrice,
+				Volume:       tick[y].Volume,
+				QuoteVolume:  tick[y].QuoteVolume,
+				Open:         tick[y].OpenPrice,
+				Close:        tick[y].PrevClosePrice,
+				Pair:         cp,
+				ExchangeName: b.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
+				return nil, err
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -485,48 +453,25 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 			return nil, err
 		}
 
-		pairs, err := b.GetEnabledPairs(assetType)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range pairs {
-			pairFmt, err := b.FormatExchangeCurrency(pairs[i], assetType)
+		for y := range tick {
+			cp, err := currency.NewPairFromString(tick[y].Symbol)
 			if err != nil {
 				return nil, err
 			}
-
-			for y := range tick {
-				if tick[y].Symbol != pairFmt.String() {
-					continue
-				}
-
-				tickData, err := b.GetFuturesOrderbookTicker(pairs[i], "")
-				if err != nil {
-					return nil, err
-				}
-
-				if len(tickData) != 1 {
-					return nil, fmt.Errorf("invalid tickData response: only requested tick data for the given symbol")
-				}
-
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice,
-					High:         tick[y].HighPrice,
-					Low:          tick[y].LowPrice,
-					Bid:          tickData[0].BidPrice,
-					Ask:          tickData[0].AskPrice,
-					Volume:       tick[y].Volume,
-					QuoteVolume:  tick[y].QuoteVolume,
-					Open:         tick[y].OpenPrice,
-					Close:        tick[y].PrevClosePrice,
-					Pair:         pairs[i],
-					ExchangeName: b.Name,
-					AssetType:    assetType,
-				})
-				if err != nil {
-					return nil, err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice,
+				Low:          tick[y].LowPrice,
+				Volume:       tick[y].Volume,
+				QuoteVolume:  tick[y].QuoteVolume,
+				Open:         tick[y].OpenPrice,
+				Close:        tick[y].PrevClosePrice,
+				Pair:         cp,
+				ExchangeName: b.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
+				return nil, err
 			}
 		}
 	default:
@@ -974,6 +919,7 @@ func (b *Binance) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
 	var cancelAllOrdersResponse order.CancelAllResponse
+	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch req.AssetType {
 	case asset.Spot, asset.Margin:
 		openOrders, err := b.OpenOrders(&req.Pair)

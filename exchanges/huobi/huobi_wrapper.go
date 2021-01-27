@@ -160,9 +160,10 @@ func (h *HUOBI) SetDefaults() {
 		request.WithLimiter(SetRateLimit()))
 	h.API.Endpoints = h.NewEndpoints()
 	h.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      huobiAPIURL,
-		exchange.RestFutures:   huobiURL,
-		exchange.WebsocketSpot: wsMarketURL,
+		exchange.RestSpot:         huobiAPIURL,
+		exchange.RestFutures:      huobiURL,
+		exchange.RestCoinMargined: huobiFuturesURL,
+		exchange.WebsocketSpot:    wsMarketURL,
 	})
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -940,6 +941,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 		return order.CancelAllResponse{}, err
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
+	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
 	case asset.Spot:
 		enabledPairs, err := h.GetEnabledPairs(asset.Spot)

@@ -39,6 +39,21 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	spotPairs, err := b.FetchTradablePairs(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(spotPairs) == 0 {
+		t.Error("no tradable pairs")
+	}
+	spotCP, err := currency.NewPairFromString(spotPairs[0])
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateTicker(spotCP, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
 	tradablePairs, err := b.FetchTradablePairs(asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
@@ -55,14 +70,18 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 
-	usdtMarginedPairs, err := b.GetEnabledPairs(asset.USDTMarginedFutures)
+	usdtMarginedPairs, err := b.FetchTradablePairs(asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
 	if len(usdtMarginedPairs) == 0 {
 		t.Errorf("no pairs are enabled")
 	}
-	_, err = b.UpdateTicker(usdtMarginedPairs[0], asset.USDTMarginedFutures)
+	ucp, err := currency.NewPairFromString(usdtMarginedPairs[0])
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateTicker(ucp, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,6 +90,14 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateOrderbook(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateOrderbook(cp, asset.Margin)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1088,7 +1115,7 @@ func TestGetExchangeInfo(t *testing.T) {
 		t.Error(err)
 	}
 	if mockTests {
-		serverTime := time.Date(2020, 10, 16, 6, 32, 0, int(516*time.Millisecond), time.UTC)
+		serverTime := time.Date(2021, 01, 27, 02, 43, 18, int(593*time.Millisecond), time.UTC)
 		if !info.Servertime.Equal(serverTime) {
 			t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
 		}

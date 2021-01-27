@@ -171,16 +171,6 @@ func (h *HUOBI) FGetEstimatedDeliveryPrice(symbol currency.Code) (FEstimatedDeli
 	return resp, h.SendHTTPRequest(exchange.RestFutures, path, &resp)
 }
 
-// FormatSymbol overrides and calls the imbedded format symbol implementation on
-// the exchange base struct
-func (h *HUOBI) FormatSymbol(c currency.Pair, assetType asset.Item) (string, error) {
-	formattedSymbol, err := h.Base.FormatSymbol(c, assetType)
-	if err != nil {
-		return "", err
-	}
-	return formattedSymbol, nil
-}
-
 // FGetMarketDepth gets market depth data for futures contracts
 func (h *HUOBI) FGetMarketDepth(symbol currency.Pair, dataType string) (OBData, error) {
 	var resp OBData

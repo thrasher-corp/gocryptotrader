@@ -23,6 +23,7 @@ import (
 const (
 	huobiAPIURL      = "https://api.huobi.pro"
 	huobiURL         = "https://api.hbdm.com/"
+	huobiFuturesURL  = "https://api.hbdm.com"
 	huobiAPIVersion  = "1"
 	huobiAPIVersion2 = "2"
 
@@ -849,8 +850,7 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoin
 	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(sigPath), []byte(h.API.Credentials.Secret))
 	sigValues := url.Values{}
 	sigValues.Add("Signature", crypto.Base64Encode(hmac))
-	urlPath :=
-		common.EncodeURLValues(ePoint, values) + "&" + sigValues.Encode()
+	urlPath := ePoint + common.EncodeURLValues(endpoint, values)
 
 	var body io.Reader
 	var payload []byte
