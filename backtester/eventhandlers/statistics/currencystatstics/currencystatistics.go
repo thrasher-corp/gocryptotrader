@@ -53,11 +53,11 @@ func (c *CurrencyStatistic) CalculateResults() {
 	for i := range c.Events {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
-	c.DrawDowns = calculateAllDrawDowns(allDataEvents)
+	c.MaxDrawdown = calculateMaxDrawdown(allDataEvents)
 	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, last.Holdings.RiskFreeRate)
 	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, last.Holdings.RiskFreeRate)
 	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{last.Holdings.RiskFreeRate})
-	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, &c.DrawDowns.MaxDrawDown)
+	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, &c.MaxDrawdown)
 	c.CompoundAnnualGrowthRate = calculateCompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
 		last.Holdings.TotalValue,
@@ -91,22 +91,13 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Total orders: %v\n\n", c.TotalOrders)
 
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
-	log.Infof(log.BackTester, "Highest Price: $%.2f", c.DrawDowns.MaxDrawDown.Highest.Price)
-	log.Infof(log.BackTester, "Highest Price Time: %v", c.DrawDowns.MaxDrawDown.Highest.Time)
-	log.Infof(log.BackTester, "Lowest Price: $%v", c.DrawDowns.MaxDrawDown.Lowest.Price)
-	log.Infof(log.BackTester, "Lowest Price Time: %v", c.DrawDowns.MaxDrawDown.Lowest.Time)
-	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.DrawDowns.MaxDrawDown.DrawdownPercent)
-	log.Infof(log.BackTester, "Difference: $%.2f", c.DrawDowns.MaxDrawDown.Highest.Price-c.DrawDowns.MaxDrawDown.Lowest.Price)
-	log.Infof(log.BackTester, "Drawdown length: %v", len(c.DrawDowns.MaxDrawDown.Iterations))
-
-	log.Info(log.BackTester, "------------------Longest Drawdown---------------------------")
-	log.Infof(log.BackTester, "Highest Price: $%.2f", c.DrawDowns.LongestDrawDown.Highest.Price)
-	log.Infof(log.BackTester, "Highest Price Time: %v", c.DrawDowns.LongestDrawDown.Highest.Time)
-	log.Infof(log.BackTester, "Lowest Price: $%.2f", c.DrawDowns.LongestDrawDown.Lowest.Price)
-	log.Infof(log.BackTester, "Lowest Price Time: %v", c.DrawDowns.LongestDrawDown.Lowest.Time)
-	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.DrawDowns.LongestDrawDown.DrawdownPercent)
-	log.Infof(log.BackTester, "Difference: $%.2f", c.DrawDowns.LongestDrawDown.Highest.Price-c.DrawDowns.LongestDrawDown.Lowest.Price)
-	log.Infof(log.BackTester, "Drawdown length: %v\n\n", len(c.DrawDowns.LongestDrawDown.Iterations))
+	log.Infof(log.BackTester, "Highest Price: $%.2f", c.MaxDrawdown.Highest.Price)
+	log.Infof(log.BackTester, "Highest Price Time: %v", c.MaxDrawdown.Highest.Time)
+	log.Infof(log.BackTester, "Lowest Price: $%v", c.MaxDrawdown.Lowest.Price)
+	log.Infof(log.BackTester, "Lowest Price Time: %v", c.MaxDrawdown.Lowest.Time)
+	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.MaxDrawdown.DrawdownPercent)
+	log.Infof(log.BackTester, "Difference: $%.2f", c.MaxDrawdown.Highest.Price-c.MaxDrawdown.Lowest.Price)
+	log.Infof(log.BackTester, "Drawdown length: %v", c.MaxDrawdown.IntervalDuration)
 
 	log.Info(log.BackTester, "------------------Ratios-------------------------------------")
 	log.Infof(log.BackTester, "Risk free rate: %.3f", c.RiskFreeRate)
@@ -144,117 +135,73 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	}
 }
 
-// MaxDrawdown calculates the largest drawdown
-func (c *CurrencyStatistic) MaxDrawdown() Swing {
-	if len(c.DrawDowns.MaxDrawDown.Iterations) == 0 {
-		var allDataEvents []common.DataEventHandler
-		for i := range c.Events {
-			allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
-		}
-		c.DrawDowns = calculateAllDrawDowns(allDataEvents)
+func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
+	var lowestPrice, highestPrice float64
+	var lowestTime, highestTime time.Time
+	var swings []Swing
+	if len(closePrices) > 0 {
+		lowestPrice = closePrices[0].Price()
+		highestPrice = closePrices[0].Price()
+		lowestTime = closePrices[0].GetTime()
+		highestTime = closePrices[0].GetTime()
 	}
-	return c.DrawDowns.MaxDrawDown
-}
-
-// LongestDrawdown calculates the longest drawdown
-func (c *CurrencyStatistic) LongestDrawdown() Swing {
-	if len(c.DrawDowns.LongestDrawDown.Iterations) == 0 {
-		var allDataEvents []common.DataEventHandler
-		for i := range c.Events {
-			allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
-		}
-		c.DrawDowns = calculateAllDrawDowns(allDataEvents)
-	}
-	return c.DrawDowns.LongestDrawDown
-}
-
-func calculateAllDrawDowns(closePrices []common.DataEventHandler) SwingHolder {
-	isDrawingDown := false
-
-	var response SwingHolder
-	var activeDraw Swing
 	for i := range closePrices {
-		p := closePrices[i].Price()
-		t := closePrices[i].GetTime()
-		if i == 0 || (!isDrawingDown && activeDraw.Highest.Price < p) {
-			activeDraw.Highest = Iteration{
-				Price: p,
-				Time:  t,
-			}
-			activeDraw.Lowest = Iteration{
-				Price: p,
-				Time:  t,
-			}
-			continue
+		currPrice := closePrices[i].Price()
+		currTime := closePrices[i].GetTime()
+		if lowestPrice > currPrice {
+			lowestPrice = currPrice
+			lowestTime = currTime
 		}
-
-		// create
-		if !isDrawingDown && activeDraw.Highest.Price > p {
-			isDrawingDown = true
-			activeDraw = Swing{
-				Highest: activeDraw.Highest,
-				Lowest: Iteration{
-					Price: p,
-					Time:  t,
-				},
-			}
-			activeDraw.Iterations = append(activeDraw.Iterations, activeDraw.Highest)
-		}
-
-		// close
-		if isDrawingDown && activeDraw.Lowest.Price < p {
-			activeDraw.Lowest = Iteration{
-				Price: activeDraw.Iterations[len(activeDraw.Iterations)-1].Price,
-				Time:  activeDraw.Iterations[len(activeDraw.Iterations)-1].Time,
-			}
-			isDrawingDown = false
-			response.DrawDowns = append(response.DrawDowns, activeDraw)
-			// reset
-			activeDraw = Swing{
+		if highestPrice < currPrice {
+			intervals := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[i].GetInterval(), 0)
+			swings = append(swings, Swing{
 				Highest: Iteration{
-					Price: p,
-					Time:  t,
+					Time:  highestTime,
+					Price: highestPrice,
 				},
 				Lowest: Iteration{
-					Price: p,
-					Time:  t,
+					Time:  lowestTime,
+					Price: lowestPrice,
 				},
-			}
-		}
-
-		// append
-		if isDrawingDown {
-			if p < activeDraw.Lowest.Price {
-				activeDraw.Lowest.Price = p
-				activeDraw.Lowest.Time = t
-			}
-			activeDraw.Iterations = append(activeDraw.Iterations, Iteration{
-				Time:  t,
-				Price: p,
+				DrawdownPercent:  ((lowestPrice - highestPrice) / highestPrice) * 100,
+				IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
 			})
+			// reset the drawdown
+			highestPrice = currPrice
+			highestTime = currTime
+			lowestPrice = currPrice
+			lowestTime = currTime
 		}
 	}
-	// ensure a lingering drawdown is closed
-	if isDrawingDown {
-		response.DrawDowns = append(response.DrawDowns, activeDraw)
+	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Price != closePrices[len(closePrices)-1].Price()) || swings == nil {
+		// need to close out the final drawdown
+		intervals := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[0].GetInterval(), 0)
+		swings = append(swings, Swing{
+			Highest: Iteration{
+				Time:  highestTime,
+				Price: highestPrice,
+			},
+			Lowest: Iteration{
+				Time:  lowestTime,
+				Price: lowestPrice,
+			},
+			DrawdownPercent:  ((lowestPrice - highestPrice) / highestPrice) * 100,
+			IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
+		})
 	}
 
-	response.calculateMaxAndLongestDrawDowns()
-	response.MaxDrawDown.DrawdownPercent = ((response.MaxDrawDown.Lowest.Price - response.MaxDrawDown.Highest.Price) / response.MaxDrawDown.Highest.Price) * 100
-	response.LongestDrawDown.DrawdownPercent = ((response.LongestDrawDown.Lowest.Price - response.LongestDrawDown.Highest.Price) / response.LongestDrawDown.Highest.Price) * 100
-
-	return response
-}
-
-func (s *SwingHolder) calculateMaxAndLongestDrawDowns() {
-	for i := range s.DrawDowns {
-		if s.DrawDowns[i].Highest.Price-s.DrawDowns[i].Lowest.Price > s.MaxDrawDown.Highest.Price-s.MaxDrawDown.Lowest.Price {
-			s.MaxDrawDown = s.DrawDowns[i]
-		}
-		if len(s.DrawDowns[i].Iterations) > len(s.LongestDrawDown.Iterations) {
-			s.LongestDrawDown = s.DrawDowns[i]
+	var maxDrawdown Swing
+	if len(swings) > 0 {
+		maxDrawdown = swings[0]
+	}
+	for i := range swings {
+		if swings[i].DrawdownPercent < maxDrawdown.DrawdownPercent {
+			// drawdowns are negative
+			maxDrawdown = swings[i]
 		}
 	}
+
+	return maxDrawdown
 }
 
 func calculateCompoundAnnualGrowthRate(openValue, closeValue float64, start, end time.Time, interval gctkline.Interval) float64 {

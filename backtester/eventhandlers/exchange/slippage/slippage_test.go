@@ -19,7 +19,6 @@ func TestRandomSlippage(t *testing.T) {
 func TestCalculateSlippageByOrderbook(t *testing.T) {
 	b := bitstamp.Bitstamp{}
 	b.SetDefaults()
-	b.Verbose = false
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	ob, err := b.FetchOrderbook(cp, asset.Spot)
 	if err != nil {

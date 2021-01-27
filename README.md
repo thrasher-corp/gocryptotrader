@@ -149,7 +149,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [xtda](https://github.com/xtda) | 47 |
 | [Rots](https://github.com/Rots) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [vazha](https://github.com/vazha) | 13 |
+| [vazha](https://github.com/vazha) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 9 |
 | [140am](https://github.com/140am) | 8 |

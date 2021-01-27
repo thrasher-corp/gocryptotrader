@@ -224,8 +224,7 @@ func TestGenerateReport(t *testing.T) {
 									FillEvent:    nil,
 								},
 							},
-							DrawDowns:                currencystatstics.SwingHolder{},
-							Upswings:                 currencystatstics.SwingHolder{},
+							MaxDrawdown:              currencystatstics.Swing{},
 							LowestClosePrice:         100,
 							HighestClosePrice:        200,
 							MarketMovement:           100,
@@ -357,8 +356,7 @@ func TestEnhanceCandles(t *testing.T) {
 	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
 	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatstics.CurrencyStatistic{
 		Events:                   nil,
-		DrawDowns:                currencystatstics.SwingHolder{},
-		Upswings:                 currencystatstics.SwingHolder{},
+		MaxDrawdown:              currencystatstics.Swing{},
 		StartingClosePrice:       0,
 		EndingClosePrice:         0,
 		LowestClosePrice:         0,

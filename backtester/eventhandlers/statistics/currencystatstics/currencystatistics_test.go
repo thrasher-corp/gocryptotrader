@@ -281,13 +281,36 @@ func TestPrintResults(t *testing.T) {
 	cs.PrintResults(exch, a, p)
 }
 
-func TestCreateDrawdowns(t *testing.T) {
-	cs := CurrencyStatistic{}
-	tt1 := time.Now()
-	tt2 := time.Now()
+func TestCalculateMaxDrawdown(t *testing.T) {
+	tt1 := time.Now().Round(gctkline.OneDay.Duration())
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
+	var events []common.DataEventHandler
+	for i := 0; i < 100; i++ {
+		tt1 = tt1.Add(gctkline.OneDay.Duration())
+		even := event.Event{
+			Exchange:     exch,
+			Time:         tt1,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		}
+		if i == 50 {
+			// throw in a wrench, a spike in price
+			events = append(events, &kline.Kline{
+				Event: even,
+				Close: 1336,
+			})
+		} else {
+			events = append(events, &kline.Kline{
+				Event: even,
+				Close: 1337 - float64(i),
+			})
+		}
+	}
+
+	tt1 = tt1.Add(gctkline.OneDay.Duration())
 	even := event.Event{
 		Exchange:     exch,
 		Time:         tt1,
@@ -295,234 +318,39 @@ func TestCreateDrawdowns(t *testing.T) {
 		CurrencyPair: p,
 		AssetType:    a,
 	}
-	ev := EventStore{
-		Holdings: holdings.Holding{},
-		Transactions: compliance.Snapshot{
-			Orders: []compliance.SnapshotOrder{
-				{
-					ClosePrice:          1338,
-					VolumeAdjustedPrice: 1338,
-					SlippageRate:        1338,
-					CostBasis:           1338,
-					Detail:              &order.Detail{Side: order.Buy},
-				},
-				{
-					ClosePrice:          1338,
-					VolumeAdjustedPrice: 1338,
-					SlippageRate:        1338,
-					CostBasis:           1338,
-					Detail:              &order.Detail{Side: order.Sell},
-				},
-			},
-		},
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1338,
-		},
-		SignalEvent: &signal.Signal{
-			Event: even,
-			Price: 1338,
-		},
-	}
-	even.Time = tt2
-	ev2 := EventStore{
-		Holdings: holdings.Holding{},
-		Transactions: compliance.Snapshot{
-			Orders: []compliance.SnapshotOrder{
-				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
-					Detail:              &order.Detail{Side: order.Buy},
-				},
-				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
-					Detail:              &order.Detail{Side: order.Sell},
-				},
-			},
-		},
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1337,
-		},
-		SignalEvent: &signal.Signal{
-			Event: even,
-			Price: 1337,
-		},
-	}
+	events = append(events, &kline.Kline{
+		Event: even,
+		Close: 1338,
+	})
 
-	cs.Events = append(cs.Events, ev, ev2)
-
-	cs.DrawDowns = calculateAllDrawDowns([]common.DataEventHandler{ev.DataEvent, ev2.DataEvent})
-}
-
-func TestDrawdowns(t *testing.T) {
-	cs := CurrencyStatistic{}
-	tt1 := time.Now()
-	tt2 := time.Now().Add(time.Second)
-	tt3 := time.Now().Add(2 * time.Second)
-	it1 := Iteration{
-		Time:  tt1,
-		Price: 1339,
-	}
-	it2 := Iteration{
-		Time:  tt2,
-		Price: 1338,
-	}
-	it3 := Iteration{
-		Time:  tt3,
-		Price: 1337,
-	}
-	it4 := Iteration{
-		Time:  tt1,
-		Price: 1,
-	}
-	it5 := Iteration{
-		Time:  tt2,
-		Price: 1000,
-	}
-	it6 := Iteration{
-		Time:  tt3,
-		Price: 10000,
-	}
-	cs.DrawDowns = SwingHolder{
-		DrawDowns: []Swing{
-			{
-				Highest:    it1,
-				Lowest:     it3,
-				Iterations: []Iteration{it1, it2, it3},
-			},
-			{
-				Highest:    it6,
-				Lowest:     it4,
-				Iterations: []Iteration{it4, it5, it6},
-			},
-		},
-	}
-	cs.DrawDowns.calculateMaxAndLongestDrawDowns()
-	if cs.DrawDowns.MaxDrawDown.Highest.Price != 10000 {
-		t.Error("expected 10000")
-	}
-}
-
-func TestMaxDrawdown(t *testing.T) {
-	cs := CurrencyStatistic{}
-	tt1 := time.Now()
-	tt2 := time.Now().Add(time.Second)
-	exch := testExchange
-	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
-	even := event.Event{
+	tt1 = tt1.Add(gctkline.OneDay.Duration())
+	even = event.Event{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
 		CurrencyPair: p,
 		AssetType:    a,
 	}
-	ev := EventStore{
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1337,
-		},
-	}
-	even.Time = tt2
-	ev2 := EventStore{
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1338,
-		},
-	}
-	ev3 := EventStore{
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1331,
-		},
-	}
+	events = append(events, &kline.Kline{
+		Event: even,
+		Close: 1337,
+	})
 
-	cs.Events = append(cs.Events, ev, ev2, ev3)
-	max := cs.MaxDrawdown()
-	if max.Highest.Price != 1338 {
-		t.Error("expected 1338")
-	}
-	if max.Lowest.Price != 1331 {
-		t.Error("expected 1331")
-	}
-	if len(max.Iterations) != 2 {
-		t.Error("expected 2 iterations")
-	}
-	if max.DrawdownPercent != -0.523168908819133 {
-		t.Error("incorrect max drawdown calculation")
-	}
-}
-
-func TestLongestDrawdown(t *testing.T) {
-	cs := CurrencyStatistic{}
-	tt1 := time.Now()
-	tt2 := time.Now().Add(time.Second)
-	exch := testExchange
-	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
-	even := event.Event{
+	tt1 = tt1.Add(gctkline.OneDay.Duration())
+	even = event.Event{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
 		CurrencyPair: p,
 		AssetType:    a,
 	}
-	ev := EventStore{
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 2337,
-		},
-	}
-	even.Time = tt2
-	ev2 := EventStore{
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1337,
-		},
-	}
-	ev3 := EventStore{
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1338,
-		},
-	}
-	ev4 := EventStore{
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1337,
-		},
-	}
-	ev5 := EventStore{
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1336,
-		},
-	}
-	ev6 := EventStore{
-		DataEvent: &kline.Kline{
-			Event: even,
-			Close: 1335,
-		},
-	}
+	events = append(events, &kline.Kline{
+		Event: even,
+		Close: 1339,
+	})
 
-	cs.Events = append(cs.Events, ev, ev2, ev3, ev4, ev5, ev6, ev5, ev6)
-	longest := cs.LongestDrawdown()
-	if longest.Highest.Price != 1338 {
-		t.Error("expected 1338")
-	}
-	if longest.Lowest.Price != 1335 {
-		t.Error("expected 1335")
-	}
-	if len(longest.Iterations) != 4 {
-		t.Error("expected 4 iterations")
-	}
-	if longest.DrawdownPercent != -0.2242152466367713 {
-		t.Error("incorrect longest drawdown calculation")
+	resp := calculateMaxDrawdown(events)
+	if resp.Highest.Price != 1337 && resp.Lowest.Price != 1238 {
+		t.Error("unexpected max drawdown")
 	}
 }

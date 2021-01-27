@@ -35,8 +35,7 @@ type EventStore struct {
 // Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyStatistic struct {
 	Events                   []EventStore        `json:"-"`
-	DrawDowns                SwingHolder         `json:"all-drawdowns,omitempty"`
-	Upswings                 SwingHolder         `jons:"all-upswings,omitempty"`
+	MaxDrawdown              Swing               `json:"max-drawdown,omitempty"`
 	StartingClosePrice       float64             `json:"starting-close-price"`
 	EndingClosePrice         float64             `json:"ending-close-price"`
 	LowestClosePrice         float64             `json:"lowest-close-price"`
@@ -56,20 +55,12 @@ type CurrencyStatistic struct {
 	FinalOrders              compliance.Snapshot `json:"final-orders"`
 }
 
-// SwingHolder holds two types of drawdowns, the largest and longest
-// it stores all of the calculated drawdowns
-type SwingHolder struct {
-	DrawDowns       []Swing `json:"-"`
-	MaxDrawDown     Swing   `json:"max-drawdown,omitempty"`
-	LongestDrawDown Swing   `json:"longest-drawdown,omitempty"`
-}
-
 // Swing holds a drawdown
 type Swing struct {
-	Highest         Iteration   `json:"highest"`
-	Lowest          Iteration   `json:"lowest"`
-	DrawdownPercent float64     `json:"drawdown"`
-	Iterations      []Iteration `json:"-"`
+	Highest          Iteration `json:"highest"`
+	Lowest           Iteration `json:"lowest"`
+	DrawdownPercent  float64   `json:"drawdown"`
+	IntervalDuration int64
 }
 
 // Iteration is an individual iteration of price at a time

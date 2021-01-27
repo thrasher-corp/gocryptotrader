@@ -70,7 +70,7 @@ func (h *Holding) update(f fill.Event) {
 
 func (h *Holding) updateValue(l float64) {
 	origPosValue := h.PositionsValue
-	origBoughtValue := h.PositionsValue
+	origBoughtValue := h.BoughtValue
 	origSoldValue := h.SoldValue
 	origTotalValue := h.TotalValue
 	h.PositionsValue = h.PositionsSize * l

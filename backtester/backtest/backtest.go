@@ -353,12 +353,7 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 		}
 	}
 
-	err = bt.Bot.OrderManager.Start(bt.Bot)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return bt.Bot.OrderManager.Start(bt.Bot)
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
@@ -612,7 +607,7 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() error {
 dataLoadingIssue:
-	for ev, ok := bt.EventQueue.NextEvent(); true; ev, ok = bt.EventQueue.NextEvent() {
+	for ev, ok := bt.EventQueue.NextEvent(); ; ev, ok = bt.EventQueue.NextEvent() {
 		if !ok {
 			dataHandlerMap := bt.Datas.GetAllData()
 			for exchangeName, exchangeMap := range dataHandlerMap {
@@ -815,7 +810,7 @@ func (bt *BackTest) RunLive() error {
 		case <-timerino.C:
 			return errors.New("no data returned in 5 minutes, shutting down")
 		case <-tickerino.C:
-			for e, ok := bt.EventQueue.NextEvent(); true; e, ok = bt.EventQueue.NextEvent() {
+			for e, ok := bt.EventQueue.NextEvent(); ; e, ok = bt.EventQueue.NextEvent() {
 				if !ok {
 					// as live only supports singular currency, just get the proper reference manually
 					var d data.Handler

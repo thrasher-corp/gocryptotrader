@@ -22,7 +22,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 When loading data for the kline, it can come from two sources: candles or trades. In the config they are represented as `common.CandleStr` or `common.TradeStr` respectively.
 
-Candle data represents the opening, closing, highest, lowest prices of a given timespan (interval) along with the volume (amount sold) during that same period. You can read more about candles [here](https://www.investopedia.com/terms/c/candlestick.asp). This data is utilised throughout the GoCryptoTrader Backtester in order to make informed strategic decisions.
+Candle data represents the opening, closing, highest, lowest prices of a given timespan (interval) along with the volume (amount traded) during that same period. You can read more about candles [here](https://www.investopedia.com/terms/c/candlestick.asp). This data is utilised throughout the GoCryptoTrader Backtester in order to make informed strategic decisions.
 
 Trade data represents the raw trading data on an exchange. Every buy or sell action for the given currency. When trading data is used for the GoCryptoTrader Backtester, it is converted into candle data at the interval you specify. This allows for custom candle intervals not provided by an exchange's API and thus has a greater amount of flexibility in backtesting strategies.
 

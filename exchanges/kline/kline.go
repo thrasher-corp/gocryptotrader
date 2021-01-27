@@ -342,6 +342,7 @@ func (k *Item) RemoveDuplicates() {
 	k.Candles = newCandles
 }
 
+// RemoveOutsideRange removes any candles outside the start and end date
 func (k *Item) RemoveOutsideRange(start, end time.Time) {
 	var newCandles []Candle
 	for i := range k.Candles {
@@ -360,7 +361,7 @@ func (k *Item) RemoveOutsideRange(start, end time.Time) {
 // HasDataAtDate determines whether a there is any data at a set
 // date inside the existing limits
 func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
-	if t.Before(t) || t.After(h.End) {
+	if t.Before(h.Start) || t.After(h.End) {
 		return false
 	}
 	for i := range h.Ranges {

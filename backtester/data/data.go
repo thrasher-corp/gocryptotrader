@@ -46,12 +46,6 @@ func (d *HandlerPerCurrency) Reset() {
 	d.data = nil
 }
 
-// Load specified data into Candle format
-// this is empty and loader types will have their own implementation
-func (d *Data) Load() error {
-	return nil
-}
-
 // Reset loaded data to blank state
 func (d *Data) Reset() {
 	d.latest = nil
@@ -119,34 +113,4 @@ func (d *Data) SortStream() {
 
 		return b1.GetTime().Before(b2.GetTime())
 	})
-}
-
-// StreamOpen returns all Open prices from the beginning until the current iteration
-// Implemented under DataFromKline
-func (d *Data) StreamOpen() []float64 {
-	return []float64{}
-}
-
-// StreamHigh returns all High prices from the beginning until the current iteration
-// Implemented under DataFromKline
-func (d *Data) StreamHigh() []float64 {
-	return []float64{}
-}
-
-// StreamLow returns all Low prices from the beginning until the current iteration
-// Implemented under DataFromKline
-func (d *Data) StreamLow() []float64 {
-	return []float64{}
-}
-
-// StreamClose returns all Close prices from the beginning until the current iteration
-// Implemented under DataFromKline
-func (d *Data) StreamClose() []float64 {
-	return []float64{}
-}
-
-// StreamVol returns all Volume prices from the beginning until the current iteration
-// Implemented under DataFromKline
-func (d *Data) StreamVol() []float64 {
-	return []float64{}
 }

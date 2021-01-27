@@ -489,16 +489,10 @@
 									<td><b>Total Orders</b></td>
 									<td>{{$val.TotalOrders}}</td>
 								</tr>
-                                {{ if gt $val.DrawDowns.MaxDrawDown.Highest.Price 0.0 }}
+                                {{ if gt $val.MaxDrawdown.Highest.Price 0.0 }}
 									<tr>
 										<td><b>Biggest Drawdown</b></td>
-										<td><b>Start:</b> {{ $val.DrawDowns.MaxDrawDown.Highest.Time }} <b>End:</b> {{ $val.DrawDowns.MaxDrawDown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" $val.DrawDowns.MaxDrawDown.DrawdownPercent}}%</td>
-									</tr>
-                                {{ end }}
-                                {{ if gt $val.DrawDowns.LongestDrawDown.Highest.Price 0.0 }}
-									<tr>
-										<td><b>Longest Drawdown</b></td>
-										<td><b>Start:</b> {{$val.DrawDowns.LongestDrawDown.Highest.Time }} <b>End:</b> {{$val.DrawDowns.LongestDrawDown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" $val.DrawDowns.LongestDrawDown.DrawdownPercent}}%</td>
+										<td><b>Start:</b> {{ $val.MaxDrawdown.Highest.Time }} <b>End:</b> {{ $val.MaxDrawdown.Lowest.Time }} <b>Drop:</b> {{printf "%.2f" $val.MaxDrawdown.DrawdownPercent}}%</td>
 									</tr>
                                 {{ end }}
 								<tr>
@@ -555,15 +549,15 @@
 								</tr>
 								<tr>
 									<td><b>Total Value Lost to Volume Sizing</b></td>
-									<td>${{printf "%.2f" $val.FinalHoldings.TotalValueLostToVolumeSizing}}</td>
+									<td>${{printf "%.8f" $val.FinalHoldings.TotalValueLostToVolumeSizing}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost to Slippage</b></td>
-									<td>${{printf "%.2f" $val.FinalHoldings.TotalValueLostToSlippage}}</td>
+									<td>${{printf "%.8f" $val.FinalHoldings.TotalValueLostToSlippage}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value Lost</b></td>
-									<td>${{printf "%.2f" $val.FinalHoldings.TotalValueLost}}</td>
+									<td>${{printf "%.8f" $val.FinalHoldings.TotalValueLost}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Fees</b></td>
@@ -575,11 +569,11 @@
 								</tr>
 								<tr>
 									<td><b>Final Holdings</b></td>
-									<td>{{printf "%.2f" $val.FinalHoldings.PositionsSize}}</td>
+									<td>{{printf "%.8f" $val.FinalHoldings.PositionsSize}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings Value</b></td>
-									<td>${{printf "%.2f" $val.FinalHoldings.PositionsValue}}</td>
+									<td>${{printf "%.8f" $val.FinalHoldings.PositionsValue}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Value</b></td>

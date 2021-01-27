@@ -9,13 +9,8 @@ import (
 
 const testExchange = "binance"
 
-func TestSomething(t *testing.T) {
-	// This test is more fully implemented in the fully implemented kline_test
+func TestBaseDataFunctions(t *testing.T) {
 	var d Data
-	err := d.Load()
-	if err != nil {
-		t.Error(err)
-	}
 	d.Latest()
 	d.Next()
 	o := d.Offset()
@@ -40,11 +35,6 @@ func TestSomething(t *testing.T) {
 	}
 	d.Reset()
 	d.GetStream()
-	d.StreamOpen()
-	d.StreamHigh()
-	d.StreamClose()
-	d.StreamLow()
-	d.StreamVol()
 	d.SortStream()
 }
 

@@ -153,7 +153,7 @@ func (s *Statistic) CalculateAllResults() error {
 					Exchange:         exchangeName,
 					Asset:            assetItem,
 					Pair:             pair,
-					MaxDrawdown:      stats.DrawDowns.MaxDrawDown,
+					MaxDrawdown:      stats.MaxDrawdown,
 					MarketMovement:   stats.MarketMovement,
 					StrategyMovement: stats.StrategyMovement,
 				})
@@ -189,7 +189,7 @@ func (s *Statistic) PrintTotalResults() {
 		log.Infof(log.BackTester, "Lowest Price Time: %v", s.BiggestDrawdown.MaxDrawdown.Lowest.Time)
 		log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", s.BiggestDrawdown.MaxDrawdown.DrawdownPercent)
 		log.Infof(log.BackTester, "Difference: $%.2f", s.BiggestDrawdown.MaxDrawdown.Highest.Price-s.BiggestDrawdown.MaxDrawdown.Lowest.Price)
-		log.Infof(log.BackTester, "Drawdown length: %v\n\n", len(s.BiggestDrawdown.MaxDrawdown.Iterations))
+		log.Infof(log.BackTester, "Drawdown length: %v\n\n", s.BiggestDrawdown.MaxDrawdown.IntervalDuration)
 	}
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
 		log.Info(log.BackTester, "------------------Orders----------------------------------")
