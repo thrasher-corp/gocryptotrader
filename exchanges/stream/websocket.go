@@ -422,7 +422,7 @@ func (w *Websocket) FlushChannels() error {
 			return err
 		}
 
-		if w.CanUseAuthenticatedEndpoints() {
+		if w.CanUseAuthenticatedEndpoints() && w.GenerateAuthSubs != nil {
 			newAuthSubs, err := w.GenerateAuthSubs()
 			if err != nil {
 				return err
@@ -455,7 +455,7 @@ func (w *Websocket) FlushChannels() error {
 			return err
 		}
 
-		if w.CanUseAuthenticatedEndpoints() {
+		if w.CanUseAuthenticatedEndpoints() && w.GenerateAuthSubs != nil{
 			newAuthSubs, err := w.GenerateAuthSubs()
 			if err != nil {
 				return err
@@ -492,9 +492,9 @@ func (w *Websocket) trafficMonitor() {
 
 	go func() {
 		var trafficTimer = time.NewTimer(w.trafficTimeout)
-		var trafficAuthTimer *time.Timer
-		if w.CanUseAuthenticatedEndpoints() {
-			trafficAuthTimer = time.NewTimer(w.trafficTimeout)
+		var trafficAuthTimer = time.NewTimer(w.trafficTimeout)
+		if !w.CanUseAuthenticatedEndpoints() {
+			trafficAuthTimer.Stop()
 		}
 
 		for {
@@ -510,7 +510,7 @@ func (w *Websocket) trafficMonitor() {
 				w.Wg.Done()
 				return
 			case t := <-w.TrafficAlert:
-				if w.AuthConn.GetURL() == t {
+				if w.AuthConn != nil && w.AuthConn.GetURL() == t {
 					if !trafficAuthTimer.Stop() {
 						select {
 						case <-trafficAuthTimer.C:
@@ -519,7 +519,7 @@ func (w *Websocket) trafficMonitor() {
 					}
 					w.setConnectedStatus(true)
 					trafficAuthTimer.Reset(w.trafficTimeout)
-				} else if w.Conn.GetURL() == t {
+				} else if w.Conn != nil && w.Conn.GetURL() == t {
 					if !trafficTimer.Stop() {
 						select {
 						case <-trafficTimer.C:
