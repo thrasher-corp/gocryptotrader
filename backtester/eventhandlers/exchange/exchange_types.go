@@ -12,7 +12,7 @@ import (
 
 // ExecutionHandler interface dictates what functions are required to submit an order
 type ExecutionHandler interface {
-	SetCurrency(string, asset.Item, currency.Pair, *Settings)
+	SetExchangeAssetCurrencySettings(string, asset.Item, currency.Pair, *Settings)
 	GetCurrencySettings(string, asset.Item, currency.Pair) (Settings, error)
 	ExecuteOrder(order.Event, data.Handler, *engine.Engine) (*fill.Fill, error)
 	Reset()

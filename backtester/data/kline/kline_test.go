@@ -87,7 +87,7 @@ func TestHasDataAtTime(t *testing.T) {
 
 	ranger := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
 	d.Range = ranger
-	_ = d.Range.Verify(d.Item.Candles)
+	_ = d.Range.VerifyResultsHaveData(d.Item.Candles)
 	has = d.HasDataAtTime(dInsert)
 	if !has {
 		t.Error("expected true")

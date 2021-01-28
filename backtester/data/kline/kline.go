@@ -59,7 +59,7 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 			d.addedTimes[ki.Candles[i].Time] = true
 		}
 	}
-	var timerinos []time.Time
+	var candleTimes []time.Time
 
 	for i := range gctCandles {
 		klineData = append(klineData, &kline.Kline{
@@ -76,9 +76,9 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 			Close:  gctCandles[i].Close,
 			Volume: gctCandles[i].Volume,
 		})
-		timerinos = append(timerinos, gctCandles[i].Time)
+		candleTimes = append(candleTimes, gctCandles[i].Time)
 	}
-	log.Debugf(log.BackTester, "appending %v candle intervals: %v", len(gctCandles), timerinos)
+	log.Debugf(log.BackTester, "appending %v candle intervals: %v", len(gctCandles), candleTimes)
 	d.AppendStream(klineData...)
 	d.SortStream()
 }

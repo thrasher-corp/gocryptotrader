@@ -107,7 +107,7 @@ func TestOnSignal(t *testing.T) {
 
 	ranger := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
 	da.Range = ranger
-	_ = da.Range.Verify(da.Item.Candles)
+	_ = da.Range.VerifyResultsHaveData(da.Item.Candles)
 	resp, err = s.OnSignal(da, nil)
 	if err != nil {
 		t.Error(err)
@@ -185,7 +185,7 @@ func TestOnSignals(t *testing.T) {
 
 	ranger := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
 	da.Range = ranger
-	_ = da.Range.Verify(da.Item.Candles)
+	_ = da.Range.VerifyResultsHaveData(da.Item.Candles)
 	resp, err = s.OnSignals([]data.Handler{da}, nil)
 	if err != nil {
 		t.Error(err)

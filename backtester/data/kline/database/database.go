@@ -18,7 +18,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 	resp := &kline.DataFromKline{}
 	switch dataType {
 	case common.CandleStr:
-		datarino, err := getCandleDatabaseData(
+		klineItem, err := getCandleDatabaseData(
 			startDate,
 			endDate,
 			interval,
@@ -28,7 +28,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 		if err != nil {
 			return nil, err
 		}
-		resp.Item = datarino
+		resp.Item = klineItem
 	case common.TradeStr:
 		trades, err := trade.GetTradesInRange(
 			exchangeName,
@@ -40,13 +40,13 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 		if err != nil {
 			return nil, err
 		}
-		datarino, err := trade.ConvertTradesToCandles(
+		klineItem, err := trade.ConvertTradesToCandles(
 			gctkline.Interval(interval),
 			trades...)
 		if err != nil {
 			return nil, err
 		}
-		resp.Item = datarino
+		resp.Item = klineItem
 	default:
 		return nil, fmt.Errorf("unexpected database datatype: '%v'", dataType)
 	}
@@ -56,15 +56,11 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 }
 
 func getCandleDatabaseData(startDate, endDate time.Time, interval time.Duration, exchangeName string, fPair currency.Pair, a asset.Item) (gctkline.Item, error) {
-	datarino, err := gctkline.LoadFromDatabase(
+	return gctkline.LoadFromDatabase(
 		exchangeName,
 		fPair,
 		a,
 		gctkline.Interval(interval),
 		startDate,
 		endDate)
-	if err != nil {
-		return gctkline.Item{}, err
-	}
-	return datarino, nil
 }

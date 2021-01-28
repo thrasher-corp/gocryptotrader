@@ -14,7 +14,7 @@ import (
 )
 
 // Name is the strategy name
-const Name = "dollarcostaverage"
+const Name = "poopoo"
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {

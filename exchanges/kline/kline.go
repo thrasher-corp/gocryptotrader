@@ -160,6 +160,79 @@ func (i Interval) Short() string {
 	return s
 }
 
+// FillMissingDataWithEmptyEntries ammends a kline item to have candle entries
+// for every interval between its start and end dates derived from ranges
+func (k *Item) FillMissingDataWithEmptyEntries(i IntervalRangeHolder) {
+	var anyChanges bool
+	for x := range i.Ranges {
+		for y := range i.Ranges[x].Intervals {
+			if !i.Ranges[x].Intervals[y].HasData {
+				for z := range k.Candles {
+					if k.Candles[z].Time.Equal(i.Ranges[x].Intervals[y].Start) {
+						break
+					}
+				}
+				anyChanges = true
+				k.Candles = append(k.Candles, Candle{
+					Time: i.Ranges[x].Intervals[y].Start,
+				})
+			}
+		}
+	}
+	if anyChanges {
+		k.SortCandlesByTimestamp(false)
+	}
+}
+
+// RemoveDuplicates removes any duplicate candles
+func (k *Item) RemoveDuplicates() {
+	var newCandles []Candle
+	for x := range k.Candles {
+		if x == 0 {
+			continue
+		}
+		if !k.Candles[x].Time.Equal(k.Candles[x-1].Time) {
+			// don't add duplicate
+			newCandles = append(newCandles, k.Candles[x])
+		}
+	}
+
+	k.Candles = newCandles
+}
+
+// RemoveOutsideRange removes any candles outside the start and end date
+func (k *Item) RemoveOutsideRange(start, end time.Time) {
+	var newCandles []Candle
+	for i := range k.Candles {
+		if k.Candles[i].Time.Equal(start) ||
+			(k.Candles[i].Time.After(start) && k.Candles[i].Time.Before(end)) {
+			newCandles = append(newCandles, k.Candles[i])
+		}
+		if i == len(k.Candles)-1 &&
+			k.Candles[i].Time.Equal(end) {
+			newCandles = append(newCandles, k.Candles[i])
+		}
+	}
+	k.Candles = newCandles
+}
+
+// SortCandlesByTimestamp sorts candles by timestamp
+func (k *Item) SortCandlesByTimestamp(desc bool) {
+	sort.Slice(k.Candles, func(i, j int) bool {
+		if desc {
+			return k.Candles[i].Time.After(k.Candles[j].Time)
+		}
+		return k.Candles[i].Time.Before(k.Candles[j].Time)
+	})
+}
+
+// FormatDates converts all date to UTC time
+func (k *Item) FormatDates() {
+	for x := range k.Candles {
+		k.Candles[x].Time = k.Candles[x].Time.UTC()
+	}
+}
+
 // durationToWord returns english version of interval
 func durationToWord(in Interval) string {
 	switch in {
@@ -209,74 +282,50 @@ func durationToWord(in Interval) string {
 }
 
 // TotalCandlesPerInterval turns total candles per period for interval
-func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint32) {
+func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float64) {
 	switch interval {
 	case FifteenSecond:
-		out = uint32(end.Sub(start).Seconds() / 15)
+		return end.Sub(start).Seconds() / 15
 	case OneMin:
-		out = uint32(end.Sub(start).Minutes())
+		return end.Sub(start).Minutes()
 	case ThreeMin:
-		out = uint32(end.Sub(start).Minutes() / 3)
+		return end.Sub(start).Minutes() / 3
 	case FiveMin:
-		out = uint32(end.Sub(start).Minutes() / 5)
+		return end.Sub(start).Minutes() / 5
 	case TenMin:
-		out = uint32(end.Sub(start).Minutes() / 10)
+		return end.Sub(start).Minutes() / 10
 	case FifteenMin:
-		out = uint32(end.Sub(start).Minutes() / 15)
+		return end.Sub(start).Minutes() / 15
 	case ThirtyMin:
-		out = uint32(end.Sub(start).Minutes() / 30)
+		return end.Sub(start).Minutes() / 30
 	case OneHour:
-		out = uint32(end.Sub(start).Hours())
+		return end.Sub(start).Hours()
 	case TwoHour:
-		out = uint32(end.Sub(start).Hours() / 2)
+		return end.Sub(start).Hours() / 2
 	case FourHour:
-		out = uint32(end.Sub(start).Hours() / 4)
+		return end.Sub(start).Hours() / 4
 	case SixHour:
-		out = uint32(end.Sub(start).Hours() / 6)
+		return end.Sub(start).Hours() / 6
 	case EightHour:
-		out = uint32(end.Sub(start).Hours() / 8)
+		return end.Sub(start).Hours() / 8
 	case TwelveHour:
-		out = uint32(end.Sub(start).Hours() / 12)
+		return end.Sub(start).Hours() / 12
 	case OneDay:
-		out = uint32(end.Sub(start).Hours() / 24)
+		return end.Sub(start).Hours() / 24
 	case ThreeDay:
-		out = uint32(end.Sub(start).Hours() / 72)
+		return end.Sub(start).Hours() / 72
 	case FifteenDay:
-		out = uint32(end.Sub(start).Hours() / (24 * 15))
+		return end.Sub(start).Hours() / (24 * 15)
 	case OneWeek:
-		out = uint32(end.Sub(start).Hours()) / (24 * 7)
+		return end.Sub(start).Hours() / (24 * 7)
 	case TwoWeek:
-		out = uint32(end.Sub(start).Hours() / (24 * 14))
+		return end.Sub(start).Hours() / (24 * 14)
 	case OneMonth:
-		out = uint32(end.Sub(start).Hours() / (24 * 30))
+		return end.Sub(start).Hours() / (24 * 30)
 	case OneYear:
-		out = uint32(end.Sub(start).Hours() / 8760)
+		return end.Sub(start).Hours() / 8760
 	}
-	return out
-}
-
-// FillMissingDataWithEmptyEntries ammends a kline item to have candle entries
-// for every interval between its start and end dates derived from ranges
-func (k *Item) FillMissingDataWithEmptyEntries(i IntervalRangeHolder) {
-	var anyChanges bool
-	for x := range i.Ranges {
-		for y := range i.Ranges[x].Intervals {
-			if !i.Ranges[x].Intervals[y].HasData {
-				for z := range k.Candles {
-					if k.Candles[z].Time.Equal(i.Ranges[x].Intervals[y].Start) {
-						break
-					}
-				}
-				anyChanges = true
-				k.Candles = append(k.Candles, Candle{
-					Time: i.Ranges[x].Intervals[y].Start,
-				})
-			}
-		}
-	}
-	if anyChanges {
-		k.SortCandlesByTimestamp(false)
-	}
+	return -1
 }
 
 // CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range
@@ -326,38 +375,6 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 	return resp
 }
 
-// RemoveDuplicates removes any duplicate candles
-func (k *Item) RemoveDuplicates() {
-	var newCandles []Candle
-	for x := range k.Candles {
-		if x == 0 {
-			continue
-		}
-		if !k.Candles[x].Time.Equal(k.Candles[x-1].Time) {
-			// don't add duplicate
-			newCandles = append(newCandles, k.Candles[x])
-		}
-	}
-
-	k.Candles = newCandles
-}
-
-// RemoveOutsideRange removes any candles outside the start and end date
-func (k *Item) RemoveOutsideRange(start, end time.Time) {
-	var newCandles []Candle
-	for i := range k.Candles {
-		if k.Candles[i].Time.Equal(start) ||
-			(k.Candles[i].Time.After(start) && k.Candles[i].Time.Before(end)) {
-			newCandles = append(newCandles, k.Candles[i])
-		}
-		if i == len(k.Candles)-1 &&
-			k.Candles[i].Time.Equal(end) {
-			newCandles = append(newCandles, k.Candles[i])
-		}
-	}
-	k.Candles = newCandles
-}
-
 // HasDataAtDate determines whether a there is any data at a set
 // date inside the existing limits
 func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
@@ -385,9 +402,9 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 	return false
 }
 
-// Verify will calculate whether there is data in each candle
+// VerifyResultsHaveData will calculate whether there is data in each candle
 // allowing any missing data from an API request to be highlighted
-func (h *IntervalRangeHolder) Verify(c []Candle) error {
+func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
 	for x := range h.Ranges {
 		for y := range h.Ranges[x].Intervals {
 			for z := range c {
@@ -418,21 +435,4 @@ func (h *IntervalRangeHolder) Verify(c []Candle) error {
 	}
 
 	return nil
-}
-
-// SortCandlesByTimestamp sorts candles by timestamp
-func (k *Item) SortCandlesByTimestamp(desc bool) {
-	sort.Slice(k.Candles, func(i, j int) bool {
-		if desc {
-			return k.Candles[i].Time.After(k.Candles[j].Time)
-		}
-		return k.Candles[i].Time.Before(k.Candles[j].Time)
-	})
-}
-
-// FormatDates converts all date to UTC time
-func (k *Item) FormatDates() {
-	for x := range k.Candles {
-		k.Candles[x].Time = k.Candles[x].Time.UTC()
-	}
 }

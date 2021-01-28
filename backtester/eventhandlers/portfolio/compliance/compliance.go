@@ -8,23 +8,20 @@ import (
 // AddSnapshot creates a snapshot in time of the orders placed to allow for finer detail tracking
 // and to protect against anything modifying order details elsewhere
 func (m *Manager) AddSnapshot(orders []SnapshotOrder, t time.Time, force bool) error {
-	found := false
 	for i := range m.Snapshots {
 		if t.Equal(m.Snapshots[i].Timestamp) {
-			found = true
 			if force {
 				m.Snapshots[i].Orders = orders
+				return nil
 			} else {
 				return fmt.Errorf("snapshot at timestamp %v already exists. Use force to overwrite", m.Snapshots[i].Timestamp)
 			}
 		}
 	}
-	if !found {
-		m.Snapshots = append(m.Snapshots, Snapshot{
-			Orders:    orders,
-			Timestamp: t,
-		})
-	}
+	m.Snapshots = append(m.Snapshots, Snapshot{
+		Orders:    orders,
+		Timestamp: t,
+	})
 
 	return nil
 }

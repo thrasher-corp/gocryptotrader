@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
+// Reset returns the exchange to initial settings
 func (e *Exchange) Reset() {
 	*e = Exchange{}
 }
@@ -41,7 +42,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		ClosePrice:  data.Latest().Price(),
 		ExchangeFee: cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
 	}
-
 	f.Direction = o.GetDirection()
 	if o.GetDirection() != gctorder.Buy && o.GetDirection() != gctorder.Sell {
 		return f, nil
@@ -56,6 +56,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	volume := volStr[len(volStr)-1]
 	var adjustedPrice, amount float64
 	var err error
+	sizedPortfolioTotal := o.GetAmount() * f.ClosePrice
 	if cs.UseRealOrders {
 		// get current orderbook
 		var ob *orderbook.Base
@@ -82,6 +83,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			return f, err
 		}
 	}
+	amount = reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal)
 
 	var orderID string
 	orderID, err = e.placeOrder(adjustedPrice, amount, cs.UseRealOrders, f, bot)
@@ -105,6 +107,15 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	}
 
 	return f, nil
+}
+
+func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal float64) float64 {
+	if adjustedPrice*amount > sizedPortfolioTotal {
+		// adjusted amounts exceeds portfolio manager's allowed funds
+		// the amount has to be reduced to equal the sizedPortfolioTotal
+		amount = sizedPortfolioTotal / adjustedPrice
+	}
+	return amount
 }
 
 func (e *Exchange) placeOrder(price, amount float64, useRealOrders bool, f *fill.Fill, bot *engine.Engine) (string, error) {
@@ -185,7 +196,8 @@ func applySlippageToPrice(direction gctorder.Side, price, slippageRate float64) 
 	return adjustedPrice
 }
 
-func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c *Settings) {
+// SetExchangeAssetCurrencySettings sets the settings for an exchange, asset, currency
+func (e *Exchange) SetExchangeAssetCurrencySettings(exch string, a asset.Item, cp currency.Pair, c *Settings) {
 	if c.ExchangeName == "" ||
 		c.AssetType == "" ||
 		c.CurrencyPair.IsEmpty() {
@@ -203,6 +215,7 @@ func (e *Exchange) SetCurrency(exch string, a asset.Item, cp currency.Pair, c *S
 	e.CurrencySettings = append(e.CurrencySettings, *c)
 }
 
+// GetCurrencySettings returns the settings for an exchange, asset currency
 func (e *Exchange) GetCurrencySettings(exch string, a asset.Item, cp currency.Pair) (Settings, error) {
 	for i := range e.CurrencySettings {
 		if e.CurrencySettings[i].CurrencyPair == cp {
@@ -229,11 +242,11 @@ func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) 
 	}
 	currentVolume := amount * adjustedPrice
 	if currentVolume > volume {
-		// hey, this order is too big here
-		for currentVolume > volume {
-			// reduce the volume by a fraction until it is within the candle's volume
-			currentVolume *= 0.99999999
-		}
+		// reduce the volume to not exceed the total volume of the candle
+		// it is slightly less than the total to still allow for the illusion
+		// that open high low close values are valid with the remaining volume
+		// this is very opinionated
+		currentVolume = volume * 0.999999
 	}
 	// extract the amount from the adjusted volume
 	adjustedAmount = currentVolume / adjustedPrice

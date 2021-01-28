@@ -57,7 +57,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, last.Holdings.RiskFreeRate)
 	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, last.Holdings.RiskFreeRate)
 	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{last.Holdings.RiskFreeRate})
-	c.CalamariRatio = calculateCalmarRatio(returnPerCandle, &c.MaxDrawdown)
+	c.CalmarRatio = calculateCalmarRatio(returnPerCandle, &c.MaxDrawdown)
 	c.CompoundAnnualGrowthRate = calculateCompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
 		last.Holdings.TotalValue,
@@ -104,7 +104,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Sharpe ratio: %.8f", c.SharpeRatio)
 	log.Infof(log.BackTester, "Sortino ratio: %.3f", c.SortinoRatio)
 	log.Infof(log.BackTester, "Information ratio: %.3f", c.InformationRatio)
-	log.Infof(log.BackTester, "Calmar ratio: %.3f", c.CalamariRatio)
+	log.Infof(log.BackTester, "Calmar ratio: %.3f", c.CalmarRatio)
 	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2f\n\n", c.CompoundAnnualGrowthRate)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
@@ -206,7 +206,9 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 
 func calculateCompoundAnnualGrowthRate(openValue, closeValue float64, start, end time.Time, interval gctkline.Interval) float64 {
 	p := gctkline.TotalCandlesPerInterval(start, end, interval)
-	return math.Pow(closeValue/openValue, 1/float64(p)) - 1
+
+	k := math.Pow(closeValue/openValue, 1/float64(p)) - 1
+	return k * 100
 }
 
 func calculateCalmarRatio(values []float64, maxDrawdown *Swing) float64 {
@@ -264,15 +266,13 @@ func calculateSampleStandardDeviation(vals []float64) float64 {
 	}
 	mean := calculateTheAverage(vals)
 	var superMean []float64
+	var combined float64
 	for i := range vals {
 		result := math.Pow(vals[i]-mean, 2)
 		superMean = append(superMean, result)
+		combined += result
 	}
 
-	var combined float64
-	for i := range superMean {
-		combined += superMean[i]
-	}
 	avg := combined / (float64(len(superMean)) - 1)
 	return math.Sqrt(avg)
 }

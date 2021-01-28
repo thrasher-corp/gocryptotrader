@@ -56,14 +56,12 @@ func existingLeverageRatio(s compliance.Snapshot) float64 {
 
 func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) float64 {
 	resp := make(map[currency.Pair]float64)
+	totalPosition := 0.0
 	for i := range h {
 		resp[h[i].Pair] += h[i].PositionsSize
+		totalPosition += h[i].PositionsSize
 	}
-	totalPosition := 0.0
 
-	for _, v := range resp {
-		totalPosition += v
-	}
 	ratio := resp[c] / totalPosition
 
 	return ratio

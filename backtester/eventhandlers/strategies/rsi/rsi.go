@@ -57,16 +57,16 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 	dataRange := d.StreamClose()[:d.Offset()]
 
 	rsi := indicators.RSI(dataRange, int(s.rsiPeriod))
-	lastSI := rsi[len(rsi)-1]
+	latesttRSIValue := rsi[len(rsi)-1]
 	switch {
-	case lastSI >= s.rsiHigh:
+	case latesttRSIValue >= s.rsiHigh:
 		es.SetDirection(order.Sell)
-	case lastSI <= s.rsiLow:
+	case latesttRSIValue <= s.rsiLow:
 		es.SetDirection(order.Buy)
 	default:
 		es.SetDirection(common.DoNothing)
 	}
-	es.AppendWhy(fmt.Sprintf("RSI at %.2f", lastSI))
+	es.AppendWhy(fmt.Sprintf("RSI at %.2f", latesttRSIValue))
 
 	return &es, nil
 }

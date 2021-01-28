@@ -119,7 +119,7 @@ func (m *MinMax) Validate() {
 		m.MinimumSize *= -1
 		log.Warnf(log.BackTester, "invalid minimum size set to %v", m.MinimumSize)
 	}
-	if m.MaximumSize <= m.MinimumSize {
+	if m.MaximumSize <= m.MinimumSize && m.MinimumSize != 0 && m.MaximumSize != 0 {
 		m.MaximumSize = m.MinimumSize + 1
 		log.Warnf(log.BackTester, "invalid maximum size set to %v", m.MaximumSize)
 	}

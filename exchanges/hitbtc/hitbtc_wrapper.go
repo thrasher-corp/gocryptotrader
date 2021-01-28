@@ -870,9 +870,9 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			})
 		}
 	}
-	err = dates.Verify(ret.Candles)
+	err = dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warn(log.ExchangeSys, err.Error())
+		log.Warnf(log.ExchangeSys, "%s - %s", h.Name, err)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

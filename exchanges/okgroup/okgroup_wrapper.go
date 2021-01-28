@@ -726,9 +726,9 @@ func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		}
 	}
 
-	err = dates.Verify(ret.Candles)
+	err = dates.VerifyResultsHaveData(ret.Candles)
 	if err != nil {
-		log.Warn(log.ExchangeSys, err.Error())
+		log.Warnf(log.ExchangeSys, "%s - %s", o.Name, err)
 	}
 	ret.RemoveDuplicates()
 	ret.RemoveOutsideRange(start, end)

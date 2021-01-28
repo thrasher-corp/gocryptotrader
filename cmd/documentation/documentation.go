@@ -423,7 +423,8 @@ func GetPackageName(name string, capital bool) string {
 	newStrings := strings.Split(name, " ")
 	var i int
 	if len(newStrings) > 1 {
-		i = 1
+		// retrieve the latest spacing to define the most childish package name
+		i = len(newStrings) - 1
 	}
 	if capital {
 		return strings.Title(newStrings[i])

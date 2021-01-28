@@ -283,7 +283,7 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 	testCases := []struct {
 		name     string
 		interval Interval
-		expected uint32
+		expected float64
 	}{
 		{
 			"FifteenSecond",
@@ -707,5 +707,63 @@ func TestLoadCSV(t *testing.T) {
 
 	if v[364].Open != 7246 {
 		t.Fatalf("unexpected value received: %v", v[364].Open)
+	}
+}
+
+func TestVerifyResultsHaveData(t *testing.T) {
+	tt2 := time.Now()
+	tt1 := time.Now().Add(-time.Hour * 24)
+	dateRanges := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
+	if dateRanges.HasDataAtDate(tt1) {
+		t.Error("unexpected true value")
+	}
+
+	err := dateRanges.VerifyResultsHaveData(nil)
+	if err != nil && !strings.Contains(err.Error(), "missing candles data") {
+		t.Error("expected missing data error")
+	}
+
+	err = dateRanges.VerifyResultsHaveData([]Candle{
+		{
+			Time: tt1,
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	//err = dateRanges.VerifyResultsHaveData([]Candle{
+	//	{
+	//		Time: tt2,
+	//	},
+	//})
+	//if err != nil {
+	//	t.Error(err)
+	//}
+}
+
+func TestHasDataAtDate(t *testing.T) {
+	tt2 := time.Now()
+	tt1 := time.Now().Add(-time.Hour * 24 * 30)
+	dateRanges := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
+	if dateRanges.HasDataAtDate(tt1) {
+		t.Error("unexpected true value")
+	}
+
+	_ = dateRanges.VerifyResultsHaveData([]Candle{
+		{
+			Time: tt1,
+		},
+		{
+			Time: tt2,
+		},
+	})
+
+	if !dateRanges.HasDataAtDate(tt1.Round(OneDay.Duration())) {
+		t.Error("unexpected false value")
+	}
+
+	if dateRanges.HasDataAtDate(tt2.Add(time.Hour * 24 * 26)) {
+		t.Error("should not have data")
 	}
 }

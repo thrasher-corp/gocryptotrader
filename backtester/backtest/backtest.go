@@ -427,7 +427,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			gctkline.Interval(cfg.DataSettings.Interval),
 			0,
 		)
-		err = resp.Range.Verify(resp.Item.Candles)
+		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
 		if err != nil {
 			if strings.Contains(err.Error(), "missing candles data between") {
 				log.Warn(log.BackTester, err.Error())
@@ -464,7 +464,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			gctkline.Interval(cfg.DataSettings.Interval),
 			0,
 		)
-		err = resp.Range.Verify(resp.Item.Candles)
+		err = resp.Range.VerifyResultsHaveData(resp.Item.Candles)
 		if err != nil {
 			if strings.Contains(err.Error(), "missing candles data between") {
 				log.Warn(log.BackTester, err.Error())
@@ -561,7 +561,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if err != nil {
 		return nil, err
 	}
-	err = dates.Verify(candles.Candles)
+	err = dates.VerifyResultsHaveData(candles.Candles)
 	if err != nil {
 		if strings.Contains(err.Error(), "missing candles data between") {
 			log.Warn(log.BackTester, err.Error())
@@ -800,16 +800,16 @@ func (bt *BackTest) processFillEvent(ev fill.Event) {
 // It runs by constantly checking for new live datas and running through the list of events
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
-	timerino := time.NewTimer(time.Minute * 5)
-	tickerino := time.NewTicker(time.Second)
+	timeoutTimer := time.NewTimer(time.Minute * 5)
+	processEventTicker := time.NewTicker(time.Second)
 	doneARun := false
 	for {
 		select {
 		case <-bt.shutdown:
 			return nil
-		case <-timerino.C:
+		case <-timeoutTimer.C:
 			return errors.New("no data returned in 5 minutes, shutting down")
-		case <-tickerino.C:
+		case <-processEventTicker.C:
 			for e, ok := bt.EventQueue.NextEvent(); ; e, ok = bt.EventQueue.NextEvent() {
 				if !ok {
 					// as live only supports singular currency, just get the proper reference manually
@@ -836,7 +836,7 @@ func (bt *BackTest) RunLive() error {
 				}
 			}
 			if doneARun {
-				timerino = time.NewTimer(time.Minute * 5)
+				timeoutTimer = time.NewTimer(time.Minute * 5)
 			}
 		}
 	}
@@ -863,12 +863,12 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		return
 	}
 
-	timerino := time.NewTicker(time.Second * 30)
+	loadNewDataTicker := time.NewTicker(time.Second * 30)
 	for {
 		select {
 		case <-bt.shutdown:
 			return
-		case <-timerino.C:
+		case <-loadNewDataTicker.C:
 			err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate)
 			if err != nil {
 				log.Error(log.BackTester, err)

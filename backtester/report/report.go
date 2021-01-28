@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // GenerateReport sends final data from statistics to a template
@@ -57,6 +58,12 @@ func (d *Data) GenerateReport() error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Error(log.BackTester, err)
+		}
+	}()
 
 	err = tmpl.Execute(f, d)
 	if err != nil {
@@ -131,7 +138,7 @@ func (d *Data) enhanceCandles() error {
 						enhancedCandle.Position = "belowBar"
 						enhancedCandle.Shape = "arrowUp"
 					}
-					enhancedCandle.Text = fmt.Sprintf("%v", enhancedCandle.OrderDirection)
+					enhancedCandle.Text = enhancedCandle.OrderDirection.String()
 					break
 				}
 			}

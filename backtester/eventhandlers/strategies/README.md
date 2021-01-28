@@ -1,4 +1,4 @@
-# GoCryptoTrader Backtester: Eventhandlers package
+# GoCryptoTrader Backtester: Strategies package
 
 <img src="https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -10,7 +10,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This eventhandlers package is part of the GoCryptoTrader codebase.
+This strategies package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,18 +18,20 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Eventhandlers package overview
+## Strategies package overview
 
 Strategies are programmed instruction sets which act upon pricing data. After data has been loaded into the GoCryptoTrader, each tick is passed through your loaded strategy and is analysed in either the `OnSignal` function or the `OnSignals` function.
 
 ### Creating strategies
 The level customisation allowed in a strategy is extensive. They are required to be written in Golang.
-The strategy must adhere to the interface `strategies.Handler` by implementing the function signature `OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error)`. The `data.Handler` allows you to access the current pricing information as well as all previous intervals. You can use this to feed any Technical Analysis package to create strategies based on market movements such as RSI (see `./strategies/rsi/rsi.go`). I also has access to the portfolio which allows analysis of existing holdings value, current orders and positions of other currencies in order to make complex decisions.
+The strategy must adhere to the interface `strategies.Handler` by implementing the function signature `OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error)`. The `data.Handler` allows you to access the current pricing information as well as all previous intervals. You can use this to feed any Technical Analysis package to create strategies based on market movements such as RSI (see `./strategies/rsi/rsi.go`). Strategies can also access the portfolio manager on signal(s) which allows analysis of existing holdings value, current orders and positions of other currencies in order to make complex decisions.
 When outputting the `signal.Event`, you are not dictating the price of an order, but rather signalling to the portfolio manager what ideally should occur. These options are to buy, sell or do nothing. Additional signals are to flag missing data, handled via checking `d.HasDataAtTime(d.Latest().GetTime()` to prevent any issues from occurring down the line.
 Additionally, you can utilise the `AppendWhy()` function to help understand what went into make a signalling decision when reviewing the results.
 
 ### What does MultiCurrency mean?
 GoCryptoTrader Backtester config files may contain multiple `ExchangeSettings` which defined exchange, asset and currency pairs to iterate through a period of time.
+
+When `IsMultiCurrency` is enabled in the config, a strategy will execute the function `OnSignals` which allows for processing of multiple signals in one function. When it is disabled, strategies are processed via `OnSignal`
 
 If there are multiple entries to `ExchangeSettings` and MultiCurrency is disabled, then each individual exchange, asset and currency pair candle event is evaluated individually and does not know about other exchange, asset and currency pair data events. It is a way to test a singular strategy against multiple assets simultaneously. But it isn't defined as MultiCurrency
 MultiCurrency is a setting which allows multiple `ExchangeSettings` data events for a candle event to be considered simultanesouly. This means that you can check if the price of BTC-USDT is 5% greater on Binance than it is on Kraken and choose to make signal a BUY event for Kraken and not Binance.

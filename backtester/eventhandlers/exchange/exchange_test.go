@@ -32,7 +32,7 @@ func TestReset(t *testing.T) {
 
 func TestSetCurrency(t *testing.T) {
 	e := Exchange{}
-	e.SetCurrency("", "", currency.Pair{}, &Settings{})
+	e.SetExchangeAssetCurrencySettings("", "", currency.Pair{}, &Settings{})
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
@@ -51,7 +51,7 @@ func TestSetCurrency(t *testing.T) {
 		MinimumSlippageRate: 0,
 		MaximumSlippageRate: 0,
 	}
-	e.SetCurrency(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
+	e.SetExchangeAssetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
@@ -60,7 +60,7 @@ func TestSetCurrency(t *testing.T) {
 		t.Errorf("expected 1337, received %v", result.InitialFunds)
 	}
 
-	e.SetCurrency(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
+	e.SetExchangeAssetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
 	if len(e.CurrencySettings) != 1 {
 		t.Error("expected 1")
 	}
@@ -76,7 +76,8 @@ func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 	}
 
 	adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(123, 1, 100, 99, 80)
-	if adjustedAmount != 0.7999999992619746 {
+	if adjustedAmount != 0.7999992 {
+		t.Log(adjustedAmount)
 		t.Errorf("expected %v", adjustedAmount)
 	}
 	if adjustedPrice != 100 {
@@ -266,5 +267,17 @@ func TestApplySlippageToPrice(t *testing.T) {
 	resp = applySlippageToPrice(gctorder.Sell, 1, 0.9)
 	if resp != 0.9 {
 		t.Errorf("expected 0.9, received %v", resp)
+	}
+}
+
+func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
+	initialPrice := 1003.37
+	initialAmount := 1337 / initialPrice
+	portfolioAdjustedTotal := initialAmount * initialPrice
+	adjustedPrice := 1000.0
+	amount := 2.0
+	finalAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, portfolioAdjustedTotal)
+	if finalAmount*adjustedPrice != portfolioAdjustedTotal {
+		t.Errorf("expected value %v to match portfolio total %v", finalAmount*adjustedPrice, portfolioAdjustedTotal)
 	}
 }

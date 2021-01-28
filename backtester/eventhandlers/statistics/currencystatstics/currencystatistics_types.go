@@ -46,7 +46,7 @@ type CurrencyStatistic struct {
 	SortinoRatio             float64             `json:"sortino-ratio"`
 	InformationRatio         float64             `json:"information-ratio"`
 	RiskFreeRate             float64             `json:"risk-free-rate"`
-	CalamariRatio            float64             `json:"calmar-ratio"` // calmar
+	CalmarRatio              float64             `json:"calmar-ratio"` // calmar
 	CompoundAnnualGrowthRate float64             `json:"compound-annual-growth-rate"`
 	BuyOrders                int64               `json:"buy-orders"`
 	SellOrders               int64               `json:"sell-orders"`
