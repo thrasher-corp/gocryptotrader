@@ -213,7 +213,7 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeAccountInfo returns account information for requested exchange
 func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 1 {
+	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments
 	}
 

@@ -526,60 +526,57 @@ func (k *Kraken) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 	var info account.Holdings
 	var balances []account.Balance
 	info.Exchange = k.Name
-	assetTypes := k.GetAssetTypes()
-	for x := range assetTypes {
-		switch assetTypes[x] {
-		case asset.Spot:
-			bal, err := k.GetBalance()
-			if err != nil {
-				return info, err
+	switch assetType {
+	case asset.Spot:
+		bal, err := k.GetBalance()
+		if err != nil {
+			return info, err
+		}
+		for key := range bal {
+			translatedCurrency := assetTranslator.LookupAltname(key)
+			if translatedCurrency == "" {
+				log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
+					k.Name,
+					key)
+				continue
 			}
-			for key := range bal {
-				translatedCurrency := assetTranslator.LookupAltname(key)
+			balances = append(balances, account.Balance{
+				CurrencyName: currency.NewCode(translatedCurrency),
+				TotalValue:   bal[key],
+			})
+		}
+		info.Accounts = append(info.Accounts, account.SubAccount{
+			Currencies: balances,
+		})
+	case asset.Futures:
+		bal, err := k.GetFuturesAccountData()
+		if err != nil {
+			return info, err
+		}
+		for name := range bal.Accounts {
+			for code := range bal.Accounts[name].Balances {
+				translatedCurrency := assetTranslator.LookupAltname(strings.ToUpper(code))
 				if translatedCurrency == "" {
 					log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
 						k.Name,
-						key)
+						code)
 					continue
 				}
 				balances = append(balances, account.Balance{
 					CurrencyName: currency.NewCode(translatedCurrency),
-					TotalValue:   bal[key],
+					TotalValue:   bal.Accounts[name].Balances[code],
 				})
 			}
 			info.Accounts = append(info.Accounts, account.SubAccount{
+				ID:         name,
+				AssetType:  asset.Futures,
 				Currencies: balances,
 			})
-		case asset.Futures:
-			bal, err := k.GetFuturesAccountData()
-			if err != nil {
-				return info, err
-			}
-			for name := range bal.Accounts {
-				for code := range bal.Accounts[name].Balances {
-					translatedCurrency := assetTranslator.LookupAltname(strings.ToUpper(code))
-					if translatedCurrency == "" {
-						log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
-							k.Name,
-							code)
-						continue
-					}
-					balances = append(balances, account.Balance{
-						CurrencyName: currency.NewCode(translatedCurrency),
-						TotalValue:   bal.Accounts[name].Balances[code],
-					})
-				}
-				info.Accounts = append(info.Accounts, account.SubAccount{
-					ID:         name,
-					AssetType:  asset.Futures,
-					Currencies: balances,
-				})
-			}
 		}
-		err := account.Process(&info)
-		if err != nil {
-			return account.Holdings{}, err
-		}
+	}
+	err := account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
 	}
 	return info, nil
 }
