@@ -30,8 +30,8 @@ func GetWebsocketInterfaceChannelOverride() chan interface{} {
 
 // GetWebsocketStructChannelOverride returns a new struct based channel
 // with the capacity set to WebsocketChannelOverrideCapacity
-func GetWebsocketStructChannelOverride() chan struct{} {
-	return make(chan struct{}, WebsocketChannelOverrideCapacity)
+func GetWebsocketStructChannelOverride() chan string {
+	return make(chan string, WebsocketChannelOverrideCapacity)
 }
 
 // NewTestWebsocket returns a test websocket object
