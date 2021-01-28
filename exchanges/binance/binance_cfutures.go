@@ -1352,7 +1352,7 @@ func (b *Binance) FuturesNotionalBracket(pair string) ([]NotionalBracketData, er
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodPost, cfuturesNotionalBracket, params, limitDefault, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesNotionalBracket, params, limitDefault, &resp)
 }
 
 // FuturesForceOrders gets futures forced orders

@@ -31,7 +31,7 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 // TestSetup setup func
@@ -117,16 +117,15 @@ func TestUpdateOrderbook(t *testing.T) {
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
-	k.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := k.UpdateAccountInfo(asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = k.UpdateAccountInfo(asset.Futures)
+	// _, err := k.UpdateAccountInfo(asset.Spot)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+	_, err := k.UpdateAccountInfo(asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -144,7 +143,6 @@ func TestWrapperGetOrderInfo(t *testing.T) {
 }
 
 func TestFuturesBatchOrder(t *testing.T) {
-	k.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
@@ -166,7 +164,7 @@ func TestFuturesEditOrder(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
 	t.Parallel()
-	_, err := k.FuturesEditOrder("test123", "123test", 5.2, 1, 0.9)
+	_, err := k.FuturesEditOrder("test123", "", 5.2, 1, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -258,7 +256,6 @@ func TestFuturesCancelAllOrders(t *testing.T) {
 }
 
 func TestGetFuturesAccountData(t *testing.T) {
-	k.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -946,7 +943,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 // TestGetAccountInfo wrapper test
 func TestGetAccountInfo(t *testing.T) {
-	k.Verbose = true
 	if areTestAPIKeysSet() {
 		_, err := k.UpdateAccountInfo(asset.Spot)
 		if err != nil {

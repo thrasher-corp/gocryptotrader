@@ -19,7 +19,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 var b Binance
@@ -897,6 +897,7 @@ func TestFuturesBatchCancelOrders(t *testing.T) {
 }
 
 func TestFuturesGetOrderData(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -973,6 +974,7 @@ func TestFuturesChangeMarginType(t *testing.T) {
 }
 
 func TestGetFuturesAccountBalance(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -1075,7 +1077,11 @@ func TestUGetNotionalLeverage(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesNotionalBracket("BTCUSDT")
+	_, err := b.FuturesNotionalBracket("BTCUSD")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.FuturesNotionalBracket("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1738,7 +1744,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
