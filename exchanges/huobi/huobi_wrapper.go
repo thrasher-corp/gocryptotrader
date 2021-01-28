@@ -613,7 +613,7 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
+func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = h.Name
@@ -749,10 +749,10 @@ func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (h *HUOBI) FetchAccountInfo() (account.Holdings, error) {
+func (h *HUOBI) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(h.Name)
 	if err != nil {
-		return h.UpdateAccountInfo()
+		return h.UpdateAccountInfo(assetType)
 	}
 	return acc, nil
 }
@@ -1567,8 +1567,8 @@ func (h *HUOBI) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (h *HUOBI) ValidateCredentials() error {
-	_, err := h.UpdateAccountInfo()
+func (h *HUOBI) ValidateCredentials(assetType asset.Item) error {
+	_, err := h.UpdateAccountInfo(assetType)
 	return h.CheckTransientError(err)
 }
 

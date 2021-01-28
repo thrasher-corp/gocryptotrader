@@ -400,12 +400,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	if apiSecret == "" || apiKey == "" {
-		_, err := g.UpdateAccountInfo()
+		_, err := g.UpdateAccountInfo(asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
-		_, err := g.UpdateAccountInfo()
+		_, err := g.UpdateAccountInfo(asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}

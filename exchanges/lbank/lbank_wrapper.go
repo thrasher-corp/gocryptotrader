@@ -293,7 +293,7 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) UpdateAccountInfo() (account.Holdings, error) {
+func (l *Lbank) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	data, err := l.GetUserInfo()
 	if err != nil {
@@ -331,10 +331,10 @@ func (l *Lbank) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (l *Lbank) FetchAccountInfo() (account.Holdings, error) {
+func (l *Lbank) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(l.Name)
 	if err != nil {
-		return l.UpdateAccountInfo()
+		return l.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -859,8 +859,8 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (l *Lbank) ValidateCredentials() error {
-	_, err := l.UpdateAccountInfo()
+func (l *Lbank) ValidateCredentials(assetType asset.Item) error {
+	_, err := l.UpdateAccountInfo(assetType)
 	return l.CheckTransientError(err)
 }
 

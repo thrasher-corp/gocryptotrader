@@ -372,7 +372,7 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (f *FTX) UpdateAccountInfo() (account.Holdings, error) {
+func (f *FTX) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
 	data, err := f.GetBalances()
 	if err != nil {
@@ -400,10 +400,10 @@ func (f *FTX) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (f *FTX) FetchAccountInfo() (account.Holdings, error) {
+func (f *FTX) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(f.Name)
 	if err != nil {
-		return f.UpdateAccountInfo()
+		return f.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -1002,8 +1002,8 @@ func (f *FTX) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (f *FTX) ValidateCredentials() error {
-	_, err := f.UpdateAccountInfo()
+func (f *FTX) ValidateCredentials(assetType asset.Item) error {
+	_, err := f.UpdateAccountInfo(assetType)
 	return f.CheckTransientError(err)
 }
 

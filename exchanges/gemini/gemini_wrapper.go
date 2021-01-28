@@ -205,7 +205,7 @@ func (g *Gemini) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo Retrieves balances for all enabled currencies for the
 // Gemini exchange
-func (g *Gemini) UpdateAccountInfo() (account.Holdings, error) {
+func (g *Gemini) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = g.Name
 	accountBalance, err := g.GetBalances()
@@ -235,10 +235,10 @@ func (g *Gemini) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (g *Gemini) FetchAccountInfo() (account.Holdings, error) {
+func (g *Gemini) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(g.Name)
 	if err != nil {
-		return g.UpdateAccountInfo()
+		return g.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -664,8 +664,8 @@ func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (g *Gemini) ValidateCredentials() error {
-	_, err := g.UpdateAccountInfo()
+func (g *Gemini) ValidateCredentials(assetType asset.Item) error {
+	_, err := g.UpdateAccountInfo(assetType)
 	return g.CheckTransientError(err)
 }
 

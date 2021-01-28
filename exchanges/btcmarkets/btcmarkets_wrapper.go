@@ -392,7 +392,7 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) UpdateAccountInfo() (account.Holdings, error) {
+func (b *BTCMarkets) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
 	data, err := b.GetAccountBalance()
 	if err != nil {
@@ -420,10 +420,10 @@ func (b *BTCMarkets) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) FetchAccountInfo() (account.Holdings, error) {
+func (b *BTCMarkets) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(b.Name)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -861,8 +861,8 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *BTCMarkets) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *BTCMarkets) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	if err != nil {
 		if b.CheckTransientError(err) == nil {
 			return nil

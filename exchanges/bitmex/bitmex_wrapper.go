@@ -392,7 +392,7 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bitmex exchange
-func (b *Bitmex) UpdateAccountInfo() (account.Holdings, error) {
+func (b *Bitmex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 
 	bal, err := b.GetAllUserMargin()
@@ -423,10 +423,10 @@ func (b *Bitmex) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitmex) FetchAccountInfo() (account.Holdings, error) {
+func (b *Bitmex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(b.Name)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -795,8 +795,8 @@ func (b *Bitmex) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitmex) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *Bitmex) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	return b.CheckTransientError(err)
 }
 

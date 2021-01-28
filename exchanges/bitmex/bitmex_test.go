@@ -669,12 +669,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := b.UpdateAccountInfo()
+		_, err := b.UpdateAccountInfo(asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := b.UpdateAccountInfo()
+		_, err := b.UpdateAccountInfo(asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() error")
 		}

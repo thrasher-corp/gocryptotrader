@@ -358,7 +358,7 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bitstamp exchange
-func (b *Bitstamp) UpdateAccountInfo() (account.Holdings, error) {
+func (b *Bitstamp) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = b.Name
 	accountBalance, err := b.GetBalance()
@@ -387,10 +387,10 @@ func (b *Bitstamp) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitstamp) FetchAccountInfo() (account.Holdings, error) {
+func (b *Bitstamp) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(b.Name)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -779,8 +779,8 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitstamp) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *Bitstamp) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	return b.CheckTransientError(err)
 }
 

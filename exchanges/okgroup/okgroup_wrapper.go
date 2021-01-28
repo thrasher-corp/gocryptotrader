@@ -179,7 +179,7 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) UpdateAccountInfo() (account.Holdings, error) {
+func (o *OKGroup) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	currencies, err := o.GetSpotTradingAccounts()
 	if err != nil {
 		return account.Holdings{}, err
@@ -217,10 +217,10 @@ func (o *OKGroup) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) FetchAccountInfo() (account.Holdings, error) {
+func (o *OKGroup) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(o.Name)
 	if err != nil {
-		return o.UpdateAccountInfo()
+		return o.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -574,8 +574,8 @@ func (o *OKGroup) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (o *OKGroup) ValidateCredentials() error {
-	_, err := o.UpdateAccountInfo()
+func (o *OKGroup) ValidateCredentials(assetType asset.Item) error {
+	_, err := o.UpdateAccountInfo(assetType)
 	return o.CheckTransientError(err)
 }
 

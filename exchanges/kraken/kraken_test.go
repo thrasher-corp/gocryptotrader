@@ -31,7 +31,7 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 // TestSetup setup func
@@ -117,11 +117,16 @@ func TestUpdateOrderbook(t *testing.T) {
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
+	k.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := k.UpdateAccountInfo()
+	_, err := k.UpdateAccountInfo(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.UpdateAccountInfo(asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -139,6 +144,7 @@ func TestWrapperGetOrderInfo(t *testing.T) {
 }
 
 func TestFuturesBatchOrder(t *testing.T) {
+	k.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders")
 	}
@@ -147,6 +153,7 @@ func TestFuturesBatchOrder(t *testing.T) {
 	var tempData PlaceBatchOrderData
 	tempData.PlaceOrderType = "cancel"
 	tempData.OrderID = "test123"
+	tempData.Symbol = "pi_xbtusd"
 	data = append(data, tempData)
 	_, err := k.FuturesBatchOrder(data)
 	if err != nil {
@@ -251,6 +258,7 @@ func TestFuturesCancelAllOrders(t *testing.T) {
 }
 
 func TestGetFuturesAccountData(t *testing.T) {
+	k.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -938,13 +946,14 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 // TestGetAccountInfo wrapper test
 func TestGetAccountInfo(t *testing.T) {
+	k.Verbose = true
 	if areTestAPIKeysSet() {
-		_, err := k.UpdateAccountInfo()
+		_, err := k.UpdateAccountInfo(asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := k.UpdateAccountInfo()
+		_, err := k.UpdateAccountInfo(asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
@@ -965,6 +974,7 @@ func TestModifyOrder(t *testing.T) {
 // TestWithdraw wrapper test
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
+		Exchange: k.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},

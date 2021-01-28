@@ -1839,7 +1839,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 // TestGetAccountInfo Wrapper test
 func TestGetAccountInfo(t *testing.T) {
-	_, err := o.UpdateAccountInfo()
+	_, err := o.UpdateAccountInfo(asset.Spot)
 	testStandardErrorHandling(t, err)
 }
 

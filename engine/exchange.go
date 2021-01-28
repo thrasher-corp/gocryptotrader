@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
@@ -331,7 +332,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	base := exch.GetBase()
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {
-		err = exch.ValidateCredentials()
+		err = exch.ValidateCredentials(asset.Spot)
 		if err != nil {
 			log.Warnf(log.ExchangeSys,
 				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",

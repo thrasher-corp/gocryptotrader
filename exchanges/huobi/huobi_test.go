@@ -733,7 +733,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.UpdateAccountInfo()
+	_, err := h.UpdateAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2009,12 +2009,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	h.Verbose = true
 	if !areTestAPIKeysSet() {
-		_, err := h.UpdateAccountInfo()
+		_, err := h.UpdateAccountInfo(asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
-		_, err := h.UpdateAccountInfo()
+		_, err := h.UpdateAccountInfo(asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}

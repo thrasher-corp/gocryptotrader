@@ -1115,7 +1115,7 @@ func TestGetExchangeInfo(t *testing.T) {
 		t.Error(err)
 	}
 	if mockTests {
-		serverTime := time.Date(2021, 01, 27, 02, 43, 18, int(593*time.Millisecond), time.UTC)
+		serverTime := time.Date(2021, 1, 27, 2, 43, 18, int(593*time.Millisecond), time.UTC)
 		if !info.Servertime.Equal(serverTime) {
 			t.Errorf("Expected %v, got %v", serverTime, info.Servertime)
 		}
@@ -1742,7 +1742,7 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := b.UpdateAccountInfo()
+	_, err := b.UpdateAccountInfo(asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}

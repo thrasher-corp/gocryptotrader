@@ -335,7 +335,7 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (z *ZB) UpdateAccountInfo() (account.Holdings, error) {
+func (z *ZB) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var balances []account.Balance
 	var coins []AccountsResponseCoin
@@ -385,10 +385,10 @@ func (z *ZB) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (z *ZB) FetchAccountInfo() (account.Holdings, error) {
+func (z *ZB) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(z.Name)
 	if err != nil {
-		return z.UpdateAccountInfo()
+		return z.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -810,8 +810,8 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (z *ZB) ValidateCredentials() error {
-	_, err := z.UpdateAccountInfo()
+func (z *ZB) ValidateCredentials(assetType asset.Item) error {
+	_, err := z.UpdateAccountInfo(assetType)
 	return z.CheckTransientError(err)
 }
 

@@ -1809,7 +1809,8 @@ type GetAccountInfoRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Exchange string `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	Exchange  string `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	AssetType string `protobuf:"bytes,2,opt,name=assetType,proto3" json:"asset_type,omitempty"`
 }
 
 func (x *GetAccountInfoRequest) Reset() {

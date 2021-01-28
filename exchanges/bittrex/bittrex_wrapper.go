@@ -225,7 +225,7 @@ func (b *Bittrex) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo Retrieves balances for all enabled currencies for the
 // Bittrex exchange
-func (b *Bittrex) UpdateAccountInfo() (account.Holdings, error) {
+func (b *Bittrex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = b.Name
 	accountBalance, err := b.GetAccountBalances()
@@ -255,10 +255,10 @@ func (b *Bittrex) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bittrex) FetchAccountInfo() (account.Holdings, error) {
+func (b *Bittrex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(b.Name)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -703,8 +703,8 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *Bittrex) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *Bittrex) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	return b.CheckTransientError(err)
 }
 

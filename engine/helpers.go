@@ -746,15 +746,18 @@ func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts
 				}
 				continue
 			}
-			accountInfo, err := exchanges[x].FetchAccountInfo()
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"Error encountered retrieving exchange account info for %s. Error %s\n",
-					exchanges[x].GetName(),
-					err)
-				continue
+			assetTypes := exchanges[x].GetAssetTypes()
+			for y := range assetTypes {
+				accountInfo, err := exchanges[x].FetchAccountInfo(assetTypes[y])
+				if err != nil {
+					log.Errorf(log.ExchangeSys,
+						"Error encountered retrieving exchange account info for %s. Error %s\n",
+						exchanges[x].GetName(),
+						err)
+					continue
+				}
+				response.Data = append(response.Data, accountInfo)
 			}
-			response.Data = append(response.Data, accountInfo)
 		}
 	}
 	return response

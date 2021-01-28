@@ -320,7 +320,7 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.UpdateAccountInfo()
+	_, err := a.UpdateAccountInfo(asset.Spot)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}

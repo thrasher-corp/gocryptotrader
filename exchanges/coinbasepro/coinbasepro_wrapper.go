@@ -310,7 +310,7 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
-func (c *CoinbasePro) UpdateAccountInfo() (account.Holdings, error) {
+func (c *CoinbasePro) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = c.Name
 	accountBalance, err := c.GetAccounts()
@@ -341,10 +341,10 @@ func (c *CoinbasePro) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (c *CoinbasePro) FetchAccountInfo() (account.Holdings, error) {
+func (c *CoinbasePro) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(c.Name)
 	if err != nil {
-		return c.UpdateAccountInfo()
+		return c.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -941,7 +941,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (c *CoinbasePro) ValidateCredentials() error {
-	_, err := c.UpdateAccountInfo()
+func (c *CoinbasePro) ValidateCredentials(assetType asset.Item) error {
+	_, err := c.UpdateAccountInfo(assetType)
 	return c.CheckTransientError(err)
 }

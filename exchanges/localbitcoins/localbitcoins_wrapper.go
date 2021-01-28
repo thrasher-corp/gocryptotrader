@@ -250,7 +250,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LocalBitcoins exchange
-func (l *LocalBitcoins) UpdateAccountInfo() (account.Holdings, error) {
+func (l *LocalBitcoins) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = l.Name
 	accountBalance, err := l.GetWalletBalance()
@@ -274,10 +274,10 @@ func (l *LocalBitcoins) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (l *LocalBitcoins) FetchAccountInfo() (account.Holdings, error) {
+func (l *LocalBitcoins) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(l.Name)
 	if err != nil {
-		return l.UpdateAccountInfo()
+		return l.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -644,8 +644,8 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (l *LocalBitcoins) ValidateCredentials() error {
-	_, err := l.UpdateAccountInfo()
+func (l *LocalBitcoins) ValidateCredentials(assetType asset.Item) error {
+	_, err := l.UpdateAccountInfo(assetType)
 	return l.CheckTransientError(err)
 }
 

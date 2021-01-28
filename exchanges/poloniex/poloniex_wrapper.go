@@ -381,7 +381,7 @@ func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountInfo() (account.Holdings, error) {
+func (p *Poloniex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = p.Name
 	accountBalance, err := p.GetBalances()
@@ -410,10 +410,10 @@ func (p *Poloniex) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (p *Poloniex) FetchAccountInfo() (account.Holdings, error) {
+func (p *Poloniex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(p.Name)
 	if err != nil {
-		return p.UpdateAccountInfo()
+		return p.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -831,8 +831,8 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (p *Poloniex) ValidateCredentials() error {
-	_, err := p.UpdateAccountInfo()
+func (p *Poloniex) ValidateCredentials(assetType asset.Item) error {
+	_, err := p.UpdateAccountInfo(assetType)
 	return p.CheckTransientError(err)
 }
 

@@ -522,7 +522,7 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Kraken exchange - to-do
-func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
+func (k *Kraken) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var balances []account.Balance
 	info.Exchange = k.Name
@@ -585,10 +585,10 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (k *Kraken) FetchAccountInfo() (account.Holdings, error) {
+func (k *Kraken) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(k.Name)
 	if err != nil {
-		return k.UpdateAccountInfo()
+		return k.UpdateAccountInfo(assetType)
 	}
 	return acc, nil
 }
@@ -1331,8 +1331,8 @@ func (k *Kraken) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (k *Kraken) ValidateCredentials() error {
-	_, err := k.UpdateAccountInfo()
+func (k *Kraken) ValidateCredentials(assetType asset.Item) error {
+	_, err := k.UpdateAccountInfo(assetType)
 	return k.CheckTransientError(err)
 }
 

@@ -471,7 +471,7 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Coinbene exchange
-func (c *Coinbene) UpdateAccountInfo() (account.Holdings, error) {
+func (c *Coinbene) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	balance, err := c.GetAccountBalances()
 	if err != nil {
@@ -501,10 +501,10 @@ func (c *Coinbene) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (c *Coinbene) FetchAccountInfo() (account.Holdings, error) {
+func (c *Coinbene) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(c.Name)
 	if err != nil {
-		return c.UpdateAccountInfo()
+		return c.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -827,8 +827,8 @@ func (c *Coinbene) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (c *Coinbene) ValidateCredentials() error {
-	_, err := c.UpdateAccountInfo()
+func (c *Coinbene) ValidateCredentials(assetType asset.Item) error {
+	_, err := c.UpdateAccountInfo(assetType)
 	return c.CheckTransientError(err)
 }
 

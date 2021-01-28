@@ -21,9 +21,11 @@ import (
 )
 
 const (
-	krakenAPIURL     = "https://api.kraken.com"
-	krakenFuturesURL = "https://futures.kraken.com"
-	futuresURL       = "https://futures.kraken.com/derivatives"
+	krakenAPIURL         = "https://api.kraken.com"
+	krakenFuturesURL     = "https://futures.kraken.com"
+	futuresURL           = "https://futures.kraken.com/derivatives"
+	krakenSpotVersion    = "0"
+	krakenFuturesVersion = "3"
 )
 
 // Kraken is the overarching type across the alphapoint package
@@ -974,7 +976,11 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 	if err != nil {
 		return err
 	}
-	path := fmt.Sprintf("/%s/private/%s", "3", method)
+	versionString := krakenFuturesVersion
+	if ep == exchange.RestSpot {
+		versionString = krakenSpotVersion
+	}
+	path := fmt.Sprintf("/%s/private/%s", versionString, method)
 
 	params.Set("nonce", k.Requester.GetNonce(true).String())
 	encoded := params.Encode()

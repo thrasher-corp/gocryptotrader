@@ -548,7 +548,7 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Binance exchange
-func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
+func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = b.Name
@@ -631,10 +631,10 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Binance) FetchAccountInfo() (account.Holdings, error) {
+func (b *Binance) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(b.Name)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -1475,8 +1475,8 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *Binance) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *Binance) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	return b.CheckTransientError(err)
 }
 

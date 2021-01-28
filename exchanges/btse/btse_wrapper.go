@@ -370,7 +370,7 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // BTSE exchange
-func (b *BTSE) UpdateAccountInfo() (account.Holdings, error) {
+func (b *BTSE) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var a account.Holdings
 	balance, err := b.GetWalletInformation()
 	if err != nil {
@@ -403,10 +403,10 @@ func (b *BTSE) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *BTSE) FetchAccountInfo() (account.Holdings, error) {
+func (b *BTSE) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(b.Name)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -888,8 +888,8 @@ func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *BTSE) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *BTSE) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	return b.CheckTransientError(err)
 }
 

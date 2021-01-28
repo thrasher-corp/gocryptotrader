@@ -311,7 +311,7 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LakeBTC exchange
-func (l *LakeBTC) UpdateAccountInfo() (account.Holdings, error) {
+func (l *LakeBTC) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = l.Name
 	accountInfo, err := l.GetAccountInformation()
@@ -346,10 +346,10 @@ func (l *LakeBTC) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (l *LakeBTC) FetchAccountInfo() (account.Holdings, error) {
+func (l *LakeBTC) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	acc, err := account.GetHoldings(l.Name)
 	if err != nil {
-		return l.UpdateAccountInfo()
+		return l.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -636,8 +636,8 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (l *LakeBTC) ValidateCredentials() error {
-	_, err := l.UpdateAccountInfo()
+func (l *LakeBTC) ValidateCredentials(assetType asset.Item) error {
+	_, err := l.UpdateAccountInfo(assetType)
 	return l.CheckTransientError(err)
 }
 
