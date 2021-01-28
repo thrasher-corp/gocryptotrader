@@ -552,76 +552,74 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = b.Name
-	assetTypes := b.GetAssetTypes()
-	for x := range assetTypes {
-		switch assetTypes[x] {
-		case asset.Spot:
-			raw, err := b.GetAccount()
-			if err != nil {
-				return info, err
-			}
-
-			var currencyBalance []account.Balance
-			for i := range raw.Balances {
-				freeCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Free, 64)
-				if parseErr != nil {
-					return info, parseErr
-				}
-
-				lockedCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Locked, 64)
-				if parseErr != nil {
-					return info, parseErr
-				}
-
-				currencyBalance = append(currencyBalance, account.Balance{
-					CurrencyName: currency.NewCode(raw.Balances[i].Asset),
-					TotalValue:   freeCurrency + lockedCurrency,
-					Hold:         freeCurrency,
-				})
-			}
-
-			acc.AssetType = asset.Spot
-			acc.Currencies = currencyBalance
-			info.Accounts = append(info.Accounts, acc)
-
-		case asset.CoinMarginedFutures:
-			accData, err := b.GetFuturesAccountInfo()
-			if err != nil {
-				return info, err
-			}
-			var currencyDetails []account.Balance
-			for i := range accData.Assets {
-				currencyDetails = append(currencyDetails, account.Balance{
-					CurrencyName: currency.NewCode(accData.Assets[i].Asset),
-					TotalValue:   accData.Assets[i].WalletBalance,
-					Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].MarginBalance,
-				})
-			}
-
-			acc.AssetType = asset.CoinMarginedFutures
-			acc.Currencies = currencyDetails
-			info.Accounts = append(info.Accounts, acc)
-
-		case asset.USDTMarginedFutures:
-			accData, err := b.UAccountBalanceV2()
-			if err != nil {
-				return info, err
-			}
-			var currencyDetails []account.Balance
-			for i := range accData {
-				currencyDetails = append(currencyDetails, account.Balance{
-					CurrencyName: currency.NewCode(accData[i].Asset),
-					TotalValue:   accData[i].Balance,
-					Hold:         accData[i].Balance - accData[i].AvailableBalance,
-				})
-			}
-
-			acc.AssetType = asset.USDTMarginedFutures
-			acc.Currencies = currencyDetails
-			info.Accounts = append(info.Accounts, acc)
-
-		default:
+	switch assetType {
+	case asset.Spot:
+		raw, err := b.GetAccount()
+		if err != nil {
+			return info, err
 		}
+
+		var currencyBalance []account.Balance
+		for i := range raw.Balances {
+			freeCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Free, 64)
+			if parseErr != nil {
+				return info, parseErr
+			}
+
+			lockedCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Locked, 64)
+			if parseErr != nil {
+				return info, parseErr
+			}
+
+			currencyBalance = append(currencyBalance, account.Balance{
+				CurrencyName: currency.NewCode(raw.Balances[i].Asset),
+				TotalValue:   freeCurrency + lockedCurrency,
+				Hold:         freeCurrency,
+			})
+		}
+
+		acc.AssetType = asset.Spot
+		acc.Currencies = currencyBalance
+		info.Accounts = append(info.Accounts, acc)
+
+	case asset.CoinMarginedFutures:
+		accData, err := b.GetFuturesAccountInfo()
+		if err != nil {
+			return info, err
+		}
+		var currencyDetails []account.Balance
+		for i := range accData.Assets {
+			currencyDetails = append(currencyDetails, account.Balance{
+				CurrencyName: currency.NewCode(accData.Assets[i].Asset),
+				TotalValue:   accData.Assets[i].WalletBalance,
+				Hold:         accData.Assets[i].WalletBalance - accData.Assets[i].MarginBalance,
+			})
+		}
+
+		acc.AssetType = asset.CoinMarginedFutures
+		acc.Currencies = currencyDetails
+		info.Accounts = append(info.Accounts, acc)
+
+	case asset.USDTMarginedFutures:
+		accData, err := b.UAccountBalanceV2()
+		if err != nil {
+			return info, err
+		}
+		var currencyDetails []account.Balance
+		for i := range accData {
+			currencyDetails = append(currencyDetails, account.Balance{
+				CurrencyName: currency.NewCode(accData[i].Asset),
+				TotalValue:   accData[i].Balance,
+				Hold:         accData[i].Balance - accData[i].AvailableBalance,
+			})
+		}
+
+		acc.AssetType = asset.USDTMarginedFutures
+		acc.Currencies = currencyDetails
+		info.Accounts = append(info.Accounts, acc)
+
+	default:
+		return info, fmt.Errorf("%v assetType not supported", assetType)
 	}
 	err := account.Process(&info)
 	if err != nil {

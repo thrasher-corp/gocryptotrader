@@ -1738,11 +1738,24 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
 	_, err := b.UpdateAccountInfo(asset.CoinMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateAccountInfo(asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	// _, err = b.UpdateAccountInfo(asset.Margin)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+	_, err = b.UpdateAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

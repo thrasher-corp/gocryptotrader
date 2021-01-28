@@ -617,130 +617,120 @@ func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 	var info account.Holdings
 	var acc account.SubAccount
 	info.Exchange = h.Name
-	assetTypes := h.GetAssetTypes()
-	for x := range assetTypes {
-		switch assetTypes[x] {
-		case asset.Spot:
-			if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				resp, err := h.wsGetAccountsList()
+	switch assetType {
+	case asset.Spot:
+		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			resp, err := h.wsGetAccountsList()
+			if err != nil {
+				return info, err
+			}
+			var currencyDetails []account.Balance
+			for i := range resp.Data {
+				if len(resp.Data[i].List) == 0 {
+					continue
+				}
+				currData := account.Balance{
+					CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
+					TotalValue:   resp.Data[i].List[0].Balance,
+				}
+				if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
+					currData.Hold = resp.Data[i].List[1].Balance
+				}
+				currencyDetails = append(currencyDetails, currData)
+			}
+			acc.Currencies = currencyDetails
+		} else {
+			accounts, err := h.GetAccountID()
+			if err != nil {
+				return info, err
+			}
+			for i := range accounts {
+				acc.ID = strconv.FormatInt(accounts[i].ID, 10)
+				balances, err := h.GetAccountBalance(acc.ID)
 				if err != nil {
 					return info, err
 				}
+
 				var currencyDetails []account.Balance
-				for i := range resp.Data {
-					if len(resp.Data[i].List) == 0 {
-						continue
+			balance:
+				for j := range balances {
+					var frozen bool
+					if balances[j].Type == "frozen" {
+						frozen = true
 					}
-					currData := account.Balance{
-						CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
-						TotalValue:   resp.Data[i].List[0].Balance,
+
+					for i := range currencyDetails {
+						if currencyDetails[i].CurrencyName.String() == balances[j].Currency {
+							if frozen {
+								currencyDetails[i].Hold = balances[j].Balance
+							} else {
+								currencyDetails[i].TotalValue = balances[j].Balance
+							}
+							continue balance
+						}
 					}
-					if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
-						currData.Hold = resp.Data[i].List[1].Balance
+
+					if frozen {
+						currencyDetails = append(currencyDetails,
+							account.Balance{
+								CurrencyName: currency.NewCode(balances[j].Currency),
+								Hold:         balances[j].Balance,
+							})
+					} else {
+						currencyDetails = append(currencyDetails,
+							account.Balance{
+								CurrencyName: currency.NewCode(balances[j].Currency),
+								TotalValue:   balances[j].Balance,
+							})
 					}
-					currencyDetails = append(currencyDetails, currData)
 				}
 				acc.Currencies = currencyDetails
-				info.Accounts = append(info.Accounts, acc)
-			} else {
-				accounts, err := h.GetAccountID()
-				if err != nil {
-					return info, err
-				}
-				for i := range accounts {
-					acc.ID = strconv.FormatInt(accounts[i].ID, 10)
-					balances, err := h.GetAccountBalance(acc.ID)
-					if err != nil {
-						return info, err
-					}
-
-					var currencyDetails []account.Balance
-				balance:
-					for j := range balances {
-						var frozen bool
-						if balances[j].Type == "frozen" {
-							frozen = true
-						}
-
-						for i := range currencyDetails {
-							if currencyDetails[i].CurrencyName.String() == balances[j].Currency {
-								if frozen {
-									currencyDetails[i].Hold = balances[j].Balance
-								} else {
-									currencyDetails[i].TotalValue = balances[j].Balance
-								}
-								continue balance
-							}
-						}
-
-						if frozen {
-							currencyDetails = append(currencyDetails,
-								account.Balance{
-									CurrencyName: currency.NewCode(balances[j].Currency),
-									Hold:         balances[j].Balance,
-								})
-						} else {
-							currencyDetails = append(currencyDetails,
-								account.Balance{
-									CurrencyName: currency.NewCode(balances[j].Currency),
-									TotalValue:   balances[j].Balance,
-								})
-						}
-					}
-					acc.AssetType = asset.Spot
-					acc.Currencies = currencyDetails
-					info.Accounts = append(info.Accounts, acc)
-				}
 			}
-
-		case asset.CoinMarginedFutures:
-			subAccsData, err := h.GetSwapAllSubAccAssets(currency.Pair{})
-			if err != nil {
-				return info, err
-			}
-			var currencyDetails []account.Balance
-			for x := range subAccsData.Data {
-				a, err := h.SwapSingleSubAccAssets(currency.Pair{}, subAccsData.Data[x].SubUID)
-				if err != nil {
-					return info, err
-				}
-				for y := range a.Data {
-					currencyDetails = append(currencyDetails, account.Balance{
-						CurrencyName: currency.NewCode(a.Data[y].Symbol),
-						TotalValue:   a.Data[y].MarginBalance,
-						Hold:         a.Data[y].MarginFrozen,
-					})
-				}
-			}
-
-			acc.AssetType = asset.CoinMarginedFutures
-			acc.Currencies = currencyDetails
-			info.Accounts = append(info.Accounts, acc)
-
-		case asset.Futures:
-			subAccsData, err := h.FGetAllSubAccountAssets(currency.Code{})
-			if err != nil {
-				return info, err
-			}
-			var currencyDetails []account.Balance
-			for x := range subAccsData.Data {
-				a, err := h.FGetSingleSubAccountInfo("", strconv.FormatInt(subAccsData.Data[x].SubUID, 10))
-				if err != nil {
-					return info, err
-				}
-				for y := range a.AssetsData {
-					currencyDetails = append(currencyDetails, account.Balance{
-						CurrencyName: currency.NewCode(a.AssetsData[y].Symbol),
-						TotalValue:   a.AssetsData[y].MarginBalance,
-						Hold:         a.AssetsData[y].MarginFrozen,
-					})
-				}
-			}
-			acc.AssetType = asset.Futures
-			acc.Currencies = currencyDetails
-			info.Accounts = append(info.Accounts, acc)
 		}
+
+	case asset.CoinMarginedFutures:
+		subAccsData, err := h.GetSwapAllSubAccAssets(currency.Pair{})
+		if err != nil {
+			return info, err
+		}
+		var currencyDetails []account.Balance
+		for x := range subAccsData.Data {
+			a, err := h.SwapSingleSubAccAssets(currency.Pair{}, subAccsData.Data[x].SubUID)
+			if err != nil {
+				return info, err
+			}
+			for y := range a.Data {
+				currencyDetails = append(currencyDetails, account.Balance{
+					CurrencyName: currency.NewCode(a.Data[y].Symbol),
+					TotalValue:   a.Data[y].MarginBalance,
+					Hold:         a.Data[y].MarginFrozen,
+				})
+			}
+		}
+		acc.Currencies = currencyDetails
+	case asset.Futures:
+		subAccsData, err := h.FGetAllSubAccountAssets(currency.Code{})
+		if err != nil {
+			return info, err
+		}
+		var currencyDetails []account.Balance
+		for x := range subAccsData.Data {
+			a, err := h.FGetSingleSubAccountInfo("", strconv.FormatInt(subAccsData.Data[x].SubUID, 10))
+			if err != nil {
+				return info, err
+			}
+			for y := range a.AssetsData {
+				currencyDetails = append(currencyDetails, account.Balance{
+					CurrencyName: currency.NewCode(a.AssetsData[y].Symbol),
+					TotalValue:   a.AssetsData[y].MarginBalance,
+					Hold:         a.AssetsData[y].MarginFrozen,
+				})
+			}
+		}
+		acc.Currencies = currencyDetails
 	}
+	acc.AssetType = asset.Futures
+	info.Accounts = append(info.Accounts, acc)
 	err := account.Process(&info)
 	if err != nil {
 		return info, err

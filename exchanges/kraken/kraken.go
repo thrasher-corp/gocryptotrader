@@ -976,11 +976,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 	if err != nil {
 		return err
 	}
-	versionString := krakenFuturesVersion
-	if ep == exchange.RestSpot {
-		versionString = krakenSpotVersion
-	}
-	path := fmt.Sprintf("/%s/private/%s", versionString, method)
+	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
 
 	params.Set("nonce", k.Requester.GetNonce(true).String())
 	encoded := params.Encode()
