@@ -455,7 +455,7 @@ func (w *Websocket) FlushChannels() error {
 			return err
 		}
 
-		if w.CanUseAuthenticatedEndpoints() && w.GenerateAuthSubs != nil{
+		if w.CanUseAuthenticatedEndpoints() && w.GenerateAuthSubs != nil {
 			newAuthSubs, err := w.GenerateAuthSubs()
 			if err != nil {
 				return err
