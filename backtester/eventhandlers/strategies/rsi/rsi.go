@@ -41,8 +41,11 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 	if d == nil {
 		return nil, errors.New("received nil data")
 	}
-	es, _ := s.GetBase(d)
-	es.SetPrice(d.Latest().Price())
+	es, err := s.GetBase(d)
+	if err != nil {
+		return nil, err
+	}
+	es.SetPrice(d.Latest().ClosePrice())
 
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(common.MissingData)

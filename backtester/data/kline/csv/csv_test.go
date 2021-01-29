@@ -17,8 +17,9 @@ func TestLoadDataCandles(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := LoadData(filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"),
-		common.CandleStr,
+	_, err := LoadData(
+		common.DataCandle,
+		filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"),
 		exch,
 		gctkline.FifteenMin.Duration(),
 		p,
@@ -33,8 +34,8 @@ func TestLoadDataTrades(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := LoadData(
+		common.DataTrade,
 		filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv"),
-		common.TradeStr,
 		exch,
 		gctkline.FifteenMin.Duration(),
 		p,
@@ -49,8 +50,8 @@ func TestLoadDataInvalid(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := LoadData(
+		-1,
 		filepath.Join("..", "..", "..", "..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv"),
-		"test",
 		exch,
 		gctkline.FifteenMin.Duration(),
 		p,

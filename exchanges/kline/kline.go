@@ -189,6 +189,7 @@ func (k *Item) RemoveDuplicates() {
 	var newCandles []Candle
 	for x := range k.Candles {
 		if x == 0 {
+			newCandles = append(newCandles, k.Candles[x])
 			continue
 		}
 		if !k.Candles[x].Time.Equal(k.Candles[x-1].Time) {
@@ -410,12 +411,6 @@ func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
 			for z := range c {
 				if c[z].Time.Equal(h.Ranges[x].Intervals[y].Start) ||
 					(c[z].Time.After(h.Ranges[x].Intervals[y].Start) && c[z].Time.Before(h.Ranges[x].Intervals[y].End)) {
-					h.Ranges[x].Intervals[y].HasData = true
-				}
-			}
-			if y == len(h.Ranges[x].Intervals)-1 {
-				if h.End.Equal(h.Ranges[x].Intervals[y].Start) ||
-					(h.End.After(h.Ranges[x].Intervals[y].Start) && h.End.Before(h.Ranges[x].Intervals[y].End)) {
 					h.Ranges[x].Intervals[y].HasData = true
 				}
 			}

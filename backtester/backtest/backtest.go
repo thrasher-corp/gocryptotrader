@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/settings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
@@ -146,7 +147,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 		return nil, err
 	}
 	for i := range e.CurrencySettings {
-		lookup, _ := p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
+		var lookup *settings.Settings
+		lookup, err = p.SetupCurrencySettingsMap(e.CurrencySettings[i].ExchangeName, e.CurrencySettings[i].AssetType, e.CurrencySettings[i].CurrencyPair)
+		if err != nil {
+			return nil, err
+		}
 		lookup.Fee = e.CurrencySettings[i].TakerFee
 		lookup.Leverage = e.CurrencySettings[i].Leverage
 		lookup.BuySideSizing = e.CurrencySettings[i].BuySide
@@ -158,7 +163,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, 
 	}
 	bt.Portfolio = p
 
-	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategySettings.Name, cfg.StrategySettings.IsMultiCurrency)
+	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategySettings.Name, cfg.StrategySettings.SimultaneousSignalProcessing)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +224,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 		if makerFee == 0 || takerFee == 0 {
 			var apiMakerFee, apiTakerFee float64
-			apiMakerFee, apiTakerFee, err = getFees(exch, pair)
+			apiMakerFee, apiTakerFee = getFees(exch, pair)
 			if err != nil {
 				return resp, err
 			}
@@ -357,7 +362,8 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
-func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee float64, err error) {
+func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee float64) {
+	var err error
 	takerFee, err = exch.GetFeeByType(&gctexchange.FeeBuilder{
 		FeeType:       gctexchange.OfflineTradeFee,
 		Pair:          fPair,
@@ -366,7 +372,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 		Amount:        1,
 	})
 	if err != nil {
-		return makerFee, takerFee, err
+		log.Errorf(log.BackTester, "Could not retrieve taker fee for %v. %v", exch.GetName(), err)
 	}
 
 	makerFee, err = exch.GetFeeByType(&gctexchange.FeeBuilder{
@@ -377,10 +383,10 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 		Amount:        1,
 	})
 	if err != nil {
-		return makerFee, takerFee, err
+		log.Errorf(log.BackTester, "Could not retrieve maker fee for %v. %v", exch.GetName(), err)
 	}
 
-	return makerFee, takerFee, err
+	return makerFee, takerFee
 }
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
@@ -397,7 +403,6 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, errors.New("no data settings set in config")
 	}
 	resp := &kline.DataFromKline{}
-	var err error
 	if (cfg.DataSettings.APIData != nil && cfg.DataSettings.DatabaseData != nil) ||
 		(cfg.DataSettings.APIData != nil && cfg.DataSettings.LiveData != nil) ||
 		(cfg.DataSettings.APIData != nil && cfg.DataSettings.CSVData != nil) ||
@@ -407,11 +412,16 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, errors.New("ambiguous settings received. Only one data type can be set")
 	}
 
+	dataType, err := common.DataTypeToInt(cfg.DataSettings.DataType)
+	if err != nil {
+		return nil, err
+	}
+
 	switch {
 	case cfg.DataSettings.CSVData != nil:
 		resp, err = csv.LoadData(
+			dataType,
 			cfg.DataSettings.CSVData.FullPath,
-			cfg.DataSettings.DataType,
 			strings.ToLower(exch.GetName()),
 			cfg.DataSettings.Interval,
 			fPair,
@@ -451,7 +461,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 				}
 			}()
 		}
-		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a)
+		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType)
 		if err != nil {
 			return resp, err
 		}
@@ -478,7 +488,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			exch,
 			fPair,
 			a,
-			base.Features.Enabled.Kline.ResultLimit)
+			base.Features.Enabled.Kline.ResultLimit,
+			dataType)
 		if err != nil {
 			return resp, err
 		}
@@ -495,7 +506,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			cfg,
 			exch,
 			fPair,
-			a)
+			a,
+			dataType)
 		return resp, nil
 	}
 	if resp == nil {
@@ -515,7 +527,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	return resp, nil
 }
 
-func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
+func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64) (*kline.DataFromKline, error) {
 	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
@@ -523,21 +535,18 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		cfg.DataSettings.DatabaseData.StartDate.After(cfg.DataSettings.DatabaseData.EndDate) {
 		return nil, errors.New("database data start and end dates must be set")
 	}
-	resp, err := database.LoadData(
+
+	return database.LoadData(
 		cfg.DataSettings.DatabaseData.StartDate,
 		cfg.DataSettings.DatabaseData.EndDate,
 		cfg.DataSettings.Interval,
 		strings.ToLower(name),
-		cfg.DataSettings.DataType,
+		dataType,
 		fPair,
 		a)
-	if err != nil {
-		return nil, err
-	}
-	return resp, err
 }
 
-func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32) (*kline.DataFromKline, error) {
+func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
 	if cfg.DataSettings.APIData.StartDate.IsZero() || cfg.DataSettings.APIData.EndDate.IsZero() ||
 		cfg.DataSettings.APIData.StartDate.After(cfg.DataSettings.APIData.EndDate) {
 		return nil, errors.New("api data start and end dates must be set")
@@ -551,7 +560,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 		gctkline.Interval(cfg.DataSettings.Interval),
 		resultLimit)
 	candles, err := api.LoadData(
-		cfg.DataSettings.DataType,
+		dataType,
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
 		cfg.DataSettings.Interval,
@@ -607,15 +616,15 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() error {
 dataLoadingIssue:
-	for ev, ok := bt.EventQueue.NextEvent(); ; ev, ok = bt.EventQueue.NextEvent() {
-		if !ok {
+	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
+		if ev == nil {
 			dataHandlerMap := bt.Datas.GetAllData()
 			for exchangeName, exchangeMap := range dataHandlerMap {
 				for assetItem, assetMap := range exchangeMap {
 					var hasProcessedData bool
 					for currencyPair, dataHandler := range assetMap {
-						d, ok := dataHandler.Next()
-						if !ok {
+						d := dataHandler.Next()
+						if d == nil {
 							if !bt.hasHandledEvent {
 								log.Errorf(log.BackTester, "Unable to perform `Next` for %v %v %v", exchangeName, assetItem, currencyPair)
 							}
@@ -657,6 +666,9 @@ func (bt *BackTest) handleEvent(e common.EventHandler) error {
 		bt.processOrderEvent(ev)
 	case fill.Event:
 		bt.processFillEvent(ev)
+	case nil:
+	default:
+		return fmt.Errorf("unhandled datatype %v received, could not process", e)
 	}
 
 	return nil
@@ -692,8 +704,6 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 			if err != nil {
 				log.Error(log.BackTester, err)
 			}
-		}
-		for i := range signals {
 			bt.EventQueue.AppendEvent(signals[i])
 		}
 	} else {
@@ -729,8 +739,13 @@ func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
 }
 
 func (bt *BackTest) processSignalEvent(ev signal.Event) {
-	cs, _ := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
-	o, err := bt.Portfolio.OnSignal(ev, &cs)
+	cs, err := bt.Exchange.GetCurrencySettings(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
+	if err != nil {
+		log.Error(log.BackTester, err)
+		return
+	}
+	var o *order.Order
+	o, err = bt.Portfolio.OnSignal(ev, &cs)
 	if err != nil {
 		log.Error(log.BackTester, err)
 		return
@@ -801,6 +816,8 @@ func (bt *BackTest) processFillEvent(ev fill.Event) {
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
 	timeoutTimer := time.NewTimer(time.Minute * 5)
+	// a frequent timer so that when a new candle is released by an exchange
+	// that it can be processed quickly
 	processEventTicker := time.NewTicker(time.Second)
 	doneARun := false
 	for {
@@ -810,8 +827,8 @@ func (bt *BackTest) RunLive() error {
 		case <-timeoutTimer.C:
 			return errors.New("no data returned in 5 minutes, shutting down")
 		case <-processEventTicker.C:
-			for e, ok := bt.EventQueue.NextEvent(); ; e, ok = bt.EventQueue.NextEvent() {
-				if !ok {
+			for e := bt.EventQueue.NextEvent(); ; e = bt.EventQueue.NextEvent() {
+				if e == nil {
 					// as live only supports singular currency, just get the proper reference manually
 					var d data.Handler
 					dd := bt.Datas.GetAllData()
@@ -822,8 +839,8 @@ func (bt *BackTest) RunLive() error {
 							}
 						}
 					}
-					de, ok := d.Next()
-					if !ok {
+					de := d.Next()
+					if de == nil {
 						break
 					}
 					bt.EventQueue.AppendEvent(de)
@@ -844,11 +861,11 @@ func (bt *BackTest) RunLive() error {
 
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
 // from live. Its purpose is to be able to perform strategy analysis against current data
-func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) {
+func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) {
 	startDate := time.Now()
 	candles, err := live.LoadData(
 		exch,
-		cfg.DataSettings.DataType,
+		dataType,
 		cfg.DataSettings.Interval,
 		fPair,
 		a)
@@ -857,7 +874,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		return
 	}
 	resp.Item = *candles
-	err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate)
+	err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
 	if err != nil {
 		log.Error(log.BackTester, err)
 		return
@@ -869,7 +886,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		case <-bt.shutdown:
 			return
 		case <-loadNewDataTicker.C:
-			err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate)
+			err = bt.loadLiveData(resp, cfg, exch, fPair, a, startDate, dataType)
 			if err != nil {
 				log.Error(log.BackTester, err)
 				return
@@ -878,10 +895,10 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 	}
 }
 
-func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, startDate time.Time) error {
+func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, startDate time.Time, dataType int64) error {
 	candles, err := live.LoadData(
 		exch,
-		cfg.DataSettings.DataType,
+		dataType,
 		cfg.DataSettings.Interval,
 		fPair,
 		a)

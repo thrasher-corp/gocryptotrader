@@ -23,6 +23,10 @@ const (
 	// used to identify the type of data in a config
 	CandleStr = "candle"
 	TradeStr  = "trade"
+
+	// DataCandle is an int64 representation of a candle data type
+	DataCandle = iota
+	DataTrade
 )
 
 // EventHandler interface implements required GetTime() & Pair() return
@@ -41,10 +45,10 @@ type EventHandler interface {
 // DataHandler interface used for loading and interacting with Data
 type DataEventHandler interface {
 	EventHandler
-	Price() float64
+	ClosePrice() float64
+	HighPrice() float64
+	LowPrice() float64
 }
-
-type DataType uint8
 
 // Directioner dictates the side of an order
 type Directioner interface {

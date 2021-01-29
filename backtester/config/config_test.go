@@ -397,8 +397,8 @@ func TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment",
 		StrategySettings: StrategySettings{
-			Name:            dca,
-			IsMultiCurrency: true,
+			Name:                         dca,
+			SimultaneousSignalProcessing: true,
 		},
 		CurrencySettings: []CurrencySettings{
 			{

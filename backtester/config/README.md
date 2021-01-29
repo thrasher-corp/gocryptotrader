@@ -25,13 +25,13 @@ The config package contains a set of structs which allow for the customisation o
 The GoCryptoTrader Backtester runs from reading config files (`.strat` files by default under `/examples`).
 
 
-### What does MultiCurrency mean?
+### What does Simultaneous Signal Processing mean?
 GoCryptoTrader Backtester config files may contain multiple `ExchangeSettings` which defined exchange, asset and currency pairs to iterate through a period of time.
 
 If there are multiple entries to `ExchangeSettings` and MultiCurrency is disabled, then each individual exchange, asset and currency pair candle event is evaluated individually and does not know about other exchange, asset and currency pair data events. It is a way to test a singular strategy against multiple assets simultaneously. But it isn't defined as MultiCurrency
-MultiCurrency is a setting which allows multiple `ExchangeSettings` data events for a candle event to be considered simultanesouly. This means that you can check if the price of BTC-USDT is 5% greater on Binance than it is on Kraken and choose to make signal a BUY event for Kraken and not Binance.
+Simultaneous Signal Processing is a setting which allows multiple `ExchangeSettings` data events for a candle event to be considered simultaneously. This means that you can check if the price of BTC-USDT is 5% greater on Binance than it is on Kraken and choose to make signal a BUY event for Kraken and not Binance.
 
-It allows for complex strategical decisions to be made when you consider the scope of the entire market at a given time, rather than in a vacuum when MultiCurrency is disabled.
+It allows for complex strategical decisions to be made when you consider the scope of the entire market at a given time, rather than in a vacuum when SimultaneousSignalProcessing is disabled.
 
 ### How do I customise the GoCryptoTrader Backtester?
 See below for a set of tables and fields, expected values and what they can do

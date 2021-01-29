@@ -301,11 +301,15 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 			events = append(events, &kline.Kline{
 				Event: even,
 				Close: 1336,
+				High:  1336,
+				Low:   1336,
 			})
 		} else {
 			events = append(events, &kline.Kline{
 				Event: even,
 				Close: 1337 - float64(i),
+				High:  1337 - float64(i),
+				Low:   1337 - float64(i),
 			})
 		}
 	}
@@ -321,6 +325,8 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	events = append(events, &kline.Kline{
 		Event: even,
 		Close: 1338,
+		High:  1338,
+		Low:   1338,
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
@@ -334,6 +340,8 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	events = append(events, &kline.Kline{
 		Event: even,
 		Close: 1337,
+		High:  1337,
+		Low:   1337,
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
@@ -347,6 +355,8 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	events = append(events, &kline.Kline{
 		Event: even,
 		Close: 1339,
+		High:  1339,
+		Low:   1339,
 	})
 
 	resp := calculateMaxDrawdown(events)

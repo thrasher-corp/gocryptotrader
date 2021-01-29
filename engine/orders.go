@@ -401,6 +401,7 @@ func (o *orderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.T
 			if v[i].LastUpdated.After(latestUpdate) {
 				latestUpdate = v[i].LastUpdated
 			}
+
 			os = append(os, order.Detail{
 				ImmediateOrCancel: v[i].ImmediateOrCancel,
 				HiddenOrder:       v[i].HiddenOrder,

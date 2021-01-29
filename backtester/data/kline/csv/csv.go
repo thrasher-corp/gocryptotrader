@@ -20,7 +20,7 @@ import (
 )
 
 // LoadData is a basic csv reader which converts the found CSV file into a kline item
-func LoadData(filepath, dataType, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item) (*gctkline.DataFromKline, error) {
+func LoadData(dataType int64, filepath, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item) (*gctkline.DataFromKline, error) {
 	resp := &gctkline.DataFromKline{}
 	csvFile, err := os.Open(filepath)
 	if err != nil {
@@ -37,7 +37,7 @@ func LoadData(filepath, dataType, exchangeName string, interval time.Duration, f
 	csvData := csv.NewReader(csvFile)
 
 	switch dataType {
-	case common.CandleStr:
+	case common.DataCandle:
 		candles := kline.Item{
 			Exchange: exchangeName,
 			Pair:     fPair,
@@ -94,7 +94,7 @@ func LoadData(filepath, dataType, exchangeName string, interval time.Duration, f
 		}
 
 		resp.Item = candles
-	case common.TradeStr:
+	case common.DataTrade:
 		var trades []trade.Data
 		for {
 			row, errCSV := csvData.Read()

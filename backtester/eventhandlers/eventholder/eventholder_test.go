@@ -25,8 +25,8 @@ func TestAppendEvent(t *testing.T) {
 
 func TestNextEvent(t *testing.T) {
 	e := Holder{Queue: []common.EventHandler{}}
-	_, ok := e.NextEvent()
-	if ok {
+	ev := e.NextEvent()
+	if ev != nil {
 		t.Error("expected not ok")
 	}
 

@@ -13,5 +13,5 @@ type Holder struct {
 type EventHolder interface {
 	Reset()
 	AppendEvent(common.EventHandler)
-	NextEvent() (e common.EventHandler, ok bool)
+	NextEvent() (e common.EventHandler)
 }

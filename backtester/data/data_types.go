@@ -41,7 +41,7 @@ type Loader interface {
 
 // Streamer interface handles loading, parsing, distributing BackTest data
 type Streamer interface {
-	Next() (common.DataEventHandler, bool)
+	Next() common.DataEventHandler
 	GetStream() []common.DataEventHandler
 	History() []common.DataEventHandler
 	Latest() common.DataEventHandler

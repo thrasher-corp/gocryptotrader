@@ -32,7 +32,7 @@ type EventStore struct {
 	FillEvent    fill.Event
 }
 
-// Holds all events and statistics relevant to an exchange, asset type and currency pair
+// CurrencyStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyStatistic struct {
 	Events                   []EventStore        `json:"-"`
 	MaxDrawdown              Swing               `json:"max-drawdown,omitempty"`
@@ -46,7 +46,7 @@ type CurrencyStatistic struct {
 	SortinoRatio             float64             `json:"sortino-ratio"`
 	InformationRatio         float64             `json:"information-ratio"`
 	RiskFreeRate             float64             `json:"risk-free-rate"`
-	CalmarRatio              float64             `json:"calmar-ratio"` // calmar
+	CalmarRatio              float64             `json:"calmar-ratio"`
 	CompoundAnnualGrowthRate float64             `json:"compound-annual-growth-rate"`
 	BuyOrders                int64               `json:"buy-orders"`
 	SellOrders               int64               `json:"sell-orders"`

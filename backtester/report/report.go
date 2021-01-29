@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -116,6 +117,24 @@ func (d *Data) enhanceCandles() error {
 			if j != 0 {
 				if d.OriginalCandles[i].Candles[j].Close < d.OriginalCandles[i].Candles[j-1].Close {
 					enhancedCandle.VolumeColour = "rgba(252, 3, 3, 0.8)"
+				}
+			}
+			for k := range statsForCandles.Events {
+				if statsForCandles.Events[k].SignalEvent != nil {
+					if statsForCandles.Events[k].SignalEvent.GetTime().Equal(d.OriginalCandles[i].Candles[j].Time) {
+						if statsForCandles.Events[k].SignalEvent.GetDirection() == common.MissingData {
+							//if the data is missing, ensure that all values just continue the previous candle's close price visually
+							enhancedCandle.Open = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+							enhancedCandle.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+							enhancedCandle.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+							enhancedCandle.Close = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+
+							enhancedCandle.Colour = "white"
+							enhancedCandle.Position = "aboveBar"
+							enhancedCandle.Shape = "arrowDown"
+							enhancedCandle.Text = common.MissingData.String()
+						}
+					}
 				}
 			}
 			for k := range statsForCandles.FinalOrders.Orders {

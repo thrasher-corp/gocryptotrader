@@ -14,11 +14,11 @@ import (
 )
 
 // LoadData retrieves data from a GoCryptoTrader exchange wrapper which calls the exchange's API
-func LoadData(dataType string, startDate, endDate time.Time, interval time.Duration, exch exchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
+func LoadData(dataType int64, startDate, endDate time.Time, interval time.Duration, exch exchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
 	var candles kline.Item
 	var err error
 	switch dataType {
-	case common.CandleStr:
+	case common.DataCandle:
 		candles, err = exch.GetHistoricCandlesExtended(
 			fPair,
 			a,
@@ -28,7 +28,7 @@ func LoadData(dataType string, startDate, endDate time.Time, interval time.Durat
 		if err != nil {
 			return nil, err
 		}
-	case common.TradeStr:
+	case common.DataTrade:
 		var trades []trade.Data
 		trades, err = exch.GetHistoricTrades(
 			fPair,

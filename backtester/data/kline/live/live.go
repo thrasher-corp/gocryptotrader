@@ -14,11 +14,11 @@ import (
 )
 
 // LoadData retrieves data from a GoCryptoTrader exchange wrapper which calls the exchange's API for the latest interval
-func LoadData(exch exchange.IBotExchange, dataType string, interval time.Duration, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
+func LoadData(exch exchange.IBotExchange, dataType int64, interval time.Duration, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
 	var candles kline.Item
 	var err error
 	switch dataType {
-	case common.CandleStr:
+	case common.DataCandle:
 		candles, err = exch.GetHistoricCandles(
 			fPair,
 			a,
@@ -28,7 +28,7 @@ func LoadData(exch exchange.IBotExchange, dataType string, interval time.Duratio
 		if err != nil {
 			return nil, err
 		}
-	case common.TradeStr:
+	case common.DataTrade:
 		var trades []trade.Data
 		trades, err = exch.GetRecentTrades(
 			fPair,
@@ -57,7 +57,6 @@ func LoadData(exch exchange.IBotExchange, dataType string, interval time.Duratio
 				return nil, err
 			}
 		}
-
 	default:
 		return nil, fmt.Errorf("unrecognised api datatype received: '%v'", dataType)
 	}

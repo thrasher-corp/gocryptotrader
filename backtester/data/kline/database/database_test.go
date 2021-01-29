@@ -120,7 +120,7 @@ func TestLoadDataCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.CandleStr, p, a)
+	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataCandle, p, a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -189,7 +189,7 @@ func TestLoadDataTrades(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.TradeStr, p, a)
+	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataTrade, p, a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -201,7 +201,7 @@ func TestLoadDataInvalid(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	_, err := LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, "test", p, a)
+	_, err := LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a)
 	if err != nil && !strings.Contains(err.Error(), "unexpected database datatype") {
 		t.Error(err)
 	}

@@ -14,10 +14,10 @@ import (
 )
 
 // LoadData retrieves data from an existing database using GoCryptoTrader's database handling implementation
-func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName, dataType string, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
+func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName string, dataType int64, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	resp := &kline.DataFromKline{}
 	switch dataType {
-	case common.CandleStr:
+	case common.DataCandle:
 		klineItem, err := getCandleDatabaseData(
 			startDate,
 			endDate,
@@ -29,7 +29,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 			return nil, err
 		}
 		resp.Item = klineItem
-	case common.TradeStr:
+	case common.DataTrade:
 		trades, err := trade.GetTradesInRange(
 			exchangeName,
 			a.String(),

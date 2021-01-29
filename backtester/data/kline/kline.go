@@ -11,7 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// HasDataAtTime verifies whether
+// HasDataAtTime verifies checks the underlying range data
+// To determine whether there is any candle data present at the time provided
 func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 	return d.Range.HasDataAtDate(t)
 }

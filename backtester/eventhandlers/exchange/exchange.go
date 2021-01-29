@@ -26,7 +26,6 @@ func (e *Exchange) Reset() {
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
 func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.Engine) (*fill.Fill, error) {
-	cs, _ := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
 	f := &fill.Fill{
 		Event: event.Event{
 			Exchange:     o.GetExchange(),
@@ -39,9 +38,15 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		Direction: o.GetDirection(),
 		Amount:    o.GetAmount(),
 
-		ClosePrice:  data.Latest().Price(),
-		ExchangeFee: cs.ExchangeFee, // defaulting to just using taker fee right now without orderbook
+		ClosePrice: data.Latest().ClosePrice(),
 	}
+
+	cs, err := e.GetCurrencySettings(o.GetExchange(), o.GetAssetType(), o.Pair())
+	if err != nil {
+		return f, err
+	}
+
+	f.ExchangeFee = cs.ExchangeFee // defaulting to just using taker fee right now without orderbook
 	f.Direction = o.GetDirection()
 	if o.GetDirection() != gctorder.Buy && o.GetDirection() != gctorder.Sell {
 		return f, nil
@@ -55,7 +60,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	volStr := data.StreamVol()
 	volume := volStr[len(volStr)-1]
 	var adjustedPrice, amount float64
-	var err error
 	sizedPortfolioTotal := o.GetAmount() * f.ClosePrice
 	if cs.UseRealOrders {
 		// get current orderbook

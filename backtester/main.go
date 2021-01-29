@@ -16,7 +16,7 @@ func main() {
 	var configPath, templatePath, reportOutput string
 	wd, err := os.Getwd()
 	if err != nil {
-		fmt.Print(err)
+		fmt.Printf("Could get working directory. Error: %v.\n", err)
 		os.Exit(1)
 	}
 	flag.StringVar(
@@ -49,19 +49,19 @@ func main() {
 	var cfg *config.Config
 	cfg, err = config.ReadConfigFromFile(configPath)
 	if err != nil {
-		fmt.Print(err)
+		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
 	}
 	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput)
 	if err != nil {
-		fmt.Print(err)
+		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)
 	}
 	if cfg.DataSettings.LiveData != nil {
 		go func() {
 			err = bt.RunLive()
 			if err != nil {
-				fmt.Print(err)
+				fmt.Printf("Could not complete live run. Error: %v.\n", err)
 				os.Exit(-1)
 			}
 		}()
@@ -71,7 +71,7 @@ func main() {
 	} else {
 		err = bt.Run()
 		if err != nil {
-			fmt.Print(err)
+			fmt.Printf("Could not complete run. Error: %v.\n", err)
 			os.Exit(1)
 		}
 	}

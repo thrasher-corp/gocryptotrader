@@ -39,7 +39,7 @@ func (h *Holding) Update(f fill.Event) {
 // UpdateValue calculates the holding's value for a data event's time and price
 func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.Timestamp = d.GetTime()
-	latest := d.Price()
+	latest := d.ClosePrice()
 	h.updateValue(latest)
 }
 

@@ -32,9 +32,9 @@ type DataSettings struct {
 // (variables defined per strategy)
 // along with defining whether the strategy will assess all currencies at once, or individually
 type StrategySettings struct {
-	Name            string                 `json:"name"`
-	IsMultiCurrency bool                   `json:"is-multi-currency"`
-	CustomSettings  map[string]interface{} `json:"custom-settings"`
+	Name                         string                 `json:"name"`
+	SimultaneousSignalProcessing bool                   `json:"use-simultaneous-signal-processing"`
+	CustomSettings               map[string]interface{} `json:"custom-settings"`
 }
 
 // StatisticSettings holds configurable varialbes to adjust ratios where
@@ -52,19 +52,22 @@ type PortfolioSettings struct {
 	SellSide MinMax   `json:"sell-side"`
 }
 
+// Leverage rules are used to allow or limit the use of leverage in orders
+// when supported
 type Leverage struct {
 	CanUseLeverage       bool    `json:"can-use-leverage"`
 	MaximumLeverageRatio float64 `json:"maximum-leverage-ratio"`
 	MaximumLeverageRate  float64 `json:"maximum-leverage-rate"`
 }
 
+// MinMax are the rules which limit the placement of orders.
 type MinMax struct {
 	MinimumSize  float64 `json:"minimum-size"` // will not place an order if under this amount
 	MaximumSize  float64 `json:"maximum-size"` // can only place an order up to this amount
 	MaximumTotal float64 `json:"maximum-total"`
 }
 
-// ExchangeSettings stores pair based variables
+// CurrencySettings stores pair based variables
 // It contains rules about the specific currency pair
 // you wish to trade with
 // Backtester will load the data of the currencies specified here

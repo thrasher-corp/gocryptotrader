@@ -18,9 +18,9 @@ import (
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
 func (c *CurrencyStatistic) CalculateResults() {
 	first := c.Events[0]
-	firstPrice := first.DataEvent.Price()
+	firstPrice := first.DataEvent.ClosePrice()
 	last := c.Events[len(c.Events)-1]
-	lastPrice := last.DataEvent.Price()
+	lastPrice := last.DataEvent.ClosePrice()
 	for i := range last.Transactions.Orders {
 		if last.Transactions.Orders[i].Side == gctorder.Buy {
 			c.BuyOrders++
@@ -29,7 +29,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 		}
 	}
 	for i := range c.Events {
-		price := c.Events[i].DataEvent.Price()
+		price := c.Events[i].DataEvent.ClosePrice()
 		if c.LowestClosePrice == 0 || price < c.LowestClosePrice {
 			c.LowestClosePrice = price
 		}
@@ -74,8 +74,8 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	})
 	last := c.Events[len(c.Events)-1]
 	first := c.Events[0]
-	c.StartingClosePrice = first.DataEvent.Price()
-	c.EndingClosePrice = last.DataEvent.Price()
+	c.StartingClosePrice = first.DataEvent.ClosePrice()
+	c.EndingClosePrice = last.DataEvent.ClosePrice()
 	c.TotalOrders = c.BuyOrders + c.SellOrders
 	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage + last.Holdings.TotalValueLostToVolumeSizing
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v-------------------------", e, a, p)
@@ -140,19 +140,20 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 	var lowestTime, highestTime time.Time
 	var swings []Swing
 	if len(closePrices) > 0 {
-		lowestPrice = closePrices[0].Price()
-		highestPrice = closePrices[0].Price()
+		lowestPrice = closePrices[0].LowPrice()
+		highestPrice = closePrices[0].HighPrice()
 		lowestTime = closePrices[0].GetTime()
 		highestTime = closePrices[0].GetTime()
 	}
 	for i := range closePrices {
-		currPrice := closePrices[i].Price()
+		currHigh := closePrices[i].HighPrice()
+		currLow := closePrices[i].LowPrice()
 		currTime := closePrices[i].GetTime()
-		if lowestPrice > currPrice {
-			lowestPrice = currPrice
+		if lowestPrice > currLow {
+			lowestPrice = currLow
 			lowestTime = currTime
 		}
-		if highestPrice < currPrice {
+		if highestPrice < currHigh {
 			intervals := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[i].GetInterval(), 0)
 			swings = append(swings, Swing{
 				Highest: Iteration{
@@ -167,13 +168,13 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 				IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
 			})
 			// reset the drawdown
-			highestPrice = currPrice
+			highestPrice = currHigh
 			highestTime = currTime
-			lowestPrice = currPrice
+			lowestPrice = currLow
 			lowestTime = currTime
 		}
 	}
-	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Price != closePrices[len(closePrices)-1].Price()) || swings == nil {
+	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Price != closePrices[len(closePrices)-1].LowPrice()) || swings == nil {
 		// need to close out the final drawdown
 		intervals := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[0].GetInterval(), 0)
 		swings = append(swings, Swing{

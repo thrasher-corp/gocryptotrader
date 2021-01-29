@@ -4,6 +4,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 )
 
+// Kline holds kline data and an event to be processed as
+// a common.DataEventHandler type
 type Kline struct {
 	event.Event
 	Open   float64

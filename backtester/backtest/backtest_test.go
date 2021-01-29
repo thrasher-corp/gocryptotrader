@@ -244,7 +244,7 @@ func TestLoadData(t *testing.T) {
 
 func TestLoadDatabaseData(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := loadDatabaseData(nil, "", cp, "")
+	_, err := loadDatabaseData(nil, "", cp, "", -1)
 	if err != nil && !strings.Contains(err.Error(), "nil config data received") {
 		t.Error(err)
 	}
@@ -258,24 +258,24 @@ func TestLoadDatabaseData(t *testing.T) {
 		},
 		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
 	}
-	_, err = loadDatabaseData(cfg, "", cp, "")
+	_, err = loadDatabaseData(cfg, "", cp, "", -1)
 	if err != nil && !strings.Contains(err.Error(), "database data start and end dates must be set") {
 		t.Error(err)
 	}
 	cfg.DataSettings.DatabaseData.StartDate = time.Now().Add(-time.Hour)
 	cfg.DataSettings.DatabaseData.EndDate = time.Now()
-	_, err = loadDatabaseData(cfg, "", cp, "")
-	if err != nil && !strings.Contains(err.Error(), "unexpected database datatype: ''") {
+	_, err = loadDatabaseData(cfg, "", cp, "", -1)
+	if err != nil && !strings.Contains(err.Error(), "unexpected database datatype: '-1'") {
 		t.Error(err)
 	}
 
 	cfg.DataSettings.DataType = common.CandleStr
-	_, err = loadDatabaseData(cfg, "", cp, "")
+	_, err = loadDatabaseData(cfg, "", cp, "", common.DataCandle)
 	if err != nil && !strings.Contains(err.Error(), "exchange, base, quote, asset, interval, start & end cannot be empty") {
 		t.Error(err)
 	}
 	cfg.DataSettings.Interval = gctkline.OneDay.Duration()
-	_, err = loadDatabaseData(cfg, testExchange, cp, asset.Spot)
+	_, err = loadDatabaseData(cfg, testExchange, cp, asset.Spot, common.DataCandle)
 	if err != nil && !strings.Contains(err.Error(), "database support is disabled") {
 		t.Error(err)
 	}

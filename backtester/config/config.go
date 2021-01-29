@@ -47,7 +47,7 @@ func (cfg *Config) PrintSetting() {
 	} else {
 		log.Info(log.BackTester, "Custom strategy variables: unset")
 	}
-	log.Infof(log.BackTester, "MultiCurrency Assessment: %v", cfg.StrategySettings.IsMultiCurrency)
+	log.Infof(log.BackTester, "MultiCurrency Assessment: %v", cfg.StrategySettings.SimultaneousSignalProcessing)
 	for i := range cfg.CurrencySettings {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		currStr := fmt.Sprintf("------------------%v %v-%v Settings--------------------------",

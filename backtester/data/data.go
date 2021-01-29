@@ -78,15 +78,15 @@ func (d *Data) AppendStream(s ...common.DataEventHandler) {
 }
 
 // Next will return the next event in the list and also shift the offset one
-func (d *Data) Next() (dh common.DataEventHandler, ok bool) {
+func (d *Data) Next() (dh common.DataEventHandler) {
 	if len(d.stream) <= d.offset {
-		return nil, false
+		return nil
 	}
 
 	ret := d.stream[d.offset]
 	d.offset++
 	d.latest = ret
-	return ret, true
+	return ret
 }
 
 // History will return all previous data events that have happened

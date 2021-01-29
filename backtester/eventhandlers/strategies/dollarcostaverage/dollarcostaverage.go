@@ -14,7 +14,7 @@ import (
 )
 
 // Name is the strategy name
-const Name = "poopoo"
+const Name = "dollarcostaverage"
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
@@ -32,7 +32,10 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 	if d == nil {
 		return nil, errors.New("received nil data")
 	}
-	es, _ := s.GetBase(d)
+	es, err := s.GetBase(d)
+	if err != nil {
+		return nil, err
+	}
 
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(common.MissingData)
@@ -40,7 +43,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 		return &es, nil
 	}
 
-	es.SetPrice(d.Latest().Price())
+	es.SetPrice(d.Latest().ClosePrice())
 	es.SetDirection(order.Buy)
 	es.AppendWhy("DCA purchases on every iteration")
 	return &es, nil

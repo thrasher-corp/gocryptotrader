@@ -23,7 +23,7 @@ func (s *Statistic) Reset() {
 	*s = Statistic{}
 }
 
-// AddDataEventForTime sets up the big map for to store important data at each time interval
+// SetupEventForTime sets up the big map for to store important data at each time interval
 func (s *Statistic) SetupEventForTime(e common.DataEventHandler) error {
 	if e == nil {
 		return errors.New("nil data event received")
@@ -57,7 +57,7 @@ func (s *Statistic) setupMap(ex string, a asset.Item) {
 	}
 }
 
-// AddEventForTime sets the event for the time period in the event
+// SetEventForTime sets the event for the time period in the event
 func (s *Statistic) SetEventForTime(e common.EventHandler) error {
 	if e == nil {
 		return fmt.Errorf("nil event received")
@@ -69,10 +69,10 @@ func (s *Statistic) SetEventForTime(e common.EventHandler) error {
 	a := e.GetAssetType()
 	p := e.Pair()
 
-	if s.ExchangeAssetPairStatistics[exch][a][p] == nil {
+	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
+	if lookup == nil {
 		return fmt.Errorf("no data for %v %v %v to set signal event", exch, a, p)
 	}
-	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) {
 			switch t := e.(type) {
@@ -98,10 +98,10 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if s.ExchangeAssetPairStatistics == nil {
 		return errors.New("exchangeAssetPairStatistics not setup")
 	}
-	if s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair] == nil {
+	lookup := s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair]
+	if lookup == nil {
 		return fmt.Errorf("no data for %v %v %v to set holding event", h.Exchange, h.Asset, h.Pair)
 	}
-	lookup := s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(h.Timestamp) {
 			lookup.Events[i].Holdings = *h
@@ -119,10 +119,10 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 	if s.ExchangeAssetPairStatistics == nil {
 		return errors.New("exchangeAssetPairStatistics not setup")
 	}
-	if s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] == nil {
+	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	if lookup == nil {
 		return fmt.Errorf("no data for %v %v %v to set compliance snapshot", e.GetExchange(), e.GetAssetType(), e.Pair())
 	}
-	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(c.Timestamp) {
 			lookup.Events[i].Transactions = c
@@ -224,9 +224,7 @@ func (s *Statistic) GetBestStrategyPerformer(results []FinalResultsHolder) *Fina
 
 // GetTheBiggestDrawdownAcrossCurrencies returns the biggest drawdown across all currencies in a backtesting run
 func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResultsHolder) *FinalResultsHolder {
-	result := &FinalResultsHolder{
-		MaxDrawdown: currencystatstics.Swing{},
-	}
+	result := &FinalResultsHolder{}
 	for i := range results {
 		if results[i].MaxDrawdown.DrawdownPercent > result.MaxDrawdown.DrawdownPercent || result.MaxDrawdown.DrawdownPercent == 0 {
 			result = &results[i]
@@ -275,7 +273,7 @@ func (s *Statistic) PrintAllEvents() {
 					case c.Events[i].DataEvent != nil:
 						log.Infof(log.BackTester, "%v | Price: $%v - Why: %v",
 							c.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
-							c.Events[i].DataEvent.Price(),
+							c.Events[i].DataEvent.ClosePrice(),
 							c.Events[i].DataEvent.GetWhy())
 					default:
 						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", e, a, p, c.Events[i]))

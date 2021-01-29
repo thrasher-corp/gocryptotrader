@@ -15,13 +15,13 @@ func (e *Holder) AppendEvent(i common.EventHandler) {
 }
 
 // NextEvent removes the current event and returns the next event in the queue
-func (e *Holder) NextEvent() (i common.EventHandler, ok bool) {
+func (e *Holder) NextEvent() (i common.EventHandler) {
 	if len(e.Queue) == 0 {
-		return i, false
+		return nil
 	}
 
 	i = e.Queue[0]
 	e.Queue = e.Queue[1:]
 
-	return i, true
+	return i
 }

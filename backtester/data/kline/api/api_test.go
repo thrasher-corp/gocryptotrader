@@ -38,7 +38,7 @@ func TestLoadCandles(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var data *gctkline.Item
-	data, err = LoadData(common.CandleStr, tt1, tt2, interval.Duration(), exch, p, a)
+	data, err = LoadData(common.DataCandle, tt1, tt2, interval.Duration(), exch, p, a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -46,7 +46,7 @@ func TestLoadCandles(t *testing.T) {
 		t.Error("expected candles")
 	}
 
-	_, err = LoadData("", tt1, tt2, interval.Duration(), exch, p, a)
+	_, err = LoadData(-1, tt1, tt2, interval.Duration(), exch, p, a)
 	if err != nil && !strings.Contains(err.Error(), "unrecognised api datatype received") {
 		t.Error(err)
 	}
@@ -75,7 +75,7 @@ func TestLoadTrades(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	var data *gctkline.Item
-	data, err = LoadData(common.TradeStr, tt1, tt2, interval.Duration(), exch, p, a)
+	data, err = LoadData(common.DataTrade, tt1, tt2, interval.Duration(), exch, p, a)
 	if err != nil {
 		t.Error(err)
 	}

@@ -29,7 +29,7 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 - Database data import
 - Proof of concept live data running
 - Can run strategies against multiple cryptocurrencies
-- Can run strategies that can assess multiple currencies to make complex decisions
+- Can run strategies that can assess multiple currencies simultaneously to make complex decisions
 - Dollar cost strategy implementation
 - RSI strategy implementation
 - Strategy customisation via config `.strat` files
