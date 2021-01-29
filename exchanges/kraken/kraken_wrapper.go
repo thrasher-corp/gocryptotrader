@@ -98,7 +98,6 @@ func (k *Kraken) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:      true,
 				TickerFetching:      true,
 				KlineFetching:       true,
 				TradeFetching:       true,
@@ -422,22 +421,24 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 		if err != nil {
 			return nil, err
 		}
+		formatPair, err := k.FormatExchangeCurrency(p, asset.Futures)
+		if err != nil {
+			return nil, err
+		}
 		for x := range t.Tickers {
-			pair, err := currency.NewPairFromString(t.Tickers[x].Symbol)
-			if err != nil {
-				return nil, err
-			}
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         t.Tickers[x].Last,
-				Bid:          t.Tickers[x].Bid,
-				Ask:          t.Tickers[x].Ask,
-				Volume:       t.Tickers[x].Vol24h,
-				Open:         t.Tickers[x].Open24H,
-				Pair:         pair,
-				ExchangeName: k.Name,
-				AssetType:    assetType})
-			if err != nil {
-				return nil, err
+			if strings.EqualFold(t.Tickers[x].Symbol, formatPair.String()) {
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         t.Tickers[x].Last,
+					Bid:          t.Tickers[x].Bid,
+					Ask:          t.Tickers[x].Ask,
+					Volume:       t.Tickers[x].Vol24h,
+					Open:         t.Tickers[x].Open24H,
+					Pair:         p,
+					ExchangeName: k.Name,
+					AssetType:    assetType})
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	default:

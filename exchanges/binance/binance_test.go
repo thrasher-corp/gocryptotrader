@@ -19,7 +19,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var b Binance
@@ -1756,10 +1756,6 @@ func TestGetAccountInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// _, err = b.UpdateAccountInfo(asset.Margin)
-	// if err != nil {
-	// 	t.Error(err)
-	// }
 	_, err = b.UpdateAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)

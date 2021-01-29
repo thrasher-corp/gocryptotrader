@@ -270,7 +270,6 @@ func TestFGetBasisData(t *testing.T) {
 }
 
 func TestFGetAccountInfo(t *testing.T) {
-	h.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -282,7 +281,6 @@ func TestFGetAccountInfo(t *testing.T) {
 }
 
 func TestFGetPositionsInfo(t *testing.T) {
-	h.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
@@ -331,7 +329,7 @@ func TestFGetFinancialRecords(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetFinancialRecords("BTC", "closeLong", 0, 0, 0)
+	_, err := h.FGetFinancialRecords("BTC", "closeLong", 2, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -342,7 +340,7 @@ func TestFGetSettlementRecords(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := h.FGetSettlementRecords(currency.BTC, 0, 0, time.Now().Add(-1*time.Hour), time.Now())
+	_, err := h.FGetSettlementRecords(currency.BTC, 0, 0, time.Now().Add(-48*time.Hour), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -430,11 +428,18 @@ func TestFOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
-	cp, err := currency.NewPairFromString("BTC_CQ")
+	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.FOrder(cp, "", "BTC", "", "BUY", "open", "limit", 1, 1, 1)
+	if len(tradablePairs) == 0 {
+		t.Error("no tradable pairs")
+	}
+	cp, err := currency.NewPairFromString(tradablePairs[0])
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = h.FOrder(currency.Pair{}, cp.Base.Upper().String(), "quarter", "123", "BUY", "open", "limit", 1, 1, 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -448,7 +453,7 @@ func TestFPlaceBatchOrder(t *testing.T) {
 	var req []fBatchOrderData
 	order1 := fBatchOrderData{
 		Symbol:         "btc",
-		ContractCode:   "btc200925",
+		ContractType:   "quarter",
 		ClientOrderID:  "",
 		Price:          5,
 		Volume:         1,
@@ -459,7 +464,7 @@ func TestFPlaceBatchOrder(t *testing.T) {
 	}
 	order2 := fBatchOrderData{
 		Symbol:         "xrp",
-		ContractCode:   "xrp200925",
+		ContractType:   "this_week",
 		ClientOrderID:  "",
 		Price:          10000,
 		Volume:         1,
@@ -491,7 +496,14 @@ func TestFCancelAllOrders(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_CQ")
+	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(tradablePairs) == 0 {
+		t.Error("no tradable pairs")
+	}
+	cp, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
 		t.Error(err)
 	}
@@ -506,11 +518,7 @@ func TestFFlashCloseOrder(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_CQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FFlashCloseOrder(cp, "quarter", "BTC", "BUY", "lightning", "", 1)
+	_, err := h.FFlashCloseOrder(currency.Pair{}, "BTC", "quarter", "BUY", "lightning", "", 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -554,11 +562,18 @@ func TestFGetOrderHistory(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_CQ")
+	tradablePairs, err := h.FetchTradablePairs(asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.FGetOrderHistory(cp, "all", "all", "7", "", []order.Status{}, 5, 0, 0)
+	if len(tradablePairs) == 0 {
+		t.Error("no tradable pairs")
+	}
+	cp, err := currency.NewPairFromString(tradablePairs[0])
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = h.FGetOrderHistory(currency.Pair{}, cp.Base.Upper().String(), "all", "all", "limit", []order.Status{}, 5, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -569,11 +584,7 @@ func TestFTradeHistory(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_CQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FTradeHistory(cp, "all", "", 10, 0, 0)
+	_, err := h.FTradeHistory(currency.Pair{}, "BTC", "all", 10, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -584,11 +595,7 @@ func TestFPlaceTriggerOrder(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_CQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FPlaceTriggerOrder(cp, "all", "", "greaterOrEqual",
+	_, err := h.FPlaceTriggerOrder(currency.Pair{}, "EOS", "quarter", "greaterOrEqual",
 		"limit", "buy", "close", 1.1, 1.05, 5, 2)
 	if err != nil {
 		t.Error(err)
@@ -611,11 +618,7 @@ func TestFCancelAllTriggerOrders(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_CQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FCancelAllTriggerOrders(cp, "", "this_week")
+	_, err := h.FCancelAllTriggerOrders(currency.Pair{}, "BTC", "this_week")
 	if err != nil {
 		t.Error(err)
 	}
@@ -626,11 +629,7 @@ func TestFQueryTriggerOpenOrders(t *testing.T) {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_CQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FQueryTriggerOpenOrders(cp, "", 0, 0)
+	_, err := h.FQueryTriggerOpenOrders(currency.Pair{}, "BTC", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -641,11 +640,7 @@ func TestFQueryTriggerOrderHistory(t *testing.T) {
 		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_CQ")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.FQueryTriggerOrderHistory(cp, "", "all", "all", 10, 0, 0)
+	_, err := h.FQueryTriggerOrderHistory(currency.Pair{}, "EOS", "all", "all", 10, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1254,7 +1249,7 @@ func TestAccountTransferRecords(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.AccountTransferRecords(cp, "master_to_sub", 0, 0, 0)
+	_, err = h.AccountTransferRecords(cp, "master_to_sub", 12, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1378,7 +1373,7 @@ func TestGetSwapOrderDetails(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.GetSwapOrderDetails(cp, "test123", "10", "cancelledOrder", 0, 0)
+	_, err = h.GetSwapOrderDetails(cp, "123", "10", "cancelledOrder", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1683,7 +1678,6 @@ func TestGetAccounts(t *testing.T) {
 }
 
 func TestGetAccountBalance(t *testing.T) {
-	h.Verbose = true
 	t.Parallel()
 	if !h.ValidateAPICredentials() {
 		t.Skip()
@@ -2007,17 +2001,39 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	h.Verbose = true
+	t.Parallel()
 	if !areTestAPIKeysSet() {
-		_, err := h.UpdateAccountInfo(asset.Spot)
+		_, err := h.UpdateAccountInfo(asset.CoinMarginedFutures)
+		if err == nil {
+			t.Error("GetAccountInfo() Expected error")
+		}
+		_, err = h.UpdateAccountInfo(asset.Futures)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
-		_, err := h.UpdateAccountInfo(asset.Spot)
+		_, err := h.UpdateAccountInfo(asset.CoinMarginedFutures)
 		if err != nil {
-			t.Error("GetAccountInfo() error", err)
+			// Spot and Futures have separate api keys. Please ensure that the correct keys are provided
+			t.Error(err)
 		}
+		_, err = h.UpdateAccountInfo(asset.Futures)
+		if err != nil {
+			// Spot and Futures have separate api keys. Please ensure that the correct keys are provided
+			t.Error(err)
+		}
+	}
+}
+
+func TestGetSpotAccountInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := h.UpdateAccountInfo(asset.Spot)
+	if err != nil {
+		// Spot and Futures have separate api keys. Please ensure that the correct keys are provided
+		t.Error(err)
 	}
 }
 

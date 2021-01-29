@@ -584,8 +584,8 @@ type FBatchOrderResponse struct {
 type FCancelOrderData struct {
 	Data struct {
 		Errors []struct {
-			OrderID int64  `json:"order_id"`
-			ErrCode int64  `json:"err_code,string"`
+			OrderID int64  `json:"order_id,string"`
+			ErrCode int64  `json:"err_code"`
 			ErrMsg  string `json:"err_msg"`
 		} `json:"errors"`
 		Successes string `json:"successes"`

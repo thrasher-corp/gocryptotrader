@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -814,73 +813,6 @@ func (h *HUOBI) SendHTTPRequest(ep exchange.URL, path string, result interface{}
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(tempResp, &errCap); err == nil {
-		if errCap.Code != 200 && errCap.ErrMsg != "" {
-			return errors.New(errCap.ErrMsg)
-		}
-	}
-	return json.Unmarshal(tempResp, result)
-}
-
-// FuturesAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
-func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}) error {
-	if !h.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, h.Name)
-	}
-	ePoint, err := h.API.Endpoints.GetURL(ep)
-	if err != nil {
-		return err
-	}
-	if values == nil {
-		values = url.Values{}
-	}
-	now := time.Now()
-	values.Set("AccessKeyId", h.API.Credentials.Key)
-	values.Set("SignatureMethod", "HmacSHA256")
-	values.Set("SignatureVersion", "2")
-	values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
-	sigPath := fmt.Sprintf("%s\napi.hbdm.com\n/%s\n%s",
-		method, endpoint, values.Encode())
-	headers := make(map[string]string)
-	if method == http.MethodGet {
-		headers["Content-Type"] = "application/x-www-form-urlencoded"
-	} else {
-		headers["Content-Type"] = "application/json"
-	}
-	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(sigPath), []byte(h.API.Credentials.Secret))
-	sigValues := url.Values{}
-	sigValues.Add("Signature", crypto.Base64Encode(hmac))
-	urlPath := ePoint + common.EncodeURLValues(endpoint, values)
-
-	var body io.Reader
-	var payload []byte
-	if data != nil {
-		payload, err = json.Marshal(data)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewBuffer(payload)
-	}
-
-	var tempResp json.RawMessage
-	var errCap errorCapture
-
-	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
-	defer cancel()
-	if err := h.SendPayload(ctx, &request.Item{
-		Method:        method,
-		Path:          urlPath,
-		Headers:       headers,
-		Body:          body,
-		Result:        &tempResp,
-		AuthRequest:   true,
-		Verbose:       h.Verbose,
-		HTTPDebugging: h.HTTPDebugging,
-		HTTPRecording: h.HTTPRecording,
-	}); err != nil {
-		return err
-	}
-
 	if err := json.Unmarshal(tempResp, &errCap); err == nil {
 		if errCap.Code != 200 && errCap.ErrMsg != "" {
 			return errors.New(errCap.ErrMsg)
