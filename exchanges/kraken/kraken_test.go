@@ -942,6 +942,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if areTestAPIKeysSet() {
 		_, err := k.UpdateAccountInfo(asset.Spot)
 		if err != nil {
+			// Spot and Futures have separate api keys. Please ensure that the correct one is provided
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
@@ -949,6 +950,17 @@ func TestGetAccountInfo(t *testing.T) {
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
+	}
+}
+
+func TestUpdateFuturesAccountInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set. Skipping the test")
+	}
+	_, err := k.UpdateAccountInfo(asset.Futures)
+	if err != nil {
+		// Spot and Futures have separate api keys. Please ensure that the correct one is provided
+		t.Error(err)
 	}
 }
 
