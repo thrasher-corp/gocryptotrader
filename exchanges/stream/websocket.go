@@ -416,7 +416,7 @@ func (w *Websocket) FlushChannels() error {
 		return fmt.Errorf("%s websocket: service not connected", w.exchangeName)
 	}
 
-	if w.features == nil {
+	if w.features == nil { // test case
 		return fmt.Errorf("%s websocket: features not set", w.exchangeName)
 	}
 
