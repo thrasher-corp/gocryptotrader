@@ -416,6 +416,10 @@ func (w *Websocket) FlushChannels() error {
 		return fmt.Errorf("%s websocket: service not connected", w.exchangeName)
 	}
 
+	if w.features == nil {
+		return fmt.Errorf("%s websocket: features not set", w.exchangeName)
+	}
+
 	if w.features.Subscribe {
 		newsubs, err := w.GenerateSubs()
 		if err != nil {
@@ -474,10 +478,7 @@ func (w *Websocket) FlushChannels() error {
 	}
 
 	err := w.Shutdown()
-	if err != nil {
-		return err
-	}
-	return w.Connect()
+	return err
 }
 
 // trafficMonitor uses a timer of WebsocketTrafficLimitTime and once it expires,
