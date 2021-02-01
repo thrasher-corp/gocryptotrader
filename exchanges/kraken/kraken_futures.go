@@ -281,14 +281,27 @@ func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values
 		"Authent": sig,
 		"Nonce":   nonce,
 	}
-	return k.SendPayload(context.Background(), &request.Item{
+	interim := json.RawMessage{}
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute))
+	defer cancel()
+	err = k.SendPayload(ctx, &request.Item{
 		Method:        method,
 		Path:          futuresURL + common.EncodeURLValues(path, postData),
 		Headers:       headers,
-		Result:        result,
+		Result:        &interim,
 		AuthRequest:   true,
 		Verbose:       k.Verbose,
 		HTTPDebugging: k.HTTPDebugging,
 		HTTPRecording: k.HTTPRecording,
 	})
+	if err != nil {
+		return err
+	}
+	var errCap AuthErrorData
+	if err = json.Unmarshal(interim, &errCap); err == nil {
+		if errCap.Result != "success" && errCap.Error != "" {
+			return errors.New(errCap.Error)
+		}
+	}
+	return json.Unmarshal(interim, result)
 }

@@ -75,6 +75,7 @@ func TestFetchTradablePairs(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
+	k.Verbose = true
 	t.Parallel()
 	sp, err := currency.NewPairFromString("XBTUSD")
 	if err != nil {
@@ -252,11 +253,13 @@ func TestFuturesCancelAllOrders(t *testing.T) {
 }
 
 func TestGetFuturesAccountData(t *testing.T) {
+	k.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
 	t.Parallel()
-	_, err := k.GetFuturesAccountData()
+	a, err := k.GetFuturesAccountData()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

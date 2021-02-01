@@ -737,7 +737,7 @@ func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts
 	var response AllEnabledExchangeAccounts
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
-		if !(exchanges[x] != nil && exchanges[x].IsEnabled()) {
+		if exchanges[x] == nil || !exchanges[x].IsEnabled() {
 			continue
 		}
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {

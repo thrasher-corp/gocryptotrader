@@ -98,6 +98,7 @@ func (k *Kraken) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:      true,
 				TickerFetching:      true,
 				KlineFetching:       true,
 				TradeFetching:       true,
@@ -398,47 +399,72 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	switch assetType {
 	case asset.Spot:
-		t, err := k.GetTicker(p)
+		pairs, err := k.GetEnabledPairs(assetType)
 		if err != nil {
 			return nil, err
 		}
-		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         t.Last,
-			High:         t.High,
-			Low:          t.Low,
-			Bid:          t.Bid,
-			Ask:          t.Ask,
-			Volume:       t.Volume,
-			Open:         t.Open,
-			Pair:         p,
-			ExchangeName: k.Name,
-			AssetType:    assetType})
+		pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
 		if err != nil {
 			return nil, err
+		}
+		tickers, err := k.GetTickers(pairsCollated)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range pairs {
+			for c, t := range tickers {
+				pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
+				if err != nil {
+					return nil, err
+				}
+				if !strings.EqualFold(pairFmt.String(), c) {
+					altCurrency := assetTranslator.LookupAltname(c)
+					if altCurrency == "" {
+						continue
+					}
+					if !strings.EqualFold(pairFmt.String(), altCurrency) {
+						continue
+					}
+				}
+
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         t.Last,
+					High:         t.High,
+					Low:          t.Low,
+					Bid:          t.Bid,
+					Ask:          t.Ask,
+					Volume:       t.Volume,
+					Open:         t.Open,
+					Pair:         pairs[i],
+					ExchangeName: k.Name,
+					AssetType:    assetType})
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 	case asset.Futures:
 		t, err := k.GetFuturesTickers()
 		if err != nil {
 			return nil, err
 		}
-		formatPair, err := k.FormatExchangeCurrency(p, asset.Futures)
-		if err != nil {
-			return nil, err
-		}
 		for x := range t.Tickers {
-			if strings.EqualFold(t.Tickers[x].Symbol, formatPair.String()) {
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         t.Tickers[x].Last,
-					Bid:          t.Tickers[x].Bid,
-					Ask:          t.Tickers[x].Ask,
-					Volume:       t.Tickers[x].Vol24h,
-					Open:         t.Tickers[x].Open24H,
-					Pair:         p,
-					ExchangeName: k.Name,
-					AssetType:    assetType})
-				if err != nil {
-					return nil, err
-				}
+			pair, err := currency.NewPairFromString(t.Tickers[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         t.Tickers[x].Last,
+				Bid:          t.Tickers[x].Bid,
+				Ask:          t.Tickers[x].Ask,
+				Volume:       t.Tickers[x].Vol24h,
+				Open:         t.Tickers[x].Open24H,
+				Pair:         pair,
+				ExchangeName: k.Name,
+				AssetType:    assetType})
+			if err != nil {
+				return nil, err
 			}
 		}
 	default:

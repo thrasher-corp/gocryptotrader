@@ -654,11 +654,7 @@ func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 				var currencyDetails []account.Balance
 			balance:
 				for j := range balances {
-					var frozen bool
-					if balances[j].Type == "frozen" {
-						frozen = true
-					}
-
+					frozen := balances[j].Type == "frozen"
 					for i := range currencyDetails {
 						if currencyDetails[i].CurrencyName.String() == balances[j].Currency {
 							if frozen {

@@ -578,9 +578,7 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 			})
 		}
 
-		acc.AssetType = asset.Spot
 		acc.Currencies = currencyBalance
-		info.Accounts = append(info.Accounts, acc)
 
 	case asset.CoinMarginedFutures:
 		accData, err := b.GetFuturesAccountInfo()
@@ -596,9 +594,7 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 			})
 		}
 
-		acc.AssetType = asset.CoinMarginedFutures
 		acc.Currencies = currencyDetails
-		info.Accounts = append(info.Accounts, acc)
 
 	case asset.USDTMarginedFutures:
 		accData, err := b.UAccountBalanceV2()
@@ -614,13 +610,13 @@ func (b *Binance) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 			})
 		}
 
-		acc.AssetType = asset.USDTMarginedFutures
 		acc.Currencies = currencyDetails
-		info.Accounts = append(info.Accounts, acc)
 
 	default:
 		return info, fmt.Errorf("%v assetType not supported", assetType)
 	}
+	acc.AssetType = assetType
+	info.Accounts = append(info.Accounts, acc)
 	err := account.Process(&info)
 	if err != nil {
 		return account.Holdings{}, err
