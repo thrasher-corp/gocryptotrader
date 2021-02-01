@@ -2,12 +2,12 @@ package currencystatstics
 
 import (
 	"fmt"
-	"math"
 	"sort"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	math2 "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -54,11 +54,11 @@ func (c *CurrencyStatistic) CalculateResults() {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
 	c.MaxDrawdown = calculateMaxDrawdown(allDataEvents)
-	c.SharpeRatio = calculateSharpeRatio(returnPerCandle, last.Holdings.RiskFreeRate)
-	c.SortinoRatio = calculateSortinoRatio(returnPerCandle, negativeReturns, last.Holdings.RiskFreeRate)
-	c.InformationRatio = calculateInformationRatio(returnPerCandle, []float64{last.Holdings.RiskFreeRate})
-	c.CalmarRatio = calculateCalmarRatio(returnPerCandle, &c.MaxDrawdown)
-	c.CompoundAnnualGrowthRate = calculateCompoundAnnualGrowthRate(
+	c.SharpeRatio = math2.CalculateSharpeRatio(returnPerCandle, last.Holdings.RiskFreeRate)
+	c.SortinoRatio = math2.CalculateSortinoRatio(returnPerCandle, negativeReturns, last.Holdings.RiskFreeRate)
+	c.InformationRatio = math2.CalculateInformationRatio(returnPerCandle, []float64{last.Holdings.RiskFreeRate})
+	c.CalmarRatio = math2.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price)
+	c.CompoundAnnualGrowthRate = math2.CalculateCompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
 		last.Holdings.TotalValue,
 		first.DataEvent.GetTime(),
@@ -203,121 +203,4 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 	}
 
 	return maxDrawdown
-}
-
-func calculateCompoundAnnualGrowthRate(openValue, closeValue float64, start, end time.Time, interval gctkline.Interval) float64 {
-	p := gctkline.TotalCandlesPerInterval(start, end, interval)
-
-	k := math.Pow(closeValue/openValue, 1/float64(p)) - 1
-	return k * 100
-}
-
-func calculateCalmarRatio(values []float64, maxDrawdown *Swing) float64 {
-	if maxDrawdown == nil {
-		return 0
-	}
-	avg := calculateTheAverage(values)
-	drawdownDiff := (maxDrawdown.Highest.Price - maxDrawdown.Lowest.Price) / maxDrawdown.Highest.Price
-	if drawdownDiff == 0 {
-		return 0
-	}
-	return avg / drawdownDiff
-}
-
-func calculateInformationRatio(values, riskFreeRates []float64) float64 {
-	if len(riskFreeRates) == 1 {
-		for i := range values {
-			if i == 0 {
-				continue
-			}
-			riskFreeRates = append(riskFreeRates, riskFreeRates[0])
-		}
-	}
-	avgValue := calculateTheAverage(values)
-	avgComparison := calculateTheAverage(riskFreeRates)
-	var diffs []float64
-	for i := range values {
-		diffs = append(diffs, values[i]-riskFreeRates[i])
-	}
-	stdDev := calculateStandardDeviation(diffs)
-	if stdDev == 0 {
-		return 0
-	}
-	return (avgValue - avgComparison) / stdDev
-}
-
-func calculateStandardDeviation(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	avg := calculateTheAverage(values)
-
-	diffs := make([]float64, len(values))
-	for x := range values {
-		diffs[x] = math.Pow(values[x]-avg, 2)
-	}
-	return math.Sqrt(calculateTheAverage(diffs))
-}
-
-// calculateSampleStandardDeviation is used in sharpe ratio calculations
-// calculates the sample rate standard deviation
-func calculateSampleStandardDeviation(vals []float64) float64 {
-	if len(vals) <= 1 {
-		return 0
-	}
-	mean := calculateTheAverage(vals)
-	var superMean []float64
-	var combined float64
-	for i := range vals {
-		result := math.Pow(vals[i]-mean, 2)
-		superMean = append(superMean, result)
-		combined += result
-	}
-
-	avg := combined / (float64(len(superMean)) - 1)
-	return math.Sqrt(avg)
-}
-
-func calculateTheAverage(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	var sumOfValues float64
-	for x := range values {
-		sumOfValues += values[x]
-	}
-	return sumOfValues / float64(len(values))
-}
-
-// calculateSortinoRatio returns sortino ratio of backtest compared to risk-free
-func calculateSortinoRatio(movementPerCandle, excessMovement []float64, riskFreeRate float64) float64 {
-	mean := calculateTheAverage(movementPerCandle)
-	if mean == 0 {
-		return 0
-	}
-	if len(excessMovement) == 0 {
-		return 0
-	}
-	totalNegativeResultsSquared := 0.0
-	for x := range excessMovement {
-		totalNegativeResultsSquared += math.Pow(excessMovement[x], 2)
-	}
-
-	averageDownsideDeviation := math.Sqrt(totalNegativeResultsSquared / float64(len(movementPerCandle)))
-
-	return (mean - riskFreeRate) / averageDownsideDeviation
-}
-
-// calculateSharpeRatio returns sharpe ratio of backtest compared to risk-free
-func calculateSharpeRatio(movementPerCandle []float64, riskFreeRate float64) float64 {
-	if len(movementPerCandle) <= 1 {
-		return 0
-	}
-	mean := calculateTheAverage(movementPerCandle)
-	standardDeviation := calculateSampleStandardDeviation(movementPerCandle)
-
-	if standardDeviation == 0 {
-		return 0
-	}
-	return (mean - riskFreeRate) / standardDeviation
 }

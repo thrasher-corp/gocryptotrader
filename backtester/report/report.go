@@ -29,7 +29,6 @@ func (d *Data) GenerateReport() error {
 		sort.Slice(cands, func(x, y int) bool {
 			return cands[x].Time < cands[y].Time
 		})
-		d.EnhancedCandles[i].Candles = cands
 		if len(d.EnhancedCandles[i].Candles) >= maxChartLimit {
 			d.EnhancedCandles[i].IsOverLimit = true
 			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]

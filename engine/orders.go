@@ -402,39 +402,8 @@ func (o *orderManager) GetOrdersSnapshot(s order.Status) ([]order.Detail, time.T
 				latestUpdate = v[i].LastUpdated
 			}
 
-			os = append(os, order.Detail{
-				ImmediateOrCancel: v[i].ImmediateOrCancel,
-				HiddenOrder:       v[i].HiddenOrder,
-				FillOrKill:        v[i].FillOrKill,
-				PostOnly:          v[i].PostOnly,
-				Leverage:          v[i].Leverage,
-				Price:             v[i].Price,
-				Amount:            v[i].Amount,
-				LimitPriceUpper:   v[i].LimitPriceUpper,
-				LimitPriceLower:   v[i].LimitPriceLower,
-				TriggerPrice:      v[i].TriggerPrice,
-				TargetAmount:      v[i].TargetAmount,
-				ExecutedAmount:    v[i].ExecutedAmount,
-				RemainingAmount:   v[i].RemainingAmount,
-				Cost:              v[i].Cost,
-				Fee:               v[i].Fee,
-				Exchange:          v[i].Exchange,
-				InternalOrderID:   v[i].InternalOrderID,
-				ID:                v[i].ID,
-				ClientOrderID:     v[i].ClientOrderID,
-				AccountID:         v[i].AccountID,
-				ClientID:          v[i].ClientID,
-				WalletAddress:     v[i].WalletAddress,
-				Type:              v[i].Type,
-				Side:              v[i].Side,
-				Status:            v[i].Status,
-				AssetType:         v[i].AssetType,
-				Date:              v[i].Date,
-				CloseTime:         v[i].CloseTime,
-				LastUpdated:       v[i].LastUpdated,
-				Pair:              v[i].Pair,
-				Trades:            v[i].Trades,
-			})
+			cpy := *v[i]
+			os = append(os, cpy)
 		}
 	}
 

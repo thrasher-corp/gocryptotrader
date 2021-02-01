@@ -2,6 +2,7 @@ package report
 
 import (
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -487,4 +488,27 @@ func TestEnhanceCandles(t *testing.T) {
 	if len(d.EnhancedCandles) == 0 {
 		t.Error("expected enhanced candles")
 	}
+}
+
+func TestRyan(t *testing.T) {
+	tt1 := time.Now()
+	tt2 := tt1.Add(time.Second)
+	tt3 := tt2.Add(time.Second)
+
+	sup := []DetailedCandle{
+		{
+			Time: tt3.Unix(),
+		},
+		{
+			Time: tt1.Unix(),
+		},
+		{
+			Time: tt2.Unix(),
+		},
+	}
+	cands := sup
+	sort.Slice(cands, func(x, y int) bool {
+		return cands[x].Time < cands[y].Time
+	})
+	sup = cands
 }

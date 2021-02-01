@@ -94,19 +94,19 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 		switch k {
 		case rsiHighKey:
 			rsiHigh, ok := v.(float64)
-			if !ok {
+			if !ok || rsiHigh <= 0 {
 				return fmt.Errorf("provided rsi-high value could not be parsed: %v", v)
 			}
 			s.rsiHigh = rsiHigh
 		case rsiLowKey:
 			rsiLow, ok := v.(float64)
-			if !ok {
+			if !ok || rsiLow <= 0 {
 				return fmt.Errorf("provided rsi-low value could not be parsed: %v", v)
 			}
 			s.rsiLow = rsiLow
 		case rsiPeriodKey:
 			rsiPeriod, ok := v.(float64)
-			if !ok {
+			if !ok || rsiPeriod <= 0 {
 				return fmt.Errorf("provided rsi-period value could not be parsed: %v", v)
 			}
 			s.rsiPeriod = rsiPeriod
