@@ -750,7 +750,6 @@ func getAccountInfo(c *cli.Context) error {
 	} else {
 		exchange = c.Args().First()
 	}
-	fmt.Println(c.Args().Get(1))
 	var assetType string
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
