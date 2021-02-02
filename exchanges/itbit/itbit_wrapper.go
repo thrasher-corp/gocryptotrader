@@ -295,7 +295,7 @@ func (i *ItBit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (i *ItBit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(i.Name,assetType)
+	acc, err := account.GetHoldings(i.Name, assetType)
 	if err != nil {
 		return i.UpdateAccountInfo(assetType)
 	}
