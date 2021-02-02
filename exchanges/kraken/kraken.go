@@ -1015,10 +1015,10 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 	if err != nil {
 		return err
 	}
-	var errCap AuthErrorData
+	var errCap SpotAuthError
 	if err := json.Unmarshal(interim, &errCap); err == nil {
-		if errCap.Result != "success" && errCap.Error != "" {
-			return errors.New(errCap.Error)
+		if len(errCap.Error) != 0 {
+			return errors.New(errCap.Error[0])
 		}
 	}
 	return json.Unmarshal(interim, result)

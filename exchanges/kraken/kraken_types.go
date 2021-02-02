@@ -88,6 +88,11 @@ type AuthErrorData struct {
 	Error      string `json:"error"`
 }
 
+// SpotAuthError stores authenticated error messages
+type SpotAuthError struct {
+	Error []string `json:"error"`
+}
+
 // Asset holds asset information
 type Asset struct {
 	Altname         string `json:"altname"`
