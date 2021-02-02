@@ -2,9 +2,6 @@ package math
 
 import (
 	"math"
-	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee
@@ -40,10 +37,9 @@ func RoundFloat(x float64, prec int) float64 {
 	return math.Round(x*pow) / pow
 }
 
-func CalculateCompoundAnnualGrowthRate(openValue, closeValue float64, start, end time.Time, interval kline.Interval) float64 {
-	p := kline.TotalCandlesPerInterval(start, end, interval)
-
-	k := math.Pow(closeValue/openValue, 1/float64(p)) - 1
+// Calculates CAGR using start and end and an interval
+func CalculateCompoundAnnualGrowthRate(openValue, closeValue, durationPerYear, intervalDuration float64) float64 {
+	k := math.Pow(closeValue/openValue, durationPerYear/intervalDuration) - 1
 	return k * 100
 }
 

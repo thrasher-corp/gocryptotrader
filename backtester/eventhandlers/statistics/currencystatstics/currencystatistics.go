@@ -7,7 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	math2 "github.com/thrasher-corp/gocryptotrader/common/math"
+	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -54,16 +54,21 @@ func (c *CurrencyStatistic) CalculateResults() {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
 	c.MaxDrawdown = calculateMaxDrawdown(allDataEvents)
-	c.SharpeRatio = math2.CalculateSharpeRatio(returnPerCandle, last.Holdings.RiskFreeRate)
-	c.SortinoRatio = math2.CalculateSortinoRatio(returnPerCandle, negativeReturns, last.Holdings.RiskFreeRate)
-	c.InformationRatio = math2.CalculateInformationRatio(returnPerCandle, []float64{last.Holdings.RiskFreeRate})
-	c.CalmarRatio = math2.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price)
-	c.CompoundAnnualGrowthRate = math2.CalculateCompoundAnnualGrowthRate(
+	c.SharpeRatio = math.CalculateSharpeRatio(returnPerCandle, last.Holdings.RiskFreeRate)
+	c.SortinoRatio = math.CalculateSortinoRatio(returnPerCandle, negativeReturns, last.Holdings.RiskFreeRate)
+	c.InformationRatio = math.CalculateInformationRatio(returnPerCandle, []float64{last.Holdings.RiskFreeRate})
+	c.CalmarRatio = math.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price)
+
+	interval := first.DataEvent.GetInterval()
+	intervalsPerYear := float64(interval.IntervalsPerYear())
+	durationPerYear := intervalsPerYear * float64(interval.Duration())
+	btDuration := float64(last.DataEvent.GetTime().Sub(first.DataEvent.GetTime()))
+
+	c.CompoundAnnualGrowthRate = math.CalculateCompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
 		last.Holdings.TotalValue,
-		first.DataEvent.GetTime(),
-		last.DataEvent.GetTime(),
-		first.DataEvent.GetInterval())
+		durationPerYear,
+		btDuration)
 }
 
 // PrintResults outputs all calculated statistics to the command line

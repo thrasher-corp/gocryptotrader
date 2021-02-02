@@ -767,3 +767,26 @@ func TestHasDataAtDate(t *testing.T) {
 		t.Error("should not have data")
 	}
 }
+
+func TestIntervalsPerYear(t *testing.T) {
+	i := OneYear
+	if i.IntervalsPerYear() != 1.0 {
+		t.Error("expected 1")
+	}
+	i = OneDay
+	if i.IntervalsPerYear() != 365 {
+		t.Error("expected 365")
+	}
+	i = OneHour
+	if i.IntervalsPerYear() != 8760 {
+		t.Error("expected 8670")
+	}
+	i = TwoHour
+	if i.IntervalsPerYear() != 4380 {
+		t.Error("expected 4380")
+	}
+	i = TwoHour + FifteenSecond
+	if i.IntervalsPerYear() != 4370.893970893971 {
+		t.Error("expected 4370...")
+	}
+}

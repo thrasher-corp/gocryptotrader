@@ -329,6 +329,12 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out float
 	return -1
 }
 
+// IntervalsPerYear helps determine the number of intervals in a year
+// used in CAGR calculation to know the amount of time of an interval in a year
+func (i *Interval) IntervalsPerYear() float64 {
+	return float64(OneYear.Duration().Nanoseconds()) / float64(i.Duration().Nanoseconds())
+}
+
 // CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range
 // If an API is limited in the amount of candles it can make in a request, it will automatically separate
 // ranges into the limit
