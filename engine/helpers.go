@@ -770,34 +770,6 @@ func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts
 	return response
 }
 
-// // GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
-// func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
-// 	var response AllEnabledExchangeAccounts
-// 	exchanges := bot.GetExchanges()
-// 	for x := range exchanges {
-// 		if exchanges[x] != nil && exchanges[x].IsEnabled() {
-// 			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-// 				if bot.Settings.Verbose {
-// 					log.Debugf(log.ExchangeSys,
-// 						"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
-// 						exchanges[x].GetName())
-// 				}
-// 				continue
-// 			}
-// 			accountInfo, err := exchanges[x].FetchAccountInfo(asset.Spot)
-// 			if err != nil {
-// 				log.Errorf(log.ExchangeSys,
-// 					"Error encountered retrieving exchange account info for %s. Error %s\n",
-// 					exchanges[x].GetName(),
-// 					err)
-// 				continue
-// 			}
-// 			response.Data = append(response.Data, accountInfo)
-// 		}
-// 	}
-// 	return response
-// }
-
 func verifyCert(pemData []byte) error {
 	var pemBlock *pem.Block
 	pemBlock, _ = pem.Decode(pemData)
