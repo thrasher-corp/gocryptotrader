@@ -441,7 +441,7 @@ func (h *HitBTC) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (h *HitBTC) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(h.Name)
+	acc, err := account.GetHoldings(h.Name, assetType)
 	if err != nil {
 		return h.UpdateAccountInfo(assetType)
 	}

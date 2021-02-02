@@ -118,7 +118,7 @@ func (a *Alphapoint) UpdateAccountInfo(assetType asset.Item) (account.Holdings, 
 // FetchAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
 func (a *Alphapoint) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(a.Name)
+	acc, err := account.GetHoldings(a.Name, assetType)
 	if err != nil {
 		return a.UpdateAccountInfo(assetType)
 	}

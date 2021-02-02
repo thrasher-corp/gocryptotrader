@@ -347,7 +347,7 @@ func (l *LakeBTC) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (l *LakeBTC) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(l.Name)
+	acc, err := account.GetHoldings(l.Name, assetType)
 	if err != nil {
 		return l.UpdateAccountInfo(assetType)
 	}

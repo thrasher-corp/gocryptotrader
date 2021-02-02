@@ -401,7 +401,7 @@ func (f *FTX) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) 
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (f *FTX) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(f.Name)
+	acc, err := account.GetHoldings(f.Name, assetType)
 	if err != nil {
 		return f.UpdateAccountInfo(assetType)
 	}

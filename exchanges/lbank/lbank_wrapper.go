@@ -332,7 +332,7 @@ func (l *Lbank) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (l *Lbank) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(l.Name)
+	acc, err := account.GetHoldings(l.Name, assetType)
 	if err != nil {
 		return l.UpdateAccountInfo(assetType)
 	}

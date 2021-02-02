@@ -388,7 +388,7 @@ func (b *Bitstamp) UpdateAccountInfo(assetType asset.Item) (account.Holdings, er
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitstamp) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name)
+	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(assetType)
 	}

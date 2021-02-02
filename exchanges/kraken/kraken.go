@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -967,7 +969,7 @@ func (k *Kraken) SendHTTPRequest(ep exchange.URL, path string, result interface{
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, params url.Values, result interface{}) (err error) {
+func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, params url.Values, result interface{}) error {
 	if !k.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			k.Name)
@@ -995,18 +997,31 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ep exchange.URL, method string, pa
 	headers["API-Key"] = k.API.Credentials.Key
 	headers["API-Sign"] = signature
 
-	return k.SendPayload(context.Background(), &request.Item{
+	interim := json.RawMessage{}
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute))
+	defer cancel()
+	err = k.SendPayload(ctx, &request.Item{
 		Method:        http.MethodPost,
 		Path:          endpoint + path,
 		Headers:       headers,
 		Body:          strings.NewReader(encoded),
-		Result:        result,
+		Result:        &interim,
 		AuthRequest:   true,
 		NonceEnabled:  true,
 		Verbose:       k.Verbose,
 		HTTPDebugging: k.HTTPDebugging,
 		HTTPRecording: k.HTTPRecording,
 	})
+	if err != nil {
+		return err
+	}
+	var errCap AuthErrorData
+	if err := json.Unmarshal(interim, &errCap); err == nil {
+		if errCap.Result != "success" && errCap.Error != "" {
+			return errors.New(errCap.Error)
+		}
+	}
+	return json.Unmarshal(interim, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

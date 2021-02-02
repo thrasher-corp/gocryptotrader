@@ -342,7 +342,7 @@ func (c *CoinbasePro) UpdateAccountInfo(assetType asset.Item) (account.Holdings,
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (c *CoinbasePro) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(c.Name)
+	acc, err := account.GetHoldings(c.Name, assetType)
 	if err != nil {
 		return c.UpdateAccountInfo(assetType)
 	}

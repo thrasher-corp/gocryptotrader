@@ -411,7 +411,7 @@ func (p *Poloniex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, er
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (p *Poloniex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(p.Name)
+	acc, err := account.GetHoldings(p.Name, assetType)
 	if err != nil {
 		return p.UpdateAccountInfo(assetType)
 	}

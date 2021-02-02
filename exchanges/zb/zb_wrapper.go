@@ -386,7 +386,7 @@ func (z *ZB) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (z *ZB) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(z.Name)
+	acc, err := account.GetHoldings(z.Name, assetType)
 	if err != nil {
 		return z.UpdateAccountInfo(assetType)
 	}

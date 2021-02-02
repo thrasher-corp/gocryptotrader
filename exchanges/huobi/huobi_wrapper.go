@@ -736,7 +736,7 @@ func (h *HUOBI) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (h *HUOBI) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(h.Name)
+	acc, err := account.GetHoldings(h.Name, assetType)
 	if err != nil {
 		return h.UpdateAccountInfo(assetType)
 	}

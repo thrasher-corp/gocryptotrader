@@ -610,7 +610,7 @@ func (k *Kraken) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (k *Kraken) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(k.Name)
+	acc, err := account.GetHoldings(k.Name, assetType)
 	if err != nil {
 		return k.UpdateAccountInfo(assetType)
 	}

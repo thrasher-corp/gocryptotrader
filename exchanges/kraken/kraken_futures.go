@@ -257,7 +257,7 @@ func (k *Kraken) signFuturesRequest(endpoint, nonce, data string) string {
 }
 
 // SendFuturesAuthRequest will send an auth req
-func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values, data map[string]interface{}, result interface{}) (err error) {
+func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values, data map[string]interface{}, result interface{}) error {
 	if !k.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			k.Name)
@@ -284,7 +284,7 @@ func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values
 	interim := json.RawMessage{}
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute))
 	defer cancel()
-	err = k.SendPayload(ctx, &request.Item{
+	err := k.SendPayload(ctx, &request.Item{
 		Method:        method,
 		Path:          futuresURL + common.EncodeURLValues(path, postData),
 		Headers:       headers,
@@ -298,7 +298,7 @@ func (k *Kraken) SendFuturesAuthRequest(method, path string, postData url.Values
 		return err
 	}
 	var errCap AuthErrorData
-	if err = json.Unmarshal(interim, &errCap); err == nil {
+	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Result != "success" && errCap.Error != "" {
 			return errors.New(errCap.Error)
 		}

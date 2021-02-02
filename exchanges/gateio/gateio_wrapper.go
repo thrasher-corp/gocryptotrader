@@ -407,7 +407,7 @@ func (g *Gateio) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (g *Gateio) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(g.Name)
+	acc, err := account.GetHoldings(g.Name, assetType)
 	if err != nil {
 		return g.UpdateAccountInfo(assetType)
 	}

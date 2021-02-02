@@ -236,7 +236,7 @@ func (g *Gemini) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (g *Gemini) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(g.Name)
+	acc, err := account.GetHoldings(g.Name, assetType)
 	if err != nil {
 		return g.UpdateAccountInfo(assetType)
 	}

@@ -772,8 +772,6 @@ func getAccountInfo(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	fmt.Println("WEOW", assetType)
-
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetAccountInfo(context.Background(),
 		&gctrpc.GetAccountInfoRequest{

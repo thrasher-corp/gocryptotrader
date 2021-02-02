@@ -424,7 +424,7 @@ func (b *Bitmex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *Bitmex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name)
+	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(assetType)
 	}

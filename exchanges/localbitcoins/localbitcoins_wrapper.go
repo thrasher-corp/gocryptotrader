@@ -275,7 +275,7 @@ func (l *LocalBitcoins) UpdateAccountInfo(assetType asset.Item) (account.Holding
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (l *LocalBitcoins) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(l.Name)
+	acc, err := account.GetHoldings(l.Name, assetType)
 	if err != nil {
 		return l.UpdateAccountInfo(assetType)
 	}

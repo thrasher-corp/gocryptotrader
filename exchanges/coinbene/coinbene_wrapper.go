@@ -502,7 +502,7 @@ func (c *Coinbene) UpdateAccountInfo(assetType asset.Item) (account.Holdings, er
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (c *Coinbene) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(c.Name)
+	acc, err := account.GetHoldings(c.Name, assetType)
 	if err != nil {
 		return c.UpdateAccountInfo(assetType)
 	}

@@ -358,7 +358,7 @@ func (e *EXMO) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error)
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (e *EXMO) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(e.Name)
+	acc, err := account.GetHoldings(e.Name, assetType)
 	if err != nil {
 		return e.UpdateAccountInfo(assetType)
 	}

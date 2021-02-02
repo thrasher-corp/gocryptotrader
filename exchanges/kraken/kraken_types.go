@@ -83,9 +83,9 @@ type GenericResponse struct {
 
 // AuthErrorData stores authenticated error messages
 type AuthErrorData struct {
-	Result     string    `json:"result"`
-	ServerTime time.Time `json:"serverTime,string"`
-	Error      string    `json:"error"`
+	Result     string `json:"result"`
+	ServerTime string `json:"serverTime"`
+	Error      string `json:"error"`
 }
 
 // Asset holds asset information

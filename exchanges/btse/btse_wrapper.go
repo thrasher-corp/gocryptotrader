@@ -404,7 +404,7 @@ func (b *BTSE) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error)
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (b *BTSE) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name)
+	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
 		return b.UpdateAccountInfo(assetType)
 	}
