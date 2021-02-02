@@ -37,7 +37,8 @@ func TestHoldings(t *testing.T) {
 	err = Process(&Holdings{
 		Exchange: "Test",
 		Accounts: []SubAccount{{
-			ID: "1337",
+			AssetType: asset.Spot,
+			ID:        "1337",
 			Currencies: []Balance{
 				{
 					CurrencyName: currency.BTC,
