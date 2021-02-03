@@ -316,7 +316,7 @@ type UPositionMarginChangeHistoryData struct {
 	PositionSide string  `json:"positionSide"`
 }
 
-// UPositionInformationV2 stores positions' data
+// UPositionInformationV2 stores positions data
 type UPositionInformationV2 struct {
 	EntryPrice           float64 `json:"entryPrice,string"`
 	MarginType           string  `json:"marginType"`
