@@ -64,3 +64,9 @@ func (o *Order) GetLeverage() float64 {
 func (o *Order) SetLeverage(l float64) {
 	o.Leverage = l
 }
+
+// GetFunds returns the amount of funds the portfolio manager
+// has allocated to this potential position
+func (o *Order) GetFunds() float64 {
+	return o.Funds
+}

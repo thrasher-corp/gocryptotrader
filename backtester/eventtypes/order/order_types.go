@@ -16,6 +16,7 @@ type Order struct {
 	Amount    float64
 	OrderType order.Type
 	Leverage  float64
+	Funds     float64
 }
 
 // Event inherits common event interfaces along with extra functions related to handling orders
@@ -30,4 +31,5 @@ type Event interface {
 	SetID(id string)
 	GetID() string
 	IsLeveraged() bool
+	GetFunds() float64
 }

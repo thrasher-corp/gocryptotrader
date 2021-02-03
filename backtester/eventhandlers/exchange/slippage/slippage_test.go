@@ -24,25 +24,10 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ticker, err := b.FetchTicker(cp, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rate := CalculateSlippageByOrderbook(ob, gctorder.Buy, ticker.High)
-	if rate == 0 {
-		t.Error("expected updated rate")
-	}
-	buyPrice := ticker.High * rate
-	if buyPrice < ticker.High {
-		t.Error("slipped price must be higher than original price")
-	}
-
-	rate = CalculateSlippageByOrderbook(ob, gctorder.Sell, ticker.Low)
-	if rate == 0 {
-		t.Error("expected updated rate")
-	}
-	sellPrice := ticker.Low * rate
-	if sellPrice > ticker.Low {
-		t.Error("slipped price must be lower than original price")
+	amountOfFunds := 1000.0
+	feeRate := 0.03
+	price, amount := CalculateSlippageByOrderbook(ob, gctorder.Buy, amountOfFunds, feeRate)
+	if price*amount+(price*amount*feeRate) > amountOfFunds {
+		t.Error("order size must be less than funds")
 	}
 }

@@ -37,9 +37,12 @@ func RoundFloat(x float64, prec int) float64 {
 	return math.Round(x*pow) / pow
 }
 
-// Calculates CAGR using start and end and an interval
-func CalculateCompoundAnnualGrowthRate(openValue, closeValue, durationPerYear, intervalDuration float64) float64 {
-	k := math.Pow(closeValue/openValue, durationPerYear/intervalDuration) - 1
+// CalculateCompoundAnnualGrowthRate Calculates CAGR.
+// Using years, intervals per year would be 1 and number of intervals would be the number of years
+// Using days, intervals per year would be 365 and number of intervals would be the number of days
+// et cetera et cetera
+func CalculateCompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, numberOfIntervals float64) float64 {
+	k := math.Pow(closeValue/openValue, intervalsPerYear/numberOfIntervals) - 1
 	return k * 100
 }
 
@@ -55,6 +58,7 @@ func CalculateCalmarRatio(values []float64, highestPrice, lowestPrice float64) f
 	return avg / drawdownDiff
 }
 
+// CalculateInformationRatio calculates the information ratio
 func CalculateInformationRatio(values, riskFreeRates []float64) float64 {
 	if len(riskFreeRates) == 1 {
 		for i := range values {
@@ -70,14 +74,15 @@ func CalculateInformationRatio(values, riskFreeRates []float64) float64 {
 	for i := range values {
 		diffs = append(diffs, values[i]-riskFreeRates[i])
 	}
-	stdDev := CalculateStandardDeviation(diffs)
+	stdDev := CalculatePopulationStandardDeviation(diffs)
 	if stdDev == 0 {
 		return 0
 	}
 	return (avgValue - avgComparison) / stdDev
 }
 
-func CalculateStandardDeviation(values []float64) float64 {
+// CalculatePopulationStandardDeviation calculates standard deviation using population based calculation
+func CalculatePopulationStandardDeviation(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
@@ -90,8 +95,7 @@ func CalculateStandardDeviation(values []float64) float64 {
 	return math.Sqrt(CalculateTheAverage(diffs))
 }
 
-// CalculateSampleStandardDeviation is used in sharpe ratio calculations
-// calculates the sample rate standard deviation
+// CalculateSampleStandardDeviation calculates standard deviation using sample based calculation
 func CalculateSampleStandardDeviation(vals []float64) float64 {
 	if len(vals) <= 1 {
 		return 0
@@ -109,6 +113,7 @@ func CalculateSampleStandardDeviation(vals []float64) float64 {
 	return math.Sqrt(avg)
 }
 
+// CalculateTheAverage returns the average value in a slice of floats
 func CalculateTheAverage(values []float64) float64 {
 	if len(values) == 0 {
 		return 0

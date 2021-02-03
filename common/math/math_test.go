@@ -3,9 +3,6 @@ package math
 import (
 	"math"
 	"testing"
-	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 func TestCalculateFee(t *testing.T) {
@@ -133,7 +130,7 @@ func TestInformationRatio(t *testing.T) {
 	for i := range figures {
 		eachDiff = append(eachDiff, figures[i]-comparisonFigures[i])
 	}
-	stdDev := CalculateStandardDeviation(eachDiff)
+	stdDev := CalculatePopulationStandardDeviation(eachDiff)
 	if stdDev != 0.028992588851865803 {
 		t.Error(stdDev)
 	}
@@ -160,12 +157,18 @@ func TestCAGR(t *testing.T) {
 	cagr := CalculateCompoundAnnualGrowthRate(
 		100,
 		147,
-		time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local).Round(kline.OneYear.Duration()),
-		time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local).Round(kline.OneYear.Duration()),
-		kline.OneYear)
-	if cagr != 8.009875865888949 {
-		t.Log(cagr)
-		t.Error(cagr)
+		1,
+		1)
+	if cagr != 47 {
+		t.Error("expected 47%")
+	}
+	cagr = CalculateCompoundAnnualGrowthRate(
+		100,
+		147,
+		365,
+		365)
+	if cagr != 47 {
+		t.Error("expected 47%")
 	}
 }
 

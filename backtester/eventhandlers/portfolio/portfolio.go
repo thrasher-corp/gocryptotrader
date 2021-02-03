@@ -116,6 +116,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 	}
 
 	sizedOrder := p.sizeOrder(signal, cs, o, sizingFunds)
+	o.Funds = sizingFunds
 
 	return p.evaluateOrder(signal, o, sizedOrder)
 }

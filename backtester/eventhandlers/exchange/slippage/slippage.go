@@ -29,20 +29,10 @@ func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate float64
 
 // CalculateSlippageByOrderbook will analyse a provided orderbook and return the result of attempting to
 // place the order on there
-func CalculateSlippageByOrderbook(ob *orderbook.Base, side gctorder.Side, price float64) float64 {
-	result, err := ob.WhaleBomb(price, side == gctorder.Buy)
-	if err != nil {
-		return 1
-	}
+func CalculateSlippageByOrderbook(ob *orderbook.Base, side gctorder.Side, amountOfFunds, feeRate float64) (price, amount float64) {
+	result := ob.SimulateOrder(amountOfFunds, side == gctorder.Buy)
 	rate := (result.MinimumPrice - result.MaximumPrice) / result.MaximumPrice
-	if rate < 0 {
-		rate *= -1
-	}
-	if side == gctorder.Buy {
-		return 1 + rate
-	} else if side == gctorder.Sell {
-		return 1 - rate
-	}
-
-	return 1
+	price = result.MinimumPrice * (rate + 1)
+	amount = result.Amount * (1 - feeRate)
+	return
 }

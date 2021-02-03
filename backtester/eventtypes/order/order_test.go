@@ -66,3 +66,13 @@ func TestLeverage(t *testing.T) {
 		t.Error("expected leverage")
 	}
 }
+
+func TestGetFunds(t *testing.T) {
+	o := Order{
+		Funds: 1337,
+	}
+	funds := o.GetFunds()
+	if funds != 1337 {
+		t.Error("expected 1337")
+	}
+}

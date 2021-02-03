@@ -60,7 +60,6 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	volStr := data.StreamVol()
 	volume := volStr[len(volStr)-1]
 	var adjustedPrice, amount float64
-	sizedPortfolioTotal := o.GetAmount() * f.ClosePrice
 	if cs.UseRealOrders {
 		// get current orderbook
 		var ob *orderbook.Base
@@ -69,9 +68,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			return f, err
 		}
 		// calculate an estimated slippage rate
-		slippageRate := slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), f.ClosePrice)
-		adjustedPrice = f.ClosePrice * slippageRate
-		amount = f.Amount
+		adjustedPrice, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), o.GetFunds(), f.ExchangeFee)
 	} else {
 		adjustedPrice, amount, err = e.sizeOfflineOrder(high, low, volume, &cs, f)
 		if err != nil {
@@ -87,7 +84,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			return f, err
 		}
 	}
-	amount = reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal)
+	amount = reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds())
 
 	var orderID string
 	orderID, err = e.placeOrder(adjustedPrice, amount, cs.UseRealOrders, f, bot)
