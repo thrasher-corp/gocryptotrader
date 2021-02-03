@@ -358,27 +358,27 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 		{
 			"ThreeDay",
 			ThreeDay,
-			121,
+			121.66666666666667,
 		},
 		{
 			"FifteenDay",
 			FifteenDay,
-			24,
+			24.333333333333332,
 		},
 		{
 			"OneWeek",
 			OneWeek,
-			52,
+			52.142857142857146,
 		},
 		{
 			"TwoWeek",
 			TwoWeek,
-			26,
+			26.071428571428573,
 		},
 		{
 			"OneMonth",
 			OneMonth,
-			12,
+			12.166666666666666,
 		},
 		{
 			"OneYear",
