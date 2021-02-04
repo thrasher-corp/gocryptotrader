@@ -335,7 +335,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 		assetTypes := base.GetAssetTypes()
 		var useAsset asset.Item
 		for a := range assetTypes {
-			err := base.CurrencyPairs.IsAssetEnabled(assetTypes[a])
+			err = base.CurrencyPairs.IsAssetEnabled(assetTypes[a])
 			if err != nil {
 				continue
 			}
