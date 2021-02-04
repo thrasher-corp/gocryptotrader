@@ -1200,7 +1200,7 @@ func (b *Binance) FuturesChangeInitialLeverage(symbol currency.Pair, leverage in
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !(leverage >= 1 && leverage <= 125) {
+	if leverage < 1 || leverage > 125 {
 		return resp, errors.New("invalid leverage")
 	}
 	params.Set("leverage", strconv.FormatInt(leverage, 10))
