@@ -112,12 +112,8 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
-		if strings.Contains(string(respRaw), "connect success") ||
-			strings.Contains(string(respRaw), "authenticated successfully") {
+		if strings.Contains(string(respRaw), "connect success") {
 			return nil
-		} else if strings.Contains(string(respRaw), "AUTHENTICATE ERROR") {
-			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return errors.New("authentication failure")
 		}
 		return err
 	}
