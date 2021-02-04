@@ -433,7 +433,7 @@ func (h *HUOBI) FIndexKline(symbol currency.Pair, period string, size int64) (FI
 		return resp, fmt.Errorf("invalid period value received")
 	}
 	params.Set("period", period)
-	if size <= 0 && size > 2000 {
+	if size <= 0 || size > 2000 {
 		return resp, fmt.Errorf("invalid size")
 	}
 	params.Set("size", strconv.FormatInt(size, 10))
