@@ -180,6 +180,9 @@ func (b *Bitfinex) GetV2FundingInfo(key string) (MarginFundingDataV2, error) {
 	}
 	response.Sym = sym
 	response.Symbol = symbol
+	if len(fundingData) < 4 {
+		return response, errors.New("invalid length of fundingData")
+	}
 	for x := 0; x < 3; x++ {
 		_, ok := fundingData[x].(float64)
 		if !ok {
@@ -204,6 +207,9 @@ func (b *Bitfinex) GetAccountInfoV2() (AccountV2Data, error) {
 		getAccountFees)
 	if err != nil {
 		return resp, err
+	}
+	if len(data) < 8 {
+		return resp, errors.New("invalid length of data")
 	}
 	var ok bool
 	var tempString string

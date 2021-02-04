@@ -433,7 +433,7 @@ func TestFOrder(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	cp, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
@@ -501,7 +501,7 @@ func TestFCancelAllOrders(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	cp, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
@@ -567,7 +567,7 @@ func TestFGetOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	cp, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
@@ -676,7 +676,7 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	cp2, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
@@ -711,7 +711,7 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	cp2, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
@@ -765,7 +765,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	cp2, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {

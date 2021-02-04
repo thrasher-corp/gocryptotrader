@@ -86,7 +86,7 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	cp, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {

@@ -70,12 +70,6 @@ type HUOBI struct {
 	AccountID string
 }
 
-// Futures Contracts
-
-// Coin Margined Swaps
-
-// SPOT section below
-
 // GetMarginRates gets margin rates
 func (h *HUOBI) GetMarginRates(symbol currency.Pair) (MarginRatesData, error) {
 	var resp MarginRatesData
@@ -303,7 +297,7 @@ func (h *HUOBI) GetCurrencies() ([]string, error) {
 
 	var result response
 
-	err := h.SendHTTPRequest(exchange.RestSpot, "/v"+huobiAPIVersion+"/"+"/"+huobiCurrencies, &result)
+	err := h.SendHTTPRequest(exchange.RestSpot, "/v"+huobiAPIVersion+"/"+huobiCurrencies, &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}

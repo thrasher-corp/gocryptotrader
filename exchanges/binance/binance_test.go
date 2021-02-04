@@ -59,7 +59,7 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	cp, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {
@@ -1796,18 +1796,19 @@ func TestWrapperGetActiveOrders(t *testing.T) {
 	}
 }
 
-func TestWrapperGetOpenOrders(t *testing.T) {
+func TestWrapperGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
 	}
-	p, err := currency.NewPairFromString("EOS-USDT")
+	p, err := currency.NewPairFromString("EOSUSD_PERP")
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = b.GetOrderHistory(&order.GetOrdersRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,
+		OrderID:   "123",
 		Pairs:     currency.Pairs{p},
 		AssetType: asset.CoinMarginedFutures,
 	})
@@ -1822,6 +1823,7 @@ func TestWrapperGetOpenOrders(t *testing.T) {
 	_, err = b.GetOrderHistory(&order.GetOrdersRequest{
 		Type:      order.AnyType,
 		Side:      order.AnySide,
+		OrderID:   "123",
 		Pairs:     currency.Pairs{p2},
 		AssetType: asset.USDTMarginedFutures,
 	})
@@ -1832,8 +1834,8 @@ func TestWrapperGetOpenOrders(t *testing.T) {
 	_, err = b.GetOrderHistory(&order.GetOrdersRequest{
 		AssetType: asset.USDTMarginedFutures,
 	})
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Errorf("expecting an error since invalid param combination is given. Got err: %v", err)
 	}
 }
 
@@ -1887,7 +1889,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tradablePairs) == 0 {
-		t.Error("no tradable pairs")
+		t.Fatal("no tradable pairs")
 	}
 	cp, err := currency.NewPairFromString(tradablePairs[0])
 	if err != nil {

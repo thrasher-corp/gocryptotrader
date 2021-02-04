@@ -1304,158 +1304,108 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 	case asset.CoinMarginedFutures:
 		for i := range req.Pairs {
-			switch {
-			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
+			var orderHistory []FuturesOrderData
+			var err error
+			if !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "" {
 				if req.EndTicks.After(req.StartTicks) {
 					if time.Since(req.StartTicks) > time.Hour*24*30 {
-						return nil, fmt.Errorf("can only fetch orders 7 days out")
+						return nil, fmt.Errorf("can only fetch orders 30 days out")
 					}
-					orderHistory, err := b.GetAllFuturesOrders(req.Pairs[i], "", req.StartTicks, req.EndTicks, 0, 0)
+					orderHistory, err = b.GetAllFuturesOrders(req.Pairs[i], "", req.StartTicks, req.EndTicks, 0, 0)
 					if err != nil {
 						return nil, err
 					}
-					for y := range orderHistory {
-						var feeBuilder exchange.FeeBuilder
-						feeBuilder.Amount = orderHistory[y].ExecutedQty
-						feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-						feeBuilder.Pair = req.Pairs[i]
-						fee, err := b.GetFee(&feeBuilder)
-						if err != nil {
-							return orders, err
-						}
-						orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
-						orders = append(orders, order.Detail{
-							Price:           orderHistory[y].Price,
-							Amount:          orderHistory[y].OrigQty,
-							ExecutedAmount:  orderHistory[y].ExecutedQty,
-							RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
-							Fee:             fee,
-							Exchange:        b.Name,
-							ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
-							ClientOrderID:   orderHistory[y].ClientOrderID,
-							Type:            orderVars.OrderType,
-							Side:            orderVars.Side,
-							Status:          orderVars.Status,
-							Pair:            req.Pairs[i],
-							AssetType:       asset.CoinMarginedFutures,
-						})
-					}
 				}
-			case req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero():
+			} else if req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero() {
 				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
 				if err != nil {
 					return nil, err
 				}
-				orderHistory, err := b.GetAllFuturesOrders(req.Pairs[i], "", time.Time{}, time.Time{}, fromID, 0)
+				orderHistory, err = b.GetAllFuturesOrders(req.Pairs[i], "", time.Time{}, time.Time{}, fromID, 0)
 				if err != nil {
 					return nil, err
 				}
-				for y := range orderHistory {
-					var feeBuilder exchange.FeeBuilder
-					feeBuilder.Amount = orderHistory[y].ExecutedQty
-					feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-					feeBuilder.Pair = req.Pairs[i]
-					fee, err := b.GetFee(&feeBuilder)
-					if err != nil {
-						return orders, err
-					}
-					orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
-					orders = append(orders, order.Detail{
-						Price:           orderHistory[y].Price,
-						Amount:          orderHistory[y].OrigQty,
-						ExecutedAmount:  orderHistory[y].ExecutedQty,
-						RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
-						Fee:             fee,
-						Exchange:        b.Name,
-						ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
-						ClientOrderID:   orderHistory[y].ClientOrderID,
-						Type:            orderVars.OrderType,
-						Side:            orderVars.Side,
-						Status:          orderVars.Status,
-						Pair:            req.Pairs[i],
-						AssetType:       asset.CoinMarginedFutures,
-					})
-				}
-			default:
+			} else {
 				return nil, fmt.Errorf("invalid combination of input params")
+			}
+			for y := range orderHistory {
+				var feeBuilder exchange.FeeBuilder
+				feeBuilder.Amount = orderHistory[y].ExecutedQty
+				feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
+				feeBuilder.Pair = req.Pairs[i]
+				fee, err := b.GetFee(&feeBuilder)
+				if err != nil {
+					return orders, err
+				}
+				orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+				orders = append(orders, order.Detail{
+					Price:           orderHistory[y].Price,
+					Amount:          orderHistory[y].OrigQty,
+					ExecutedAmount:  orderHistory[y].ExecutedQty,
+					RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
+					Fee:             fee,
+					Exchange:        b.Name,
+					ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
+					ClientOrderID:   orderHistory[y].ClientOrderID,
+					Type:            orderVars.OrderType,
+					Side:            orderVars.Side,
+					Status:          orderVars.Status,
+					Pair:            req.Pairs[i],
+					AssetType:       asset.CoinMarginedFutures,
+				})
 			}
 		}
 	case asset.USDTMarginedFutures:
 		for i := range req.Pairs {
-			switch {
-			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
+			var orderHistory []UFuturesOrderData
+			var err error
+			if !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "" {
 				if req.EndTicks.After(req.StartTicks) {
 					if time.Since(req.StartTicks) > time.Hour*24*7 {
 						return nil, fmt.Errorf("can only fetch orders 7 days out")
 					}
-					orderHistory, err := b.UAllAccountOrders(req.Pairs[i], 0, 0, req.StartTicks, req.EndTicks)
+					orderHistory, err = b.UAllAccountOrders(req.Pairs[i], 0, 0, req.StartTicks, req.EndTicks)
 					if err != nil {
 						return nil, err
 					}
-					for y := range orderHistory {
-						var feeBuilder exchange.FeeBuilder
-						feeBuilder.Amount = orderHistory[y].ExecutedQty
-						feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-						feeBuilder.Pair = req.Pairs[i]
-						fee, err := b.GetFee(&feeBuilder)
-						if err != nil {
-							return orders, err
-						}
-						orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
-						orders = append(orders, order.Detail{
-							Price:           orderHistory[y].Price,
-							Amount:          orderHistory[y].OrigQty,
-							ExecutedAmount:  orderHistory[y].ExecutedQty,
-							RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
-							Fee:             fee,
-							Exchange:        b.Name,
-							ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
-							ClientOrderID:   orderHistory[y].ClientOrderID,
-							Type:            orderVars.OrderType,
-							Side:            orderVars.Side,
-							Status:          orderVars.Status,
-							Pair:            req.Pairs[i],
-							AssetType:       asset.USDTMarginedFutures,
-						})
-					}
 				}
-			case req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero():
+			} else if req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero() {
 				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
 				if err != nil {
 					return nil, err
 				}
-				orderHistory, err := b.UAllAccountOrders(req.Pairs[i], fromID, 0, time.Time{}, time.Time{})
+				orderHistory, err = b.UAllAccountOrders(req.Pairs[i], fromID, 0, time.Time{}, time.Time{})
 				if err != nil {
 					return nil, err
 				}
-				for y := range orderHistory {
-					var feeBuilder exchange.FeeBuilder
-					feeBuilder.Amount = orderHistory[y].ExecutedQty
-					feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
-					feeBuilder.Pair = req.Pairs[i]
-					fee, err := b.GetFee(&feeBuilder)
-					if err != nil {
-						return orders, err
-					}
-					orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
-					orders = append(orders, order.Detail{
-						Price:           orderHistory[y].Price,
-						Amount:          orderHistory[y].OrigQty,
-						ExecutedAmount:  orderHistory[y].ExecutedQty,
-						RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
-						Fee:             fee,
-						Exchange:        b.Name,
-						ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
-						ClientOrderID:   orderHistory[y].ClientOrderID,
-						Type:            orderVars.OrderType,
-						Side:            orderVars.Side,
-						Status:          orderVars.Status,
-						Pair:            req.Pairs[i],
-						AssetType:       asset.USDTMarginedFutures,
-					})
-				}
-			default:
+			} else {
 				return nil, fmt.Errorf("invalid combination of input params")
+			}
+			for y := range orderHistory {
+				var feeBuilder exchange.FeeBuilder
+				feeBuilder.Amount = orderHistory[y].ExecutedQty
+				feeBuilder.PurchasePrice = orderHistory[y].AvgPrice
+				feeBuilder.Pair = req.Pairs[i]
+				fee, err := b.GetFee(&feeBuilder)
+				if err != nil {
+					return orders, err
+				}
+				orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+				orders = append(orders, order.Detail{
+					Price:           orderHistory[y].Price,
+					Amount:          orderHistory[y].OrigQty,
+					ExecutedAmount:  orderHistory[y].ExecutedQty,
+					RemainingAmount: orderHistory[y].OrigQty - orderHistory[y].ExecutedQty,
+					Fee:             fee,
+					Exchange:        b.Name,
+					ID:              strconv.FormatInt(orderHistory[y].OrderID, 10),
+					ClientOrderID:   orderHistory[y].ClientOrderID,
+					Type:            orderVars.OrderType,
+					Side:            orderVars.Side,
+					Status:          orderVars.Status,
+					Pair:            req.Pairs[i],
+					AssetType:       asset.USDTMarginedFutures,
+				})
 			}
 		}
 	default:
