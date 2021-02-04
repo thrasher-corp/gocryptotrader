@@ -107,10 +107,13 @@ func (g *Gemini) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	g.API.Endpoints = g.NewEndpoints()
-	g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = g.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      geminiAPIURL,
 		exchange.WebsocketSpot: geminiWebsocketEndpoint,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

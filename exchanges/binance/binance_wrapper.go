@@ -174,7 +174,7 @@ func (b *Binance) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              spotAPIURL,
 		exchange.RestSpotSupplementary: apiURL,
 		exchange.RestUSDTMargined:      ufuturesAPIURL,
@@ -182,6 +182,9 @@ func (b *Binance) SetDefaults() {
 		exchange.EdgeCase1:             "https://www.binance.com",
 		exchange.WebsocketSpot:         binanceDefaultWebsocketURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

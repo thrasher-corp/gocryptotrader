@@ -97,9 +97,12 @@ func (b *Bittrex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(bittrexRateInterval, bittrexRequestRate)))
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot: bittrexAPIURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 }
 
 // Setup method sets current configuration details if enabled

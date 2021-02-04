@@ -166,11 +166,14 @@ func (k *Kraken) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
 	k.API.Endpoints = k.NewEndpoints()
-	k.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = k.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      krakenAPIURL,
 		exchange.RestFutures:   futuresURL,
 		exchange.WebsocketSpot: krakenWSURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	k.Websocket = stream.New()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -582,15 +585,8 @@ func (k *Kraken) UpdateAccountInfo(assetType asset.Item) (account.Holdings, erro
 		}
 		for name := range bal.Accounts {
 			for code := range bal.Accounts[name].Balances {
-				translatedCurrency := assetTranslator.LookupAltname(strings.ToUpper(code))
-				if translatedCurrency == "" {
-					log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
-						k.Name,
-						code)
-					continue
-				}
 				balances = append(balances, account.Balance{
-					CurrencyName: currency.NewCode(translatedCurrency),
+					CurrencyName: currency.NewCode(name),
 					TotalValue:   bal.Accounts[name].Balances[code],
 				})
 			}

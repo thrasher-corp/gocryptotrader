@@ -198,10 +198,13 @@ func (o *OKEX) SetDefaults() {
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
 	o.API.Endpoints = o.NewEndpoints()
-	o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      okExAPIURL,
 		exchange.WebsocketSpot: OkExWebsocketURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

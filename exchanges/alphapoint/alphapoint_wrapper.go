@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -31,10 +32,13 @@ func (a *Alphapoint) SetDefaults() {
 	a.Enabled = true
 	a.Verbose = true
 	a.API.Endpoints = a.NewEndpoints()
-	a.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err := a.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      alphapointDefaultAPIURL,
 		exchange.WebsocketSpot: alphapointDefaultWebsocketURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
 

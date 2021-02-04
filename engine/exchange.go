@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
@@ -332,26 +333,25 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {
 		assetTypes := base.GetAssetTypes()
-		if len(assetTypes) < 1 {
+		var useAsset asset.Item
+		for a := range assetTypes {
+			err := base.CurrencyPairs.IsAssetEnabled(assetTypes[a])
+			if err != nil {
+				continue
+			}
+			useAsset = assetTypes[a]
+			break
+		}
+		err = exch.ValidateCredentials(useAsset)
+		if err != nil {
 			log.Warnf(log.ExchangeSys,
-				"%s: Cannot validate credentials, no assetType enabled, Error:\n",
-				base.Name)
+				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
+				base.Name,
+				err)
 			base.API.AuthenticatedSupport = false
 			base.API.AuthenticatedWebsocketSupport = false
 			exchCfg.API.AuthenticatedSupport = false
 			exchCfg.API.AuthenticatedWebsocketSupport = false
-		} else {
-			err = exch.ValidateCredentials(assetTypes[0])
-			if err != nil {
-				log.Warnf(log.ExchangeSys,
-					"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
-					base.Name,
-					err)
-				base.API.AuthenticatedSupport = false
-				base.API.AuthenticatedWebsocketSupport = false
-				exchCfg.API.AuthenticatedSupport = false
-				exchCfg.API.AuthenticatedWebsocketSupport = false
-			}
 		}
 	}
 

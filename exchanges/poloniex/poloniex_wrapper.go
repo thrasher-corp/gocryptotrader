@@ -132,10 +132,13 @@ func (p *Poloniex) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
 	p.API.Endpoints = p.NewEndpoints()
-	p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      poloniexAPIURL,
 		exchange.WebsocketSpot: poloniexWebsocketAddress,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	p.Websocket = stream.New()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
