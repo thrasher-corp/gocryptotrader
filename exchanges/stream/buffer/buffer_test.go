@@ -28,7 +28,7 @@ const (
 
 func createSnapshot() (obl *Orderbook, asks, bids []orderbook.Item, err error) {
 	var snapShot1 orderbook.Base
-	snapShot1.ExchangeName = exchangeName
+	snapShot1.Exchange = exchangeName
 	asks = []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 6},
 	}
@@ -37,7 +37,7 @@ func createSnapshot() (obl *Orderbook, asks, bids []orderbook.Item, err error) {
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = asset.Spot
+	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	snapShot1.NotAggregated = true
 	obl = &Orderbook{
@@ -458,7 +458,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = asset.Spot
+	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
 	err := obl.Update(&Update{
@@ -471,7 +471,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error running update with no snapshot loaded")
 	}
-	if err.Error() != "ob.Base could not be found for Exchange exchangeTest CurrencyPair: BTCUSD AssetType: spot" {
+	if err.Error() != "ob.Base could not be found for Exchange exchangeTest CurrencyPair: BTCUSD Asset: spot" {
 		t.Fatal(err)
 	}
 }
@@ -482,7 +482,7 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	var snapShot1 orderbook.Base
 	snapShot1.Asks = []orderbook.Item{}
 	snapShot1.Bids = []orderbook.Item{}
-	snapShot1.AssetType = asset.Spot
+	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
 	err := obl.Update(&Update{
@@ -506,9 +506,9 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	obl.dataHandler = make(chan interface{}, 1)
 	var snapShot1 orderbook.Base
-	snapShot1.AssetType = asset.Spot
+	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
-	snapShot1.ExchangeName = "test"
+	snapShot1.Exchange = "test"
 	obl.exchangeName = "test"
 	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
@@ -522,7 +522,7 @@ func TestLoadSnapshot(t *testing.T) {
 	obl.dataHandler = make(chan interface{}, 100)
 	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	var snapShot1 orderbook.Base
-	snapShot1.ExchangeName = "SnapshotWithOverride"
+	snapShot1.Exchange = "SnapshotWithOverride"
 	asks := []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
@@ -531,7 +531,7 @@ func TestLoadSnapshot(t *testing.T) {
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = asset.Spot
+	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
@@ -560,7 +560,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	obl.dataHandler = make(chan interface{}, 100)
 	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	var snapShot1 orderbook.Base
-	snapShot1.ExchangeName = "WSORDERBOOKTEST1"
+	snapShot1.Exchange = "WSORDERBOOKTEST1"
 	asks := []orderbook.Item{
 		{Price: 6000, Amount: 1, ID: 1},
 		{Price: 6001, Amount: 0.5, ID: 2},
@@ -591,14 +591,14 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = asset.Spot
+	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var snapShot2 orderbook.Base
-	snapShot2.ExchangeName = "WSORDERBOOKTEST2"
+	snapShot2.Exchange = "WSORDERBOOKTEST2"
 	asks = []orderbook.Item{
 		{Price: 51, Amount: 1, ID: 1},
 		{Price: 52, Amount: 0.5, ID: 2},
@@ -629,7 +629,7 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	snapShot2.Asks = orderbook.SortAsks(asks)
 	snapShot2.Bids = orderbook.SortBids(bids)
-	snapShot2.AssetType = asset.Spot
+	snapShot2.Asset = asset.Spot
 	snapShot2.Pair, err = currency.NewPairFromString("LTCUSD")
 	if err != nil {
 		t.Fatal(err)
@@ -639,7 +639,7 @@ func TestInsertingSnapShots(t *testing.T) {
 		t.Fatal(err)
 	}
 	var snapShot3 orderbook.Base
-	snapShot3.ExchangeName = "WSORDERBOOKTEST3"
+	snapShot3.Exchange = "WSORDERBOOKTEST3"
 	asks = []orderbook.Item{
 		{Price: 511, Amount: 1, ID: 1},
 		{Price: 52, Amount: 0.5, ID: 2},
@@ -670,7 +670,7 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	snapShot3.Asks = orderbook.SortAsks(asks)
 	snapShot3.Bids = orderbook.SortBids(bids)
-	snapShot3.AssetType = "FUTURES"
+	snapShot3.Asset = "FUTURES"
 	snapShot3.Pair, err = currency.NewPairFromString("LTCUSD")
 	if err != nil {
 		t.Fatal(err)
@@ -679,20 +679,20 @@ func TestInsertingSnapShots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.AssetType].ob.Asks[0] != snapShot1.Asks[0] {
+	if obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.Asset].ob.Asks[0] != snapShot1.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot1.Asks[0],
-			obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.AssetType].ob.Asks[0])
+			obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.Asset].ob.Asks[0])
 	}
-	if obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.AssetType].ob.Asks[0] != snapShot2.Asks[0] {
+	if obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.Asset].ob.Asks[0] != snapShot2.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot2.Asks[0],
-			obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.AssetType].ob.Asks[0])
+			obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.Asset].ob.Asks[0])
 	}
-	if obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.AssetType].ob.Asks[0] != snapShot3.Asks[0] {
+	if obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.Asset].ob.Asks[0] != snapShot3.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot3.Asks[0],
-			obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.AssetType].ob.Asks[0])
+			obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.Asset].ob.Asks[0])
 	}
 }
 
@@ -709,8 +709,8 @@ func TestGetOrderbook(t *testing.T) {
 
 	if len(bufferOb.ob.Asks) != len(ob.Asks) ||
 		len(bufferOb.ob.Bids) != len(ob.Bids) ||
-		bufferOb.ob.AssetType != ob.AssetType ||
-		bufferOb.ob.ExchangeName != ob.ExchangeName ||
+		bufferOb.ob.Asset != ob.Asset ||
+		bufferOb.ob.Exchange != ob.Exchange ||
 		bufferOb.ob.LastUpdateID != ob.LastUpdateID ||
 		bufferOb.ob.NotAggregated != ob.NotAggregated ||
 		bufferOb.ob.Pair != ob.Pair {
@@ -790,7 +790,7 @@ func TestInsertItem(t *testing.T) {
 	update := []orderbook.Item{{Price: 4}}
 
 	// Correctly aligned
-	asks := []orderbook.Item{
+	asks := orderbook.Items{
 		{
 			Price: 1,
 		},
@@ -816,7 +816,7 @@ func TestInsertItem(t *testing.T) {
 		t.Fatal("incorrect insertion")
 	}
 
-	bids := []orderbook.Item{
+	bids := orderbook.Items{
 		{
 			Price: 7,
 		},
@@ -1059,7 +1059,7 @@ func TestFlushOrderbook(t *testing.T) {
 	}
 
 	var snapShot1 orderbook.Base
-	snapShot1.ExchangeName = "Snapshooooot"
+	snapShot1.Exchange = "Snapshooooot"
 	asks := []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
@@ -1068,7 +1068,7 @@ func TestFlushOrderbook(t *testing.T) {
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = asset.Spot
+	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 
 	err = w.FlushOrderbook(cp, asset.Spot)

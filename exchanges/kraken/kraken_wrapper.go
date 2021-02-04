@@ -497,9 +497,9 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       k.Name,
+		Exchange:           k.Name,
 		Pair:               p,
-		AssetType:          assetType,
+		Asset:              assetType,
 		VerificationBypass: k.OrderbookVerificationBypass,
 	}
 	var err error

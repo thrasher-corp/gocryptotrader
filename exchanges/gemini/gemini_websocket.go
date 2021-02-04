@@ -401,9 +401,9 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		var newOrderBook orderbook.Base
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
-		newOrderBook.AssetType = asset.Spot
+		newOrderBook.Asset = asset.Spot
 		newOrderBook.Pair = pair
-		newOrderBook.ExchangeName = g.Name
+		newOrderBook.Exchange = g.Name
 		newOrderBook.VerificationBypass = g.OrderbookVerificationBypass
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {

@@ -131,17 +131,17 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 		if err == common.ErrNotYetImplemented {
 			log.Warnf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s\n",
 				protocol,
-				result.ExchangeName,
+				result.Exchange,
 				result.Pair,
-				result.AssetType,
+				result.Asset,
 				err)
 			return
 		}
 		log.Errorf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s\n",
 			protocol,
-			result.ExchangeName,
+			result.Exchange,
 			result.Pair,
-			result.AssetType,
+			result.Asset,
 			err)
 		return
 	}
@@ -150,6 +150,7 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	asksAmount, asksValue := result.TotalAsksAmount()
 
 	var bidValueResult, askValueResult string
+	// fmt.Printf("WOW: %+v\n", result)
 	switch {
 	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency:
 		origCurrency := result.Pair.Quote.Upper()
@@ -163,10 +164,10 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 		askValueResult = strconv.FormatFloat(asksValue, 'f', -1, 64)
 	}
 	log.Infof(log.OrderBook, book,
-		result.ExchangeName,
+		result.Exchange,
 		protocol,
 		FormatCurrency(result.Pair),
-		strings.ToUpper(result.AssetType.String()),
+		strings.ToUpper(result.Asset.String()),
 		len(result.Bids),
 		bidsAmount,
 		result.Pair.Base,
@@ -315,7 +316,7 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
 			bot.ExchangeCurrencyPairManager.update(exchName,
 				d.Pair,
-				d.AssetType,
+				d.Asset,
 				SyncItemOrderbook,
 				nil)
 		}

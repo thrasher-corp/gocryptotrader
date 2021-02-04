@@ -243,8 +243,8 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		Asks:               asks,
 		Pair:               p,
 		LastUpdated:        time.Unix(update.Timestamp, 0),
-		AssetType:          assetType,
-		ExchangeName:       b.Name,
+		Asset:              assetType,
+		Exchange:           b.Name,
 		VerificationBypass: b.OrderbookVerificationBypass,
 	})
 }
@@ -275,8 +275,8 @@ func (b *Bitstamp) seedOrderBook() error {
 			})
 		}
 		newOrderBook.Pair = p[x]
-		newOrderBook.AssetType = asset.Spot
-		newOrderBook.ExchangeName = b.Name
+		newOrderBook.Asset = asset.Spot
+		newOrderBook.Exchange = b.Name
 		newOrderBook.VerificationBypass = b.OrderbookVerificationBypass
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)

@@ -505,7 +505,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	// Both sides are completely out of order - sort needs to be used
 	book.Asks = orderbook.SortAsks(book.Asks)
 	book.Bids = orderbook.SortBids(book.Bids)
-	book.AssetType = asset.Spot
+	book.Asset = asset.Spot
 	book.VerificationBypass = p.OrderbookVerificationBypass
 
 	var err error
@@ -513,7 +513,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	if err != nil {
 		return err
 	}
-	book.ExchangeName = p.Name
+	book.Exchange = p.Name
 
 	return p.Websocket.Orderbook.LoadSnapshot(&book)
 }

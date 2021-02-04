@@ -283,9 +283,9 @@ func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, as
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName: {{.Variable}}.Name, 
+		Exchange: {{.Variable}}.Name, 
 		Pair: p, 
-		AssetType: assetType,
+		Asset: assetType,
 		VerificationBypass: {{.Variable}}.OrderbookVerificationBypass,
 	}
 	

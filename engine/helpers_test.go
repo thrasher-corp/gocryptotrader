@@ -545,10 +545,10 @@ func TestGetSpecificOrderbook(t *testing.T) {
 	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
 
 	base := orderbook.Base{
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
-		Bids:         bids,
-		ExchangeName: "Bitstamp",
-		AssetType:    asset.Spot,
+		Pair:     currency.NewPair(currency.BTC, currency.USD),
+		Bids:     bids,
+		Exchange: "Bitstamp",
+		Asset:    asset.Spot,
 	}
 
 	err := base.Process()

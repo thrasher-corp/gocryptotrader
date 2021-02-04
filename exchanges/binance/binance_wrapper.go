@@ -508,9 +508,9 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       b.Name,
+		Exchange:           b.Name,
 		Pair:               p,
-		AssetType:          assetType,
+		Asset:              assetType,
 		VerificationBypass: b.OrderbookVerificationBypass,
 	}
 	var orderbookNew OrderBook

@@ -522,9 +522,9 @@ func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       h.Name,
+		Exchange:           h.Name,
 		Pair:               p,
-		AssetType:          assetType,
+		Asset:              assetType,
 		VerificationBypass: h.OrderbookVerificationBypass,
 	}
 	var err error

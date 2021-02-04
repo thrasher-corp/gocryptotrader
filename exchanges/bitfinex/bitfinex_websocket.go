@@ -962,9 +962,9 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 		}
 	}
 
-	book.AssetType = assetType
+	book.Asset = assetType
 	book.Pair = p
-	book.ExchangeName = b.Name
+	book.Exchange = b.Name
 	book.NotAggregated = true
 	book.HasChecksumValidation = true
 	book.IsFundingRate = fundingRate
@@ -1398,7 +1398,7 @@ func validateCRC32(book *orderbook.Base, token int) error {
 		return nil
 	}
 	return fmt.Errorf("invalid checksum for %s %s: calculated [%d] does not match [%d]",
-		book.AssetType,
+		book.Asset,
 		book.Pair,
 		checksum,
 		uint32(token))

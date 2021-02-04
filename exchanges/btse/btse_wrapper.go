@@ -336,9 +336,9 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       b.Name,
+		Exchange:           b.Name,
 		Pair:               p,
-		AssetType:          assetType,
+		Asset:              assetType,
 		VerificationBypass: b.OrderbookVerificationBypass,
 	}
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
@@ -368,8 +368,8 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	}
 	orderbook.Reverse(book.Asks) // Reverse asks for correct alignment
 	book.Pair = p
-	book.ExchangeName = b.Name
-	book.AssetType = assetType
+	book.Exchange = b.Name
+	book.Asset = assetType
 	err = book.Process()
 	if err != nil {
 		return book, err

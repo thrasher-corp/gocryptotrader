@@ -122,8 +122,8 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				Bids:               orderbook.SortBids(bids), // Alignment completely out sort is needed
 				Asks:               asks,
 				LastUpdated:        ob.Timestamp,
-				AssetType:          asset.Spot,
-				ExchangeName:       b.Name,
+				Asset:              asset.Spot,
+				Exchange:           b.Name,
 				VerificationBypass: b.OrderbookVerificationBypass,
 			})
 		} else {

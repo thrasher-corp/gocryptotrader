@@ -18,6 +18,11 @@ func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	return service.Retrieve(exchange, p, a)
 }
 
+// GetDepth returns depth
+func GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	return service.GetDepth(exchange, p, a)
+}
+
 // SubscribeOrderbook subcribes to an orderbook and returns a communication
 // channel to stream orderbook data updates
 func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
@@ -32,7 +37,7 @@ func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatc
 				p,
 				a)
 	}
-	return service.mux.Subscribe(book.Main)
+	return service.mux.Subscribe(book.main)
 }
 
 // SubscribeToExchangeOrderbooks subcribes to all orderbooks on an exchange
@@ -49,7 +54,7 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 
 // Update stores orderbook data
 func (s *Service) Update(b *Base) error {
-	name := strings.ToLower(b.ExchangeName)
+	name := strings.ToLower(b.Exchange)
 	s.Lock()
 	m1, ok := s.Books[name]
 	if !ok {
@@ -57,10 +62,10 @@ func (s *Service) Update(b *Base) error {
 		s.Books[name] = m1
 	}
 
-	m2, ok := m1[b.AssetType]
+	m2, ok := m1[b.Asset]
 	if !ok {
 		m2 = make(map[*currency.Item]map[*currency.Item]*Book)
-		m1[b.AssetType] = m2
+		m1[b.Asset] = m2
 	}
 
 	m3, ok := m2[b.Pair.Base.Item]
@@ -78,10 +83,9 @@ func (s *Service) Update(b *Base) error {
 		return err
 	}
 
-	book.b.Bids = append(b.Bids[:0:0], b.Bids...) // nolint:gocritic // Short hand to not use make and copy
-	book.b.Asks = append(b.Asks[:0:0], b.Asks...) // nolint:gocritic // Short hand to not use make and copy
-	book.b.LastUpdated = b.LastUpdated
-	ids := append(book.Assoc, book.Main)
+	book.depth.Process(b.Bids, b.Asks)
+	book.depth.lastUpdated = b.LastUpdated
+	ids := append(book.assoc, book.main)
 	s.Unlock()
 	return s.mux.Publish(ids, b)
 }
@@ -89,22 +93,23 @@ func (s *Service) Update(b *Base) error {
 // SetNewData sets new data
 func (s *Service) SetNewData(ob *Base, book *Book, exch string) error {
 	var err error
-	book.Assoc, err = s.getAssociations(strings.ToLower(exch))
+	book.assoc, err = s.getAssociations(strings.ToLower(exch))
 	if err != nil {
 		return err
 	}
-	book.Main, err = s.mux.GetID()
+	book.main, err = s.mux.GetID()
 	if err != nil {
 		return err
 	}
 
-	// Below instigates orderbook item separation so we can ensure, in the event
-	// of a simultaneous update via websocket/rest/fix, we don't affect package
-	// scoped orderbook data which could result in a potential panic
-	cpy := *ob
-	cpy.Bids = append(cpy.Bids[:0:0], cpy.Bids...)
-	cpy.Asks = append(cpy.Asks[:0:0], cpy.Asks...)
-	book.b = &cpy
+	book.depth.Process(ob.Bids, ob.Asks)
+	book.Exchange = ob.Exchange
+	book.Asset = ob.Asset
+	book.Pair = ob.Pair
+	book.IsFundingRate = ob.IsFundingRate
+	book.LastUpdateID = ob.LastUpdateID
+	book.HasChecksumValidation = ob.HasChecksumValidation
+	book.NotAggregated = ob.NotAggregated
 	return nil
 }
 
@@ -123,6 +128,36 @@ func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 
 	ids = append(ids, exchangeID)
 	return ids, nil
+}
+
+// GetDepth returns the actual depth
+func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	s.Lock()
+	defer s.Unlock()
+	m1, ok := s.Books[strings.ToLower(exchange)]
+	if !ok {
+		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
+	}
+
+	m2, ok := m1[a]
+	if !ok {
+		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
+			a)
+	}
+
+	m3, ok := m2[p.Base.Item]
+	if !ok {
+		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+			p.Base)
+	}
+
+	book, ok := m3[p.Quote.Item]
+	if !ok {
+		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+			p.Quote)
+	}
+
+	return &book.depth, nil
 }
 
 // Retrieve gets orderbook data from the slice
@@ -152,10 +187,13 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 			p.Quote)
 	}
 
-	ob := *book.b
-	ob.Bids = append(ob.Bids[:0:0], ob.Bids...)
-	ob.Asks = append(ob.Asks[:0:0], ob.Asks...)
-	return &ob, nil
+	return &Base{
+		Bids:     book.depth.bid.Retrieve(),
+		Asks:     book.depth.ask.Retrieve(),
+		Exchange: book.Exchange,
+		Pair:     book.Pair,
+		Asset:    book.Asset,
+	}, nil
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
@@ -198,58 +236,58 @@ func (b *Base) Verify() error {
 	if len(b.Asks) == 0 || len(b.Bids) == 0 {
 		log.Warnf(log.OrderBook,
 			bookLengthIssue,
-			b.ExchangeName,
+			b.Exchange,
 			b.Pair,
-			b.AssetType,
+			b.Asset,
 			len(b.Bids),
 			len(b.Asks))
 	}
 	for i := range b.Bids {
 		if b.Bids[i].Price == 0 {
-			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPriceNotSet)
+			return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errPriceNotSet)
 		}
 		if b.Bids[i].Amount <= 0 {
-			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountInvalid)
+			return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errAmountInvalid)
 		}
 		if b.IsFundingRate && b.Bids[i].Period == 0 {
-			return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPeriodUnset)
+			return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errPeriodUnset)
 		}
 		if i != 0 {
 			if b.Bids[i].Price > b.Bids[i-1].Price {
-				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errOutOfOrder)
+				return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errOutOfOrder)
 			}
 
 			if !b.NotAggregated && b.Bids[i].Price == b.Bids[i-1].Price {
-				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errDuplication)
+				return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errDuplication)
 			}
 
 			if b.Bids[i].ID != 0 && b.Bids[i].ID == b.Bids[i-1].ID {
-				return fmt.Errorf(bidLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
+				return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errIDDuplication)
 			}
 		}
 	}
 
 	for i := range b.Asks {
 		if b.Asks[i].Price == 0 {
-			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPriceNotSet)
+			return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errPriceNotSet)
 		}
 		if b.Asks[i].Amount <= 0 {
-			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errAmountInvalid)
+			return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errAmountInvalid)
 		}
 		if b.IsFundingRate && b.Asks[i].Period == 0 {
-			return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errPeriodUnset)
+			return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errPeriodUnset)
 		}
 		if i != 0 {
 			if b.Asks[i].Price < b.Asks[i-1].Price {
-				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errOutOfOrder)
+				return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errOutOfOrder)
 			}
 
 			if !b.NotAggregated && b.Asks[i].Price == b.Asks[i-1].Price {
-				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errDuplication)
+				return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errDuplication)
 			}
 
 			if b.Asks[i].ID != 0 && b.Asks[i].ID == b.Asks[i-1].ID {
-				return fmt.Errorf(askLoadBookFailure, b.ExchangeName, b.Pair, b.AssetType, errIDDuplication)
+				return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errIDDuplication)
 			}
 		}
 	}
@@ -259,7 +297,7 @@ func (b *Base) Verify() error {
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
 func (b *Base) Process() error {
-	if b.ExchangeName == "" {
+	if b.Exchange == "" {
 		return errExchangeNameUnset
 	}
 
@@ -267,7 +305,7 @@ func (b *Base) Process() error {
 		return errPairNotSet
 	}
 
-	if b.AssetType.String() == "" {
+	if b.Asset.String() == "" {
 		return errAssetTypeNotSet
 	}
 

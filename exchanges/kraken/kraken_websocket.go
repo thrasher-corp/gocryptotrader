@@ -796,7 +796,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, askData, bidData []interface{}) error {
 	base := orderbook.Base{
 		Pair:               channelData.Pair,
-		AssetType:          asset.Spot,
+		Asset:              asset.Spot,
 		VerificationBypass: k.OrderbookVerificationBypass,
 	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is
@@ -851,7 +851,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		}
 	}
 	base.LastUpdated = highestLastUpdate
-	base.ExchangeName = k.Name
+	base.Exchange = k.Name
 	base.HasChecksumValidation = true
 	return k.Websocket.Orderbook.LoadSnapshot(&base)
 }
@@ -1014,12 +1014,13 @@ func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) err
 	if len(b.Asks) < 10 || len(b.Bids) < 10 {
 		return fmt.Errorf("%s %s insufficient bid and asks to calculate checksum",
 			b.Pair,
-			b.AssetType)
+			b.Asset)
 	}
 
 	if decPrice == 0 || decAmount == 0 {
-		return fmt.Errorf("%s %s trailing decimal count not calculated", b.Pair,
-			b.AssetType)
+		return fmt.Errorf("%s %s trailing decimal count not calculated",
+			b.Pair,
+			b.Asset)
 	}
 
 	var checkStr strings.Builder
@@ -1040,7 +1041,7 @@ func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) err
 	if check := crc32.ChecksumIEEE([]byte(checkStr.String())); check != token {
 		return fmt.Errorf("%s %s invalid checksum %d, expected %d",
 			b.Pair,
-			b.AssetType,
+			b.Asset,
 			check,
 			token)
 	}

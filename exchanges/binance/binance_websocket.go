@@ -448,8 +448,8 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	}
 
 	newOrderBook.Pair = p
-	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = b.Name
+	newOrderBook.Asset = asset.Spot
+	newOrderBook.Exchange = b.Name
 	newOrderBook.LastUpdateID = orderbookNew.LastUpdateID
 	newOrderBook.VerificationBypass = b.OrderbookVerificationBypass
 

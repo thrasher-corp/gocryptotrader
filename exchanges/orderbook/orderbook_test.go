@@ -37,8 +37,8 @@ func TestSubscribeOrderbook(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USD)
 
 	b := Base{
-		Pair:      p,
-		AssetType: asset.Spot,
+		Pair:  p,
+		Asset: asset.Spot,
 	}
 
 	err = b.Process()
@@ -46,7 +46,7 @@ func TestSubscribeOrderbook(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	b.ExchangeName = "SubscribeOBTest"
+	b.Exchange = "SubscribeOBTest"
 	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	err = b.Process()
 	if err != nil {
@@ -69,9 +69,9 @@ func TestUpdateBooks(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USD)
 
 	b := Base{
-		Pair:         p,
-		AssetType:    asset.Spot,
-		ExchangeName: "UpdateTest",
+		Pair:     p,
+		Asset:    asset.Spot,
+		Exchange: "UpdateTest",
 	}
 
 	service.mux = nil
@@ -93,7 +93,7 @@ func TestUpdateBooks(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	b.AssetType = "unicorns"
+	b.Asset = "unicorns"
 	err = service.Update(&b)
 	if err == nil {
 		t.Error("error cannot be nil")
@@ -111,10 +111,10 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USD)
 
 	b := Base{
-		Pair:         p,
-		AssetType:    asset.Spot,
-		ExchangeName: "SubscribeToExchangeOrderbooks",
-		Bids:         []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
+		Pair:     p,
+		Asset:    asset.Spot,
+		Exchange: "SubscribeToExchangeOrderbooks",
+		Bids:     []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
 	}
 
 	err = b.Process()
@@ -131,9 +131,9 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 func TestVerify(t *testing.T) {
 	t.Parallel()
 	b := Base{
-		ExchangeName: "TestExchange",
-		AssetType:    asset.Spot,
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Exchange: "TestExchange",
+		Asset:    asset.Spot,
+		Pair:     currency.NewPair(currency.BTC, currency.USD),
 	}
 
 	err := b.Verify()
@@ -291,11 +291,11 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := &Base{
-		Pair:         c,
-		Asks:         []Item{{Price: 100, Amount: 10}},
-		Bids:         []Item{{Price: 200, Amount: 10}},
-		ExchangeName: "Exchange",
-		AssetType:    asset.Spot,
+		Pair:     c,
+		Asks:     []Item{{Price: 100, Amount: 10}},
+		Bids:     []Item{{Price: 200, Amount: 10}},
+		Exchange: "Exchange",
+		Asset:    asset.Spot,
 	}
 
 	err = base.Process()
@@ -350,11 +350,11 @@ func TestCreateNewOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := &Base{
-		Pair:         c,
-		Asks:         []Item{{Price: 100, Amount: 10}},
-		Bids:         []Item{{Price: 200, Amount: 10}},
-		ExchangeName: "testCreateNewOrderbook",
-		AssetType:    asset.Spot,
+		Pair:     c,
+		Asks:     []Item{{Price: 100, Amount: 10}},
+		Bids:     []Item{{Price: 200, Amount: 10}},
+		Exchange: "testCreateNewOrderbook",
+		Asset:    asset.Spot,
 	}
 
 	err = base.Process()
@@ -388,9 +388,9 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := Base{
-		Asks:         []Item{{Price: 100, Amount: 10}},
-		Bids:         []Item{{Price: 200, Amount: 10}},
-		ExchangeName: "ProcessOrderbook",
+		Asks:     []Item{{Price: 100, Amount: 10}},
+		Bids:     []Item{{Price: 200, Amount: 10}},
+		Exchange: "ProcessOrderbook",
 	}
 
 	// test for empty pair
@@ -408,7 +408,7 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	// now process a valid orderbook
-	base.AssetType = asset.Spot
+	base.Asset = asset.Spot
 	err = base.Process()
 	if err != nil {
 		t.Error("unexpcted result: ", err)
@@ -458,7 +458,7 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	base.Asks = []Item{{Price: 200, Amount: 200}}
-	base.AssetType = "monthly"
+	base.Asset = "monthly"
 	err = base.Process()
 	if err != nil {
 		t.Error("Process() error", err)
@@ -475,8 +475,8 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	base.Bids = []Item{{Price: 420, Amount: 200}}
-	base.ExchangeName = "Blah"
-	base.AssetType = "quarterly"
+	base.Exchange = "Blah"
+	base.Asset = "quarterly"
 	err = base.Process()
 	if err != nil {
 		t.Error("Process() error", err)
@@ -521,11 +521,11 @@ func TestProcessOrderbook(t *testing.T) {
 			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} // nolint:gosec // no need to import crypo/rand for testing
 			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} // nolint:gosec // no need to import crypo/rand for testing
 			base := &Base{
-				Pair:         newPairs,
-				Asks:         asks,
-				Bids:         bids,
-				ExchangeName: newName,
-				AssetType:    asset.Spot,
+				Pair:     newPairs,
+				Asks:     asks,
+				Bids:     bids,
+				Exchange: newName,
+				Asset:    asset.Spot,
 			}
 
 			m.Lock()

@@ -550,8 +550,8 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 		return err
 	}
 
-	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = c.Name
+	newOrderBook.Asset = asset.Spot
+	newOrderBook.Exchange = c.Name
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

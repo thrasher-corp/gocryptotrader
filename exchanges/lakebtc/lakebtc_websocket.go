@@ -176,8 +176,8 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 	book := orderbook.Base{
 		Pair:               p,
 		LastUpdated:        time.Now(),
-		AssetType:          asset.Spot,
-		ExchangeName:       l.Name,
+		Asset:              asset.Spot,
+		Exchange:           l.Name,
 		VerificationBypass: l.OrderbookVerificationBypass,
 	}
 

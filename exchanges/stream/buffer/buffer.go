@@ -207,14 +207,14 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) (err error) {
 		}
 	case Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
-		bypassErr := o.ob.ExchangeName == "Bitfinex" && o.ob.IsFundingRate
+		bypassErr := o.ob.Exchange == "Bitfinex" && o.ob.IsFundingRate
 		err = deleteUpdates(updts.Bids, &o.ob.Bids, bypassErr)
 		if err != nil {
-			return fmt.Errorf("%s %s %v", o.ob.AssetType, o.ob.Pair, err)
+			return fmt.Errorf("%s %s %v", o.ob.Asset, o.ob.Pair, err)
 		}
 		err = deleteUpdates(updts.Asks, &o.ob.Asks, bypassErr)
 		if err != nil {
-			return fmt.Errorf("%s %s %v", o.ob.AssetType, o.ob.Pair, err)
+			return fmt.Errorf("%s %s %v", o.ob.Asset, o.ob.Pair, err)
 		}
 	case Insert:
 		insertUpdatesBid(updts.Bids, &o.ob.Bids)
@@ -278,7 +278,7 @@ updates:
 
 // deleteUpdates removes updates from orderbook and returns an error if not
 // found
-func deleteUpdates(updt []orderbook.Item, book *[]orderbook.Item, bypassErr bool) error {
+func deleteUpdates(updt []orderbook.Item, book *orderbook.Items, bypassErr bool) error {
 updates:
 	for x := range updt {
 		for y := range *book {
@@ -296,7 +296,7 @@ updates:
 	return nil
 }
 
-func insertAsk(updt orderbook.Item, book *[]orderbook.Item) {
+func insertAsk(updt orderbook.Item, book *orderbook.Items) {
 	for target := range *book {
 		if updt.Price < (*book)[target].Price {
 			insertItem(updt, book, target)
@@ -306,7 +306,7 @@ func insertAsk(updt orderbook.Item, book *[]orderbook.Item) {
 	*book = append(*book, updt)
 }
 
-func insertBid(updt orderbook.Item, book *[]orderbook.Item) {
+func insertBid(updt orderbook.Item, book *orderbook.Items) {
 	for target := range *book {
 		if updt.Price > (*book)[target].Price {
 			insertItem(updt, book, target)
@@ -317,7 +317,7 @@ func insertBid(updt orderbook.Item, book *[]orderbook.Item) {
 }
 
 // insertUpdatesBid inserts on **correctly aligned** book at price level
-func insertUpdatesBid(updt []orderbook.Item, book *[]orderbook.Item) {
+func insertUpdatesBid(updt []orderbook.Item, book *orderbook.Items) {
 updates:
 	for x := range updt {
 		for target := range *book {
@@ -331,7 +331,7 @@ updates:
 }
 
 // insertUpdatesBid inserts on **correctly aligned** book at price level
-func insertUpdatesAsk(updt []orderbook.Item, book *[]orderbook.Item) {
+func insertUpdatesAsk(updt []orderbook.Item, book *orderbook.Items) {
 updates:
 	for x := range updt {
 		for target := range *book {
@@ -346,7 +346,7 @@ updates:
 
 // insertItem inserts item in slice by target element this is an optimization
 // to reduce the need for sorting algorithms
-func insertItem(update orderbook.Item, book *[]orderbook.Item, target int) {
+func insertItem(update orderbook.Item, book *orderbook.Items, target int) {
 	// TODO: extend slice by incoming update length before this gets hit
 	*book = append(*book, orderbook.Item{})
 	copy((*book)[target+1:], (*book)[target:])
@@ -373,10 +373,10 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		m2 = make(map[asset.Item]*orderbookHolder)
 		m1[book.Pair.Quote] = m2
 	}
-	m3, ok := m2[book.AssetType]
+	m3, ok := m2[book.Asset]
 	if !ok {
 		m3 = &orderbookHolder{ob: book, buffer: &[]Update{}}
-		m2[book.AssetType] = m3
+		m2[book.Asset] = m3
 	} else {
 		m3.ob.LastUpdateID = book.LastUpdateID
 		m3.ob.Bids = book.Bids

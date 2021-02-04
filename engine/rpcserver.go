@@ -1648,45 +1648,51 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		return err
 	}
 
-	pipe, err := orderbook.SubscribeOrderbook(r.Exchange, p, a)
+	depth, err := orderbook.GetDepth(r.Exchange, p, a)
 	if err != nil {
 		return err
 	}
 
-	defer pipe.Release()
+	// pipe, err := orderbook.SubscribeOrderbook(r.Exchange, p, a)
+	// if err != nil {
+	// 	return err
+	// }
 
+	// defer pipe.Release()
+	kick := make(chan struct{})
 	for {
-		data, ok := <-pipe.C
-		if !ok {
-			return errors.New(errDispatchSystem)
-		}
+		// data, ok := <-pipe.C
+		// if !ok {
+		// 	return errors.New(errDispatchSystem)
+		// }
 
-		ob := (*data.(*interface{})).(orderbook.Base)
+		// ob := (*data.(*interface{})).(orderbook.Base)
+		b, a := depth.Retrieve()
 		var bids, asks []*gctrpc.OrderbookItem
-		for i := range ob.Bids {
+		for i := range b {
 			bids = append(bids, &gctrpc.OrderbookItem{
-				Amount: ob.Bids[i].Amount,
-				Price:  ob.Bids[i].Price,
-				Id:     ob.Bids[i].ID,
+				Amount: b[i].Amount,
+				Price:  b[i].Price,
+				Id:     b[i].ID,
 			})
 		}
-		for i := range ob.Asks {
+		for i := range a {
 			asks = append(asks, &gctrpc.OrderbookItem{
-				Amount: ob.Asks[i].Amount,
-				Price:  ob.Asks[i].Price,
-				Id:     ob.Asks[i].ID,
+				Amount: a[i].Amount,
+				Price:  a[i].Price,
+				Id:     a[i].ID,
 			})
 		}
 		err := stream.Send(&gctrpc.OrderbookResponse{
-			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
-				Quote: ob.Pair.Quote.String()},
+			Pair:      &gctrpc.CurrencyPair{Base: r.Pair.Base, Quote: r.Pair.Quote},
 			Bids:      bids,
 			Asks:      asks,
-			AssetType: ob.AssetType.String(),
+			AssetType: r.AssetType,
 		})
 		if err != nil {
 			return err
 		}
+		depth.Wait(kick)
 	}
 }
 
@@ -1730,7 +1736,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 				Quote: ob.Pair.Quote.String()},
 			Bids:      bids,
 			Asks:      asks,
-			AssetType: ob.AssetType.String(),
+			AssetType: ob.Asset.String(),
 		})
 		if err != nil {
 			return err

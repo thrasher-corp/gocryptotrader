@@ -309,9 +309,9 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		return err
 	}
 
-	base.AssetType = asset.Spot
+	base.Asset = asset.Spot
 	base.Pair = pair
-	base.ExchangeName = c.Name
+	base.Exchange = c.Name
 	base.VerificationBypass = c.OrderbookVerificationBypass
 
 	return c.Websocket.Orderbook.LoadSnapshot(&base)

@@ -463,9 +463,9 @@ func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		ExchangeName:       c.Name,
+		Exchange:           c.Name,
 		Pair:               p,
-		AssetType:          assetType,
+		Asset:              assetType,
 		VerificationBypass: c.OrderbookVerificationBypass,
 	}
 	err := c.loadInstrumentsIfNotLoaded()

@@ -509,9 +509,9 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			}
 		}
 		orderbook.Reverse(book.Asks) // Reverse asks for correct alignment
-		book.AssetType = a
+		book.Asset = a
 		book.Pair = p
-		book.ExchangeName = b.Name
+		book.Exchange = b.Name
 		book.VerificationBypass = b.OrderbookVerificationBypass
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&book)
