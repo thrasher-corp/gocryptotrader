@@ -1306,17 +1306,19 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		for i := range req.Pairs {
 			var orderHistory []FuturesOrderData
 			var err error
-			if !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "" {
-				if req.EndTicks.After(req.StartTicks) {
-					if time.Since(req.StartTicks) > time.Hour*24*30 {
-						return nil, fmt.Errorf("can only fetch orders 30 days out")
-					}
-					orderHistory, err = b.GetAllFuturesOrders(req.Pairs[i], "", req.StartTicks, req.EndTicks, 0, 0)
-					if err != nil {
-						return nil, err
-					}
+			switch {
+			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
+				if req.EndTicks.Before(req.StartTicks) {
+					return nil, errors.New("endTime cannot be before startTime")
 				}
-			} else if req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero() {
+				if time.Since(req.StartTicks) > time.Hour*24*30 {
+					return nil, fmt.Errorf("can only fetch orders 30 days out")
+				}
+				orderHistory, err = b.GetAllFuturesOrders(req.Pairs[i], "", req.StartTicks, req.EndTicks, 0, 0)
+				if err != nil {
+					return nil, err
+				}
+			case req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero():
 				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
 				if err != nil {
 					return nil, err
@@ -1325,7 +1327,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				if err != nil {
 					return nil, err
 				}
-			} else {
+			default:
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
@@ -1359,17 +1361,19 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		for i := range req.Pairs {
 			var orderHistory []UFuturesOrderData
 			var err error
-			if !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "" {
-				if req.EndTicks.After(req.StartTicks) {
-					if time.Since(req.StartTicks) > time.Hour*24*7 {
-						return nil, fmt.Errorf("can only fetch orders 7 days out")
-					}
-					orderHistory, err = b.UAllAccountOrders(req.Pairs[i], 0, 0, req.StartTicks, req.EndTicks)
-					if err != nil {
-						return nil, err
-					}
+			switch {
+			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
+				if req.EndTicks.Before(req.StartTicks) {
+					return nil, errors.New("endTime cannot be before startTime")
 				}
-			} else if req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero() {
+				if time.Since(req.StartTicks) > time.Hour*24*7 {
+					return nil, fmt.Errorf("can only fetch orders 7 days out")
+				}
+				orderHistory, err = b.UAllAccountOrders(req.Pairs[i], 0, 0, req.StartTicks, req.EndTicks)
+				if err != nil {
+					return nil, err
+				}
+			case req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero():
 				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
 				if err != nil {
 					return nil, err
@@ -1378,7 +1382,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				if err != nil {
 					return nil, err
 				}
-			} else {
+			default:
 				return nil, fmt.Errorf("invalid combination of input params")
 			}
 			for y := range orderHistory {
