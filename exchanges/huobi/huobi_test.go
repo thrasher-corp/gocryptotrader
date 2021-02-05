@@ -251,7 +251,7 @@ func TestFIndexKline(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.FIndexKline(cp, "5min", 0)
+	_, err = h.FIndexKline(cp, "5min", 5)
 	if err != nil {
 		t.Error(err)
 	}
