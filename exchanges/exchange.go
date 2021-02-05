@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -943,9 +944,8 @@ func (e *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 			e.Name)
 	}
 
-	assetEnabled := true
 	if f.AssetEnabled == nil {
-		f.AssetEnabled = &assetEnabled
+		f.AssetEnabled = convert.BoolPtr(true)
 	}
 
 	if f.RequestFormat == nil {
