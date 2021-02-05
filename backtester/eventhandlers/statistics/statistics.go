@@ -87,7 +87,6 @@ func (s *Statistic) SetEventForTime(e common.EventHandler) error {
 			default:
 				return fmt.Errorf("unknown event type received: %v", e)
 			}
-			s.ExchangeAssetPairStatistics[exch][a][p] = lookup
 		}
 	}
 	return nil
@@ -105,7 +104,6 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(h.Timestamp) {
 			lookup.Events[i].Holdings = *h
-			s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair] = lookup
 		}
 	}
 	return nil
@@ -119,16 +117,19 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 	if s.ExchangeAssetPairStatistics == nil {
 		return errors.New("exchangeAssetPairStatistics not setup")
 	}
-	lookup := s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()]
+	exch := e.GetExchange()
+	a := e.GetAssetType()
+	p := e.Pair()
+	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
 	if lookup == nil {
-		return fmt.Errorf("no data for %v %v %v to set compliance snapshot", e.GetExchange(), e.GetAssetType(), e.Pair())
+		return fmt.Errorf("no data for %v %v %v to set compliance snapshot", exch, a, p)
 	}
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(c.Timestamp) {
 			lookup.Events[i].Transactions = c
-			s.ExchangeAssetPairStatistics[e.GetExchange()][e.GetAssetType()][e.Pair()] = lookup
 		}
 	}
+
 	return nil
 }
 

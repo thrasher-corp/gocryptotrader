@@ -463,7 +463,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		}
 		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType)
 		if err != nil {
-			return resp, err
+			return nil, fmt.Errorf("unable to retreive data from GoCryptoTrader database. Error: %v. Please ensure the database is setup correctly and has data before use", err)
 		}
 
 		resp.Item.RemoveDuplicates()

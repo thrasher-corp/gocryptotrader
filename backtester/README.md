@@ -23,8 +23,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 An event-driven backtesting tool to test and iterate trading strategies using historical or custom data.
 
 ## Features
-- Works with all GoCryptoTrader exchanges that support trade/candle retrieval
-- API data retrieval
+- Works with all GoCryptoTrader exchanges that support trade/candle retrieval. See [candle readme](https://github.com/thrasher-corp/gocryptotrader/blob/master/docs/OHLCV.md) and [trade readme](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/trade/README.md) for supported exchanges
 - CSV data import
 - Database data import
 - Proof of concept live data running
@@ -32,7 +31,8 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 - Can run strategies that can assess multiple currencies simultaneously to make complex decisions
 - Dollar cost strategy implementation
 - RSI strategy implementation
-- Strategy customisation via config `.strat` files
+- Rules ustomisation via config `.strat` files
+- Strategy customisation without requiring recompilation. For example, customising RSI high, low and length values via config `.strat` files.
 - Report generation
 - Portfolio manager to help size orders based on config rules, risk and candle volume
 - Order manager to place orders with customisable slippage estimator

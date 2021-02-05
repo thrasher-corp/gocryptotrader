@@ -33,7 +33,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 		if c.LowestClosePrice == 0 || price < c.LowestClosePrice {
 			c.LowestClosePrice = price
 		}
-		if c.HighestClosePrice == 0 || price > c.HighestClosePrice {
+		if price > c.HighestClosePrice {
 			c.HighestClosePrice = price
 		}
 	}
@@ -43,14 +43,12 @@ func (c *CurrencyStatistic) CalculateResults() {
 	returnPerCandle := make([]float64, len(c.Events))
 
 	var negativeReturns []float64
+	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
 		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
 		if c.Events[i].Holdings.ChangeInTotalValuePercent < 0 {
 			negativeReturns = append(negativeReturns, c.Events[i].Holdings.ChangeInTotalValuePercent)
 		}
-	}
-	var allDataEvents []common.DataEventHandler
-	for i := range c.Events {
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
 	c.MaxDrawdown = calculateMaxDrawdown(allDataEvents)
@@ -88,28 +86,28 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Initial funds: $%v\n\n", last.Holdings.InitialFunds)
 
 	log.Infof(log.BackTester, "Buy orders: %v", c.BuyOrders)
-	log.Infof(log.BackTester, "Buy value: %v", last.Holdings.BoughtValue)
-	log.Infof(log.BackTester, "Buy amount: %v", last.Holdings.BoughtAmount)
+	log.Infof(log.BackTester, "Buy value: $%v", last.Holdings.BoughtValue)
+	log.Infof(log.BackTester, "Buy amount: %v %v", last.Holdings.BoughtAmount, last.Holdings.Pair.Base)
 	log.Infof(log.BackTester, "Sell orders: %v", c.SellOrders)
-	log.Infof(log.BackTester, "Sell value: %v", last.Holdings.SoldValue)
-	log.Infof(log.BackTester, "Sell amount: %v", last.Holdings.SoldAmount)
+	log.Infof(log.BackTester, "Sell value: $%v", last.Holdings.SoldValue)
+	log.Infof(log.BackTester, "Sell amount: %v %v", last.Holdings.SoldAmount, last.Holdings.Pair.Base)
 	log.Infof(log.BackTester, "Total orders: %v\n\n", c.TotalOrders)
 
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
 	log.Infof(log.BackTester, "Highest Price: $%.2f", c.MaxDrawdown.Highest.Price)
 	log.Infof(log.BackTester, "Highest Price Time: %v", c.MaxDrawdown.Highest.Time)
-	log.Infof(log.BackTester, "Lowest Price: $%v", c.MaxDrawdown.Lowest.Price)
+	log.Infof(log.BackTester, "Lowest Price: $%.2f", c.MaxDrawdown.Lowest.Price)
 	log.Infof(log.BackTester, "Lowest Price Time: %v", c.MaxDrawdown.Lowest.Time)
 	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.MaxDrawdown.DrawdownPercent)
 	log.Infof(log.BackTester, "Difference: $%.2f", c.MaxDrawdown.Highest.Price-c.MaxDrawdown.Lowest.Price)
 	log.Infof(log.BackTester, "Drawdown length: %v", c.MaxDrawdown.IntervalDuration)
 
 	log.Info(log.BackTester, "------------------Ratios-------------------------------------")
-	log.Infof(log.BackTester, "Risk free rate: %.3f", c.RiskFreeRate)
-	log.Infof(log.BackTester, "Sharpe ratio: %.8f", c.SharpeRatio)
-	log.Infof(log.BackTester, "Sortino ratio: %.3f", c.SortinoRatio)
-	log.Infof(log.BackTester, "Information ratio: %.3f", c.InformationRatio)
-	log.Infof(log.BackTester, "Calmar ratio: %.3f", c.CalmarRatio)
+	log.Infof(log.BackTester, "Risk free rate: %.3f%", c.RiskFreeRate)
+	log.Infof(log.BackTester, "Sharpe ratio: %.2f", c.SharpeRatio)
+	log.Infof(log.BackTester, "Sortino ratio: %.2f", c.SortinoRatio)
+	log.Infof(log.BackTester, "Information ratio: %.2f", c.InformationRatio)
+	log.Infof(log.BackTester, "Calmar ratio: %.2f", c.CalmarRatio)
 	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2f\n\n", c.CompoundAnnualGrowthRate)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")

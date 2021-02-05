@@ -370,7 +370,6 @@ func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h *
 		}
 	}
 	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
-	p.exchangeAssetPairSettings[exch][a][cp] = lookup
 	return nil
 }
 
