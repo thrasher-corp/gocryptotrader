@@ -943,6 +943,11 @@ func (e *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 			e.Name)
 	}
 
+	assetEnabled := true
+	if f.AssetEnabled == nil {
+		f.AssetEnabled = &assetEnabled
+	}
+
 	if f.RequestFormat == nil {
 		return fmt.Errorf("%s cannot add to pairs manager, request pair format not provided",
 			e.Name)
