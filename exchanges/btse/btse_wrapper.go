@@ -335,11 +335,17 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	}
 
 	for x := range a.BuyQuote {
+		if b.orderbookFilter(a.BuyQuote[x].Price, a.BuyQuote[x].Size) {
+			continue
+		}
 		book.Bids = append(book.Bids, orderbook.Item{
 			Price:  a.BuyQuote[x].Price,
 			Amount: a.BuyQuote[x].Size})
 	}
 	for x := range a.SellQuote {
+		if b.orderbookFilter(a.SellQuote[x].Price, a.SellQuote[x].Size) {
+			continue
+		}
 		book.Asks = append(book.Asks, orderbook.Item{
 			Price:  a.SellQuote[x].Price,
 			Amount: a.SellQuote[x].Size})
