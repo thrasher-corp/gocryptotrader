@@ -80,7 +80,7 @@
     "core-js": "^2.5.7",
     "cross-env": "^5.2.0",
     "dotenv": "^6.1.0",
-    "electron": "^7.2.4",
+    "electron": "^9.4.0",
     "electron-builder": "^20.34.0",
     "electron-reload": "^1.5.0",
     "fs-extra": "^7.0.1",
