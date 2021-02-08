@@ -202,6 +202,7 @@ func TestExecuteOrder(t *testing.T) {
 		Event:     ev,
 		Direction: gctorder.Buy,
 		Amount:    1,
+		Funds:     1337,
 	}
 
 	bot, err := engine.NewFromSettings(&engine.Settings{

@@ -88,6 +88,12 @@ func TestNewFromConfig(t *testing.T) {
 	}
 
 	_, err = NewFromConfig(cfg, "", "")
+	if err != nil && !strings.Contains(err.Error(), "unrecognised dataType") {
+		t.Error(err)
+	}
+
+	cfg.DataSettings.DataType = common.CandleStr
+	_, err = NewFromConfig(cfg, "", "")
 	if err != nil && err.Error() != "api data start and end dates must be set" {
 		t.Error(err)
 	}
@@ -100,14 +106,9 @@ func TestNewFromConfig(t *testing.T) {
 	}
 
 	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
-	_, err = NewFromConfig(cfg, "", "")
-	if err != nil && err.Error() != "unrecognised api datatype received: ''" {
-		t.Error(err)
-	}
 
-	cfg.DataSettings.DataType = common.CandleStr
 	_, err = NewFromConfig(cfg, "", "")
-	if err != nil && err.Error() != "strategy '' not found" {
+	if err != nil && !strings.Contains(err.Error(), "strategy '' not found") {
 		t.Error(err)
 	}
 
@@ -216,7 +217,7 @@ func TestLoadData(t *testing.T) {
 	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
 	bt.Bot = bot
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
-	if err != nil && err.Error() != "database support is disabled" {
+	if err != nil && !strings.Contains(err.Error(), "unable to retrieve data from GoCryptoTrader database") {
 		t.Error(err)
 	}
 

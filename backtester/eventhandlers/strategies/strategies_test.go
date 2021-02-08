@@ -1,6 +1,7 @@
 package strategies
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
@@ -17,11 +18,11 @@ func TestGetStrategies(t *testing.T) {
 func TestLoadStrategyByName(t *testing.T) {
 	var resp Handler
 	_, err := LoadStrategyByName("test", false)
-	if err != nil && err.Error() != "strategy 'test' not found" {
+	if err != nil && !strings.Contains(err.Error(), "strategy 'test' not found") {
 		t.Error(err)
 	}
 	_, err = LoadStrategyByName("test", true)
-	if err != nil && err.Error() != "strategy 'test' not found" {
+	if err != nil && !strings.Contains(err.Error(), "strategy 'test' not found") {
 		t.Error(err)
 	}
 

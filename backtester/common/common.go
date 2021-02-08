@@ -10,6 +10,6 @@ func DataTypeToInt(dataType string) (int64, error) {
 	case TradeStr:
 		return DataTrade, nil
 	default:
-		return 0, fmt.Errorf("unrecognised dataType %v", dataType)
+		return 0, fmt.Errorf("unrecognised dataType '%v'", dataType)
 	}
 }
