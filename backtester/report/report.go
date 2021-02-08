@@ -88,6 +88,8 @@ func (d *Data) enhanceCandles() error {
 	if d.Statistics == nil {
 		return errors.New("unable to proceed with unset Statistics property")
 	}
+	d.Statistics.RiskFreeRate *= 100
+
 	for i := range d.OriginalCandles {
 		lookup := d.OriginalCandles[i]
 		enhancedKline := DetailedKline{

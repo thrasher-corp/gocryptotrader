@@ -51,16 +51,20 @@ func (c *CurrencyStatistic) CalculateResults() {
 		}
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
+
 	c.MaxDrawdown = calculateMaxDrawdown(allDataEvents)
-	c.SharpeRatio = math.CalculateSharpeRatio(returnPerCandle, last.Holdings.RiskFreeRate)
-	c.SortinoRatio = math.CalculateSortinoRatio(returnPerCandle, negativeReturns, last.Holdings.RiskFreeRate)
-	c.InformationRatio = math.CalculateInformationRatio(returnPerCandle, []float64{last.Holdings.RiskFreeRate})
-	c.CalmarRatio = math.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price)
 
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := float64(interval.IntervalsPerYear())
 	durationPerYear := intervalsPerYear * float64(interval.Duration())
 	btDuration := float64(last.DataEvent.GetTime().Sub(first.DataEvent.GetTime()))
+
+	relativelyRiskFree := first.Holdings.RiskFreeRate / intervalsPerYear
+
+	c.SharpeRatio = math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree)
+	c.SortinoRatio = math.CalculateSortinoRatio(returnPerCandle, negativeReturns, relativelyRiskFree)
+	c.InformationRatio = math.CalculateInformationRatio(returnPerCandle, []float64{relativelyRiskFree})
+	c.CalmarRatio = math.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price)
 
 	c.CompoundAnnualGrowthRate = math.CalculateCompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
@@ -103,7 +107,7 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Drawdown length: %v", c.MaxDrawdown.IntervalDuration)
 
 	log.Info(log.BackTester, "------------------Ratios-------------------------------------")
-	log.Infof(log.BackTester, "Risk free rate: %.3f%", c.RiskFreeRate)
+	log.Infof(log.BackTester, "Risk free rate: %.3f%%", c.RiskFreeRate)
 	log.Infof(log.BackTester, "Sharpe ratio: %.2f", c.SharpeRatio)
 	log.Infof(log.BackTester, "Sortino ratio: %.2f", c.SortinoRatio)
 	log.Infof(log.BackTester, "Information ratio: %.2f", c.InformationRatio)

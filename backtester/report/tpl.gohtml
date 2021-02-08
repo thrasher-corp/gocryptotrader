@@ -231,14 +231,14 @@
 							<td>{{ printf "$%.2f" .InitialFunds}} {{.Quote}}</td>
 							<td>{{.BuySide.MinimumSize}} {{.Base}}</td>
 							<td>{{.BuySide.MaximumSize}} {{.Base}}</td>
-							<td>${{.BuySide.MaximumTotal}} {{.Quote}}</td>
+							<td>${{printf "%.2f" .BuySide.MaximumTotal}} {{.Quote}}</td>
 							<td>{{.SellSide.MinimumSize}} {{.Base}}</td>
 							<td>{{.SellSide.MaximumSize}} {{.Base}}</td>
-							<td>${{.SellSide.MaximumTotal}} {{.Quote}}</td>
+							<td>${{printf "%.2f" .SellSide.MaximumTotal}} {{.Quote}}</td>
 							<td>{{.MinimumSlippagePercent}}%</td>
 							<td>{{.MaximumSlippagePercent}}%</td>
-							<td>{{.MakerFee}}%</td>
-							<td>{{.TakerFee}}%</td>
+							<td>{{.MakerFee}}</td>
+							<td>{{.TakerFee}}</td>
 							<td>{{.MaximumHoldingsRatio}}</td>
 						</tr>
                     {{end}}
@@ -272,10 +272,10 @@
 						<td>{{.Config.PortfolioSettings.Leverage.MaximumLeverageRatio}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MaximumSize}}</td>
-						<td>${{.Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
+						<td>${{printf "%.2f" .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
 						<td>{{.Config.PortfolioSettings.SellSide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.SellSide.MaximumSize}}</td>
-						<td>${{.Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
+						<td>${{printf "%.2f" .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
 					</tr>
 					</tbody>
 				</table>
@@ -471,7 +471,7 @@
 								</tr>
 								<tr>
 									<td><b>Buy Amount</b></td>
-									<td>{{$val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
+									<td>{{printf "%.2f" $val.FinalHoldings.BoughtAmount}} {{$val.FinalHoldings.Pair.Base}} </td>
 								</tr>
 								<tr>
 									<td><b>Sell Orders</b></td>
@@ -483,7 +483,7 @@
 								</tr>
 								<tr>
 									<td><b>Sell Amount</b></td>
-									<td>{{$val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
+									<td>{{printf "%.2f" $val.FinalHoldings.SoldAmount}} {{$val.FinalHoldings.Pair.Base}}</td>
 								</tr>
 								<tr>
 									<td><b>Total Orders</b></td>
@@ -561,11 +561,11 @@
 								</tr>
 								<tr>
 									<td><b>Total Fees</b></td>
-									<td>${{$val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>${{printf "%.2f" $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Final Funds</b></td>
-									<td>${{$val.FinalHoldings.RemainingFunds}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.2f" $val.FinalHoldings.RemainingFunds}} {{ $val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings</b></td>
@@ -619,7 +619,7 @@
 											<td>{{ .Detail.Side }}</td>
 											<td>${{ .Detail.Price }} {{$pair.Quote}}</td>
 											<td>{{ .SlippageRate }}%</td>
-											<td>{{ .Detail.Amount }} {{$pair.Base}}</td>
+											<td>{{printf "%.2f" .Detail.Amount }} {{$pair.Base}}</td>
 											<td>${{ .Detail.Fee }} {{$pair.Quote}}</td>
 										</tr>
                                     {{end}}

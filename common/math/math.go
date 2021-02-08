@@ -150,7 +150,11 @@ func CalculateSharpeRatio(movementPerCandle []float64, riskFreeRate float64) flo
 		return 0
 	}
 	mean := CalculateTheAverage(movementPerCandle)
-	standardDeviation := CalculateSampleStandardDeviation(movementPerCandle)
+	var excessReturns []float64
+	for i := range movementPerCandle {
+		excessReturns = append(excessReturns, movementPerCandle[i]-riskFreeRate)
+	}
+	standardDeviation := CalculateSampleStandardDeviation(excessReturns)
 
 	if standardDeviation == 0 {
 		return 0

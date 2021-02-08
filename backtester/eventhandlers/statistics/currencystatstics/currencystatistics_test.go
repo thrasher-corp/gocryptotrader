@@ -261,3 +261,19 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 		t.Error("unexpected max drawdown")
 	}
 }
+
+func TestCalculateRelativeRiskRate(t *testing.T) {
+	tt1 := time.Date(2017, 1, 1, 0, 0, 0, 0, time.Local)
+	tt2 := time.Date(2018, 1, 1, 0, 0, 0, 0, time.Local)
+	result := calculateRelativeRiskRate(tt1, tt2, gctkline.OneYear, 1, 0.03)
+	if result != 0.03 {
+		t.Error("expected 0.03")
+	}
+
+	tt2 = time.Date(2017, 2, 1, 0, 0, 0, 0, time.Local)
+	result = calculateRelativeRiskRate(tt1, tt2, gctkline.OneMonth, 12, 0.03)
+	butts := 0.03 / 12
+	if result != butts {
+		t.Errorf("expected %v, received %v", butts, result)
+	}
+}

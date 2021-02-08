@@ -184,20 +184,23 @@ func TestCalculateSharpeRatio(t *testing.T) {
 	}
 
 	returns := []float64{
-		0.08,
-		0.1,
-		0.09,
-		0.06,
-		0.07,
-		0.11,
-		0.08,
-		0.1,
-		0.02,
-		0.09,
+		0.1391,
+		0.0945,
+		0.1389,
+		0.0947,
+		0.1259,
+		0.1042,
+		0.0667,
+		0.1649,
+		0.1618,
+		0.0626,
+		0.1572,
+		0.1052,
 	}
-	result = CalculateSharpeRatio(returns, 0.04)
-	if result != 1.5491933384829664 {
-		t.Error("expected 1.55~")
+	result = CalculateSharpeRatio(returns, 0.065)
+	result = math.Round(result*100) / 100
+	if result != 1.5 {
+		t.Errorf("expected 1.5, received %v", result)
 	}
 }
 
