@@ -23,8 +23,10 @@ type Orderbook struct {
 	m                     sync.Mutex
 }
 
+// orderbookHolder defines a store of pending updates and a pointer to the
+// orderbook depth
 type orderbookHolder struct {
-	ob     *orderbook.Base
+	ob     *orderbook.Depth
 	buffer *[]Update
 }
 
