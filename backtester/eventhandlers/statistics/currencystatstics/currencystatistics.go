@@ -55,7 +55,7 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.MaxDrawdown = calculateMaxDrawdown(allDataEvents)
 
 	interval := first.DataEvent.GetInterval()
-	intervalsPerYear := float64(interval.IntervalsPerYear())
+	intervalsPerYear := interval.IntervalsPerYear()
 	durationPerYear := intervalsPerYear * float64(interval.Duration())
 	btDuration := float64(last.DataEvent.GetTime().Sub(first.DataEvent.GetTime()))
 

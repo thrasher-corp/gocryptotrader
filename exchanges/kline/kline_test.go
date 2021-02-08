@@ -731,15 +731,6 @@ func TestVerifyResultsHaveData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	//err = dateRanges.VerifyResultsHaveData([]Candle{
-	//	{
-	//		Time: tt2,
-	//	},
-	//})
-	//if err != nil {
-	//	t.Error(err)
-	//}
 }
 
 func TestHasDataAtDate(t *testing.T) {

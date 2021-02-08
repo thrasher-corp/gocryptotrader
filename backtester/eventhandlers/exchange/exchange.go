@@ -69,7 +69,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		}
 		// calculate an estimated slippage rate
 		adjustedPrice, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), o.GetFunds(), f.ExchangeFee)
-		f.Slippage = adjustedPrice - f.ClosePrice/f.ClosePrice*100
+		f.Slippage = ((adjustedPrice - f.ClosePrice) / f.ClosePrice) * 100
 	} else {
 		adjustedPrice, amount, err = e.sizeOfflineOrder(high, low, volume, &cs, f)
 		if err != nil {

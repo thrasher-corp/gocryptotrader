@@ -124,7 +124,7 @@ func (d *Data) enhanceCandles() error {
 				if statsForCandles.Events[k].SignalEvent != nil {
 					if statsForCandles.Events[k].SignalEvent.GetTime().Equal(d.OriginalCandles[i].Candles[j].Time) {
 						if statsForCandles.Events[k].SignalEvent.GetDirection() == common.MissingData {
-							//if the data is missing, ensure that all values just continue the previous candle's close price visually
+							// if the data is missing, ensure that all values just continue the previous candle's close price visually
 							enhancedCandle.Open = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
 							enhancedCandle.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
 							enhancedCandle.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close

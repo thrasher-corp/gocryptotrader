@@ -13,9 +13,8 @@ func (m *Manager) AddSnapshot(orders []SnapshotOrder, t time.Time, force bool) e
 			if force {
 				m.Snapshots[i].Orders = orders
 				return nil
-			} else {
-				return fmt.Errorf("snapshot at timestamp %v already exists. Use force to overwrite", m.Snapshots[i].Timestamp)
 			}
+			return fmt.Errorf("snapshot at timestamp %v already exists. Use force to overwrite", m.Snapshots[i].Timestamp)
 		}
 	}
 	m.Snapshots = append(m.Snapshots, Snapshot{
