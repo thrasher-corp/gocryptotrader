@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -204,3 +205,74 @@ func (d *Depth) flush() error {
 }
 
 type outOfOrder func(float64, float64) bool
+
+// UpdateBidAskByPrice updates the bid and ask spread by supplied updates
+func (d *Depth) UpdateBidAskByPrice(bid, ask Items, maxDepth int) error {
+	d.Lock()
+	defer d.Unlock()
+	err := d.bid.updateInsertBidsByPrice(bid, &d.stack, maxDepth)
+	if err != nil {
+		return err
+	}
+
+	err = d.bid.updateInsertBidsByPrice(ask, &d.stack, maxDepth)
+	if err != nil {
+		return err
+	}
+	d.alert()
+	return nil
+}
+
+// UpdateBidAskByID amends details by ID
+func (d *Depth) UpdateBidAskByID(bid, ask Items) error {
+	d.Lock()
+	defer d.Unlock()
+	err := d.bid.updateByID(bid)
+	if err != nil {
+		return err
+	}
+
+	err = d.ask.updateByID(ask)
+	if err != nil {
+		return err
+	}
+	d.alert()
+	return nil
+}
+
+// DeleteBidAskByID deletes a price level by ID
+func (d *Depth) DeleteBidAskByID(bid, ask Items, bypassErr bool) error {
+	d.Lock()
+	defer d.Unlock()
+
+	err := d.bid.deleteByID(bid, &d.stack, bypassErr)
+	if err != nil {
+		return err
+	}
+
+	err = d.ask.deleteByID(ask, &d.stack, bypassErr)
+	if err != nil {
+		return err
+	}
+
+	d.alert()
+	return nil
+}
+
+// InsertBidAskByID inserts new updates
+func (d *Depth) InsertBidAskByID(bid, ask Items) {
+	d.Lock()
+	defer d.Unlock()
+	d.bid.insertUpdatesBid(bid, &d.stack)
+	d.ask.insertUpdatesAsk(ask, &d.stack)
+	d.alert()
+}
+
+// UpdateInsertByID ...
+func (d *Depth) UpdateInsertByID() {
+	result := &struct {
+		Data string `json:"hello"`
+	}{}
+
+	fmt.Println(result)
+}

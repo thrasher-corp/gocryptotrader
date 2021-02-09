@@ -31,6 +31,7 @@ func (ll *linkedList) Load(items Items, stack *Stack) error {
 		if *tip == nil {
 			// Extend node chain
 			*tip = stack.Pop()
+			ll.length++
 		}
 		// Set item value
 		(*tip).value = items[i]
@@ -56,6 +57,7 @@ func (ll *linkedList) Load(items Items, stack *Stack) error {
 	for push != nil {
 		pending := push.next
 		stack.Push(push)
+		ll.length--
 		push = pending
 	}
 	return nil
@@ -109,17 +111,194 @@ func (ll *linkedList) Add(fn byDecision, item Item, stack *Stack) error {
 	}
 }
 
-// updateBidsByPrice ammends, inserts, moves and cleaves length of depth by
+// updateInsertBidsByPrice ammends, inserts, moves and cleaves length of depth by
 // updates in bid linked list
-func (ll *linkedList) updateBidsByPrice(updts Items) {}
+func (ll *linkedList) updateInsertBidsByPrice(updts Items, stack *Stack, maxChainLength int) error {
+	defer ll.cleanup(maxChainLength, stack)
+updates:
+	for tip := &ll.head; *tip != nil; tip = &(*tip).next {
+		for x := range updts {
+			if (*tip).value.Price == updts[x].Price { // Match check
+				if updts[x].Amount == 0 { // Delete
+					old := *tip
+					if old.prev != nil {
+						old.prev.next = old.next
+					}
+					old.next.prev = old.prev
+					stack.Push(old)
+					ll.length--
+				} else { // Amend
+					(*tip).value.Amount = updts[x].Amount
+				}
+				if deleteUpdate(&updts) {
+					return nil
+				}
+				continue updates
+			}
 
-// updateAsksByPrice ammends, inserts, moves and cleaves length of depth by
+			if (*tip).value.Price > updts[x].Price { // Insert
+				if updts[x].Amount > 0 { // Filter delete that was not found
+					n := stack.Pop()
+					n.value = updts[x]
+					n.next = (*tip).next
+					(*tip).next.prev = n
+					(*tip).next = n
+					n.prev = (*tip)
+					ll.length++
+				}
+
+				if deleteUpdate(&updts) {
+					return nil
+				}
+				continue updates
+			}
+		}
+	}
+	return errors.New("could not apply update :(")
+}
+
+// updateInsertAsksByPrice ammends, inserts, moves and cleaves length of depth by
 // updates in ask linked list
-func (ll *linkedList) updateAsksByPrice(updts Items) {}
+func (ll *linkedList) updateInsertAsksByPrice(updts Items, stack *Stack, maxChainLength int) error {
+	defer ll.cleanup(maxChainLength, stack)
+updates:
+	for tip := &ll.head; *tip != nil; tip = &(*tip).next {
+		for x := range updts {
+			if (*tip).value.Price == updts[x].Price { // Match check
+				if updts[x].Amount == 0 { // Delete
+					old := *tip
+					if old.prev != nil {
+						old.prev.next = old.next
+					}
+					old.next.prev = old.prev
+					stack.Push(old)
+					ll.length--
+				} else { // Amend
+					(*tip).value.Amount = updts[x].Amount
+				}
+				if deleteUpdate(&updts) {
+					return nil
+				}
+				continue updates
+			}
+
+			if (*tip).value.Price > updts[x].Price { // Insert
+				if updts[x].Amount > 0 { // Filter delete
+					n := stack.Pop()
+					n.value = updts[x]
+					n.next = (*tip).next
+					(*tip).next.prev = n
+					(*tip).next = n
+					n.prev = (*tip)
+					ll.length++
+				}
+
+				if deleteUpdate(&updts) {
+					return nil
+				}
+				continue updates
+			}
+		}
+	}
+	return errors.New("could not apply update :(")
+}
+
+// cleanup reduces the max size of the depth length if exceeded. Is used after
+// updates have been applied instead of adhoc, reason being its easier to prune
+// at the end.
+func (ll *linkedList) cleanup(maxChainLength int, stack *Stack) {
+	if maxChainLength == 0 && ll.length <= maxChainLength {
+		return
+	}
+
+	n := ll.head
+	for ; maxChainLength != 0; maxChainLength-- {
+		n = n.next
+	}
+
+	var pruned int
+	for n != nil {
+		pruned++
+		pending := n.next
+		stack.Push(n)
+		n = pending
+	}
+	ll.length -= pruned
+}
+
+// deleteUpdate removes update TODO: Benchmark
+func deleteUpdate(updts *Items) (finished bool) {
+	if len(*updts) < 2 { // Eager check pre-empts deletion
+		return true
+	}
+	(*updts)[0] = (*updts)[len(*updts)-1]
+	*updts = (*updts)[:len(*updts)-1]
+	return false
+}
 
 // updateByID ammends price by corresponding ID and returns an error if not
 // found
-func (ll *linkedList) updateByID(updts Items) error { return nil }
+func (ll *linkedList) updateByID(updts Items) error {
+updates:
+	for tip := ll.head; tip != nil; tip = tip.next {
+		for x := range updts {
+			if updts[x].ID == tip.value.ID {
+				tip.value = updts[x]
+				if deleteUpdate(&updts) {
+					return nil
+				}
+				continue updates
+			}
+		}
+	}
+	return fmt.Errorf("update cannot be applied id: %d not found",
+		updts[0].ID)
+}
+
+// deleteByID deletes refererence by ID
+func (ll *linkedList) deleteByID(updts Items, stack *Stack, bypassErr bool) error {
+updates:
+	for tip := &ll.head; tip != nil; tip = &(*tip).next {
+		for x := range updts {
+			if updts[x].ID == (*tip).value.ID {
+				old := *tip
+				*tip = old.next
+				if old.prev != nil {
+					old.prev.next = *tip
+				}
+				stack.Push(old)
+				ll.length--
+				if deleteUpdate(&updts) {
+					return nil
+				}
+				continue updates
+			}
+		}
+	}
+
+	if !bypassErr {
+		return fmt.Errorf("update cannot be deleted id: %d not found",
+			updts[0].ID)
+	}
+	return nil
+}
+
+// updateInsertByID updates or inserts if not found
+// 1) Node ID found amount amended (best case)
+// 2) Node ID found amount and price amended and node moved to correct position
+// (medium case)
+// 3) Update price exceeds traversal node price before ID found, save node
+// address for either; node ID matches then re-address node or end of depth pop
+// a node from the stack (worst case)
+func (ll *linkedList) updateInsertByID(updts Items, stack *Stack) {
+	// bucket for look forwards
+	var saved = make([]*Node, len(updts))
+	for tip := ll.head; tip != nil; tip = tip.next {
+		for x := range updts {
+
+		}
+	}
+}
 
 // insertUpdatesBid inserts new updates for bids based on price level
 // attention: bid updates need to be in descending order
@@ -128,6 +307,8 @@ func (ll *linkedList) insertUpdatesBid(updts Items, stack *Stack) {
 	for tip := &ll.head; ; tip = &(*tip).next {
 		if *tip == nil {
 			chain(tip, updts[target:], stack)
+			ll.length += len(updts[target:]) // TODO: REDO/RETHINK
+			return
 		}
 
 		if updts[target].Price > (*tip).value.Price {

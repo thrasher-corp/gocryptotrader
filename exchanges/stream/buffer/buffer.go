@@ -138,7 +138,7 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 	// if not
 	// o.ob.LastUpdateID = u.UpdateID
 	if w.updateEntriesByID {
-		return o.updateByIDAndAction(u)
+		return o.updateByIDAndAction(u, w.exchangeName, false) // TODO: FIX
 	}
 	return o.updateByPrice(u)
 }
@@ -146,76 +146,21 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 // updateByPrice ammends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
 func (o *orderbookHolder) updateByPrice(updts *Update) error {
-	// askUpdates:
-	// 	for j := range updts.Asks {
-	// 		for target := range o.ob.Asks {
-	// 			if o.ob.Asks[target].Price == updts.Asks[j].Price {
-	// 				if updts.Asks[j].Amount == 0 {
-	// 					o.ob.Asks = append(o.ob.Asks[:target], o.ob.Asks[target+1:]...)
-	// 					continue askUpdates
-	// 				}
-	// 				o.ob.Asks[target].Amount = updts.Asks[j].Amount
-	// 				continue askUpdates
-	// 			}
-	// 		}
-	// 		if updts.Asks[j].Amount <= 0 {
-	// 			continue
-	// 		}
-	// 		insertAsk(updts.Asks[j], &o.ob.Asks)
-	// 		if updts.MaxDepth != 0 && len(o.ob.Asks) > updts.MaxDepth {
-	// 			o.ob.Asks = o.ob.Asks[:updts.MaxDepth]
-	// 		}
-	// 	}
-	// bidUpdates:
-	// 	for j := range updts.Bids {
-	// 		for target := range o.ob.Bids {
-	// 			if o.ob.Bids[target].Price == updts.Bids[j].Price {
-	// 				if updts.Bids[j].Amount == 0 {
-	// 					o.ob.Bids = append(o.ob.Bids[:target], o.ob.Bids[target+1:]...)
-	// 					continue bidUpdates
-	// 				}
-	// 				o.ob.Bids[target].Amount = updts.Bids[j].Amount
-	// 				continue bidUpdates
-	// 			}
-	// 		}
-	// 		if updts.Bids[j].Amount <= 0 {
-	// 			continue
-	// 		}
-	// 		insertBid(updts.Bids[j], &o.ob.Bids)
-	// 		if updts.MaxDepth != 0 && len(o.ob.Bids) > updts.MaxDepth {
-	// 			o.ob.Bids = o.ob.Bids[:updts.MaxDepth]
-	// 		}
-	// 	}
-	return nil
+	return o.ob.UpdateBidAskByPrice(updts.Bids, updts.Asks, updts.MaxDepth)
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
 // it will then match by IDs instead of price to perform the action
-func (o *orderbookHolder) updateByIDAndAction(updts *Update) (err error) {
+func (o *orderbookHolder) updateByIDAndAction(updts *Update, exch string, isFundingRate bool) (err error) {
 	switch updts.Action {
 	case Amend:
-		// err = applyUpdates(updts.Bids, o.ob.Bids)
-		// if err != nil {
-		// 	return err
-		// }
-		// err = applyUpdates(updts.Asks, o.ob.Asks)
-		// if err != nil {
-		// 	return err
-		// }
+		err = o.ob.UpdateBidAskByID(updts.Bids, updts.Asks)
 	case Delete:
-		// // edge case for Bitfinex as their streaming endpoint duplicates deletes
-		// bypassErr := o.ob.Exchange == "Bitfinex" && o.ob.IsFundingRate
-		// err = deleteUpdates(updts.Bids, &o.ob.Bids, bypassErr)
-		// if err != nil {
-		// 	return fmt.Errorf("%s %s %v", o.ob.Asset, o.ob.Pair, err)
-		// }
-		// err = deleteUpdates(updts.Asks, &o.ob.Asks, bypassErr)
-		// if err != nil {
-		// 	return fmt.Errorf("%s %s %v", o.ob.Asset, o.ob.Pair, err)
-		// }
+		// edge case for Bitfinex as their streaming endpoint duplicates deletes
+		bypassErr := exch == "Bitfinex" && isFundingRate
+		err = o.ob.DeleteBidAskByID(updts.Bids, updts.Asks, bypassErr)
 	case Insert:
-		// insertUpdatesBid(updts.Bids, &o.ob.Bids)
-		// insertUpdatesAsk(updts.Asks, &o.ob.Asks)
+		o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
 	case UpdateInsert:
 	// updateBids:
 	// 	for x := range updts.Bids {
@@ -254,24 +199,24 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) (err error) {
 	default:
 		return fmt.Errorf("invalid action [%s]", updts.Action)
 	}
-	return nil
+	return
 }
 
-// applyUpdates amends amount by ID and returns an error if not found
-func applyUpdates(updts, book []orderbook.Item) error {
-updates:
-	for x := range updts {
-		for y := range book {
-			if book[y].ID == updts[x].ID {
-				book[y].Amount = updts[x].Amount
-				continue updates
-			}
-		}
-		return fmt.Errorf("update cannot be applied id: %d not found",
-			updts[x].ID)
-	}
-	return nil
-}
+// // applyUpdates amends amount by ID and returns an error if not found
+// func applyUpdates(updts, book []orderbook.Item) error {
+// updates:
+// 	for x := range updts {
+// 		for y := range book {
+// 			if book[y].ID == updts[x].ID {
+// 				book[y].Amount = updts[x].Amount
+// 				continue updates
+// 			}
+// 		}
+// 		return fmt.Errorf("update cannot be applied id: %d not found",
+// 			updts[x].ID)
+// 	}
+// 	return nil
+// }
 
 // deleteUpdates removes updates from orderbook and returns an error if not
 // found
