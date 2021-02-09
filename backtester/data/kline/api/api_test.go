@@ -18,7 +18,7 @@ func TestLoadCandles(t *testing.T) {
 	tt1 := time.Now().Add(-time.Hour)
 	tt2 := time.Now()
 	interval := gctkline.FifteenMin
-	bot, err := engine.NewFromSettings(&Settings{
+	bot, err := engine.NewFromSettings(&engine.Settings{
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {
@@ -54,7 +54,7 @@ func TestLoadTrades(t *testing.T) {
 	tt1 := time.Now().Add(-time.Hour)
 	tt2 := time.Now()
 	interval := gctkline.FifteenMin
-	bot, err := engine.NewFromSettings(&Settings{
+	bot, err := engine.NewFromSettings(&engine.Settings{
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {
