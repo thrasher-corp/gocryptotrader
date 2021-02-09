@@ -30,19 +30,19 @@ type FakePassingExchange struct {
 }
 
 // addPassingFakeExchange adds an exchange to engine tests where all funcs return a positive result
-func addPassingFakeExchange(baseExchangeName string) error {
-	testExch := Bot.GetExchangeByName(baseExchangeName)
+func addPassingFakeExchange(baseExchangeName string, bot *Engine) error {
+	testExch := bot.GetExchangeByName(baseExchangeName)
 	if testExch == nil {
 		return ErrExchangeNotFound
 	}
 	base := testExch.GetBase()
-	Bot.Config.Exchanges = append(Bot.Config.Exchanges, config.ExchangeConfig{
+	bot.Config.Exchanges = append(bot.Config.Exchanges, config.ExchangeConfig{
 		Name:    fakePassExchange,
 		Enabled: true,
 		Verbose: false,
 	})
 
-	Bot.exchangeManager.add(&FakePassingExchange{
+	bot.exchangeManager.add(&FakePassingExchange{
 		Base: exchange.Base{
 			Name:                          fakePassExchange,
 			Enabled:                       true,

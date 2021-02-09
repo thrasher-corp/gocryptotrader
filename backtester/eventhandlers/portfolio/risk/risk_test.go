@@ -11,6 +11,7 @@ import (
 )
 
 func TestAssessHoldingsRatio(t *testing.T) {
+	t.Parallel()
 	ratio := assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
 		{
 			Pair:          currency.NewPair(currency.BTC, currency.USDT),
@@ -45,6 +46,7 @@ func TestAssessHoldingsRatio(t *testing.T) {
 }
 
 func TestEvaluateOrder(t *testing.T) {
+	t.Parallel()
 	r := Risk{}
 	_, err := r.EvaluateOrder(nil, nil, compliance.Snapshot{})
 	if err != nil && err.Error() != "received nil argument(s)" {

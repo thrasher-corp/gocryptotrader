@@ -11,6 +11,7 @@ import (
 )
 
 func TestSizingAccuracy(t *testing.T) {
+	t.Parallel()
 	globalMinMax := config.MinMax{
 		MinimumSize:  0,
 		MaximumSize:  1,
@@ -35,6 +36,7 @@ func TestSizingAccuracy(t *testing.T) {
 }
 
 func TestSizingOverMaxSize(t *testing.T) {
+	t.Parallel()
 	globalMinMax := config.MinMax{
 		MinimumSize:  0,
 		MaximumSize:  0.5,
@@ -58,6 +60,7 @@ func TestSizingOverMaxSize(t *testing.T) {
 }
 
 func TestSizingUnderMinSize(t *testing.T) {
+	t.Parallel()
 	globalMinMax := config.MinMax{
 		MinimumSize:  1,
 		MaximumSize:  2,
@@ -78,6 +81,7 @@ func TestSizingUnderMinSize(t *testing.T) {
 }
 
 func TestSizingErrors(t *testing.T) {
+	t.Parallel()
 	globalMinMax := config.MinMax{
 		MinimumSize:  1,
 		MaximumSize:  2,
@@ -98,6 +102,7 @@ func TestSizingErrors(t *testing.T) {
 }
 
 func TestCalculateSellSize(t *testing.T) {
+	t.Parallel()
 	globalMinMax := config.MinMax{
 		MinimumSize:  1,
 		MaximumSize:  2,
@@ -129,6 +134,7 @@ func TestCalculateSellSize(t *testing.T) {
 }
 
 func TestSizeOrder(t *testing.T) {
+	t.Parallel()
 	s := Size{}
 	_, err := s.SizeOrder(nil, 0, nil)
 	if err != nil && err.Error() != "nil arguments received, cannot size order" {

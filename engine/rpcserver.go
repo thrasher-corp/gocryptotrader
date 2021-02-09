@@ -1195,7 +1195,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.Wit
 		},
 	}
 
-	resp, err := SubmitWithdrawal(request)
+	resp, err := s.Engine.SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}
@@ -1237,7 +1237,7 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 		},
 	}
 
-	resp, err := SubmitWithdrawal(request)
+	resp, err := s.Engine.SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}

@@ -25,6 +25,7 @@ import (
 const testExchange = "binance"
 
 func TestReset(t *testing.T) {
+	t.Parallel()
 	p := Portfolio{
 		exchangeAssetPairSettings: make(map[string]map[asset.Item]map[currency.Pair]*settings.Settings),
 	}
@@ -35,6 +36,7 @@ func TestReset(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	_, err := Setup(nil, nil, -1)
 	if err != nil && err.Error() != "received nil sizeHandler" {
 		t.Error(err)
@@ -60,6 +62,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestSetupCurrencySettingsMap(t *testing.T) {
+	t.Parallel()
 	p := &Portfolio{}
 	_, err := p.SetupCurrencySettingsMap("", "", currency.Pair{})
 	if err != nil && err.Error() != "received empty exchange name" {
@@ -83,6 +86,7 @@ func TestSetupCurrencySettingsMap(t *testing.T) {
 }
 
 func TestSetHoldings(t *testing.T) {
+	t.Parallel()
 	p := &Portfolio{}
 
 	err := p.setHoldings("", "", currency.Pair{}, &holdings.Holding{}, false)
@@ -113,6 +117,7 @@ func TestSetHoldings(t *testing.T) {
 }
 
 func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
+	t.Parallel()
 	p := &Portfolio{}
 	h := p.GetLatestHoldingsForAllCurrencies()
 	if len(h) != 0 {
@@ -138,6 +143,7 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 }
 
 func TestGetInitialFunds(t *testing.T) {
+	t.Parallel()
 	p := Portfolio{}
 	f := p.GetInitialFunds("", "", currency.Pair{})
 	if f != 0 {
@@ -161,6 +167,7 @@ func TestGetInitialFunds(t *testing.T) {
 }
 
 func TestViewHoldingAtTimePeriod(t *testing.T) {
+	t.Parallel()
 	p := Portfolio{}
 	tt := time.Now()
 	_, err := p.ViewHoldingAtTimePeriod("", "", currency.Pair{}, tt)
@@ -192,6 +199,7 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	t.Parallel()
 	p := Portfolio{}
 	err := p.Update(nil)
 	if err != nil && err.Error() != "received nil data event" {
@@ -234,6 +242,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
+	t.Parallel()
 	p := Portfolio{}
 	f := p.GetFee("", "", currency.Pair{})
 	if f != 0 {
@@ -253,6 +262,7 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestGetComplianceManager(t *testing.T) {
+	t.Parallel()
 	p := Portfolio{}
 	_, err := p.GetComplianceManager("", "", currency.Pair{})
 	if err != nil && !strings.Contains(err.Error(), "no exchange settings found for") {
@@ -274,6 +284,7 @@ func TestGetComplianceManager(t *testing.T) {
 }
 
 func TestAddComplianceSnapshot(t *testing.T) {
+	t.Parallel()
 	p := Portfolio{}
 	err := p.addComplianceSnapshot(&fill.Fill{})
 	if err != nil && !strings.Contains(err.Error(), "could not retrieve compliance manager") {
@@ -303,6 +314,7 @@ func TestAddComplianceSnapshot(t *testing.T) {
 }
 
 func TestOnFill(t *testing.T) {
+	t.Parallel()
 	p := Portfolio{}
 	_, err := p.OnFill(nil)
 	if err != nil && err.Error() != "nil fill event received, cannot process OnFill" {
@@ -349,6 +361,7 @@ func TestOnFill(t *testing.T) {
 }
 
 func TestOnSignal(t *testing.T) {
+	t.Parallel()
 	p := Portfolio{}
 	_, err := p.OnSignal(nil, nil)
 	if err != nil && err.Error() != "received nil arguments, cannot process OnSignal" {

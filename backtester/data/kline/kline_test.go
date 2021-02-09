@@ -15,6 +15,7 @@ import (
 const testExchange = "binance"
 
 func TestLoad(t *testing.T) {
+	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -47,6 +48,7 @@ func TestLoad(t *testing.T) {
 }
 
 func TestHasDataAtTime(t *testing.T) {
+	t.Parallel()
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
@@ -95,6 +97,7 @@ func TestHasDataAtTime(t *testing.T) {
 }
 
 func TestAppend(t *testing.T) {
+	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -119,6 +122,7 @@ func TestAppend(t *testing.T) {
 }
 
 func TestStreamOpen(t *testing.T) {
+	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -151,6 +155,7 @@ func TestStreamOpen(t *testing.T) {
 }
 
 func TestStreamVolume(t *testing.T) {
+	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -183,6 +188,7 @@ func TestStreamVolume(t *testing.T) {
 }
 
 func TestStreamClose(t *testing.T) {
+	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -215,6 +221,7 @@ func TestStreamClose(t *testing.T) {
 }
 
 func TestStreamHigh(t *testing.T) {
+	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -247,6 +254,7 @@ func TestStreamHigh(t *testing.T) {
 }
 
 func TestStreamLow(t *testing.T) {
+	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)

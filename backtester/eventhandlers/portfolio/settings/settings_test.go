@@ -8,6 +8,7 @@ import (
 )
 
 func TestGetLatestHoldings(t *testing.T) {
+	t.Parallel()
 	cs := Settings{}
 	h := cs.GetLatestHoldings()
 	if !h.Timestamp.IsZero() {
@@ -23,6 +24,7 @@ func TestGetLatestHoldings(t *testing.T) {
 }
 
 func TestValue(t *testing.T) {
+	t.Parallel()
 	cs := Settings{}
 	v := cs.Value()
 	if v != 0 {

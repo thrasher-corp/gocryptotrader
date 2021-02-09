@@ -19,6 +19,7 @@ const (
 )
 
 func TestCreate(t *testing.T) {
+	t.Parallel()
 	_, err := Create(&fill.Fill{}, -1, riskFreeRate)
 	if err != nil && err.Error() != "initial funds <= 0" {
 		t.Error(err)
@@ -39,6 +40,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	t.Parallel()
 	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
 	if err != nil {
 		t.Error(err)
@@ -55,6 +57,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateValue(t *testing.T) {
+	t.Parallel()
 	h, err := Create(&fill.Fill{}, 1, riskFreeRate)
 	if err != nil {
 		t.Error(err)
@@ -69,6 +72,7 @@ func TestUpdateValue(t *testing.T) {
 }
 
 func TestUpdateBuyStats(t *testing.T) {
+	t.Parallel()
 	h, err := Create(&fill.Fill{}, 1000, riskFreeRate)
 	if err != nil {
 		t.Error(err)
@@ -201,6 +205,7 @@ func TestUpdateBuyStats(t *testing.T) {
 }
 
 func TestUpdateSellStats(t *testing.T) {
+	t.Parallel()
 	h, err := Create(&fill.Fill{}, 1000, riskFreeRate)
 	if err != nil {
 		t.Error(err)

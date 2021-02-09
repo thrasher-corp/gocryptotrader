@@ -787,7 +787,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	bot := SetupTestHelpers(t)
+	bot := CreateTestBot(t)
 	s := RPCServer{Engine: bot}
 
 	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
@@ -801,7 +801,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
-	bot := SetupTestHelpers(t)
+	bot := CreateTestBot(t)
 	s := RPCServer{Engine: bot}
 
 	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})

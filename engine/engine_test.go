@@ -75,6 +75,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 func TestStartStopDoesNotCausePanic(t *testing.T) {
 	t.Parallel()
 	botOne, err := NewFromSettings(&Settings{
+		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {
@@ -92,12 +93,14 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	t.Skip("Closing global currency.storage from two bots causes panic")
 	t.Parallel()
 	botOne, err := NewFromSettings(&Settings{
+		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {
 		t.Error(err)
 	}
 	botTwo, err := NewFromSettings(&Settings{
+		ConfigFile:   config.TestFile,
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {

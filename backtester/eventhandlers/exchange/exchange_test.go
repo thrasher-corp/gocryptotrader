@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ import (
 const testExchange = "binance"
 
 func TestReset(t *testing.T) {
+	t.Parallel()
 	e := Exchange{
 		CurrencySettings: []Settings{},
 	}
@@ -30,6 +32,7 @@ func TestReset(t *testing.T) {
 }
 
 func TestSetCurrency(t *testing.T) {
+	t.Parallel()
 	e := Exchange{}
 	e.SetExchangeAssetCurrencySettings("", "", currency.Pair{}, &Settings{})
 	if len(e.CurrencySettings) != 0 {
@@ -66,6 +69,7 @@ func TestSetCurrency(t *testing.T) {
 }
 
 func TestEnsureOrderFitsWithinHLV(t *testing.T) {
+	t.Parallel()
 	adjustedPrice, adjustedAmount := ensureOrderFitsWithinHLV(123, 1, 100, 99, 100)
 	if adjustedAmount != 1 {
 		t.Error("expected 1")
@@ -85,6 +89,7 @@ func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 }
 
 func TestCalculateExchangeFee(t *testing.T) {
+	t.Parallel()
 	fee := calculateExchangeFee(1, 1, 0.1)
 	if fee != 0.1 {
 		t.Error("expected 0.1")
@@ -96,6 +101,7 @@ func TestCalculateExchangeFee(t *testing.T) {
 }
 
 func TestSizeOrder(t *testing.T) {
+	t.Parallel()
 	e := Exchange{}
 	_, _, err := e.sizeOfflineOrder(0, 0, 0, nil, nil)
 	if err != nil && err.Error() != "received nil arguments" {
@@ -124,9 +130,13 @@ func TestSizeOrder(t *testing.T) {
 }
 
 func TestPlaceOrder(t *testing.T) {
-	bot, err := engine.New()
+	t.Parallel()
+	bot, err := engine.NewFromSettings(&engine.Settings{
+		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
+		EnableDryRun: true,
+	}, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	err = bot.OrderManager.Start(bot)
 	if err != nil {
@@ -167,6 +177,7 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 func TestExecuteOrder(t *testing.T) {
+	t.Parallel()
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
 	cs := Settings{
@@ -201,9 +212,12 @@ func TestExecuteOrder(t *testing.T) {
 		Funds:     1337,
 	}
 
-	bot, err := engine.New()
+	bot, err := engine.NewFromSettings(&engine.Settings{
+		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
+		EnableDryRun: true,
+	}, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	err = bot.OrderManager.Start(bot)
 	if err != nil {
@@ -254,6 +268,7 @@ func TestExecuteOrder(t *testing.T) {
 }
 
 func TestApplySlippageToPrice(t *testing.T) {
+	t.Parallel()
 	resp := applySlippageToPrice(gctorder.Buy, 1, 0.9)
 	if resp != 1.1 {
 		t.Errorf("expected 1.1, received %v", resp)
@@ -265,6 +280,7 @@ func TestApplySlippageToPrice(t *testing.T) {
 }
 
 func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
+	t.Parallel()
 	initialPrice := 1003.37
 	initialAmount := 1337 / initialPrice
 	portfolioAdjustedTotal := initialAmount * initialPrice

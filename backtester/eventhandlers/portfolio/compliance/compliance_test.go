@@ -7,6 +7,7 @@ import (
 )
 
 func TestAddSnapshot(t *testing.T) {
+	t.Parallel()
 	m := Manager{}
 	tt := time.Now()
 	err := m.AddSnapshot([]SnapshotOrder{}, tt, false)
@@ -26,6 +27,7 @@ func TestAddSnapshot(t *testing.T) {
 }
 
 func TestGetSnapshotAtTime(t *testing.T) {
+	t.Parallel()
 	m := Manager{}
 	tt := time.Now()
 	err := m.AddSnapshot([]SnapshotOrder{
@@ -58,6 +60,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 }
 
 func TestGetLatestSnapshot(t *testing.T) {
+	t.Parallel()
 	m := Manager{}
 	snappySnap := m.GetLatestSnapshot()
 	if !snappySnap.Timestamp.IsZero() {

@@ -17,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func printCurrencyFormat(price float64) string {
-	displaySymbol, err := currency.GetSymbolByCurrencyName(Bot.Config.Currency.FiatDisplayCurrency)
+func printCurrencyFormat(price float64, displayCurrency currency.Code) string {
+	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
 	if err != nil {
 		log.Errorf(log.Global, "Failed to get display symbol: %s\n", err)
 	}
@@ -26,8 +26,7 @@ func printCurrencyFormat(price float64) string {
 	return fmt.Sprintf("%s%.8f", displaySymbol, price)
 }
 
-func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) string {
-	displayCurrency := Bot.Config.Currency.FiatDisplayCurrency
+func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64, displayCurrency currency.Code) string {
 	conv, err := currency.ConvertCurrency(origPrice,
 		origCurrency,
 		displayCurrency)
@@ -73,38 +72,40 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 
 	stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
 	if result.Pair.Quote.IsFiatCurrency() &&
+		Bot != nil &&
 		result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := result.Pair.Quote.Upper()
 		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 			result.ExchangeName,
 			protocol,
-			FormatCurrency(result.Pair),
+			Bot.FormatCurrency(result.Pair),
 			strings.ToUpper(result.AssetType.String()),
-			printConvertCurrencyFormat(origCurrency, result.Last),
-			printConvertCurrencyFormat(origCurrency, result.Ask),
-			printConvertCurrencyFormat(origCurrency, result.Bid),
-			printConvertCurrencyFormat(origCurrency, result.High),
-			printConvertCurrencyFormat(origCurrency, result.Low),
+			printConvertCurrencyFormat(origCurrency, result.Last, Bot.Config.Currency.FiatDisplayCurrency),
+			printConvertCurrencyFormat(origCurrency, result.Ask, Bot.Config.Currency.FiatDisplayCurrency),
+			printConvertCurrencyFormat(origCurrency, result.Bid, Bot.Config.Currency.FiatDisplayCurrency),
+			printConvertCurrencyFormat(origCurrency, result.High, Bot.Config.Currency.FiatDisplayCurrency),
+			printConvertCurrencyFormat(origCurrency, result.Low, Bot.Config.Currency.FiatDisplayCurrency),
 			result.Volume)
 	} else {
 		if result.Pair.Quote.IsFiatCurrency() &&
+			Bot != nil &&
 			result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 				result.ExchangeName,
 				protocol,
-				FormatCurrency(result.Pair),
+				Bot.FormatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
-				printCurrencyFormat(result.Last),
-				printCurrencyFormat(result.Ask),
-				printCurrencyFormat(result.Bid),
-				printCurrencyFormat(result.High),
-				printCurrencyFormat(result.Low),
+				printCurrencyFormat(result.Last, Bot.Config.Currency.FiatDisplayCurrency),
+				printCurrencyFormat(result.Ask, Bot.Config.Currency.FiatDisplayCurrency),
+				printCurrencyFormat(result.Bid, Bot.Config.Currency.FiatDisplayCurrency),
+				printCurrencyFormat(result.High, Bot.Config.Currency.FiatDisplayCurrency),
+				printCurrencyFormat(result.Low, Bot.Config.Currency.FiatDisplayCurrency),
 				result.Volume)
 		} else {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f\n",
 				result.ExchangeName,
 				protocol,
-				FormatCurrency(result.Pair),
+				Bot.FormatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
 				result.Last,
 				result.Ask,
@@ -120,7 +121,7 @@ const (
 	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n"
 )
 
-func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
+func printOrderbookSummary(result *orderbook.Base, protocol string, bot *Engine, err error) {
 	if err != nil {
 		if result == nil {
 			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",
@@ -151,21 +152,22 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 
 	var bidValueResult, askValueResult string
 	switch {
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency:
+	case result.Pair.Quote.IsFiatCurrency() && bot != nil && result.Pair.Quote != bot.Config.Currency.FiatDisplayCurrency:
 		origCurrency := result.Pair.Quote.Upper()
-		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue)
-		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue)
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency:
-		bidValueResult = printCurrencyFormat(bidsValue)
-		askValueResult = printCurrencyFormat(asksValue)
+		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue, bot.Config.Currency.FiatDisplayCurrency)
+		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue, bot.Config.Currency.FiatDisplayCurrency)
+	case result.Pair.Quote.IsFiatCurrency() && bot != nil && result.Pair.Quote == bot.Config.Currency.FiatDisplayCurrency:
+		bidValueResult = printCurrencyFormat(bidsValue, bot.Config.Currency.FiatDisplayCurrency)
+		askValueResult = printCurrencyFormat(asksValue, bot.Config.Currency.FiatDisplayCurrency)
 	default:
 		bidValueResult = strconv.FormatFloat(bidsValue, 'f', -1, 64)
 		askValueResult = strconv.FormatFloat(asksValue, 'f', -1, 64)
 	}
+
 	log.Infof(log.OrderBook, book,
 		result.ExchangeName,
 		protocol,
-		FormatCurrency(result.Pair),
+		bot.FormatCurrency(result.Pair),
 		strings.ToUpper(result.AssetType.String()),
 		len(result.Bids),
 		bidsAmount,
@@ -289,7 +291,7 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		if bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
 				exchName,
-				FormatCurrency(d.CurrencyPair),
+				bot.FormatCurrency(d.CurrencyPair),
 				d.AssetType,
 				d)
 		}
@@ -307,7 +309,7 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		if bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 				exchName,
-				FormatCurrency(d.Pair),
+				bot.FormatCurrency(d.Pair),
 				d.AssetType,
 				d)
 		}
@@ -319,7 +321,7 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 				SyncItemOrderbook,
 				nil)
 		}
-		printOrderbookSummary(d, "websocket", nil)
+		printOrderbookSummary(d, "websocket", bot, nil)
 	case *order.Detail:
 		if !bot.OrderManager.orderStore.exists(d) {
 			err := bot.OrderManager.orderStore.Add(d)

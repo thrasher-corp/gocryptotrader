@@ -1,6 +1,8 @@
 package backtest
 
 import (
+	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,8 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -31,8 +31,34 @@ import (
 
 const testExchange = "binance"
 
+var (
+	bot  *engine.Engine
+	exch gctexchange.IBotExchange
+)
+
+func TestMain(m *testing.M) {
+	var err error
+	bot, err = engine.NewFromSettings(&engine.Settings{
+		ConfigFile:   filepath.Join("..", "..", "testdata", "configtest.json"),
+		EnableDryRun: true,
+	}, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = bot.LoadExchange(testExchange, false, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	exch = bot.GetExchangeByName(testExchange)
+	if exch == nil {
+		log.Fatal("expected not nil")
+	}
+	os.Exit(m.Run())
+}
+
 func TestNewFromConfig(t *testing.T) {
-	_, err := NewFromConfig(nil, "", "")
+	t.Parallel()
+	_, err := NewFromConfig(nil, "", "", nil)
 	if err == nil {
 		t.Error("expected error for nil config")
 	}
@@ -40,7 +66,15 @@ func TestNewFromConfig(t *testing.T) {
 	cfg := &config.Config{
 		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
 	}
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", nil)
+	if err == nil {
+		t.Error("expected error for nil config")
+	}
+	if err != nil && err.Error() != "unable to setup backtester without a loaded GoCryptoTrader bot" {
+		t.Error(err)
+	}
+
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err == nil {
 		t.Error("expected error for nil config")
 	}
@@ -56,13 +90,13 @@ func TestNewFromConfig(t *testing.T) {
 			Quote:        "test",
 		},
 	}
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil && err.Error() != "exchange not found" {
 		t.Error(err)
 	}
 
 	cfg.CurrencySettings[0].ExchangeName = testExchange
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil && !strings.Contains(err.Error(), "cannot create new asset") {
 		t.Error(err)
 	}
@@ -70,14 +104,15 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	cfg.CurrencySettings[0].Base = "BTC"
 	cfg.CurrencySettings[0].Quote = "USDT"
-	_, err = NewFromConfig(cfg, "", "")
+
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil && !strings.Contains(err.Error(), "initial funds unset") {
 		t.Error(err)
 	}
 
 	cfg.CurrencySettings[0].InitialFunds = 1337
 
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil && err.Error() != "no data settings set in config" {
 		t.Error(err)
 	}
@@ -87,27 +122,26 @@ func TestNewFromConfig(t *testing.T) {
 		EndDate:   time.Time{},
 	}
 
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil && !strings.Contains(err.Error(), "unrecognised dataType") {
 		t.Error(err)
 	}
-
 	cfg.DataSettings.DataType = common.CandleStr
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil && err.Error() != "api data start and end dates must be set" {
 		t.Error(err)
 	}
 
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
 	cfg.DataSettings.APIData.EndDate = time.Now()
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil && err.Error() != "api data interval unset" {
 		t.Error(err)
 	}
 
 	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
 
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil && !strings.Contains(err.Error(), "strategy '' not found") {
 		t.Error(err)
 	}
@@ -120,13 +154,14 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.CurrencySettings[0].MakerFee = 1337
 	cfg.CurrencySettings[0].TakerFee = 1337
-	_, err = NewFromConfig(cfg, "", "")
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestLoadData(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{
 		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
 	}
@@ -159,46 +194,12 @@ func TestLoadData(t *testing.T) {
 	}
 	cfg.CurrencySettings[0].MakerFee = 1337
 	cfg.CurrencySettings[0].TakerFee = 1337
-	_, err := NewFromConfig(cfg, "", "")
+	_, err := NewFromConfig(cfg, "", "", bot)
 	if err != nil {
 		t.Error(err)
 	}
 	bt := BackTest{
 		Reports: &report.Data{},
-	}
-	bot := &engine.Engine{
-		Config: &gctconfig.Config{
-			Exchanges: []gctconfig.ExchangeConfig{
-				{
-					Name:    testExchange,
-					Enabled: true,
-					API: gctconfig.APIConfig{
-						Endpoints: gctconfig.APIEndpointsConfig{
-							URL:          "https://api.binance.com",
-							URLSecondary: "https://test.test",
-							WebsocketURL: "wss://test.test",
-						},
-					},
-					HTTPTimeout:                   time.Hour,
-					WebsocketResponseCheckTimeout: time.Hour,
-					WebsocketTrafficTimeout:       time.Hour,
-					Websocket:                     convert.BoolPtr(false),
-					CurrencyPairs: &currency.PairsManager{
-						Pairs: map[asset.Item]*currency.PairStore{
-							asset.Spot: {AssetEnabled: convert.BoolPtr(true)},
-						},
-					},
-				},
-			},
-		},
-	}
-	err = bot.LoadExchange(testExchange, false, nil)
-	if err != nil {
-		t.Error(err)
-	}
-	exch := bot.GetExchangeByName(testExchange)
-	if exch == nil {
-		t.Error("expected not nil")
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.USDT)
@@ -244,6 +245,7 @@ func TestLoadData(t *testing.T) {
 }
 
 func TestLoadDatabaseData(t *testing.T) {
+	t.Parallel()
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := loadDatabaseData(nil, "", cp, "", -1)
 	if err != nil && !strings.Contains(err.Error(), "nil config data received") {
@@ -283,6 +285,7 @@ func TestLoadDatabaseData(t *testing.T) {
 }
 
 func TestLoadLiveData(t *testing.T) {
+	t.Parallel()
 	err := loadLiveData(nil, nil)
 	if err != nil && err.Error() != "received nil argument(s)" {
 		t.Error(err)
@@ -354,6 +357,7 @@ func TestLoadLiveData(t *testing.T) {
 }
 
 func TestReset(t *testing.T) {
+	t.Parallel()
 	bt := BackTest{
 		Bot:        &engine.Engine{},
 		shutdown:   make(chan struct{}),
@@ -372,6 +376,7 @@ func TestReset(t *testing.T) {
 }
 
 func TestFullCycle(t *testing.T) {
+	t.Parallel()
 	ex := testExchange
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Spot
@@ -394,41 +399,6 @@ func TestFullCycle(t *testing.T) {
 		t.Error(err)
 	}
 	err = port.SetInitialFunds(ex, a, cp, 1333337)
-	if err != nil {
-		t.Error(err)
-	}
-
-	bot := &engine.Engine{
-		Config: &gctconfig.Config{
-			Exchanges: []gctconfig.ExchangeConfig{
-				{
-					Name:    testExchange,
-					Enabled: true,
-					API: gctconfig.APIConfig{
-						Endpoints: gctconfig.APIEndpointsConfig{
-							URL:          "https://api.binance.com",
-							URLSecondary: "https://test.test",
-							WebsocketURL: "wss://test.test",
-						},
-					},
-					HTTPTimeout:                   time.Hour,
-					WebsocketResponseCheckTimeout: time.Hour,
-					WebsocketTrafficTimeout:       time.Hour,
-					Websocket:                     convert.BoolPtr(false),
-					CurrencyPairs: &currency.PairsManager{
-						Pairs: map[asset.Item]*currency.PairStore{
-							asset.Spot: {AssetEnabled: convert.BoolPtr(true)},
-						},
-					},
-				},
-			},
-		},
-	}
-	err = bot.OrderManager.Start(bot)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bot.LoadExchange(ex, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -493,11 +463,13 @@ func TestFullCycle(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
+	t.Parallel()
 	bt := BackTest{shutdown: make(chan struct{})}
 	bt.Stop()
 }
 
 func TestFullCycleMulti(t *testing.T) {
+	t.Parallel()
 	ex := testExchange
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	a := asset.Spot
@@ -520,41 +492,6 @@ func TestFullCycleMulti(t *testing.T) {
 		t.Error(err)
 	}
 	err = port.SetInitialFunds(ex, a, cp, 1333337)
-	if err != nil {
-		t.Error(err)
-	}
-
-	bot := &engine.Engine{
-		Config: &gctconfig.Config{
-			Exchanges: []gctconfig.ExchangeConfig{
-				{
-					Name:    testExchange,
-					Enabled: true,
-					API: gctconfig.APIConfig{
-						Endpoints: gctconfig.APIEndpointsConfig{
-							URL:          "https://api.binance.com",
-							URLSecondary: "https://test.test",
-							WebsocketURL: "wss://test.test",
-						},
-					},
-					HTTPTimeout:                   time.Hour,
-					WebsocketResponseCheckTimeout: time.Hour,
-					WebsocketTrafficTimeout:       time.Hour,
-					Websocket:                     convert.BoolPtr(false),
-					CurrencyPairs: &currency.PairsManager{
-						Pairs: map[asset.Item]*currency.PairStore{
-							asset.Spot: {AssetEnabled: convert.BoolPtr(true)},
-						},
-					},
-				},
-			},
-		},
-	}
-	err = bot.OrderManager.Start(bot)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bot.LoadExchange(ex, false, nil)
 	if err != nil {
 		t.Error(err)
 	}

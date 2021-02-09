@@ -8,6 +8,7 @@ import (
 )
 
 func TestReset(t *testing.T) {
+	t.Parallel()
 	e := Holder{Queue: []common.EventHandler{}}
 	e.Reset()
 	if e.Queue != nil {
@@ -16,6 +17,7 @@ func TestReset(t *testing.T) {
 }
 
 func TestAppendEvent(t *testing.T) {
+	t.Parallel()
 	e := Holder{Queue: []common.EventHandler{}}
 	e.AppendEvent(&order.Order{})
 	if len(e.Queue) != 1 {
@@ -24,6 +26,7 @@ func TestAppendEvent(t *testing.T) {
 }
 
 func TestNextEvent(t *testing.T) {
+	t.Parallel()
 	e := Holder{Queue: []common.EventHandler{}}
 	ev := e.NextEvent()
 	if ev != nil {

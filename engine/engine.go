@@ -51,6 +51,8 @@ var (
 
 // New starts a new engine
 func New() (*Engine, error) {
+	newEngineMutex.Lock()
+	defer newEngineMutex.Unlock()
 	var b Engine
 	b.Config = &config.Cfg
 
@@ -68,6 +70,8 @@ func New() (*Engine, error) {
 
 // NewFromSettings starts a new engine based on supplied settings
 func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, error) {
+	newEngineMutex.Lock()
+	defer newEngineMutex.Unlock()
 	if settings == nil {
 		return nil, errors.New("engine: settings is nil")
 	}
@@ -113,7 +117,7 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 	}
 	log.Printf("Loading config file %s..\n", filePath)
 
-	conf := &config.Cfg
+	conf := &config.Config{}
 	err = conf.ReadConfigFromFile(filePath, settings.EnableDryRun)
 	if err != nil {
 		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
@@ -476,7 +480,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		go EventManger()
+		go EventManger(bot.Settings.Verbose, &bot.CommsManager)
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {

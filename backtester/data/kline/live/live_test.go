@@ -1,6 +1,7 @@
 package live
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,12 +15,14 @@ import (
 const testExchange = "binance"
 
 func TestLoadCandles(t *testing.T) {
+	t.Parallel()
 	interval := gctkline.FifteenMin
 	bot, err := engine.NewFromSettings(&engine.Settings{
+		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	err = bot.LoadExchange(testExchange, false, nil)
@@ -48,12 +51,14 @@ func TestLoadCandles(t *testing.T) {
 }
 
 func TestLoadTrades(t *testing.T) {
+	t.Parallel()
 	interval := gctkline.FifteenMin
 	bot, err := engine.NewFromSettings(&engine.Settings{
+		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	err = bot.LoadExchange(testExchange, false, nil)

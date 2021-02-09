@@ -123,21 +123,6 @@ func (e *exchangeManager) Len() int {
 	return len(e.exchanges)
 }
 
-func (e *exchangeManager) unloadExchange(exchangeName string) error {
-	exchCfg, err := Bot.Config.GetExchangeConfig(exchangeName)
-	if err != nil {
-		return err
-	}
-
-	err = e.removeExchange(exchangeName)
-	if err != nil {
-		return err
-	}
-
-	exchCfg.Enabled = false
-	return nil
-}
-
 // GetExchangeByName returns an exchange given an exchange name
 func (bot *Engine) GetExchangeByName(exchName string) exchange.IBotExchange {
 	return bot.exchangeManager.getExchangeByName(exchName)
@@ -145,7 +130,18 @@ func (bot *Engine) GetExchangeByName(exchName string) exchange.IBotExchange {
 
 // UnloadExchange unloads an exchange by name
 func (bot *Engine) UnloadExchange(exchName string) error {
-	return bot.exchangeManager.unloadExchange(exchName)
+	exchCfg, err := bot.Config.GetExchangeConfig(exchName)
+	if err != nil {
+		return err
+	}
+
+	err = bot.exchangeManager.removeExchange(exchName)
+	if err != nil {
+		return err
+	}
+
+	exchCfg.Enabled = false
+	return nil
 }
 
 // GetExchanges retrieves the loaded exchanges

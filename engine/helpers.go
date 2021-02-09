@@ -682,9 +682,9 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func FormatCurrency(p currency.Pair) currency.Pair {
-	return p.Format(Bot.Config.Currency.CurrencyPairFormat.Delimiter,
-		Bot.Config.Currency.CurrencyPairFormat.Uppercase)
+func (bot *Engine) FormatCurrency(p currency.Pair) currency.Pair {
+	return p.Format(bot.Config.Currency.CurrencyPairFormat.Delimiter,
+		bot.Config.Currency.CurrencyPairFormat.Uppercase)
 }
 
 // GetExchangeNames returns a list of enabled or disabled exchanges

@@ -33,7 +33,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctdatabase "github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -61,12 +60,15 @@ func (bt *BackTest) Reset() {
 }
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
-func NewFromConfig(cfg *config.Config, templatePath, output string) (*BackTest, error) {
+func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.Engine) (*BackTest, error) {
 	if cfg == nil {
 		return nil, errors.New("unable to setup backtester with nil config")
 	}
+	if bot == nil {
+		return nil, errors.New("unable to setup backtester without a loaded GoCryptoTrader bot")
+	}
 	bt := New()
-	err := bt.engineBotSetup(cfg)
+	err := bt.setupBot(cfg, bot)
 	if err != nil {
 		return nil, err
 	}
@@ -327,23 +329,11 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 	return e, fPair, a, nil
 }
 
-// engineBotSetup sets up a basic bot to retrieve exchange data
+// setupBot sets up a basic bot to retrieve exchange data
 // as well as process orders
-func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
+func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	var err error
-	path := gctconfig.DefaultFilePath()
-	if cfg.GoCryptoTraderConfigPath != "" {
-		path = cfg.GoCryptoTraderConfigPath
-	}
-	bt.Bot, err = engine.NewFromSettings(&engine.Settings{
-		EnableDryRun:   true,
-		EnableAllPairs: true,
-		ConfigFile:     path,
-	}, nil)
-	if err != nil {
-		return err
-	}
-
+	bt.Bot = bot
 	if len(cfg.CurrencySettings) == 0 {
 		return errors.New("expected at least one currency in the config")
 	}
@@ -354,8 +344,11 @@ func (bt *BackTest) engineBotSetup(cfg *config.Config) error {
 			return err
 		}
 	}
+	if !bt.Bot.OrderManager.Started() {
+		return bt.Bot.OrderManager.Start(bt.Bot)
+	}
 
-	return bt.Bot.OrderManager.Start(bt.Bot)
+	return nil
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function

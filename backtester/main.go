@@ -8,6 +8,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
@@ -52,7 +54,23 @@ func main() {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
 	}
-	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput)
+
+	path := gctconfig.DefaultFilePath()
+	if cfg.GoCryptoTraderConfigPath != "" {
+		path = cfg.GoCryptoTraderConfigPath
+	}
+	var bot *engine.Engine
+	bot, err = engine.NewFromSettings(&engine.Settings{
+		EnableDryRun:   true,
+		EnableAllPairs: true,
+		ConfigFile:     path,
+	}, nil)
+	if err != nil {
+		fmt.Printf("Could not load backtester. Error: %v.\n", err)
+		os.Exit(-1)
+	}
+
+	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, bot)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)

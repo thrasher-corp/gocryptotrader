@@ -1163,6 +1163,11 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 			"1d",
 		},
 		{
+			"OneWeek",
+			kline.OneWeek,
+			"1w",
+		},
+		{
 			"OneMonth",
 			kline.OneMonth,
 			"1M",

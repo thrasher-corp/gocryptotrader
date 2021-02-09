@@ -10,6 +10,7 @@ import (
 const testExchange = "binance"
 
 func TestBaseDataFunctions(t *testing.T) {
+	t.Parallel()
 	var d Data
 	d.Latest()
 	d.Next()
@@ -39,6 +40,7 @@ func TestBaseDataFunctions(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	d := HandlerPerCurrency{}
 	d.Setup()
 	if d.data == nil {
@@ -47,6 +49,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestSetDataForCurrency(t *testing.T) {
+	t.Parallel()
 	d := HandlerPerCurrency{}
 	exch := testExchange
 	a := asset.Spot
@@ -61,6 +64,7 @@ func TestSetDataForCurrency(t *testing.T) {
 }
 
 func TestGetAllData(t *testing.T) {
+	t.Parallel()
 	d := HandlerPerCurrency{}
 	exch := testExchange
 	a := asset.Spot
@@ -77,6 +81,7 @@ func TestGetAllData(t *testing.T) {
 }
 
 func TestGetDataForCurrency(t *testing.T) {
+	t.Parallel()
 	d := HandlerPerCurrency{}
 	exch := testExchange
 	a := asset.Spot
@@ -90,6 +95,7 @@ func TestGetDataForCurrency(t *testing.T) {
 }
 
 func TestReset(t *testing.T) {
+	t.Parallel()
 	d := HandlerPerCurrency{}
 	exch := testExchange
 	a := asset.Spot
