@@ -891,14 +891,19 @@ func (b *Binance) ValidateCredentials() error {
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (b *Binance) FormatExchangeKlineInterval(in kline.Interval) string {
-	if in == kline.OneDay {
+func (b *Binance) FormatExchangeKlineInterval(interval kline.Interval) string {
+	switch interval {
+	case kline.OneDay:
 		return "1d"
-	}
-	if in == kline.OneMonth {
+	case kline.ThreeDay:
+		return "3d"
+	case kline.OneWeek:
+		return "1w"
+	case kline.OneMonth:
 		return "1M"
+	default:
+		return interval.Short()
 	}
-	return in.Short()
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
