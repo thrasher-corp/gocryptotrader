@@ -25,7 +25,7 @@ func addValidEvent() (int64, error) {
 
 func TestAdd(t *testing.T) {
 	bot := CreateTestBot(t)
-	if config.Cfg.Name == "" {
+	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
 	_, err := Add("", "", EventConditionParams{}, currency.Pair{}, "", "")
@@ -50,7 +50,7 @@ func TestAdd(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	bot := CreateTestBot(t)
-	if &config.Cfg == nil {
+	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
 	id, err := addValidEvent()
@@ -69,7 +69,7 @@ func TestRemove(t *testing.T) {
 
 func TestGetEventCounter(t *testing.T) {
 	bot := CreateTestBot(t)
-	if config.Cfg.Name == "" {
+	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
 	_, err := addValidEvent()
@@ -92,7 +92,7 @@ func TestGetEventCounter(t *testing.T) {
 func TestExecuteAction(t *testing.T) {
 	t.Parallel()
 	bot := CreateTestBot(t)
-	if config.Cfg.Name == "" {
+	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
 
@@ -194,10 +194,6 @@ func TestProcessCondition(t *testing.T) {
 }
 
 func TestProcessOrderbook(t *testing.T) {
-	if Bot == nil {
-		Bot = new(Engine)
-	}
-
 	e := Event{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
@@ -247,7 +243,7 @@ func TestCheckEventCondition(t *testing.T) {
 
 func TestIsValidEvent(t *testing.T) {
 	bot := CreateTestBot(t)
-	if config.Cfg.Name == "" {
+	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
 	// invalid exchange name
