@@ -1,7 +1,6 @@
 package api
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -19,8 +18,7 @@ func TestLoadCandles(t *testing.T) {
 	tt1 := time.Now().Add(-time.Hour)
 	tt2 := time.Now()
 	interval := gctkline.FifteenMin
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
+	bot, err := engine.NewFromSettings(&Settings{
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {
@@ -56,8 +54,7 @@ func TestLoadTrades(t *testing.T) {
 	tt1 := time.Now().Add(-time.Hour)
 	tt2 := time.Now()
 	interval := gctkline.FifteenMin
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
+	bot, err := engine.NewFromSettings(&Settings{
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {

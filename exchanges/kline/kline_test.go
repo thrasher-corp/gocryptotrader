@@ -711,8 +711,8 @@ func TestLoadCSV(t *testing.T) {
 }
 
 func TestVerifyResultsHaveData(t *testing.T) {
-	tt2 := time.Now()
-	tt1 := time.Now().Add(-time.Hour * 24)
+	tt2 := time.Now().Round(OneDay.Duration())
+	tt1 := time.Now().Add(-time.Hour * 24).Round(OneDay.Duration())
 	dateRanges := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
 	if dateRanges.HasDataAtDate(tt1) {
 		t.Error("unexpected true value")
@@ -734,8 +734,8 @@ func TestVerifyResultsHaveData(t *testing.T) {
 }
 
 func TestHasDataAtDate(t *testing.T) {
-	tt2 := time.Now()
-	tt1 := time.Now().Add(-time.Hour * 24 * 30)
+	tt2 := time.Now().Round(OneDay.Duration())
+	tt1 := time.Now().Add(-time.Hour * 24 * 30).Round(OneDay.Duration())
 	dateRanges := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
 	if dateRanges.HasDataAtDate(tt1) {
 		t.Error("unexpected true value")

@@ -5,7 +5,7 @@
 An event-driven backtesting tool to test and iterate trading strategies using historical or custom data.
 
 ## Features
-- Works with all GoCryptoTrader exchanges that support trade/candle retrieval. See [candle readme](https://github.com/thrasher-corp/gocryptotrader/blob/master/docs/OHLCV.md) and [trade readme](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/trade/README.md) for supported exchanges
+- Works with all GoCryptoTrader exchanges that support trade/candle retrieval. See [candle readme](/docs/OHLCV.md) and [trade readme](/exchanges/trade/README.md) for supported exchanges
 - CSV data import
 - Database data import
 - Proof of concept live data running
@@ -13,7 +13,7 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 - Can run strategies that can assess multiple currencies simultaneously to make complex decisions
 - Dollar cost strategy implementation
 - RSI strategy implementation
-- Rules ustomisation via config `.strat` files
+- Rules customisation via config `.strat` files
 - Strategy customisation without requiring recompilation. For example, customising RSI high, low and length values via config `.strat` files.
 - Report generation
 - Portfolio manager to help size orders based on config rules, risk and candle volume
@@ -27,18 +27,18 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
   - Start & end dates
   - The strategy to run
   - The candle interval
-  - Where the data is to be sourced ([API](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/data/kline/api), [CSV](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/data/kline/csv), [database](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/data/kline/database), [live](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/data/kline/live))
-  - Whether to use trade or candle data ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/data/kline/README.md))
+  - Where the data is to be sourced ([API](/backtester/data/kline/api), [CSV](/backtester/data/kline/csv), [database](/backtester/data/kline/database), [live](/backtester/data/kline/live))
+  - Whether to use trade or candle data ([readme](/data/kline/README.md))
   - A nickname for the strategy (to help differentiate between runs/configs using the same strategy)
   - The currency/currencies to use
   - The exchange(s) to run against
-  - See [readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/config/README.md) for a breakdown of all config features
-- The GoCryptoTrader Backtester will retrieve the data specified in the config ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/backtest/README.md))
+  - See [readme](/config/README.md) for a breakdown of all config features
+- The GoCryptoTrader Backtester will retrieve the data specified in the config ([readme](/backtest/README.md))
 - The data is converted into candles and each candle is streamed as a data event.
-- The data event is analysed by the strategy which will output a purchasing signal such as `BUY`, `SELL` or `DONOTHING` ([readme](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/eventtypes/signal))
-- The purchase signal is then processed by the portfolio manager ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/portfolio/README.md)) which will size the order ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/portfolio/size/README.md)) and assess risk ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/portfolio/risk/README.md)) before sending it to the exchange
-- The exchange order event handler will size to the candle data and run a slippage estimator ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/exchange/slippage/README.md) and place the order ([readme](https://github.com/gloriousCode/gocryptotrader/tree/backscratcher/backtester/eventhandlers/exchange))
-- Upon an order being placed, the order is snapshot for analysis in both the statistics package ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/eventhandlers/statistics/README.md)) and the report package ([readme](https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/report/README.md))
+- The data event is analysed by the strategy which will output a purchasing signal such as `BUY`, `SELL` or `DONOTHING` ([readme](/eventtypes/signal))
+- The purchase signal is then processed by the portfolio manager ([readme](/eventhandlers/portfolio/README.md)) which will size the order ([readme](/eventhandlers/portfolio/size/README.md)) and assess risk ([readme](/eventhandlers/portfolio/risk/README.md)) before sending it to the exchange
+- The exchange order event handler will size to the candle data and run a slippage estimator ([readme](/eventhandlers/exchange/slippage/README.md) and place the order ([readme](/eventhandlers/exchange))
+- Upon an order being placed, the order is snapshot for analysis in both the statistics package ([readme](/eventhandlers/statistics/README.md)) and the report package ([readme](/report/README.md))
 
 
 # Cool story, how do I use it?

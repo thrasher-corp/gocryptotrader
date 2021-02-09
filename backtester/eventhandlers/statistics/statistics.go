@@ -42,6 +42,7 @@ func (s *Statistic) SetupEventForTime(e common.DataEventHandler) error {
 		},
 	)
 	s.ExchangeAssetPairStatistics[ex][a][p] = lookup
+
 	return nil
 }
 
@@ -170,6 +171,7 @@ func (s *Statistic) CalculateAllResults() error {
 		s.BestStrategyResults = s.GetBestStrategyPerformer(finalResults)
 		s.PrintTotalResults()
 	}
+
 	return nil
 }
 

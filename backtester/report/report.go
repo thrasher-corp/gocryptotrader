@@ -121,46 +121,44 @@ func (d *Data) enhanceCandles() error {
 				}
 			}
 			for k := range statsForCandles.Events {
-				if statsForCandles.Events[k].SignalEvent != nil {
-					if statsForCandles.Events[k].SignalEvent.GetTime().Equal(d.OriginalCandles[i].Candles[j].Time) {
-						if statsForCandles.Events[k].SignalEvent.GetDirection() == common.MissingData {
-							// if the data is missing, ensure that all values just continue the previous candle's close price visually
-							enhancedCandle.Open = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-							enhancedCandle.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-							enhancedCandle.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-							enhancedCandle.Close = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-
-							enhancedCandle.Colour = "white"
-							enhancedCandle.Position = "aboveBar"
-							enhancedCandle.Shape = "arrowDown"
-							enhancedCandle.Text = common.MissingData.String()
-						}
-					}
-				}
-			}
-			for k := range statsForCandles.FinalOrders.Orders {
-				if statsForCandles.FinalOrders.Orders[k].Detail == nil {
+				if statsForCandles.Events[k].SignalEvent == nil ||
+					!statsForCandles.Events[k].SignalEvent.GetTime().Equal(d.OriginalCandles[i].Candles[j].Time) ||
+					statsForCandles.Events[k].SignalEvent.GetDirection() != common.MissingData {
 					continue
 				}
-				if statsForCandles.FinalOrders.Orders[k].Date.Equal(
-					d.OriginalCandles[i].Candles[j].Time) {
-					// an order was placed here, can enhance chart!
-					enhancedCandle.MadeOrder = true
-					enhancedCandle.OrderAmount = statsForCandles.FinalOrders.Orders[k].Amount
-					enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Price
-					enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Side
-					if enhancedCandle.OrderDirection == order.Buy {
-						enhancedCandle.Colour = "green"
-						enhancedCandle.Position = "aboveBar"
-						enhancedCandle.Shape = "arrowDown"
-					} else if enhancedCandle.OrderDirection == order.Sell {
-						enhancedCandle.Colour = "red"
-						enhancedCandle.Position = "belowBar"
-						enhancedCandle.Shape = "arrowUp"
-					}
-					enhancedCandle.Text = enhancedCandle.OrderDirection.String()
-					break
+
+				// if the data is missing, ensure that all values just continue the previous candle's close price visually
+				enhancedCandle.Open = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+				enhancedCandle.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+				enhancedCandle.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+				enhancedCandle.Close = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+
+				enhancedCandle.Colour = "white"
+				enhancedCandle.Position = "aboveBar"
+				enhancedCandle.Shape = "arrowDown"
+				enhancedCandle.Text = common.MissingData.String()
+			}
+			for k := range statsForCandles.FinalOrders.Orders {
+				if statsForCandles.FinalOrders.Orders[k].Detail == nil ||
+					!statsForCandles.FinalOrders.Orders[k].Date.Equal(d.OriginalCandles[i].Candles[j].Time) {
+					continue
 				}
+				// an order was placed here, can enhance chart!
+				enhancedCandle.MadeOrder = true
+				enhancedCandle.OrderAmount = statsForCandles.FinalOrders.Orders[k].Amount
+				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Price
+				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Side
+				if enhancedCandle.OrderDirection == order.Buy {
+					enhancedCandle.Colour = "green"
+					enhancedCandle.Position = "aboveBar"
+					enhancedCandle.Shape = "arrowDown"
+				} else if enhancedCandle.OrderDirection == order.Sell {
+					enhancedCandle.Colour = "red"
+					enhancedCandle.Position = "belowBar"
+					enhancedCandle.Shape = "arrowUp"
+				}
+				enhancedCandle.Text = enhancedCandle.OrderDirection.String()
+				break
 			}
 			enhancedKline.Candles = append(enhancedKline.Candles, enhancedCandle)
 		}

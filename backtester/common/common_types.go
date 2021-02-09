@@ -48,6 +48,7 @@ type DataEventHandler interface {
 	ClosePrice() float64
 	HighPrice() float64
 	LowPrice() float64
+	OpenPrice() float64
 }
 
 // Directioner dictates the side of an order

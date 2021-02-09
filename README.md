@@ -144,7 +144,7 @@ Binaries will be published once the codebase reaches a stable condition.
 |--|--|
 | [thrasher-](https://github.com/thrasher-) | 645 |
 | [shazbert](https://github.com/shazbert) | 202 |
-| [gloriousCode](https://github.com/gloriousCode) | 173 |
+| [gloriousCode](https://github.com/gloriousCode) | 174 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 82 |
 | [xtda](https://github.com/xtda) | 47 |
 | [Rots](https://github.com/Rots) | 15 |
@@ -164,6 +164,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
@@ -171,7 +172,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [herenow](https://github.com/herenow) | 2 |
 | [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
-| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |

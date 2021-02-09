@@ -225,9 +225,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		if makerFee == 0 || takerFee == 0 {
 			var apiMakerFee, apiTakerFee float64
 			apiMakerFee, apiTakerFee = getFees(exch, pair)
-			if err != nil {
-				return resp, err
-			}
 			if makerFee == 0 {
 				makerFee = apiMakerFee
 			}

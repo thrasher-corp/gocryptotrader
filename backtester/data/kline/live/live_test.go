@@ -1,7 +1,6 @@
 package live
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -17,7 +16,6 @@ const testExchange = "binance"
 func TestLoadCandles(t *testing.T) {
 	interval := gctkline.FifteenMin
 	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {
@@ -51,8 +49,7 @@ func TestLoadCandles(t *testing.T) {
 
 func TestLoadTrades(t *testing.T) {
 	interval := gctkline.FifteenMin
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
+	bot, err := engine.NewFromSettings(&Settings{
 		EnableDryRun: true,
 	}, nil)
 	if err != nil {

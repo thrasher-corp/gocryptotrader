@@ -14,3 +14,8 @@ func (k *Kline) HighPrice() float64 {
 func (k *Kline) LowPrice() float64 {
 	return k.Low
 }
+
+// OpenPrice returns the low price of a kline
+func (k *Kline) OpenPrice() float64 {
+	return k.Open
+}

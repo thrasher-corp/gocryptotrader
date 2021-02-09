@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -125,10 +124,7 @@ func TestSizeOrder(t *testing.T) {
 }
 
 func TestPlaceOrder(t *testing.T) {
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun: true,
-	}, nil)
+	bot, err := engine.New()
 	if err != nil {
 		t.Error(err)
 	}
@@ -205,10 +201,7 @@ func TestExecuteOrder(t *testing.T) {
 		Funds:     1337,
 	}
 
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun: true,
-	}, nil)
+	bot, err := engine.New()
 	if err != nil {
 		t.Error(err)
 	}
