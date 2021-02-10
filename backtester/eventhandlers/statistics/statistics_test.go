@@ -7,7 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -81,7 +81,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.SetEventForTime(&signal.Signal{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
@@ -135,7 +135,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.SetEventForTime(&order.Order{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
@@ -194,7 +194,7 @@ func TestAddFillEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.SetEventForTime(&fill.Fill{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
@@ -248,7 +248,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	if err != nil && err.Error() != "exchangeAssetPairStatistics not setup" {
 		t.Error(err)
 	}
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.AddHoldingsForTime(&holdings.Holding{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
@@ -318,7 +318,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 		t.Error(err)
 	}
 	s.setupMap(exch, a)
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
+	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{}, &fill.Fill{})
 	if err != nil && !strings.Contains(err.Error(), "no data for") {
 		t.Error(err)
@@ -378,7 +378,7 @@ func TestPrintTotalResults(t *testing.T) {
 	s.BiggestDrawdown = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
 		{
 			Exchange: "test",
-			MaxDrawdown: currencystatstics.Swing{
+			MaxDrawdown: currencystatistics.Swing{
 				DrawdownPercent: 1337,
 			},
 		},
@@ -388,7 +388,7 @@ func TestPrintTotalResults(t *testing.T) {
 			Exchange:         "test",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
-			MaxDrawdown:      currencystatstics.Swing{},
+			MaxDrawdown:      currencystatistics.Swing{},
 			MarketMovement:   1337,
 			StrategyMovement: 1337,
 		},
@@ -414,7 +414,7 @@ func TestGetBestStrategyPerformer(t *testing.T) {
 			Exchange:         "test",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
-			MaxDrawdown:      currencystatstics.Swing{},
+			MaxDrawdown:      currencystatistics.Swing{},
 			MarketMovement:   1337,
 			StrategyMovement: 1337,
 		},
@@ -422,7 +422,7 @@ func TestGetBestStrategyPerformer(t *testing.T) {
 			Exchange:         "test2",
 			Asset:            asset.Spot,
 			Pair:             currency.NewPair(currency.BTC, currency.DOGE),
-			MaxDrawdown:      currencystatstics.Swing{},
+			MaxDrawdown:      currencystatistics.Swing{},
 			MarketMovement:   1338,
 			StrategyMovement: 1338,
 		},
@@ -443,13 +443,13 @@ func TestGetTheBiggestDrawdownAcrossCurrencies(t *testing.T) {
 	result = s.GetTheBiggestDrawdownAcrossCurrencies([]FinalResultsHolder{
 		{
 			Exchange: "test",
-			MaxDrawdown: currencystatstics.Swing{
+			MaxDrawdown: currencystatistics.Swing{
 				DrawdownPercent: 1337,
 			},
 		},
 		{
 			Exchange: "test2",
-			MaxDrawdown: currencystatstics.Swing{
+			MaxDrawdown: currencystatistics.Swing{
 				DrawdownPercent: 1338,
 			},
 		},

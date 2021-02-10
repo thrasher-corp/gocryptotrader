@@ -1,4 +1,4 @@
-package currencystatstics
+package currencystatistics
 
 import (
 	"testing"

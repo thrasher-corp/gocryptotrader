@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -16,26 +16,26 @@ import (
 // Statistic holds all statistical information for a backtester run, from drawdowns to ratios.
 // Any currency specific information is handled in currencystatistics
 type Statistic struct {
-	StrategyName                string                                                                           `json:"strategy-name"`
-	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic `json:"-"`
-	RiskFreeRate                float64                                                                          `json:"risk-free-rate"`
-	TotalBuyOrders              int64                                                                            `json:"total-buy-orders"`
-	TotalSellOrders             int64                                                                            `json:"total-sell-orders"`
-	TotalOrders                 int64                                                                            `json:"total-orders"`
-	BiggestDrawdown             *FinalResultsHolder                                                              `json:"biggest-drawdown,omitempty"`
-	BestStrategyResults         *FinalResultsHolder                                                              `json:"best-start-results,omitempty"`
-	BestMarketMovement          *FinalResultsHolder                                                              `json:"best-market-movement,omitempty"`
-	AllStats                    []currencystatstics.CurrencyStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
+	StrategyName                string                                                                            `json:"strategy-name"`
+	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic `json:"-"`
+	RiskFreeRate                float64                                                                           `json:"risk-free-rate"`
+	TotalBuyOrders              int64                                                                             `json:"total-buy-orders"`
+	TotalSellOrders             int64                                                                             `json:"total-sell-orders"`
+	TotalOrders                 int64                                                                             `json:"total-orders"`
+	BiggestDrawdown             *FinalResultsHolder                                                               `json:"biggest-drawdown,omitempty"`
+	BestStrategyResults         *FinalResultsHolder                                                               `json:"best-start-results,omitempty"`
+	BestMarketMovement          *FinalResultsHolder                                                               `json:"best-market-movement,omitempty"`
+	AllStats                    []currencystatistics.CurrencyStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
 }
 
 // FinalResultsHolder holds important stats about a currency's performance
 type FinalResultsHolder struct {
-	Exchange         string                  `json:"exchange"`
-	Asset            asset.Item              `json:"asset"`
-	Pair             currency.Pair           `json:"currency"`
-	MaxDrawdown      currencystatstics.Swing `json:"max-drawdown"`
-	MarketMovement   float64                 `json:"market-movement"`
-	StrategyMovement float64                 `json:"strategy-movement"`
+	Exchange         string                   `json:"exchange"`
+	Asset            asset.Item               `json:"asset"`
+	Pair             currency.Pair            `json:"currency"`
+	MaxDrawdown      currencystatistics.Swing `json:"max-drawdown"`
+	MarketMovement   float64                  `json:"market-movement"`
+	StrategyMovement float64                  `json:"strategy-movement"`
 }
 
 // Handler interface details what a statistic is expected to do

@@ -121,9 +121,9 @@
 						<tbody>
 						<tr>
 							<td ><b>Interval</b></td>
-								<td>
-                                    {{.Config.DataSettings.Interval}}
-								</td>
+							<td>
+                                {{.Config.DataSettings.Interval}}
+							</td>
 						</tr>
 						</tbody>
 					</table>
@@ -495,30 +495,6 @@
 									</tr>
                                 {{ end }}
 								<tr>
-									<td><b>Risk Free Rate</b></td>
-									<td>{{$val.RiskFreeRate}}%</td>
-								</tr>
-								<tr>
-									<td><b>Sharpe Ratio</b></td>
-									<td>{{$val.SharpeRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Sortino Ratio</b></td>
-									<td>{{$val.SortinoRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Information Ratio</b></td>
-									<td>{{$val.InformationRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Calmar Ratio</b></td>
-									<td>{{$val.CalmarRatio}}</td>
-								</tr>
-								<tr>
-									<td><b>Compound Annual Growth Rate</b></td>
-									<td>{{$val.CompoundAnnualGrowthRate}}%</td>
-								</tr>
-								<tr>
 									<td><b>Starting Close Price</b></td>
 									<td>${{printf "%.2f" $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
@@ -580,6 +556,61 @@
 								</tr>
 								</tbody>
 							</table>
+							Rates
+							<table class="table table-hover table-bordered table-striped">
+								<tbody>
+								<tr>
+									<td><b>Risk Free Rate</b></td>
+									<td>{{$val.RiskFreeRate}}%</td>
+								</tr>
+								<tr>
+									<td><b>Compound Annual Growth Rate</b></td>
+									<td>{{$val.CompoundAnnualGrowthRate}}%</td>
+								</tr>
+								</tbody>
+							</table>
+							Arithmetic Ratios
+							<table class="table table-hover table-bordered table-striped">
+								<tbody>
+								<tr>
+									<td><b>Sharpe Ratio</b></td>
+									<td>{{$val.ArithmeticRatios.SharpeRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Sortino Ratio</b></td>
+									<td>{{$val.ArithmeticRatios.SortinoRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Information Ratio</b></td>
+									<td>{{$val.ArithmeticRatios.InformationRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Calmar Ratio</b></td>
+									<td>{{$val.ArithmeticRatios.CalmarRatio}}</td>
+								</tr>
+								</tbody>
+							</table>
+							Geometric Ratios
+							<table class="table table-hover table-bordered table-striped">
+								<tbody>
+								<tr>
+									<td><b>Geometric Sharpe Ratio</b></td>
+									<td>{{$val.GeometricRatios.SharpeRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Geometric Sortino Ratio</b></td>
+									<td>{{$val.GeometricRatios.SortinoRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Geometric Information Ratio</b></td>
+									<td>{{$val.GeometricRatios.InformationRatio}}</td>
+								</tr>
+								<tr>
+									<td><b>Geometric Calmar Ratio</b></td>
+									<td>{{$val.GeometricRatios.CalmarRatio}}</td>
+								</tr>
+								</tbody>
+							</table>
 						</div>
 					</div>
                 {{end}}
@@ -619,7 +650,7 @@
 											<td>${{ .Detail.Price }} {{$pair.Quote}}</td>
 											<td>{{ .SlippageRate }}%</td>
 											<td>{{printf "%.2f" .Detail.Amount }} {{$pair.Base}}</td>
-											<td>${{ .Detail.Fee }} {{$pair.Quote}}</td>
+											<td>${{printf "%.2f" .Detail.Fee }} {{$pair.Quote}}</td>
 										</tr>
                                     {{end}}
 									</tbody>
@@ -652,18 +683,18 @@
 									<th>Why</th>
 									</thead>
 									<tbody >
-                                    {{range $data.Events}}
+                                    {{range $ev :=  $data.Events}}
 										<tr>
-                                            {{ if ne .FillEvent nil }}
-												<td><b>{{.FillEvent.GetTime}}</b></td>
-												<td>${{.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
-												<td>{{.FillEvent.GetDirection}}</td>
-												<td>{{.FillEvent.GetWhy}}</td>
-                                            {{ else if ne .SignalEvent nil}}
-												<td>{{.SignalEvent.GetTime}}</td>
-												<td>${{ printf "%f" .SignalEvent.Price}} {{$pair.Quote}}</td>
-												<td>{{.SignalEvent.GetDirection}}</td>
-												<td>{{.SignalEvent.GetWhy}}</td>
+                                            {{ if ne $ev.FillEvent nil }}
+												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
+												<td>${{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
+												<td>{{$ev.FillEvent.GetDirection}}</td>
+												<td>{{$ev.FillEvent.GetWhy}}</td>
+                                            {{ else if ne $ev.SignalEvent nil}}
+												<td>{{$ev.SignalEvent.GetTime}}</td>
+												<td>${{ printf "%f" $ev.SignalEvent.Price}} {{$pair.Quote}}</td>
+												<td>{{$ev.SignalEvent.GetDirection}}</td>
+												<td>{{$ev.SignalEvent.GetWhy}}</td>
                                             {{ end }}
 										</tr>
                                     {{end}}

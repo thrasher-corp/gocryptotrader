@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatstics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -210,11 +210,11 @@ func TestGenerateReport(t *testing.T) {
 		},
 		Statistics: &statistics.Statistic{
 			StrategyName: "testStrat",
-			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic{
+			ExchangeAssetPairStatistics: map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic{
 				e: {
 					a: {
-						p: &currencystatstics.CurrencyStatistic{
-							Events: []currencystatstics.EventStore{
+						p: &currencystatistics.CurrencyStatistic{
+							Events: []currencystatistics.EventStore{
 								{
 									Holdings:     holdings.Holding{},
 									Transactions: compliance.Snapshot{},
@@ -224,16 +224,12 @@ func TestGenerateReport(t *testing.T) {
 									FillEvent:    nil,
 								},
 							},
-							MaxDrawdown:              currencystatstics.Swing{},
+							MaxDrawdown:              currencystatistics.Swing{},
 							LowestClosePrice:         100,
 							HighestClosePrice:        200,
 							MarketMovement:           100,
 							StrategyMovement:         100,
-							SharpeRatio:              1,
-							SortinoRatio:             1,
-							InformationRatio:         1,
 							RiskFreeRate:             1,
-							CalmarRatio:              1,
 							CompoundAnnualGrowthRate: 1,
 							BuyOrders:                1,
 							SellOrders:               1,
@@ -275,12 +271,12 @@ func TestGenerateReport(t *testing.T) {
 				Exchange: e,
 				Asset:    a,
 				Pair:     p,
-				MaxDrawdown: currencystatstics.Swing{
-					Highest: currencystatstics.Iteration{
+				MaxDrawdown: currencystatistics.Swing{
+					Highest: currencystatistics.Iteration{
 						Time:  time.Now(),
 						Price: 1337,
 					},
-					Lowest: currencystatstics.Iteration{
+					Lowest: currencystatistics.Iteration{
 						Time:  time.Now(),
 						Price: 137,
 					},
@@ -293,12 +289,12 @@ func TestGenerateReport(t *testing.T) {
 				Exchange: e,
 				Asset:    a,
 				Pair:     p,
-				MaxDrawdown: currencystatstics.Swing{
-					Highest: currencystatstics.Iteration{
+				MaxDrawdown: currencystatistics.Swing{
+					Highest: currencystatistics.Iteration{
 						Time:  time.Now(),
 						Price: 1337,
 					},
-					Lowest: currencystatstics.Iteration{
+					Lowest: currencystatistics.Iteration{
 						Time:  time.Now(),
 						Price: 137,
 					},
@@ -311,12 +307,12 @@ func TestGenerateReport(t *testing.T) {
 				Exchange: e,
 				Asset:    a,
 				Pair:     p,
-				MaxDrawdown: currencystatstics.Swing{
-					Highest: currencystatstics.Iteration{
+				MaxDrawdown: currencystatistics.Swing{
+					Highest: currencystatistics.Iteration{
 						Time:  time.Now(),
 						Price: 1337,
 					},
-					Lowest: currencystatstics.Iteration{
+					Lowest: currencystatistics.Iteration{
 						Time:  time.Now(),
 						Price: 137,
 					},
@@ -351,30 +347,10 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*currencystatstics.CurrencyStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatstics.CurrencyStatistic{
-		Events:                   nil,
-		MaxDrawdown:              currencystatstics.Swing{},
-		StartingClosePrice:       0,
-		EndingClosePrice:         0,
-		LowestClosePrice:         0,
-		HighestClosePrice:        0,
-		MarketMovement:           0,
-		StrategyMovement:         0,
-		SharpeRatio:              0,
-		SortinoRatio:             0,
-		InformationRatio:         0,
-		RiskFreeRate:             0,
-		CalmarRatio:              0,
-		CompoundAnnualGrowthRate: 0,
-		BuyOrders:                0,
-		SellOrders:               0,
-		TotalOrders:              0,
-		FinalHoldings:            holdings.Holding{},
-		FinalOrders:              compliance.Snapshot{},
-	}
+	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*currencystatistics.CurrencyStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &currencystatistics.CurrencyStatistic{}
 
 	d.AddKlineItem(&gctkline.Item{
 		Exchange: testExchange,

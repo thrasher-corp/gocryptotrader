@@ -1,4 +1,4 @@
-package currencystatstics
+package currencystatistics
 
 import (
 	"time"
@@ -42,17 +42,23 @@ type CurrencyStatistic struct {
 	HighestClosePrice        float64             `json:"highest-close-price"`
 	MarketMovement           float64             `json:"market-movement"`
 	StrategyMovement         float64             `json:"strategy-movement"`
-	SharpeRatio              float64             `json:"sharpe-ratio"`
-	SortinoRatio             float64             `json:"sortino-ratio"`
-	InformationRatio         float64             `json:"information-ratio"`
 	RiskFreeRate             float64             `json:"risk-free-rate"`
-	CalmarRatio              float64             `json:"calmar-ratio"`
-	CompoundAnnualGrowthRate float64             `json:"compound-annual-growth-rate"`
 	BuyOrders                int64               `json:"buy-orders"`
+	GeometricRatios          Ratios              `json:"geometric-ratios"`
+	ArithmeticRatios         Ratios              `json:"arithmetic-ratios"`
+	CompoundAnnualGrowthRate float64             `json:"compound-annual-growth-rate"`
 	SellOrders               int64               `json:"sell-orders"`
 	TotalOrders              int64               `json:"total-orders"`
 	FinalHoldings            holdings.Holding    `json:"final-holdings"`
 	FinalOrders              compliance.Snapshot `json:"final-orders"`
+}
+
+// Ratios stores all the ratios used for statistics
+type Ratios struct {
+	SharpeRatio      float64 `json:"sharpe-ratio"`
+	SortinoRatio     float64 `json:"sortino-ratio"`
+	InformationRatio float64 `json:"information-ratio"`
+	CalmarRatio      float64 `json:"calmar-ratio"`
 }
 
 // Swing holds a drawdown

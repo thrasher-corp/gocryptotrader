@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"io"
 	"log"
 )
 
@@ -152,11 +151,11 @@ func getFields(sl *subLogger) *logFields {
 	if !enabled() {
 		return nil
 	}
-	RWM.RLock()
-	defer RWM.RUnlock()
 	if sl == nil {
 		return nil
 	}
+	RWM.RLock()
+	defer RWM.RUnlock()
 	return &logFields{
 		info:   sl.Info,
 		warn:   sl.Warn,
@@ -165,13 +164,4 @@ func getFields(sl *subLogger) *logFields {
 		name:   sl.name,
 		output: sl.output,
 	}
-}
-
-type logFields struct {
-	info   bool
-	warn   bool
-	debug  bool
-	error  bool
-	name   string
-	output io.Writer
 }

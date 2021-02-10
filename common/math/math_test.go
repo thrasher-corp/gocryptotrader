@@ -107,9 +107,13 @@ func TestRoundFloat(t *testing.T) {
 func TestSortinoRatio(t *testing.T) {
 	rfr := 0.07
 	figures := []float64{0.10, 0.04, 0.15, -0.05, 0.20, -0.02, 0.08, -0.06, 0.13, 0.23}
-	negativeOnlyFigures := []float64{-0.05, -0.02, -0.06}
-	r := CalculateSortinoRatio(figures, negativeOnlyFigures, rfr)
-	if r != 0.3922322702763678 {
+	r := CalculateSortinoRatio(figures, rfr, false)
+	if r != 0.1575242704526439 {
+		t.Errorf("received %v instead", r)
+	}
+
+	r = CalculateSortinoRatio(figures, rfr, true)
+	if r != 0.1575242704526439 {
 		t.Errorf("received %v instead", r)
 	}
 }
@@ -117,11 +121,11 @@ func TestSortinoRatio(t *testing.T) {
 func TestInformationRatio(t *testing.T) {
 	figures := []float64{0.0665, 0.0283, 0.0911, 0.0008, -0.0203, -0.0978, 0.0164, -0.0537, 0.078, 0.0032, 0.0249, 0}
 	comparisonFigures := []float64{0.0216, 0.0048, 0.036, 0.0303, 0.0043, -0.0694, 0.0179, -0.0918, 0.0787, 0.0297, 0.003, 0}
-	avg := CalculateTheAverage(figures)
+	avg := CalculateTheAverage(figures, false)
 	if avg != 0.01145 {
 		t.Error(avg)
 	}
-	avgComparison := CalculateTheAverage(comparisonFigures)
+	avgComparison := CalculateTheAverage(comparisonFigures, false)
 	if avgComparison != 0.005425 {
 		t.Error(avgComparison)
 	}
@@ -139,7 +143,7 @@ func TestInformationRatio(t *testing.T) {
 		t.Error(informationRatio)
 	}
 
-	information2 := CalculateInformationRatio(figures, comparisonFigures)
+	information2 := CalculateInformationRatio(figures, comparisonFigures, false)
 	if informationRatio != information2 {
 		t.Error(information2)
 	}
@@ -147,7 +151,7 @@ func TestInformationRatio(t *testing.T) {
 
 func TestCalmarRatio(t *testing.T) {
 	avg := []float64{0.2}
-	ratio := CalculateCalmarRatio(avg, 50000, 15000)
+	ratio := CalculateCalmarRatio(avg, 50000, 15000, false)
 	if ratio != 0.28571428571428575 {
 		t.Error(ratio)
 	}
@@ -170,15 +174,24 @@ func TestCAGR(t *testing.T) {
 	if cagr != 47 {
 		t.Error("expected 47%")
 	}
+
+	cagr = CalculateCompoundAnnualGrowthRate(
+		100,
+		200,
+		1,
+		20)
+	if cagr != 3.5264923841377582 {
+		t.Error("expected 3.53%")
+	}
 }
 
 func TestCalculateSharpeRatio(t *testing.T) {
-	result := CalculateSharpeRatio(nil, 0)
+	result := CalculateSharpeRatio(nil, 0, false)
 	if result != 0 {
 		t.Error("expected 0")
 	}
 
-	result = CalculateSharpeRatio([]float64{0.026}, 0.017)
+	result = CalculateSharpeRatio([]float64{0.026}, 0.017, false)
 	if result != 0 {
 		t.Error("expected 0")
 	}
@@ -197,7 +210,7 @@ func TestCalculateSharpeRatio(t *testing.T) {
 		0.1572,
 		0.1052,
 	}
-	result = CalculateSharpeRatio(returns, 0.065)
+	result = CalculateSharpeRatio(returns, 0.065, false)
 	result = math.Round(result*100) / 100
 	if result != 1.5 {
 		t.Errorf("expected 1.5, received %v", result)
@@ -206,7 +219,7 @@ func TestCalculateSharpeRatio(t *testing.T) {
 
 func TestStandardDeviation2(t *testing.T) {
 	r := []float64{9, 2, 5, 4, 12, 7}
-	mean := CalculateTheAverage(r)
+	mean := CalculateTheAverage(r, false)
 	superMean := []float64{}
 	for i := range r {
 		result := math.Pow(r[i]-mean, 2)
@@ -217,5 +230,19 @@ func TestStandardDeviation2(t *testing.T) {
 	codeCalcu := CalculateSampleStandardDeviation(r)
 	if manualCalculation != codeCalcu && codeCalcu != 3.619 {
 		t.Error("expected 3.619")
+	}
+}
+
+func TestGeometricMean(t *testing.T) {
+	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
+	mean := CalculateTheAverage(values, true)
+	if mean != 3.764350599503129 {
+		t.Errorf("expected %v, received %v", 3.76435, mean)
+	}
+
+	values = []float64{15, 12, 13, 19, 10}
+	mean = CalculateTheAverage(values, true)
+	if mean != 13.477020583645698 {
+		t.Errorf("expected %v, received %v", 13.447, mean)
 	}
 }

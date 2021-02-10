@@ -1,5 +1,7 @@
 package log
 
+import "io"
+
 // Global vars related to the logger package
 var (
 	subLoggers = map[string]*subLogger{}
@@ -28,3 +30,14 @@ var (
 	OrderBook *subLogger
 	Trade     *subLogger
 )
+
+// logFields is used to store data in a non-global and thread-safe manner
+// so logs cannot be modified mid-log causing a data-race issue
+type logFields struct {
+	info   bool
+	warn   bool
+	debug  bool
+	error  bool
+	name   string
+	output io.Writer
+}

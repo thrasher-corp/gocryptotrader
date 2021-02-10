@@ -1,4 +1,4 @@
-package currencystatstics
+package currencystatistics
 
 import (
 	"fmt"
@@ -42,29 +42,31 @@ func (c *CurrencyStatistic) CalculateResults() {
 	c.RiskFreeRate = last.Holdings.RiskFreeRate * 100
 	returnPerCandle := make([]float64, len(c.Events))
 
-	var negativeReturns []float64
 	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
 		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
-		if c.Events[i].Holdings.ChangeInTotalValuePercent < 0 {
-			negativeReturns = append(negativeReturns, c.Events[i].Holdings.ChangeInTotalValuePercent)
-		}
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
 	}
 
 	c.MaxDrawdown = calculateMaxDrawdown(allDataEvents)
-
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
 	durationPerYear := intervalsPerYear * float64(interval.Duration())
 	btDuration := float64(last.DataEvent.GetTime().Sub(first.DataEvent.GetTime()))
 
 	relativelyRiskFree := first.Holdings.RiskFreeRate / intervalsPerYear
-
-	c.SharpeRatio = math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree)
-	c.SortinoRatio = math.CalculateSortinoRatio(returnPerCandle, negativeReturns, relativelyRiskFree)
-	c.InformationRatio = math.CalculateInformationRatio(returnPerCandle, []float64{relativelyRiskFree})
-	c.CalmarRatio = math.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price)
+	c.ArithmeticRatios = Ratios{
+		SharpeRatio:      math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree, false),
+		SortinoRatio:     math.CalculateSortinoRatio(returnPerCandle, relativelyRiskFree, false),
+		InformationRatio: math.CalculateInformationRatio(returnPerCandle, []float64{c.MarketMovement / 100}, false),
+		CalmarRatio:      math.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, false),
+	}
+	c.GeometricRatios = Ratios{
+		SharpeRatio:      math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree, true),
+		SortinoRatio:     math.CalculateSortinoRatio(returnPerCandle, relativelyRiskFree, true),
+		InformationRatio: math.CalculateInformationRatio(returnPerCandle, []float64{c.MarketMovement / 100}, true),
+		CalmarRatio:      math.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, true),
+	}
 
 	c.CompoundAnnualGrowthRate = math.CalculateCompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
@@ -104,15 +106,23 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Lowest Price Time: %v", c.MaxDrawdown.Lowest.Time)
 	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.MaxDrawdown.DrawdownPercent)
 	log.Infof(log.BackTester, "Difference: $%.2f", c.MaxDrawdown.Highest.Price-c.MaxDrawdown.Lowest.Price)
-	log.Infof(log.BackTester, "Drawdown length: %v", c.MaxDrawdown.IntervalDuration)
+	log.Infof(log.BackTester, "Drawdown length: %v\n\n", c.MaxDrawdown.IntervalDuration)
 
-	log.Info(log.BackTester, "------------------Ratios-------------------------------------")
+	log.Info(log.BackTester, "------------------Rates-------------------------------------------------")
 	log.Infof(log.BackTester, "Risk free rate: %.3f%%", c.RiskFreeRate)
-	log.Infof(log.BackTester, "Sharpe ratio: %.2f", c.SharpeRatio)
-	log.Infof(log.BackTester, "Sortino ratio: %.2f", c.SortinoRatio)
-	log.Infof(log.BackTester, "Information ratio: %.2f", c.InformationRatio)
-	log.Infof(log.BackTester, "Calmar ratio: %.2f", c.CalmarRatio)
 	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2f\n\n", c.CompoundAnnualGrowthRate)
+
+	log.Info(log.BackTester, "------------------Arithmetic Ratios-------------------------------------")
+	log.Infof(log.BackTester, "Sharpe ratio: %.2f", c.ArithmeticRatios.SharpeRatio)
+	log.Infof(log.BackTester, "Sortino ratio: %.2f", c.ArithmeticRatios.SortinoRatio)
+	log.Infof(log.BackTester, "Information ratio: %.2f", c.ArithmeticRatios.InformationRatio)
+	log.Infof(log.BackTester, "Calmar ratio: %.2f\n\n", c.ArithmeticRatios.CalmarRatio)
+
+	log.Info(log.BackTester, "------------------Geometric Ratios-------------------------------------")
+	log.Infof(log.BackTester, "Sharpe ratio: %.10f", c.GeometricRatios.SharpeRatio)
+	log.Infof(log.BackTester, "Sortino ratio: %.10f", c.GeometricRatios.SortinoRatio)
+	log.Infof(log.BackTester, "Information ratio: %.10f", c.GeometricRatios.InformationRatio)
+	log.Infof(log.BackTester, "Calmar ratio: %.10f\n\n", c.GeometricRatios.CalmarRatio)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
 	log.Infof(log.BackTester, "Starting Close Price: $%v", c.StartingClosePrice)
@@ -184,6 +194,10 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 	if (len(swings) > 0 && swings[len(swings)-1].Lowest.Price != closePrices[len(closePrices)-1].LowPrice()) || swings == nil {
 		// need to close out the final drawdown
 		intervals := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[0].GetInterval(), 0)
+		drawdownPercent := 0.0
+		if highestPrice > 0 {
+			drawdownPercent = ((lowestPrice - highestPrice) / highestPrice) * 100
+		}
 		swings = append(swings, Swing{
 			Highest: Iteration{
 				Time:  highestTime,
@@ -193,7 +207,7 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 				Time:  lowestTime,
 				Price: lowestPrice,
 			},
-			DrawdownPercent:  ((lowestPrice - highestPrice) / highestPrice) * 100,
+			DrawdownPercent:  drawdownPercent,
 			IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
 		})
 	}
