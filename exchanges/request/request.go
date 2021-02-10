@@ -174,7 +174,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 				delay = after
 			}
 
-			if d, ok := req.Context().Deadline(); ok && d.After(time.Now().Add(delay)) {
+			if d, ok := req.Context().Deadline(); ok && time.Now().Add(delay).After(d) {
 				if err != nil {
 					return fmt.Errorf("request.go error - deadline would be exceeded by retry, err: %v", err)
 				}

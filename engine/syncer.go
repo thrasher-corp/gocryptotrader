@@ -375,7 +375,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 						continue
 					}
 					if switchedToRest && usingWebsocket {
-						log.Infof(log.SyncMgr,
+						log.Warnf(log.SyncMgr,
 							"%s %s: Websocket re-enabled, switching from rest to websocket\n",
 							c.Exchange, FormatCurrency(enabledPairs[i]).String())
 						switchedToRest = false
