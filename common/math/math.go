@@ -123,8 +123,8 @@ func CalculateTheAverage(values []float64, isGeometric bool) float64 {
 			// as we cannot have negative or zero value geometric numbers
 			// adding a 1 to the percentage movements allows for differentiation between
 			// negative numbers (eg -0.1 translates to 0.9) and positive numbers (eg 0.1 becomes 1.1)
-			values[i] = values[i] + 1
-			product *= values[i]
+			modVal := values[i] + 1
+			product *= modVal
 		}
 		powPow := math.Pow(product, 1/float64(len(values)))
 		// we minus 1 because we manipulated the values to be non-zero/negative

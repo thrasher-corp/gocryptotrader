@@ -68,7 +68,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		return nil, errors.New("unable to setup backtester without a loaded GoCryptoTrader bot")
 	}
 	bt := New()
-	log.Info(log.BackTester, common.AsciiLogo)
 	err := bt.setupBot(cfg, bot)
 	if err != nil {
 		return nil, err

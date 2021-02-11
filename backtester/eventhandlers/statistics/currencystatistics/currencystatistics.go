@@ -119,10 +119,10 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Calmar ratio: %.2f\n\n", c.ArithmeticRatios.CalmarRatio)
 
 	log.Info(log.BackTester, "------------------Geometric Ratios-------------------------------------")
-	log.Infof(log.BackTester, "Sharpe ratio: %.10f", c.GeometricRatios.SharpeRatio)
-	log.Infof(log.BackTester, "Sortino ratio: %.10f", c.GeometricRatios.SortinoRatio)
-	log.Infof(log.BackTester, "Information ratio: %.10f", c.GeometricRatios.InformationRatio)
-	log.Infof(log.BackTester, "Calmar ratio: %.10f\n\n", c.GeometricRatios.CalmarRatio)
+	log.Infof(log.BackTester, "Sharpe ratio: %.2f", c.GeometricRatios.SharpeRatio)
+	log.Infof(log.BackTester, "Sortino ratio: %.2f", c.GeometricRatios.SortinoRatio)
+	log.Infof(log.BackTester, "Information ratio: %.2f", c.GeometricRatios.InformationRatio)
+	log.Infof(log.BackTester, "Calmar ratio: %.2f\n\n", c.GeometricRatios.CalmarRatio)
 
 	log.Info(log.BackTester, "------------------Results------------------------------------")
 	log.Infof(log.BackTester, "Starting Close Price: $%v", c.StartingClosePrice)

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -16,6 +17,7 @@ import (
 
 func main() {
 	var configPath, templatePath, reportOutput string
+	var printLogo bool
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Could get working directory. Error: %v.\n", err)
@@ -45,6 +47,11 @@ func main() {
 			wd,
 			"results"),
 		"the path where to output results")
+	flag.BoolVar(
+		&printLogo,
+		"printlogo",
+		true,
+		"print out the logo to the command line, projected profits likely won't be affected if disabled")
 	flag.Parse()
 
 	var bt *backtest.BackTest
@@ -53,6 +60,9 @@ func main() {
 	if err != nil {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
 		os.Exit(1)
+	}
+	if printLogo {
+		fmt.Print(common.AsciiLogo)
 	}
 
 	path := gctconfig.DefaultFilePath()

@@ -109,12 +109,12 @@ func TestSortinoRatio(t *testing.T) {
 	figures := []float64{0.10, 0.04, 0.15, -0.05, 0.20, -0.02, 0.08, -0.06, 0.13, 0.23}
 	r := CalculateSortinoRatio(figures, rfr, false)
 	if r != 0.1575242704526439 {
-		t.Errorf("received %v instead", r)
+		t.Errorf("expected 0.16, received %v", r)
 	}
 
 	r = CalculateSortinoRatio(figures, rfr, true)
-	if r != 0.1575242704526439 {
-		t.Errorf("received %v instead", r)
+	if r != 0.08931388479947903 {
+		t.Errorf("expected 0.09, received %v", r)
 	}
 }
 
