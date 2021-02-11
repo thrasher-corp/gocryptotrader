@@ -10,10 +10,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const testExchange = "binance"
@@ -22,7 +27,14 @@ func TestGenerateReport(t *testing.T) {
 	e := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-
+	ev := event.Event{
+		Exchange:     e,
+		Time:         time.Now(),
+		Interval:     gctkline.OneHour,
+		CurrencyPair: p,
+		AssetType:    a,
+		Why:          "coz",
+	}
 	d := Data{
 		Config:       &config.Config{},
 		OutputPath:   filepath.Join("..", "results"),
@@ -50,7 +62,7 @@ func TestGenerateReport(t *testing.T) {
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
-						OrderDirection: order.Buy,
+						OrderDirection: gctorder.Buy,
 						OrderAmount:    1337,
 						Shape:          "arrowUp",
 						Text:           "hi",
@@ -67,7 +79,7 @@ func TestGenerateReport(t *testing.T) {
 						Close:          1331,
 						Volume:         2,
 						MadeOrder:      true,
-						OrderDirection: order.Buy,
+						OrderDirection: gctorder.Buy,
 						OrderAmount:    1337,
 						Shape:          "arrowUp",
 						Text:           "hi",
@@ -84,7 +96,7 @@ func TestGenerateReport(t *testing.T) {
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
-						OrderDirection: order.Buy,
+						OrderDirection: gctorder.Buy,
 						OrderAmount:    1337,
 						Shape:          "arrowUp",
 						Text:           "hi",
@@ -101,7 +113,7 @@ func TestGenerateReport(t *testing.T) {
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
-						OrderDirection: order.Buy,
+						OrderDirection: gctorder.Buy,
 						OrderAmount:    1337,
 						Shape:          "arrowUp",
 						Text:           "hi",
@@ -136,7 +148,7 @@ func TestGenerateReport(t *testing.T) {
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
-						OrderDirection: order.Buy,
+						OrderDirection: gctorder.Buy,
 						OrderAmount:    1337,
 						Shape:          "arrowUp",
 						Text:           "hi",
@@ -153,7 +165,7 @@ func TestGenerateReport(t *testing.T) {
 						Close:          1331,
 						Volume:         2,
 						MadeOrder:      true,
-						OrderDirection: order.Buy,
+						OrderDirection: gctorder.Buy,
 						OrderAmount:    1337,
 						Shape:          "arrowUp",
 						Text:           "hi",
@@ -170,7 +182,7 @@ func TestGenerateReport(t *testing.T) {
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
-						OrderDirection: order.Buy,
+						OrderDirection: gctorder.Buy,
 						OrderAmount:    1337,
 						Shape:          "arrowUp",
 						Text:           "hi",
@@ -187,7 +199,7 @@ func TestGenerateReport(t *testing.T) {
 						Close:          1338,
 						Volume:         3,
 						MadeOrder:      true,
-						OrderDirection: order.Buy,
+						OrderDirection: gctorder.Buy,
 						OrderAmount:    1337,
 						Shape:          "arrowUp",
 						Text:           "hi",
@@ -218,10 +230,31 @@ func TestGenerateReport(t *testing.T) {
 								{
 									Holdings:     holdings.Holding{},
 									Transactions: compliance.Snapshot{},
-									DataEvent:    nil,
-									SignalEvent:  nil,
-									OrderEvent:   nil,
-									FillEvent:    nil,
+									DataEvent: &kline.Kline{
+										Event:  ev,
+										Open:   1337,
+										Close:  1337,
+										Low:    1337,
+										High:   1337,
+										Volume: 1337,
+									},
+									SignalEvent: &signal.Signal{
+										Event: ev,
+										Price: 1337,
+									},
+									OrderEvent: &order.Order{
+										Event: ev,
+										Price: 1337,
+									},
+									FillEvent: &fill.Fill{
+										Event:               ev,
+										Amount:              1337,
+										ClosePrice:          1337,
+										VolumeAdjustedPrice: 1337,
+										PurchasePrice:       1337,
+										ExchangeFee:         1337,
+										Slippage:            1337,
+									},
 								},
 							},
 							MaxDrawdown:              currencystatistics.Swing{},
@@ -427,9 +460,9 @@ func TestEnhanceCandles(t *testing.T) {
 				VolumeAdjustedPrice: 1337,
 				SlippageRate:        1,
 				CostBasis:           1337,
-				Detail: &order.Detail{
+				Detail: &gctorder.Detail{
 					Date: tt,
-					Side: order.Buy,
+					Side: gctorder.Buy,
 				},
 			},
 		},
@@ -447,9 +480,9 @@ func TestEnhanceCandles(t *testing.T) {
 				VolumeAdjustedPrice: 1337,
 				SlippageRate:        1,
 				CostBasis:           1337,
-				Detail: &order.Detail{
+				Detail: &gctorder.Detail{
 					Date: tt,
-					Side: order.Sell,
+					Side: gctorder.Sell,
 				},
 			},
 		},

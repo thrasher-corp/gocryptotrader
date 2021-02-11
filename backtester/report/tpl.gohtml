@@ -683,7 +683,7 @@
 									<th>Why</th>
 									</thead>
 									<tbody >
-                                    {{range $ev :=  $data.Events}}
+                                    {{range $ev := $data.Events}}
 										<tr>
                                             {{ if ne $ev.FillEvent nil }}
 												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
