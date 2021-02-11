@@ -639,7 +639,8 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Binance) SendHTTPRequest(path string, f request.EndpointLimit, result interface{}) error {
-	return b.SendPayload(context.Background(), &request.Item{
+	ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(b.HTTPClient.Timeout))
+	return b.SendPayload(ctx, &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -869,7 +870,8 @@ func (b *Binance) GetWsAuthStreamKey() (string, error) {
 	path := b.API.Endpoints.URL + userAccountStream
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-	err := b.SendPayload(context.Background(), &request.Item{
+	ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(b.HTTPClient.Timeout))
+	err := b.SendPayload(ctx, &request.Item{
 		Method:        http.MethodPost,
 		Path:          path,
 		Headers:       headers,
