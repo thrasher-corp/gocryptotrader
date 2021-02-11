@@ -62,7 +62,6 @@ func TestCreateMap(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1url.com/",
 		EdgeCase2: "http://test2url.com/",
@@ -82,7 +81,6 @@ func TestSet(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1url.com/",
 		EdgeCase2: "http://test2url.com/",
@@ -113,7 +111,6 @@ func TestGetURL(t *testing.T) {
 		Name: "HELAAAAAOOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com/",
 		EdgeCase2: "http://test2.com/",
@@ -148,7 +145,6 @@ func TestGetAll(t *testing.T) {
 		Name: "HELLLLLLO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com.au/",
 		EdgeCase2: "http://test2.com.au/",
@@ -168,7 +164,6 @@ func TestSetDefaultEndpoints(t *testing.T) {
 		Name: "HELLLLLLO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com.au/",
 		EdgeCase2: "http://test2.com.au/",
@@ -177,7 +172,6 @@ func TestSetDefaultEndpoints(t *testing.T) {
 		t.Error(err)
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		URL(15): "http://test2.com.au/",
 	})
@@ -2251,7 +2245,9 @@ func TestFormatSymbol(t *testing.T) {
 }
 
 func TestSetAPIURL(t *testing.T) {
-	b := Base{}
+	b := Base{
+		Name: "SomeExchange",
+	}
 	b.Config = &config.ExchangeConfig{}
 	var mappy struct {
 		Mappymap map[string]string `json:"urlEndpoints"`
@@ -2260,7 +2256,6 @@ func TestSetAPIURL(t *testing.T) {
 	mappy.Mappymap["hi"] = "http://google.com/"
 	b.Config.API.Endpoints = mappy.Mappymap
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.SetAPIURL()
 	if err == nil {
 		t.Error("expecting an error since the key provided is invalid")
@@ -2269,7 +2264,6 @@ func TestSetAPIURL(t *testing.T) {
 	b.Config.API.Endpoints = mappy.Mappymap
 	mappy.Mappymap["RestSpotURL"] = "hi"
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	err = b.SetAPIURL()
 	if err != nil {
 		t.Errorf("expecting no error since invalid url value should be logged but received the following error: %v", err)
@@ -2278,7 +2272,6 @@ func TestSetAPIURL(t *testing.T) {
 	b.Config.API.Endpoints = mappy.Mappymap
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	err = b.SetAPIURL()
 	if err != nil {
 		t.Error(err)
@@ -2288,7 +2281,6 @@ func TestSetAPIURL(t *testing.T) {
 	b.Config.API.Endpoints = mappy.Mappymap
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	b.Config.API.OldEndPoints.URL = "heloo"
 	err = b.SetAPIURL()
 	if err != nil {
@@ -2299,8 +2291,6 @@ func TestSetAPIURL(t *testing.T) {
 	b.Config.API.Endpoints = mappy.Mappymap
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
-	b.API.Endpoints.Exchange = "Bitstamp"
 	b.Config.API.OldEndPoints.URL = "https://www.bitstamp.net/"
 	b.Config.API.OldEndPoints.URLSecondary = "https://www.secondary.net/"
 	b.Config.API.OldEndPoints.WebsocketURL = "https://www.websocket.net/"
@@ -2328,7 +2318,6 @@ func TestSetRunning(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.API.Endpoints.SetRunning(EdgeCase1.String(), "http://google.com/")
 	if err != nil {
 		t.Error(err)
