@@ -267,51 +267,75 @@ func (f *FTX) SendHTTPRequest(ep exchange.URL, path string, result interface{}) 
 }
 
 // GetMarginBorrowRates gets borrowing rates for margin trading
-func (f *FTX) GetMarginBorrowRates() (MarginFundingData, error) {
-	var resp MarginFundingData
-	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginBorrowRates, nil, &resp)
+func (f *FTX) GetMarginBorrowRates() ([]MarginFundingData, error) {
+	type result struct {
+		Data []MarginFundingData `json:"result"`
+	}
+	var r result
+	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginBorrowRates, nil, &r)
 }
 
 // GetMarginLendingRates gets lending rates for margin trading
-func (f *FTX) GetMarginLendingRates() (MarginFundingData, error) {
-	var resp MarginFundingData
-	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, maringLendingRates, nil, &resp)
+func (f *FTX) GetMarginLendingRates() ([]MarginFundingData, error) {
+	type result struct {
+		Data []MarginFundingData `json:"result"`
+	}
+	var r result
+	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, maringLendingRates, nil, &r)
 }
 
 // MarginDailyBorrowedAmounts gets daily borrowed amounts for margin
-func (f *FTX) MarginDailyBorrowedAmounts() (DailyBorrowedData, error) {
-	var resp DailyBorrowedData
-	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, dailyBorrowedAmounts, nil, &resp)
+func (f *FTX) MarginDailyBorrowedAmounts() ([]DailyBorrowedData, error) {
+	type result struct {
+		Data []DailyBorrowedData `json:"result"`
+	}
+	var r result
+	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, dailyBorrowedAmounts, nil, &r)
 }
 
 // GetMarginMarketInfo gets margin market data
-func (f *FTX) GetMarginMarketInfo(market string) (MarginMarketInfo, error) {
-	var resp MarginMarketInfo
-	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, fmt.Sprintf(marginMarketInfo, market), nil, &resp)
+func (f *FTX) GetMarginMarketInfo(market string) ([]MarginMarketInfo, error) {
+	type result struct {
+		Data []MarginMarketInfo `json:"result"`
+	}
+	var r result
+	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, fmt.Sprintf(marginMarketInfo, market), nil, &r)
 }
 
 // GetMarginBorrowHistory gets margin borrowing history
-func (f *FTX) GetMarginBorrowHistory() (MarginTransactionHistoryData, error) {
-	var resp MarginTransactionHistoryData
-	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginBorrowHistory, nil, &resp)
+func (f *FTX) GetMarginBorrowHistory() ([]MarginTransactionHistoryData, error) {
+	type result struct {
+		Data []MarginTransactionHistoryData `json:"result"`
+	}
+	var r result
+	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginBorrowHistory, nil, &r)
 }
 
 // GetMarginLendingHistory gets margin lending history
-func (f *FTX) GetMarginLendingHistory() (MarginTransactionHistoryData, error) {
-	var resp MarginTransactionHistoryData
-	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendHistory, nil, &resp)
+func (f *FTX) GetMarginLendingHistory() ([]MarginTransactionHistoryData, error) {
+	type result struct {
+		Data []MarginTransactionHistoryData `json:"result"`
+	}
+	var r result
+	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendHistory, nil, &r)
 }
 
 // GetMarginLendingOffers gets margin lending offers
-func (f *FTX) GetMarginLendingOffers() (LendingOffersData, error) {
-	var resp LendingOffersData
-	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendingOffers, nil, &resp)
+func (f *FTX) GetMarginLendingOffers() ([]LendingOffersData, error) {
+	type result struct {
+		Data []LendingOffersData `json:"result"`
+	}
+	var r result
+	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendingOffers, nil, &r)
 }
 
 // GetLendingInfo gets margin lending info
-func (f *FTX) GetLendingInfo() (LendingInfoData, error) {
-	var resp LendingInfoData
-	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendingInfo, nil, &resp)
+func (f *FTX) GetLendingInfo() ([]LendingInfoData, error) {
+	type result struct {
+		Data []LendingInfoData `json:"result"`
+	}
+	var r result
+	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendingInfo, nil, &r)
 }
 
 // SubmitLendingOffer submits an offer for margin lending

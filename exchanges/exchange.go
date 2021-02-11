@@ -783,16 +783,16 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL() error {
-	// checkInsecureEndpoint := func(endpoint string) {
-	// 	if strings.Contains(endpoint, "https") {
-	// 		return
-	// 	}
-	// 	log.Warnf(log.ExchangeSys,
-	// 		"%s is using HTTP instead of HTTPS [%s] for API functionality, an"+
-	// 			" attacker could eavesdrop on this connection. Use at your"+
-	// 			" own risk.",
-	// 		e.Name, endpoint)
-	// }
+	checkInsecureEndpoint := func(endpoint string) {
+		if strings.Contains(endpoint, "https") || strings.Contains(endpoint, "wss") {
+			return
+		}
+		log.Warnf(log.ExchangeSys,
+			"%s is using HTTP instead of HTTPS or WS instead of WSS [%s] for API functionality, an"+
+				" attacker could eavesdrop on this connection. Use at your"+
+				" own risk.",
+			e.Name, endpoint)
+	}
 	var err error
 	if e.Config.API.OldEndPoints != nil {
 		if e.Config.API.OldEndPoints.URL != "" && e.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
@@ -800,18 +800,21 @@ func (e *Base) SetAPIURL() error {
 			if err != nil {
 				return err
 			}
+			checkInsecureEndpoint(e.Config.API.OldEndPoints.URL)
 		}
 		if e.Config.API.OldEndPoints.URLSecondary != "" && e.Config.API.OldEndPoints.URLSecondary != config.APIURLNonDefaultMessage {
 			err = e.API.Endpoints.SetRunning(RestSpotSupplementary.String(), e.Config.API.OldEndPoints.URLSecondary)
 			if err != nil {
 				return err
 			}
+			checkInsecureEndpoint(e.Config.API.OldEndPoints.URLSecondary)
 		}
 		if e.Config.API.OldEndPoints.WebsocketURL != "" && e.Config.API.OldEndPoints.WebsocketURL != config.WebsocketURLNonDefaultMessage {
 			err = e.API.Endpoints.SetRunning(WebsocketSpot.String(), e.Config.API.OldEndPoints.WebsocketURL)
 			if err != nil {
 				return err
 			}
+			checkInsecureEndpoint(e.Config.API.OldEndPoints.WebsocketURL)
 		}
 		e.Config.API.OldEndPoints = nil
 	} else if e.Config.API.Endpoints != nil {

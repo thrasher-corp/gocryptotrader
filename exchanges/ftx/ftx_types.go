@@ -9,64 +9,52 @@ import (
 
 // MarginFundingData stores borrowing/lending data for margin trading
 type MarginFundingData struct {
-	Result []struct {
-		Coin     string  `json:"coin"`
-		Estimate float64 `json:"estimate"`
-		Previous float64 `json:"previous"`
-	} `json:"result"`
+	Coin     string  `json:"coin"`
+	Estimate float64 `json:"estimate"`
+	Previous float64 `json:"previous"`
 }
 
 // DailyBorrowedData stores daily borrow data for margin
 type DailyBorrowedData struct {
-	Result []struct {
-		Coin          string  `json:"coin"`
-		Borrowed      float64 `json:"borrowed"`
-		Free          float64 `json:"free"`
-		EstimatedRate float64 `json:"estimatedRate"`
-		PreviousRate  float64 `json:"previousRate"`
-	} `json:"result"`
+	Coin          string  `json:"coin"`
+	Borrowed      float64 `json:"borrowed"`
+	Free          float64 `json:"free"`
+	EstimatedRate float64 `json:"estimatedRate"`
+	PreviousRate  float64 `json:"previousRate"`
 }
 
 // MarginMarketInfo stores margin market info
 type MarginMarketInfo struct {
-	Result []struct {
-		Coin          string  `json:"coin"`
-		Borrowed      float64 `json:"borrowed"`
-		Free          float64 `json:"free"`
-		EstimatedRate float64 `json:"estimatedRate"`
-		PreviousRate  float64 `json:"previousRate"`
-	} `json:"result"`
+	Coin          string  `json:"coin"`
+	Borrowed      float64 `json:"borrowed"`
+	Free          float64 `json:"free"`
+	EstimatedRate float64 `json:"estimatedRate"`
+	PreviousRate  float64 `json:"previousRate"`
 }
 
 // MarginTransactionHistoryData stores margin borrowing/lending history
 type MarginTransactionHistoryData struct {
-	Result []struct {
-		Coin string    `json:"coin"`
-		Cost float64   `json:"cost"`
-		Rate float64   `json:"rate"`
-		Size float64   `json:"size"`
-		Time time.Time `json:"time"`
-	} `json:"result"`
+	Coin string    `json:"coin"`
+	Cost float64   `json:"cost"`
+	Rate float64   `json:"rate"`
+	Size float64   `json:"size"`
+	Time time.Time `json:"time"`
 }
 
 // LendingOffersData stores data for lending offers
 type LendingOffersData struct {
-	Result []struct {
 		Coin string  `json:"coin"`
 		Rate float64 `json:"rate"`
 		Size float64 `json:"size"`
-	} `json:"result"`
 }
 
 // LendingInfoData stores margin lending info
 type LendingInfoData struct {
-	Result []struct {
-		Coin     string  `json:"coin"`
-		Lendable float64 `json:"lendable"`
-		Locked   float64 `json:"locked"`
-		MinRate  float64 `json:"minRate"`
-		Offered  float64 `json:"offered"`
-	} `json:"result"`
+	Coin     string  `json:"coin"`
+	Lendable float64 `json:"lendable"`
+	Locked   float64 `json:"locked"`
+	MinRate  float64 `json:"minRate"`
+	Offered  float64 `json:"offered"`
 }
 
 // MarketData stores market data
