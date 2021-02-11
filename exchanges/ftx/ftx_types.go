@@ -43,9 +43,9 @@ type MarginTransactionHistoryData struct {
 
 // LendingOffersData stores data for lending offers
 type LendingOffersData struct {
-		Coin string  `json:"coin"`
-		Rate float64 `json:"rate"`
-		Size float64 `json:"size"`
+	Coin string  `json:"coin"`
+	Rate float64 `json:"rate"`
+	Size float64 `json:"size"`
 }
 
 // LendingInfoData stores margin lending info
