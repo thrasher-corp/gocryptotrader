@@ -179,7 +179,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 					return fmt.Errorf("request.go error - deadline would be exceeded by retry, err: %v", err)
 				}
 				return fmt.Errorf("request.go error - deadline would be exceeded by retry, status: %s", resp.Status)
-			}else{
+			} else {
 				// what to do if req.Context().Deadline() is 0 ? Because it never passed here...
 			}
 
