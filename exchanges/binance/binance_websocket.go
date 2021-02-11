@@ -84,21 +84,28 @@ func (b *Binance) WsConnect() error {
 		Delay:             pingDelay,
 	})
 
+	go b.orderBookProcess()
+	return nil
+}
+
+// orderBookProcess prepare orderbook handling
+func (b *Binance) orderBookProcess() {
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		return err
+		log.Errorf(log.ExchangeSys, "%s orderBookProcess, GetEnabledPairs error: %s", b.Name, err)
+		return
 	}
 
 	for i := range enabledPairs {
 		err = b.SeedLocalCache(enabledPairs[i])
 		if err != nil {
-			return err
+			log.Errorf(log.ExchangeSys, "%s orderBookProcess, SeedLocalCache error: %s", b.Name, err)
+			return
 		}
 	}
 
 	go b.wsReadData()
 	b.setupOrderbookManager()
-	return nil
 }
 
 func (b *Binance) setupOrderbookManager() {
@@ -901,7 +908,7 @@ bufferEmpty:
 		}
 	}
 	o.Unlock()
-	// reset underlying bools
+	// disable rest orderbook synchronisation
 	_ = o.stopFetchingBook(pair)
 	_ = o.completeInitialSync(pair)
 	return nil

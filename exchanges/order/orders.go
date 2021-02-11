@@ -160,7 +160,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 					d.Trades[y].Fee = m.Trades[x].Fee
 					updated = true
 				}
-				if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+				if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
 					d.Trades[y].Price = m.Trades[x].Price
 					updated = true
 				}
@@ -176,7 +176,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 					d.Trades[y].Description = m.Trades[x].Description
 					updated = true
 				}
-				if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+				if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
 					d.Trades[y].Amount = m.Trades[x].Amount
 					updated = true
 				}
@@ -309,7 +309,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 					d.Trades[y].Fee = m.Trades[x].Fee
 					updated = true
 				}
-				if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+				if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
 					d.Trades[y].Price = m.Trades[x].Price
 					updated = true
 				}
@@ -325,7 +325,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 					d.Trades[y].Description = m.Trades[x].Description
 					updated = true
 				}
-				if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+				if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
 					d.Trades[y].Amount = m.Trades[x].Amount
 					updated = true
 				}

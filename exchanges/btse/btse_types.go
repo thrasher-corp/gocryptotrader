@@ -358,3 +358,15 @@ type OrderSizeLimit struct {
 
 // orderSizeLimitMap map of OrderSizeLimit per currency
 var orderSizeLimitMap sync.Map
+
+// WsSubscriptionAcknowledgement contains successful subscription messages
+type WsSubscriptionAcknowledgement struct {
+	Channel []string `json:"channel"`
+	Event   string   `json:"event"`
+}
+
+// WsLoginAcknowledgement contains whether authentication was successful
+type WsLoginAcknowledgement struct {
+	Event   string `json:"event"`
+	Success bool   `json:"success"`
+}
