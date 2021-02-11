@@ -62,7 +62,7 @@ func main() {
 		os.Exit(1)
 	}
 	if printLogo {
-		fmt.Print(common.AsciiLogo)
+		fmt.Print(common.ASCIILogo)
 	}
 
 	path := gctconfig.DefaultFilePath()

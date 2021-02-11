@@ -57,7 +57,7 @@ type Directioner interface {
 	GetDirection() order.Side
 }
 
-const AsciiLogo = `
+const ASCIILogo = `
                                                                                 
                                @@@@@@@@@@@@@@@@@                                
                             @@@@@@@@@@@@@@@@@@@@@@@    ,,,,,,                   
