@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -111,17 +112,48 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
-		if strings.Contains(string(respRaw), "connect success") ||
-			strings.Contains(string(respRaw), "authenticated successfully") {
+		if strings.Contains(string(respRaw), "connect success") {
 			return nil
-		} else if strings.Contains(string(respRaw), "AUTHENTICATE ERROR") {
-			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return errors.New("authentication failure")
 		}
 		return err
 	}
+	if result == nil {
+		return nil
+	}
+
+	if result["event"] != nil {
+		event, ok := result["event"].(string)
+		if !ok {
+			return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+		}
+		switch event {
+		case "subscribe":
+			var subscribe WsSubscriptionAcknowledgement
+			err = json.Unmarshal(respRaw, &subscribe)
+			if err != nil {
+				return err
+			}
+			log.Infof(log.WebsocketMgr, "%v subscribed to %v", b.Name, strings.Join(subscribe.Channel, ", "))
+		case "login":
+			var login WsLoginAcknowledgement
+			err = json.Unmarshal(respRaw, &login)
+			if err != nil {
+				return err
+			}
+			b.Websocket.SetCanUseAuthenticatedEndpoints(login.Success)
+			log.Infof(log.WebsocketMgr, "%v websocket authenticated: %v", b.Name, login.Success)
+		default:
+			return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+		}
+		return nil
+	}
+
+	topic, ok := result["topic"].(string)
+	if !ok {
+		return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+	}
 	switch {
-	case result["topic"] == "notificationApi":
+	case topic == "notificationApi":
 		var notification wsNotification
 		err = json.Unmarshal(respRaw, &notification)
 		if err != nil {
@@ -182,7 +214,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Pair:         p,
 			}
 		}
-	case strings.Contains(result["topic"].(string), "tradeHistory"):
+	case strings.Contains(topic, "tradeHistory"):
 		if !b.IsSaveTradeDataEnabled() {
 			return nil
 		}
@@ -223,7 +255,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			})
 		}
 		return trade.AddTradesToBuffer(b.Name, trades...)
-	case strings.Contains(result["topic"].(string), "orderBookL2Api"):
+	case strings.Contains(topic, "orderBookL2Api"):
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)
 		if err != nil {
@@ -288,9 +320,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	default:
-		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
-		return nil
+		return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
 	}
+
 	return nil
 }
 
