@@ -168,6 +168,7 @@ type FeaturesSupported struct {
 
 // Endpoints stores running url endpoints for exchanges
 type Endpoints struct {
+	Exchange string
 	defaults map[string]string
 	sync.RWMutex
 }

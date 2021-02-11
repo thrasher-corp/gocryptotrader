@@ -783,6 +783,16 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL() error {
+	// checkInsecureEndpoint := func(endpoint string) {
+	// 	if strings.Contains(endpoint, "https") {
+	// 		return
+	// 	}
+	// 	log.Warnf(log.ExchangeSys,
+	// 		"%s is using HTTP instead of HTTPS [%s] for API functionality, an"+
+	// 			" attacker could eavesdrop on this connection. Use at your"+
+	// 			" own risk.",
+	// 		e.Name, endpoint)
+	// }
 	var err error
 	if e.Config.API.OldEndPoints != nil {
 		if e.Config.API.OldEndPoints.URL != "" && e.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
@@ -1142,6 +1152,7 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 // NewEndpoints declares default and running URLs maps
 func (e *Base) NewEndpoints() *Endpoints {
 	return &Endpoints{
+		Exchange: e.Name,
 		defaults: make(map[string]string),
 	}
 }
@@ -1167,7 +1178,7 @@ func (e *Endpoints) SetRunning(key, val string) error {
 	}
 	_, err = url.ParseRequestURI(val)
 	if err != nil {
-		log.Warn(log.ExchangeSys, fmt.Sprintf("Could not set custom URL for %s to %s. invalid URI for request.", key, val))
+		log.Warnf(log.ExchangeSys, "Could not set custom URL for %s to %s for exchange %s. invalid URI for request.", key, val, e.Exchange)
 		return nil
 	}
 	e.defaults[key] = val

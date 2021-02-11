@@ -62,6 +62,11 @@ func TestHoldings(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
+	_, err = GetHoldings("bla", asset.Item("hi"))
+	if err == nil {
+		t.Error("error cannot be nil since an invalid assetType is provided")
+	}
+
 	u, err := GetHoldings("Test", asset.Spot)
 	if err != nil {
 		t.Error(err)

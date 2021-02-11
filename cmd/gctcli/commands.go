@@ -734,7 +734,7 @@ var getAccountInfoCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "asset",
-			Usage: "the assetType to get the account info for",
+			Usage: "the asset type to get the account info for",
 		},
 	},
 }
@@ -798,7 +798,7 @@ var getAccountInfoStreamCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "asset",
-			Usage: "the assetType to get the account info stream for",
+			Usage: "the asset type to get the account info stream for",
 		},
 	},
 }
@@ -873,7 +873,7 @@ var updateAccountInfoCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "asset",
-			Usage: "the assetType to get the account info for",
+			Usage: "the asset type to get the account info for",
 		},
 	},
 }

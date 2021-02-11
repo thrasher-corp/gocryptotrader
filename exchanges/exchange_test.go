@@ -62,6 +62,7 @@ func TestCreateMap(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1url.com/",
 		EdgeCase2: "http://test2url.com/",
@@ -81,6 +82,7 @@ func TestSet(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1url.com/",
 		EdgeCase2: "http://test2url.com/",
@@ -111,6 +113,7 @@ func TestGetURL(t *testing.T) {
 		Name: "HELAAAAAOOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
 	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com/",
 		EdgeCase2: "http://test2.com/",
@@ -145,13 +148,47 @@ func TestGetAll(t *testing.T) {
 		Name: "HELLLLLLO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+	b.API.Endpoints.Exchange = "SomeExchange"
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
 		EdgeCase1: "http://test1.com.au/",
 		EdgeCase2: "http://test2.com.au/",
 	})
+	if err != nil {
+		t.Error(err)
+	}
 	allRunning := b.API.Endpoints.GetURLMap()
 	if len(allRunning) != 2 {
 		t.Error("invalid running map received")
+	}
+}
+
+func TestSetDefaultEndpoints(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELLLLLLO",
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "http://test1.com.au/",
+		EdgeCase2: "http://test2.com.au/",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
+	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		URL(15): "http://test2.com.au/",
+	})
+	if err == nil {
+		t.Error("expecting an error due to invalid url key")
+	}
+	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "",
+	})
+	if err != nil {
+		t.Errorf("expecting a warning due due to invalid url val but got an error: %v", err)
 	}
 }
 
@@ -2223,6 +2260,7 @@ func TestSetAPIURL(t *testing.T) {
 	mappy.Mappymap["hi"] = "http://google.com/"
 	b.Config.API.Endpoints = mappy.Mappymap
 	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.SetAPIURL()
 	if err == nil {
 		t.Error("expecting an error since the key provided is invalid")
@@ -2231,6 +2269,7 @@ func TestSetAPIURL(t *testing.T) {
 	b.Config.API.Endpoints = mappy.Mappymap
 	mappy.Mappymap["RestSpotURL"] = "hi"
 	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
 	err = b.SetAPIURL()
 	if err != nil {
 		t.Errorf("expecting no error since invalid url value should be logged but received the following error: %v", err)
@@ -2239,6 +2278,7 @@ func TestSetAPIURL(t *testing.T) {
 	b.Config.API.Endpoints = mappy.Mappymap
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
 	err = b.SetAPIURL()
 	if err != nil {
 		t.Error(err)
@@ -2248,6 +2288,7 @@ func TestSetAPIURL(t *testing.T) {
 	b.Config.API.Endpoints = mappy.Mappymap
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
 	b.Config.API.OldEndPoints.URL = "heloo"
 	err = b.SetAPIURL()
 	if err != nil {
@@ -2258,7 +2299,11 @@ func TestSetAPIURL(t *testing.T) {
 	b.Config.API.Endpoints = mappy.Mappymap
 	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
 	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
+	b.API.Endpoints.Exchange = "Bitstamp"
 	b.Config.API.OldEndPoints.URL = "https://www.bitstamp.net/"
+	b.Config.API.OldEndPoints.URLSecondary = "https://www.secondary.net/"
+	b.Config.API.OldEndPoints.WebsocketURL = "https://www.websocket.net/"
 	err = b.SetAPIURL()
 	if err != nil {
 		t.Error(err)
@@ -2283,6 +2328,7 @@ func TestSetRunning(t *testing.T) {
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.Exchange = "SomeExchange"
 	err := b.API.Endpoints.SetRunning(EdgeCase1.String(), "http://google.com/")
 	if err != nil {
 		t.Error(err)

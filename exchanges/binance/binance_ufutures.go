@@ -268,7 +268,7 @@ func (b *Binance) UKlineData(symbol currency.Pair, interval string, limit int64,
 		tempData.Volume = floatData
 		floatData, ok = data[x][6].(float64)
 		if !ok {
-			return resp, errors.New("type assertion failed for ")
+			return resp, errors.New("type assertion failed for close time")
 		}
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
@@ -862,7 +862,7 @@ func (b *Binance) UChangeInitialLeverageRequest(symbol currency.Pair, leverage i
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if !(leverage > 0 && leverage < 25) {
+	if !(leverage >= 1 && leverage <= 125) {
 		return resp, errors.New("invalid leverage")
 	}
 	params.Set("leverage", strconv.FormatInt(leverage, 10))
