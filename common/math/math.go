@@ -63,20 +63,20 @@ func CalculateCalmarRatio(values []float64, highestPrice, lowestPrice float64, i
 // CalculateInformationRatio The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark,
 // usually an index, compared to the volatility of those returns.
 // The benchmark used is typically an index that represents the market or a particular sector or industry.
-func CalculateInformationRatio(values, riskFreeRates []float64, isGeometric bool) float64 {
-	if len(riskFreeRates) == 1 {
+func CalculateInformationRatio(values, benchmarkRates []float64, isGeometric bool) float64 {
+	if len(benchmarkRates) == 1 {
 		for i := range values {
 			if i == 0 {
 				continue
 			}
-			riskFreeRates = append(riskFreeRates, riskFreeRates[0])
+			benchmarkRates = append(benchmarkRates, benchmarkRates[0])
 		}
 	}
 	avgValue := CalculateTheAverage(values, isGeometric)
-	avgComparison := CalculateTheAverage(riskFreeRates, isGeometric)
+	avgComparison := CalculateTheAverage(benchmarkRates, isGeometric)
 	var diffs []float64
 	for i := range values {
-		diffs = append(diffs, values[i]-riskFreeRates[i])
+		diffs = append(diffs, values[i]-benchmarkRates[i])
 	}
 	stdDev := CalculatePopulationStandardDeviation(diffs)
 	if stdDev == 0 {
@@ -91,7 +91,6 @@ func CalculatePopulationStandardDeviation(values []float64) float64 {
 		return 0
 	}
 	avg := CalculateTheAverage(values, false)
-
 	diffs := make([]float64, len(values))
 	for x := range values {
 		diffs[x] = math.Pow(values[x]-avg, 2)
@@ -112,7 +111,6 @@ func CalculateSampleStandardDeviation(vals []float64) float64 {
 		superMean = append(superMean, result)
 		combined += result
 	}
-
 	avg := combined / (float64(len(superMean)) - 1)
 	return math.Sqrt(avg)
 }
@@ -122,20 +120,15 @@ func CalculateTheAverage(values []float64, isGeometric bool) float64 {
 	if isGeometric {
 		product := 1.0
 		for i := range values {
-			if values[i] >= 0 {
-				// as we cannot have negative or zero value geometric numbers
-				// adding a 1 to the percentage movements allows for differentiation between
-				// negative numbers (eg -0.1 translates to 0.1) and positive numbers (eg 0.1 becomes 1.1)
-				values[i] += 1
-			}
-			if values[i] < 0 {
-				values[i] *= -1
-			}
+			// as we cannot have negative or zero value geometric numbers
+			// adding a 1 to the percentage movements allows for differentiation between
+			// negative numbers (eg -0.1 translates to 0.9) and positive numbers (eg 0.1 becomes 1.1)
+			values[i] = values[i] + 1
 			product *= values[i]
 		}
-
+		powPow := math.Pow(product, 1/float64(len(values)))
 		// we minus 1 because we manipulated the values to be non-zero/negative
-		return math.Pow(product, 1/float64(len(values)))
+		return powPow - 1
 	}
 
 	if len(values) == 0 {
@@ -158,12 +151,9 @@ func CalculateSortinoRatio(movementPerCandle []float64, riskFreeRate float64, is
 	for x := range movementPerCandle {
 		if movementPerCandle[x]-riskFreeRate < 0 {
 			totalNegativeResultsSquared += math.Pow(movementPerCandle[x]-riskFreeRate, 2)
-
 		}
 	}
-
 	averageDownsideDeviation := math.Sqrt(totalNegativeResultsSquared / float64(len(movementPerCandle)))
-
 	return (mean - riskFreeRate) / averageDownsideDeviation
 }
 
@@ -178,7 +168,6 @@ func CalculateSharpeRatio(movementPerCandle []float64, riskFreeRate float64, isG
 		excessReturns = append(excessReturns, movementPerCandle[i]-riskFreeRate)
 	}
 	standardDeviation := CalculateSampleStandardDeviation(excessReturns)
-
 	if standardDeviation == 0 {
 		return 0
 	}

@@ -236,13 +236,13 @@ func TestStandardDeviation2(t *testing.T) {
 func TestGeometricMean(t *testing.T) {
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
 	mean := CalculateTheAverage(values, true)
-	if mean != 3.764350599503129 {
-		t.Errorf("expected %v, received %v", 3.76435, mean)
+	if mean != 3.9541639996482028 {
+		t.Errorf("expected %v, received %v", 3.95, mean)
 	}
 
 	values = []float64{15, 12, 13, 19, 10}
 	mean = CalculateTheAverage(values, true)
-	if mean != 13.477020583645698 {
-		t.Errorf("expected %v, received %v", 13.447, mean)
+	if mean != 13.49849123325646 {
+		t.Errorf("expected %v, received %v", 13.50, mean)
 	}
 }

@@ -32,6 +32,7 @@ It can calculate the following:
 - If the strategy made a profit
 
 ## Ratios
+
 | Ratio | Description | A good range |
 | ----- | ----------- | ------------ |
 | Calmar ratio |  It is a function of the fund's average compounded annual rate of return versus its maximum drawdown. The higher the Calmar ratio, the better it performed on a risk-adjusted basis during the given time frame, which is mostly commonly set at 36 months. | 3.0 to 5.0 |
@@ -42,6 +43,7 @@ It can calculate the following:
 
 ## Arithmetic or versus geometric?
 Both! We calculate ratios where an average is required using both types. The reasoning for using either is debated by finance and mathematicians. [This](https://www.investopedia.com/ask/answers/06/geometricmean.asp) is a good breakdown of both, but here is an extra simple table
+
 | Average type | A reason to use it |
 | ------------ | ------------------ |
 | Arithmetic | The arithmetic mean is the average of a sum of numbers, which reflects the central tendency of the position of the numbers |
