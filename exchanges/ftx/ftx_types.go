@@ -14,15 +14,6 @@ type MarginFundingData struct {
 	Previous float64 `json:"previous"`
 }
 
-// DailyBorrowedData stores daily borrow data for margin
-type DailyBorrowedData struct {
-	Coin          string  `json:"coin"`
-	Borrowed      float64 `json:"borrowed"`
-	Free          float64 `json:"free"`
-	EstimatedRate float64 `json:"estimatedRate"`
-	PreviousRate  float64 `json:"previousRate"`
-}
-
 // MarginMarketInfo stores margin market info
 type MarginMarketInfo struct {
 	Coin          string  `json:"coin"`
