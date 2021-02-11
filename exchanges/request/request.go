@@ -44,8 +44,6 @@ func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
 		r.timedLock.LockForDuration()
 	}
 
-
-
 	req, err := i.validateRequest(ctx, r)
 	if err != nil {
 		r.timedLock.UnlockIfLocked()
