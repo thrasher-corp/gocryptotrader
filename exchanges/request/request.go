@@ -44,6 +44,8 @@ func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
 		r.timedLock.LockForDuration()
 	}
 
+
+
 	req, err := i.validateRequest(ctx, r)
 	if err != nil {
 		r.timedLock.UnlockIfLocked()
@@ -174,11 +176,13 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 				delay = after
 			}
 
-			if d, ok := req.Context().Deadline(); ok && time.Now().Add(delay).After(d) {
+			if d, ok := req.Context().Deadline(); ok && d.After(time.Now()) && time.Now().Add(delay).After(d) {
 				if err != nil {
 					return fmt.Errorf("request.go error - deadline would be exceeded by retry, err: %v", err)
 				}
 				return fmt.Errorf("request.go error - deadline would be exceeded by retry, status: %s", resp.Status)
+			}else{
+				// what to do if req.Context().Deadline() is 0 ? Because it never passed here...
 			}
 
 			if p.Verbose {
