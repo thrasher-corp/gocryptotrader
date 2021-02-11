@@ -862,7 +862,7 @@ func (b *Binance) UChangeInitialLeverageRequest(symbol currency.Pair, leverage i
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if leverage < 1 && leverage > 125 {
+	if leverage < 1 || leverage > 125 {
 		return resp, errors.New("invalid leverage")
 	}
 	params.Set("leverage", strconv.FormatInt(leverage, 10))
