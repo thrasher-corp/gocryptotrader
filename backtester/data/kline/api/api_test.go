@@ -70,7 +70,7 @@ func TestLoadCandles(t *testing.T) {
 func TestLoadTrades(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.FifteenMin
-	tt1 := time.Now().Add(-time.Minute * 30).Round(interval.Duration())
+	tt1 := time.Now().Add(-time.Minute * 60).Round(interval.Duration())
 	tt2 := time.Now().Round(interval.Duration())
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -79,6 +79,9 @@ func TestLoadTrades(t *testing.T) {
 	data, err = LoadData(common.DataTrade, tt1, tt2, interval.Duration(), exch, p, a)
 	if err != nil {
 		t.Error(err)
+	}
+	if data == nil {
+		t.Fatal("data should not be null")
 	}
 	if len(data.Candles) == 0 {
 		t.Error("expected candles")
