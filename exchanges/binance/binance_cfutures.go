@@ -285,7 +285,7 @@ func (b *Binance) GetFuturesKlineData(symbol currency.Pair, interval string, lim
 		tempData.Close = floatData
 		strData, ok = data[x][5].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed volume")
+			return resp, errors.New("type assertion failed for volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -299,7 +299,7 @@ func (b *Binance) GetFuturesKlineData(symbol currency.Pair, interval string, lim
 		tempData.CloseTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][7].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed base asset volume")
+			return resp, errors.New("type assertion failed for base asset volume")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -477,7 +477,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.OpenTime = time.Unix(int64(floatData), 0)
 		strData, ok = data[x][1].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed open")
+			return resp, errors.New("type assertion failed for open")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -486,7 +486,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.Open = floatData
 		strData, ok = data[x][2].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed high")
+			return resp, errors.New("type assertion failed for high")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -495,7 +495,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.High = floatData
 		strData, ok = data[x][3].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed low")
+			return resp, errors.New("type assertion failed for low")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
@@ -504,7 +504,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		tempData.Low = floatData
 		strData, ok = data[x][4].(string)
 		if !ok {
-			return resp, errors.New("type assertion failed close")
+			return resp, errors.New("type assertion failed for close")
 		}
 		floatData, err = strconv.ParseFloat(strData, 64)
 		if err != nil {
