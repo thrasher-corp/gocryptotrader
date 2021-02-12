@@ -832,13 +832,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].API.Credentials.ClientID = *c.Exchanges[i].ClientID
 			}
 
-			if c.Exchanges[i].WebsocketURL != nil {
-				c.Exchanges[i].API.Endpoints.WebsocketURL = *c.Exchanges[i].WebsocketURL
-			}
-
-			c.Exchanges[i].API.Endpoints.URL = *c.Exchanges[i].APIURL
-			c.Exchanges[i].API.Endpoints.URLSecondary = *c.Exchanges[i].APIURLSecondary
-
 			// Flush settings
 			c.Exchanges[i].AuthenticatedAPISupport = nil
 			c.Exchanges[i].AuthenticatedWebsocketAPISupport = nil
@@ -865,26 +858,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 		if c.Exchanges[i].Websocket != nil {
 			c.Exchanges[i].Features.Enabled.Websocket = *c.Exchanges[i].Websocket
 			c.Exchanges[i].Websocket = nil
-		}
-
-		if c.Exchanges[i].API.Endpoints.URL != APIURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints.URL == "" {
-				// Set default if nothing set
-				c.Exchanges[i].API.Endpoints.URL = APIURLNonDefaultMessage
-			}
-		}
-
-		if c.Exchanges[i].API.Endpoints.URLSecondary != APIURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints.URLSecondary == "" {
-				// Set default if nothing set
-				c.Exchanges[i].API.Endpoints.URLSecondary = APIURLNonDefaultMessage
-			}
-		}
-
-		if c.Exchanges[i].API.Endpoints.WebsocketURL != WebsocketURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints.WebsocketURL == "" {
-				c.Exchanges[i].API.Endpoints.WebsocketURL = WebsocketURLNonDefaultMessage
-			}
 		}
 
 		// Check if see if the new currency pairs format is empty and flesh it out if so

@@ -506,6 +506,9 @@ var stringsToOrderType = []struct {
 	{"any", AnyType, nil},
 	{"ANY", AnyType, nil},
 	{"aNy", AnyType, nil},
+	{"trigger", Trigger, nil},
+	{"TRIGGER", Trigger, nil},
+	{"tRiGgEr", Trigger, nil},
 	{"woahMan", UnknownType, errors.New("woahMan not recognised as order type")},
 }
 
@@ -595,7 +598,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		HiddenOrder:       false,
 		FillOrKill:        false,
 		PostOnly:          false,
-		Leverage:          "",
+		Leverage:          0,
 		Price:             0,
 		Amount:            0,
 		LimitPriceUpper:   0,
@@ -631,7 +634,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		HiddenOrder:       true,
 		FillOrKill:        true,
 		PostOnly:          true,
-		Leverage:          "1",
+		Leverage:          1.0,
 		Price:             1,
 		Amount:            1,
 		LimitPriceUpper:   1,
@@ -672,7 +675,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if !od.PostOnly {
 		t.Error("Failed to update")
 	}
-	if od.Leverage != "1" {
+	if od.Leverage != 1 {
 		t.Error("Failed to update")
 	}
 	if od.Price != 1 {
@@ -787,7 +790,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		HiddenOrder:       false,
 		FillOrKill:        false,
 		PostOnly:          false,
-		Leverage:          "",
+		Leverage:          0,
 		Price:             0,
 		Amount:            0,
 		LimitPriceUpper:   0,
@@ -823,7 +826,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		HiddenOrder:       true,
 		FillOrKill:        true,
 		PostOnly:          true,
-		Leverage:          "1",
+		Leverage:          1,
 		Price:             1,
 		Amount:            1,
 		LimitPriceUpper:   1,
@@ -864,7 +867,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if !od.PostOnly {
 		t.Error("Failed to update")
 	}
-	if od.Leverage != "1" {
+	if od.Leverage != 1 {
 		t.Error("Failed to update")
 	}
 	if od.Price != 1 {
@@ -1024,8 +1027,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	}
 
 	getOrders = new(GetOrdersRequest)
-	if getOrders.Validate() != nil {
-		t.Fatal("should not error")
+	if getOrders.Validate() == nil {
+		t.Fatal("should error since assetType hasn't been provided")
 	}
 
 	if getOrders.Validate(validate.Check(func() error {
@@ -1036,8 +1039,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	if getOrders.Validate(validate.Check(func() error {
 		return nil
-	})) != nil {
-		t.Fatal("unexpected error")
+	})) == nil {
+		t.Fatal("should output an error since assetType isn't provided")
 	}
 
 	var modifyOrder *Modify

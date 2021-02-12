@@ -458,9 +458,10 @@ func (o *orderManager) processOrders() {
 			}
 
 			req := order.GetOrdersRequest{
-				Side:  order.AnySide,
-				Type:  order.AnyType,
-				Pairs: pairs,
+				Side:      order.AnySide,
+				Type:      order.AnyType,
+				Pairs:     pairs,
+				AssetType: supportedAssets[y],
 			}
 			result, err := exch.GetActiveOrders(&req)
 			if err != nil {

@@ -2475,7 +2475,7 @@
       },
    "api": {
     "authenticatedSupport": false,
-    "authenticatedWebsocketApiSupport": true,
+    "authenticatedWebsocketApiSupport": false,
     "endpoints": {
      "url": "",
      "urlSecondary": "",

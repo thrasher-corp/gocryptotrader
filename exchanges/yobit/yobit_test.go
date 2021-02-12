@@ -91,7 +91,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	_, err := y.UpdateAccountInfo()
+	_, err := y.UpdateAccountInfo(asset.Spot)
 	if err == nil {
 		t.Error("GetAccountInfo() Expected error")
 	}
@@ -330,6 +330,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type: order.AnyType,
 		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
+		AssetType: asset.Spot,
 	}
 
 	_, err := y.GetActiveOrders(&getOrdersRequest)
@@ -342,7 +343,8 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 		StartTicks: time.Unix(0, 0),

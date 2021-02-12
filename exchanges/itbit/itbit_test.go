@@ -269,7 +269,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := i.GetActiveOrders(&getOrdersRequest)
@@ -282,7 +283,8 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := i.GetOrderHistory(&getOrdersRequest)
@@ -378,7 +380,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	if areTestAPIKeysSet() {
-		_, err := i.UpdateAccountInfo()
+		_, err := i.UpdateAccountInfo(asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}

@@ -72,8 +72,12 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 		val.Set("bids", "true")
 		val.Set("offers", "true")
 		val.Set("trades", "true")
+		wsEndpoint, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 		endpoint := fmt.Sprintf("%s%s/%s?%s",
-			g.API.Endpoints.WebsocketURL,
+			wsEndpoint,
 			geminiWsMarketData,
 			enabledCurrencies[i].String(),
 			val.Encode())
@@ -85,7 +89,7 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			Traffic:          g.Websocket.TrafficAlert,
 			Match:            g.Websocket.Match,
 		}
-		err := connection.Dial(dialer, http.Header{})
+		err = connection.Dial(dialer, http.Header{})
 		if err != nil {
 			return fmt.Errorf("%v Websocket connection %v error. Error %v",
 				g.Name, endpoint, err)
@@ -109,8 +113,11 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	if err != nil {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", g.Name)
 	}
-
-	endpoint := g.API.Endpoints.WebsocketURL + url
+	wsEndpoint, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	endpoint := wsEndpoint + url
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
 	hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
 	headers := http.Header{}

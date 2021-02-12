@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 func init() {
@@ -45,12 +46,16 @@ func Process(h *Holdings) error {
 }
 
 // GetHoldings returns full holdings for an exchange
-func GetHoldings(exch string) (Holdings, error) {
+func GetHoldings(exch string, assetType asset.Item) (Holdings, error) {
 	if exch == "" {
 		return Holdings{}, errors.New("exchange name unset")
 	}
 
 	exch = strings.ToLower(exch)
+
+	if !assetType.IsValid() {
+		return Holdings{}, fmt.Errorf("assetType %v is invalid", assetType)
+	}
 
 	service.Lock()
 	defer service.Unlock()
@@ -58,7 +63,12 @@ func GetHoldings(exch string) (Holdings, error) {
 	if !ok {
 		return Holdings{}, errors.New("exchange account holdings not found")
 	}
-	return *h.h, nil
+	for y := range h.h.Accounts {
+		if h.h.Accounts[y].AssetType == assetType {
+			return *h.h, nil
+		}
+	}
+	return Holdings{}, fmt.Errorf("%v holdings data not found for %s", assetType, exch)
 }
 
 // Update updates holdings with new account info

@@ -67,7 +67,6 @@ func TestMain(m *testing.M) {
 	okcoinConfig.API.Credentials.Key = apiKey
 	okcoinConfig.API.Credentials.Secret = apiSecret
 	okcoinConfig.API.Credentials.ClientID = passphrase
-	okcoinConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
 	o.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = o.Setup(okcoinConfig)
 	if err != nil {
@@ -1016,7 +1015,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 // TestGetAccountInfo Wrapper test
 func TestGetAccountInfo(t *testing.T) {
-	_, err := o.UpdateAccountInfo()
+	_, err := o.UpdateAccountInfo(asset.Spot)
 	testStandardErrorHandling(t, err)
 }
 

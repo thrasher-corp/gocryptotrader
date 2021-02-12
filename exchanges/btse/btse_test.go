@@ -57,6 +57,13 @@ func areTestAPIKeysSet() bool {
 	return b.ValidateAPICredentials()
 }
 
+func TestFetchFundingHistory(t *testing.T) {
+	_, err := b.FetchFundingHistory("")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetMarketsSummary(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMarketSummary("", true)
@@ -103,7 +110,7 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := currency.NewPairFromString("BTC-PFC")
+	f, err := currency.NewPairFromString(testFUTURESPair)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +393,8 @@ func TestGetActiveOrders(t *testing.T) {
 				Quote:     currency.USD,
 			},
 		},
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -401,7 +409,8 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Skip("API keys not set, skipping test")
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 	_, err := b.GetOrderHistory(&getOrdersRequest)
 	if err != nil {

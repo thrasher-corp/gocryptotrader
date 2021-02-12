@@ -33,7 +33,6 @@ func (b *Bitstamp) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.Name = b.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
-
 	err := b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
@@ -57,7 +56,6 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresClientID = true
-
 	requestFmt := &currency.PairFormat{Uppercase: true}
 	configFmt := &currency.PairFormat{Uppercase: true}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
@@ -129,10 +127,14 @@ func (b *Bitstamp) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate)))
-
-	b.API.Endpoints.URLDefault = bitstampAPIURL
-	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-	b.API.Endpoints.WebsocketURL = bitstampWSURL
+	b.API.Endpoints = b.NewEndpoints()
+	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      bitstampAPIURL,
+		exchange.WebsocketSpot: bitstampWSURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -151,6 +153,11 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -158,7 +165,7 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       bitstampWSURL,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsURL,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
 		UnSubscriber:                     b.Unsubscribe,
@@ -354,7 +361,7 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bitstamp exchange
-func (b *Bitstamp) UpdateAccountInfo() (account.Holdings, error) {
+func (b *Bitstamp) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = b.Name
 	accountBalance, err := b.GetBalance()
@@ -383,10 +390,10 @@ func (b *Bitstamp) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitstamp) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name)
+func (b *Bitstamp) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -775,8 +782,8 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitstamp) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *Bitstamp) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	return b.CheckTransientError(err)
 }
 

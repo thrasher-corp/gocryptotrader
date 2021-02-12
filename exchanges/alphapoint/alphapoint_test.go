@@ -2,7 +2,6 @@ package alphapoint
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"testing"
 	"time"
@@ -30,12 +29,6 @@ func TestMain(m *testing.M) {
 	a.API.Credentials.Key = apiKey
 	a.API.Credentials.Secret = apiSecret
 	a.API.AuthenticatedSupport = true
-	if a.API.Endpoints.URL != "https://sim3.alphapoint.com:8400" {
-		log.Fatal("SetDefaults: String Incorrect -", a.API.Endpoints.URL)
-	}
-	if a.API.Endpoints.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
-		log.Fatal("SetDefaults: String Incorrect -", a.API.Endpoints.WebsocketURL)
-	}
 	os.Exit(m.Run())
 }
 
@@ -327,7 +320,7 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.UpdateAccountInfo()
+	_, err := a.UpdateAccountInfo(asset.Spot)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -441,7 +434,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := a.GetActiveOrders(&getOrdersRequest)
@@ -455,7 +449,8 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := a.GetOrderHistory(&getOrdersRequest)

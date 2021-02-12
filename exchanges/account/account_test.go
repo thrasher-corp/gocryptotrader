@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 func TestHoldings(t *testing.T) {
@@ -36,7 +37,8 @@ func TestHoldings(t *testing.T) {
 	err = Process(&Holdings{
 		Exchange: "Test",
 		Accounts: []SubAccount{{
-			ID: "1337",
+			AssetType: asset.Spot,
+			ID:        "1337",
 			Currencies: []Balance{
 				{
 					CurrencyName: currency.BTC,
@@ -50,17 +52,22 @@ func TestHoldings(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = GetHoldings("")
+	_, err = GetHoldings("", asset.Spot)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 
-	_, err = GetHoldings("bla")
+	_, err = GetHoldings("bla", asset.Spot)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 
-	u, err := GetHoldings("Test")
+	_, err = GetHoldings("bla", asset.Item("hi"))
+	if err == nil {
+		t.Error("error cannot be nil since an invalid asset type is provided")
+	}
+
+	u, err := GetHoldings("Test", asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

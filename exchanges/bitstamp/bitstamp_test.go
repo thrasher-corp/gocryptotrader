@@ -182,7 +182,6 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetOrderbook(currency.BTC.String() + currency.USD.String())
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
@@ -217,7 +216,6 @@ func TestGetEURUSDConversionRate(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetBalance()
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
@@ -333,7 +331,8 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -351,7 +350,8 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)

@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -30,8 +31,14 @@ func (a *Alphapoint) SetDefaults() {
 	a.Name = "Alphapoint"
 	a.Enabled = true
 	a.Verbose = true
-	a.API.Endpoints.URL = alphapointDefaultAPIURL
-	a.API.Endpoints.WebsocketURL = alphapointDefaultWebsocketURL
+	a.API.Endpoints = a.NewEndpoints()
+	err := a.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      alphapointDefaultAPIURL,
+		exchange.WebsocketSpot: alphapointDefaultWebsocketURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
 
@@ -82,7 +89,7 @@ func (a *Alphapoint) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) UpdateAccountInfo() (account.Holdings, error) {
+func (a *Alphapoint) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = a.Name
 	acc, err := a.GetAccountInformation()
@@ -114,10 +121,10 @@ func (a *Alphapoint) UpdateAccountInfo() (account.Holdings, error) {
 
 // FetchAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(a.Name)
+func (a *Alphapoint) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(a.Name, assetType)
 	if err != nil {
-		return a.UpdateAccountInfo()
+		return a.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -433,7 +440,7 @@ func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (a *Alphapoint) ValidateCredentials() error {
-	_, err := a.UpdateAccountInfo()
+func (a *Alphapoint) ValidateCredentials(assetType asset.Item) error {
+	_, err := a.UpdateAccountInfo(assetType)
 	return a.CheckTransientError(err)
 }

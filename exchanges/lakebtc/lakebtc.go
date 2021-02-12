@@ -43,9 +43,9 @@ type LakeBTC struct {
 // GetTicker returns the current ticker from lakeBTC
 func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 	response := make(map[string]TickerResponse)
-	path := fmt.Sprintf("%s/%s", l.API.Endpoints.URL, lakeBTCTicker)
+	path := fmt.Sprintf("/%s", lakeBTCTicker)
 
-	err := l.SendHTTPRequest(path, &response)
+	err := l.SendHTTPRequest(exchange.RestSpot, path, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -102,9 +102,9 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 		Bids [][]string `json:"bids"`
 		Asks [][]string `json:"asks"`
 	}
-	path := fmt.Sprintf("%s/%s?symbol=%s", l.API.Endpoints.URL, lakeBTCOrderbook, strings.ToLower(currency))
+	path := fmt.Sprintf("/%s?symbol=%s", lakeBTCOrderbook, strings.ToLower(currency))
 	resp := Response{}
-	err := l.SendHTTPRequest(path, &resp)
+	err := l.SendHTTPRequest(exchange.RestSpot, path, &resp)
 	if err != nil {
 		return Orderbook{}, err
 	}
@@ -144,15 +144,15 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
 	v := url.Values{}
 	v.Set("symbol", strings.ToLower(currency))
-	path := fmt.Sprintf("%s/%s?%s", l.API.Endpoints.URL, lakeBTCTrades, v.Encode())
+	path := fmt.Sprintf("/%s?%s", lakeBTCTrades, v.Encode())
 	var resp []TradeHistory
-	return resp, l.SendHTTPRequest(path, &resp)
+	return resp, l.SendHTTPRequest(exchange.RestSpot, path, &resp)
 }
 
 // GetAccountInformation returns your current account information
 func (l *LakeBTC) GetAccountInformation() (AccountInfo, error) {
 	resp := AccountInfo{}
-	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCGetAccountInfo, "", &resp)
+	return resp, l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCGetAccountInfo, "", &resp)
 }
 
 // Trade executes an order on the exchange and returns trade inforamtion or an
@@ -162,11 +162,11 @@ func (l *LakeBTC) Trade(isBuyOrder bool, amount, price float64, currency string)
 	params := strconv.FormatFloat(price, 'f', -1, 64) + "," + strconv.FormatFloat(amount, 'f', -1, 64) + "," + currency
 
 	if isBuyOrder {
-		if err := l.SendAuthenticatedHTTPRequest(lakeBTCBuyOrder, params, &resp); err != nil {
+		if err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCBuyOrder, params, &resp); err != nil {
 			return resp, err
 		}
 	} else {
-		if err := l.SendAuthenticatedHTTPRequest(lakeBTCSellOrder, params, &resp); err != nil {
+		if err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCSellOrder, params, &resp); err != nil {
 			return resp, err
 		}
 	}
@@ -182,7 +182,7 @@ func (l *LakeBTC) Trade(isBuyOrder bool, amount, price float64, currency string)
 func (l *LakeBTC) GetOpenOrders() ([]OpenOrders, error) {
 	var orders []OpenOrders
 
-	return orders, l.SendAuthenticatedHTTPRequest(lakeBTCOpenOrders, "", &orders)
+	return orders, l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCOpenOrders, "", &orders)
 }
 
 // GetOrders returns your orders
@@ -194,7 +194,7 @@ func (l *LakeBTC) GetOrders(orders []int64) ([]Orders, error) {
 
 	var resp []Orders
 	return resp,
-		l.SendAuthenticatedHTTPRequest(lakeBTCGetOrders, strings.Join(ordersStr, ","), &resp)
+		l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCGetOrders, strings.Join(ordersStr, ","), &resp)
 }
 
 // CancelExistingOrder cancels an order by ID number and returns an error
@@ -205,7 +205,7 @@ func (l *LakeBTC) CancelExistingOrder(orderID int64) error {
 
 	resp := Response{}
 	params := strconv.FormatInt(orderID, 10)
-	err := l.SendAuthenticatedHTTPRequest(lakeBTCCancelOrder, params, &resp)
+	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCCancelOrder, params, &resp)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (l *LakeBTC) CancelExistingOrders(orderIDs []string) error {
 
 	resp := Response{}
 	params := strings.Join(orderIDs, ",")
-	err := l.SendAuthenticatedHTTPRequest(lakeBTCCancelOrder, params, &resp)
+	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCCancelOrder, params, &resp)
 	if err != nil {
 		return err
 	}
@@ -243,14 +243,14 @@ func (l *LakeBTC) GetTrades(timestamp int64) ([]AuthenticatedTradeHistory, error
 	}
 
 	var trades []AuthenticatedTradeHistory
-	return trades, l.SendAuthenticatedHTTPRequest(lakeBTCGetTrades, params, &trades)
+	return trades, l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCGetTrades, params, &trades)
 }
 
 // GetExternalAccounts returns your external accounts WARNING: Only for BTC!
 func (l *LakeBTC) GetExternalAccounts() ([]ExternalAccounts, error) {
 	var resp []ExternalAccounts
 
-	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCGetExternalAccounts, "", &resp)
+	return resp, l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCGetExternalAccounts, "", &resp)
 }
 
 // CreateWithdraw allows your to withdraw to external account WARNING: Only for
@@ -259,7 +259,7 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, er
 	resp := Withdraw{}
 	params := strconv.FormatFloat(amount, 'f', -1, 64) + ",btc," + accountID
 
-	err := l.SendAuthenticatedHTTPRequest(lakeBTCCreateWithdraw, params, &resp)
+	err := l.SendAuthenticatedHTTPRequest(exchange.RestSpot, lakeBTCCreateWithdraw, params, &resp)
 	if err != nil {
 		return Withdraw{}, err
 	}
@@ -271,10 +271,14 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, er
 }
 
 // SendHTTPRequest sends an unauthenticated http request
-func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
+func (l *LakeBTC) SendHTTPRequest(endpoint exchange.URL, path string, result interface{}) error {
+	pathURL, err := l.API.Endpoints.GetURL(endpoint)
+	if err != nil {
+		return err
+	}
 	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          path,
+		Path:          pathURL + path,
 		Result:        result,
 		Verbose:       l.Verbose,
 		HTTPDebugging: l.HTTPDebugging,
@@ -283,18 +287,21 @@ func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated HTTP request to a LakeBTC
-func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result interface{}) (err error) {
+func (l *LakeBTC) SendAuthenticatedHTTPRequest(ep exchange.URL, method, params string, result interface{}) (err error) {
 	if !l.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
-
+	endpoint, err := l.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
 	n := l.Requester.GetNonce(true).String()
 
 	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", n, l.API.Credentials.Key, method, params)
 	hmac := crypto.GetHMAC(crypto.HashSHA1, []byte(req), []byte(l.API.Credentials.Secret))
 
 	if l.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending POST request to %s calling method %s with params %s\n", l.API.Endpoints.URL, method, req)
+		log.Debugf(log.ExchangeSys, "Sending POST request to %s calling method %s with params %s\n", endpoint, method, req)
 	}
 
 	postData := make(map[string]interface{})
@@ -314,7 +321,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 
 	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodPost,
-		Path:          l.API.Endpoints.URL,
+		Path:          endpoint,
 		Headers:       headers,
 		Body:          strings.NewReader(string(data)),
 		Result:        result,

@@ -1291,7 +1291,7 @@ type UnsafeGoCryptoTraderServer interface {
 	mustEmbedUnimplementedGoCryptoTraderServer()
 }
 
-func RegisterGoCryptoTraderServer(s grpc.ServiceRegistrar, srv GoCryptoTraderServer) {
+func RegisterGoCryptoTraderServer(s *grpc.Server, srv GoCryptoTraderServer) {
 	s.RegisterService(&_GoCryptoTrader_serviceDesc, srv)
 }
 

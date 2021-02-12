@@ -35,6 +35,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitstamp setup error", err)
 	}
-	log.Printf(sharedtestvalues.LiveTesting, b.Name, b.API.Endpoints.URL)
+	log.Printf(sharedtestvalues.LiveTesting, b.Name)
 	os.Exit(m.Run())
 }

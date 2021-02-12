@@ -56,9 +56,138 @@ func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	}
 }
 
+func TestCreateMap(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELOOOOOOOO",
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "http://test1url.com/",
+		EdgeCase2: "http://test2url.com/",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	val, ok := b.API.Endpoints.defaults[EdgeCase1.String()]
+	if !ok || val != "http://test1url.com/" {
+		t.Errorf("CreateMap failed, incorrect value received for the given key")
+	}
+}
+
+func TestSet(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELOOOOOOOO",
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "http://test1url.com/",
+		EdgeCase2: "http://test2url.com/",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "http://google.com/")
+	if err != nil {
+		t.Error(err)
+	}
+	val, ok := b.API.Endpoints.defaults[EdgeCase2.String()]
+	if !ok {
+		t.Error("set method or createmap failed")
+	}
+	if val != "http://google.com/" {
+		t.Errorf("vals didnt match. expecting: %s, got: %s\n", "http://google.com/", val)
+	}
+	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3")
+	if err != nil {
+		t.Errorf("not expecting an error since invalid url val err should be logged but received: %v", err)
+	}
+}
+
+func TestGetURL(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELAAAAAOOOOOOOOO",
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "http://test1.com/",
+		EdgeCase2: "http://test2.com/",
+	})
+	getVal, err := b.API.Endpoints.GetURL(EdgeCase1)
+	if err != nil {
+		t.Error(err)
+	}
+	if getVal != "http://test1.com/" {
+		t.Errorf("getVal failed")
+	}
+	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "http://OVERWRITTENBRO.com.au/")
+	if err != nil {
+		t.Error(err)
+	}
+	getChangedVal, err := b.API.Endpoints.GetURL(EdgeCase2)
+	if err != nil {
+		t.Error(err)
+	}
+	if getChangedVal != "http://OVERWRITTENBRO.com.au/" {
+		t.Error("couldnt get changed val")
+	}
+	_, err = b.API.Endpoints.GetURL(URL(100))
+	if err == nil {
+		t.Error("expecting error due to invalid URL key parsed")
+	}
+}
+
+func TestGetAll(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELLLLLLO",
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "http://test1.com.au/",
+		EdgeCase2: "http://test2.com.au/",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	allRunning := b.API.Endpoints.GetURLMap()
+	if len(allRunning) != 2 {
+		t.Error("invalid running map received")
+	}
+}
+
+func TestSetDefaultEndpoints(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Name: "HELLLLLLO",
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	err := b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "http://test1.com.au/",
+		EdgeCase2: "http://test2.com.au/",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		URL(15): "http://test2.com.au/",
+	})
+	if err == nil {
+		t.Error("expecting an error due to invalid url key")
+	}
+	err = b.API.Endpoints.SetDefaultEndpoints(map[URL]string{
+		EdgeCase1: "",
+	})
+	if err != nil {
+		t.Errorf("expecting a warning due due to invalid url val but got an error: %v", err)
+	}
+}
+
 func TestHTTPClient(t *testing.T) {
 	t.Parallel()
-
 	r := Base{Name: "asdf"}
 	r.SetHTTPClientTimeout(time.Second * 5)
 
@@ -1116,14 +1245,21 @@ func TestSetupDefaults(t *testing.T) {
 			AuthenticatedSupport: true,
 		},
 	}
-	b.SetupDefaults(&cfg)
+
+	err := b.SetupDefaults(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.HTTPTimeout.String() != "15s" {
 		t.Error("HTTP timeout should be set to 15s")
 	}
 
 	// Test custom HTTP timeout is set
 	cfg.HTTPTimeout = time.Second * 30
-	b.SetupDefaults(&cfg)
+	err = b.SetupDefaults(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.HTTPTimeout.String() != "30s" {
 		t.Error("HTTP timeout should be set to 30s")
 	}
@@ -1455,78 +1591,6 @@ func TestUpdatePairs(t *testing.T) {
 	}
 	if !uacPairs.Contains(p, true) {
 		t.Fatal("expected currency pair not found")
-	}
-}
-
-func TestSetAPIURL(t *testing.T) {
-	t.Parallel()
-
-	testURL := "https://api.something.com"
-	testURLSecondary := "https://api.somethingelse.com"
-	testURLDefault := "https://api.defaultsomething.com"
-	testURLSecondaryDefault := "https://api.defaultsomethingelse.com"
-
-	tester := Base{Name: "test"}
-	tester.Config = new(config.ExchangeConfig)
-
-	err := tester.SetAPIURL()
-	if err == nil {
-		t.Error("setting zero value config")
-	}
-
-	tester.Config.API.Endpoints.URL = testURL
-	tester.Config.API.Endpoints.URLSecondary = testURLSecondary
-
-	tester.API.Endpoints.URLDefault = testURLDefault
-	tester.API.Endpoints.URLSecondaryDefault = testURLSecondaryDefault
-
-	err = tester.SetAPIURL()
-	if err != nil {
-		t.Error(err)
-	}
-
-	if tester.GetAPIURL() != testURL {
-		t.Error("incorrect return URL")
-	}
-
-	if tester.GetSecondaryAPIURL() != testURLSecondary {
-		t.Error("incorrect return URL")
-	}
-
-	if tester.GetAPIURLDefault() != testURLDefault {
-		t.Error("incorrect return URL")
-	}
-
-	if tester.GetAPIURLSecondaryDefault() != testURLSecondaryDefault {
-		t.Error("incorrect return URL")
-	}
-
-	tester.Config.API.Endpoints.URL = "http://insecureino.com"
-	tester.Config.API.Endpoints.URLSecondary = tester.Config.API.Endpoints.URL
-	err = tester.SetAPIURL()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func BenchmarkSetAPIURL(b *testing.B) {
-	tester := Base{Name: "test"}
-
-	test := config.ExchangeConfig{}
-
-	test.API.Endpoints.URL = "https://api.something.com"
-	test.API.Endpoints.URLSecondary = "https://api.somethingelse.com"
-
-	tester.API.Endpoints.URLDefault = "https://api.defaultsomething.com"
-	tester.API.Endpoints.URLDefault = "https://api.defaultsomethingelse.com"
-
-	tester.Config = &test
-
-	for i := 0; i < b.N; i++ {
-		err := tester.SetAPIURL()
-		if err != nil {
-			b.Errorf("Benchmark failed %v", err)
-		}
 	}
 }
 
@@ -2103,6 +2167,158 @@ func TestAddTradesToBuffer(t *testing.T) {
 
 	b.SetSaveTradeDataStatus(true)
 	err = b.AddTradesToBuffer()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestString(t *testing.T) {
+	if RestSpot.String() != "RestSpotURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestSpotSupplementary.String() != "RestSpotSupplementaryURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestUSDTMargined.String() != "RestUSDTMarginedFuturesURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestCoinMargined.String() != "RestCoinMarginedFuturesURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestFutures.String() != "RestFuturesURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestSandbox.String() != "RestSandboxURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if RestSwap.String() != "RestSwapURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if WebsocketSpot.String() != "WebsocketSpotURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if WebsocketSpotSupplementary.String() != "WebsocketSpotSupplementaryURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if ChainAnalysis.String() != "ChainAnalysisURL" {
+		t.Errorf("invalid string conversion")
+	}
+	if EdgeCase1.String() != "EdgeCase1URL" {
+		t.Errorf("invalid string conversion")
+	}
+	if EdgeCase2.String() != "EdgeCase2URL" {
+		t.Errorf("invalid string conversion")
+	}
+	if EdgeCase3.String() != "EdgeCase3URL" {
+		t.Errorf("invalid string conversion")
+	}
+}
+
+func TestFormatSymbol(t *testing.T) {
+	b := Base{}
+	spotStore := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: currency.DashDelimiter,
+			Uppercase: true,
+		},
+	}
+	err := b.StoreAssetPairFormat(asset.Spot, spotStore)
+	if err != nil {
+		t.Error(err)
+	}
+	pair, err := currency.NewPairFromString("BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+	sym, err := b.FormatSymbol(pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	if sym != "BTCUSD" {
+		t.Error("formatting failed")
+	}
+	_, err = b.FormatSymbol(pair, asset.Futures)
+	if err == nil {
+		t.Error("expecting an error since asset pair format has not been set")
+	}
+}
+
+func TestSetAPIURL(t *testing.T) {
+	b := Base{
+		Name: "SomeExchange",
+	}
+	b.Config = &config.ExchangeConfig{}
+	var mappy struct {
+		Mappymap map[string]string `json:"urlEndpoints"`
+	}
+	mappy.Mappymap = make(map[string]string)
+	mappy.Mappymap["hi"] = "http://google.com/"
+	b.Config.API.Endpoints = mappy.Mappymap
+	b.API.Endpoints = b.NewEndpoints()
+	err := b.SetAPIURL()
+	if err == nil {
+		t.Error("expecting an error since the key provided is invalid")
+	}
+	mappy.Mappymap = make(map[string]string)
+	b.Config.API.Endpoints = mappy.Mappymap
+	mappy.Mappymap["RestSpotURL"] = "hi"
+	b.API.Endpoints = b.NewEndpoints()
+	err = b.SetAPIURL()
+	if err != nil {
+		t.Errorf("expecting no error since invalid url value should be logged but received the following error: %v", err)
+	}
+	mappy.Mappymap = make(map[string]string)
+	b.Config.API.Endpoints = mappy.Mappymap
+	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
+	b.API.Endpoints = b.NewEndpoints()
+	err = b.SetAPIURL()
+	if err != nil {
+		t.Error(err)
+	}
+	mappy.Mappymap = make(map[string]string)
+	b.Config.API.OldEndPoints = &config.APIEndpointsConfig{}
+	b.Config.API.Endpoints = mappy.Mappymap
+	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
+	b.API.Endpoints = b.NewEndpoints()
+	b.Config.API.OldEndPoints.URL = "heloo"
+	err = b.SetAPIURL()
+	if err != nil {
+		t.Errorf("expecting a warning since invalid oldendpoints url but got an error: %v", err)
+	}
+	mappy.Mappymap = make(map[string]string)
+	b.Config.API.OldEndPoints = &config.APIEndpointsConfig{}
+	b.Config.API.Endpoints = mappy.Mappymap
+	mappy.Mappymap["RestSpotURL"] = "http://google.com/"
+	b.API.Endpoints = b.NewEndpoints()
+	b.Config.API.OldEndPoints.URL = "https://www.bitstamp.net/"
+	b.Config.API.OldEndPoints.URLSecondary = "https://www.secondary.net/"
+	b.Config.API.OldEndPoints.WebsocketURL = "https://www.websocket.net/"
+	err = b.SetAPIURL()
+	if err != nil {
+		t.Error(err)
+	}
+	var urlLookup URL
+	for x := range keyURLs {
+		if keyURLs[x].String() == "RestSpotURL" {
+			urlLookup = keyURLs[x]
+		}
+	}
+	urlData, err := b.API.Endpoints.GetURL(urlLookup)
+	if err != nil {
+		t.Error(err)
+	}
+	if urlData != "https://www.bitstamp.net/" {
+		t.Error("oldendpoints url setting failed")
+	}
+}
+
+func TestSetRunning(t *testing.T) {
+	b := Base{
+		Name: "HELOOOOOOOO",
+	}
+	b.API.Endpoints = b.NewEndpoints()
+	err := b.API.Endpoints.SetRunning(EdgeCase1.String(), "http://google.com/")
 	if err != nil {
 		t.Error(err)
 	}

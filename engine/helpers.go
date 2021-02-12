@@ -737,16 +737,21 @@ func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts
 	var response AllEnabledExchangeAccounts
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
-		if exchanges[x] != nil && exchanges[x].IsEnabled() {
-			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-				if bot.Settings.Verbose {
-					log.Debugf(log.ExchangeSys,
-						"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
-						exchanges[x].GetName())
-				}
-				continue
+		if exchanges[x] == nil || !exchanges[x].IsEnabled() {
+			continue
+		}
+		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+			if bot.Settings.Verbose {
+				log.Debugf(log.ExchangeSys,
+					"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
+					exchanges[x].GetName())
 			}
-			accountInfo, err := exchanges[x].FetchAccountInfo()
+			continue
+		}
+		assetTypes := exchanges[x].GetAssetTypes()
+		var exchangeHoldings account.Holdings
+		for y := range assetTypes {
+			accountHoldings, err := exchanges[x].FetchAccountInfo(assetTypes[y])
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"Error encountered retrieving exchange account info for %s. Error %s\n",
@@ -754,8 +759,13 @@ func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts
 					err)
 				continue
 			}
-			response.Data = append(response.Data, accountInfo)
+			for z := range accountHoldings.Accounts {
+				accountHoldings.Accounts[z].AssetType = assetTypes[y]
+			}
+			exchangeHoldings.Exchange = exchanges[x].GetName()
+			exchangeHoldings.Accounts = append(exchangeHoldings.Accounts, accountHoldings.Accounts...)
 		}
+		response.Data = append(response.Data, exchangeHoldings)
 	}
 	return response
 }

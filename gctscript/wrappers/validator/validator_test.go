@@ -63,12 +63,12 @@ func TestWrapper_IsEnabled(t *testing.T) {
 func TestWrapper_AccountInformation(t *testing.T) {
 	t.Parallel()
 
-	_, err := testWrapper.AccountInformation(exchName)
+	_, err := testWrapper.AccountInformation(exchName, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.AccountInformation(exchError.String())
+	_, err = testWrapper.AccountInformation(exchError.String(), asset.Spot)
 	if err == nil {
 		t.Fatal("expected AccountInformation to return error on invalid name")
 	}
