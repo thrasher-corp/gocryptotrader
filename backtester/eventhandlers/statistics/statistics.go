@@ -257,7 +257,7 @@ func (s *Statistic) PrintAllEvents() {
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								c.Events[i].FillEvent.GetClosePrice(),
 								c.Events[i].FillEvent.GetDirection(),
-								c.Events[i].FillEvent.GetWhy())
+								c.Events[i].FillEvent.GetReason())
 						} else {
 							log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Direction %v - Why: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
@@ -265,19 +265,19 @@ func (s *Statistic) PrintAllEvents() {
 								c.Events[i].FillEvent.GetAmount(),
 								c.Events[i].FillEvent.GetExchangeFee(),
 								c.Events[i].FillEvent.GetDirection(),
-								c.Events[i].FillEvent.GetWhy(),
+								c.Events[i].FillEvent.GetReason(),
 							)
 						}
 					case c.Events[i].SignalEvent != nil:
 						log.Infof(log.BackTester, "%v | Price: $%v - Why: %v",
 							c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].SignalEvent.GetPrice(),
-							c.Events[i].SignalEvent.GetWhy())
+							c.Events[i].SignalEvent.GetReason())
 					case c.Events[i].DataEvent != nil:
 						log.Infof(log.BackTester, "%v | Price: $%v - Why: %v",
 							c.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].DataEvent.ClosePrice(),
-							c.Events[i].DataEvent.GetWhy())
+							c.Events[i].DataEvent.GetReason())
 					default:
 						errs = append(errs, fmt.Errorf("%v %v %v unexpected data received %+v", e, a, p, c.Events[i]))
 					}

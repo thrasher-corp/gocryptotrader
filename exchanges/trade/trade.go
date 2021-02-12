@@ -83,7 +83,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 	return nil
 }
 
-// Processor will save trade data to the database in batches
+// Run will save trade data to the database in batches
 func (p *Processor) Run(wg *sync.WaitGroup) {
 	wg.Done()
 	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {

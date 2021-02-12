@@ -33,7 +33,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			CurrencyPair: o.Pair(),
 			AssetType:    o.GetAssetType(),
 			Interval:     o.GetInterval(),
-			Why:          o.GetWhy(),
+			Why:          o.GetReason(),
 		},
 		Direction: o.GetDirection(),
 		Amount:    o.GetAmount(),
@@ -81,7 +81,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			default:
 				f.SetDirection(common.DoNothing)
 			}
-			f.AppendWhy(err.Error())
+			f.AppendReason(err.Error())
 			return f, err
 		}
 	}

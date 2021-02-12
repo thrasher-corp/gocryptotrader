@@ -12,8 +12,8 @@ import (
 
 func TestEvent_AppendWhy(t *testing.T) {
 	e := &Base{}
-	e.AppendWhy("test")
-	y := e.GetWhy()
+	e.AppendReason("test")
+	y := e.GetReason()
 	if !strings.Contains(y, "test") {
 		t.Error("expected test")
 	}

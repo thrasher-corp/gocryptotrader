@@ -13,18 +13,23 @@ const (
 	// DoNothing is an explicit signal for the backtester to not perform an action
 	// based upon indicator results
 	DoNothing order.Side = "DO NOTHING"
-	// CouldNotBuy/Sell is flagged when a BUY/SELL signal is raised in the strategy/signal phase, but the
+	// CouldNotBuy is flagged when a BUY  signal is raised in the strategy/signal phase, but the
 	// portfolio manager or exchange cannot place an order
-	CouldNotBuy  order.Side = "COULD NOT BUY"
+	CouldNotBuy order.Side = "COULD NOT BUY"
+	// CouldNotSell is flagged when a SELL  signal is raised in the strategy/signal phase, but the
+	// portfolio manager or exchange cannot place an order
 	CouldNotSell order.Side = "COULD NOT SELL"
-	// Missing Data is signalled during the strategy/signal phase when data has been identified as missing
+	// MissingData is signalled during the strategy/signal phase when data has been identified as missing
 	// No buy or sell events can occur
 	MissingData order.Side = "MISSING DATA"
-	// used to identify the type of data in a config
+	// CandleStr is a config readable data type to tell the backtester to retrieve candle data
 	CandleStr = "candle"
-	TradeStr  = "trade"
+	// TradeStr is a config readable data type to tell the backtester to retrieve trade data
+	TradeStr = "trade"
+)
 
-	// DataCandle is an int64 representation of a candle data type
+// DataCandle is an int64 representation of a candle data type
+const (
 	DataCandle = iota
 	DataTrade
 )
@@ -38,11 +43,11 @@ type EventHandler interface {
 	GetInterval() kline.Interval
 	GetAssetType() asset.Item
 
-	GetWhy() string
-	AppendWhy(string)
+	GetReason() string
+	AppendReason(string)
 }
 
-// DataHandler interface used for loading and interacting with Data
+// DataEventHandler interface used for loading and interacting with Data
 type DataEventHandler interface {
 	EventHandler
 	ClosePrice() float64
@@ -57,6 +62,7 @@ type Directioner interface {
 	GetDirection() order.Side
 }
 
+// ASCIILogo is a sweet logo that is optionally printed to the command line window
 const ASCIILogo = `
                                                                                 
                                @@@@@@@@@@@@@@@@@                                

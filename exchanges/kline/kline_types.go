@@ -56,7 +56,7 @@ type Candle struct {
 	Volume float64
 }
 
-// By Date allows for sorting candle entries by date
+// ByDate allows for sorting candle entries by date
 type ByDate []Candle
 
 func (b ByDate) Len() int {

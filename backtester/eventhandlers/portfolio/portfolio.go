@@ -67,7 +67,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 			CurrencyPair: signal.Pair(),
 			AssetType:    signal.GetAssetType(),
 			Interval:     signal.GetInterval(),
-			Why:          signal.GetWhy(),
+			Why:          signal.GetReason(),
 		},
 		Direction: signal.GetDirection(),
 	}
@@ -95,14 +95,14 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 	}
 
 	if signal.GetDirection() == gctorder.Sell && prevHolding.PositionsSize == 0 {
-		o.AppendWhy("no holdings to sell")
+		o.AppendReason("no holdings to sell")
 		o.SetDirection(common.CouldNotSell)
 		signal.SetDirection(o.Direction)
 		return o, nil
 	}
 
 	if signal.GetDirection() == gctorder.Buy && prevHolding.RemainingFunds <= 0 {
-		o.AppendWhy("not enough funds to buy")
+		o.AppendReason("not enough funds to buy")
 		o.SetDirection(common.CouldNotBuy)
 		signal.SetDirection(o.Direction)
 		return o, nil
@@ -130,7 +130,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, siz
 
 	evaluatedOrder, err = p.riskManager.EvaluateOrder(sizedOrder, p.GetLatestHoldingsForAllCurrencies(), cm.GetLatestSnapshot())
 	if err != nil {
-		originalOrderSignal.AppendWhy(err.Error())
+		originalOrderSignal.AppendReason(err.Error())
 		switch d.GetDirection() {
 		case gctorder.Buy:
 			originalOrderSignal.Direction = common.CouldNotBuy
@@ -149,7 +149,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, siz
 func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds float64) *order.Order {
 	sizedOrder, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil {
-		originalOrderSignal.AppendWhy(err.Error())
+		originalOrderSignal.AppendReason(err.Error())
 		switch originalOrderSignal.Direction {
 		case gctorder.Buy:
 			originalOrderSignal.Direction = common.CouldNotBuy
@@ -172,7 +172,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 			originalOrderSignal.Direction = common.DoNothing
 		}
 		d.SetDirection(originalOrderSignal.Direction)
-		originalOrderSignal.AppendWhy("sized order to 0")
+		originalOrderSignal.AppendReason("sized order to 0")
 	}
 
 	return sizedOrder

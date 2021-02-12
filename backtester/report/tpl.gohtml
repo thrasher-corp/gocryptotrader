@@ -689,12 +689,12 @@
 												<td><b>{{$ev.FillEvent.GetTime}}</b></td>
 												<td>${{$ev.FillEvent.GetClosePrice}} {{$pair.Quote}}</td>
 												<td>{{$ev.FillEvent.GetDirection}}</td>
-												<td>{{$ev.FillEvent.GetWhy}}</td>
+												<td>{{$ev.FillEvent.GetReason}}</td>
                                             {{ else if ne $ev.SignalEvent nil}}
 												<td>{{$ev.SignalEvent.GetTime}}</td>
 												<td>${{ printf "%f" $ev.SignalEvent.Price}} {{$pair.Quote}}</td>
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
-												<td>{{$ev.SignalEvent.GetWhy}}</td>
+												<td>{{$ev.SignalEvent.GetReason}}</td>
                                             {{ end }}
 										</tr>
                                     {{end}}

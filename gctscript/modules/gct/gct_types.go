@@ -9,7 +9,8 @@ import (
 const (
 	// ErrParameterConvertFailed error to return when type conversion fails
 	ErrParameterConvertFailed = "%v failed conversion"
-	ErrEmptyParameter         = "received empty parameter for %v"
+	// ErrEmptyParameter is a predefined error string for empty params
+	ErrEmptyParameter = "received empty parameter for %v"
 )
 
 var errInvalidInterval = errors.New("invalid interval")

@@ -39,13 +39,13 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(common.MissingData)
-		es.AppendWhy(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
+		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
 		return &es, nil
 	}
 
 	es.SetPrice(d.Latest().ClosePrice())
 	es.SetDirection(order.Buy)
-	es.AppendWhy("DCA purchases on every iteration")
+	es.AppendReason("DCA purchases on every iteration")
 	return &es, nil
 }
 

@@ -49,12 +49,12 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(common.MissingData)
-		es.AppendWhy(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
+		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
 		return &es, nil
 	}
 
 	if d.Offset() <= int(s.rsiPeriod) {
-		es.AppendWhy("Not enough data for signal generation")
+		es.AppendReason("Not enough data for signal generation")
 		return &es, errors.New(es.Why)
 	}
 	dataRange := d.StreamClose()[:d.Offset()]
@@ -69,7 +69,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 	default:
 		es.SetDirection(common.DoNothing)
 	}
-	es.AppendWhy(fmt.Sprintf("RSI at %.2f", latesttRSIValue))
+	es.AppendReason(fmt.Sprintf("RSI at %.2f", latesttRSIValue))
 
 	return &es, nil
 }

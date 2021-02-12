@@ -38,8 +38,8 @@ func (b *Base) GetInterval() kline.Interval {
 	return b.Interval
 }
 
-// AppendWhy adds reasoning for a decision being made
-func (b *Base) AppendWhy(y string) {
+// AppendReason adds reasoning for a decision being made
+func (b *Base) AppendReason(y string) {
 	if b.Why == "" {
 		b.Why = y
 	} else {
@@ -47,7 +47,7 @@ func (b *Base) AppendWhy(y string) {
 	}
 }
 
-// GetWhy returns the why
-func (b *Base) GetWhy() string {
+// GetReason returns the why
+func (b *Base) GetReason() string {
 	return b.Why
 }

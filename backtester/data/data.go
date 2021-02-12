@@ -53,15 +53,17 @@ func (b *Base) Reset() {
 	b.stream = nil
 }
 
-// Stream will return entire data list
+// GetStream will return entire data list
 func (b *Base) GetStream() []common.DataEventHandler {
 	return b.stream
 }
 
+// Offset returns the current iteration of candle data the backtester is assessing
 func (b *Base) Offset() int {
 	return b.offset
 }
 
+// SetStream sets the data stream for candle analysis
 func (b *Base) SetStream(s []common.DataEventHandler) {
 	b.stream = s
 }
@@ -99,7 +101,7 @@ func (b *Base) Latest() common.DataEventHandler {
 	return b.latest
 }
 
-// SortStream returns all future data events from the current iteration
+// List returns all future data events from the current iteration
 // ill-advised to use this in strategies because you don't know the future in real life
 func (b *Base) List() []common.DataEventHandler {
 	return b.stream[b.offset:]

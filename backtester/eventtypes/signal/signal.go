@@ -10,7 +10,7 @@ func (s *Signal) IsSignal() bool {
 	return true
 }
 
-// SetDirections sets the direction
+// SetDirection sets the direction
 func (s *Signal) SetDirection(st order.Side) {
 	s.Direction = st
 }

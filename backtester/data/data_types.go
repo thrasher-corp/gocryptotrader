@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// HandlerPerCurrency stores an event handler per exchange asset pair
 type HandlerPerCurrency struct {
 	data map[string]map[asset.Item]map[currency.Pair]Handler
 }
