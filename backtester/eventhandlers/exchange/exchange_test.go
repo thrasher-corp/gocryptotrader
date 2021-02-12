@@ -198,7 +198,7 @@ func TestExecuteOrder(t *testing.T) {
 	e := Exchange{
 		CurrencySettings: []Settings{cs},
 	}
-	ev := event.Event{
+	ev := event.Base{
 		Exchange:     testExchange,
 		Time:         time.Now(),
 		Interval:     gctkline.FifteenMin,
@@ -206,7 +206,7 @@ func TestExecuteOrder(t *testing.T) {
 		AssetType:    a,
 	}
 	o := &order.Order{
-		Event:     ev,
+		Base:      ev,
 		Direction: gctorder.Buy,
 		Amount:    1,
 		Funds:     1337,

@@ -88,9 +88,9 @@ func TestOnSignal(t *testing.T) {
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Data{}
+	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
 			Interval:     gctkline.OneDay,
@@ -106,7 +106,7 @@ func TestOnSignal(t *testing.T) {
 	d.Next()
 	da := &kline.DataFromKline{
 		Item:  gctkline.Item{},
-		Data:  d,
+		Base:  d,
 		Range: gctkline.IntervalRangeHolder{},
 	}
 	var resp signal.Event
@@ -161,9 +161,9 @@ func TestOnSignals(t *testing.T) {
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Data{}
+	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
 			Interval:     gctkline.OneDay,
@@ -179,7 +179,7 @@ func TestOnSignals(t *testing.T) {
 	d.Next()
 	da := &kline.DataFromKline{
 		Item:  gctkline.Item{},
-		Data:  d,
+		Base:  d,
 		Range: gctkline.IntervalRangeHolder{},
 	}
 	_, err = s.OnSignals([]data.Handler{da}, nil)

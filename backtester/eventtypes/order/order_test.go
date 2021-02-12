@@ -37,7 +37,7 @@ func TestSetAmount(t *testing.T) {
 
 func TestPair(t *testing.T) {
 	o := Order{
-		Event: event.Event{
+		Base: event.Base{
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 		},
 	}

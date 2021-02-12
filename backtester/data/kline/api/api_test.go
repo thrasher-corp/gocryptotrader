@@ -55,14 +55,14 @@ func TestLoadCandles(t *testing.T) {
 	var err error
 	data, err = LoadData(common.DataCandle, tt1, tt2, interval.Duration(), exch, p, a)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if len(data.Candles) == 0 {
 		t.Error("expected candles")
 	}
 
 	_, err = LoadData(-1, tt1, tt2, interval.Duration(), exch, p, a)
-	if err != nil && !strings.Contains(err.Error(), "unrecognised api datatype received") {
+	if err != nil && !strings.Contains(err.Error(), "could not retrieve data for Binance spot BTCUSDT, invalid data type received") {
 		t.Error(err)
 	}
 }
@@ -78,10 +78,7 @@ func TestLoadTrades(t *testing.T) {
 	var data *gctkline.Item
 	data, err = LoadData(common.DataTrade, tt1, tt2, interval.Duration(), exch, p, a)
 	if err != nil {
-		t.Error(err)
-	}
-	if data == nil {
-		t.Fatal("data should not be null")
+		t.Fatal(err)
 	}
 	if len(data.Candles) == 0 {
 		t.Error("expected candles")

@@ -27,7 +27,7 @@ func (e *Exchange) Reset() {
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
 func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.Engine) (*fill.Fill, error) {
 	f := &fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     o.GetExchange(),
 			Time:         o.GetTime(),
 			CurrencyPair: o.Pair(),

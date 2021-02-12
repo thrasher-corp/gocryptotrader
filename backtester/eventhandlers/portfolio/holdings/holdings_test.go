@@ -47,7 +47,7 @@ func TestUpdate(t *testing.T) {
 	}
 	t1 := h.Timestamp
 	h.Update(&fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Time: time.Now(),
 		},
 	})
@@ -78,7 +78,7 @@ func TestUpdateBuyStats(t *testing.T) {
 		t.Error(err)
 	}
 	h.update(&fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
@@ -141,7 +141,7 @@ func TestUpdateBuyStats(t *testing.T) {
 	}
 
 	h.update(&fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
@@ -211,7 +211,7 @@ func TestUpdateSellStats(t *testing.T) {
 		t.Error(err)
 	}
 	h.update(&fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,
@@ -274,7 +274,7 @@ func TestUpdateSellStats(t *testing.T) {
 	}
 
 	h.update(&fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     testExchange,
 			Time:         time.Now(),
 			Interval:     gctkline.OneHour,

@@ -27,7 +27,7 @@ func (d *DataFromKline) Load() error {
 	klineData := make([]common.DataEventHandler, len(d.Item.Candles))
 	for i := range d.Item.Candles {
 		klineData[i] = &kline.Kline{
-			Event: event.Event{
+			Base: event.Base{
 				Exchange:     d.Item.Exchange,
 				Time:         d.Item.Candles[i].Time,
 				Interval:     d.Item.Interval,
@@ -64,7 +64,7 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 
 	for i := range gctCandles {
 		klineData = append(klineData, &kline.Kline{
-			Event: event.Event{
+			Base: event.Base{
 				Exchange:     ki.Exchange,
 				Time:         gctCandles[i].Time,
 				Interval:     ki.Interval,

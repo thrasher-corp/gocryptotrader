@@ -23,7 +23,7 @@ func (s *Strategy) GetBase(d data.Handler) (signal.Signal, error) {
 		return signal.Signal{}, errors.New("could not retrieve latest data for strategy")
 	}
 	return signal.Signal{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     latest.GetExchange(),
 			Time:         latest.GetTime(),
 			CurrencyPair: latest.Pair(),

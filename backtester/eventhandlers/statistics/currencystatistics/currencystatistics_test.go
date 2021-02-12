@@ -25,7 +25,7 @@ func TestCalculateResults(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	even := event.Event{
+	even := event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
@@ -53,11 +53,11 @@ func TestCalculateResults(t *testing.T) {
 			},
 		},
 		DataEvent: &kline.Kline{
-			Event: even,
+			Base:  even,
 			Close: 1338,
 		},
 		SignalEvent: &signal.Signal{
-			Event: even,
+			Base:  even,
 			Price: 1337,
 		},
 	}
@@ -83,11 +83,11 @@ func TestCalculateResults(t *testing.T) {
 			},
 		},
 		DataEvent: &kline.Kline{
-			Event: even,
+			Base:  even,
 			Close: 1338,
 		},
 		SignalEvent: &signal.Signal{
-			Event: even,
+			Base:  even,
 			Price: 1338,
 		},
 	}
@@ -106,7 +106,7 @@ func TestPrintResults(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	even := event.Event{
+	even := event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
@@ -134,11 +134,11 @@ func TestPrintResults(t *testing.T) {
 			},
 		},
 		DataEvent: &kline.Kline{
-			Event: even,
+			Base:  even,
 			Close: 1338,
 		},
 		SignalEvent: &signal.Signal{
-			Event: even,
+			Base:  even,
 			Price: 1337,
 		},
 	}
@@ -164,11 +164,11 @@ func TestPrintResults(t *testing.T) {
 			},
 		},
 		DataEvent: &kline.Kline{
-			Event: even,
+			Base:  even,
 			Close: 1338,
 		},
 		SignalEvent: &signal.Signal{
-			Event: even,
+			Base:  even,
 			Price: 1338,
 		},
 	}
@@ -186,7 +186,7 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	var events []common.DataEventHandler
 	for i := 0; i < 100; i++ {
 		tt1 = tt1.Add(gctkline.OneDay.Duration())
-		even := event.Event{
+		even := event.Base{
 			Exchange:     exch,
 			Time:         tt1,
 			Interval:     gctkline.OneDay,
@@ -196,14 +196,14 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 		if i == 50 {
 			// throw in a wrench, a spike in price
 			events = append(events, &kline.Kline{
-				Event: even,
+				Base:  even,
 				Close: 1336,
 				High:  1336,
 				Low:   1336,
 			})
 		} else {
 			events = append(events, &kline.Kline{
-				Event: even,
+				Base:  even,
 				Close: 1337 - float64(i),
 				High:  1337 - float64(i),
 				Low:   1337 - float64(i),
@@ -212,7 +212,7 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 	}
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
-	even := event.Event{
+	even := event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
@@ -220,14 +220,14 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 		AssetType:    a,
 	}
 	events = append(events, &kline.Kline{
-		Event: even,
+		Base:  even,
 		Close: 1338,
 		High:  1338,
 		Low:   1338,
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
-	even = event.Event{
+	even = event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
@@ -235,14 +235,14 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 		AssetType:    a,
 	}
 	events = append(events, &kline.Kline{
-		Event: even,
+		Base:  even,
 		Close: 1337,
 		High:  1337,
 		Low:   1337,
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
-	even = event.Event{
+	even = event.Base{
 		Exchange:     exch,
 		Time:         tt1,
 		Interval:     gctkline.OneDay,
@@ -250,7 +250,7 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 		AssetType:    a,
 	}
 	events = append(events, &kline.Kline{
-		Event: even,
+		Base:  even,
 		Close: 1339,
 		High:  1339,
 		Low:   1339,

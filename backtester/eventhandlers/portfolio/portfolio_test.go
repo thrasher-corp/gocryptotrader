@@ -212,7 +212,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	err = p.Update(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     testExchange,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 			AssetType:    asset.Spot,
@@ -229,7 +229,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	err = p.Update(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     testExchange,
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 			AssetType:    asset.Spot,
@@ -297,7 +297,7 @@ func TestAddComplianceSnapshot(t *testing.T) {
 	}
 
 	err = p.addComplianceSnapshot(&fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     "hi",
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 			AssetType:    asset.Spot,
@@ -322,7 +322,7 @@ func TestOnFill(t *testing.T) {
 	}
 
 	f := &fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     "hi",
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 			AssetType:    asset.Spot,
@@ -397,7 +397,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error(err)
 	}
 	s = &signal.Signal{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     "hi",
 			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
 			AssetType:    asset.Spot,

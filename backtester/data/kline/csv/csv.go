@@ -51,7 +51,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 				if errCSV == io.EOF {
 					break
 				}
-				return nil, errCSV
+				return nil, fmt.Errorf("could not read csv data for %v %v %v, %v", exchangeName, a, fPair, errCSV)
 			}
 
 			candle := kline.Candle{}
@@ -61,36 +61,44 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 			}
 			candle.Time = time.Unix(v, 0).UTC()
 			if candle.Time.IsZero() {
-				err = fmt.Errorf("invalid timestamp received on row %v", row)
+				err = fmt.Errorf("invalid timestamp received on row %v %v", row[0], err)
 				break
 			}
 
 			candle.Volume, err = strconv.ParseFloat(row[1], 64)
 			if err != nil {
+				err = fmt.Errorf("could not process candle volume %v %v", row[1], err)
 				break
 			}
 
 			candle.Open, err = strconv.ParseFloat(row[2], 64)
 			if err != nil {
+				err = fmt.Errorf("could not process candle volume %v %v", row[2], err)
 				break
 			}
 
 			candle.High, err = strconv.ParseFloat(row[3], 64)
 			if err != nil {
+				err = fmt.Errorf("could not process candle high %v %v", row[3], err)
 				break
 			}
 
 			candle.Low, err = strconv.ParseFloat(row[4], 64)
 			if err != nil {
+				err = fmt.Errorf("could not process candle low %v %v", row[4], err)
 				break
 			}
 
 			candle.Close, err = strconv.ParseFloat(row[5], 64)
 			if err != nil {
+				err = fmt.Errorf("could not process candle close %v %v", row[5], err)
 				break
 			}
 
 			candles.Candles = append(candles.Candles, candle)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("could not read csv candle data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
 
 		resp.Item = candles
@@ -118,27 +126,30 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 
 			t.Price, err = strconv.ParseFloat(row[1], 64)
 			if err != nil {
+				err = fmt.Errorf("could not process trade price %v, %v", row[1], err)
 				break
 			}
 
 			t.Amount, err = strconv.ParseFloat(row[2], 64)
 			if err != nil {
+				err = fmt.Errorf("could not process trade amount %v, %v", row[2], err)
 				break
 			}
 
 			t.Side, err = order.StringToOrderSide(row[3])
 			if err != nil {
-				return nil, err
+				err = fmt.Errorf("could not process trade side %v, %v", row[3], err)
+				break
 			}
 
 			trades = append(trades, t)
 		}
 		resp.Item, err = trade.ConvertTradesToCandles(kline.Interval(interval), trades...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not read csv trade data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
 	default:
-		return nil, fmt.Errorf("unrecognised csv datatype received: '%v'", dataType)
+		return nil, fmt.Errorf("could not process csv data for %v %v %v, invalid data type received", exchangeName, a, fPair)
 	}
 	resp.Item.Exchange = strings.ToLower(resp.Item.Exchange)
 

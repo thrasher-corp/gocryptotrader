@@ -9,45 +9,45 @@ import (
 )
 
 // IsEvent returns whether the event is an event
-func (e *Event) IsEvent() bool {
+func (b *Base) IsEvent() bool {
 	return true
 }
 
 // GetTime returns the time
-func (e *Event) GetTime() time.Time {
-	return e.Time
+func (b *Base) GetTime() time.Time {
+	return b.Time
 }
 
 // Pair returns the currency pair
-func (e *Event) Pair() currency.Pair {
-	return e.CurrencyPair
+func (b *Base) Pair() currency.Pair {
+	return b.CurrencyPair
 }
 
 // GetExchange returns the exchange
-func (e *Event) GetExchange() string {
-	return e.Exchange
+func (b *Base) GetExchange() string {
+	return b.Exchange
 }
 
 // GetAssetType returns the asset type
-func (e *Event) GetAssetType() asset.Item {
-	return e.AssetType
+func (b *Base) GetAssetType() asset.Item {
+	return b.AssetType
 }
 
 // GetInterval returns the interval
-func (e *Event) GetInterval() kline.Interval {
-	return e.Interval
+func (b *Base) GetInterval() kline.Interval {
+	return b.Interval
 }
 
 // AppendWhy adds reasoning for a decision being made
-func (e *Event) AppendWhy(y string) {
-	if e.Why == "" {
-		e.Why = y
+func (b *Base) AppendWhy(y string) {
+	if b.Why == "" {
+		b.Why = y
 	} else {
-		e.Why = y + ". " + e.Why
+		b.Why = y + ". " + b.Why
 	}
 }
 
 // GetWhy returns the why
-func (e *Event) GetWhy() string {
-	return e.Why
+func (b *Base) GetWhy() string {
+	return b.Why
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func TestEvent_AppendWhy(t *testing.T) {
-	e := &Event{}
+	e := &Base{}
 	e.AppendWhy("test")
 	y := e.GetWhy()
 	if !strings.Contains(y, "test") {
@@ -20,7 +20,7 @@ func TestEvent_AppendWhy(t *testing.T) {
 }
 
 func TestEvent_GetAssetType(t *testing.T) {
-	e := &Event{
+	e := &Base{
 		AssetType: asset.Spot,
 	}
 	y := e.GetAssetType()
@@ -30,7 +30,7 @@ func TestEvent_GetAssetType(t *testing.T) {
 }
 
 func TestEvent_GetExchange(t *testing.T) {
-	e := &Event{
+	e := &Base{
 		Exchange: "test",
 	}
 	y := e.GetExchange()
@@ -40,7 +40,7 @@ func TestEvent_GetExchange(t *testing.T) {
 }
 
 func TestEvent_GetInterval(t *testing.T) {
-	e := &Event{
+	e := &Base{
 		Interval: gctkline.OneMin,
 	}
 	y := e.GetInterval()
@@ -51,7 +51,7 @@ func TestEvent_GetInterval(t *testing.T) {
 
 func TestEvent_GetTime(t *testing.T) {
 	tt := time.Now()
-	e := &Event{
+	e := &Base{
 		Time: tt,
 	}
 	y := e.GetTime()
@@ -61,7 +61,7 @@ func TestEvent_GetTime(t *testing.T) {
 }
 
 func TestEvent_IsEvent(t *testing.T) {
-	e := &Event{}
+	e := &Base{}
 	y := e.IsEvent()
 	if !y {
 		t.Error("it is an event")
@@ -69,7 +69,7 @@ func TestEvent_IsEvent(t *testing.T) {
 }
 
 func TestEvent_Pair(t *testing.T) {
-	e := &Event{
+	e := &Base{
 		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
 	}
 	y := e.Pair()

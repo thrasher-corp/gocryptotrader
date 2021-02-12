@@ -42,7 +42,7 @@ func TestAddDataEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -88,7 +88,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -105,7 +105,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForTime(&signal.Signal{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -142,7 +142,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -159,7 +159,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForTime(&order.Order{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -201,7 +201,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -218,7 +218,7 @@ func TestAddFillEventForTime(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForTime(&fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -255,7 +255,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -325,7 +325,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -344,7 +344,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{
 		Timestamp: tt,
 	}, &fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -493,7 +493,7 @@ func TestPrintAllEvents(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -511,7 +511,7 @@ func TestPrintAllEvents(t *testing.T) {
 	}
 
 	err = s.SetEventForTime(&fill.Fill{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -531,7 +531,7 @@ func TestPrintAllEvents(t *testing.T) {
 	}
 
 	err = s.SetEventForTime(&signal.Signal{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -564,7 +564,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -581,7 +581,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetEventForTime(&signal.Signal{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -595,7 +595,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -613,7 +613,7 @@ func TestCalculateTheResults(t *testing.T) {
 	}
 
 	err = s.SetEventForTime(&signal.Signal{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,

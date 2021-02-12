@@ -21,7 +21,9 @@ type Holder interface {
 	Reset()
 }
 
-type Data struct {
+// Base is the base implementation of some interface functions
+// where further specific functions are implmented in DataFromKline
+type Base struct {
 	latest common.DataEventHandler
 	stream []common.DataEventHandler
 	offset int

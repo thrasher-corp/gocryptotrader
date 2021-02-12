@@ -8,10 +8,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// Event is the underlying event across all actions that occur for the backtester
+// Base is the underlying event across all actions that occur for the backtester
 // Data, fill, order events all contain the base event and store important and
 // consistent information
-type Event struct {
+type Base struct {
 	Exchange     string         `json:"exchange"`
 	Time         time.Time      `json:"timestamp"`
 	Interval     kline.Interval `json:"interval-size"`

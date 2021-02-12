@@ -417,7 +417,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			fPair,
 			a)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 		}
 		resp.Item.RemoveDuplicates()
 		resp.Item.SortCandlesByTimestamp(false)
@@ -558,7 +558,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 		fPair,
 		a)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 	}
 	err = dates.VerifyResultsHaveData(candles.Candles)
 	if err != nil {
@@ -595,8 +595,8 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	}
 	validated := base.ValidateAPICredentials()
 	base.API.AuthenticatedSupport = validated
-	if !validated {
-		log.Warn(log.BackTester, "bad credentials received, no live trading for you")
+	if !validated && cfg.DataSettings.LiveData.RealOrders {
+		log.Warn(log.BackTester, "invalid API credentials set, real orders set to false")
 		cfg.DataSettings.LiveData.RealOrders = false
 	}
 	return nil
@@ -860,7 +860,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 		fPair,
 		a)
 	if err != nil {
-		log.Error(log.BackTester, err)
+		log.Errorf(log.BackTester, "%v. Please check your GoCryptoTrader configuration", err)
 		return
 	}
 	resp.Item = *candles

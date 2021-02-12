@@ -117,6 +117,10 @@ func CalculateSampleStandardDeviation(vals []float64) float64 {
 
 // CalculateTheAverage returns the average value in a slice of floats
 func CalculateTheAverage(values []float64, isGeometric bool) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+
 	if isGeometric {
 		product := 1.0
 		for i := range values {
@@ -126,14 +130,11 @@ func CalculateTheAverage(values []float64, isGeometric bool) float64 {
 			modVal := values[i] + 1
 			product *= modVal
 		}
-		powPow := math.Pow(product, 1/float64(len(values)))
+		geometricPower := math.Pow(product, 1/float64(len(values)))
 		// we minus 1 because we manipulated the values to be non-zero/negative
-		return powPow - 1
+		return geometricPower - 1
 	}
 
-	if len(values) == 0 {
-		return 0
-	}
 	var sumOfValues float64
 	for x := range values {
 		sumOfValues += values[x]

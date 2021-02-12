@@ -8,7 +8,7 @@ import (
 
 // Order contains all details for an order event
 type Order struct {
-	event.Event
+	event.Base
 	ID        string
 	Direction order.Side
 	Status    order.Status

@@ -268,7 +268,7 @@ func TestLoadDatabaseData(t *testing.T) {
 	cfg.DataSettings.DatabaseData.StartDate = time.Now().Add(-time.Hour)
 	cfg.DataSettings.DatabaseData.EndDate = time.Now()
 	_, err = loadDatabaseData(cfg, "", cp, "", -1)
-	if err != nil && !strings.Contains(err.Error(), "unexpected database datatype: '-1'") {
+	if err != nil && !strings.Contains(err.Error(), "could not retrieve database data") {
 		t.Error(err)
 	}
 
@@ -431,7 +431,7 @@ func TestFullCycle(t *testing.T) {
 				Volume: 1337,
 			}},
 		},
-		Data: data.Data{},
+		Base: data.Base{},
 		Range: gctkline.IntervalRangeHolder{
 			Start: tt,
 			End:   tt.Add(gctkline.FifteenMin.Duration()),
@@ -528,7 +528,7 @@ func TestFullCycleMulti(t *testing.T) {
 				Volume: 1337,
 			}},
 		},
-		Data: data.Data{},
+		Base: data.Base{},
 		Range: gctkline.IntervalRangeHolder{
 			Start: tt,
 			End:   tt.Add(gctkline.FifteenMin.Duration()),

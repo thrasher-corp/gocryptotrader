@@ -26,7 +26,7 @@ func LoadData(exch exchange.IBotExchange, dataType int64, interval time.Duration
 			time.Now(),
 			kline.Interval(interval))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not retrieve live candle data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 		}
 	case common.DataTrade:
 		var trades []trade.Data
@@ -49,16 +49,16 @@ func LoadData(exch exchange.IBotExchange, dataType int64, interval time.Duration
 				time.Now().Add(-interval), // multiplied by 2 to ensure the latest candle is always included
 				time.Now())
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("could not retrieve live trade data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 			}
 
 			candles, err = trade.ConvertTradesToCandles(kline.Interval(interval), trades...)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("could not convert live trade data to candles for %v %v %v, %v", exch.GetName(), a, fPair, err)
 			}
 		}
 	default:
-		return nil, fmt.Errorf("unrecognised api datatype received: '%v'", dataType)
+		return nil, fmt.Errorf("could not retrieve live data for %v %v %v, invalid data type received", exch.GetName(), a, fPair)
 	}
 	candles.Exchange = strings.ToLower(exch.GetName())
 	return &candles, nil

@@ -8,7 +8,7 @@ import (
 
 // Fill is an event that details the events from placing an order
 type Fill struct {
-	event.Event
+	event.Base
 	Direction           order.Side    `json:"side"`
 	Amount              float64       `json:"amount"`
 	ClosePrice          float64       `json:"close-price"`

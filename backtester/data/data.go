@@ -10,106 +10,106 @@ import (
 )
 
 // Setup creates a basic map
-func (d *HandlerPerCurrency) Setup() {
-	if d.data == nil {
-		d.data = make(map[string]map[asset.Item]map[currency.Pair]Handler)
+func (h *HandlerPerCurrency) Setup() {
+	if h.data == nil {
+		h.data = make(map[string]map[asset.Item]map[currency.Pair]Handler)
 	}
 }
 
 // SetDataForCurrency assigns a data Handler to the data map by exchange, asset and currency
-func (d *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p currency.Pair, k Handler) {
-	if d.data == nil {
-		d.Setup()
+func (h *HandlerPerCurrency) SetDataForCurrency(e string, a asset.Item, p currency.Pair, k Handler) {
+	if h.data == nil {
+		h.Setup()
 	}
 	e = strings.ToLower(e)
-	if d.data[e] == nil {
-		d.data[e] = make(map[asset.Item]map[currency.Pair]Handler)
+	if h.data[e] == nil {
+		h.data[e] = make(map[asset.Item]map[currency.Pair]Handler)
 	}
-	if d.data[e][a] == nil {
-		d.data[e][a] = make(map[currency.Pair]Handler)
+	if h.data[e][a] == nil {
+		h.data[e][a] = make(map[currency.Pair]Handler)
 	}
-	d.data[e][a][p] = k
+	h.data[e][a][p] = k
 }
 
 // GetAllData returns all set data in the data map
-func (d *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler {
-	return d.data
+func (h *HandlerPerCurrency) GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler {
+	return h.data
 }
 
 // GetDataForCurrency returns the Handler for a specific exchange, asset, currency
-func (d *HandlerPerCurrency) GetDataForCurrency(e string, a asset.Item, p currency.Pair) Handler {
-	return d.data[e][a][p]
+func (h *HandlerPerCurrency) GetDataForCurrency(e string, a asset.Item, p currency.Pair) Handler {
+	return h.data[e][a][p]
 }
 
 // Reset returns the struct to defaults
-func (d *HandlerPerCurrency) Reset() {
-	d.data = nil
+func (h *HandlerPerCurrency) Reset() {
+	h.data = nil
 }
 
 // Reset loaded data to blank state
-func (d *Data) Reset() {
-	d.latest = nil
-	d.offset = 0
-	d.stream = nil
+func (b *Base) Reset() {
+	b.latest = nil
+	b.offset = 0
+	b.stream = nil
 }
 
 // Stream will return entire data list
-func (d *Data) GetStream() []common.DataEventHandler {
-	return d.stream
+func (b *Base) GetStream() []common.DataEventHandler {
+	return b.stream
 }
 
-func (d *Data) Offset() int {
-	return d.offset
+func (b *Base) Offset() int {
+	return b.offset
 }
 
-func (d *Data) SetStream(s []common.DataEventHandler) {
-	d.stream = s
+func (b *Base) SetStream(s []common.DataEventHandler) {
+	b.stream = s
 }
 
 // AppendStream appends new datas onto the stream, however, will not
 // add duplicates. Used for live analysis
-func (d *Data) AppendStream(s ...common.DataEventHandler) {
+func (b *Base) AppendStream(s ...common.DataEventHandler) {
 	for i := range s {
 		if s[i] == nil {
 			continue
 		}
-		d.stream = append(d.stream, s[i])
+		b.stream = append(b.stream, s[i])
 	}
 }
 
 // Next will return the next event in the list and also shift the offset one
-func (d *Data) Next() (dh common.DataEventHandler) {
-	if len(d.stream) <= d.offset {
+func (b *Base) Next() (dh common.DataEventHandler) {
+	if len(b.stream) <= b.offset {
 		return nil
 	}
 
-	ret := d.stream[d.offset]
-	d.offset++
-	d.latest = ret
+	ret := b.stream[b.offset]
+	b.offset++
+	b.latest = ret
 	return ret
 }
 
 // History will return all previous data events that have happened
-func (d *Data) History() []common.DataEventHandler {
-	return d.stream[:d.offset]
+func (b *Base) History() []common.DataEventHandler {
+	return b.stream[:b.offset]
 }
 
 // Latest will return latest data event
-func (d *Data) Latest() common.DataEventHandler {
-	return d.latest
+func (b *Base) Latest() common.DataEventHandler {
+	return b.latest
 }
 
 // SortStream returns all future data events from the current iteration
 // ill-advised to use this in strategies because you don't know the future in real life
-func (d *Data) List() []common.DataEventHandler {
-	return d.stream[d.offset:]
+func (b *Base) List() []common.DataEventHandler {
+	return b.stream[b.offset:]
 }
 
 // SortStream sorts the stream by timestamp
-func (d *Data) SortStream() {
-	sort.Slice(d.stream, func(i, j int) bool {
-		b1 := d.stream[i]
-		b2 := d.stream[j]
+func (b *Base) SortStream() {
+	sort.Slice(b.stream, func(i, j int) bool {
+		b1 := b.stream[i]
+		b2 := b.stream[j]
 
 		return b1.GetTime().Before(b2.GetTime())
 	})

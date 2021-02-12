@@ -7,7 +7,7 @@ import (
 // Kline holds kline data and an event to be processed as
 // a common.DataEventHandler type
 type Kline struct {
-	event.Event
+	event.Base
 	Open   float64
 	Close  float64
 	Low    float64

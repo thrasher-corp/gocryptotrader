@@ -11,7 +11,7 @@ import (
 // It holds candle data for a specified range with helper functions
 type DataFromKline struct {
 	Item gctkline.Item
-	data.Data
+	data.Base
 	Range gctkline.IntervalRangeHolder
 
 	addedTimes map[time.Time]bool

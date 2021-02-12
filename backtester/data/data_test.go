@@ -11,7 +11,7 @@ const testExchange = "binance"
 
 func TestBaseDataFunctions(t *testing.T) {
 	t.Parallel()
-	var d Data
+	var d Base
 	d.Latest()
 	d.Next()
 	o := d.Offset()

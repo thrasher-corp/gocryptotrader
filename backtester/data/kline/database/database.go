@@ -26,7 +26,7 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 			fPair,
 			a)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not retrieve database candle data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
 		resp.Item = klineItem
 	case common.DataTrade:
@@ -44,11 +44,11 @@ func LoadData(startDate, endDate time.Time, interval time.Duration, exchangeName
 			gctkline.Interval(interval),
 			trades...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not retrieve database trade data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
 		resp.Item = klineItem
 	default:
-		return nil, fmt.Errorf("unexpected database datatype: '%v'", dataType)
+		return nil, fmt.Errorf("could not retrieve database data for %v %v %v, invalid data type received", exchangeName, a, fPair)
 	}
 	resp.Item.Exchange = strings.ToLower(resp.Item.Exchange)
 

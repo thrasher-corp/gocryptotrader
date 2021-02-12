@@ -29,9 +29,9 @@ func TestGetBase(t *testing.T) {
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := data.Data{}
+	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&kline.Kline{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
@@ -48,7 +48,7 @@ func TestGetBase(t *testing.T) {
 	d.Next()
 	_, err = s.GetBase(&datakline.DataFromKline{
 		Item:  gctkline.Item{},
-		Data:  d,
+		Base:  d,
 		Range: gctkline.IntervalRangeHolder{},
 	})
 	if err != nil {

@@ -61,7 +61,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 	}
 
 	o := &order.Order{
-		Event: event.Event{
+		Base: event.Base{
 			Exchange:     signal.GetExchange(),
 			Time:         signal.GetTime(),
 			CurrencyPair: signal.Pair(),
