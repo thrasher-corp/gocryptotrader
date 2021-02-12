@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	}
 	err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
 	if err != nil {
-		log.Fatal("endpoint setting failed. key: %s, val: %s", exchange.RestSpot.String(), geminiSandboxAPIURL)
+		log.Fatalf("endpoint setting failed. key: %s, val: %s", exchange.RestSpot.String(), geminiSandboxAPIURL)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, g.Name)
 	os.Exit(m.Run())
