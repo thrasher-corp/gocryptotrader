@@ -190,10 +190,10 @@ func (e *Event) processCondition(actual, threshold float64) bool {
 	return false
 }
 
-func (e *Event) processOrderbook() bool {
+func (e *Event) processOrderbook(verbose bool) bool {
 	ob, err := orderbook.Get(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
-		if Bot.Settings.Verbose {
+		if verbose {
 			log.Debugf(log.EventMgr, "Events: Failed to get orderbook. Err: %s\n", err)
 		}
 		return false
@@ -230,7 +230,7 @@ func (e *Event) CheckEventCondition(verbose bool) bool {
 	if e.Item == ItemPrice {
 		return e.processTicker(verbose)
 	}
-	return e.processOrderbook()
+	return e.processOrderbook(verbose)
 }
 
 // IsValidEvent checks the actions to be taken and returns an error if incorrect

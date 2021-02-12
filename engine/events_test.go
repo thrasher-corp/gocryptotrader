@@ -92,6 +92,9 @@ func TestGetEventCounter(t *testing.T) {
 func TestExecuteAction(t *testing.T) {
 	t.Parallel()
 	bot := CreateTestBot(t)
+	if Bot == nil {
+		Bot = bot
+	}
 	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
@@ -217,7 +220,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("unexpected result:", err)
 	}
 
-	if r := e.processOrderbook(); !r {
+	if r := e.processOrderbook(false); !r {
 		t.Error("unexpected result")
 	}
 }
