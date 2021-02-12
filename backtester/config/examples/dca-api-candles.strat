@@ -10,7 +10,7 @@
    "exchange-name": "binance",
    "asset": "spot",
    "base": "BTC",
-   "quote": "USDZ",
+   "quote": "USDT",
    "initial-funds": 100000,
    "leverage": {
     "can-use-leverage": false,
