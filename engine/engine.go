@@ -342,6 +342,9 @@ func (bot *Engine) Start() error {
 		return errors.New("engine instance is nil")
 	}
 
+	newEngineMutex.Lock()
+	defer newEngineMutex.Unlock()
+
 	if bot.Settings.EnableDatabaseManager {
 		if err := bot.DatabaseManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
@@ -498,6 +501,9 @@ func (bot *Engine) Start() error {
 
 // Stop correctly shuts down engine saving configuration files
 func (bot *Engine) Stop() {
+	newEngineMutex.Lock()
+	defer newEngineMutex.Unlock()
+
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
 	if len(portfolio.Portfolio.Addresses) != 0 {
