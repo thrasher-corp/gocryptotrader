@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Gemini setup error", err)
 	}
-	err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL, true)
+	err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
 	if err != nil {
 		log.Fatal("endpoint setting failed. key: %s, val: %s", exchange.RestSpot.String(), geminiSandboxAPIURL)
 	}
