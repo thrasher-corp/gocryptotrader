@@ -15,7 +15,7 @@ func Info(sl *subLogger, data string) {
 		return
 	}
 
-	displayError(logger.newLogEvent(data, logger.InfoHeader, fields.name, fields.output))
+	displayError(fields.logger.newLogEvent(data, fields.logger.InfoHeader, fields.name, fields.output))
 }
 
 // Infoln takes a pointer subLogger struct and interface sends to newLogEvent
@@ -28,7 +28,7 @@ func Infoln(sl *subLogger, v ...interface{}) {
 		return
 	}
 
-	displayError(logger.newLogEvent(fmt.Sprintln(v...), logger.InfoHeader, fields.name, fields.output))
+	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...), fields.logger.InfoHeader, fields.name, fields.output))
 }
 
 // Infof takes a pointer subLogger struct, string & interface formats and sends to Info()
@@ -46,7 +46,7 @@ func Debug(sl *subLogger, data string) {
 		return
 	}
 
-	displayError(logger.newLogEvent(data, logger.DebugHeader, fields.name, fields.output))
+	displayError(fields.logger.newLogEvent(data, fields.logger.DebugHeader, fields.name, fields.output))
 }
 
 // Debugln  takes a pointer subLogger struct, string and interface sends to newLogEvent
@@ -59,7 +59,7 @@ func Debugln(sl *subLogger, v ...interface{}) {
 		return
 	}
 
-	displayError(logger.newLogEvent(fmt.Sprintln(v...), logger.DebugHeader, fields.name, fields.output))
+	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...), fields.logger.DebugHeader, fields.name, fields.output))
 }
 
 // Debugf takes a pointer subLogger struct, string & interface formats and sends to Info()
@@ -77,7 +77,7 @@ func Warn(sl *subLogger, data string) {
 		return
 	}
 
-	displayError(logger.newLogEvent(data, logger.WarnHeader, fields.name, fields.output))
+	displayError(fields.logger.newLogEvent(data, fields.logger.WarnHeader, fields.name, fields.output))
 }
 
 // Warnln takes a pointer subLogger struct & interface formats and sends to newLogEvent()
@@ -90,7 +90,7 @@ func Warnln(sl *subLogger, v ...interface{}) {
 		return
 	}
 
-	displayError(logger.newLogEvent(fmt.Sprintln(v...), logger.WarnHeader, fields.name, fields.output))
+	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...), fields.logger.WarnHeader, fields.name, fields.output))
 }
 
 // Warnf takes a pointer subLogger struct, string & interface formats and sends to Warn()
@@ -108,7 +108,7 @@ func Error(sl *subLogger, data ...interface{}) {
 		return
 	}
 
-	displayError(logger.newLogEvent(fmt.Sprint(data...), logger.ErrorHeader, fields.name, fields.output))
+	displayError(fields.logger.newLogEvent(fmt.Sprint(data...), fields.logger.ErrorHeader, fields.name, fields.output))
 }
 
 // Errorln takes a pointer subLogger struct, string & interface formats and sends to newLogEvent()
@@ -121,7 +121,7 @@ func Errorln(sl *subLogger, v ...interface{}) {
 		return
 	}
 
-	displayError(logger.newLogEvent(fmt.Sprintln(v...), logger.ErrorHeader, fields.name, fields.output))
+	displayError(fields.logger.newLogEvent(fmt.Sprintln(v...), fields.logger.ErrorHeader, fields.name, fields.output))
 }
 
 // Errorf takes a pointer subLogger struct, string & interface formats and sends to Debug()
@@ -163,5 +163,6 @@ func getFields(sl *subLogger) *logFields {
 		error:  sl.Error,
 		name:   sl.name,
 		output: sl.output,
+		logger: *logger,
 	}
 }

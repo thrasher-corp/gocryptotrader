@@ -40,4 +40,5 @@ type logFields struct {
 	error  bool
 	name   string
 	output io.Writer
+	logger Logger
 }
