@@ -824,6 +824,7 @@ func (e *Base) SetAPIURL() error {
 				val == config.WebsocketURLNonDefaultMessage {
 				continue
 			}
+			checkInsecureEndpoint(val)
 			err = e.API.Endpoints.SetRunning(key, val)
 			if err != nil {
 				return err
