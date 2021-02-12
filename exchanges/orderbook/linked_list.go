@@ -6,7 +6,8 @@ import (
 	"time"
 )
 
-// linkedList defines a singularly linked list for depth levels
+// linkedList defines a linked list for depth levels, reutilisation of nodes
+// to and from a stack.
 // TODO: Test cross link between bid and ask head nodes **Node ref to head
 type linkedList struct {
 	length int
@@ -290,14 +291,96 @@ updates:
 // 3) Update price exceeds traversal node price before ID found, save node
 // address for either; node ID matches then re-address node or end of depth pop
 // a node from the stack (worst case)
-func (ll *linkedList) updateInsertByID(updts Items, stack *Stack) {
-	// bucket for look forwards
-	var saved = make([]*Node, len(updts))
-	for tip := ll.head; tip != nil; tip = tip.next {
-		for x := range updts {
+func (ll *linkedList) updateInsertByID(updts Items, fn func(float64, float64) bool, stack *Stack) {
+updates:
+	for x := range updts {
+		// bookmark allows for saving of a position of a node in the event that
+		// an update price exceeds the current node price. We can then match an
+		// ID and re-assign that ID's node to that positioning without popping
+		// from the stack and then pushing to the stack later for cleanup.
+		// If the ID is not found we can pop from stack then insert into that
+		// price level
+		var bookmark *Node
+		for tip := ll.head; tip != nil; tip = tip.next {
+			if tip.value.ID == updts[x].ID {
+				if tip.value.Price != updts[x].Price { // Price level change
+					// bookmark tip to move this node to correct price level
+					bookmark = tip
+					continue // continue through node depth
+				}
+				// correct update
+				// fmt.Printf("correct update bra: %+v\n", updts[x])
+				tip.value.Amount = updts[x].Amount
+				continue updates // continue to next update
+			}
 
+			if fn(tip.value.Price, updts[x].Price) {
+				if bookmark != nil { // shift bookmarked node to current tip
+					bookmark.value = updts[x]
+					move(&ll.head, bookmark, tip)
+					continue updates
+				}
+
+				// search for ID
+				for n := tip.next; n != nil; n = n.next {
+					if n.value.ID == updts[x].ID {
+						n.value = updts[x]
+						// inserting before the tip
+						move(&ll.head, n, tip)
+						continue updates
+					}
+				}
+				// ID not matched in depth so add correct level for insert
+				bookmark = tip
+				break
+			}
+
+			if tip.next == nil {
+				if bookmark == nil {
+					// fmt.Println("first to go")
+					bookmark = tip
+				} else {
+					// fmt.Println("WOW", updts[x])
+					bookmark.value = updts[x]
+					bookmark.next.prev = bookmark.prev
+					bookmark.prev.next = bookmark.next
+					tip.next = bookmark
+					bookmark.prev = tip
+					bookmark.next = nil
+					continue updates
+				}
+			}
 		}
+		n := stack.Pop()
+		n.value = updts[x]
+		if bookmark.prev == nil {
+			ll.head = n
+		} else {
+			bookmark.prev.next = n
+		}
+		n.prev = bookmark.prev
+		bookmark.prev = n
+		n.next = bookmark
+		ll.length++
 	}
+}
+
+// move moves a node from a point in a node chain to another node position,
+// this left justified as towards head as element zero is the top of the depth
+// side.
+func move(head **Node, from, to *Node) {
+	// remove 'from' node from current position in chain
+	from.next.prev = from.prev
+	from.prev.next = from.next
+	// insert from node next to 'to' node
+	if to.prev == nil {
+		*head = from
+	} else {
+		to.prev.next = from
+	}
+	from.prev = to.prev
+	to.prev = from
+	from.next = to
 }
 
 // insertUpdatesBid inserts new updates for bids based on price level

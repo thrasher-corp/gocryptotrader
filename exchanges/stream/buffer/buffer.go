@@ -162,40 +162,7 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update, exch string, isFund
 	case Insert:
 		o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
 	case UpdateInsert:
-	// updateBids:
-	// 	for x := range updts.Bids {
-	// 		for target := range o.ob.Bids { // First iteration finds ID matches
-	// 			if o.ob.Bids[target].ID == updts.Bids[x].ID {
-	// 				if o.ob.Bids[target].Price != updts.Bids[x].Price {
-	// 					// Price change occurred so correct bid alignment is
-	// 					// needed - delete instance and insert into correct
-	// 					// price level
-	// 					o.ob.Bids = append(o.ob.Bids[:target], o.ob.Bids[target+1:]...)
-	// 					break
-	// 				}
-	// 				o.ob.Bids[target].Amount = updts.Bids[x].Amount
-	// 				continue updateBids
-	// 			}
-	// 		}
-	// 		insertBid(updts.Bids[x], &o.ob.Bids)
-	// 	}
-	// updateAsks:
-	// for x := range updts.Asks {
-	// 	for target := range o.ob.Asks {
-	// 		if o.ob.Asks[target].ID == updts.Asks[x].ID {
-	// 			if o.ob.Asks[target].Price != updts.Asks[x].Price {
-	// 				// Price change occurred so correct ask alignment is
-	// 				// needed - delete instance and insert into correct
-	// 				// price level
-	// 				o.ob.Asks = append(o.ob.Asks[:target], o.ob.Asks[target+1:]...)
-	// 				break
-	// 			}
-	// 			o.ob.Asks[target].Amount = updts.Asks[x].Amount
-	// 			continue updateAsks
-	// 		}
-	// 	}
-	// 	insertAsk(updts.Asks[x], &o.ob.Asks)
-	// }
+		o.ob.UpdateInsertByID(updts.Bids, updts.Asks)
 	default:
 		return fmt.Errorf("invalid action [%s]", updts.Action)
 	}
@@ -218,25 +185,25 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update, exch string, isFund
 // 	return nil
 // }
 
-// deleteUpdates removes updates from orderbook and returns an error if not
-// found
-func deleteUpdates(updt []orderbook.Item, book *orderbook.Items, bypassErr bool) error {
-updates:
-	for x := range updt {
-		for y := range *book {
-			if (*book)[y].ID == updt[x].ID {
-				*book = append((*book)[:y], (*book)[y+1:]...) // nolint:gocritic
-				continue updates
-			}
-		}
-		// bypassErr is for expected duplication from endpoint.
-		if !bypassErr {
-			return fmt.Errorf("update cannot be deleted id: %d not found",
-				updt[x].ID)
-		}
-	}
-	return nil
-}
+// // deleteUpdates removes updates from orderbook and returns an error if not
+// // found
+// func deleteUpdates(updt []orderbook.Item, book *orderbook.Items, bypassErr bool) error {
+// updates:
+// 	for x := range updt {
+// 		for y := range *book {
+// 			if (*book)[y].ID == updt[x].ID {
+// 				*book = append((*book)[:y], (*book)[y+1:]...) // nolint:gocritic
+// 				continue updates
+// 			}
+// 		}
+// 		// bypassErr is for expected duplication from endpoint.
+// 		if !bypassErr {
+// 			return fmt.Errorf("update cannot be deleted id: %d not found",
+// 				updt[x].ID)
+// 		}
+// 	}
+// 	return nil
+// }
 
 // func insertAsk(updt orderbook.Item, book *orderbook.Items) {
 // 	for target := range *book {

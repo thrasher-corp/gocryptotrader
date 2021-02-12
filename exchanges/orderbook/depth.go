@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -269,10 +268,10 @@ func (d *Depth) InsertBidAskByID(bid, ask Items) {
 }
 
 // UpdateInsertByID ...
-func (d *Depth) UpdateInsertByID() {
-	result := &struct {
-		Data string `json:"hello"`
-	}{}
-
-	fmt.Println(result)
+func (d *Depth) UpdateInsertByID(bidUpdates, askUpdates Items) {
+	d.Lock()
+	defer d.Unlock()
+	d.bid.updateInsertByID(bidUpdates, func(p1, p2 float64) bool { return p1 > p2 }, &d.stack)
+	d.ask.updateInsertByID(askUpdates, func(p1, p2 float64) bool { return p1 < p2 }, &d.stack)
+	d.alert()
 }
