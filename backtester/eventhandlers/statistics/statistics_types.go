@@ -57,7 +57,6 @@ type Results struct {
 	TotalTransactions int                  `json:"totalTransactions"`
 	Events            []ResultEvent        `json:"events"`
 	Transactions      []ResultTransactions `json:"transactions"`
-	SharpieRatio      float64              `json:"sharpieRatio"`
 	StrategyName      string               `json:"strategyName"`
 }
 
