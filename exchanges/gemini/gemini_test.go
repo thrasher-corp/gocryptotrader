@@ -354,6 +354,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Pairs: []currency.Pair{
 			currency.NewPair(currency.LTC, currency.BTC),
 		},
+		AssetType: asset.Spot,
 	}
 
 	_, err := g.GetActiveOrders(&getOrdersRequest)
@@ -370,8 +371,9 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type:  order.AnyType,
-		Pairs: []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
+		Type:      order.AnyType,
+		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
+		AssetType: asset.Spot,
 	}
 
 	_, err := g.GetOrderHistory(&getOrdersRequest)
@@ -550,8 +552,10 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
-	g.API.Endpoints.WebsocketURL = geminiWebsocketSandboxEndpoint
-
+	err := g.API.Endpoints.SetRunning(exchange.WebsocketSpot.String(), geminiWebsocketSandboxEndpoint)
+	if err != nil {
+		t.Error(err)
+	}
 	if !g.Websocket.IsEnabled() &&
 		!g.API.AuthenticatedWebsocketSupport ||
 		!areTestAPIKeysSet() {
@@ -559,7 +563,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	var dialer websocket.Dialer
 	go g.wsReadData()
-	err := g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
+	err = g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1133,8 +1137,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
 	tEnd := time.Date(2020, 6, 7, 0, 0, 0, 0, time.UTC)
 	if !mockTests {
-		tStart = time.Date(2020, time.Now().Month(), 6, 0, 0, 0, 0, time.UTC)
-		tEnd = time.Date(2020, time.Now().Month(), 7, 0, 0, 0, 0, time.UTC)
+		tStart = time.Date(time.Now().Year(), time.Now().Month(), 6, 0, 0, 0, 0, time.UTC)
+		tEnd = time.Date(time.Now().Year(), time.Now().Month(), 7, 0, 0, 0, 0, time.UTC)
 	}
 	_, err = g.GetHistoricTrades(currencyPair, asset.Spot, tStart, tEnd)
 	if err != nil {

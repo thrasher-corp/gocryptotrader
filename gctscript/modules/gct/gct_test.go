@@ -133,12 +133,12 @@ func TestAccountInfo(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ExchangeAccountInfo(exch)
+	_, err = ExchangeAccountInfo(exch, assetType)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = ExchangeAccountInfo(exchError)
+	_, err = ExchangeAccountInfo(exchError, assetType)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Error(err)
 	}

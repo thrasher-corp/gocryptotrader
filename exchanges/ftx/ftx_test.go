@@ -147,7 +147,7 @@ func TestGetFutureStats(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetFundingRates()
+	_, err := f.GetFundingRates(time.Now().Add(-time.Hour), time.Now(), "BTC-PERP")
 	if err != nil {
 		t.Error(err)
 	}
@@ -175,6 +175,28 @@ func TestGetPositions(t *testing.T) {
 	}
 }
 
+func TestGetBalances(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetBalances()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllWalletBalances(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetAllWalletBalances()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestChangeAccountLeverage(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
@@ -197,23 +219,100 @@ func TestGetCoins(t *testing.T) {
 	}
 }
 
-func TestGetBalances(t *testing.T) {
+func TestGetMarginBorrowRates(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetBalances()
+	_, err := f.GetMarginBorrowRates()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetAllWalletBalances(t *testing.T) {
+func TestGetMarginLendingRates(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetAllWalletBalances()
+	_, err := f.GetMarginLendingRates()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMarginDailyBorrowedAmounts(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.MarginDailyBorrowedAmounts()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginMarketInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetMarginMarketInfo("BTC_USD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginBorrowHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetMarginBorrowHistory()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginLendingHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetMarginLendingHistory()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginLendingOffers(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetMarginLendingOffers()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLendingInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetLendingInfo()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubmitLendingOffer(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip()
+	}
+	_, err := f.SubmitLendingOffer("btc", 0.1, 500)
 	if err != nil {
 		t.Error(err)
 	}
@@ -727,6 +826,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var orderReq order.GetOrdersRequest
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
+	orderReq.AssetType = asset.Spot
 	_, err := f.GetActiveOrders(&orderReq)
 	if err != nil {
 		t.Fatal(err)
@@ -741,6 +841,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var orderReq order.GetOrdersRequest
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
 	orderReq.Pairs = append(orderReq.Pairs, cp)
+	orderReq.AssetType = asset.Spot
 	_, err := f.GetOrderHistory(&orderReq)
 	if err != nil {
 		t.Fatal(err)
@@ -752,7 +853,7 @@ func TestUpdateAccountHoldings(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.UpdateAccountInfo()
+	_, err := f.UpdateAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -763,7 +864,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.FetchAccountInfo()
+	_, err := f.FetchAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

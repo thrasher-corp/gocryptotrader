@@ -142,9 +142,14 @@ func (f *FTX) SetDefaults() {
 	f.Requester = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
-
-	f.API.Endpoints.URLDefault = ftxAPIURL
-	f.API.Endpoints.URL = f.API.Endpoints.URLDefault
+	f.API.Endpoints = f.NewEndpoints()
+	err = f.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      ftxAPIURL,
+		exchange.WebsocketSpot: ftxWSURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	f.Websocket = stream.New()
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	f.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -163,6 +168,11 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsEndpoint, err := f.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = f.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -170,7 +180,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       ftxWSURL,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsEndpoint,
 		Connector:                        f.WsConnect,
 		Subscriber:                       f.Subscribe,
 		UnSubscriber:                     f.Unsubscribe,
@@ -365,7 +375,7 @@ func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (f *FTX) UpdateAccountInfo() (account.Holdings, error) {
+func (f *FTX) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
 	data, err := f.GetBalances()
 	if err != nil {
@@ -393,10 +403,10 @@ func (f *FTX) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (f *FTX) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(f.Name)
+func (f *FTX) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(f.Name, assetType)
 	if err != nil {
-		return f.UpdateAccountInfo()
+		return f.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -651,6 +661,8 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 		resp.Side = order.Buy
 	case order.Sell.Lower():
 		resp.Side = order.Sell
+	default:
+		resp.Side = order.UnknownSide
 	}
 	switch s.Status {
 	case strings.ToLower(order.New.String()):
@@ -667,6 +679,8 @@ func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 		if s.FilledSize == s.Size {
 			resp.Status = order.Filled
 		}
+	default:
+		resp.Status = order.AnyStatus
 	}
 	var feeBuilder exchange.FeeBuilder
 	feeBuilder.PurchasePrice = s.AvgFillPrice
@@ -991,8 +1005,8 @@ func (f *FTX) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (f *FTX) ValidateCredentials() error {
-	_, err := f.UpdateAccountInfo()
+func (f *FTX) ValidateCredentials(assetType asset.Item) error {
+	_, err := f.UpdateAccountInfo(assetType)
 	return f.CheckTransientError(err)
 }
 

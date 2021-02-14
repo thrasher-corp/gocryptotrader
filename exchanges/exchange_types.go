@@ -166,19 +166,20 @@ type FeaturesSupported struct {
 	Kline                 kline.ExchangeCapabilitiesSupported
 }
 
+// Endpoints stores running url endpoints for exchanges
+type Endpoints struct {
+	Exchange string
+	defaults map[string]string
+	sync.RWMutex
+}
+
 // API stores the exchange API settings
 type API struct {
 	AuthenticatedSupport          bool
 	AuthenticatedWebsocketSupport bool
 	PEMKeySupport                 bool
 
-	Endpoints struct {
-		URL                 string
-		URLDefault          string
-		URLSecondary        string
-		URLSecondaryDefault string
-		WebsocketURL        string
-	}
+	Endpoints *Endpoints
 
 	Credentials struct {
 		Key      string
@@ -222,3 +223,37 @@ type Base struct {
 	settingsMutex               sync.RWMutex
 	OrderbookVerificationBypass bool
 }
+
+// url lookup consts
+const (
+	RestSpot URL = iota
+	RestSpotSupplementary
+	RestUSDTMargined
+	RestCoinMargined
+	RestFutures
+	RestSwap
+	RestSandbox
+	WebsocketSpot
+	WebsocketSpotSupplementary
+	ChainAnalysis
+	EdgeCase1
+	EdgeCase2
+	EdgeCase3
+)
+
+var keyURLs = []URL{RestSpot,
+	RestSpotSupplementary,
+	RestUSDTMargined,
+	RestCoinMargined,
+	RestFutures,
+	RestSwap,
+	RestSandbox,
+	WebsocketSpot,
+	WebsocketSpotSupplementary,
+	ChainAnalysis,
+	EdgeCase1,
+	EdgeCase2,
+	EdgeCase3}
+
+// URL stores uint conversions
+type URL uint16

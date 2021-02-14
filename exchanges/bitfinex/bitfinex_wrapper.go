@@ -163,10 +163,14 @@ func (b *Bitfinex) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	b.API.Endpoints.URLDefault = bitfinexAPIURLBase
-	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-	b.API.Endpoints.WebsocketURL = publicBitfinexWebsocketEndpoint
+	b.API.Endpoints = b.NewEndpoints()
+	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      bitfinexAPIURLBase,
+		exchange.WebsocketSpot: publicBitfinexWebsocketEndpoint,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -184,6 +188,10 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
+	wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
@@ -192,7 +200,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       publicBitfinexWebsocketEndpoint,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsEndpoint,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
 		UnSubscriber:                     b.Unsubscribe,
@@ -398,17 +406,19 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	if err != nil {
 		return o, err
 	}
+	if assetType != asset.Spot && assetType != asset.Margin && assetType != asset.MarginFunding {
+		return o, fmt.Errorf("assetType not supported: %v", assetType)
+	}
 	b.appendOptionalDelimiter(&fPair)
 	var prefix = "t"
 	if assetType == asset.MarginFunding {
 		prefix = "f"
 	}
-
-	orderbookNew, err := b.GetOrderbook(prefix+fPair.String(), "R0", 100)
+	var orderbookNew Orderbook
+	orderbookNew, err = b.GetOrderbook(prefix+fPair.String(), "R0", 100)
 	if err != nil {
-		return o, err
+		return nil, err
 	}
-
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true
 		for x := range orderbookNew.Asks {
@@ -443,18 +453,16 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 			})
 		}
 	}
-
 	err = o.Process()
 	if err != nil {
 		return nil, err
 	}
-
 	return orderbook.Get(b.Name, fPair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Bitfinex exchange
-func (b *Bitfinex) UpdateAccountInfo() (account.Holdings, error) {
+func (b *Bitfinex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = b.Name
 
@@ -494,10 +502,10 @@ func (b *Bitfinex) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitfinex) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name)
+func (b *Bitfinex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -945,8 +953,8 @@ func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitfinex) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *Bitfinex) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	return b.CheckTransientError(err)
 }
 

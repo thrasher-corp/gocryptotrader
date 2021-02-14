@@ -3,7 +3,6 @@ package bitflyer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -76,51 +75,41 @@ type Bitflyer struct {
 // analysis system
 func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := b.API.Endpoints.URLSecondary + latestBlock
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, latestBlock, &resp)
 }
 
 // GetBlockCA returns block information by blockhash from bitflyer chain
 // analysis system
 func (b *Bitflyer) GetBlockCA(blockhash string) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := b.API.Endpoints.URLSecondary + blockByBlockHash + blockhash
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, blockByBlockHash+blockhash, &resp)
 }
 
 // GetBlockbyHeightCA returns the block information by height from bitflyer chain
 // analysis system
 func (b *Bitflyer) GetBlockbyHeightCA(height int64) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := b.API.Endpoints.URLSecondary +
-		blockByBlockHeight +
-		strconv.FormatInt(height, 10)
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, blockByBlockHeight+strconv.FormatInt(height, 10), &resp)
 }
 
 // GetTransactionByHashCA returns transaction information by txHash from
 // bitflyer chain analysis system
 func (b *Bitflyer) GetTransactionByHashCA(txHash string) (ChainAnalysisTransaction, error) {
 	var resp ChainAnalysisTransaction
-	path := b.API.Endpoints.URLSecondary + transaction + txHash
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, transaction+txHash, &resp)
 }
 
 // GetAddressInfoCA returns balance information for address by addressln string
 // from bitflyer chain analysis system
 func (b *Bitflyer) GetAddressInfoCA(addressln string) (ChainAnalysisAddress, error) {
 	var resp ChainAnalysisAddress
-	path := b.API.Endpoints.URLSecondary + address + addressln
-
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.ChainAnalysis, address+addressln, &resp)
 }
 
 // GetMarkets returns market information
 func (b *Bitflyer) GetMarkets() ([]MarketInfo, error) {
 	var resp []MarketInfo
-	path := b.API.Endpoints.URL + pubGetMarkets
-
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetMarkets, &resp)
 }
 
 // GetOrderBook returns market orderbook depth
@@ -128,9 +117,8 @@ func (b *Bitflyer) GetOrderBook(symbol string) (Orderbook, error) {
 	var resp Orderbook
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, pubGetBoard, v.Encode())
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetBoard+"?"+v.Encode(), &resp)
 }
 
 // GetTicker returns ticker information
@@ -138,8 +126,7 @@ func (b *Bitflyer) GetTicker(symbol string) (Ticker, error) {
 	var resp Ticker
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, pubGetTicker, v.Encode())
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetTicker+"?"+v.Encode(), &resp)
 }
 
 // GetExecutionHistory returns past trades that were executed on the market
@@ -147,18 +134,14 @@ func (b *Bitflyer) GetExecutionHistory(symbol string) ([]ExecutedTrade, error) {
 	var resp []ExecutedTrade
 	v := url.Values{}
 	v.Set("product_code", symbol)
-	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, pubGetExecutionHistory, v.Encode())
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetExecutionHistory+"?"+v.Encode(), &resp)
 }
 
 // GetExchangeStatus returns exchange status information
 func (b *Bitflyer) GetExchangeStatus() (string, error) {
 	resp := make(map[string]string)
-
-	path := b.API.Endpoints.URL + pubGetHealth
-
-	err := b.SendHTTPRequest(path, &resp)
+	err := b.SendHTTPRequest(exchange.RestSpot, pubGetHealth, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -183,8 +166,7 @@ func (b *Bitflyer) GetChats(fromDate string) ([]ChatLog, error) {
 	var resp []ChatLog
 	v := url.Values{}
 	v.Set("from_date", fromDate)
-	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, pubGetChats, v.Encode())
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpot, pubGetChats+"?"+v.Encode(), &resp)
 }
 
 // GetPermissions returns current permissions for associated with your API
@@ -304,10 +286,14 @@ func (b *Bitflyer) GetTradingCommission() {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
+func (b *Bitflyer) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
+	endpoint, err := b.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          path,
+		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,

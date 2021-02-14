@@ -39,14 +39,18 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-		DefaultURL:                       o.API.Endpoints.WebsocketURL,
+		DefaultURL:                       wsEndpoint,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsEndpoint,
 		Connector:                        o.WsConnect,
 		Subscriber:                       o.Subscribe,
 		UnSubscriber:                     o.Unsubscribe,
@@ -99,6 +103,7 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 
 	orderbookNew, err := o.GetOrderBook(GetOrderBookRequest{
 		InstrumentID: fPair.String(),
+		Size:         200,
 	}, a)
 	if err != nil {
 		return book, err
@@ -177,7 +182,7 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) UpdateAccountInfo() (account.Holdings, error) {
+func (o *OKGroup) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	currencies, err := o.GetSpotTradingAccounts()
 	if err != nil {
 		return account.Holdings{}, err
@@ -215,10 +220,10 @@ func (o *OKGroup) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(o.Name)
+func (o *OKGroup) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(o.Name, assetType)
 	if err != nil {
-		return o.UpdateAccountInfo()
+		return o.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -572,8 +577,8 @@ func (o *OKGroup) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (o *OKGroup) ValidateCredentials() error {
-	_, err := o.UpdateAccountInfo()
+func (o *OKGroup) ValidateCredentials(assetType asset.Item) error {
+	_, err := o.UpdateAccountInfo(assetType)
 	return o.CheckTransientError(err)
 }
 

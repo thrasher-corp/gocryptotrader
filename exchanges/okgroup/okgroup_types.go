@@ -15,6 +15,74 @@ const (
 	ImmediateOrCancelOrder
 )
 
+// TradingPairData stores data about a trading pair
+type TradingPairData struct {
+	BaseCurrency  string  `json:"base_currency"`
+	InstrumentID  string  `json:"instrument_id"`
+	MinSize       float64 `json:"min_size,string"`
+	QuoteCurrency string  `json:"quote_currency"`
+	SizeIncrement string  `json:"size_increment"`
+	TickSize      float64 `json:"tick_size,string"`
+}
+
+// SwapInstrumentsData stores instruments data for perpetual swap contracts
+type SwapInstrumentsData struct {
+	InstrumentID          string  `json:"instrument_id"`
+	UnderlyingIndex       string  `json:"underlying_index"`
+	QuoteCurrency         string  `json:"quote_currency"`
+	Coin                  string  `json:"coin"`
+	ContractValue         float64 `json:"contract_val,string"`
+	Listing               string  `json:"listing"`
+	Delivery              string  `json:"delivery"`
+	SizeIncrement         float64 `json:"size_increment,string"`
+	TickSize              float64 `json:"tick_size,string"`
+	BaseCurrency          string  `json:"base_currency"`
+	Underlying            string  `json:"underlying"`
+	SettlementCurrency    string  `json:"settlement_currency"`
+	IsInverse             bool    `json:"is_inverse,string"`
+	Category              int64   `json:"category,string"`
+	ContractValueCurrency string  `json:"contract_val_currency"`
+}
+
+// MarginData stores margin trading data for a currency
+type MarginData struct {
+	Available     float64 `json:"available,string"`
+	Leverage      float64 `json:"leverage,string"`
+	LeverageRatio float64 `json:"leverage_ratio,string"`
+	Rate          float64 `json:"rate,string"`
+}
+
+// MarginCurrencyData stores currency data for margin trading
+type MarginCurrencyData struct {
+	Data         map[string]MarginData
+	InstrumentID string `json:"instrument_id"`
+	ProductID    string `json:"product_id"`
+}
+
+// TickerData stores ticker data
+type TickerData struct {
+	InstrumentID string    `json:"instrument_id"`
+	BestAsk      float64   `json:"best_ask,string"`
+	BestBid      float64   `json:"best_bid,string"`
+	Last         float64   `json:"last,string"`
+	High24H      float64   `json:"high_24h,string"`
+	Low24H       float64   `json:"low_24h,string"`
+	Volume24H    float64   `json:"volume_24h,string"`
+	Timestamp    time.Time `json:"timestamp"`
+	LastQty      float64   `json:"last_qty,string"`
+	BestAskSize  float64   `json:"best_ask_size,string"`
+	BestBidSize  float64   `json:"best_bid_size,string"`
+}
+
+// PerpSwapFundingRates stores funding rates data
+type PerpSwapFundingRates struct {
+	InstrumentID string    `json:"instrument_id"`
+	FundingRate  float64   `json:"funding_rate,string"`
+	RealizedRate float64   `json:"realized_rate,string"`
+	InterestRate float64   `json:"interest_rate,string"`
+	FundingTime  time.Time `json:"funding_time"`
+}
+
 // GetAccountCurrenciesResponse response data for GetAccountCurrencies
 type GetAccountCurrenciesResponse struct {
 	Name          string  `json:"name"`

@@ -106,12 +106,15 @@ func (l *Lbank) SetDefaults() {
 			},
 		},
 	}
-
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	l.API.Endpoints.URLDefault = lbankAPIURL
-	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
+	l.API.Endpoints = l.NewEndpoints()
+	err = l.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot: lbankAPIURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 }
 
 // Setup sets exchange configuration profile
@@ -258,33 +261,31 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	if err != nil {
 		return book, err
 	}
-	for i := range a.Asks {
-		price, convErr := strconv.ParseFloat(a.Asks[i][0], 64)
+	for i := range a.Data.Asks {
+		price, convErr := strconv.ParseFloat(a.Data.Asks[i][0], 64)
 		if convErr != nil {
 			return book, convErr
 		}
-		amount, convErr := strconv.ParseFloat(a.Asks[i][1], 64)
+		amount, convErr := strconv.ParseFloat(a.Data.Asks[i][1], 64)
 		if convErr != nil {
 			return book, convErr
 		}
 		book.Asks = append(book.Asks, orderbook.Item{
 			Price:  price,
-			Amount: amount,
-		})
+			Amount: amount})
 	}
-	for i := range a.Bids {
-		price, convErr := strconv.ParseFloat(a.Bids[i][0], 64)
+	for i := range a.Data.Bids {
+		price, convErr := strconv.ParseFloat(a.Data.Bids[i][0], 64)
 		if convErr != nil {
 			return book, convErr
 		}
-		amount, convErr := strconv.ParseFloat(a.Bids[i][1], 64)
+		amount, convErr := strconv.ParseFloat(a.Data.Bids[i][1], 64)
 		if convErr != nil {
 			return book, convErr
 		}
 		book.Bids = append(book.Bids, orderbook.Item{
 			Price:  price,
-			Amount: amount,
-		})
+			Amount: amount})
 	}
 	err = book.Process()
 	if err != nil {
@@ -295,7 +296,7 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) UpdateAccountInfo() (account.Holdings, error) {
+func (l *Lbank) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	data, err := l.GetUserInfo()
 	if err != nil {
@@ -333,10 +334,10 @@ func (l *Lbank) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (l *Lbank) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(l.Name)
+func (l *Lbank) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(l.Name, assetType)
 	if err != nil {
-		return l.UpdateAccountInfo()
+		return l.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -861,8 +862,8 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (l *Lbank) ValidateCredentials() error {
-	_, err := l.UpdateAccountInfo()
+func (l *Lbank) ValidateCredentials(assetType asset.Item) error {
+	_, err := l.UpdateAccountInfo(assetType)
 	return l.CheckTransientError(err)
 }
 

@@ -343,8 +343,9 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
-		Side: order.Sell,
+		Type:      order.AnyType,
+		Side:      order.Sell,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -358,7 +359,8 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)
@@ -457,12 +459,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := b.UpdateAccountInfo()
+		_, err := b.UpdateAccountInfo(asset.Spot)
 		if err != nil {
 			t.Error("Bithumb GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := b.UpdateAccountInfo()
+		_, err := b.UpdateAccountInfo(asset.Spot)
 		if err == nil {
 			t.Error("Bithumb GetAccountInfo() Expected error")
 		}

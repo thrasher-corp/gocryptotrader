@@ -6,6 +6,24 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// AccountV2Data stores account v2 data
+type AccountV2Data struct {
+	ID               int64
+	Email            string
+	Username         string
+	MTSAccountCreate int64
+	Verified         int64
+	Timezone         string
+}
+
+// WalletDataV2 stores wallet data for v2
+type WalletDataV2 struct {
+	WalletType        string
+	Currency          string
+	Balance           float64
+	UnsettledInterest float64
+}
+
 // AcceptedOrderType defines the accepted market types, exchange strings denote non-contract order types.
 var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
 	"fill-or-kill", "exchange market", "exchange limit", "exchange stop",
@@ -17,6 +35,42 @@ var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
 
 // AcceptableMethods defines a map of currency codes to methods
 var AcceptableMethods = make(map[string]string)
+
+// MarginV2FundingData stores margin funding data
+type MarginV2FundingData struct {
+	Symbol        string
+	RateAverage   float64
+	AmountAverage float64
+}
+
+// MarginFundingDataV2 stores margin funding data
+type MarginFundingDataV2 struct {
+	Sym    string
+	Symbol string
+	Data   struct {
+		YieldLoan    float64
+		YieldLend    float64
+		DurationLoan float64
+		DurationLend float64
+	}
+}
+
+// MarginFundingData stores data for margin funding
+type MarginFundingData struct {
+	ID          int64
+	Symbol      string
+	MTSCreated  int64
+	MTSUpdated  int64
+	Amount      float64
+	AmountOrig  float64
+	OrderType   string
+	OfferStatus string
+	Active      string
+	Rate        float64
+	Period      float64
+	Notify      bool
+	Renew       bool
+}
 
 // Ticker holds ticker information
 type Ticker struct {
@@ -34,6 +88,21 @@ type Ticker struct {
 	High               float64
 	Low                float64
 	FFRAmountAvailable float64
+}
+
+// DerivativeDataResponse stores data for queried derivative
+type DerivativeDataResponse struct {
+	Key                  string
+	MTS                  float64
+	DerivPrice           float64
+	SpotPrice            float64
+	MarkPrice            float64
+	InsuranceFundBalance float64
+	NextFundingEventTS   float64
+	NextFundingAccured   float64
+	NextFundingStep      float64
+	CurrentFunding       float64
+	OpenInterest         float64
 }
 
 // Stat holds individual statistics from exchange

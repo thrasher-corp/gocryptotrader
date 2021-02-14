@@ -98,11 +98,14 @@ func (y *Yobit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// Server responses are cached every 2 seconds.
 		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1)))
-
-	y.API.Endpoints.URLDefault = apiPublicURL
-	y.API.Endpoints.URL = y.API.Endpoints.URLDefault
-	y.API.Endpoints.URLSecondaryDefault = apiPrivateURL
-	y.API.Endpoints.URLSecondary = y.API.Endpoints.URLSecondaryDefault
+	y.API.Endpoints = y.NewEndpoints()
+	err = y.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:              apiPublicURL,
+		exchange.RestSpotSupplementary: apiPrivateURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 }
 
 // Setup sets exchange configuration parameters for Yobit
@@ -275,7 +278,7 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Yobit exchange
-func (y *Yobit) UpdateAccountInfo() (account.Holdings, error) {
+func (y *Yobit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = y.Name
 	accountBalance, err := y.GetAccountInformation()
@@ -311,10 +314,10 @@ func (y *Yobit) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (y *Yobit) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(y.Name)
+func (y *Yobit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(y.Name, assetType)
 	if err != nil {
-		return y.UpdateAccountInfo()
+		return y.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -640,8 +643,8 @@ func (y *Yobit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (y *Yobit) ValidateCredentials() error {
-	_, err := y.UpdateAccountInfo()
+func (y *Yobit) ValidateCredentials(assetType asset.Item) error {
+	_, err := y.UpdateAccountInfo(assetType)
 	return y.CheckTransientError(err)
 }
 

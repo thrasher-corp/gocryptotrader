@@ -788,6 +788,12 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "asset_type",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -824,6 +830,12 @@
         "parameters": [
           {
             "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset_type",
             "in": "query",
             "required": false,
             "type": "string"
@@ -2249,6 +2261,12 @@
         "parameters": [
           {
             "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset_type",
             "in": "query",
             "required": false,
             "type": "string"

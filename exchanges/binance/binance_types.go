@@ -19,12 +19,6 @@ const (
 	Completed
 )
 
-// Response holds basic binance api response data
-type Response struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
-}
-
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
 	Code       int       `json:"code"`
@@ -93,6 +87,7 @@ type OrderBookData struct {
 
 // OrderBook actual structured data that can be used for orderbook
 type OrderBook struct {
+	Symbol       string
 	LastUpdateID int64
 	Code         int
 	Msg          string
@@ -235,6 +230,18 @@ type AggregatedTrade struct {
 	TimeStamp      time.Time `json:"T"`
 	Maker          bool      `json:"m"`
 	BestMatchPrice bool      `json:"M"`
+}
+
+// IndexMarkPrice stores data for index and mark prices
+type IndexMarkPrice struct {
+	Symbol               string  `json:"symbol"`
+	Pair                 string  `json:"pair"`
+	MarkPrice            float64 `json:"markPrice,string"`
+	IndexPrice           float64 `json:"indexPrice,string"`
+	EstimatedSettlePrice float64 `json:"estimatedSettlePrice,string"`
+	LastFundingRate      string  `json:"lastFundingRate"`
+	NextFundingTime      int64   `json:"nextFundingTime"`
+	Time                 int64   `json:"time"`
 }
 
 // CandleStick holds kline data
@@ -747,6 +754,22 @@ type WsPayload struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
 	ID     int64    `json:"id"`
+}
+
+// CrossMarginInterestData stores cross margin data for borrowing
+type CrossMarginInterestData struct {
+	Code          int64  `json:"code,string"`
+	Message       string `json:"message"`
+	MessageDetail string `json:"messageDetail"`
+	Data          []struct {
+		AssetName string `json:"assetName"`
+		Specs     []struct {
+			VipLevel          string `json:"vipLevel"`
+			DailyInterestRate string `json:"dailyInterestRate"`
+			BorrowLimit       string `json:"borrowLimit"`
+		} `json:"specs"`
+	} `json:"data"`
+	Success bool `json:"success"`
 }
 
 // orderbookManager defines a way of managing and maintaining synchronisation

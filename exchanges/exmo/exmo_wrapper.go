@@ -108,9 +108,13 @@ func (e *EXMO) SetDefaults() {
 	e.Requester = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(exmoRateInterval, exmoRequestRate)))
-
-	e.API.Endpoints.URLDefault = exmoAPIURL
-	e.API.Endpoints.URL = e.API.Endpoints.URLDefault
+	e.API.Endpoints = e.NewEndpoints()
+	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot: exmoAPIURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -320,7 +324,7 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) UpdateAccountInfo() (account.Holdings, error) {
+func (e *EXMO) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = e.Name
 	result, err := e.GetUserInfo()
@@ -356,10 +360,10 @@ func (e *EXMO) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (e *EXMO) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(e.Name)
+func (e *EXMO) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(e.Name, assetType)
 	if err != nil {
-		return e.UpdateAccountInfo()
+		return e.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -655,8 +659,8 @@ func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, err
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (e *EXMO) ValidateCredentials() error {
-	_, err := e.UpdateAccountInfo()
+func (e *EXMO) ValidateCredentials(assetType asset.Item) error {
+	_, err := e.UpdateAccountInfo(assetType)
 	return e.CheckTransientError(err)
 }
 

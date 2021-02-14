@@ -67,15 +67,15 @@ type Gemini struct {
 // GetSymbols returns all available symbols for trading
 func (g *Gemini) GetSymbols() ([]string, error) {
 	var symbols []string
-	path := fmt.Sprintf("%s/v%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiSymbols)
-	return symbols, g.SendHTTPRequest(path, &symbols)
+	path := fmt.Sprintf("/v%s/%s", geminiAPIVersion, geminiSymbols)
+	return symbols, g.SendHTTPRequest(exchange.RestSpot, path, &symbols)
 }
 
 // GetTicker returns information about recent trading activity for the symbol
 func (g *Gemini) GetTicker(currencyPair string) (TickerV2, error) {
 	ticker := TickerV2{}
-	path := fmt.Sprintf("%s/v2/ticker/%s", g.API.Endpoints.URL, currencyPair)
-	err := g.SendHTTPRequest(path, &ticker)
+	path := fmt.Sprintf("/v2/ticker/%s", currencyPair)
+	err := g.SendHTTPRequest(exchange.RestSpot, path, &ticker)
 	if err != nil {
 		return ticker, err
 	}
@@ -96,15 +96,14 @@ func (g *Gemini) GetTicker(currencyPair string) (TickerV2, error) {
 // Type is an integer ie "params.Set("limit_asks", 30)"
 func (g *Gemini) GetOrderbook(currencyPair string, params url.Values) (Orderbook, error) {
 	path := common.EncodeURLValues(
-		fmt.Sprintf("%s/v%s/%s/%s",
-			g.API.Endpoints.URL,
+		fmt.Sprintf("/v%s/%s/%s",
 			geminiAPIVersion,
 			geminiOrderbook,
 			currencyPair),
 		params)
 
 	var orderbook Orderbook
-	return orderbook, g.SendHTTPRequest(path, &orderbook)
+	return orderbook, g.SendHTTPRequest(exchange.RestSpot, path, &orderbook)
 }
 
 // GetTrades return the trades that have executed since the specified timestamp.
@@ -127,18 +126,18 @@ func (g *Gemini) GetTrades(currencyPair string, since, limit int64, includeBreak
 	if includeBreaks {
 		params.Add("include_breaks", strconv.FormatBool(true))
 	}
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiTrades, currencyPair), params)
+	path := common.EncodeURLValues(fmt.Sprintf("/v%s/%s/%s", geminiAPIVersion, geminiTrades, currencyPair), params)
 	var trades []Trade
 
-	return trades, g.SendHTTPRequest(path, &trades)
+	return trades, g.SendHTTPRequest(exchange.RestSpot, path, &trades)
 }
 
 // GetAuction returns auction information
 func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
-	path := fmt.Sprintf("%s/v%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiAuction, currencyPair)
+	path := fmt.Sprintf("/v%s/%s/%s", geminiAPIVersion, geminiAuction, currencyPair)
 	auction := Auction{}
 
-	return auction, g.SendHTTPRequest(path, &auction)
+	return auction, g.SendHTTPRequest(exchange.RestSpot, path, &auction)
 }
 
 // GetAuctionHistory returns the auction events, optionally including
@@ -153,9 +152,9 @@ func (g *Gemini) GetAuction(currencyPair string) (Auction, error) {
 //          include_indicative - [bool] Whether to include publication of
 // indicative prices and quantities.
 func (g *Gemini) GetAuctionHistory(currencyPair string, params url.Values) ([]AuctionHistory, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s/v%s/%s/%s/%s", g.API.Endpoints.URL, geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
+	path := common.EncodeURLValues(fmt.Sprintf("/v%s/%s/%s/%s", geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
 	var auctionHist []AuctionHistory
-	return auctionHist, g.SendHTTPRequest(path, &auctionHist)
+	return auctionHist, g.SendHTTPRequest(exchange.RestSpot, path, &auctionHist)
 }
 
 // NewOrder Only limit orders are supported through the API at present.
@@ -169,7 +168,7 @@ func (g *Gemini) NewOrder(symbol string, amount, price float64, side, orderType 
 	req["type"] = orderType
 
 	response := Order{}
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderNew, req, &response)
+	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiOrderNew, req, &response)
 	if err != nil {
 		return 0, err
 	}
@@ -183,7 +182,7 @@ func (g *Gemini) CancelExistingOrder(orderID int64) (Order, error) {
 	req["order_id"] = orderID
 
 	response := Order{}
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderCancel, req, &response)
+	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiOrderCancel, req, &response)
 	if err != nil {
 		return Order{}, err
 	}
@@ -205,7 +204,7 @@ func (g *Gemini) CancelExistingOrders(cancelBySession bool) (OrderResult, error)
 	}
 
 	var response OrderResult
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, path, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, path, nil, &response)
 	if err != nil {
 		return response, err
 	}
@@ -222,7 +221,7 @@ func (g *Gemini) GetOrderStatus(orderID int64) (Order, error) {
 
 	response := Order{}
 
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrderStatus, req, &response)
+	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiOrderStatus, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -241,7 +240,7 @@ func (g *Gemini) GetOrders() ([]Order, error) {
 		orders []Order
 	}
 
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiOrders, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiOrders, nil, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +267,7 @@ func (g *Gemini) GetTradeHistory(currencyPair string, timestamp int64) ([]TradeH
 	}
 
 	return response,
-		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiMyTrades, req, &response)
+		g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiMyTrades, req, &response)
 }
 
 // GetNotionalVolume returns  the volume in price currency that has been traded across all pairs over a period of 30 days
@@ -276,7 +275,7 @@ func (g *Gemini) GetNotionalVolume() (NotionalVolume, error) {
 	response := NotionalVolume{}
 
 	return response,
-		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiVolume, nil, &response)
+		g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiVolume, nil, &response)
 }
 
 // GetTradeVolume returns a multi-arrayed volume response
@@ -284,7 +283,7 @@ func (g *Gemini) GetTradeVolume() ([][]TradeVolume, error) {
 	var response [][]TradeVolume
 
 	return response,
-		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiTradeVolume, nil, &response)
+		g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiTradeVolume, nil, &response)
 }
 
 // GetBalances returns available balances in the supported currencies
@@ -292,7 +291,7 @@ func (g *Gemini) GetBalances() ([]Balance, error) {
 	var response []Balance
 
 	return response,
-		g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiBalances, nil, &response)
+		g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiBalances, nil, &response)
 }
 
 // GetCryptoDepositAddress returns a deposit address
@@ -304,7 +303,7 @@ func (g *Gemini) GetCryptoDepositAddress(depositAddlabel, currency string) (Depo
 		req["label"] = depositAddlabel
 	}
 
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiDeposit+"/"+currency+"/"+geminiNewAddress, req, &response)
+	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiDeposit+"/"+currency+"/"+geminiNewAddress, req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -321,7 +320,7 @@ func (g *Gemini) WithdrawCrypto(address, currency string, amount float64) (Withd
 	req["address"] = address
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiWithdraw+strings.ToLower(currency), req, &response)
+	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiWithdraw+strings.ToLower(currency), req, &response)
 	if err != nil {
 		return response, err
 	}
@@ -340,7 +339,7 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 	}
 	response := Response{}
 
-	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, geminiHeartbeat, nil, &response)
+	err := g.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodPost, geminiHeartbeat, nil, &response)
 	if err != nil {
 		return response.Result, err
 	}
@@ -351,10 +350,14 @@ func (g *Gemini) PostHeartbeat() (string, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
+func (g *Gemini) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
+	endpoint, err := g.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
 	return g.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          path,
+		Path:          endpoint + path,
 		Result:        result,
 		Verbose:       g.Verbose,
 		HTTPDebugging: g.HTTPDebugging,
@@ -364,9 +367,14 @@ func (g *Gemini) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
 // exchange and returns an error
-func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
+func (g *Gemini) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path string, params map[string]interface{}, result interface{}) (err error) {
 	if !g.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, g.Name)
+	}
+
+	endpoint, err := g.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
 	}
 
 	req := make(map[string]interface{})
@@ -399,7 +407,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 
 	return g.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          g.API.Endpoints.URL + "/v1/" + path,
+		Path:          endpoint + "/v1/" + path,
 		Headers:       headers,
 		Result:        result,
 		AuthRequest:   true,

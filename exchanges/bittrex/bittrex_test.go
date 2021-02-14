@@ -351,8 +351,9 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type:  order.AnyType,
-		Pairs: []currency.Pair{p},
+		Type:      order.AnyType,
+		Pairs:     []currency.Pair{p},
+		AssetType: asset.Spot,
 	}
 
 	getOrdersRequest.Pairs[0].Delimiter = "-"
@@ -367,7 +368,8 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)

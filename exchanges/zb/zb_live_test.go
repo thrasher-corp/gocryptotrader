@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("ZB setup error", err)
 	}
-	log.Printf(sharedtestvalues.LiveTesting, z.Name, z.API.Endpoints.URL)
+	log.Printf(sharedtestvalues.LiveTesting, z.Name)
 	z.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	z.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())

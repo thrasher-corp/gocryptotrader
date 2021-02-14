@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -34,7 +35,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Gemini setup error", err)
 	}
-	g.API.Endpoints.URL = geminiSandboxAPIURL
-	log.Printf(sharedtestvalues.LiveTesting, g.Name, g.API.Endpoints.URL)
+	err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
+	if err != nil {
+		log.Fatalf("endpoint setting failed. key: %s, val: %s", exchange.RestSpot.String(), geminiSandboxAPIURL)
+	}
+	log.Printf(sharedtestvalues.LiveTesting, g.Name)
 	os.Exit(m.Run())
 }

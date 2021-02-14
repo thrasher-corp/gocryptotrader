@@ -134,10 +134,14 @@ func (o *OKCoin) SetDefaults() {
 		// TODO: Specify each individual endpoint rate limits as per docs
 		request.WithLimiter(request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate)),
 	)
-
-	o.API.Endpoints.URLDefault = okCoinAPIURL
-	o.API.Endpoints.URL = okCoinAPIURL
-	o.API.Endpoints.WebsocketURL = okCoinWebsocketURL
+	o.API.Endpoints = o.NewEndpoints()
+	err := o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      okCoinAPIURL,
+		exchange.WebsocketSpot: okCoinWebsocketURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	o.APIVersion = okCoinAPIVersion
 	o.Websocket = stream.New()
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

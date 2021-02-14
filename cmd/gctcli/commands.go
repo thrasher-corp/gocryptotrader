@@ -725,12 +725,16 @@ func getOrderbooks(_ *cli.Context) error {
 var getAccountInfoCommand = cli.Command{
 	Name:      "getaccountinfo",
 	Usage:     "gets the exchange account balance info",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: "<exchange> <asset>",
 	Action:    getAccountInfo,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the account info for",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type to get the account info for",
 		},
 	},
 }
@@ -746,9 +750,19 @@ func getAccountInfo(c *cli.Context) error {
 	} else {
 		exchange = c.Args().First()
 	}
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
 
 	if !validExchange(exchange) {
 		return errInvalidExchange
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	conn, err := setupClient()
@@ -760,7 +774,8 @@ func getAccountInfo(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetAccountInfo(context.Background(),
 		&gctrpc.GetAccountInfoRequest{
-			Exchange: exchange,
+			Exchange:  exchange,
+			AssetType: assetType,
 		},
 	)
 	if err != nil {
@@ -774,12 +789,16 @@ func getAccountInfo(c *cli.Context) error {
 var getAccountInfoStreamCommand = cli.Command{
 	Name:      "getaccountinfostream",
 	Usage:     "gets the account info stream for a specific exchange",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: "<exchange> <asset>",
 	Action:    getAccountInfoStream,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the account info stream from",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type to get the account info stream for",
 		},
 	},
 }
@@ -797,8 +816,19 @@ func getAccountInfoStream(c *cli.Context) error {
 		exchangeName = c.Args().First()
 	}
 
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
 	if !validExchange(exchangeName) {
 		return errInvalidExchange
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	conn, err := setupClient()
@@ -809,7 +839,7 @@ func getAccountInfoStream(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetAccountInfoStream(context.Background(),
-		&gctrpc.GetAccountInfoRequest{Exchange: exchangeName})
+		&gctrpc.GetAccountInfoRequest{Exchange: exchangeName, AssetType: assetType})
 	if err != nil {
 		return err
 	}
@@ -834,12 +864,16 @@ func getAccountInfoStream(c *cli.Context) error {
 var updateAccountInfoCommand = cli.Command{
 	Name:      "updateaccountinfo",
 	Usage:     "updates the exchange account balance info",
-	ArgsUsage: "<exchange>",
+	ArgsUsage: "<exchange> <asset>",
 	Action:    updateAccountInfo,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to get the account info for",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type to get the account info for",
 		},
 	},
 }
@@ -856,8 +890,19 @@ func updateAccountInfo(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
 	if !validExchange(exchange) {
 		return errInvalidExchange
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
 	}
 
 	conn, err := setupClient()
@@ -869,7 +914,8 @@ func updateAccountInfo(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.UpdateAccountInfo(context.Background(),
 		&gctrpc.GetAccountInfoRequest{
-			Exchange: exchange,
+			Exchange:  exchange,
+			AssetType: assetType,
 		},
 	)
 	if err != nil {

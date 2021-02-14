@@ -213,7 +213,7 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeAccountInfo returns account information for requested exchange
 func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 1 {
+	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
@@ -221,7 +221,15 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	rtnValue, err := wrappers.GetWrapper().AccountInformation(exchangeName)
+	assetString, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetString)
+	}
+	assetType, err := asset.New(assetString)
+	if err != nil {
+		return nil, err
+	}
+	rtnValue, err := wrappers.GetWrapper().AccountInformation(exchangeName, assetType)
 	if err != nil {
 		return nil, err
 	}

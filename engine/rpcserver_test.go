@@ -790,7 +790,7 @@ func TestGetAccountInfo(t *testing.T) {
 	bot := CreateTestBot(t)
 	s := RPCServer{Engine: bot}
 
-	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
+	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
 	if err != nil {
 		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
@@ -804,12 +804,12 @@ func TestUpdateAccountInfo(t *testing.T) {
 	bot := CreateTestBot(t)
 	s := RPCServer{Engine: bot}
 
-	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
+	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
 	if err != nil {
 		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
 
-	updateResponse, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange})
+	updateResponse, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Futures.String()})
 	if err != nil {
 		t.Fatalf("TestGetAccountInfo: Failed to update account info: %s", err)
 	}

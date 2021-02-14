@@ -9,7 +9,7 @@ import (
 const (
 	// ErrParameterConvertFailed error to return when type conversion fails
 	ErrParameterConvertFailed = "%v failed conversion"
-	// ErrEmptyParameter is a predefined error string for empty params
+	// ErrEmptyParameter error to return when empty parameter is received
 	ErrEmptyParameter = "received empty parameter for %v"
 )
 

@@ -7,6 +7,47 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// MarginFundingData stores borrowing/lending data for margin trading
+type MarginFundingData struct {
+	Coin     string  `json:"coin"`
+	Estimate float64 `json:"estimate"`
+	Previous float64 `json:"previous"`
+}
+
+// MarginMarketInfo stores margin market info
+type MarginMarketInfo struct {
+	Coin          string  `json:"coin"`
+	Borrowed      float64 `json:"borrowed"`
+	Free          float64 `json:"free"`
+	EstimatedRate float64 `json:"estimatedRate"`
+	PreviousRate  float64 `json:"previousRate"`
+}
+
+// MarginTransactionHistoryData stores margin borrowing/lending history
+type MarginTransactionHistoryData struct {
+	Coin string    `json:"coin"`
+	Cost float64   `json:"cost"`
+	Rate float64   `json:"rate"`
+	Size float64   `json:"size"`
+	Time time.Time `json:"time"`
+}
+
+// LendingOffersData stores data for lending offers
+type LendingOffersData struct {
+	Coin string  `json:"coin"`
+	Rate float64 `json:"rate"`
+	Size float64 `json:"size"`
+}
+
+// LendingInfoData stores margin lending info
+type LendingInfoData struct {
+	Coin     string  `json:"coin"`
+	Lendable float64 `json:"lendable"`
+	Locked   float64 `json:"locked"`
+	MinRate  float64 `json:"minRate"`
+	Offered  float64 `json:"offered"`
+}
+
 // MarketData stores market data
 type MarketData struct {
 	Name           string  `json:"name"`

@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = b.ValidateCredentials()
+	err = b.ValidateCredentials(asset.Spot)
 	if err != nil {
 		fmt.Println("API credentials are invalid:", err)
 		b.API.AuthenticatedSupport = false
@@ -456,7 +456,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.FetchAccountInfo()
+	_, err := b.FetchAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -469,7 +469,8 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	_, err := b.GetOrderHistory(&order.GetOrdersRequest{
-		Side: order.Buy,
+		Side:      order.Buy,
+		AssetType: asset.Spot,
 	})
 	if err != nil {
 		t.Error(err)
@@ -500,7 +501,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 
-	_, err := b.GetActiveOrders(&order.GetOrdersRequest{})
+	_, err := b.GetActiveOrders(&order.GetOrdersRequest{AssetType: asset.Spot})
 	if err != nil {
 		t.Fatal(err)
 	}

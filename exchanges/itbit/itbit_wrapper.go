@@ -94,9 +94,13 @@ func (i *ItBit) SetDefaults() {
 
 	i.Requester = request.New(i.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	i.API.Endpoints.URLDefault = itbitAPIURL
-	i.API.Endpoints.URL = i.API.Endpoints.URLDefault
+	i.API.Endpoints = i.NewEndpoints()
+	err = i.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot: itbitAPIURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 }
 
 // Setup sets the exchange parameters from exchange config
@@ -244,7 +248,7 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) UpdateAccountInfo() (account.Holdings, error) {
+func (i *ItBit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	info.Exchange = i.Name
 
@@ -293,10 +297,10 @@ func (i *ItBit) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(i.Name)
+func (i *ItBit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(i.Name, assetType)
 	if err != nil {
-		return i.UpdateAccountInfo()
+		return i.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -625,8 +629,8 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (i *ItBit) ValidateCredentials() error {
-	_, err := i.UpdateAccountInfo()
+func (i *ItBit) ValidateCredentials(assetType asset.Item) error {
+	_, err := i.UpdateAccountInfo(assetType)
 	return i.CheckTransientError(err)
 }
 
