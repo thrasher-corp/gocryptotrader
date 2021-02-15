@@ -477,8 +477,10 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 
 	err = b.obm.stageWsUpdate(wsdp, currencyPair, asset.Spot)
 	if err != nil {
-		var init bool
-		init, err = b.obm.checkIsInitialSync(currencyPair)
+		init, err2 := b.obm.checkIsInitialSync(currencyPair)
+		if err2 != nil {
+			return false, err2
+		}
 		return init, err
 	}
 
