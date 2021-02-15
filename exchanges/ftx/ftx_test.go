@@ -91,11 +91,17 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetTrades(spotPair, 0, 0, 200)
+	// test empty market
+	_, err := f.GetTrades("", 0, 0, 200)
+	if err == nil {
+		t.Error(err)
+	}
+	// no limit or time vals
+	_, err = f.GetTrades(spotPair, 0, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetTrades(spotPair, 0, 0, 5)
+	_, err = f.GetTrades(spotPair, 1559881511, 1559901511, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -107,7 +113,17 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetHistoricalData(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetHistoricalData(spotPair, "86400", "5", time.Time{}, time.Time{})
+	// test empty market
+	_, err := f.GetHistoricalData("", "86400", "5", time.Time{}, time.Time{})
+	if err == nil {
+		t.Error(err)
+	}
+	// test empty resolution
+	_, err = f.GetHistoricalData(spotPair, "", "5", time.Time{}, time.Time{})
+	if err == nil {
+		t.Error(err)
+	}
+	_, err = f.GetHistoricalData(spotPair, "86400", "5", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -147,7 +163,12 @@ func TestGetFutureStats(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetFundingRates(time.Now().Add(-time.Hour), time.Now(), "BTC-PERP")
+	// optional params
+	_, err := f.GetFundingRates(time.Time{}, time.Time{}, "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetFundingRates(time.Now().Add(-time.Hour), time.Now(), "BTC-PERP")
 	if err != nil {
 		t.Error(err)
 	}
@@ -243,9 +264,6 @@ func TestGetMarginLendingRates(t *testing.T) {
 
 func TestMarginDailyBorrowedAmounts(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip()
-	}
 	_, err := f.MarginDailyBorrowedAmounts()
 	if err != nil {
 		t.Error(err)
@@ -312,8 +330,7 @@ func TestSubmitLendingOffer(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
-	_, err := f.SubmitLendingOffer("btc", 0.1, 500)
-	if err != nil {
+	if err := f.SubmitLendingOffer("btc", 0.1, 500); err != nil {
 		t.Error(err)
 	}
 }
@@ -367,7 +384,11 @@ func TestGetOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetOpenOrders(spotPair)
+	_, err := f.GetOpenOrders("")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetOpenOrders(spotPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -378,7 +399,7 @@ func TestFetchOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.FetchOrderHistory(spotPair, time.Time{}, time.Time{}, "2")
+	_, err := f.FetchOrderHistory("", time.Time{}, time.Time{}, "2")
 	if err != nil {
 		t.Error(err)
 	}
@@ -397,7 +418,12 @@ func TestGetOpenTriggerOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetOpenTriggerOrders(spotPair, "")
+	// optional params
+	_, err := f.GetOpenTriggerOrders("", "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetOpenTriggerOrders(spotPair, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -419,7 +445,11 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetTriggerOrderHistory(spotPair, time.Time{}, time.Time{}, order.Buy.Lower(), "stop", "1")
+	_, err := f.GetTriggerOrderHistory("", time.Time{}, time.Time{}, "", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetTriggerOrderHistory(spotPair, time.Time{}, time.Time{}, order.Buy.Lower(), "stop", "1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -546,7 +576,12 @@ func TestGetFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetFills(spotPair, "", time.Time{}, time.Time{})
+	// optional params
+	_, err := f.GetFills("", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetFills(spotPair, "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -565,11 +600,16 @@ func TestGetFundingPayments(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetFundingPayments(time.Unix(1559881511, 0), time.Unix(1559901511, 0), "")
+	// optional params
+	_, err := f.GetFundingPayments(time.Time{}, time.Time{}, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFundingPayments(time.Unix(1559901511, 0), time.Unix(1559881511, 0), "")
+	_, err = f.GetFundingPayments(time.Unix(1559881511, 0), time.Unix(1559901511, 0), futuresPair)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetFundingPayments(time.Unix(1559901511, 0), time.Unix(1559881511, 0), futuresPair)
 	if err == nil {
 		t.Error(err)
 	}

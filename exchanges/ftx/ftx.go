@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -31,12 +32,12 @@ const (
 	getMarkets           = "/markets"
 	getMarket            = "/markets/"
 	getOrderbook         = "/markets/%s/orderbook?depth=%s"
-	getTrades            = "/markets/%s/trades?"
-	getHistoricalData    = "/markets/%s/candles?"
+	getTrades            = "/markets/%s/trades"
+	getHistoricalData    = "/markets/%s/candles"
 	getFutures           = "/futures"
 	getFuture            = "/futures/"
 	getFutureStats       = "/futures/%s/stats"
-	getFundingRates      = "/funding_rates?"
+	getFundingRates      = "/funding_rates"
 	getIndexWeights      = "/indexes/%s/weights"
 	getAllWalletBalances = "/wallet/all_balances"
 
@@ -50,11 +51,11 @@ const (
 	getDepositHistory        = "/wallet/deposits"
 	getWithdrawalHistory     = "/wallet/withdrawals"
 	withdrawRequest          = "/wallet/withdrawals"
-	getOpenOrders            = "/orders?"
-	getOrderHistory          = "/orders/history?"
-	getOpenTriggerOrders     = "/conditional_orders?"
+	getOpenOrders            = "/orders"
+	getOrderHistory          = "/orders/history"
+	getOpenTriggerOrders     = "/conditional_orders"
 	getTriggerOrderTriggers  = "/conditional_orders/%s/triggers"
-	getTriggerOrderHistory   = "/conditional_orders/history?"
+	getTriggerOrderHistory   = "/conditional_orders/history"
 	placeOrder               = "/orders"
 	placeTriggerOrder        = "/conditional_orders"
 	modifyOrder              = "/orders/%s/modify"
@@ -65,8 +66,8 @@ const (
 	deleteOrder              = "/orders/"
 	deleteOrderByClientID    = "/orders/by_client_id/"
 	cancelTriggerOrder       = "/conditional_orders/"
-	getFills                 = "/fills?"
-	getFundingPayments       = "/funding_payments?"
+	getFills                 = "/fills"
+	getFundingPayments       = "/funding_payments"
 	getLeveragedTokens       = "/lt/tokens"
 	getTokenInfo             = "/lt/"
 	getLTBalances            = "/lt/balances"
@@ -92,7 +93,7 @@ const (
 
 	// Margin Endpoints
 	marginBorrowRates    = "/spot_margin/borrow_rates"
-	maringLendingRates   = "/spot_margin/lending_rates"
+	marginLendingRates   = "/spot_margin/lending_rates"
 	dailyBorrowedAmounts = "/spot_margin/borrow_summary"
 	marginMarketInfo     = "/spot_margin/market_info?market=%s"
 	marginBorrowHistory  = "/spot_margin/borrow_history"
@@ -164,28 +165,38 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 
 // GetTrades gets trades based on the conditions specified
 func (f *FTX) GetTrades(marketName string, startTime, endTime, limit int64) ([]TradeData, error) {
-	strLimit := strconv.FormatInt(limit, 10)
+	if marketName == "" {
+		return nil, errors.New("a market pair must be specified")
+	}
+
 	params := url.Values{}
-	params.Set("limit", strLimit)
-	resp := struct {
-		Data []TradeData `json:"result"`
-	}{}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
 	if startTime > 0 && endTime > 0 {
 		if startTime >= (endTime) {
-			return resp.Data, errors.New("startTime cannot be after endTime")
+			return nil, errors.New("startTime cannot be after endTime")
 		}
 		params.Set("start_time", strconv.FormatInt(startTime, 10))
 		params.Set("end_time", strconv.FormatInt(endTime, 10))
 	}
-	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, fmt.Sprintf(getTrades, marketName)+params.Encode(),
-		&resp)
+	resp := struct {
+		Data []TradeData `json:"result"`
+	}{}
+	endpoint := common.EncodeURLValues(fmt.Sprintf(getTrades, marketName), params)
+	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, endpoint, &resp)
 }
 
 // GetHistoricalData gets historical OHLCV data for a given market pair
 func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTime, endTime time.Time) ([]OHLCVData, error) {
-	resp := struct {
-		Data []OHLCVData `json:"result"`
-	}{}
+	if marketName == "" {
+		return nil, errors.New("a market pair must be specified")
+	}
+
+	if timeInterval == "" {
+		return nil, errors.New("a time interval must be specified")
+	}
+
 	params := url.Values{}
 	params.Set("resolution", timeInterval)
 	if limit != "" {
@@ -193,12 +204,16 @@ func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTim
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp.Data, errors.New("startTime cannot be after endTime")
+			return nil, errors.New("startTime cannot be after endTime")
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, fmt.Sprintf(getHistoricalData, marketName)+params.Encode(), &resp)
+	resp := struct {
+		Data []OHLCVData `json:"result"`
+	}{}
+	endpoint := common.EncodeURLValues(fmt.Sprintf(getHistoricalData, marketName), params)
+	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, endpoint, &resp)
 }
 
 // GetFutures gets data on futures
@@ -241,7 +256,8 @@ func (f *FTX) GetFundingRates(startTime, endTime time.Time, future string) ([]Fu
 	if future != "" {
 		params.Set("future", future)
 	}
-	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, getFundingRates+params.Encode(), &resp)
+	endpoint := common.EncodeURLValues(getFundingRates, params)
+	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, endpoint, &resp)
 }
 
 // GetIndexWeights gets index weights
@@ -279,15 +295,15 @@ func (f *FTX) GetMarginLendingRates() ([]MarginFundingData, error) {
 	r := struct {
 		Data []MarginFundingData `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, maringLendingRates, nil, &r)
+	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendingRates, nil, &r)
 }
 
 // MarginDailyBorrowedAmounts gets daily borrowed amounts for margin
-func (f *FTX) MarginDailyBorrowedAmounts() ([]MarginMarketInfo, error) {
+func (f *FTX) MarginDailyBorrowedAmounts() ([]MarginDailyBorrowStats, error) {
 	r := struct {
-		Data []MarginMarketInfo `json:"result"`
+		Data []MarginDailyBorrowStats `json:"result"`
 	}{}
-	return r.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, dailyBorrowedAmounts, nil, &r)
+	return r.Data, f.SendHTTPRequest(exchange.RestSpot, dailyBorrowedAmounts, &r)
 }
 
 // GetMarginMarketInfo gets margin market data
@@ -331,13 +347,24 @@ func (f *FTX) GetLendingInfo() ([]LendingInfoData, error) {
 }
 
 // SubmitLendingOffer submits an offer for margin lending
-func (f *FTX) SubmitLendingOffer(coin string, size, rate float64) (interface{}, error) {
-	var resp interface{}
+func (f *FTX) SubmitLendingOffer(coin string, size, rate float64) error {
+	resp := struct {
+		Result  string `json:"result"`
+		Success bool   `json:"success"`
+	}{}
 	req := make(map[string]interface{})
 	req["coin"] = coin
 	req["size"] = size
 	req["rate"] = rate
-	return resp, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, marginLendingInfo, req, &resp)
+
+	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, marginLendingOffers, req, &resp); err != nil {
+		return err
+	}
+
+	if !resp.Success {
+		return errors.New(resp.Result)
+	}
+	return nil
 }
 
 // GetAccountInfo gets account info
@@ -441,7 +468,8 @@ func (f *FTX) GetOpenOrders(marketName string) ([]OrderData, error) {
 	resp := struct {
 		Data []OrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getOpenOrders+params.Encode(), nil, &resp)
+	endpoint := common.EncodeURLValues(getOpenOrders, params)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
 }
 
 // FetchOrderHistory gets order history
@@ -463,7 +491,8 @@ func (f *FTX) FetchOrderHistory(marketName string, startTime, endTime time.Time,
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getOrderHistory+params.Encode(), nil, &resp)
+	endpoint := common.EncodeURLValues(getOrderHistory, params)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
 }
 
 // GetOpenTriggerOrders gets trigger orders that are currently open
@@ -478,7 +507,8 @@ func (f *FTX) GetOpenTriggerOrders(marketName, orderType string) ([]TriggerOrder
 	resp := struct {
 		Data []TriggerOrderData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getOpenTriggerOrders+params.Encode(), nil, &resp)
+	endpoint := common.EncodeURLValues(getOpenTriggerOrders, params)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
 }
 
 // GetTriggerOrderTriggers gets trigger orders that are currently open
@@ -491,16 +521,13 @@ func (f *FTX) GetTriggerOrderTriggers(orderID string) ([]TriggerData, error) {
 
 // GetTriggerOrderHistory gets trigger orders that are currently open
 func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.Time, side, orderType, limit string) ([]TriggerOrderData, error) {
-	resp := struct {
-		Data []TriggerOrderData `json:"result"`
-	}{}
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp.Data, errors.New("startTime cannot be after endTime")
+			return nil, errors.New("startTime cannot be after endTime")
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
@@ -514,7 +541,11 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
+	resp := struct {
+		Data []TriggerOrderData `json:"result"`
+	}{}
+	endpoint := common.EncodeURLValues(getTriggerOrderHistory, params)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
 }
 
 // Order places an order
@@ -705,7 +736,8 @@ func (f *FTX) GetFills(market, limit string, startTime, endTime time.Time) ([]Fi
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getFills+params.Encode(), nil, &resp)
+	endpoint := common.EncodeURLValues(getFills, params)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
 }
 
 // GetFundingPayments gets funding payments
@@ -724,7 +756,8 @@ func (f *FTX) GetFundingPayments(startTime, endTime time.Time, future string) ([
 	if future != "" {
 		params.Set("future", future)
 	}
-	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getFundingPayments+params.Encode(), nil, &resp)
+	endpoint := common.EncodeURLValues(getFundingPayments, params)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, endpoint, nil, &resp)
 }
 
 // ListLeveragedTokens lists leveraged tokens
