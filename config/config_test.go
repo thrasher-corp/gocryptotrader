@@ -1,9 +1,6 @@
 package config
 
 import (
-	"crypto/sha256"
-	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -2215,32 +2212,5 @@ func TestMigrateConfig(t *testing.T) {
 				t.Errorf("migrateConfig: %v should exist", got)
 			}
 		})
-	}
-}
-
-func TestEnsureTestConfigHasNotBeenModified(t *testing.T) {
-	configFileHash := "d5dc7c7d8a0074451aab33154dd74beceabe4f5e0e67139ea78423ce3173d09f"
-	p := filepath.Join("..", "testdata", "configtest.json")
-
-	f, err := os.Open(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		err = f.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		t.Fatal(err)
-	}
-	currentConfigHash := fmt.Sprintf("%x", h.Sum(nil))
-	if currentConfigHash != configFileHash {
-		t.Errorf("please check that the configtest.json file has not been updated. If a necessary change has been made, please update the checksum %v %v",
-			currentConfigHash,
-			configFileHash)
 	}
 }
