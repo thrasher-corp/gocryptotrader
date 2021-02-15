@@ -66,7 +66,7 @@ type ResultTransactions struct {
 	Direction gctorder.Side `json:"direction"`
 	Price     float64       `json:"price"`
 	Amount    float64       `json:"amount"`
-	Why       string        `json:"why,omitempty"`
+	Reason    string        `json:"reason,omitempty"`
 }
 
 // ResultEvent stores the time

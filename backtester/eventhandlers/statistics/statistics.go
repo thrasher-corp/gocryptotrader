@@ -253,13 +253,13 @@ func (s *Statistic) PrintAllEvents() {
 							direction == common.DoNothing ||
 							direction == common.MissingData ||
 							direction == "" {
-							log.Infof(log.BackTester, "%v | Price: $%v - Direction: %v - Why: %s",
+							log.Infof(log.BackTester, "%v | Price: $%v - Direction: %v - Reason: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								c.Events[i].FillEvent.GetClosePrice(),
 								c.Events[i].FillEvent.GetDirection(),
 								c.Events[i].FillEvent.GetReason())
 						} else {
-							log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Direction %v - Why: %s",
+							log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Direction %v - Reason: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								c.Events[i].FillEvent.GetPurchasePrice(),
 								c.Events[i].FillEvent.GetAmount(),
@@ -269,12 +269,12 @@ func (s *Statistic) PrintAllEvents() {
 							)
 						}
 					case c.Events[i].SignalEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%v - Why: %v",
+						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
 							c.Events[i].SignalEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].SignalEvent.GetPrice(),
 							c.Events[i].SignalEvent.GetReason())
 					case c.Events[i].DataEvent != nil:
-						log.Infof(log.BackTester, "%v | Price: $%v - Why: %v",
+						log.Infof(log.BackTester, "%v | Price: $%v - Reason: %v",
 							c.Events[i].DataEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 							c.Events[i].DataEvent.ClosePrice(),
 							c.Events[i].DataEvent.GetReason())
