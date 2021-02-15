@@ -330,7 +330,7 @@ func TestSubmitLendingOffer(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
-	if err := f.SubmitLendingOffer("btc", 0.1, 500); err != nil {
+	if err := f.SubmitLendingOffer("bTc", 0.1, 500); err != nil {
 		t.Error(err)
 	}
 }
@@ -340,7 +340,7 @@ func TestFetchDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.FetchDepositAddress("TUSD")
+	_, err := f.FetchDepositAddress("tUsD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -373,7 +373,7 @@ func TestWithdraw(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.Withdraw("BTC", core.BitcoinDonationAddress, "", "", "957378", 0.0009)
+	_, err := f.Withdraw("BtC", core.BitcoinDonationAddress, "", "", "957378", 0.0009)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1274,7 +1274,7 @@ func TestRequestForQuotes(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.RequestForQuotes("BTC", "USD", 0.5)
+	_, err := f.RequestForQuotes("BtC", "UsD", 0.5)
 	if err != nil {
 		t.Error(err)
 	}

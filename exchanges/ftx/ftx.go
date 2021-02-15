@@ -353,7 +353,7 @@ func (f *FTX) SubmitLendingOffer(coin string, size, rate float64) error {
 		Success bool   `json:"success"`
 	}{}
 	req := make(map[string]interface{})
-	req["coin"] = coin
+	req["coin"] = strings.ToUpper(coin)
 	req["size"] = size
 	req["rate"] = rate
 
@@ -419,7 +419,7 @@ func (f *FTX) FetchDepositAddress(coin string) (DepositData, error) {
 	resp := struct {
 		Data DepositData `json:"result"`
 	}{}
-	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getDepositAddress+coin, nil, &resp)
+	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getDepositAddress+strings.ToUpper(coin), nil, &resp)
 }
 
 // FetchDepositHistory gets deposit history
@@ -441,7 +441,7 @@ func (f *FTX) FetchWithdrawalHistory() ([]TransactionData, error) {
 // Withdraw sends a withdrawal request
 func (f *FTX) Withdraw(coin, address, tag, password, code string, size float64) (TransactionData, error) {
 	req := make(map[string]interface{})
-	req["coin"] = coin
+	req["coin"] = strings.ToUpper(coin)
 	req["address"] = address
 	req["size"] = size
 	if code != "" {
@@ -1080,8 +1080,8 @@ func (f *FTX) RequestForQuotes(base, quote string, amount float64) (RequestQuote
 		Data RequestQuoteData `json:"result"`
 	}{}
 	req := make(map[string]interface{})
-	req["fromCoin"] = base
-	req["toCoin"] = quote
+	req["fromCoin"] = strings.ToUpper(base)
+	req["toCoin"] = strings.ToUpper(quote)
 	req["size"] = amount
 	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, requestOTCQuote, req, &resp)
 }
