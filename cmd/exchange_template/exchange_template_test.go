@@ -48,27 +48,19 @@ func TestNewExchange(t *testing.T) {
 	testExchangeName := "testexch"
 	testExchangeDir := filepath.Join(targetPath, testExchangeName)
 
-	if err := makeExchange(&exchange{
-		Name: testExchangeName,
-		REST: true,
-		WS:   true,
-	}); err != nil {
+	_, err := makeExchange(
+		testExchangeDir,
+		config.GetConfig(),
+		&exchange{
+			Name: testExchangeName,
+			REST: true,
+			WS:   true,
+		})
+	if err != nil {
 		t.Error(err)
 	}
 
 	if err := os.RemoveAll(testExchangeDir); err != nil {
 		t.Errorf("unable to remove dir: %s, manual removal required", err)
-	}
-
-	cfg := config.GetConfig()
-	if err := cfg.LoadConfig(exchangeConfigPath, true); err != nil {
-		t.Fatal(err)
-	}
-	if success := cfg.RemoveExchange(testExchangeName); !success {
-		t.Fatalf("unable to remove exchange config for %s, manual removal required\n",
-			testExchangeName)
-	}
-	if err := cfg.SaveConfigToFile(exchangeConfigPath); err != nil {
-		t.Fatal(err)
 	}
 }

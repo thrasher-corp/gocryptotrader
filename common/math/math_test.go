@@ -107,12 +107,12 @@ func TestRoundFloat(t *testing.T) {
 func TestSortinoRatio(t *testing.T) {
 	rfr := 0.07
 	figures := []float64{0.10, 0.04, 0.15, -0.05, 0.20, -0.02, 0.08, -0.06, 0.13, 0.23}
-	r := CalculateSortinoRatio(figures, rfr, false)
+	r := CalculateSortinoRatio(figures, rfr, ArithmeticAverage(figures))
 	if r != 0.1575242704526439 {
 		t.Errorf("expected 0.16, received %v", r)
 	}
 
-	r = CalculateSortinoRatio(figures, rfr, true)
+	r = CalculateSortinoRatio(figures, rfr, FinancialGeometricAverage(figures))
 	if r != 0.08931388479947903 {
 		t.Errorf("expected 0.09, received %v", r)
 	}
@@ -121,11 +121,11 @@ func TestSortinoRatio(t *testing.T) {
 func TestInformationRatio(t *testing.T) {
 	figures := []float64{0.0665, 0.0283, 0.0911, 0.0008, -0.0203, -0.0978, 0.0164, -0.0537, 0.078, 0.0032, 0.0249, 0}
 	comparisonFigures := []float64{0.0216, 0.0048, 0.036, 0.0303, 0.0043, -0.0694, 0.0179, -0.0918, 0.0787, 0.0297, 0.003, 0}
-	avg := CalculateTheAverage(figures, false)
+	avg := ArithmeticAverage(figures)
 	if avg != 0.01145 {
 		t.Error(avg)
 	}
-	avgComparison := CalculateTheAverage(comparisonFigures, false)
+	avgComparison := ArithmeticAverage(comparisonFigures)
 	if avgComparison != 0.005425 {
 		t.Error(avgComparison)
 	}
@@ -134,7 +134,7 @@ func TestInformationRatio(t *testing.T) {
 	for i := range figures {
 		eachDiff = append(eachDiff, figures[i]-comparisonFigures[i])
 	}
-	stdDev := CalculatePopulationStandardDeviation(eachDiff)
+	stdDev := PopulationStandardDeviation(eachDiff)
 	if stdDev != 0.028992588851865803 {
 		t.Error(stdDev)
 	}
@@ -143,15 +143,14 @@ func TestInformationRatio(t *testing.T) {
 		t.Error(informationRatio)
 	}
 
-	information2 := CalculateInformationRatio(figures, comparisonFigures, false)
+	information2 := CalculateInformationRatio(figures, comparisonFigures, avg, avgComparison)
 	if informationRatio != information2 {
 		t.Error(information2)
 	}
 }
 
 func TestCalmarRatio(t *testing.T) {
-	avg := []float64{0.2}
-	ratio := CalculateCalmarRatio(avg, 50000, 15000, false)
+	ratio := CalculateCalmarRatio(50000, 15000, 0.2)
 	if ratio != 0.28571428571428575 {
 		t.Error(ratio)
 	}
@@ -186,12 +185,12 @@ func TestCAGR(t *testing.T) {
 }
 
 func TestCalculateSharpeRatio(t *testing.T) {
-	result := CalculateSharpeRatio(nil, 0, false)
+	result := CalculateSharpeRatio(nil, 0, 0)
 	if result != 0 {
 		t.Error("expected 0")
 	}
 
-	result = CalculateSharpeRatio([]float64{0.026}, 0.017, false)
+	result = CalculateSharpeRatio([]float64{0.026}, 0.017, 0.026)
 	if result != 0 {
 		t.Error("expected 0")
 	}
@@ -210,7 +209,7 @@ func TestCalculateSharpeRatio(t *testing.T) {
 		0.1572,
 		0.1052,
 	}
-	result = CalculateSharpeRatio(returns, 0.065, false)
+	result = CalculateSharpeRatio(returns, 0.065, ArithmeticAverage(returns))
 	result = math.Round(result*100) / 100
 	if result != 1.5 {
 		t.Errorf("expected 1.5, received %v", result)
@@ -219,7 +218,7 @@ func TestCalculateSharpeRatio(t *testing.T) {
 
 func TestStandardDeviation2(t *testing.T) {
 	r := []float64{9, 2, 5, 4, 12, 7}
-	mean := CalculateTheAverage(r, false)
+	mean := ArithmeticAverage(r)
 	superMean := []float64{}
 	for i := range r {
 		result := math.Pow(r[i]-mean, 2)
@@ -227,7 +226,7 @@ func TestStandardDeviation2(t *testing.T) {
 	}
 	superMeany := (superMean[0] + superMean[1] + superMean[2] + superMean[3] + superMean[4] + superMean[5]) / 5
 	manualCalculation := math.Sqrt(superMeany)
-	codeCalcu := CalculateSampleStandardDeviation(r)
+	codeCalcu := SampleStandardDeviation(r)
 	if manualCalculation != codeCalcu && codeCalcu != 3.619 {
 		t.Error("expected 3.619")
 	}
@@ -235,14 +234,40 @@ func TestStandardDeviation2(t *testing.T) {
 
 func TestGeometricMean(t *testing.T) {
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
-	mean := CalculateTheAverage(values, true)
+	mean := GeometricAverage(values)
+	if mean != 3.764350599503129 {
+		t.Errorf("expected %v, received %v", 3.95, mean)
+	}
+
+	values = []float64{15, 12, 13, 19, 10}
+	mean = GeometricAverage(values)
+	if mean != 13.477020583645698 {
+		t.Errorf("expected %v, received %v", 13.50, mean)
+	}
+
+	values = []float64{-1, 12, 13, 19, 10}
+	mean = GeometricAverage(values)
+	if mean != 0 {
+		t.Errorf("expected %v, received %v", 0, mean)
+	}
+}
+
+func TestFinancialGeometricMean(t *testing.T) {
+	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
+	mean := FinancialGeometricAverage(values)
 	if mean != 3.9541639996482028 {
 		t.Errorf("expected %v, received %v", 3.95, mean)
 	}
 
 	values = []float64{15, 12, 13, 19, 10}
-	mean = CalculateTheAverage(values, true)
+	mean = FinancialGeometricAverage(values)
 	if mean != 13.49849123325646 {
 		t.Errorf("expected %v, received %v", 13.50, mean)
+	}
+
+	values = []float64{-1, 12, 13, 19, 10}
+	mean = FinancialGeometricAverage(values)
+	if mean != 0 {
+		t.Errorf("expected %v, received %v", 0, mean)
 	}
 }

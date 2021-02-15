@@ -47,7 +47,7 @@ func existingLeverageRatio(s compliance.Snapshot) float64 {
 	}
 	var ordersWithLeverage float64
 	for o := range s.Orders {
-		if s.Orders[o].Leverage != "" {
+		if s.Orders[o].Leverage != 0 {
 			ordersWithLeverage++
 		}
 	}

@@ -303,13 +303,6 @@ func TestLoadLiveData(t *testing.T) {
 			AuthenticatedSupport:          false,
 			AuthenticatedWebsocketSupport: false,
 			PEMKeySupport:                 false,
-			Endpoints: struct {
-				URL                 string
-				URLDefault          string
-				URLSecondary        string
-				URLSecondaryDefault string
-				WebsocketURL        string
-			}{},
 			Credentials: struct {
 				Key      string
 				Secret   string

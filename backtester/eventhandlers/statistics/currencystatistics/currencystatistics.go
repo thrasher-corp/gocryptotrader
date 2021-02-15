@@ -53,19 +53,23 @@ func (c *CurrencyStatistic) CalculateResults() {
 	intervalsPerYear := interval.IntervalsPerYear()
 	durationPerYear := intervalsPerYear * float64(interval.Duration())
 	btDuration := float64(last.DataEvent.GetTime().Sub(first.DataEvent.GetTime()))
-
+	arithmeticReturnsPerCandle := math.ArithmeticAverage(returnPerCandle)
+	geometricReturnsPerCandle := math.FinancialGeometricAverage(returnPerCandle)
+	marketMovementPercent := c.MarketMovement / 100
 	relativelyRiskFree := first.Holdings.RiskFreeRate / intervalsPerYear
+
 	c.ArithmeticRatios = Ratios{
-		SharpeRatio:      math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree, false),
-		SortinoRatio:     math.CalculateSortinoRatio(returnPerCandle, relativelyRiskFree, false),
-		InformationRatio: math.CalculateInformationRatio(returnPerCandle, []float64{c.MarketMovement / 100}, false),
-		CalmarRatio:      math.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, false),
+		SharpeRatio:      math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree, arithmeticReturnsPerCandle),
+		SortinoRatio:     math.CalculateSortinoRatio(returnPerCandle, relativelyRiskFree, arithmeticReturnsPerCandle),
+		InformationRatio: math.CalculateInformationRatio(returnPerCandle, []float64{marketMovementPercent}, arithmeticReturnsPerCandle, marketMovementPercent),
+		CalmarRatio:      math.CalculateCalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, arithmeticReturnsPerCandle),
 	}
+
 	c.GeometricRatios = Ratios{
-		SharpeRatio:      math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree, true),
-		SortinoRatio:     math.CalculateSortinoRatio(returnPerCandle, relativelyRiskFree, true),
-		InformationRatio: math.CalculateInformationRatio(returnPerCandle, []float64{c.MarketMovement / 100}, true),
-		CalmarRatio:      math.CalculateCalmarRatio(returnPerCandle, c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, true),
+		SharpeRatio:      math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree, geometricReturnsPerCandle),
+		SortinoRatio:     math.CalculateSortinoRatio(returnPerCandle, relativelyRiskFree, geometricReturnsPerCandle),
+		InformationRatio: math.CalculateInformationRatio(returnPerCandle, []float64{marketMovementPercent}, geometricReturnsPerCandle, marketMovementPercent),
+		CalmarRatio:      math.CalculateCalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, geometricReturnsPerCandle),
 	}
 
 	c.CompoundAnnualGrowthRate = math.CalculateCompoundAnnualGrowthRate(

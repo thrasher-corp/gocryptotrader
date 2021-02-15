@@ -90,8 +90,17 @@ func main() {
 		WS:   websocketSupport,
 		FIX:  fixSupport,
 	}
+	exchangeDirectory := filepath.Join(targetPath, exch.Name)
+	configTestFile := config.GetConfig()
 
-	if err = makeExchange(&exch); err != nil {
+	var newConfig *config.ExchangeConfig
+	newConfig, err = makeExchange(exchangeDirectory, configTestFile, &exch)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = saveConfig(exchangeDirectory, configTestFile, newConfig)
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -113,34 +122,32 @@ func checkExchangeName(exchName string) error {
 	return nil
 }
 
-func makeExchange(exch *exchange) error {
-	configTestFile := config.GetConfig()
+func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch *exchange) (*config.ExchangeConfig, error) {
 	err := configTestFile.LoadConfig(exchangeConfigPath, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// NOTE need to nullify encrypt configuration
 
 	_, err = configTestFile.GetExchangeConfig(exch.Name)
 	if err == nil {
-		return errors.New("exchange already exists")
+		return nil, errors.New("exchange already exists")
 	}
 
-	exchangeDirectory := filepath.Join(targetPath, exch.Name)
 	_, err = os.Stat(exchangeDirectory)
 	if !os.IsNotExist(err) {
-		return errors.New("directory already exists")
+		return nil, errors.New("directory already exists")
 	}
 	err = os.MkdirAll(exchangeDirectory, 0770)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 
 	exch.CapitalName = strings.Title(exch.Name)
 	exch.Variable = exch.Name[0:2]
-	newExchConfig := config.ExchangeConfig{}
+	newExchConfig := &config.ExchangeConfig{}
 	newExchConfig.Name = exch.CapitalName
 	newExchConfig.Enabled = true
 	newExchConfig.API.Credentials.Key = "Key"
@@ -196,7 +203,7 @@ func makeExchange(exch *exchange) error {
 		var tmpl *template.Template
 		tmpl, err = template.New(outputFiles[x].Name).ParseFiles(outputFiles[x].TemplateFile)
 		if err != nil {
-			return fmt.Errorf("%s template error: %s", outputFiles[x].Name, err)
+			return nil, fmt.Errorf("%s template error: %s", outputFiles[x].Name, err)
 		}
 
 		filename := outputFiles[x].Filename
@@ -209,16 +216,20 @@ func makeExchange(exch *exchange) error {
 		var f *os.File
 		f, err = os.OpenFile(outputFile, os.O_WRONLY, 0770)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if err = tmpl.Execute(f, exch); err != nil {
 			f.Close()
-			return err
+			return nil, err
 		}
 		f.Close()
 	}
 
+	return newExchConfig, nil
+}
+
+func saveConfig(exchangeDirectory string, configTestFile *config.Config, newExchConfig *config.ExchangeConfig) error {
 	cmd := exec.Command("go", "fmt")
 	cmd.Dir = exchangeDirectory
 	out, err := cmd.Output()
@@ -226,7 +237,7 @@ func makeExchange(exch *exchange) error {
 		return fmt.Errorf("unable to go fmt. output: %s err: %s", out, err)
 	}
 
-	configTestFile.Exchanges = append(configTestFile.Exchanges, newExchConfig)
+	configTestFile.Exchanges = append(configTestFile.Exchanges, *newExchConfig)
 	err = configTestFile.SaveConfigToFile(exchangeConfigPath)
 	if err != nil {
 		return err
@@ -238,7 +249,6 @@ func makeExchange(exch *exchange) error {
 	if err != nil {
 		return fmt.Errorf("unable to go test. output: %s err: %s", out, err)
 	}
-
 	return nil
 }
 

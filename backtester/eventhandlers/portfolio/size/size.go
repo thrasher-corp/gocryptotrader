@@ -65,7 +65,6 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 
 // calculateBuySize respects config rules and calculates the amount of money
 // that is allowed to be spent/sold for an event.
-//
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
 func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
@@ -91,17 +90,18 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSe
 
 // calculateSellSize respects config rules and calculates the amount of money
 // that is allowed to be spent/sold for an event.
-//
+// baseAmount is the base currency quantity that the portfolio currently has that can be sold
+// eg BTC-USD baseAmount will be BTC to be sold
 // As fee calculation occurs during the actual ordering process
 // this can only attempt to factor the potential fee to remain under the max rules
-func (s *Size) calculateSellSize(price, availableFunds, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
-	if availableFunds <= 0 {
+func (s *Size) calculateSellSize(price, baseAmount, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
+	if baseAmount <= 0 {
 		return 0, errors.New("no fund available")
 	}
 	if price == 0 {
 		return 0, nil
 	}
-	amount := availableFunds * (1 - feeRate)
+	amount := baseAmount * (1 - feeRate)
 	if minMaxSettings.MaximumSize > 0 && amount > minMaxSettings.MaximumSize {
 		amount = minMaxSettings.MaximumSize * (1 - feeRate)
 	}
