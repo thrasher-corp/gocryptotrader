@@ -128,7 +128,6 @@ func TestGetTrades(t *testing.T) {
 	if len(trades) != 0 {
 		t.Error("invalid time range should return 0 items")
 	}
-
 }
 
 func TestGetHistoricalData(t *testing.T) {
