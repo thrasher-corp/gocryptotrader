@@ -14,7 +14,7 @@ type MarginFundingData struct {
 	Previous float64 `json:"previous"`
 }
 
-// MarginDailyBorrowStats stores the daily borrwed amounts
+// MarginDailyBorrowStats stores the daily borrowed amounts
 type MarginDailyBorrowStats struct {
 	Coin string  `json:"coin"`
 	Size float64 `json:"size"`

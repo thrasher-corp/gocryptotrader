@@ -113,6 +113,10 @@ const (
 	rateLimit  = 30
 )
 
+var (
+	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
+)
+
 // GetMarkets gets market data
 func (f *FTX) GetMarkets() ([]MarketData, error) {
 	resp := struct {
@@ -175,7 +179,7 @@ func (f *FTX) GetTrades(marketName string, startTime, endTime, limit int64) ([]T
 	}
 	if startTime > 0 && endTime > 0 {
 		if startTime >= (endTime) {
-			return nil, errors.New("startTime cannot be after endTime")
+			return nil, errStartTimeCannotBeAfterEndTime
 		}
 		params.Set("start_time", strconv.FormatInt(startTime, 10))
 		params.Set("end_time", strconv.FormatInt(endTime, 10))
@@ -204,7 +208,7 @@ func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTim
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return nil, errors.New("startTime cannot be after endTime")
+			return nil, errStartTimeCannotBeAfterEndTime
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
@@ -248,7 +252,7 @@ func (f *FTX) GetFundingRates(startTime, endTime time.Time, future string) ([]Fu
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp.Data, errors.New("startTime cannot be after endTime")
+			return resp.Data, errStartTimeCannotBeAfterEndTime
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
@@ -483,7 +487,7 @@ func (f *FTX) FetchOrderHistory(marketName string, startTime, endTime time.Time,
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp.Data, errors.New("startTime cannot be after endTime")
+			return resp.Data, errStartTimeCannotBeAfterEndTime
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
@@ -527,7 +531,7 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return nil, errors.New("startTime cannot be after endTime")
+			return nil, errStartTimeCannotBeAfterEndTime
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
@@ -731,7 +735,7 @@ func (f *FTX) GetFills(market, limit string, startTime, endTime time.Time) ([]Fi
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp.Data, errors.New("startTime cannot be after endTime")
+			return resp.Data, errStartTimeCannotBeAfterEndTime
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
@@ -748,7 +752,7 @@ func (f *FTX) GetFundingPayments(startTime, endTime time.Time, future string) ([
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp.Data, errors.New("startTime cannot be after endTime")
+			return resp.Data, errStartTimeCannotBeAfterEndTime
 		}
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
@@ -839,7 +843,7 @@ func (f *FTX) GetYourQuoteRequests() ([]PersonalQuotesData, error) {
 // CreateQuoteRequest sends a request to create a quote
 func (f *FTX) CreateQuoteRequest(underlying, optionType, side string, expiry int64, requestExpiry string, strike, size, limitPrice, counterParyID float64, hideLimitPrice bool) (CreateQuoteRequestData, error) {
 	req := make(map[string]interface{})
-	req["underlying"] = underlying
+	req["underlying"] = strings.ToUpper(underlying)
 	req["type"] = optionType
 	req["side"] = side
 	req["strike"] = strike
@@ -927,21 +931,22 @@ func (f *FTX) GetOptionsPositions() ([]OptionsPositionsData, error) {
 
 // GetPublicOptionsTrades gets options' trades from public
 func (f *FTX) GetPublicOptionsTrades(startTime, endTime time.Time, limit string) ([]OptionsTradesData, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return nil, errStartTimeCannotBeAfterEndTime
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	if limit != "" {
+		params.Set("limit", limit)
+	}
 	resp := struct {
 		Data []OptionsTradesData `json:"result"`
 	}{}
-	req := make(map[string]interface{})
-	if !startTime.IsZero() && !endTime.IsZero() {
-		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
-		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
-		if startTime.After(endTime) {
-			return resp.Data, errors.New("startTime cannot be after endTime")
-		}
-	}
-	if limit != "" {
-		req["limit"] = limit
-	}
-	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getPublicOptionsTrades, req, &resp)
+	endpoint := common.EncodeURLValues(getPublicOptionsTrades, params)
+	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, endpoint, &resp)
 }
 
 // GetOptionsFills gets fills data for options
@@ -954,7 +959,7 @@ func (f *FTX) GetOptionsFills(startTime, endTime time.Time, limit string) ([]Opt
 		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
 		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
 		if startTime.After(endTime) {
-			return resp.Data, errors.New("startTime cannot be after endTime")
+			return resp.Data, errStartTimeCannotBeAfterEndTime
 		}
 	}
 	if limit != "" {
