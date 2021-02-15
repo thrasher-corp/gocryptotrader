@@ -101,11 +101,11 @@ func TestGetTrades(t *testing.T) {
 	if err == nil {
 		t.Error("empty market should return an error")
 	}
-	// no limit or time vals
 	_, err = f.GetTrades(spotPair, validFTTBTCEndTime, validFTTBTCStartTime, 5)
 	if err != errStartTimeCannotBeAfterEndTime {
 		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
+	// test optional params
 	var trades []TradeData
 	trades, err = f.GetTrades(spotPair, 0, 0, 0)
 	if err != nil {
