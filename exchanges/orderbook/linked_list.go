@@ -14,18 +14,14 @@ type linkedList struct {
 	head   *Node
 }
 
-var errNoStack = errors.New("cannot load orderbook depth, stack is nil")
+// var errNoStack = errors.New("cannot load orderbook depth, stack is nil")
 
 // Load iterates across new items and refreshes linked list
-func (ll *linkedList) Load(items Items, stack *Stack) error {
-	if stack == nil {
-		return errNoStack
-	}
-
-	// This sets up a pointer to a field variable to a node. This is used so
-	// when a node is popped into existance we can reference the current nodes
-	// 'next' field and set on next iteration without utilising
-	// `prev.next = *Node` it should automatically be referenced.
+func (ll *linkedList) Load(items Items, stack *Stack) {
+	// This sets up a pointer to a struct field variable to a node. This is used
+	// so when a node is popped from the stack we can reference that current
+	// nodes' struct 'next' field and set on next iteration without utilising
+	// assignment `prev.next = *Node`.
 	var tip = &ll.head
 	var prev *Node
 	for i := 0; i < len(items); i++ {
@@ -44,9 +40,12 @@ func (ll *linkedList) Load(items Items, stack *Stack) error {
 		tip = &(*tip).next
 	}
 
+	// Push has references to dangling nodes that need to be removed and pushed
+	// back onto stack for re-use
 	var push *Node
 	// Cleave unused reference chain from main chain
 	if prev == nil {
+		// The entire chain will need to be pushed back on to stack
 		push = *tip
 		ll.head = nil
 	} else {
@@ -61,7 +60,6 @@ func (ll *linkedList) Load(items Items, stack *Stack) error {
 		ll.length--
 		push = pending
 	}
-	return nil
 }
 
 // byDecision defines functionality for item data
@@ -284,6 +282,9 @@ updates:
 	return nil
 }
 
+var ASC = func(priceTip, priceUpdate float64) bool { return priceTip > priceUpdate }
+var DSC = func(priceTip, priceUpdate float64) bool { return priceTip < priceUpdate }
+
 // updateInsertByID updates or inserts if not found
 // 1) Node ID found amount amended (best case)
 // 2) Node ID found amount and price amended and node moved to correct position
@@ -291,7 +292,7 @@ updates:
 // 3) Update price exceeds traversal node price before ID found, save node
 // address for either; node ID matches then re-address node or end of depth pop
 // a node from the stack (worst case)
-func (ll *linkedList) updateInsertByID(updts Items, fn func(float64, float64) bool, stack *Stack) {
+func (ll *linkedList) updateInsertByIDAsk(updts Items, stack *Stack) {
 updates:
 	for x := range updts {
 		// bookmark allows for saving of a position of a node in the event that
@@ -308,13 +309,12 @@ updates:
 					bookmark = tip
 					continue // continue through node depth
 				}
-				// correct update
-				// fmt.Printf("correct update bra: %+v\n", updts[x])
+				// no price change, ammend amount and conintue update
 				tip.value.Amount = updts[x].Amount
 				continue updates // continue to next update
 			}
 
-			if fn(tip.value.Price, updts[x].Price) {
+			if tip.value.Price > updts[x].Price {
 				if bookmark != nil { // shift bookmarked node to current tip
 					bookmark.value = updts[x]
 					move(&ll.head, bookmark, tip)
@@ -351,6 +351,7 @@ updates:
 				}
 			}
 		}
+		// fmt.Println("MEOW")
 		n := stack.Pop()
 		n.value = updts[x]
 		if bookmark.prev == nil {
@@ -361,6 +362,90 @@ updates:
 		n.prev = bookmark.prev
 		bookmark.prev = n
 		n.next = bookmark
+		ll.length++
+	}
+}
+
+// updateInsertByID updates or inserts if not found
+// 1) Node ID found amount amended (best case)
+// 2) Node ID found amount and price amended and node moved to correct position
+// (medium case)
+// 3) Update price exceeds traversal node price before ID found, save node
+// address for either; node ID matches then re-address node or end of depth pop
+// a node from the stack (worst case)
+func (ll *linkedList) updateInsertByIDBid(updts Items, stack *Stack) {
+updates:
+	for x := range updts {
+		// bookmark allows for saving of a position of a node in the event that
+		// an update price exceeds the current node price. We can then match an
+		// ID and re-assign that ID's node to that positioning without popping
+		// from the stack and then pushing to the stack later for cleanup.
+		// If the ID is not found we can pop from stack then insert into that
+		// price level
+		var bookmark *Node
+		for tip := ll.head; tip != nil; tip = tip.next {
+			if tip.value.ID == updts[x].ID {
+				if tip.value.Price != updts[x].Price { // Price level change
+					// bookmark tip to move this node to correct price level
+					bookmark = tip
+					continue // continue through node depth
+				}
+				// no price change, ammend amount and conintue update
+				tip.value.Amount = updts[x].Amount
+				continue updates // continue to next update
+			}
+
+			if tip.value.Price < updts[x].Price {
+				if bookmark != nil { // shift bookmarked node to current tip
+					bookmark.value = updts[x]
+					move(&ll.head, bookmark, tip)
+					continue updates
+				}
+
+				// search for ID
+				for n := tip.next; n != nil; n = n.next {
+					if n.value.ID == updts[x].ID {
+						n.value = updts[x]
+						// inserting before the tip
+						move(&ll.head, n, tip)
+						continue updates
+					}
+				}
+				// ID not matched in depth so add correct level for insert
+				bookmark = tip
+				break
+			}
+
+			if tip.next == nil {
+				if bookmark == nil {
+					// fmt.Println("first to go")
+					bookmark = tip
+				} else {
+					// fmt.Println("WOW", updts[x])
+					bookmark.value = updts[x]
+					bookmark.next.prev = bookmark.prev
+					bookmark.prev.next = bookmark.next
+					tip.next = bookmark
+					bookmark.prev = tip
+					bookmark.next = nil
+					continue updates
+				}
+			}
+		}
+		// fmt.Println("MEOW")
+		n := stack.Pop()
+		n.value = updts[x]
+		if bookmark.prev == nil {
+			ll.head = n
+		} else if bookmark.next == nil {
+			bookmark.next = n
+			n.prev = bookmark
+		} else {
+			bookmark.prev.next = n
+			n.prev = bookmark.prev
+			bookmark.prev = n
+			n.next = bookmark
+		}
 		ll.length++
 	}
 }

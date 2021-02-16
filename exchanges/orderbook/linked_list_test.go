@@ -5,150 +5,267 @@ import (
 	"testing"
 )
 
-var ASC = func(priceTip, priceUpdate float64) bool { return priceTip > priceUpdate }
-var DSC = func(priceTip, priceUpdate float64) bool { return priceTip < priceUpdate }
+var bid = Items{
+	Item{Price: 1336, Amount: 1},
+	Item{Price: 1335, Amount: 1},
+	Item{Price: 1334, Amount: 1},
+	Item{Price: 1333, Amount: 1},
+	Item{Price: 1332, Amount: 1},
+	Item{Price: 1331, Amount: 1},
+	Item{Price: 1330, Amount: 1},
+	Item{Price: 1329, Amount: 1},
+	Item{Price: 1328, Amount: 1},
+	Item{Price: 1327, Amount: 1},
+	Item{Price: 1326, Amount: 1},
+	Item{Price: 1325, Amount: 1},
+	Item{Price: 1324, Amount: 1},
+	Item{Price: 1323, Amount: 1},
+	Item{Price: 1322, Amount: 1},
+	Item{Price: 1321, Amount: 1},
+	Item{Price: 1320, Amount: 1},
+	Item{Price: 1319, Amount: 1},
+	Item{Price: 1318, Amount: 1},
+	Item{Price: 1317, Amount: 1},
+}
+
+var ask = Items{
+	Item{Price: 1337, Amount: 1},
+	Item{Price: 1338, Amount: 1},
+	Item{Price: 1339, Amount: 1},
+	Item{Price: 1340, Amount: 1},
+	Item{Price: 1341, Amount: 1},
+	Item{Price: 1342, Amount: 1},
+	Item{Price: 1343, Amount: 1},
+	Item{Price: 1344, Amount: 1},
+	Item{Price: 1345, Amount: 1},
+	Item{Price: 1346, Amount: 1},
+	Item{Price: 1347, Amount: 1},
+	Item{Price: 1348, Amount: 1},
+	Item{Price: 1349, Amount: 1},
+	Item{Price: 1350, Amount: 1},
+	Item{Price: 1351, Amount: 1},
+	Item{Price: 1352, Amount: 1},
+	Item{Price: 1353, Amount: 1},
+	Item{Price: 1354, Amount: 1},
+	Item{Price: 1355, Amount: 1},
+	Item{Price: 1356, Amount: 1},
+}
+
+func TestLoad(t *testing.T) {
+	list := linkedList{}
+	Check(list, 0, 0, 0, false, t)
+
+	stack := &Stack{}
+	list.Load(Items{
+		{Price: 1, Amount: 1},
+		{Price: 3, Amount: 1},
+		{Price: 5, Amount: 1},
+		{Price: 7, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 11, Amount: 1},
+	}, stack)
+
+	if stack.count != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
+
+	Check(list, 6, 36, 6, false, t)
+
+	list.Load(Items{
+		{Price: 1, Amount: 1},
+		{Price: 3, Amount: 1},
+		{Price: 5, Amount: 1},
+	}, stack)
+
+	if stack.count != 3 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.count)
+	}
+
+	Check(list, 3, 9, 3, false, t)
+
+	list.Load(Items{
+		{Price: 1, Amount: 1},
+		{Price: 3, Amount: 1},
+		{Price: 5, Amount: 1},
+		{Price: 7, Amount: 1},
+	}, stack)
+
+	if stack.count != 2 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.count)
+	}
+
+	Check(list, 4, 16, 4, false, t)
+}
+
+func TestUpdateInsertByPrice(t *testing.T) {
+	asks := linkedList{}
+	s := Stack{}
+	asksSnapshot := Items{
+		{Price: 1, Amount: 1},
+		{Price: 3, Amount: 1},
+		{Price: 5, Amount: 1},
+		{Price: 7, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 11, Amount: 1},
+	}
+	asks.Load(asksSnapshot, &s)
+
+	// Update one instance with matching price
+	asks.updateInsertByIDAsk(Items{
+		{Price: 1, Amount: 2},
+	}, &s)
+
+	Check(asks, 7, 37, 6, false, t)
+
+	// Insert at head
+	asks.updateInsertByIDAsk(Items{
+		{Price: 0.5, Amount: 2},
+	}, &s)
+
+	Check(asks, 7, 37, 6, false, t)
+}
 
 func TestUpdateInsertByID(t *testing.T) {
-	// asks := linkedList{}
+	asks := linkedList{}
 	s := Stack{}
-	// asksSnapshot := Items{
-	// 	{Price: 1, Amount: 1, ID: 1},
-	// 	{Price: 3, Amount: 1, ID: 3},
-	// 	{Price: 5, Amount: 1, ID: 5},
-	// 	{Price: 7, Amount: 1, ID: 7},
-	// 	{Price: 9, Amount: 1, ID: 9},
-	// 	{Price: 11, Amount: 1, ID: 11},
-	// }
-	// asks.Load(asksSnapshot, &s)
+	asksSnapshot := Items{
+		{Price: 1, Amount: 1, ID: 1},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 11, Amount: 1, ID: 11},
+	}
+	asks.Load(asksSnapshot, &s)
 
-	// // Update one instance with matching ID
-	// asks.updateInsertByID(Items{
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// }, ASC, &s)
+	// Update one instance with matching ID
+	asks.updateInsertByIDAsk(Items{
+		{Price: 1, Amount: 2, ID: 1},
+	}, &s)
 
-	// Check(asks, 7, 37, 6, t)
+	Check(asks, 7, 37, 6, false, t)
 
-	// // Reset
-	// asks.Load(asksSnapshot, &s)
+	// Reset
+	asks.Load(asksSnapshot, &s)
 
-	// // Update all instances with matching ID in order
-	// asks.updateInsertByID(Items{
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// 	{Price: 3, Amount: 2, ID: 3},
-	// 	{Price: 5, Amount: 2, ID: 5},
-	// 	{Price: 7, Amount: 2, ID: 7},
-	// 	{Price: 9, Amount: 2, ID: 9},
-	// 	{Price: 11, Amount: 2, ID: 11},
-	// }, ASC, &s)
+	// Update all instances with matching ID in order
+	asks.updateInsertByIDAsk(Items{
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 5, Amount: 2, ID: 5},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 11, Amount: 2, ID: 11},
+	}, &s)
 
-	// Check(asks, 12, 72, 6, t)
+	Check(asks, 12, 72, 6, false, t)
 
-	// // Update all instances with matching ID in backwards
-	// asks.updateInsertByID(Items{
-	// 	{Price: 11, Amount: 2, ID: 11},
-	// 	{Price: 9, Amount: 2, ID: 9},
-	// 	{Price: 7, Amount: 2, ID: 7},
-	// 	{Price: 5, Amount: 2, ID: 5},
-	// 	{Price: 3, Amount: 2, ID: 3},
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// }, ASC, &s)
+	// Update all instances with matching ID in backwards
+	asks.updateInsertByIDAsk(Items{
+		{Price: 11, Amount: 2, ID: 11},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 5, Amount: 2, ID: 5},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 1, Amount: 2, ID: 1},
+	}, &s)
 
-	// Check(asks, 12, 72, 6, t)
+	Check(asks, 12, 72, 6, false, t)
 
-	// // Update all instances with matching ID all over the ship
-	// asks.updateInsertByID(Items{
-	// 	{Price: 11, Amount: 2, ID: 11},
-	// 	{Price: 3, Amount: 2, ID: 3},
-	// 	{Price: 7, Amount: 2, ID: 7},
-	// 	{Price: 9, Amount: 2, ID: 9},
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// 	{Price: 5, Amount: 2, ID: 5},
-	// }, ASC, &s)
+	// Update all instances with matching ID all over the ship
+	asks.updateInsertByIDAsk(Items{
+		{Price: 11, Amount: 2, ID: 11},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 5, Amount: 2, ID: 5},
+	}, &s)
 
-	// Check(asks, 12, 72, 6, t)
+	Check(asks, 12, 72, 6, false, t)
 
-	// // Update all instances move one before ID in middle
-	// asks.updateInsertByID(Items{
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// 	{Price: 3, Amount: 2, ID: 3},
-	// 	{Price: 2, Amount: 2, ID: 5},
-	// 	{Price: 7, Amount: 2, ID: 7},
-	// 	{Price: 9, Amount: 2, ID: 9},
-	// 	{Price: 11, Amount: 2, ID: 11},
-	// }, ASC, &s)
+	// Update all instances move one before ID in middle
+	asks.updateInsertByIDAsk(Items{
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 2, Amount: 2, ID: 5},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 11, Amount: 2, ID: 11},
+	}, &s)
 
-	// Check(asks, 12, 66, 6, t)
+	Check(asks, 12, 66, 6, false, t)
 
-	// // Update all instances move one before ID at head
-	// asks.updateInsertByID(Items{
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// 	{Price: 3, Amount: 2, ID: 3},
-	// 	{Price: .5, Amount: 2, ID: 5},
-	// 	{Price: 7, Amount: 2, ID: 7},
-	// 	{Price: 9, Amount: 2, ID: 9},
-	// 	{Price: 11, Amount: 2, ID: 11},
-	// }, ASC, &s)
+	// Update all instances move one before ID at head
+	asks.updateInsertByIDAsk(Items{
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: .5, Amount: 2, ID: 5},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 11, Amount: 2, ID: 11},
+	}, &s)
 
-	// Check(asks, 12, 63, 6, t)
+	Check(asks, 12, 63, 6, false, t)
 
-	// // Reset
-	// asks.Load(asksSnapshot, &s)
+	// Reset
+	asks.Load(asksSnapshot, &s)
 
-	// // Update all instances move one after ID
-	// asks.updateInsertByID(Items{
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// 	{Price: 3, Amount: 2, ID: 3},
-	// 	{Price: 8, Amount: 2, ID: 5},
-	// 	{Price: 7, Amount: 2, ID: 7},
-	// 	{Price: 9, Amount: 2, ID: 9},
-	// 	{Price: 11, Amount: 2, ID: 11},
-	// }, ASC, &s)
+	// Update all instances move one after ID
+	asks.updateInsertByIDAsk(Items{
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 8, Amount: 2, ID: 5},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 11, Amount: 2, ID: 11},
+	}, &s)
 
-	// Check(asks, 12, 78, 6, t)
+	Check(asks, 12, 78, 6, false, t)
 
-	// // Reset
-	// asks.Load(asksSnapshot, &s)
+	// Reset
+	asks.Load(asksSnapshot, &s)
 
-	// // Update all instances move one after ID to tail
-	// asks.updateInsertByID(Items{
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// 	{Price: 3, Amount: 2, ID: 3},
-	// 	{Price: 12, Amount: 2, ID: 5},
-	// 	{Price: 7, Amount: 2, ID: 7},
-	// 	{Price: 9, Amount: 2, ID: 9},
-	// 	{Price: 11, Amount: 2, ID: 11},
-	// }, ASC, &s)
+	// Update all instances move one after ID to tail
+	asks.updateInsertByIDAsk(Items{
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 12, Amount: 2, ID: 5},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 11, Amount: 2, ID: 11},
+	}, &s)
 
-	// Check(asks, 12, 86, 6, t)
+	Check(asks, 12, 86, 6, false, t)
 
-	// // Update all instances then pop new instance
-	// asks.updateInsertByID(Items{
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// 	{Price: 3, Amount: 2, ID: 3},
-	// 	{Price: 12, Amount: 2, ID: 5},
-	// 	{Price: 7, Amount: 2, ID: 7},
-	// 	{Price: 9, Amount: 2, ID: 9},
-	// 	{Price: 11, Amount: 2, ID: 11},
-	// 	{Price: 10, Amount: 2, ID: 10},
-	// }, ASC, &s)
+	// Update all instances then pop new instance
+	asks.updateInsertByIDAsk(Items{
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 12, Amount: 2, ID: 5},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 11, Amount: 2, ID: 11},
+		{Price: 10, Amount: 2, ID: 10},
+	}, &s)
 
-	// Check(asks, 14, 106, 7, t)
+	Check(asks, 14, 106, 7, false, t)
 
-	// // Reset
-	// asks.Load(asksSnapshot, &s)
+	// Reset
+	asks.Load(asksSnapshot, &s)
 
-	// // Update all instances pop at head
-	// asks.updateInsertByID(Items{
-	// 	{Price: 0.5, Amount: 2, ID: 0},
-	// 	{Price: 1, Amount: 2, ID: 1},
-	// 	{Price: 3, Amount: 2, ID: 3},
-	// 	{Price: 12, Amount: 2, ID: 5},
-	// 	{Price: 7, Amount: 2, ID: 7},
-	// 	{Price: 9, Amount: 2, ID: 9},
-	// 	{Price: 11, Amount: 2, ID: 11},
-	// }, ASC, &s)
+	// Update all instances pop at head
+	asks.updateInsertByIDAsk(Items{
+		{Price: 0.5, Amount: 2, ID: 0},
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 12, Amount: 2, ID: 5},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 11, Amount: 2, ID: 11},
+	}, &s)
 
-	// Check(asks, 14, 87, 7, t)
+	Check(asks, 14, 87, 7, false, t)
 
 	// Bids -------------------------------------------------------------------
 
@@ -164,9 +281,9 @@ func TestUpdateInsertByID(t *testing.T) {
 	bids.Load(bidsSnapshot, &s)
 
 	// Update one instance with matching ID
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 1, Amount: 2, ID: 1},
-	}, DSC, &s)
+	}, &s)
 
 	Check(bids, 7, 37, 6, true, t)
 
@@ -174,62 +291,62 @@ func TestUpdateInsertByID(t *testing.T) {
 	bids.Load(bidsSnapshot, &s)
 
 	// Update all instances with matching ID in order
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 5, Amount: 2, ID: 5},
 		{Price: 7, Amount: 2, ID: 7},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
-	}, DSC, &s)
+	}, &s)
 
 	Check(bids, 12, 72, 6, true, t)
 
 	// Update all instances with matching ID in backwards
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 7, Amount: 2, ID: 7},
 		{Price: 5, Amount: 2, ID: 5},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 1, Amount: 2, ID: 1},
-	}, DSC, &s)
+	}, &s)
 
 	Check(bids, 12, 72, 6, true, t)
 
 	// Update all instances with matching ID all over the ship
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 7, Amount: 2, ID: 7},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 5, Amount: 2, ID: 5},
-	}, DSC, &s)
+	}, &s)
 
 	Check(bids, 12, 72, 6, true, t)
 
 	// Update all instances move one before ID in middle
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 2, Amount: 2, ID: 5},
 		{Price: 7, Amount: 2, ID: 7},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
-	}, DSC, &s)
+	}, &s)
 
 	Check(bids, 12, 66, 6, true, t)
 
 	// Update all instances move one before ID at head
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: .5, Amount: 2, ID: 5},
 		{Price: 7, Amount: 2, ID: 7},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
-	}, DSC, &s)
+	}, &s)
 
 	Check(bids, 12, 63, 6, true, t)
 
@@ -237,14 +354,14 @@ func TestUpdateInsertByID(t *testing.T) {
 	bids.Load(bidsSnapshot, &s)
 
 	// Update all instances move one after ID
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 8, Amount: 2, ID: 5},
 		{Price: 7, Amount: 2, ID: 7},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
-	}, DSC, &s)
+	}, &s)
 
 	Check(bids, 12, 78, 6, true, t)
 
@@ -252,19 +369,19 @@ func TestUpdateInsertByID(t *testing.T) {
 	bids.Load(bidsSnapshot, &s)
 
 	// Update all instances move one after ID to tail
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
 		{Price: 7, Amount: 2, ID: 7},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
-	}, DSC, &s)
+	}, &s)
 
 	Check(bids, 12, 86, 6, true, t)
 
 	// Update all instances then pop new instance
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
@@ -272,7 +389,7 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 10, Amount: 2, ID: 10},
-	}, DSC, &s)
+	}, &s)
 
 	Check(bids, 14, 106, 7, true, t)
 
@@ -281,17 +398,17 @@ func TestUpdateInsertByID(t *testing.T) {
 
 	bids.Display()
 	// Update all instances pop at tail
-	bids.updateInsertByID(Items{
+	bids.updateInsertByIDBid(Items{
 		{Price: 0.5, Amount: 2, ID: 0},
-		// {Price: 1, Amount: 2, ID: 1},
-		// {Price: 3, Amount: 2, ID: 3},
-		// {Price: 12, Amount: 2, ID: 5},
-		// {Price: 7, Amount: 2, ID: 7},
-		// {Price: 9, Amount: 2, ID: 9},
-		// {Price: 11, Amount: 2, ID: 11},
-	}, DSC, &s)
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 12, Amount: 2, ID: 5},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 11, Amount: 2, ID: 11},
+	}, &s)
 
-	Check(bids, 8, 87, 7, true, t)
+	Check(bids, 14, 87, 7, true, t)
 
 	bids.Display()
 }
@@ -314,11 +431,15 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 	}
 
 	valueTotal := ll.Value()
-	if value != value {
+	if valueTotal != value {
 		ll.Display()
 		t.Fatalf("mismatched total value expecting %v but received %v",
 			value,
 			valueTotal)
+	}
+
+	if ll.head == nil {
+		return
 	}
 
 	var tail *Node
@@ -354,14 +475,14 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 	if liquidity-liqReversed != 0 {
 		ll.Display()
 		fmt.Println(liquidity, liqReversed)
-		t.Fatalf("mismatched liquidity when reversing direction expecting %v but received %v",
+		t.Errorf("mismatched liquidity when reversing direction expecting %v but received %v",
 			0,
 			liquidity-liqReversed)
 	}
 
 	if nodeCount-nodeReversed != 0 {
 		ll.Display()
-		t.Fatalf("mismatched node count when reversing direction expecting %v but received %v",
+		t.Errorf("mismatched node count when reversing direction expecting %v but received %v",
 			0,
 			nodeCount-nodeReversed)
 	}
@@ -369,8 +490,36 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 	if value-valReversed != 0 {
 		ll.Display()
 		fmt.Println(valReversed, value)
-		t.Fatalf("mismatched total book value when reversing direction expecting %v but received %v",
+		t.Errorf("mismatched total book value when reversing direction expecting %v but received %v",
 			0,
 			value-valReversed)
+	}
+}
+
+//  158	   9,521,717 ns/op	 9600104 B/op	  100001 allocs/op
+func BenchmarkWithoutStack(b *testing.B) {
+	var n *Node
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 100000; j++ {
+			n = new(Node)
+			n.value.Price = 1337
+		}
+	}
+}
+
+//  949	   1,427,820 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkWithStack(b *testing.B) {
+	var n *Node
+	stack := NewStack()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 100000; j++ {
+			n = stack.Pop()
+			n.value.Price = 1337
+			stack.Push(n)
+		}
 	}
 }

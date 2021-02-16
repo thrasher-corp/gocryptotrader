@@ -4,8 +4,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Depth defines a linked list of orderbook items
@@ -149,31 +147,24 @@ func (d *Depth) LoadSnapshot(bids, asks []Item) (err error) {
 	defer func() {
 		// TODO: Restructure locks as this will alert routines after slip ring actuates
 		if err != nil {
-			if flushErr := d.flush(); flushErr != nil {
-				log.Errorf(log.Global, "unable to flush sad times %s", flushErr)
-			}
-			d.Unlock()
+			d.flush()
 		}
+		d.Unlock()
 	}()
-	err = d.bid.Load(bids, &d.stack)
-	if err != nil {
-		return err
-	}
 
-	err = d.ask.Load(asks, &d.stack)
-	if err != nil {
-		return err
-	}
+	d.bid.Load(bids, &d.stack)
+	d.ask.Load(asks, &d.stack)
+
 	// Update occurred, alert routines
 	d.alert()
 	return nil
 }
 
 // Flush attempts to flush bid and ask sides
-func (d *Depth) Flush() error {
+func (d *Depth) Flush() {
 	d.Lock()
-	defer d.Unlock()
-	return d.flush()
+	d.flush()
+	d.Unlock()
 }
 
 // Process processes incoming orderbook snapshots
@@ -181,26 +172,17 @@ func (d *Depth) Process(bids, asks Items) error {
 	d.Lock()
 	defer d.Unlock() // TODO: Restructure locks as this will alert routines
 	// after slip ring actuates
-	err := d.bid.Load(bids, &d.stack)
-	if err != nil {
-		return err
-	}
-	err = d.ask.Load(asks, &d.stack)
-	if err != nil {
-		return err
-	}
+	d.bid.Load(bids, &d.stack)
+	d.ask.Load(asks, &d.stack)
 	d.alert()
 	return nil
 }
 
 // flush will pop entire bid and ask node chain onto stack when invalidated or
 // required for full flush when resubscribing
-func (d *Depth) flush() error {
-	err := d.bid.Load(nil, &d.stack)
-	if err != nil {
-		return err
-	}
-	return d.ask.Load(nil, &d.stack)
+func (d *Depth) flush() {
+	d.bid.Load(nil, &d.stack)
+	d.ask.Load(nil, &d.stack)
 }
 
 type outOfOrder func(float64, float64) bool
@@ -261,17 +243,17 @@ func (d *Depth) DeleteBidAskByID(bid, ask Items, bypassErr bool) error {
 // InsertBidAskByID inserts new updates
 func (d *Depth) InsertBidAskByID(bid, ask Items) {
 	d.Lock()
-	defer d.Unlock()
 	d.bid.insertUpdatesBid(bid, &d.stack)
 	d.ask.insertUpdatesAsk(ask, &d.stack)
 	d.alert()
+	d.Unlock()
 }
 
 // UpdateInsertByID ...
 func (d *Depth) UpdateInsertByID(bidUpdates, askUpdates Items) {
 	d.Lock()
-	defer d.Unlock()
-	d.bid.updateInsertByID(bidUpdates, func(p1, p2 float64) bool { return p1 > p2 }, &d.stack)
-	d.ask.updateInsertByID(askUpdates, func(p1, p2 float64) bool { return p1 < p2 }, &d.stack)
+	d.bid.updateInsertByIDBid(bidUpdates, &d.stack)
+	d.ask.updateInsertByIDAsk(askUpdates, &d.stack)
 	d.alert()
+	d.Unlock()
 }
