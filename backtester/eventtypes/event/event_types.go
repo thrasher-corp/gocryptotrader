@@ -17,5 +17,5 @@ type Base struct {
 	Interval     kline.Interval `json:"interval-size"`
 	CurrencyPair currency.Pair  `json:"pair"`
 	AssetType    asset.Item     `json:"asset"`
-	Why          string         `json:"why"`
+	Reason       string         `json:"reason"`
 }

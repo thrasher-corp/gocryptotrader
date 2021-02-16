@@ -409,7 +409,7 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if resp.Why == "" {
+	if resp.Reason == "" {
 		t.Error("expected issue")
 	}
 
@@ -418,7 +418,7 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if resp.Why == "" {
+	if resp.Reason == "" {
 		t.Error("expected issue")
 	}
 

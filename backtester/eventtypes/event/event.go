@@ -40,14 +40,14 @@ func (b *Base) GetInterval() kline.Interval {
 
 // AppendReason adds reasoning for a decision being made
 func (b *Base) AppendReason(y string) {
-	if b.Why == "" {
-		b.Why = y
+	if b.Reason == "" {
+		b.Reason = y
 	} else {
-		b.Why = y + ". " + b.Why
+		b.Reason = y + ". " + b.Reason
 	}
 }
 
 // GetReason returns the why
 func (b *Base) GetReason() string {
-	return b.Why
+	return b.Reason
 }

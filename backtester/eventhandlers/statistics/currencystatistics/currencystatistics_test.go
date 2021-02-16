@@ -21,7 +21,7 @@ const testExchange = "binance"
 func TestCalculateResults(t *testing.T) {
 	cs := CurrencyStatistic{}
 	tt1 := time.Now()
-	tt2 := time.Now()
+	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -33,14 +33,18 @@ func TestCalculateResults(t *testing.T) {
 		AssetType:    a,
 	}
 	ev := EventStore{
-		Holdings: holdings.Holding{},
+		Holdings: holdings.Holding{
+			ChangeInTotalValuePercent: 0.1333,
+			Timestamp:                 tt1,
+			InitialFunds:              1337,
+		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
+					ClosePrice:          1338,
+					VolumeAdjustedPrice: 1338,
+					SlippageRate:        1338,
+					CostBasis:           1338,
 					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
@@ -53,24 +57,33 @@ func TestCalculateResults(t *testing.T) {
 			},
 		},
 		DataEvent: &kline.Kline{
-			Base:  even,
-			Close: 1338,
+			Base:   even,
+			Open:   2000,
+			Close:  2000,
+			Low:    2000,
+			High:   2000,
+			Volume: 2000,
 		},
 		SignalEvent: &signal.Signal{
 			Base:  even,
-			Price: 1337,
+			Price: 2000,
 		},
 	}
-	even.Time = tt2
+	even2 := even
+	even2.Time = tt2
 	ev2 := EventStore{
-		Holdings: holdings.Holding{},
+		Holdings: holdings.Holding{
+			ChangeInTotalValuePercent: 0.1337,
+			Timestamp:                 tt2,
+			InitialFunds:              1337,
+		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
+					ClosePrice:          1338,
+					VolumeAdjustedPrice: 1338,
+					SlippageRate:        1338,
+					CostBasis:           1338,
 					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
@@ -83,26 +96,33 @@ func TestCalculateResults(t *testing.T) {
 			},
 		},
 		DataEvent: &kline.Kline{
-			Base:  even,
-			Close: 1338,
+			Base:   even2,
+			Open:   1337,
+			Close:  1337,
+			Low:    1337,
+			High:   1337,
+			Volume: 1337,
 		},
 		SignalEvent: &signal.Signal{
-			Base:  even,
-			Price: 1338,
+			Base:  even2,
+			Price: 1337,
 		},
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	cs.CalculateResults()
-	if cs.MarketMovement != 0 {
-		t.Error("expected 0")
+	err := cs.CalculateResults()
+	if err != nil {
+		t.Error(err)
+	}
+	if cs.MarketMovement != -33.15 {
+		t.Error("expected -33.15")
 	}
 }
 
 func TestPrintResults(t *testing.T) {
 	cs := CurrencyStatistic{}
 	tt1 := time.Now()
-	tt2 := time.Now()
+	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -114,14 +134,18 @@ func TestPrintResults(t *testing.T) {
 		AssetType:    a,
 	}
 	ev := EventStore{
-		Holdings: holdings.Holding{},
+		Holdings: holdings.Holding{
+			ChangeInTotalValuePercent: 0.1333,
+			Timestamp:                 tt1,
+			InitialFunds:              1337,
+		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
+					ClosePrice:          1338,
+					VolumeAdjustedPrice: 1338,
+					SlippageRate:        1338,
+					CostBasis:           1338,
 					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
@@ -134,24 +158,33 @@ func TestPrintResults(t *testing.T) {
 			},
 		},
 		DataEvent: &kline.Kline{
-			Base:  even,
-			Close: 1338,
+			Base:   even,
+			Open:   2000,
+			Close:  2000,
+			Low:    2000,
+			High:   2000,
+			Volume: 2000,
 		},
 		SignalEvent: &signal.Signal{
 			Base:  even,
-			Price: 1337,
+			Price: 2000,
 		},
 	}
-	even.Time = tt2
+	even2 := even
+	even2.Time = tt2
 	ev2 := EventStore{
-		Holdings: holdings.Holding{},
+		Holdings: holdings.Holding{
+			ChangeInTotalValuePercent: 0.1337,
+			Timestamp:                 tt2,
+			InitialFunds:              1337,
+		},
 		Transactions: compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          1337,
-					VolumeAdjustedPrice: 1337,
-					SlippageRate:        1337,
-					CostBasis:           1337,
+					ClosePrice:          1338,
+					VolumeAdjustedPrice: 1338,
+					SlippageRate:        1338,
+					CostBasis:           1338,
 					Detail:              &order.Detail{Side: order.Buy},
 				},
 				{
@@ -164,17 +197,24 @@ func TestPrintResults(t *testing.T) {
 			},
 		},
 		DataEvent: &kline.Kline{
-			Base:  even,
-			Close: 1338,
+			Base:   even2,
+			Open:   1337,
+			Close:  1337,
+			Low:    1337,
+			High:   1337,
+			Volume: 1337,
 		},
 		SignalEvent: &signal.Signal{
-			Base:  even,
-			Price: 1338,
+			Base:  even2,
+			Price: 1337,
 		},
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	cs.CalculateResults()
+	err := cs.CalculateResults()
+	if err != nil {
+		t.Error(err)
+	}
 	cs.PrintResults(exch, a, p)
 }
 

@@ -143,7 +143,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
 		if cfg.CurrencySettings[i].MakerFee > cfg.CurrencySettings[i].TakerFee {
-			log.Warnf(log.BackTester, "maker fee '%v' should not be than taker fee '%v'. Please review config",
+			log.Warnf(log.BackTester, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
 				cfg.CurrencySettings[i].MakerFee,
 				cfg.CurrencySettings[i].TakerFee)
 		}

@@ -16,7 +16,8 @@ import (
 )
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
-func (c *CurrencyStatistic) CalculateResults() {
+func (c *CurrencyStatistic) CalculateResults() error {
+	var errs gctcommon.Errors
 	first := c.Events[0]
 	firstPrice := first.DataEvent.ClosePrice()
 	last := c.Events[len(c.Events)-1]
@@ -53,30 +54,81 @@ func (c *CurrencyStatistic) CalculateResults() {
 	intervalsPerYear := interval.IntervalsPerYear()
 	durationPerYear := intervalsPerYear * float64(interval.Duration())
 	btDuration := float64(last.DataEvent.GetTime().Sub(first.DataEvent.GetTime()))
-	arithmeticReturnsPerCandle := math.ArithmeticAverage(returnPerCandle)
-	geometricReturnsPerCandle := math.FinancialGeometricAverage(returnPerCandle)
+
 	marketMovementPercent := c.MarketMovement / 100
 	relativelyRiskFree := first.Holdings.RiskFreeRate / intervalsPerYear
 
+	var err error
+	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithSharpe, arithSortino,
+		arithInformation, arithCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar float64
+
+	arithmeticReturnsPerCandle, err = math.ArithmeticAverage(returnPerCandle)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	geometricReturnsPerCandle, err = math.FinancialGeometricAverage(returnPerCandle)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	arithSharpe, err = math.SharpeRatio(returnPerCandle, relativelyRiskFree, arithmeticReturnsPerCandle)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	arithSortino, err = math.SortinoRatio(returnPerCandle, relativelyRiskFree, arithmeticReturnsPerCandle)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	arithInformation, err = math.InformationRatio(returnPerCandle, []float64{marketMovementPercent}, arithmeticReturnsPerCandle, marketMovementPercent)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	arithCalmar, err = math.CalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, arithmeticReturnsPerCandle)
+	if err != nil {
+		errs = append(errs, err)
+	}
 	c.ArithmeticRatios = Ratios{
-		SharpeRatio:      math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree, arithmeticReturnsPerCandle),
-		SortinoRatio:     math.CalculateSortinoRatio(returnPerCandle, relativelyRiskFree, arithmeticReturnsPerCandle),
-		InformationRatio: math.CalculateInformationRatio(returnPerCandle, []float64{marketMovementPercent}, arithmeticReturnsPerCandle, marketMovementPercent),
-		CalmarRatio:      math.CalculateCalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, arithmeticReturnsPerCandle),
+		SharpeRatio:      arithSharpe,
+		SortinoRatio:     arithSortino,
+		InformationRatio: arithInformation,
+		CalmarRatio:      arithCalmar,
 	}
 
+	geomSharpe, err = math.SharpeRatio(returnPerCandle, relativelyRiskFree, geometricReturnsPerCandle)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	geomSortino, err = math.SortinoRatio(returnPerCandle, relativelyRiskFree, geometricReturnsPerCandle)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	geomInformation, err = math.InformationRatio(returnPerCandle, []float64{marketMovementPercent}, geometricReturnsPerCandle, marketMovementPercent)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	geomCalmar, err = math.CalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, geometricReturnsPerCandle)
+	if err != nil {
+		errs = append(errs, err)
+	}
 	c.GeometricRatios = Ratios{
-		SharpeRatio:      math.CalculateSharpeRatio(returnPerCandle, relativelyRiskFree, geometricReturnsPerCandle),
-		SortinoRatio:     math.CalculateSortinoRatio(returnPerCandle, relativelyRiskFree, geometricReturnsPerCandle),
-		InformationRatio: math.CalculateInformationRatio(returnPerCandle, []float64{marketMovementPercent}, geometricReturnsPerCandle, marketMovementPercent),
-		CalmarRatio:      math.CalculateCalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, geometricReturnsPerCandle),
+		SharpeRatio:      geomSharpe,
+		SortinoRatio:     geomSortino,
+		InformationRatio: geomInformation,
+		CalmarRatio:      geomCalmar,
 	}
 
-	c.CompoundAnnualGrowthRate = math.CalculateCompoundAnnualGrowthRate(
+	c.CompoundAnnualGrowthRate, err = math.CompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
 		last.Holdings.TotalValue,
 		durationPerYear,
 		btDuration)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if len(errs) > 0 {
+		return errs
+	}
+	return nil
 }
 
 // PrintResults outputs all calculated statistics to the command line

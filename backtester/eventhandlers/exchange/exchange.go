@@ -33,7 +33,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			CurrencyPair: o.Pair(),
 			AssetType:    o.GetAssetType(),
 			Interval:     o.GetInterval(),
-			Why:          o.GetReason(),
+			Reason:       o.GetReason(),
 		},
 		Direction: o.GetDirection(),
 		Amount:    o.GetAmount(),

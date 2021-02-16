@@ -55,7 +55,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 
 	if d.Offset() <= int(s.rsiPeriod) {
 		es.AppendReason("Not enough data for signal generation")
-		return &es, errors.New(es.Why)
+		return &es, errors.New(es.Reason)
 	}
 	dataRange := d.StreamClose()[:d.Offset()]
 

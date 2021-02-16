@@ -67,7 +67,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 			CurrencyPair: signal.Pair(),
 			AssetType:    signal.GetAssetType(),
 			Interval:     signal.GetInterval(),
-			Why:          signal.GetReason(),
+			Reason:       signal.GetReason(),
 		},
 		Direction: signal.GetDirection(),
 	}

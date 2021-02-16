@@ -144,7 +144,10 @@ func (s *Statistic) CalculateAllResults() error {
 		for assetItem, assetMap := range exchangeMap {
 			for pair, stats := range assetMap {
 				currCount++
-				stats.CalculateResults()
+				err := stats.CalculateResults()
+				if err != nil {
+					log.Error(log.BackTester, err)
+				}
 				stats.PrintResults(exchangeName, assetItem, pair)
 				last := stats.Events[len(stats.Events)-1]
 				stats.FinalHoldings = last.Holdings

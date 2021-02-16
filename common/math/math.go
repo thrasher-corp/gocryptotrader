@@ -1,6 +1,7 @@
 package math
 
 import (
+	"errors"
 	"math"
 )
 
@@ -37,31 +38,37 @@ func RoundFloat(x float64, prec int) float64 {
 	return math.Round(x*pow) / pow
 }
 
-// CalculateCompoundAnnualGrowthRate Calculates CAGR.
+// CompoundAnnualGrowthRate Calculates CAGR.
 // Using years, intervals per year would be 1 and number of intervals would be the number of years
 // Using days, intervals per year would be 365 and number of intervals would be the number of days
-func CalculateCompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, numberOfIntervals float64) float64 {
+func CompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, numberOfIntervals float64) (float64, error) {
+	if numberOfIntervals == 0 {
+		return 0, errors.New("cannot calculate CAGR with no intervals")
+	}
+	if openValue == 0 {
+		return 0, errors.New("cannot calculate CAGR with an open value of 0")
+	}
 	k := math.Pow(closeValue/openValue, intervalsPerYear/numberOfIntervals) - 1
-	return k * 100
+	return k * 100, nil
 }
 
-// CalculateCalmarRatio is a function of the average compounded annual rate of return versus its maximum drawdown.
+// CalmarRatio is a function of the average compounded annual rate of return versus its maximum drawdown.
 // The higher the Calmar ratio, the better it performed on a risk-adjusted basis during the given time frame, which is mostly commonly set at 36 months
-func CalculateCalmarRatio(highestPrice, lowestPrice, average float64) float64 {
+func CalmarRatio(highestPrice, lowestPrice, average float64) (float64, error) {
 	if highestPrice == 0 {
-		return 0
+		return 0, errors.New("cannot calculate calmar ratio with highest price of 0")
 	}
 	drawdownDiff := (highestPrice - lowestPrice) / highestPrice
 	if drawdownDiff == 0 {
-		return 0
+		return 0, nil
 	}
-	return average / drawdownDiff
+	return average / drawdownDiff, nil
 }
 
-// CalculateInformationRatio The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark,
+// InformationRatio The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark,
 // usually an index, compared to the volatility of those returns.
 // The benchmark used is typically an index that represents the market or a particular sector or industry.
-func CalculateInformationRatio(values, benchmarkRates []float64, averageValues, averageComparison float64) float64 {
+func InformationRatio(values, benchmarkRates []float64, averageValues, averageComparison float64) (float64, error) {
 	if len(benchmarkRates) == 1 {
 		for i := range values {
 			if i == 0 {
@@ -74,34 +81,48 @@ func CalculateInformationRatio(values, benchmarkRates []float64, averageValues, 
 	for i := range values {
 		diffs = append(diffs, values[i]-benchmarkRates[i])
 	}
-	stdDev := PopulationStandardDeviation(diffs)
-	if stdDev == 0 {
-		return 0
+	stdDev, err := PopulationStandardDeviation(diffs)
+	if err != nil {
+		return 0, err
 	}
-	return (averageValues - averageComparison) / stdDev
+	if stdDev == 0 {
+		return 0, nil
+	}
+	return (averageValues - averageComparison) / stdDev, nil
 }
 
 // PopulationStandardDeviation calculates standard deviation using population based calculation
-func PopulationStandardDeviation(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
+func PopulationStandardDeviation(values []float64) (float64, error) {
+	if len(values) < 2 {
+		return 0, nil
 	}
-	avg := ArithmeticAverage(values)
+	valAvg, err := ArithmeticAverage(values)
+	if err != nil {
+		return 0, err
+	}
 	diffs := make([]float64, len(values))
 	for x := range values {
-		diffs[x] = math.Pow(values[x]-avg, 2)
+		diffs[x] = math.Pow(values[x]-valAvg, 2)
 	}
-	return math.Sqrt(ArithmeticAverage(diffs))
+	var diffAvg float64
+	diffAvg, err = ArithmeticAverage(diffs)
+	if err != nil {
+		return 0, err
+	}
+	return math.Sqrt(diffAvg), nil
 }
 
 // SampleStandardDeviation standard deviation is a statistic that
 // measures the dispersion of a dataset relative to its mean and
 // is calculated as the square root of the variance
-func SampleStandardDeviation(vals []float64) float64 {
-	if len(vals) <= 1 {
-		return 0
+func SampleStandardDeviation(vals []float64) (float64, error) {
+	if len(vals) < 2 {
+		return 0, nil
 	}
-	mean := ArithmeticAverage(vals)
+	mean, err := ArithmeticAverage(vals)
+	if err != nil {
+		return 0, err
+	}
 	var superMean []float64
 	var combined float64
 	for i := range vals {
@@ -110,26 +131,26 @@ func SampleStandardDeviation(vals []float64) float64 {
 		combined += result
 	}
 	avg := combined / (float64(len(superMean)) - 1)
-	return math.Sqrt(avg)
+	return math.Sqrt(avg), nil
 }
 
 // GeometricAverage is an average which indicates the central tendency or
 // typical value of a set of numbers by using the product of their values
 // The geometric average can only process positive numbers
-func GeometricAverage(values []float64) float64 {
+func GeometricAverage(values []float64) (float64, error) {
 	if len(values) == 0 {
-		return 0
+		return 0, errors.New("cannot calculate average of no values")
 	}
 	product := 1.0
 	for i := range values {
 		if values[i] <= 0 {
 			// cannot use negative or zero values in geometric calculation
-			return 0
+			return 0, errors.New("cannot calculate a geometric mean with negative values")
 		}
 		product *= values[i]
 	}
 	geometricPower := math.Pow(product, 1/float64(len(values)))
-	return geometricPower
+	return geometricPower, nil
 }
 
 // FinancialGeometricAverage is a modified geometric average to assess
@@ -137,15 +158,16 @@ func GeometricAverage(values []float64) float64 {
 // This does impact the final figures as it is modifying values
 // It is still ultimately calculating a geometric average
 // which should only be compared to other financial geometric averages
-func FinancialGeometricAverage(values []float64) float64 {
+func FinancialGeometricAverage(values []float64) (float64, error) {
 	if len(values) == 0 {
-		return 0
+		return 0, errors.New("cannot calculate average of no values")
 	}
 	product := 1.0
 	for i := range values {
-		if values[i] <= -1 {
+		if values[i] < -1 {
 			// cannot lose more than 100%, figures are incorrect
-			return 0
+			// losing exactly 100% will return a 0 value, but is not an error
+			return 0, errors.New("negative value too high")
 		}
 		// as we cannot have negative or zero value geometric numbers
 		// adding a 1 to the percentage movements allows for differentiation between
@@ -154,25 +176,31 @@ func FinancialGeometricAverage(values []float64) float64 {
 		product *= modVal
 	}
 	geometricPower := math.Pow(product, 1/float64(len(values)))
-	// we minus 1 because we manipulated the values to be non-zero/negative
-	return geometricPower - 1
+	if geometricPower > 0 {
+		// we minus 1 because we manipulated the values to be non-zero/negative
+		geometricPower--
+	}
+	return geometricPower, nil
 }
 
 // ArithmeticAverage is the basic form of calculating an average.
 // Divide the sum of all values by the length of values
-func ArithmeticAverage(values []float64) float64 {
+func ArithmeticAverage(values []float64) (float64, error) {
 	if len(values) == 0 {
-		return 0
+		return 0, errors.New("cannot calculate average of no values")
 	}
 	var sumOfValues float64
 	for x := range values {
 		sumOfValues += values[x]
 	}
-	return sumOfValues / float64(len(values))
+	return sumOfValues / float64(len(values)), nil
 }
 
-// CalculateSortinoRatio returns sortino ratio of backtest compared to risk-free
-func CalculateSortinoRatio(movementPerCandle []float64, riskFreeRate, average float64) float64 {
+// SortinoRatio returns sortino ratio of backtest compared to risk-free
+func SortinoRatio(movementPerCandle []float64, riskFreeRate, average float64) (float64, error) {
+	if len(movementPerCandle) == 0 {
+		return 0, errors.New("cannot calculate average of no values")
+	}
 	totalNegativeResultsSquared := 0.0
 	for x := range movementPerCandle {
 		if movementPerCandle[x]-riskFreeRate < 0 {
@@ -180,21 +208,24 @@ func CalculateSortinoRatio(movementPerCandle []float64, riskFreeRate, average fl
 		}
 	}
 	averageDownsideDeviation := math.Sqrt(totalNegativeResultsSquared / float64(len(movementPerCandle)))
-	return (average - riskFreeRate) / averageDownsideDeviation
+	return (average - riskFreeRate) / averageDownsideDeviation, nil
 }
 
-// CalculateSharpeRatio returns sharpe ratio of backtest compared to risk-free
-func CalculateSharpeRatio(movementPerCandle []float64, riskFreeRate, average float64) float64 {
-	if len(movementPerCandle) <= 1 {
-		return 0
+// SharpeRatio returns sharpe ratio of backtest compared to risk-free
+func SharpeRatio(movementPerCandle []float64, riskFreeRate, average float64) (float64, error) {
+	if len(movementPerCandle) == 0 {
+		return 0, errors.New("cannot calculate average of no values")
 	}
 	var excessReturns []float64
 	for i := range movementPerCandle {
 		excessReturns = append(excessReturns, movementPerCandle[i]-riskFreeRate)
 	}
-	standardDeviation := SampleStandardDeviation(excessReturns)
-	if standardDeviation == 0 {
-		return 0
+	standardDeviation, err := SampleStandardDeviation(excessReturns)
+	if err != nil {
+		return 0, err
 	}
-	return (average - riskFreeRate) / standardDeviation
+	if standardDeviation == 0 {
+		return 0, nil
+	}
+	return (average - riskFreeRate) / standardDeviation, nil
 }
