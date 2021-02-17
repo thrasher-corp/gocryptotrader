@@ -295,9 +295,10 @@ func (b *Bitfinex) GetMarginPairs() ([]string, error) {
 }
 
 // GetDerivativeData gets data for the queried derivative
-func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limit int64) (DerivativeDataResponse, error) {
+func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limit int64) ([]DerivativeDataResponse, error) {
 	var result [][19]interface{}
 	var response DerivativeDataResponse
+	var finalResp []DerivativeDataResponse
 
 	params := url.Values{}
 	params.Set("keys", keys)
@@ -317,62 +318,62 @@ func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limi
 		params.Encode()
 	err := b.SendHTTPRequest(exchange.RestSpot, path, &result, status)
 	if err != nil {
-		return response, err
+		return finalResp, err
 	}
-	if len(result) < 1 {
-		return response, errors.New("invalid response, array length too small, check api docs for updates")
+	for z := range result {
+		if len(result[0]) < 19 {
+			return finalResp, errors.New("invalid response, array length too small, check api docs for updates")
+		}
+		var floatData float64
+		var stringData string
+		var ok bool
+		if stringData, ok = result[z][0].(string); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.Key = stringData
+		if floatData, ok = result[z][1].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.MTS = floatData
+		if floatData, ok = result[z][3].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.DerivPrice = floatData
+		if floatData, ok = result[z][4].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.SpotPrice = floatData
+		if floatData, ok = result[z][6].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.InsuranceFundBalance = floatData
+		if floatData, ok = result[z][8].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.NextFundingEventTS = floatData
+		if floatData, ok = result[z][9].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.NextFundingAccured = floatData
+		if floatData, ok = result[z][10].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.NextFundingStep = floatData
+		if floatData, ok = result[z][12].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.CurrentFunding = floatData
+		if floatData, ok = result[z][15].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.MarkPrice = floatData
+		if floatData, ok = result[z][18].(float64); !ok {
+			return finalResp, errors.New("type assertion failed, check for api updates")
+		}
+		response.OpenInterest = floatData
+		finalResp = append(finalResp, response)
 	}
-	if len(result[0]) < 19 {
-		return response, errors.New("invalid response, array length too small, check api docs for updates")
-	}
-	var floatData float64
-	var stringData string
-	var ok bool
-	if stringData, ok = result[0][0].(string); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.Key = stringData
-	if floatData, ok = result[0][1].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.MTS = floatData
-	if floatData, ok = result[0][3].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.DerivPrice = floatData
-	if floatData, ok = result[0][4].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.SpotPrice = floatData
-	if floatData, ok = result[0][6].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.InsuranceFundBalance = floatData
-	if floatData, ok = result[0][8].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.NextFundingEventTS = floatData
-	if floatData, ok = result[0][9].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.NextFundingAccured = floatData
-	if floatData, ok = result[0][10].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.NextFundingStep = floatData
-	if floatData, ok = result[0][12].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.CurrentFunding = floatData
-	if floatData, ok = result[0][15].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.MarkPrice = floatData
-	if floatData, ok = result[0][18].(float64); !ok {
-		return response, errors.New("type assertion failed, check for api updates")
-	}
-	response.OpenInterest = floatData
-	return response, nil
+	return finalResp, nil
 }
 
 // GetTickerBatch returns all supported ticker information

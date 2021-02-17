@@ -154,6 +154,14 @@ func TestGetSpotMarkets(t *testing.T) {
 	}
 }
 
+func TestGetSwapInstruments(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetSwapInstruments()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetSwapMarkets(t *testing.T) {
 	t.Parallel()
 	_, err := o.GetSwapMarkets()
