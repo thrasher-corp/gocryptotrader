@@ -575,6 +575,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	}
 
 	candles.FillMissingDataWithEmptyEntries(dates)
+	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
 		Item:  *candles,
 		Range: dates,

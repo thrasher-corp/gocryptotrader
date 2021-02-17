@@ -209,10 +209,6 @@ func (k *Item) RemoveOutsideRange(start, end time.Time) {
 			(k.Candles[i].Time.After(start) && k.Candles[i].Time.Before(end)) {
 			newCandles = append(newCandles, k.Candles[i])
 		}
-		if i == len(k.Candles)-1 &&
-			k.Candles[i].Time.Equal(end) {
-			newCandles = append(newCandles, k.Candles[i])
-		}
 	}
 	k.Candles = newCandles
 }
