@@ -10,10 +10,10 @@ import (
 type Handler interface {
 	Name() string
 	OnSignal(data.Handler, portfolio.Handler) (signal.Event, error)
-	OnSignals([]data.Handler, portfolio.Handler) ([]signal.Event, error)
-	IsMultiCurrency() bool
-	SupportsMultiCurrency() bool
-	SetMultiCurrency(bool)
+	OnSimultaneousSignals([]data.Handler, portfolio.Handler) ([]signal.Event, error)
+	UseSimultaneousProcessing() bool
+	SupportsSimultaneousProcessing() bool
+	SetSimultaneousProcessing(bool)
 	SetCustomSettings(map[string]interface{}) error
 	SetDefaults()
 }

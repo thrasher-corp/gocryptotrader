@@ -24,9 +24,9 @@ func TestName(t *testing.T) {
 	}
 }
 
-func TestSupportsMultiCurrency(t *testing.T) {
+func TestSupportsSimultaneousProcessing(t *testing.T) {
 	s := Strategy{}
-	if !s.SupportsMultiCurrency() {
+	if !s.SupportsSimultaneousProcessing() {
 		t.Error("expected true")
 	}
 }
@@ -151,7 +151,7 @@ func TestOnSignals(t *testing.T) {
 		Range: gctkline.IntervalRangeHolder{},
 	}
 	var resp []signal.Event
-	resp, err = s.OnSignals([]data.Handler{da}, nil)
+	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -186,7 +186,7 @@ func TestOnSignals(t *testing.T) {
 	ranger := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
 	da.Range = ranger
 	_ = da.Range.VerifyResultsHaveData(da.Item.Candles)
-	resp, err = s.OnSignals([]data.Handler{da}, nil)
+	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
 	if err != nil {
 		t.Error(err)
 	}

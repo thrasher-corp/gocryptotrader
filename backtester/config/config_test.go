@@ -23,7 +23,6 @@ const (
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
 	saveConfig = false
-)
 
 var (
 	startDate time.Time
@@ -392,10 +391,9 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 	}
 }
 
-// these are tests for experimentation more than anything
-func TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment(t *testing.T) {
+func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 	cfg := Config{
-		Nickname: "TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment",
+		Nickname: "TestGenerateConfigForDCAAPICandlesSimultaneousProcessing",
 		StrategySettings: StrategySettings{
 			Name:                         dca,
 			SimultaneousSignalProcessing: true,
@@ -482,7 +480,7 @@ func TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multi-currency-assessment.strat"), result, 0770)
+		err = ioutil.WriteFile(filepath.Join(p, "examples", "dca-api-candles-simultaneous-processing.strat"), result, 0770)
 		if err != nil {
 			t.Error(err)
 		}

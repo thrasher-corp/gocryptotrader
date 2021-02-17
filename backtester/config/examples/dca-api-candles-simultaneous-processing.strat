@@ -1,8 +1,8 @@
 {
- "nickname": "TestGenerateConfigForDCAAPICandlesMultiCurrencyAssessment",
+ "nickname": "TestGenerateConfigForDCAAPICandlesSimultaneousProcessing",
  "strategy-settings": {
   "name": "dollarcostaverage",
-  "is-multi-currency": true,
+  "use-simultaneous-signal-processing": true,
   "custom-settings": null
  },
  "currency-settings": [
@@ -65,8 +65,8 @@
   "interval": 86400000000000,
   "data-type": "candle",
   "api-data": {
-   "start-date": "2020-12-23T11:00:00+11:00",
-   "end-date": "2021-01-22T11:00:00+11:00"
+   "start-date": "2021-01-18T11:00:00+11:00",
+   "end-date": "2021-02-17T11:00:00+11:00"
   }
  },
  "portfolio-settings": {
@@ -88,5 +88,6 @@
  },
  "statistic-settings": {
   "risk-free-rate": 0.03
- }
+ },
+ "gocryptotrader-config-path": ""
 }

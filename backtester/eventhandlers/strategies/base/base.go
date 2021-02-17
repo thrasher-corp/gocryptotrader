@@ -10,7 +10,7 @@ import (
 
 // Strategy is base implementation of the Handler interface
 type Strategy struct {
-	multiCurrency bool
+	useSimultaneousProcessing bool
 }
 
 // GetBase returns the non-interface version of the Handler
@@ -33,12 +33,12 @@ func (s *Strategy) GetBase(d data.Handler) (signal.Signal, error) {
 	}, nil
 }
 
-// IsMultiCurrency returns whether multiple currencies can be assessed in one go
-func (s *Strategy) IsMultiCurrency() bool {
-	return s.multiCurrency
+// UseSimultaneousProcessing returns whether multiple currencies can be assessed in one go
+func (s *Strategy) UseSimultaneousProcessing() bool {
+	return s.useSimultaneousProcessing
 }
 
-// SetMultiCurrency sets whether multiple currencies can be assessed in one go
-func (s *Strategy) SetMultiCurrency(b bool) {
-	s.multiCurrency = b
+// SetSimultaneousProcessing sets whether multiple currencies can be assessed in one go
+func (s *Strategy) SetSimultaneousProcessing(b bool) {
+	s.useSimultaneousProcessing = b
 }

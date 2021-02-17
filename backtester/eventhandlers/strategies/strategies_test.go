@@ -37,7 +37,7 @@ func TestLoadStrategyByName(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !resp.IsMultiCurrency() {
+	if !resp.UseSimultaneousProcessing() {
 		t.Error("expected true")
 	}
 

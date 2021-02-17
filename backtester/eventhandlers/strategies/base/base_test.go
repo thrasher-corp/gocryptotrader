@@ -56,14 +56,14 @@ func TestGetBase(t *testing.T) {
 	}
 }
 
-func TestSetMultiCurrency(t *testing.T) {
+func TestSetSimultaneousProcessing(t *testing.T) {
 	s := Strategy{}
-	is := s.IsMultiCurrency()
+	is := s.UseSimultaneousProcessing()
 	if is {
 		t.Error("expected false")
 	}
-	s.SetMultiCurrency(true)
-	is = s.IsMultiCurrency()
+	s.SetSimultaneousProcessing(true)
+	is = s.UseSimultaneousProcessing()
 	if !is {
 		t.Error("expected true")
 	}

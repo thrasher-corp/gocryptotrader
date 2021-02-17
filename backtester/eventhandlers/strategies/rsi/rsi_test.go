@@ -24,9 +24,9 @@ func TestName(t *testing.T) {
 	}
 }
 
-func TestSupportsMultiCurrency(t *testing.T) {
+func TestSupportsSimultaneousProcessing(t *testing.T) {
 	s := Strategy{}
-	if s.SupportsMultiCurrency() {
+	if s.SupportsSimultaneousProcessing() {
 		t.Error("expected false")
 	}
 }
@@ -182,7 +182,7 @@ func TestOnSignals(t *testing.T) {
 		Base:  d,
 		Range: gctkline.IntervalRangeHolder{},
 	}
-	_, err = s.OnSignals([]data.Handler{da}, nil)
+	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
 	if err != nil && err.Error() != "unsupported" {
 		t.Error(err)
 	}

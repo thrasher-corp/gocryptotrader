@@ -625,7 +625,7 @@ dataLoadingIssue:
 							}
 							break dataLoadingIssue
 						}
-						if bt.Strategy.IsMultiCurrency() && hasProcessedData {
+						if bt.Strategy.UseSimultaneousProcessing() && hasProcessedData {
 							continue
 						}
 						bt.EventQueue.AppendEvent(d)
@@ -678,7 +678,7 @@ func (bt *BackTest) handleEvent(e common.EventHandler) error {
 // for non-multi-currency-consideration strategies, it will simply process every currency individually
 // against the strategy and generate signals
 func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
-	if bt.Strategy.IsMultiCurrency() {
+	if bt.Strategy.UseSimultaneousProcessing() {
 		var dataEvents []data.Handler
 		dataHandlerMap := bt.Datas.GetAllData()
 		for _, exchangeMap := range dataHandlerMap {
@@ -690,7 +690,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 				}
 			}
 		}
-		signals, err := bt.Strategy.OnSignals(dataEvents, bt.Portfolio)
+		signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Portfolio)
 		if err != nil {
 			log.Error(log.BackTester, err)
 		}
