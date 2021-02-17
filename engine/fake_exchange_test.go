@@ -65,13 +65,13 @@ func addPassingFakeExchange(baseExchangeName string) error {
 	return nil
 }
 
-func (h *FakePassingExchange) Setup(_ *config.ExchangeConfig) error { return nil }
-func (h *FakePassingExchange) Start(_ *sync.WaitGroup)              {}
-func (h *FakePassingExchange) SetDefaults()                         {}
-func (h *FakePassingExchange) GetName() string                      { return fakePassExchange }
-func (h *FakePassingExchange) IsEnabled() bool                      { return true }
-func (h *FakePassingExchange) SetEnabled(bool)                      {}
-func (h *FakePassingExchange) ValidateCredentials() error           { return nil }
+func (h *FakePassingExchange) Setup(_ *config.ExchangeConfig) error   { return nil }
+func (h *FakePassingExchange) Start(_ *sync.WaitGroup)                {}
+func (h *FakePassingExchange) SetDefaults()                           {}
+func (h *FakePassingExchange) GetName() string                        { return fakePassExchange }
+func (h *FakePassingExchange) IsEnabled() bool                        { return true }
+func (h *FakePassingExchange) SetEnabled(bool)                        {}
+func (h *FakePassingExchange) ValidateCredentials(_ asset.Item) error { return nil }
 
 func (h *FakePassingExchange) FetchTicker(_ currency.Pair, _ asset.Item) (*ticker.Price, error) {
 	return nil, nil
@@ -97,7 +97,7 @@ func (h *FakePassingExchange) GetAvailablePairs(_ asset.Item) (currency.Pairs, e
 	return currency.Pairs{}, nil
 }
 
-func (h *FakePassingExchange) FetchAccountInfo() (account.Holdings, error) {
+func (h *FakePassingExchange) FetchAccountInfo(_ asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: h.Name,
 		Accounts: []account.SubAccount{
@@ -114,7 +114,7 @@ func (h *FakePassingExchange) FetchAccountInfo() (account.Holdings, error) {
 	}, nil
 }
 
-func (h *FakePassingExchange) UpdateAccountInfo() (account.Holdings, error) {
+func (h *FakePassingExchange) UpdateAccountInfo(_ asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: h.Name,
 		Accounts: []account.SubAccount{

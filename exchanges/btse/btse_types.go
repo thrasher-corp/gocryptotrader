@@ -13,6 +13,13 @@ const (
 	orderCancelled = 6
 )
 
+// FundingHistoryData stores funding history data
+type FundingHistoryData struct {
+	Time   int64   `json:"time"`
+	Rate   float64 `json:"rate"`
+	Symbol string  `json:"symbol"`
+}
+
 // MarketSummary response data
 type MarketSummary []struct {
 	Symbol              string   `json:"symbol"`

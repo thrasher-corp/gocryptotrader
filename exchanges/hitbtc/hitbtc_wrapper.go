@@ -130,10 +130,14 @@ func (h *HitBTC) SetDefaults() {
 	h.Requester = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	h.API.Endpoints.URLDefault = apiURL
-	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
-	h.API.Endpoints.WebsocketURL = hitbtcWebsocketAddress
+	h.API.Endpoints = h.NewEndpoints()
+	err = h.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      apiURL,
+		exchange.WebsocketSpot: hitbtcWebsocketAddress,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -152,6 +156,11 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := h.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -159,7 +168,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       hitbtcWebsocketAddress,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        h.WsConnect,
 		Subscriber:                       h.Subscribe,
 		UnSubscriber:                     h.Unsubscribe,
@@ -404,7 +413,7 @@ func (h *HitBTC) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HitBTC exchange
-func (h *HitBTC) UpdateAccountInfo() (account.Holdings, error) {
+func (h *HitBTC) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = h.Name
 	accountBalance, err := h.GetBalances()
@@ -434,10 +443,10 @@ func (h *HitBTC) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (h *HitBTC) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(h.Name)
+func (h *HitBTC) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(h.Name, assetType)
 	if err != nil {
-		return h.UpdateAccountInfo()
+		return h.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -772,8 +781,8 @@ func (h *HitBTC) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (h *HitBTC) ValidateCredentials() error {
-	_, err := h.UpdateAccountInfo()
+func (h *HitBTC) ValidateCredentials(assetType asset.Item) error {
+	_, err := h.UpdateAccountInfo(assetType)
 	return h.CheckTransientError(err)
 }
 

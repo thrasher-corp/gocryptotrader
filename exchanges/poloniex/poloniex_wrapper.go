@@ -131,10 +131,14 @@ func (p *Poloniex) SetDefaults() {
 	p.Requester = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	p.API.Endpoints.URLDefault = poloniexAPIURL
-	p.API.Endpoints.URL = p.API.Endpoints.URLDefault
-	p.API.Endpoints.WebsocketURL = poloniexWebsocketAddress
+	p.API.Endpoints = p.NewEndpoints()
+	err = p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      poloniexAPIURL,
+		exchange.WebsocketSpot: poloniexWebsocketAddress,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	p.Websocket = stream.New()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -153,6 +157,11 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := p.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = p.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -160,7 +169,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       poloniexWebsocketAddress,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        p.WsConnect,
 		Subscriber:                       p.Subscribe,
 		UnSubscriber:                     p.Unsubscribe,
@@ -375,7 +384,7 @@ func (p *Poloniex) UpdateOrderbook(c currency.Pair, assetType asset.Item) (*orde
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountInfo() (account.Holdings, error) {
+func (p *Poloniex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = p.Name
 	accountBalance, err := p.GetBalances()
@@ -404,10 +413,10 @@ func (p *Poloniex) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (p *Poloniex) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(p.Name)
+func (p *Poloniex) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(p.Name, assetType)
 	if err != nil {
-		return p.UpdateAccountInfo()
+		return p.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -825,8 +834,8 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (p *Poloniex) ValidateCredentials() error {
-	_, err := p.UpdateAccountInfo()
+func (p *Poloniex) ValidateCredentials(assetType asset.Item) error {
+	_, err := p.UpdateAccountInfo(assetType)
 	return p.CheckTransientError(err)
 }
 

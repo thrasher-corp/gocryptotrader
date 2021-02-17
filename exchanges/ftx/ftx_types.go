@@ -7,6 +7,53 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// MarginFundingData stores borrowing/lending data for margin trading
+type MarginFundingData struct {
+	Coin     string  `json:"coin"`
+	Estimate float64 `json:"estimate"`
+	Previous float64 `json:"previous"`
+}
+
+// MarginDailyBorrowStats stores the daily borrowed amounts
+type MarginDailyBorrowStats struct {
+	Coin string  `json:"coin"`
+	Size float64 `json:"size"`
+}
+
+// MarginMarketInfo stores margin market info
+type MarginMarketInfo struct {
+	Coin          string  `json:"coin"`
+	Borrowed      float64 `json:"borrowed"`
+	Free          float64 `json:"free"`
+	EstimatedRate float64 `json:"estimatedRate"`
+	PreviousRate  float64 `json:"previousRate"`
+}
+
+// MarginTransactionHistoryData stores margin borrowing/lending history
+type MarginTransactionHistoryData struct {
+	Coin string    `json:"coin"`
+	Cost float64   `json:"cost"`
+	Rate float64   `json:"rate"`
+	Size float64   `json:"size"`
+	Time time.Time `json:"time"`
+}
+
+// LendingOffersData stores data for lending offers
+type LendingOffersData struct {
+	Coin string  `json:"coin"`
+	Rate float64 `json:"rate"`
+	Size float64 `json:"size"`
+}
+
+// LendingInfoData stores margin lending info
+type LendingInfoData struct {
+	Coin     string  `json:"coin"`
+	Lendable float64 `json:"lendable"`
+	Locked   float64 `json:"locked"`
+	MinRate  float64 `json:"minRate"`
+	Offered  float64 `json:"offered"`
+}
+
 // MarketData stores market data
 type MarketData struct {
 	Name           string  `json:"name"`
@@ -278,13 +325,13 @@ type FillsData struct {
 	Fee           float64   `json:"fee"`
 	FeeRate       float64   `json:"feeRate"`
 	Future        string    `json:"future"`
-	ID            string    `json:"id"`
+	ID            int64     `json:"id"`
 	Liquidity     string    `json:"liquidity"`
 	Market        string    `json:"market"`
 	BaseCurrency  string    `json:"baseCurrency"`
 	QuoteCurrency string    `json:"quoteCurrency"`
-	OrderID       string    `json:"orderID"`
-	TradeID       string    `json:"tradeID"`
+	OrderID       int64     `json:"orderId"`
+	TradeID       int64     `json:"tradeId"`
 	Price         float64   `json:"price"`
 	Side          string    `json:"side"`
 	Size          float64   `json:"size"`
@@ -295,7 +342,7 @@ type FillsData struct {
 // FundingPaymentsData stores funding payments' data
 type FundingPaymentsData struct {
 	Future  string    `json:"future"`
-	ID      string    `json:"id"`
+	ID      int64     `json:"id"`
 	Payment float64   `json:"payment"`
 	Time    time.Time `json:"time"`
 	Rate    float64   `json:"rate"`
@@ -576,8 +623,8 @@ type WsFills struct {
 	ID        int64     `json:"id"`
 	Liquidity string    `json:"liquidity"`
 	Market    string    `json:"market"`
-	OrderID   int64     `json:"int64"`
-	TradeID   int64     `json:"tradeID"`
+	OrderID   int64     `json:"orderId"`
+	TradeID   int64     `json:"tradeId"`
 	Price     float64   `json:"price"`
 	Side      string    `json:"side"`
 	Size      float64   `json:"size"`

@@ -26,7 +26,7 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	SetEnabled(bool)
-	ValidateCredentials() error
+	ValidateCredentials(a asset.Item) error
 	FetchTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	FetchOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error)
@@ -35,8 +35,8 @@ type IBotExchange interface {
 	UpdateTradablePairs(forceUpdate bool) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
-	FetchAccountInfo() (account.Holdings, error)
-	UpdateAccountInfo() (account.Holdings, error)
+	FetchAccountInfo(a asset.Item) (account.Holdings, error)
+	UpdateAccountInfo(a asset.Item) (account.Holdings, error)
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes() asset.Items

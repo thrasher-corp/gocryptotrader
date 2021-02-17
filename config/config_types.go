@@ -375,9 +375,10 @@ type APIConfig struct {
 	AuthenticatedWebsocketSupport bool `json:"authenticatedWebsocketApiSupport"`
 	PEMKeySupport                 bool `json:"pemKeySupport,omitempty"`
 
-	Endpoints            APIEndpointsConfig             `json:"endpoints"`
 	Credentials          APICredentialsConfig           `json:"credentials"`
 	CredentialsValidator *APICredentialsValidatorConfig `json:"credentialsValidator,omitempty"`
+	OldEndPoints         *APIEndpointsConfig            `json:"endpoints,omitempty"`
+	Endpoints            map[string]string              `json:"urlEndpoints"`
 }
 
 // OrderbookConfig stores the orderbook configuration variables

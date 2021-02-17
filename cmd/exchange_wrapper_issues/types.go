@@ -99,9 +99,10 @@ type Bank struct {
 
 // OrderSubmission contains all data required for a wrapper order submission
 type OrderSubmission struct {
-	OrderSide string  `json:"orderSide"`
-	OrderType string  `json:"orderType"`
-	Amount    float64 `json:"amount"`
-	Price     float64 `json:"price"`
-	OrderID   string  `json:"orderID"`
+	OrderSide string     `json:"orderSide"`
+	OrderType string     `json:"orderType"`
+	Amount    float64    `json:"amount"`
+	Price     float64    `json:"price"`
+	OrderID   string     `json:"orderID"`
+	AssetType asset.Item `json:"assetType"`
 }

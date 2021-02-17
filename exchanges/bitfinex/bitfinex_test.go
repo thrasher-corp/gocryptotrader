@@ -61,6 +61,64 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestGetV2MarginFunding(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := b.GetV2MarginFunding("fUSD", "2", 2)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountInfoV2(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := b.GetAccountInfoV2()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetV2FundingInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := b.GetV2FundingInfo("fUSD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetV2Balances(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := b.GetV2Balances()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDerivativeData(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginPairs(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetMarginPairs()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestAppendOptionalDelimiter(t *testing.T) {
 	t.Parallel()
 	curr1, err := currency.NewPairFromString("BTCUSD")
@@ -222,7 +280,7 @@ func TestGetAccountFees(t *testing.T) {
 	}
 	t.Parallel()
 
-	_, err := b.UpdateAccountInfo()
+	_, err := b.UpdateAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error("GetAccountInfo error", err)
 	}
@@ -233,7 +291,6 @@ func TestGetWithdrawalFee(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-
 	_, err := b.GetWithdrawalFees()
 	if err != nil {
 		t.Error("GetAccountInfo error", err)
@@ -315,7 +372,7 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 	t.Parallel()
 
-	_, err := b.FetchAccountInfo()
+	_, err := b.FetchAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -487,7 +544,6 @@ func TestGetBalanceHistory(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-
 	_, err := b.GetBalanceHistory("USD", time.Time{}, time.Time{}, 1, "deposit")
 	if err == nil {
 		t.Error("GetBalanceHistory() Expected error")
@@ -511,7 +567,6 @@ func TestGetTradeHistory(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-
 	_, err := b.GetTradeHistory("BTCUSD", time.Time{}, time.Time{}, 1, 0)
 	if err == nil {
 		t.Error("GetTradeHistory() Expected error")
@@ -734,7 +789,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -748,7 +804,8 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)
@@ -1470,7 +1527,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 
 	// longer term test
-	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*24*100), time.Now().Add(-time.Hour*24*99))
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Hour*100), time.Now().Add(-time.Hour*99))
 	if err != nil {
 		t.Error(err)
 	}

@@ -153,7 +153,7 @@ func TestAccountInfo(t *testing.T) {
 	if !errors.Is(err, objects.ErrWrongNumArguments) {
 		t.Fatal(err)
 	}
-	_, err = gct.ExchangeAccountInfo(exch)
+	_, err = gct.ExchangeAccountInfo(exch, assetType)
 	if err != nil &&
 		!strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)

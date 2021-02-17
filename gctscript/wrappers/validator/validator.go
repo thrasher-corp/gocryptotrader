@@ -184,7 +184,7 @@ func (w Wrapper) CancelOrder(exch, orderid string, cp currency.Pair, a asset.Ite
 }
 
 // AccountInformation validator for test execution/scripts
-func (w Wrapper) AccountInformation(exch string) (account.Holdings, error) {
+func (w Wrapper) AccountInformation(exch string, assetType asset.Item) (account.Holdings, error) {
 	if exch == exchError.String() {
 		return account.Holdings{}, errTestFailed
 	}

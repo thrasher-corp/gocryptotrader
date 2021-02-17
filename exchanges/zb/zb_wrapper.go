@@ -131,12 +131,15 @@ func (z *ZB) SetDefaults() {
 	z.Requester = request.New(z.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	z.API.Endpoints.URLDefault = zbTradeURL
-	z.API.Endpoints.URL = z.API.Endpoints.URLDefault
-	z.API.Endpoints.URLSecondaryDefault = zbMarketURL
-	z.API.Endpoints.URLSecondary = z.API.Endpoints.URLSecondaryDefault
-	z.API.Endpoints.WebsocketURL = zbWebsocketAPI
+	z.API.Endpoints = z.NewEndpoints()
+	err = z.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:              zbTradeURL,
+		exchange.RestSpotSupplementary: zbMarketURL,
+		exchange.WebsocketSpot:         zbWebsocketAPI,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -154,6 +157,11 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := z.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -161,7 +169,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       zbWebsocketAPI,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        z.WsConnect,
 		GenerateSubscriptions:            z.GenerateDefaultSubscriptions,
 		Subscriber:                       z.Subscribe,
@@ -330,7 +338,7 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (z *ZB) UpdateAccountInfo() (account.Holdings, error) {
+func (z *ZB) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var balances []account.Balance
 	var coins []AccountsResponseCoin
@@ -380,10 +388,10 @@ func (z *ZB) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (z *ZB) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(z.Name)
+func (z *ZB) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(z.Name, assetType)
 	if err != nil {
-		return z.UpdateAccountInfo()
+		return z.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -805,8 +813,8 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (z *ZB) ValidateCredentials() error {
-	_, err := z.UpdateAccountInfo()
+func (z *ZB) ValidateCredentials(assetType asset.Item) error {
+	_, err := z.UpdateAccountInfo(assetType)
 	return z.CheckTransientError(err)
 }
 

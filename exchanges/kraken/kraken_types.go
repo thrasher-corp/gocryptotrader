@@ -1,22 +1,96 @@
 package kraken
 
 import (
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
-type assetTranslatorStore struct {
-	l      sync.RWMutex
-	Assets map[string]string
+const (
+	krakenAPIVersion       = "0"
+	krakenServerTime       = "Time"
+	krakenAssets           = "Assets"
+	krakenAssetPairs       = "AssetPairs?"
+	krakenTicker           = "Ticker"
+	krakenOHLC             = "OHLC"
+	krakenDepth            = "Depth"
+	krakenTrades           = "Trades"
+	krakenSpread           = "Spread"
+	krakenBalance          = "Balance"
+	krakenTradeBalance     = "TradeBalance"
+	krakenOpenOrders       = "OpenOrders"
+	krakenClosedOrders     = "ClosedOrders"
+	krakenQueryOrders      = "QueryOrders"
+	krakenTradeHistory     = "TradesHistory"
+	krakenQueryTrades      = "QueryTrades"
+	krakenOpenPositions    = "OpenPositions"
+	krakenLedgers          = "Ledgers"
+	krakenQueryLedgers     = "QueryLedgers"
+	krakenTradeVolume      = "TradeVolume"
+	krakenOrderCancel      = "CancelOrder"
+	krakenOrderPlace       = "AddOrder"
+	krakenWithdrawInfo     = "WithdrawInfo"
+	krakenWithdraw         = "Withdraw"
+	krakenDepositMethods   = "DepositMethods"
+	krakenDepositAddresses = "DepositAddresses"
+	krakenWithdrawStatus   = "WithdrawStatus"
+	krakenWithdrawCancel   = "WithdrawCancel"
+	krakenWebsocketToken   = "GetWebSocketsToken"
+
+	// Futures
+	futuresTickers      = "/api/v3/tickers"
+	futuresOrderbook    = "/api/v3/orderbook"
+	futuresInstruments  = "/api/v3/instruments"
+	futuresTradeHistory = "/api/v3/history"
+
+	futuresSendOrder         = "/api/v3/sendorder"
+	futuresCancelOrder       = "/api/v3/cancelorder"
+	futuresOrderFills        = "/api/v3/fills"
+	futuresTransfer          = "/api/v3/transfer"
+	futuresOpenPositions     = "/api/v3/openpositions"
+	futuresBatchOrder        = "/api/v3/batchorder"
+	futuresNotifications     = "/api/v3/notifications"
+	futuresAccountData       = "/api/v3/accounts"
+	futuresCancelAllOrders   = "/api/v3/cancelallorders"
+	futuresCancelOrdersAfter = "/api/v3/cancelallordersafter"
+	futuresOpenOrders        = "/api/v3/openorders"
+	futuresRecentOrders      = "/api/v3/recentorders"
+	futuresWithdraw          = "/api/v3/withdrawal"
+	futuresTransfers         = "/api/v3/transfers"
+	futuresEditOrder         = "/api/v3/editorder"
+
+	// Rate limit consts
+	krakenRateInterval = time.Second
+	krakenRequestRate  = 1
+
+	// Status consts
+	statusOpen = "open"
+
+	krakenFormat = "2006-01-02T15:04:05.000Z"
+)
+
+var (
+	assetTranslator assetTranslatorStore
+)
+
+// GenericResponse stores general response data for functions that only return success
+type GenericResponse struct {
+	Timestamp string `json:"timestamp"`
+	Result    string `json:"result"`
 }
 
-// TimeResponse type
-type TimeResponse struct {
-	Unixtime int64  `json:"unixtime"`
-	Rfc1123  string `json:"rfc1123"`
+// AuthErrorData stores authenticated error messages
+type AuthErrorData struct {
+	Result     string `json:"result"`
+	ServerTime string `json:"serverTime"`
+	Error      string `json:"error"`
+}
+
+// SpotAuthError stores authenticated error messages
+type SpotAuthError struct {
+	Error []string `json:"error"`
 }
 
 // Asset holds asset information
@@ -30,6 +104,7 @@ type Asset struct {
 // AssetPairs holds asset pair information
 type AssetPairs struct {
 	Altname           string      `json:"altname"`
+	Wsname            string      `json:"wsname"`
 	AclassBase        string      `json:"aclass_base"`
 	Base              string      `json:"base"`
 	AclassQuote       string      `json:"aclass_quote"`
@@ -45,6 +120,7 @@ type AssetPairs struct {
 	FeeVolumeCurrency string      `json:"fee_volume_currency"`
 	MarginCall        int         `json:"margin_call"`
 	MarginStop        int         `json:"margin_stop"`
+	Ordermin          string      `json:"ordermin"`
 }
 
 // Ticker is a standard ticker type
@@ -520,7 +596,7 @@ type WsOpenOrder struct {
 		Close     string  `json:"close"`
 		Price     float64 `json:"price,string"`
 		Price2    float64 `json:"price2,string"`
-		Leverage  string  `json:"leverage"`
+		Leverage  float64 `json:"leverage,string"`
 		Order     string  `json:"order"`
 		OrderType string  `json:"ordertype"`
 		Pair      string  `json:"pair"`
@@ -622,4 +698,12 @@ type WsCancelOrderResponse struct {
 	ErrorMessage string `json:"errorMessage"`
 	RequestID    int64  `json:"reqid"`
 	Count        int64  `json:"count"`
+}
+
+// OrderVars stores side, status and type for any order/trade
+type OrderVars struct {
+	Side      order.Side
+	Status    order.Status
+	OrderType order.Type
+	Fee       float64
 }

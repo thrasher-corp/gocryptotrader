@@ -84,7 +84,7 @@ func TestGetMarketDepths(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, _ := l.GetMarketDepths(testCurrencyPair, "4", "0")
-	if len(a.Asks) != 4 {
+	if len(a.Data.Asks) != 4 {
 		t.Errorf("asks length requested doesnt match the output")
 	}
 }
@@ -387,7 +387,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.UpdateAccountInfo()
+	_, err := l.UpdateAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -400,6 +400,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 	var input order.GetOrdersRequest
 	input.Side = order.Buy
+	input.AssetType = asset.Spot
 	_, err := l.GetOrderHistory(&input)
 	if err != nil {
 		t.Error(err)

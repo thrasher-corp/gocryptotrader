@@ -58,9 +58,6 @@ func (b *BTCMarkets) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	b.API.Endpoints.URLDefault = btcMarketsAPIURL
-	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-
 	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
@@ -123,8 +120,14 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	b.API.Endpoints.WebsocketURL = btcMarketsWSURL
+	b.API.Endpoints = b.NewEndpoints()
+	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      btcMarketsAPIURL,
+		exchange.WebsocketSpot: btcMarketsWSURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -143,6 +146,11 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -150,7 +158,7 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       btcMarketsWSURL,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsURL,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
 		GenerateSubscriptions:            b.generateDefaultSubscriptions,
@@ -387,7 +395,7 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) UpdateAccountInfo() (account.Holdings, error) {
+func (b *BTCMarkets) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
 	data, err := b.GetAccountBalance()
 	if err != nil {
@@ -415,10 +423,10 @@ func (b *BTCMarkets) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name)
+func (b *BTCMarkets) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -856,8 +864,8 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *BTCMarkets) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *BTCMarkets) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	if err != nil {
 		if b.CheckTransientError(err) == nil {
 			return nil

@@ -33,6 +33,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Localbitcoins setup error", err)
 	}
-	log.Printf(sharedtestvalues.LiveTesting, l.Name, l.API.Endpoints.URL)
+	log.Printf(sharedtestvalues.LiveTesting, l.Name)
 	os.Exit(m.Run())
 }

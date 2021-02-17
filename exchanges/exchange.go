@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -578,6 +579,11 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 
 	e.SetFeatureDefaults()
+
+	if e.API.Endpoints == nil {
+		e.API.Endpoints = e.NewEndpoints()
+	}
+
 	err = e.SetAPIURL()
 	if err != nil {
 		return err
@@ -767,7 +773,6 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 					e.Name,
 					strings.ToUpper(assetType.String()),
 					remove)
-
 				e.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
 				e.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
 			}
@@ -778,50 +783,57 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 
 // SetAPIURL sets configuration API URL for an exchange
 func (e *Base) SetAPIURL() error {
-	if e.Config.API.Endpoints.URL == "" || e.Config.API.Endpoints.URLSecondary == "" {
-		return fmt.Errorf("exchange %s: SetAPIURL error. URL vals are empty", e.Name)
-	}
-
 	checkInsecureEndpoint := func(endpoint string) {
-		if strings.Contains(endpoint, "https") {
+		if strings.Contains(endpoint, "https") || strings.Contains(endpoint, "wss") {
 			return
 		}
 		log.Warnf(log.ExchangeSys,
-			"%s is using HTTP instead of HTTPS [%s] for API functionality, an"+
+			"%s is using HTTP instead of HTTPS or WS instead of WSS [%s] for API functionality, an"+
 				" attacker could eavesdrop on this connection. Use at your"+
 				" own risk.",
 			e.Name, endpoint)
 	}
-
-	if e.Config.API.Endpoints.URL != config.APIURLNonDefaultMessage {
-		e.API.Endpoints.URL = e.Config.API.Endpoints.URL
-		checkInsecureEndpoint(e.API.Endpoints.URL)
+	var err error
+	if e.Config.API.OldEndPoints != nil {
+		if e.Config.API.OldEndPoints.URL != "" && e.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
+			err = e.API.Endpoints.SetRunning(RestSpot.String(), e.Config.API.OldEndPoints.URL)
+			if err != nil {
+				return err
+			}
+			checkInsecureEndpoint(e.Config.API.OldEndPoints.URL)
+		}
+		if e.Config.API.OldEndPoints.URLSecondary != "" && e.Config.API.OldEndPoints.URLSecondary != config.APIURLNonDefaultMessage {
+			err = e.API.Endpoints.SetRunning(RestSpotSupplementary.String(), e.Config.API.OldEndPoints.URLSecondary)
+			if err != nil {
+				return err
+			}
+			checkInsecureEndpoint(e.Config.API.OldEndPoints.URLSecondary)
+		}
+		if e.Config.API.OldEndPoints.WebsocketURL != "" && e.Config.API.OldEndPoints.WebsocketURL != config.WebsocketURLNonDefaultMessage {
+			err = e.API.Endpoints.SetRunning(WebsocketSpot.String(), e.Config.API.OldEndPoints.WebsocketURL)
+			if err != nil {
+				return err
+			}
+			checkInsecureEndpoint(e.Config.API.OldEndPoints.WebsocketURL)
+		}
+		e.Config.API.OldEndPoints = nil
+	} else if e.Config.API.Endpoints != nil {
+		for key, val := range e.Config.API.Endpoints {
+			if val == "" ||
+				val == config.APIURLNonDefaultMessage ||
+				val == config.WebsocketURLNonDefaultMessage {
+				continue
+			}
+			checkInsecureEndpoint(val)
+			err = e.API.Endpoints.SetRunning(key, val)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	if e.Config.API.Endpoints.URLSecondary != config.APIURLNonDefaultMessage {
-		e.API.Endpoints.URLSecondary = e.Config.API.Endpoints.URLSecondary
-		checkInsecureEndpoint(e.API.Endpoints.URLSecondary)
-	}
+	runningMap := e.API.Endpoints.GetURLMap()
+	e.Config.API.Endpoints = runningMap
 	return nil
-}
-
-// GetAPIURL returns the set API URL
-func (e *Base) GetAPIURL() string {
-	return e.API.Endpoints.URL
-}
-
-// GetSecondaryAPIURL returns the set Secondary API URL
-func (e *Base) GetSecondaryAPIURL() string {
-	return e.API.Endpoints.URLSecondary
-}
-
-// GetAPIURLDefault returns exchange default URL
-func (e *Base) GetAPIURLDefault() string {
-	return e.API.Endpoints.URLDefault
-}
-
-// GetAPIURLSecondaryDefault returns exchange default secondary URL
-func (e *Base) GetAPIURLSecondaryDefault() string {
-	return e.API.Endpoints.URLSecondaryDefault
 }
 
 // SupportsREST returns whether or not the exchange supports
@@ -944,6 +956,10 @@ func (e *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 	if a.String() == "" {
 		return fmt.Errorf("%s cannot add to pairs manager, no asset provided",
 			e.Name)
+	}
+
+	if f.AssetEnabled == nil {
+		f.AssetEnabled = convert.BoolPtr(true)
 	}
 
 	if f.RequestFormat == nil {
@@ -1134,5 +1150,114 @@ func (e *Base) SetSaveTradeDataStatus(enabled bool) {
 	e.Config.Features.Enabled.SaveTradeData = enabled
 	if e.Verbose {
 		log.Debugf(log.Trade, "Set %v 'SaveTradeData' to %v", e.Name, enabled)
+	}
+}
+
+// NewEndpoints declares default and running URLs maps
+func (e *Base) NewEndpoints() *Endpoints {
+	return &Endpoints{
+		Exchange: e.Name,
+		defaults: make(map[string]string),
+	}
+}
+
+// SetDefaultEndpoints declares and sets the default URLs map
+func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
+	for k, v := range m {
+		err := e.SetRunning(k.String(), v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SetRunning populates running URLs map
+func (e *Endpoints) SetRunning(key, val string) error {
+	e.Lock()
+	defer e.Unlock()
+	err := validateKey(key)
+	if err != nil {
+		return err
+	}
+	_, err = url.ParseRequestURI(val)
+	if err != nil {
+		log.Warnf(log.ExchangeSys, "Could not set custom URL for %s to %s for exchange %s. invalid URI for request.", key, val, e.Exchange)
+		return nil
+	}
+	e.defaults[key] = val
+	return nil
+}
+
+func validateKey(keyVal string) error {
+	for x := range keyURLs {
+		if keyURLs[x].String() == keyVal {
+			return nil
+		}
+	}
+	return errors.New("keyVal invalid")
+}
+
+// GetURL gets default url from URLs map
+func (e *Endpoints) GetURL(key URL) (string, error) {
+	e.RLock()
+	defer e.RUnlock()
+	val, ok := e.defaults[key.String()]
+	if !ok {
+		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
+	}
+	return val, nil
+}
+
+// GetURLMap gets all urls for either running or default map based on the bool value supplied
+func (e *Endpoints) GetURLMap() map[string]string {
+	e.RLock()
+	var urlMap = make(map[string]string)
+	for k, v := range e.defaults {
+		urlMap[k] = v
+	}
+	e.RUnlock()
+	return urlMap
+}
+
+// FormatSymbol formats the given pair to a string suitable for exchange API requests
+func (e *Base) FormatSymbol(pair currency.Pair, assetType asset.Item) (string, error) {
+	pairFmt, err := e.GetPairFormat(assetType, true)
+	if err != nil {
+		return pair.String(), err
+	}
+	return pairFmt.Format(pair), nil
+}
+
+func (u URL) String() string {
+	switch u {
+	case RestSpot:
+		return "RestSpotURL"
+	case RestSpotSupplementary:
+		return "RestSpotSupplementaryURL"
+	case RestUSDTMargined:
+		return "RestUSDTMarginedFuturesURL"
+	case RestCoinMargined:
+		return "RestCoinMarginedFuturesURL"
+	case RestFutures:
+		return "RestFuturesURL"
+	case RestSandbox:
+		return "RestSandboxURL"
+	case RestSwap:
+		return "RestSwapURL"
+	case WebsocketSpot:
+		return "WebsocketSpotURL"
+	case WebsocketSpotSupplementary:
+		return "WebsocketSpotSupplementaryURL"
+	case ChainAnalysis:
+		return "ChainAnalysisURL"
+	case EdgeCase1:
+		return "EdgeCase1URL"
+	case EdgeCase2:
+		return "EdgeCase2URL"
+	case EdgeCase3:
+		return "EdgeCase3URL"
+	default:
+		return ""
 	}
 }

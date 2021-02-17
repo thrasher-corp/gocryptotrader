@@ -502,7 +502,12 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 		return nil, errExchangeNotLoaded
 	}
 
-	resp, err := exch.FetchAccountInfo()
+	assetType, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := exch.FetchAccountInfo(assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +522,12 @@ func (s *RPCServer) UpdateAccountInfo(ctx context.Context, r *gctrpc.GetAccountI
 		return nil, errExchangeNotLoaded
 	}
 
-	resp, err := exch.UpdateAccountInfo()
+	assetType, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := exch.UpdateAccountInfo(assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -554,7 +564,12 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return errExchangeNotLoaded
 	}
 
-	initAcc, err := exch.FetchAccountInfo()
+	assetType, err := asset.New(r.AssetType)
+	if err != nil {
+		return err
+	}
+
+	initAcc, err := exch.FetchAccountInfo(assetType)
 	if err != nil {
 		return err
 	}

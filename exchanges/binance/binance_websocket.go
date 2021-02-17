@@ -499,20 +499,22 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes()
 	for x := range assets {
-		pairs, err := b.GetEnabledPairs(assets[x])
-		if err != nil {
-			return nil, err
-		}
+		if assets[x] == asset.Spot {
+			pairs, err := b.GetEnabledPairs(assets[x])
+			if err != nil {
+				return nil, err
+			}
 
-		for y := range pairs {
-			for z := range channels {
-				lp := pairs[y].Lower()
-				lp.Delimiter = ""
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  lp.String() + channels[z],
-					Currency: pairs[y],
-					Asset:    assets[x],
-				})
+			for y := range pairs {
+				for z := range channels {
+					lp := pairs[y].Lower()
+					lp.Delimiter = ""
+					subscriptions = append(subscriptions, stream.ChannelSubscription{
+						Channel:  lp.String() + channels[z],
+						Currency: pairs[y],
+						Asset:    assets[x],
+					})
+				}
 			}
 		}
 	}

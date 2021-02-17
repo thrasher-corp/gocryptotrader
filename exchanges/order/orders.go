@@ -120,7 +120,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.Pair = m.Pair
 		updated = true
 	}
-	if m.Leverage != "" && m.Leverage != d.Leverage {
+	if m.Leverage != 0 && m.Leverage != d.Leverage {
 		d.Leverage = m.Leverage
 		updated = true
 	}
@@ -269,7 +269,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Pair = m.Pair
 		updated = true
 	}
-	if m.Leverage != "" && m.Leverage != d.Leverage {
+	if m.Leverage != 0 && m.Leverage != d.Leverage {
 		d.Leverage = m.Leverage
 		updated = true
 	}
@@ -633,6 +633,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return PostOnly, nil
 	case strings.EqualFold(oType, AnyType.String()):
 		return AnyType, nil
+	case strings.EqualFold(oType, Trigger.String()):
+		return Trigger, nil
 	default:
 		return UnknownType, errors.New(oType + " not recognised as order type")
 	}
@@ -742,6 +744,9 @@ func (c *Cancel) Validate(opt ...validate.Checker) error {
 func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
 	if g == nil {
 		return ErrGetOrdersRequestIsNil
+	}
+	if !g.AssetType.IsValid() {
+		return fmt.Errorf("assetType %v not supported", g.AssetType)
 	}
 	var errs common.Errors
 	for _, o := range opt {

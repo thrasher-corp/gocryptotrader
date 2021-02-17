@@ -131,10 +131,15 @@ func (c *CoinbasePro) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	c.API.Endpoints.URLDefault = coinbaseproAPIURL
-	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
-	c.API.Endpoints.WebsocketURL = coinbaseproWebsocketURL
+	c.API.Endpoints = c.NewEndpoints()
+	err = c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      coinbaseproAPIURL,
+		exchange.RestSandbox:   coinbaseproSandboxAPIURL,
+		exchange.WebsocketSpot: coinbaseproWebsocketURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -153,6 +158,11 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -160,7 +170,7 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       coinbaseproWebsocketURL,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        c.WsConnect,
 		Subscriber:                       c.Subscribe,
 		UnSubscriber:                     c.Unsubscribe,
@@ -303,7 +313,7 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
-func (c *CoinbasePro) UpdateAccountInfo() (account.Holdings, error) {
+func (c *CoinbasePro) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = c.Name
 	accountBalance, err := c.GetAccounts()
@@ -334,10 +344,10 @@ func (c *CoinbasePro) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (c *CoinbasePro) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(c.Name)
+func (c *CoinbasePro) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(c.Name, assetType)
 	if err != nil {
-		return c.UpdateAccountInfo()
+		return c.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -934,7 +944,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (c *CoinbasePro) ValidateCredentials() error {
-	_, err := c.UpdateAccountInfo()
+func (c *CoinbasePro) ValidateCredentials(assetType asset.Item) error {
+	_, err := c.UpdateAccountInfo(assetType)
 	return c.CheckTransientError(err)
 }
