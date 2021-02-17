@@ -286,7 +286,6 @@ func TestAddHoldingsForTime(t *testing.T) {
 		RemainingFunds:               1337,
 		TotalValueDifference:         1337,
 		ChangeInTotalValuePercent:    1337,
-		ExcessReturnPercent:          1337,
 		BoughtValueDifference:        1337,
 		SoldValueDifference:          1337,
 		PositionsValueDifference:     1337,

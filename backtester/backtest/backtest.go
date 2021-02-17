@@ -138,9 +138,9 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				err)
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = &risk.CurrencySettings{
-			MaxLeverageRatio:    cfg.CurrencySettings[i].Leverage.MaximumLeverageRatio,
-			MaxLeverageRate:     cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
-			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
+			MaxOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumLeverageRatio,
+			MaxLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
+			MaximumHoldingRatio:        cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
 		if cfg.CurrencySettings[i].MakerFee > cfg.CurrencySettings[i].TakerFee {
 			log.Warnf(log.BackTester, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
@@ -583,7 +583,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 
 func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
-		return errors.New("received nil argument(s)")
+		return common.ErrNilArguments
 	}
 
 	if cfg.DataSettings.LiveData.APIKeyOverride != "" {

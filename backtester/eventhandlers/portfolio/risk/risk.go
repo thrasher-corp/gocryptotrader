@@ -1,9 +1,9 @@
 package risk
 
 import (
-	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -14,33 +14,44 @@ import (
 // we are in a position to follow through with an order
 func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s compliance.Snapshot) (*order.Order, error) {
 	if o == nil || latestHoldings == nil {
-		return nil, errors.New("received nil argument(s)")
+		return nil, common.ErrNilArguments
 	}
 	retOrder := o.(*order.Order)
+	ex := o.GetExchange()
+	a := o.GetAssetType()
+	p := o.Pair()
+	lookup, ok := r.CurrencySettings[ex][a][p]
+	if !ok {
+		return nil, fmt.Errorf("%v %v %v %w", ex, a, p, errNoCurrencySettings)
+	}
+
 	if o.IsLeveraged() {
 		if !r.CanUseLeverage {
-			return nil, errors.New("order says to use leverage, but it is not allowed")
+			return nil, errLeverageNotAllowed
 		}
 		ratio := existingLeverageRatio(s)
-		lookupRatio := r.CurrencySettings[o.GetExchange()][o.GetAssetType()][o.Pair()].MaxLeverageRatio
-		if ratio > lookupRatio && lookupRatio > 0 {
-			return nil, fmt.Errorf("proceeding with the order would put leverage ratio beyond its limit of %v to %v and cannot be placed", lookupRatio, ratio)
+		if ratio > lookup.MaxOrdersWithLeverageRatio && lookup.MaxOrdersWithLeverageRatio > 0 {
+			return nil, fmt.Errorf("proceeding with the order would put maximum orders using leverage ratio beyond its limit of %v to %v and %w", lookup.MaxOrdersWithLeverageRatio, ratio, errCannotPlaceLeverageOrder)
 		}
-		lookupRate := r.CurrencySettings[o.GetExchange()][o.GetAssetType()][o.Pair()].MaxLeverageRate
-		if retOrder.GetLeverage() > lookupRate && lookupRate > 0 {
-			return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and cannot be placed", lookupRate, retOrder.GetLeverage())
+		if retOrder.GetLeverage() > lookup.MaxLeverageRate && lookup.MaxLeverageRate > 0 {
+			return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and %w", lookup.MaxLeverageRate, retOrder.GetLeverage(), errCannotPlaceLeverageOrder)
 		}
 	}
 	if len(latestHoldings) > 1 {
 		ratio := assessHoldingsRatio(o.Pair(), latestHoldings)
-		lookupHolding := r.CurrencySettings[o.GetExchange()][o.GetAssetType()][o.Pair()].MaximumHoldingRatio
-		if lookupHolding > 0 && ratio > lookupHolding {
-			return nil, fmt.Errorf("proceeding with the order would put holdings ratio beyond its limit of %v to %v and cannot be placed", lookupHolding, ratio)
+		if !ok {
+			return nil, fmt.Errorf("lacking currency settings for %v %v %v cannot evaluate order", ex, a, p)
+		}
+		if lookup.MaximumHoldingRatio > 0 && ratio != 1 && ratio > lookup.MaximumHoldingRatio {
+			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", lookup.MaximumHoldingRatio, ratio, ex, a, p, errCannotPlaceLeverageOrder)
 		}
 	}
 	return retOrder, nil
 }
 
+// existingLeverageRatio compares orders with leverage to the total number of orders
+// a proof of concept to demonstrate risk manager's ability to prevent an order from being placed
+// when an order exceeds a config setting
 func existingLeverageRatio(s compliance.Snapshot) float64 {
 	if len(s.Orders) == 0 {
 		return 0
@@ -58,10 +69,13 @@ func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) float64 {
 	resp := make(map[currency.Pair]float64)
 	totalPosition := 0.0
 	for i := range h {
-		resp[h[i].Pair] += h[i].PositionsSize
-		totalPosition += h[i].PositionsSize
+		resp[h[i].Pair] += h[i].PositionsValue
+		totalPosition += h[i].PositionsValue
 	}
 
+	if totalPosition == 0 {
+		return 0
+	}
 	ratio := resp[c] / totalPosition
 
 	return ratio

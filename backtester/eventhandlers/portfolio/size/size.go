@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -13,7 +14,7 @@ import (
 // SizeOrder is responsible for ensuring that the order size is within config limits
 func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Settings) (*order.Order, error) {
 	if o == nil || cs == nil {
-		return nil, errors.New("nil arguments received, cannot size order")
+		return nil, common.ErrNilArguments
 	}
 	if amountAvailable <= 0 {
 		return nil, errors.New("received availableFunds <= 0, cannot size order")

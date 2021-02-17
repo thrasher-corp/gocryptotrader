@@ -51,7 +51,7 @@ func (p *Portfolio) Reset() {
 // the portfolio manager's recommendations
 func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order.Order, error) {
 	if signal == nil || cs == nil {
-		return nil, errors.New("received nil arguments, cannot process OnSignal")
+		return nil, common.ErrNilArguments
 	}
 	if p.sizeManager == nil {
 		return nil, errors.New("no size manager set")
@@ -136,6 +136,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, siz
 			originalOrderSignal.Direction = common.CouldNotBuy
 		case gctorder.Sell:
 			originalOrderSignal.Direction = common.CouldNotSell
+		case common.CouldNotBuy, common.CouldNotSell:
 		default:
 			originalOrderSignal.Direction = common.DoNothing
 		}

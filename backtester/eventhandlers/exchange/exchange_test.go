@@ -1,11 +1,13 @@
 package exchange
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -104,7 +106,7 @@ func TestSizeOrder(t *testing.T) {
 	t.Parallel()
 	e := Exchange{}
 	_, _, err := e.sizeOfflineOrder(0, 0, 0, nil, nil)
-	if err != nil && err.Error() != "received nil arguments" {
+	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
 	cs := &Settings{}

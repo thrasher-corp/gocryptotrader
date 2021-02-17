@@ -1,6 +1,7 @@
 package math
 
 import (
+	"errors"
 	"math"
 	"testing"
 )
@@ -217,22 +218,16 @@ func TestCAGR(t *testing.T) {
 		0,
 		0,
 		0)
-	if err != nil && err.Error() != "cannot calculate CAGR with no intervals" {
+	if !errors.Is(err, errCAGRNoIntervals) {
 		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
 	}
 	_, err = CompoundAnnualGrowthRate(
 		0,
 		0,
 		0,
 		1)
-	if err != nil && err.Error() != "cannot calculate CAGR with an open value of 0" {
+	if !errors.Is(err, errCAGRZeroOpenValue) {
 		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
 	}
 
 	var cagr float64
@@ -275,11 +270,8 @@ func TestCAGR(t *testing.T) {
 func TestCalculateSharpeRatio(t *testing.T) {
 	t.Parallel()
 	result, err := SharpeRatio(nil, 0, 0)
-	if err != nil && err.Error() != "cannot calculate average of no values" {
+	if !errors.Is(err, errZeroValue) {
 		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
 	}
 	if result != 0 {
 		t.Error("expected 0")
@@ -350,11 +342,8 @@ func TestGeometricAverage(t *testing.T) {
 	t.Parallel()
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
 	_, err := GeometricAverage(nil)
-	if err != nil && err.Error() != "cannot calculate average of no values" {
+	if !errors.Is(err, errZeroValue) {
 		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
 	}
 	var mean float64
 	mean, err = GeometricAverage(values)
@@ -376,11 +365,8 @@ func TestGeometricAverage(t *testing.T) {
 
 	values = []float64{-1, 12, 13, 19, 10}
 	mean, err = GeometricAverage(values)
-	if err != nil && err.Error() != "cannot calculate a geometric mean with negative values" {
+	if !errors.Is(err, errGeometricNegative) {
 		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
 	}
 	if mean != 0 {
 		t.Errorf("expected %v, received %v", 0, mean)
@@ -391,11 +377,8 @@ func TestFinancialGeometricAverage(t *testing.T) {
 	t.Parallel()
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
 	_, err := FinancialGeometricAverage(nil)
-	if err != nil && err.Error() != "cannot calculate average of no values" {
+	if !errors.Is(err, errZeroValue) {
 		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
 	}
 
 	var mean float64
@@ -427,7 +410,7 @@ func TestFinancialGeometricAverage(t *testing.T) {
 
 	values = []float64{-2, 12, 13, 19, 10}
 	_, err = FinancialGeometricAverage(values)
-	if err != nil && err.Error() != "negative value too high" {
+	if !errors.Is(err, errNegativeValueOutOfRange) {
 		t.Error(err)
 	}
 }
@@ -435,11 +418,8 @@ func TestFinancialGeometricAverage(t *testing.T) {
 func TestArithmeticAverage(t *testing.T) {
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
 	_, err := ArithmeticAverage(nil)
-	if err != nil && err.Error() != "cannot calculate average of no values" {
+	if !errors.Is(err, errZeroValue) {
 		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
 	}
 	var avg float64
 	avg, err = ArithmeticAverage(values)

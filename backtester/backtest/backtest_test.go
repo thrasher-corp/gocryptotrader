@@ -1,6 +1,7 @@
 package backtest
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -287,14 +288,14 @@ func TestLoadDatabaseData(t *testing.T) {
 func TestLoadLiveData(t *testing.T) {
 	t.Parallel()
 	err := loadLiveData(nil, nil)
-	if err != nil && err.Error() != "received nil argument(s)" {
+	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
 	cfg := &config.Config{
 		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
 	}
 	err = loadLiveData(cfg, nil)
-	if err != nil && err.Error() != "received nil argument(s)" {
+	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
 	b := &gctexchange.Base{
@@ -325,7 +326,7 @@ func TestLoadLiveData(t *testing.T) {
 		},
 	}
 	err = loadLiveData(cfg, b)
-	if err != nil && err.Error() != "received nil argument(s)" {
+	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
 	cfg.DataSettings.LiveData = &config.LiveData{

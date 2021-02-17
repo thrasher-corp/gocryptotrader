@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -32,6 +33,12 @@ const (
 const (
 	DataCandle = iota
 	DataTrade
+)
+
+var (
+	// ErrNilArguments is a common error response to highlight that nils were passed in
+	// when they should not have been
+	ErrNilArguments = errors.New("received nil argument(s)")
 )
 
 // EventHandler interface implements required GetTime() & Pair() return

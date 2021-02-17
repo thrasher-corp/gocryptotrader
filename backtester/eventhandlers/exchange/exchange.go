@@ -173,7 +173,7 @@ func (e *Exchange) placeOrder(price, amount float64, useRealOrders bool, f *fill
 
 func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *fill.Fill) (adjustedPrice, adjustedAmount float64, err error) {
 	if cs == nil || f == nil {
-		return 0, 0, errors.New("received nil arguments")
+		return 0, 0, common.ErrNilArguments
 	}
 	// provide history and estimate volatility
 	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)

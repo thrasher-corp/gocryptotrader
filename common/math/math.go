@@ -5,6 +5,15 @@ import (
 	"math"
 )
 
+var (
+	errZeroValue               = errors.New("cannot calculate average of no values")
+	errNegativeValueOutOfRange = errors.New("received negative number less than -1")
+	errGeometricNegative       = errors.New("cannot calculate a geometric mean with negative values")
+	errCalmarHighest           = errors.New("cannot calculate calmar ratio with highest price of 0")
+	errCAGRNoIntervals         = errors.New("cannot calculate CAGR with no intervals")
+	errCAGRZeroOpenValue       = errors.New("cannot calculate CAGR with an open value of 0")
+)
+
 // CalculateAmountWithFee returns a calculated fee included amount on fee
 func CalculateAmountWithFee(amount, fee float64) float64 {
 	return amount + CalculateFee(amount, fee)
@@ -43,10 +52,10 @@ func RoundFloat(x float64, prec int) float64 {
 // Using days, intervals per year would be 365 and number of intervals would be the number of days
 func CompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, numberOfIntervals float64) (float64, error) {
 	if numberOfIntervals == 0 {
-		return 0, errors.New("cannot calculate CAGR with no intervals")
+		return 0, errCAGRNoIntervals
 	}
 	if openValue == 0 {
-		return 0, errors.New("cannot calculate CAGR with an open value of 0")
+		return 0, errCAGRZeroOpenValue
 	}
 	k := math.Pow(closeValue/openValue, intervalsPerYear/numberOfIntervals) - 1
 	return k * 100, nil
@@ -56,7 +65,7 @@ func CompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, numberOfI
 // The higher the Calmar ratio, the better it performed on a risk-adjusted basis during the given time frame, which is mostly commonly set at 36 months
 func CalmarRatio(highestPrice, lowestPrice, average float64) (float64, error) {
 	if highestPrice == 0 {
-		return 0, errors.New("cannot calculate calmar ratio with highest price of 0")
+		return 0, errCalmarHighest
 	}
 	drawdownDiff := (highestPrice - lowestPrice) / highestPrice
 	if drawdownDiff == 0 {
@@ -139,13 +148,13 @@ func SampleStandardDeviation(vals []float64) (float64, error) {
 // The geometric average can only process positive numbers
 func GeometricAverage(values []float64) (float64, error) {
 	if len(values) == 0 {
-		return 0, errors.New("cannot calculate average of no values")
+		return 0, errZeroValue
 	}
 	product := 1.0
 	for i := range values {
 		if values[i] <= 0 {
 			// cannot use negative or zero values in geometric calculation
-			return 0, errors.New("cannot calculate a geometric mean with negative values")
+			return 0, errGeometricNegative
 		}
 		product *= values[i]
 	}
@@ -160,14 +169,14 @@ func GeometricAverage(values []float64) (float64, error) {
 // which should only be compared to other financial geometric averages
 func FinancialGeometricAverage(values []float64) (float64, error) {
 	if len(values) == 0 {
-		return 0, errors.New("cannot calculate average of no values")
+		return 0, errZeroValue
 	}
 	product := 1.0
 	for i := range values {
 		if values[i] < -1 {
 			// cannot lose more than 100%, figures are incorrect
 			// losing exactly 100% will return a 0 value, but is not an error
-			return 0, errors.New("negative value too high")
+			return 0, errNegativeValueOutOfRange
 		}
 		// as we cannot have negative or zero value geometric numbers
 		// adding a 1 to the percentage movements allows for differentiation between
@@ -187,7 +196,7 @@ func FinancialGeometricAverage(values []float64) (float64, error) {
 // Divide the sum of all values by the length of values
 func ArithmeticAverage(values []float64) (float64, error) {
 	if len(values) == 0 {
-		return 0, errors.New("cannot calculate average of no values")
+		return 0, errZeroValue
 	}
 	var sumOfValues float64
 	for x := range values {
@@ -199,7 +208,7 @@ func ArithmeticAverage(values []float64) (float64, error) {
 // SortinoRatio returns sortino ratio of backtest compared to risk-free
 func SortinoRatio(movementPerCandle []float64, riskFreeRate, average float64) (float64, error) {
 	if len(movementPerCandle) == 0 {
-		return 0, errors.New("cannot calculate average of no values")
+		return 0, errZeroValue
 	}
 	totalNegativeResultsSquared := 0.0
 	for x := range movementPerCandle {
@@ -214,7 +223,7 @@ func SortinoRatio(movementPerCandle []float64, riskFreeRate, average float64) (f
 // SharpeRatio returns sharpe ratio of backtest compared to risk-free
 func SharpeRatio(movementPerCandle []float64, riskFreeRate, average float64) (float64, error) {
 	if len(movementPerCandle) == 0 {
-		return 0, errors.New("cannot calculate average of no values")
+		return 0, errZeroValue
 	}
 	var excessReturns []float64
 	for i := range movementPerCandle {

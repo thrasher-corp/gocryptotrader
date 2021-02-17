@@ -1499,8 +1499,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		Asset:    a,
 		Interval: interval,
 	}
-	// binance is not inclusive in its ranges, so the end date is not part of the response, the way this breaks up dates ensures that it is not included
-	dates := kline.CalculateCandleDateRanges(start.Add(-interval.Duration()*3), end.Add(interval.Duration()*3), interval, b.Features.Enabled.Kline.ResultLimit)
+	dates := kline.CalculateCandleDateRanges(start, end.Add(interval.Duration()), interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates.Ranges {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),

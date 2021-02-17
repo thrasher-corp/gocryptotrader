@@ -238,7 +238,6 @@ func TestGenerateReport(t *testing.T) {
 								RemainingFunds:               0,
 								TotalValueDifference:         0,
 								ChangeInTotalValuePercent:    0,
-								ExcessReturnPercent:          0,
 								BoughtValueDifference:        0,
 								SoldValueDifference:          0,
 								PositionsValueDifference:     0,

@@ -1,9 +1,11 @@
 package size
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -137,7 +139,7 @@ func TestSizeOrder(t *testing.T) {
 	t.Parallel()
 	s := Size{}
 	_, err := s.SizeOrder(nil, 0, nil)
-	if err != nil && err.Error() != "nil arguments received, cannot size order" {
+	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
 	o := &order.Order{}

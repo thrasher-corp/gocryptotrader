@@ -25,7 +25,6 @@ type Holding struct {
 
 	TotalValueDifference      float64
 	ChangeInTotalValuePercent float64
-	ExcessReturnPercent       float64
 	BoughtValueDifference     float64
 	SoldValueDifference       float64
 	PositionsValueDifference  float64

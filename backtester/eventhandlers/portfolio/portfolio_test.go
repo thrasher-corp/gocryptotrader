@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -364,7 +365,7 @@ func TestOnSignal(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
 	_, err := p.OnSignal(nil, nil)
-	if err != nil && err.Error() != "received nil arguments, cannot process OnSignal" {
+	if !errors.Is(err, common.ErrNilArguments) {
 		t.Error(err)
 	}
 
@@ -438,7 +439,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error(err)
 	}
 	if resp.Direction != common.CouldNotBuy {
-		t.Error("expected common.CouldNotBuy")
+		t.Errorf("expected common.CouldNotBuy, received %v", resp.Direction)
 	}
 
 	s.Price = 10

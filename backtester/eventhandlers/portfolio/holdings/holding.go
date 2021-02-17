@@ -86,5 +86,4 @@ func (h *Holding) updateValue(l float64) {
 	if origTotalValue != 0 {
 		h.ChangeInTotalValuePercent = (h.TotalValue - origTotalValue) / origTotalValue
 	}
-	h.ExcessReturnPercent = h.ChangeInTotalValuePercent - h.RiskFreeRate
 }
