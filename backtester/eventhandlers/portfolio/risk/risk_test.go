@@ -68,7 +68,7 @@ func TestEvaluateOrder(t *testing.T) {
 	r.CurrencySettings[e] = make(map[asset.Item]map[currency.Pair]*CurrencySettings)
 	r.CurrencySettings[e][a] = make(map[currency.Pair]*CurrencySettings)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(errors.Unwrap(err), errNoCurrencySettings) {
+	if !errors.Is(err, errNoCurrencySettings) {
 		t.Error(err)
 	}
 
@@ -99,7 +99,7 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 	r.CanUseLeverage = true
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(errors.Unwrap(err), errCannotPlaceLeverageOrder) {
+	if !errors.Is(err, errCannotPlaceLeverageOrder) {
 		t.Error(err)
 	}
 
@@ -122,7 +122,7 @@ func TestEvaluateOrder(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(errors.Unwrap(err), errCannotPlaceLeverageOrder) {
+	if !errors.Is(err, errCannotPlaceLeverageOrder) {
 		t.Error(err)
 	}
 
@@ -135,7 +135,7 @@ func TestEvaluateOrder(t *testing.T) {
 
 	h = append(h, holdings.Holding{Pair: currency.NewPair(currency.DOGE, currency.LTC), PositionsValue: 1337})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(errors.Unwrap(err), errCannotPlaceLeverageOrder) {
+	if !errors.Is(err, errCannotPlaceLeverageOrder) {
 		t.Error(err)
 	}
 }

@@ -39,9 +39,6 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 	}
 	if len(latestHoldings) > 1 {
 		ratio := assessHoldingsRatio(o.Pair(), latestHoldings)
-		if !ok {
-			return nil, fmt.Errorf("lacking currency settings for %v %v %v cannot evaluate order", ex, a, p)
-		}
 		if lookup.MaximumHoldingRatio > 0 && ratio != 1 && ratio > lookup.MaximumHoldingRatio {
 			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", lookup.MaximumHoldingRatio, ratio, ex, a, p, errCannotPlaceLeverageOrder)
 		}
