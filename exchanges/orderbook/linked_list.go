@@ -110,110 +110,154 @@ func (ll *linkedList) Add(fn byDecision, item Item, stack *Stack) error {
 	}
 }
 
-// updateInsertBidsByPrice ammends, inserts, moves and cleaves length of depth by
-// updates in bid linked list
-func (ll *linkedList) updateInsertBidsByPrice(updts Items, stack *Stack, maxChainLength int) error {
-	defer ll.cleanup(maxChainLength, stack)
-updates:
-	for tip := &ll.head; *tip != nil; tip = &(*tip).next {
-		for x := range updts {
-			if (*tip).value.Price == updts[x].Price { // Match check
-				if updts[x].Amount == 0 { // Delete
-					old := *tip
-					if old.prev != nil {
-						old.prev.next = old.next
-					}
-					old.next.prev = old.prev
-					stack.Push(old)
-					ll.length--
-				} else { // Amend
-					(*tip).value.Amount = updts[x].Amount
-				}
-				if deleteUpdate(&updts) {
-					return nil
-				}
-				continue updates
-			}
-
-			if (*tip).value.Price > updts[x].Price { // Insert
-				if updts[x].Amount > 0 { // Filter delete that was not found
-					n := stack.Pop()
-					n.value = updts[x]
-					n.next = (*tip).next
-					(*tip).next.prev = n
-					(*tip).next = n
-					n.prev = (*tip)
-					ll.length++
-				}
-
-				if deleteUpdate(&updts) {
-					return nil
-				}
-				continue updates
-			}
-		}
-	}
-	return errors.New("could not apply update :(")
-}
-
 // updateInsertAsksByPrice ammends, inserts, moves and cleaves length of depth by
 // updates in ask linked list
 func (ll *linkedList) updateInsertAsksByPrice(updts Items, stack *Stack, maxChainLength int) error {
 	defer ll.cleanup(maxChainLength, stack)
 updates:
-	for tip := &ll.head; *tip != nil; tip = &(*tip).next {
-		for x := range updts {
+	for x := range updts {
+		for tip := &ll.head; *tip != nil; tip = &(*tip).next {
 			if (*tip).value.Price == updts[x].Price { // Match check
-				if updts[x].Amount == 0 { // Delete
+				if updts[x].Amount <= 0 { // Delete
 					old := *tip
-					if old.prev != nil {
+					if old.prev == nil { // Head
+						*tip = old.next
+						old.next.prev = nil
+					} else {
 						old.prev.next = old.next
+						old.next.prev = old.prev
 					}
-					old.next.prev = old.prev
 					stack.Push(old)
 					ll.length--
 				} else { // Amend
 					(*tip).value.Amount = updts[x].Amount
 				}
-				if deleteUpdate(&updts) {
-					return nil
+				continue updates
+			}
+
+			if (*tip).value.Price > updts[x].Price { // Insert
+				fmt.Println("WOW", updts[x], *tip)
+				if updts[x].Amount > 0 { // Filter delete, should be hit at this tranche level, so obviously not accounted for in depth
+					fmt.Println("something wow")
+					n := stack.Pop()
+					n.value = updts[x]
+					fmt.Println("PTR ADDR:", n)
+
+					n.next = *tip
+					n.prev = (*tip).prev
+					if (*tip).prev == nil { // Head
+						fmt.Println("replaced head")
+						*tip = n
+					} else {
+						(*tip).prev.next = n
+						(*tip).prev = n
+					}
+
+					ll.length++
+				}
+				continue updates
+			}
+
+			if (*tip).next == nil {
+				fmt.Println("wha")
+				if updts[x].Amount > 0 {
+					n := stack.Pop()
+					n.value = updts[x]
+					(*tip).next = n
+					n.prev = *tip
+					ll.length++
+				}
+			}
+		}
+		return errors.New("could not apply update :(")
+	}
+	return nil
+}
+
+// updateInsertBidsByPrice ammends, inserts, moves and cleaves length of depth by
+// updates in bid linked list
+func (ll *linkedList) updateInsertBidsByPrice(updts Items, stack *Stack, maxChainLength int) error {
+	defer ll.cleanup(maxChainLength, stack)
+updates:
+	for x := range updts {
+		fmt.Println("UPDT BRO", updts[x])
+		for tip := &ll.head; *tip != nil; tip = &(*tip).next {
+			if (*tip).value.Price == updts[x].Price { // Match check
+				if updts[x].Amount <= 0 { // Delete
+					old := *tip
+					if old.prev == nil { // Head
+						*tip = old.next
+						old.next.prev = nil
+					} else {
+						old.prev.next = old.next
+						old.next.prev = old.prev
+					}
+					stack.Push(old)
+					ll.length--
+				} else { // Amend
+					(*tip).value.Amount = updts[x].Amount
 				}
 				continue updates
 			}
 
 			if (*tip).value.Price > updts[x].Price { // Insert
-				if updts[x].Amount > 0 { // Filter delete
+				fmt.Println("WOW", updts[x], *tip)
+				if updts[x].Amount > 0 { // Filter delete, should be hit at this tranche level, so obviously not accounted for in depth
+					fmt.Println("something wow")
 					n := stack.Pop()
 					n.value = updts[x]
-					n.next = (*tip).next
-					(*tip).next.prev = n
-					(*tip).next = n
-					n.prev = (*tip)
-					ll.length++
-				}
+					fmt.Println("PTR ADDR:", n)
 
-				if deleteUpdate(&updts) {
-					return nil
+					n.next = *tip
+					n.prev = (*tip).prev
+					if (*tip).prev == nil { // Head
+						fmt.Println("replaced head")
+						*tip = n
+					} else {
+						(*tip).prev.next = n
+						(*tip).prev = n
+					}
+
+					ll.length++
 				}
 				continue updates
 			}
+
+			if (*tip).next == nil {
+				fmt.Println("wha")
+				if updts[x].Amount > 0 {
+					n := stack.Pop()
+					n.value = updts[x]
+					(*tip).next = n
+					n.prev = *tip
+					ll.length++
+				}
+			}
 		}
+		return errors.New("could not apply update :(")
 	}
-	return errors.New("could not apply update :(")
+	return nil
 }
 
 // cleanup reduces the max size of the depth length if exceeded. Is used after
 // updates have been applied instead of adhoc, reason being its easier to prune
 // at the end.
 func (ll *linkedList) cleanup(maxChainLength int, stack *Stack) {
-	if maxChainLength == 0 && ll.length <= maxChainLength {
+	// fmt.Println("POWER")
+	if maxChainLength == 0 || ll.length <= maxChainLength {
+		// fmt.Println("WOW")
 		return
 	}
 
 	n := ll.head
-	for ; maxChainLength != 0; maxChainLength-- {
+	for i := 0; i < maxChainLength; i++ {
+		fmt.Printf("BRUH %+v\n", n)
 		n = n.next
+		if n.next == nil {
+			break
+		}
 	}
+	fmt.Println()
 
 	var pruned int
 	for n != nil {
@@ -337,10 +381,8 @@ updates:
 
 			if tip.next == nil {
 				if bookmark == nil {
-					// fmt.Println("first to go")
 					bookmark = tip
 				} else {
-					// fmt.Println("WOW", updts[x])
 					bookmark.value = updts[x]
 					bookmark.next.prev = bookmark.prev
 					bookmark.prev.next = bookmark.next
@@ -351,7 +393,6 @@ updates:
 				}
 			}
 		}
-		// fmt.Println("MEOW")
 		n := stack.Pop()
 		n.value = updts[x]
 		if bookmark.prev == nil {

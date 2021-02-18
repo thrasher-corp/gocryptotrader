@@ -99,7 +99,7 @@ func TestLoad(t *testing.T) {
 
 func TestUpdateInsertByPrice(t *testing.T) {
 	asks := linkedList{}
-	s := Stack{}
+	stack := Stack{}
 	asksSnapshot := Items{
 		{Price: 1, Amount: 1},
 		{Price: 3, Amount: 1},
@@ -108,21 +108,53 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 9, Amount: 1},
 		{Price: 11, Amount: 1},
 	}
-	asks.Load(asksSnapshot, &s)
+	asks.Load(asksSnapshot, &stack)
 
 	// Update one instance with matching price
-	asks.updateInsertByIDAsk(Items{
+	asks.updateInsertAsksByPrice(Items{
 		{Price: 1, Amount: 2},
-	}, &s)
+	}, &stack, 0)
 
 	Check(asks, 7, 37, 6, false, t)
+
+	if stack.count != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
 
 	// Insert at head
-	asks.updateInsertByIDAsk(Items{
+	asks.updateInsertAsksByPrice(Items{
 		{Price: 0.5, Amount: 2},
-	}, &s)
+	}, &stack, 0)
 
-	Check(asks, 7, 37, 6, false, t)
+	Check(asks, 9, 38, 7, false, t)
+
+	if stack.count != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
+
+	// Insert at tail
+	asks.updateInsertAsksByPrice(Items{
+		{Price: 12, Amount: 2},
+	}, &stack, 0)
+
+	Check(asks, 11, 62, 8, false, t)
+
+	if stack.count != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
+
+	// Insert between price and up to and beyond max allowable depth level
+	asks.updateInsertAsksByPrice(Items{
+		{Price: 11.5, Amount: 2},
+		// {Price: 10.5, Amount: 2},
+		// {Price: 13, Amount: 2},
+	}, &stack, 0)
+
+	Check(asks, 11, 38, 8, false, t)
+
+	if stack.count != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
 }
 
 func TestUpdateInsertByID(t *testing.T) {
