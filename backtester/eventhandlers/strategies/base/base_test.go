@@ -1,6 +1,7 @@
 package base
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -17,13 +18,13 @@ import (
 func TestGetBase(t *testing.T) {
 	s := Strategy{}
 	_, err := s.GetBase(nil)
-	if err != nil && err.Error() != "nil data handler received" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilArguments) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilArguments, err)
 	}
 
 	_, err = s.GetBase(&datakline.DataFromKline{})
-	if err != nil && err.Error() != "could not retrieve latest data for strategy" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 	tt := time.Now()
 	exch := "binance"

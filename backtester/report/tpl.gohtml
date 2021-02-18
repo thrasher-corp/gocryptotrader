@@ -148,8 +148,8 @@
 									<td>{{ $exchange}}</td>
 									<td>{{ $asset}}</td>
 									<td>{{ $pair}}</td>
-									<td>${{ printf "%.2f" .FinalHoldings.InitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
-									<td>${{ printf "%.2f" .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
+									<td>${{ printf "%.8f" .FinalHoldings.InitialFunds }} {{.FinalHoldings.Pair.Quote}}</td>
+									<td>${{ printf "%.8f" .FinalHoldings.TotalValue }} {{ .FinalHoldings.Pair.Quote}}</td>
 									<td>{{ gt  .FinalHoldings.TotalValue .FinalHoldings.InitialFunds }}</td>
 									<td> {{ gt .StrategyMovement  .MarketMovement }}</td>
 									<td>{{ printf "%.2f" .StrategyMovement }}%</td>
@@ -227,13 +227,13 @@
 							<td>{{.Asset}}</td>
 							<td>{{.Base}}</td>
 							<td>{{.Quote}}</td>
-							<td>{{ printf "$%.2f" .InitialFunds}} {{.Quote}}</td>
+							<td>{{ printf "$%.8f" .InitialFunds}} {{.Quote}}</td>
 							<td>{{.BuySide.MinimumSize}} {{.Base}}</td>
 							<td>{{.BuySide.MaximumSize}} {{.Base}}</td>
-							<td>${{printf "%.2f" .BuySide.MaximumTotal}} {{.Quote}}</td>
+							<td>${{printf "%.8f" .BuySide.MaximumTotal}} {{.Quote}}</td>
 							<td>{{.SellSide.MinimumSize}} {{.Base}}</td>
 							<td>{{.SellSide.MaximumSize}} {{.Base}}</td>
-							<td>${{printf "%.2f" .SellSide.MaximumTotal}} {{.Quote}}</td>
+							<td>${{printf "%.8f" .SellSide.MaximumTotal}} {{.Quote}}</td>
 							<td>{{.MinimumSlippagePercent}}%</td>
 							<td>{{.MaximumSlippagePercent}}%</td>
 							<td>{{.TakerFee}}</td>
@@ -270,10 +270,10 @@
 						<td>{{.Config.PortfolioSettings.Leverage.MaximumLeverageRatio}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MaximumSize}}</td>
-						<td>${{printf "%.2f" .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
+						<td>${{printf "%.8f" .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>
 						<td>{{.Config.PortfolioSettings.SellSide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.SellSide.MaximumSize}}</td>
-						<td>${{printf "%.2f" .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
+						<td>${{printf "%.8f" .Config.PortfolioSettings.SellSide.MaximumTotal}}</td>
 					</tr>
 					</tbody>
 				</table>
@@ -456,7 +456,7 @@
 								<tbody>
 								<tr>
 									<td><b>Initial Funds</b></td>
-									<td>${{printf "%.2f" $val.FinalHoldings.InitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8f" $val.FinalHoldings.InitialFunds}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Buy Orders</b></td>
@@ -464,7 +464,7 @@
 								</tr>
 								<tr>
 									<td><b>Buy Value</b></td>
-									<td>${{printf "%.2f" $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8f" $val.FinalHoldings.BoughtValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Buy Amount</b></td>
@@ -476,7 +476,7 @@
 								</tr>
 								<tr>
 									<td><b>Sell Value</b></td>
-									<td>${{printf "%.2f" $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8f" $val.FinalHoldings.SoldValue}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Sell Amount</b></td>
@@ -494,19 +494,19 @@
                                 {{ end }}
 								<tr>
 									<td><b>Starting Close Price</b></td>
-									<td>${{printf "%.2f" $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8f" $val.StartingClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Ending Close Price</b></td>
-									<td>${{printf "%.2f" $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>${{printf "%.8f" $val.EndingClosePrice}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Lowest Close Price</b></td>
-									<td>${{printf "%.2f" .LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8f" .LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Highest Close Price</b></td>
-									<td>${{printf "%.2f" .HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8f" .HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Market Movement</b></td>
@@ -534,11 +534,11 @@
 								</tr>
 								<tr>
 									<td><b>Total Fees</b></td>
-									<td>${{printf "%.2f" $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
+									<td>${{printf "%.8f" $val.FinalHoldings.TotalFees}} {{ $val.FinalHoldings.Pair.Quote }}</td>
 								</tr>
 								<tr>
 									<td><b>Final Funds</b></td>
-									<td>${{printf "%.2f" $val.FinalHoldings.RemainingFunds}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8f" $val.FinalHoldings.RemainingFunds}} {{ $val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Final Holdings</b></td>
@@ -550,7 +550,7 @@
 								</tr>
 								<tr>
 									<td><b>Total Value</b></td>
-									<td><b>${{printf "%.2f" $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
+									<td><b>${{printf "%.8f" $val.FinalHoldings.TotalValue}} {{ $val.FinalHoldings.Pair.Quote}}</b></td>
 								</tr>
 								</tbody>
 							</table>
@@ -592,19 +592,19 @@
 							<table class="table table-hover table-bordered table-striped">
 								<tbody>
 								<tr>
-									<td><b>Geometric Sharpe Ratio</b></td>
+									<td><b>Sharpe Ratio</b></td>
 									<td>{{$val.GeometricRatios.SharpeRatio}}</td>
 								</tr>
 								<tr>
-									<td><b>Geometric Sortino Ratio</b></td>
+									<td><b>Sortino Ratio</b></td>
 									<td>{{$val.GeometricRatios.SortinoRatio}}</td>
 								</tr>
 								<tr>
-									<td><b>Geometric Information Ratio</b></td>
+									<td><b>Information Ratio</b></td>
 									<td>{{$val.GeometricRatios.InformationRatio}}</td>
 								</tr>
 								<tr>
-									<td><b>Geometric Calmar Ratio</b></td>
+									<td><b>Calmar Ratio</b></td>
 									<td>{{$val.GeometricRatios.CalmarRatio}}</td>
 								</tr>
 								</tbody>
@@ -647,8 +647,8 @@
 											<td>{{ .Detail.Side }}</td>
 											<td>${{ .Detail.Price }} {{$pair.Quote}}</td>
 											<td>{{ .SlippageRate }}%</td>
-											<td>{{printf "%.2f" .Detail.Amount }} {{$pair.Base}}</td>
-											<td>${{printf "%.2f" .Detail.Fee }} {{$pair.Quote}}</td>
+											<td>{{printf "%.8f" .Detail.Amount }} {{$pair.Base}}</td>
+											<td>${{printf "%.8f" .Detail.Fee }} {{$pair.Quote}}</td>
 										</tr>
                                     {{end}}
 									</tbody>

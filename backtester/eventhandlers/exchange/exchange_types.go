@@ -1,6 +1,8 @@
 package exchange
 
 import (
+	"errors"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
@@ -9,6 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+var errDataMayBeIncorrect = errors.New("data may be incorrect")
 
 // ExecutionHandler interface dictates what functions are required to submit an order
 type ExecutionHandler interface {

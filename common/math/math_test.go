@@ -107,18 +107,15 @@ func TestRoundFloat(t *testing.T) {
 
 func TestSortinoRatio(t *testing.T) {
 	t.Parallel()
-	rfr := 0.07
+	rfr := 0.001
 	figures := []float64{0.10, 0.04, 0.15, -0.05, 0.20, -0.02, 0.08, -0.06, 0.13, 0.23}
-	avg, err := ArithmeticAverage(figures)
+	avg, err := ArithmeticMean(figures)
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = SortinoRatio(nil, rfr, avg)
-	if err != nil && err.Error() != "cannot calculate average of no values" {
-		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
+	if !errors.Is(err, errZeroValue) {
+		t.Errorf("expected: %v, reveived %v", errZeroValue, err)
 	}
 
 	var r float64
@@ -126,10 +123,10 @@ func TestSortinoRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if r != 0.1575242704526439 {
-		t.Errorf("expected 0.16, received %v", r)
+	if r != -0.304530069360252 {
+		t.Errorf("expected -0.304530069360252, received %v", r)
 	}
-	avg, err = FinancialGeometricAverage(figures)
+	avg, err = FinancialGeometricMean(figures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,8 +134,8 @@ func TestSortinoRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if r != 0.08931388479947903 {
-		t.Errorf("expected 0.09, received %v", r)
+	if r != -0.30886022022888726 {
+		t.Errorf("expected -0.30886022022888726, received %v", r)
 	}
 }
 
@@ -146,7 +143,7 @@ func TestInformationRatio(t *testing.T) {
 	t.Parallel()
 	figures := []float64{0.0665, 0.0283, 0.0911, 0.0008, -0.0203, -0.0978, 0.0164, -0.0537, 0.078, 0.0032, 0.0249, 0}
 	comparisonFigures := []float64{0.0216, 0.0048, 0.036, 0.0303, 0.0043, -0.0694, 0.0179, -0.0918, 0.0787, 0.0297, 0.003, 0}
-	avg, err := ArithmeticAverage(figures)
+	avg, err := ArithmeticMean(figures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -154,7 +151,7 @@ func TestInformationRatio(t *testing.T) {
 		t.Error(avg)
 	}
 	var avgComparison float64
-	avgComparison, err = ArithmeticAverage(comparisonFigures)
+	avgComparison, err = ArithmeticMean(comparisonFigures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -194,19 +191,16 @@ func TestInformationRatio(t *testing.T) {
 
 func TestCalmarRatio(t *testing.T) {
 	t.Parallel()
-	_, err := CalmarRatio(0, 0, 0)
-	if err != nil && err.Error() != "cannot calculate calmar ratio with highest price of 0" {
-		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected error")
+	_, err := CalmarRatio(0, 0, 0, 0)
+	if !errors.Is(err, errCalmarHighest) {
+		t.Errorf("expected: %v, reveived %v", errCalmarHighest, err)
 	}
 	var ratio float64
-	ratio, err = CalmarRatio(50000, 15000, 0.2)
+	ratio, err = CalmarRatio(50000, 15000, 0.2, 0.1)
 	if err != nil {
 		t.Error(err)
 	}
-	if ratio != 0.28571428571428575 {
+	if ratio != 0.057142857142857134 {
 		t.Error(ratio)
 	}
 }
@@ -300,24 +294,24 @@ func TestCalculateSharpeRatio(t *testing.T) {
 		0.1052,
 	}
 	var avg float64
-	avg, err = ArithmeticAverage(returns)
+	avg, err = ArithmeticMean(returns)
 	if err != nil {
 		t.Error(err)
 	}
-	result, err = SharpeRatio(returns, 0.065, avg)
+	result, err = SharpeRatio(returns, 0.003, avg)
 	if err != nil {
 		t.Error(err)
 	}
 	result = math.Round(result*100) / 100
-	if result != 1.5 {
-		t.Errorf("expected 1.5, received %v", result)
+	if result != -0.9 {
+		t.Errorf("expected -0.9, received %v", result)
 	}
 }
 
 func TestStandardDeviation2(t *testing.T) {
 	t.Parallel()
 	r := []float64{9, 2, 5, 4, 12, 7}
-	mean, err := ArithmeticAverage(r)
+	mean, err := ArithmeticMean(r)
 	if err != nil {
 		t.Error(err)
 	}
@@ -341,12 +335,12 @@ func TestStandardDeviation2(t *testing.T) {
 func TestGeometricAverage(t *testing.T) {
 	t.Parallel()
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
-	_, err := GeometricAverage(nil)
+	_, err := GeometricMean(nil)
 	if !errors.Is(err, errZeroValue) {
 		t.Error(err)
 	}
 	var mean float64
-	mean, err = GeometricAverage(values)
+	mean, err = GeometricMean(values)
 	if err != nil {
 		t.Error(err)
 	}
@@ -355,7 +349,7 @@ func TestGeometricAverage(t *testing.T) {
 	}
 
 	values = []float64{15, 12, 13, 19, 10}
-	mean, err = GeometricAverage(values)
+	mean, err = GeometricMean(values)
 	if err != nil {
 		t.Error(err)
 	}
@@ -364,7 +358,7 @@ func TestGeometricAverage(t *testing.T) {
 	}
 
 	values = []float64{-1, 12, 13, 19, 10}
-	mean, err = GeometricAverage(values)
+	mean, err = GeometricMean(values)
 	if !errors.Is(err, errGeometricNegative) {
 		t.Error(err)
 	}
@@ -376,13 +370,13 @@ func TestGeometricAverage(t *testing.T) {
 func TestFinancialGeometricAverage(t *testing.T) {
 	t.Parallel()
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
-	_, err := FinancialGeometricAverage(nil)
+	_, err := FinancialGeometricMean(nil)
 	if !errors.Is(err, errZeroValue) {
 		t.Error(err)
 	}
 
 	var mean float64
-	mean, err = FinancialGeometricAverage(values)
+	mean, err = FinancialGeometricMean(values)
 	if err != nil {
 		t.Error(err)
 	}
@@ -391,7 +385,7 @@ func TestFinancialGeometricAverage(t *testing.T) {
 	}
 
 	values = []float64{15, 12, 13, 19, 10}
-	mean, err = FinancialGeometricAverage(values)
+	mean, err = FinancialGeometricMean(values)
 	if err != nil {
 		t.Error(err)
 	}
@@ -400,7 +394,7 @@ func TestFinancialGeometricAverage(t *testing.T) {
 	}
 
 	values = []float64{-1, 12, 13, 19, 10}
-	mean, err = FinancialGeometricAverage(values)
+	mean, err = FinancialGeometricMean(values)
 	if err != nil {
 		t.Error(err)
 	}
@@ -409,7 +403,7 @@ func TestFinancialGeometricAverage(t *testing.T) {
 	}
 
 	values = []float64{-2, 12, 13, 19, 10}
-	_, err = FinancialGeometricAverage(values)
+	_, err = FinancialGeometricMean(values)
 	if !errors.Is(err, errNegativeValueOutOfRange) {
 		t.Error(err)
 	}
@@ -417,12 +411,12 @@ func TestFinancialGeometricAverage(t *testing.T) {
 
 func TestArithmeticAverage(t *testing.T) {
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
-	_, err := ArithmeticAverage(nil)
+	_, err := ArithmeticMean(nil)
 	if !errors.Is(err, errZeroValue) {
 		t.Error(err)
 	}
 	var avg float64
-	avg, err = ArithmeticAverage(values)
+	avg, err = ArithmeticMean(values)
 	if err != nil {
 		t.Error(err)
 	}

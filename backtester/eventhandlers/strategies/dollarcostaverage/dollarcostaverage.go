@@ -1,7 +1,6 @@
 package dollarcostaverage
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -30,7 +29,7 @@ func (s *Strategy) Name() string {
 // For dollarcostaverage, this means returning a buy signal on every event
 func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error) {
 	if d == nil {
-		return nil, errors.New("received nil data")
+		return nil, common.ErrNilEvent
 	}
 	es, err := s.GetBase(d)
 	if err != nil {
@@ -77,7 +76,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, p portfolio.Handler) 
 
 // SetCustomSettings not required for DCA
 func (s *Strategy) SetCustomSettings(_ map[string]interface{}) error {
-	return errors.New("unsupported")
+	return base.ErrCustomSettingsUnsupported
 }
 
 // SetDefaults not required for DCA

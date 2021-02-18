@@ -1,6 +1,8 @@
 package backtest
 
 import (
+	"errors"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -9,6 +11,21 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+)
+
+var (
+	errNilConfig             = errors.New("unable to setup backtester with nil config")
+	errNilBot                = errors.New("unable to setup backtester without a loaded GoCryptoTrader bot")
+	errInitialFundsUnset     = errors.New("initial funds unset")
+	errInvalidConfigAsset    = errors.New("invalid asset in config")
+	errInvalidConfigCurrency = errors.New("invalid currency in config")
+	errMinOneCurrency        = errors.New("expected at least one currency in the config")
+	errAmbiguousDataSource   = errors.New("ambiguous settings received. Only one data type can be set")
+	errNoDataSource          = errors.New("no data settings set in config")
+	errStartEndDateUnset     = errors.New("api data start and end dates must be set")
+	errIntervalUnset         = errors.New("api data start and end dates must be set")
+	errUnhandledDatatype     = errors.New("unhandled datatype")
+	errLiveDataTimeout       = errors.New("no data returned in 5 minutes, shutting down")
 )
 
 // BackTest is the main holder of all backtesting functionality

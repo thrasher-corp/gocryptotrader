@@ -1,7 +1,6 @@
 package report
 
 import (
-	"errors"
 	"fmt"
 	"html/template"
 	"os"
@@ -83,10 +82,10 @@ func (d *Data) AddKlineItem(k *kline.Item) {
 // report charts to have annotations to highlight buy and sell events
 func (d *Data) enhanceCandles() error {
 	if len(d.OriginalCandles) == 0 {
-		return errors.New("no candles to enhance")
+		return errNoCandles
 	}
 	if d.Statistics == nil {
-		return errors.New("unable to proceed with unset Statistics property")
+		return errStatisticsUnset
 	}
 	d.Statistics.RiskFreeRate *= 100
 

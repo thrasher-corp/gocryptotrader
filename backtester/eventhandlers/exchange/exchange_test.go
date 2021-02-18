@@ -115,12 +115,12 @@ func TestSizeOrder(t *testing.T) {
 		Amount:     1,
 	}
 	_, _, err = e.sizeOfflineOrder(0, 0, 0, cs, f)
-	if err != nil && err.Error() != "amount set to 0, data may be incorrect" {
-		t.Error(err)
+	if !errors.Is(err, errDataMayBeIncorrect) {
+		t.Errorf("expected: %v, reveived %v", errDataMayBeIncorrect, err)
 	}
 	var p, a float64
 	p, a, err = e.sizeOfflineOrder(10, 2, 10, cs, f)
-	if err != nil && err.Error() != "amount set to 0, data may be incorrect" {
+	if err != nil {
 		t.Error(err)
 	}
 	if p != 10 {
@@ -150,8 +150,8 @@ func TestPlaceOrder(t *testing.T) {
 	}
 	e := Exchange{}
 	_, err = e.placeOrder(1, 1, false, nil, nil)
-	if err != nil && err.Error() != "received nil event" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 	f := &fill.Fill{}
 	_, err = e.placeOrder(1, 1, false, f, bot)

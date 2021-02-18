@@ -1,10 +1,10 @@
 package exchange
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/gofrs/uuid"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
@@ -122,7 +122,7 @@ func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal 
 
 func (e *Exchange) placeOrder(price, amount float64, useRealOrders bool, f *fill.Fill, bot *engine.Engine) (string, error) {
 	if f == nil {
-		return "", errors.New("received nil event")
+		return "", common.ErrNilEvent
 	}
 	u, err := uuid.NewV4()
 	if err != nil {
@@ -179,7 +179,7 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *
 	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
 	if adjustedAmount <= 0 && f.Amount > 0 {
-		return 0, 0, fmt.Errorf("amount set to 0, data may be incorrect")
+		return 0, 0, fmt.Errorf("amount set to 0, %w", errDataMayBeIncorrect)
 	}
 	adjustedPrice = applySlippageToPrice(f.GetDirection(), f.GetVolumeAdjustedPrice(), slippageRate)
 

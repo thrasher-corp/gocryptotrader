@@ -1,9 +1,10 @@
 package strategies
 
 import (
-	"strings"
+	"errors"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/rsi"
 )
@@ -18,12 +19,12 @@ func TestGetStrategies(t *testing.T) {
 func TestLoadStrategyByName(t *testing.T) {
 	var resp Handler
 	_, err := LoadStrategyByName("test", false)
-	if err != nil && !strings.Contains(err.Error(), "strategy 'test' not found") {
-		t.Error(err)
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("expected: %v, reveived %v", base.ErrStrategyNotFound, err)
 	}
 	_, err = LoadStrategyByName("test", true)
-	if err != nil && !strings.Contains(err.Error(), "strategy 'test' not found") {
-		t.Error(err)
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("expected: %v, reveived %v", base.ErrStrategyNotFound, err)
 	}
 
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, false)
@@ -49,7 +50,7 @@ func TestLoadStrategyByName(t *testing.T) {
 		t.Error("expected rsi")
 	}
 	_, err = LoadStrategyByName(rsi.Name, true)
-	if err != nil && err.Error() != "strategy 'rsi' does not support multi-currency assessment and could not be loaded" {
-		t.Error(err)
+	if !errors.Is(err, base.ErrSimultaneousProcessingNotSupported) {
+		t.Errorf("expected: %v, reveived %v", base.ErrSimultaneousProcessingNotSupported, err)
 	}
 }

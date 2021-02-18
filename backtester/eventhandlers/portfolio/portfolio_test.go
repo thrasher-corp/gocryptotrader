@@ -203,8 +203,8 @@ func TestUpdate(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
 	err := p.Update(nil)
-	if err != nil && err.Error() != "received nil data event" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 
 	err = p.Update(&kline.Kline{})

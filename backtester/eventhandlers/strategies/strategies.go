@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/rsi"
 )
@@ -18,14 +19,15 @@ func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, e
 		if useSimultaneousProcessing {
 			if !strats[i].SupportsSimultaneousProcessing() {
 				return nil, fmt.Errorf(
-					"strategy '%v' does not support simultaneous processing and could not be loaded",
-					name)
+					"strategy '%v' %w",
+					name,
+					base.ErrSimultaneousProcessingNotSupported)
 			}
 			strats[i].SetSimultaneousProcessing(useSimultaneousProcessing)
 		}
 		return strats[i], nil
 	}
-	return nil, fmt.Errorf(errNotFound, name)
+	return nil, fmt.Errorf("strategy '%v' %w", name, base.ErrStrategyNotFound)
 }
 
 func getStrategies() []Handler {

@@ -1,12 +1,14 @@
 package dollarcostaverage
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -34,20 +36,18 @@ func TestSupportsSimultaneousProcessing(t *testing.T) {
 func TestSetCustomSettings(t *testing.T) {
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if err != nil && err.Error() != "unsupported" {
-		t.Error(err)
-	}
-	if err == nil {
-		t.Error("expected unsupported")
+	if !errors.Is(err, base.ErrCustomSettingsUnsupported) {
+		t.Errorf("expected: %v, reveived %v", base.ErrCustomSettingsUnsupported, err)
 	}
 }
 
 func TestOnSignal(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil)
-	if err != nil && err.Error() != "received nil data" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
+
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
@@ -120,8 +120,8 @@ func TestOnSignal(t *testing.T) {
 func TestOnSignals(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil)
-	if err != nil && err.Error() != "received nil data" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)

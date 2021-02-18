@@ -1,6 +1,8 @@
 package report
 
 import (
+	"errors"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -11,6 +13,11 @@ import (
 
 // lightweight charts can ony render 1100 candles
 const maxChartLimit = 1100
+
+var (
+	errNoCandles       = errors.New("no candles to enhance")
+	errStatisticsUnset = errors.New("unable to proceed with unset Statistics property")
+)
 
 // Handler contains all functions required to generate statistical reporting for backtesting results
 type Handler interface {

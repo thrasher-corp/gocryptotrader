@@ -1,6 +1,7 @@
 package report
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -223,31 +224,8 @@ func TestGenerateReport(t *testing.T) {
 							CompoundAnnualGrowthRate: 1,
 							BuyOrders:                1,
 							SellOrders:               1,
-							FinalHoldings: holdings.Holding{
-								Pair:                         currency.Pair{},
-								Asset:                        "",
-								Exchange:                     "",
-								Timestamp:                    time.Time{},
-								InitialFunds:                 0,
-								PositionsSize:                0,
-								PositionsValue:               0,
-								SoldAmount:                   0,
-								SoldValue:                    0,
-								BoughtAmount:                 0,
-								BoughtValue:                  0,
-								RemainingFunds:               0,
-								TotalValueDifference:         0,
-								ChangeInTotalValuePercent:    0,
-								BoughtValueDifference:        0,
-								SoldValueDifference:          0,
-								PositionsValueDifference:     0,
-								TotalValue:                   0,
-								TotalFees:                    0,
-								TotalValueLostToVolumeSizing: 0,
-								TotalValueLostToSlippage:     0,
-								RiskFreeRate:                 0,
-							},
-							FinalOrders: compliance.Snapshot{},
+							FinalHoldings:            holdings.Holding{},
+							FinalOrders:              compliance.Snapshot{},
 						},
 					},
 				},
@@ -322,13 +300,13 @@ func TestEnhanceCandles(t *testing.T) {
 	tt := time.Now()
 	var d Data
 	err := d.enhanceCandles()
-	if err != nil && err.Error() != "no candles to enhance" {
-		t.Error(err)
+	if !errors.Is(err, errNoCandles) {
+		t.Errorf("expected: %v, reveived %v", errNoCandles, err)
 	}
 	d.AddKlineItem(&gctkline.Item{})
 	err = d.enhanceCandles()
-	if err != nil && err.Error() != "unable to proceed with unset Statistics property" {
-		t.Error(err)
+	if !errors.Is(err, errStatisticsUnset) {
+		t.Errorf("expected: %v, reveived %v", errStatisticsUnset, err)
 	}
 	d.Statistics = &statistics.Statistic{}
 	err = d.enhanceCandles()

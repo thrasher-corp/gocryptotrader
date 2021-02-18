@@ -56,49 +56,50 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	btDuration := float64(last.DataEvent.GetTime().Sub(first.DataEvent.GetTime()))
 
 	marketMovementPercent := c.MarketMovement / 100
-	relativelyRiskFree := first.Holdings.RiskFreeRate / intervalsPerYear
+	riskFreeRatePerCandle := first.Holdings.RiskFreeRate / intervalsPerYear
+	riskFreeRateForPeriod := riskFreeRatePerCandle * float64(len(c.Events))
 
 	var err error
-	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithSharpe, arithSortino,
-		arithInformation, arithCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar float64
+	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
+		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar float64
 
-	arithmeticReturnsPerCandle, err = math.ArithmeticAverage(returnPerCandle)
+	arithmeticReturnsPerCandle, err = math.ArithmeticMean(returnPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geometricReturnsPerCandle, err = math.FinancialGeometricAverage(returnPerCandle)
+	geometricReturnsPerCandle, err = math.FinancialGeometricMean(returnPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	arithSharpe, err = math.SharpeRatio(returnPerCandle, relativelyRiskFree, arithmeticReturnsPerCandle)
+	arithmeticSharpe, err = math.SharpeRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	arithSortino, err = math.SortinoRatio(returnPerCandle, relativelyRiskFree, arithmeticReturnsPerCandle)
+	arithmeticSortino, err = math.SortinoRatio(returnPerCandle, riskFreeRatePerCandle, arithmeticReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	arithInformation, err = math.InformationRatio(returnPerCandle, []float64{marketMovementPercent}, arithmeticReturnsPerCandle, marketMovementPercent)
+	arithmeticInformation, err = math.InformationRatio(returnPerCandle, []float64{marketMovementPercent}, arithmeticReturnsPerCandle, marketMovementPercent)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	arithCalmar, err = math.CalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, arithmeticReturnsPerCandle)
+	arithmeticCalmar, err = math.CalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, arithmeticReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
 		errs = append(errs, err)
 	}
 	c.ArithmeticRatios = Ratios{
-		SharpeRatio:      arithSharpe,
-		SortinoRatio:     arithSortino,
-		InformationRatio: arithInformation,
-		CalmarRatio:      arithCalmar,
+		SharpeRatio:      arithmeticSharpe,
+		SortinoRatio:     arithmeticSortino,
+		InformationRatio: arithmeticInformation,
+		CalmarRatio:      arithmeticCalmar,
 	}
 
-	geomSharpe, err = math.SharpeRatio(returnPerCandle, relativelyRiskFree, geometricReturnsPerCandle)
+	geomSharpe, err = math.SharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geomSortino, err = math.SortinoRatio(returnPerCandle, relativelyRiskFree, geometricReturnsPerCandle)
+	geomSortino, err = math.SortinoRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -106,7 +107,7 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geomCalmar, err = math.CalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, geometricReturnsPerCandle)
+	geomCalmar, err = math.CalmarRatio(c.MaxDrawdown.Highest.Price, c.MaxDrawdown.Lowest.Price, geometricReturnsPerCandle, riskFreeRateForPeriod)
 	if err != nil {
 		errs = append(errs, err)
 	}

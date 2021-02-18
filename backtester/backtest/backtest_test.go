@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -68,19 +69,13 @@ func TestNewFromConfig(t *testing.T) {
 		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
 	}
 	_, err = NewFromConfig(cfg, "", "", nil)
-	if err == nil {
-		t.Error("expected error for nil config")
-	}
-	if err != nil && err.Error() != "unable to setup backtester without a loaded GoCryptoTrader bot" {
-		t.Error(err)
+	if !errors.Is(err, errNilBot) {
+		t.Errorf("expected: %v, reveived %v", errNilBot, err)
 	}
 
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if err == nil {
-		t.Error("expected error for nil config")
-	}
-	if err != nil && err.Error() != "expected at least one currency in the config" {
-		t.Error(err)
+	if !errors.Is(err, errMinOneCurrency) {
+		t.Errorf("expected: %v, reveived %v", errMinOneCurrency, err)
 	}
 
 	cfg.CurrencySettings = []config.CurrencySettings{
@@ -92,8 +87,8 @@ func TestNewFromConfig(t *testing.T) {
 		},
 	}
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil && err.Error() != "exchange not found" {
-		t.Error(err)
+	if !errors.Is(err, engine.ErrExchangeNotFound) {
+		t.Errorf("expected: %v, reveived %v", engine.ErrExchangeNotFound, err)
 	}
 
 	cfg.CurrencySettings[0].ExchangeName = testExchange
@@ -107,15 +102,15 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.CurrencySettings[0].Quote = "USDT"
 
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil && !strings.Contains(err.Error(), "initial funds unset") {
-		t.Error(err)
+	if !errors.Is(err, errInitialFundsUnset) {
+		t.Errorf("expected: %v, reveived %v", errInitialFundsUnset, err)
 	}
 
 	cfg.CurrencySettings[0].InitialFunds = 1337
 
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil && err.Error() != "no data settings set in config" {
-		t.Error(err)
+	if !errors.Is(err, errNoDataSource) {
+		t.Errorf("expected: %v, reveived %v", errNoDataSource, err)
 	}
 
 	cfg.DataSettings.APIData = &config.APIData{
@@ -129,22 +124,22 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.DataSettings.DataType = common.CandleStr
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil && err.Error() != "api data start and end dates must be set" {
-		t.Error(err)
+	if !errors.Is(err, errStartEndDateUnset) {
+		t.Errorf("expected: %v, reveived %v", errStartEndDateUnset, err)
 	}
 
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil && err.Error() != "api data interval unset" {
-		t.Error(err)
+	if !errors.Is(err, errIntervalUnset) {
+		t.Errorf("expected: %v, reveived %v", errIntervalUnset, err)
 	}
 
 	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
 
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil && !strings.Contains(err.Error(), "strategy '' not found") {
-		t.Error(err)
+	if !errors.Is(err, base.ErrStrategyNotFound) {
+		t.Errorf("expected: %v, reveived %v", base.ErrStrategyNotFound, err)
 	}
 
 	cfg.StrategySettings = config.StrategySettings{

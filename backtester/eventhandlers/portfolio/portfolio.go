@@ -297,7 +297,7 @@ func (p *Portfolio) IsInvested(exchangeName string, a asset.Item, cp currency.Pa
 // Update updates the portfolio holdings for the data event
 func (p *Portfolio) Update(d common.DataEventHandler) error {
 	if d == nil {
-		return errors.New("received nil data event")
+		return common.ErrNilEvent
 	}
 	h, ok := p.IsInvested(d.GetExchange(), d.GetAssetType(), d.Pair())
 	if !ok {

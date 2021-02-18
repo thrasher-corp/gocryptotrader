@@ -1,12 +1,14 @@
 package rsi
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -50,37 +52,37 @@ func TestSetCustomSettings(t *testing.T) {
 
 	mappalopalous[rsiPeriodKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if err != nil && err.Error() != "provided rsi-period value could not be parsed: 14" {
-		t.Error(err)
+	if !errors.Is(err, base.ErrInvalidCustomSettings) {
+		t.Errorf("expected: %v, reveived %v", base.ErrInvalidCustomSettings, err)
 	}
 
 	mappalopalous[rsiPeriodKey] = float14
 	mappalopalous[rsiLowKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if err != nil && err.Error() != "provided rsi-low value could not be parsed: 14" {
-		t.Error(err)
+	if !errors.Is(err, base.ErrInvalidCustomSettings) {
+		t.Errorf("expected: %v, reveived %v", base.ErrInvalidCustomSettings, err)
 	}
 
 	mappalopalous[rsiLowKey] = float14
 	mappalopalous[rsiHighKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if err != nil && err.Error() != "provided rsi-high value could not be parsed: 14" {
-		t.Error(err)
+	if !errors.Is(err, base.ErrInvalidCustomSettings) {
+		t.Errorf("expected: %v, reveived %v", base.ErrInvalidCustomSettings, err)
 	}
 
 	mappalopalous[rsiHighKey] = float14
 	mappalopalous["lol"] = float14
 	err = s.SetCustomSettings(mappalopalous)
-	if err != nil && err.Error() != "unrecognised custom setting key lol with value 14. Cannot apply" {
-		t.Error(err)
+	if !errors.Is(err, base.ErrInvalidCustomSettings) {
+		t.Errorf("expected: %v, reveived %v", base.ErrInvalidCustomSettings, err)
 	}
 }
 
 func TestOnSignal(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil)
-	if err != nil && err.Error() != "received nil data" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -154,8 +156,8 @@ func TestOnSignal(t *testing.T) {
 func TestOnSignals(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil)
-	if err != nil && err.Error() != "received nil data" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
@@ -183,8 +185,8 @@ func TestOnSignals(t *testing.T) {
 		Range: gctkline.IntervalRangeHolder{},
 	}
 	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil)
-	if err != nil && err.Error() != "unsupported" {
-		t.Error(err)
+	if !errors.Is(err, base.ErrSimultaneousProcessingNotSupported) {
+		t.Errorf("expected: %v, reveived %v", base.ErrSimultaneousProcessingNotSupported, err)
 	}
 }
 

@@ -1,8 +1,7 @@
 package base
 
 import (
-	"errors"
-
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -16,11 +15,11 @@ type Strategy struct {
 // GetBase returns the non-interface version of the Handler
 func (s *Strategy) GetBase(d data.Handler) (signal.Signal, error) {
 	if d == nil {
-		return signal.Signal{}, errors.New("nil data handler received")
+		return signal.Signal{}, common.ErrNilArguments
 	}
 	latest := d.Latest()
 	if latest == nil {
-		return signal.Signal{}, errors.New("could not retrieve latest data for strategy")
+		return signal.Signal{}, common.ErrNilEvent
 	}
 	return signal.Signal{
 		Base: event.Base{

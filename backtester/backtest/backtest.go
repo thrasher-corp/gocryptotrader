@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -62,10 +63,10 @@ func (bt *BackTest) Reset() {
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.Engine) (*BackTest, error) {
 	if cfg == nil {
-		return nil, errors.New("unable to setup backtester with nil config")
+		return nil, errNilConfig
 	}
 	if bot == nil {
-		return nil, errors.New("unable to setup backtester without a loaded GoCryptoTrader bot")
+		return nil, errNilBot
 	}
 	bt := New()
 	err := bt.setupBot(cfg, bot)
@@ -118,7 +119,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		a, err = asset.New(cfg.CurrencySettings[i].Asset)
 		if err != nil {
 			return nil, fmt.Errorf(
-				"invalid asset in config for %v %v %v. Err %v",
+				"%w for %v %v %v. Err %v",
+				errInvalidConfigAsset,
 				cfg.CurrencySettings[i].ExchangeName,
 				cfg.CurrencySettings[i].Asset,
 				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
@@ -131,7 +133,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		curr, err = currency.NewPairFromString(cfg.CurrencySettings[i].Base + cfg.CurrencySettings[i].Quote)
 		if err != nil {
 			return nil, fmt.Errorf(
-				"invalid currency in config for %v %v %v. Err %v",
+				"%w for %v %v %v. Err %v",
+				errInvalidConfigCurrency,
 				cfg.CurrencySettings[i].ExchangeName,
 				cfg.CurrencySettings[i].Asset,
 				cfg.CurrencySettings[i].Base+cfg.CurrencySettings[i].Quote,
@@ -176,7 +179,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	}
 	if cfg.StrategySettings.CustomSettings != nil {
 		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
-		if err != nil && err.Error() != "unsupported" {
+		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
 			return nil, err
 		}
 	} else {
@@ -208,7 +211,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			return resp, err
 		}
 		if cfg.CurrencySettings[i].InitialFunds <= 0 {
-			return resp, fmt.Errorf("initial funds unset for %s %s %s-%s",
+			return resp, fmt.Errorf("%w for %s %s %s-%s",
+				errInitialFundsUnset,
 				cfg.CurrencySettings[i].ExchangeName,
 				cfg.CurrencySettings[i].Asset,
 				cfg.CurrencySettings[i].Base,
@@ -241,7 +245,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 
 		if cfg.CurrencySettings[i].MaximumSlippagePercent < 0 {
-			log.Warnf(log.BackTester, "Invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
+			log.Warnf(log.BackTester, "invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MaximumSlippagePercent,
 				slippage.DefaultMaximumSlippagePercent)
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
@@ -250,7 +254,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
 		if cfg.CurrencySettings[i].MinimumSlippagePercent < 0 {
-			log.Warnf(log.BackTester, "Invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
+			log.Warnf(log.BackTester, "invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MinimumSlippagePercent,
 				slippage.DefaultMinimumSlippagePercent)
 			cfg.CurrencySettings[i].MinimumSlippagePercent = slippage.DefaultMinimumSlippagePercent
@@ -340,12 +344,12 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	var err error
 	bt.Bot = bot
 	if len(cfg.CurrencySettings) == 0 {
-		return errors.New("expected at least one currency in the config")
+		return errMinOneCurrency
 	}
 
 	for i := range cfg.CurrencySettings {
 		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
-		if err != nil && err.Error() != "exchange already loaded" {
+		if err != nil && !errors.Is(err, engine.ErrExchangeAlreadyLoaded) {
 			return err
 		}
 	}
@@ -388,14 +392,14 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 // it can also be generated from trade data which will be converted into kline data
 func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	if exch == nil {
-		return nil, errors.New("nil exchange received")
+		return nil, engine.ErrExchangeNotFound
 	}
-	base := exch.GetBase()
+	b := exch.GetBase()
 	if cfg.DataSettings.DatabaseData == nil &&
 		cfg.DataSettings.LiveData == nil &&
 		cfg.DataSettings.APIData == nil &&
 		cfg.DataSettings.CSVData == nil {
-		return nil, errors.New("no data settings set in config")
+		return nil, errNoDataSource
 	}
 	resp := &kline.DataFromKline{}
 	if (cfg.DataSettings.APIData != nil && cfg.DataSettings.DatabaseData != nil) ||
@@ -404,7 +408,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		(cfg.DataSettings.DatabaseData != nil && cfg.DataSettings.LiveData != nil) ||
 		(cfg.DataSettings.CSVData != nil && cfg.DataSettings.LiveData != nil) ||
 		(cfg.DataSettings.CSVData != nil && cfg.DataSettings.DatabaseData != nil) {
-		return nil, errors.New("ambiguous settings received. Only one data type can be set")
+		return nil, errAmbiguousDataSource
 	}
 
 	dataType, err := common.DataTypeToInt(cfg.DataSettings.DataType)
@@ -483,7 +487,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			exch,
 			fPair,
 			a,
-			base.Features.Enabled.Kline.ResultLimit,
+			b.Features.Enabled.Kline.ResultLimit,
 			dataType)
 		if err != nil {
 			return resp, err
@@ -492,7 +496,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if len(cfg.CurrencySettings) > 1 {
 			return nil, errors.New("live data simulation only supports one currency")
 		}
-		err = loadLiveData(cfg, base)
+		err = loadLiveData(cfg, b)
 		if err != nil {
 			return nil, err
 		}
@@ -509,7 +513,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, fmt.Errorf("processing error, response returned nil")
 	}
 
-	err = base.ValidateKline(fPair, a, resp.Item.Interval)
+	err = b.ValidateKline(fPair, a, resp.Item.Interval)
 	if err != nil {
 		return nil, err
 	}
@@ -544,10 +548,10 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
 	if cfg.DataSettings.APIData.StartDate.IsZero() || cfg.DataSettings.APIData.EndDate.IsZero() ||
 		cfg.DataSettings.APIData.StartDate.After(cfg.DataSettings.APIData.EndDate) {
-		return nil, errors.New("api data start and end dates must be set")
+		return nil, errStartEndDateUnset
 	}
 	if cfg.DataSettings.Interval == 0 {
-		return nil, errors.New("api data interval unset")
+		return nil, errIntervalUnset
 	}
 	dates := gctkline.CalculateCandleDateRanges(
 		cfg.DataSettings.APIData.StartDate,
@@ -664,7 +668,9 @@ func (bt *BackTest) handleEvent(e common.EventHandler) error {
 		bt.processFillEvent(ev)
 	case nil:
 	default:
-		return fmt.Errorf("unhandled datatype %v received, could not process", e)
+		return fmt.Errorf("%w %v received, could not process",
+			errUnhandledDatatype,
+			e)
 	}
 
 	return nil
@@ -821,7 +827,7 @@ func (bt *BackTest) RunLive() error {
 		case <-bt.shutdown:
 			return nil
 		case <-timeoutTimer.C:
-			return errors.New("no data returned in 5 minutes, shutting down")
+			return errLiveDataTimeout
 		case <-processEventTicker.C:
 			for e := bt.EventQueue.NextEvent(); ; e = bt.EventQueue.NextEvent() {
 				if e == nil {

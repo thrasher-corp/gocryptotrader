@@ -39,7 +39,7 @@ func (s *Strategy) Name() string {
 // sell signal when it is at or above a certain level
 func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error) {
 	if d == nil {
-		return nil, errors.New("received nil data")
+		return nil, common.ErrNilEvent
 	}
 	es, err := s.GetBase(d)
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For rsi, multi-currency signal processing is unsupported for demonstration purposes
 func (s *Strategy) OnSimultaneousSignals(_ []data.Handler, _ portfolio.Handler) ([]signal.Event, error) {
-	return nil, errors.New("unsupported")
+	return nil, base.ErrSimultaneousProcessingNotSupported
 }
 
 // SetCustomSettings allows a user to modify the RSI limits in their config
@@ -95,23 +95,23 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 		case rsiHighKey:
 			rsiHigh, ok := v.(float64)
 			if !ok || rsiHigh <= 0 {
-				return fmt.Errorf("provided rsi-high value could not be parsed: %v", v)
+				return fmt.Errorf("%w provided rsi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.rsiHigh = rsiHigh
 		case rsiLowKey:
 			rsiLow, ok := v.(float64)
 			if !ok || rsiLow <= 0 {
-				return fmt.Errorf("provided rsi-low value could not be parsed: %v", v)
+				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.rsiLow = rsiLow
 		case rsiPeriodKey:
 			rsiPeriod, ok := v.(float64)
 			if !ok || rsiPeriod <= 0 {
-				return fmt.Errorf("provided rsi-period value could not be parsed: %v", v)
+				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.rsiPeriod = rsiPeriod
 		default:
-			return fmt.Errorf("unrecognised custom setting key %v with value %v. Cannot apply", k, v)
+			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}
 	}
 

@@ -26,7 +26,7 @@ func (s *Statistic) Reset() {
 // SetupEventForTime sets up the big map for to store important data at each time interval
 func (s *Statistic) SetupEventForTime(e common.DataEventHandler) error {
 	if e == nil {
-		return errors.New("nil data event received")
+		return common.ErrNilEvent
 	}
 	ex := e.GetExchange()
 	a := e.GetAssetType()

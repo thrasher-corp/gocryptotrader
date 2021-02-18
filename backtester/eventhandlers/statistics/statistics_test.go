@@ -1,10 +1,12 @@
 package statistics
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics/currencystatistics"
@@ -38,8 +40,8 @@ func TestAddDataEventForTime(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
 	err := s.SetupEventForTime(nil)
-	if err != nil && err.Error() != "nil data event received" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
 		Base: event.Base{
@@ -488,8 +490,8 @@ func TestPrintAllEvents(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	err := s.SetupEventForTime(nil)
-	if err != nil && err.Error() != "nil data event received" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
 		Base: event.Base{
@@ -559,8 +561,8 @@ func TestCalculateTheResults(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	err = s.SetupEventForTime(nil)
-	if err != nil && err.Error() != "nil data event received" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
 		Base: event.Base{

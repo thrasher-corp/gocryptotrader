@@ -63,7 +63,7 @@ func CompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, numberOfI
 
 // CalmarRatio is a function of the average compounded annual rate of return versus its maximum drawdown.
 // The higher the Calmar ratio, the better it performed on a risk-adjusted basis during the given time frame, which is mostly commonly set at 36 months
-func CalmarRatio(highestPrice, lowestPrice, average float64) (float64, error) {
+func CalmarRatio(highestPrice, lowestPrice, average, riskFreeRateForPeriod float64) (float64, error) {
 	if highestPrice == 0 {
 		return 0, errCalmarHighest
 	}
@@ -71,7 +71,7 @@ func CalmarRatio(highestPrice, lowestPrice, average float64) (float64, error) {
 	if drawdownDiff == 0 {
 		return 0, nil
 	}
-	return average / drawdownDiff, nil
+	return average - riskFreeRateForPeriod/drawdownDiff, nil
 }
 
 // InformationRatio The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark,
@@ -105,7 +105,7 @@ func PopulationStandardDeviation(values []float64) (float64, error) {
 	if len(values) < 2 {
 		return 0, nil
 	}
-	valAvg, err := ArithmeticAverage(values)
+	valAvg, err := ArithmeticMean(values)
 	if err != nil {
 		return 0, err
 	}
@@ -114,7 +114,7 @@ func PopulationStandardDeviation(values []float64) (float64, error) {
 		diffs[x] = math.Pow(values[x]-valAvg, 2)
 	}
 	var diffAvg float64
-	diffAvg, err = ArithmeticAverage(diffs)
+	diffAvg, err = ArithmeticMean(diffs)
 	if err != nil {
 		return 0, err
 	}
@@ -124,18 +124,18 @@ func PopulationStandardDeviation(values []float64) (float64, error) {
 // SampleStandardDeviation standard deviation is a statistic that
 // measures the dispersion of a dataset relative to its mean and
 // is calculated as the square root of the variance
-func SampleStandardDeviation(vals []float64) (float64, error) {
-	if len(vals) < 2 {
+func SampleStandardDeviation(values []float64) (float64, error) {
+	if len(values) < 2 {
 		return 0, nil
 	}
-	mean, err := ArithmeticAverage(vals)
+	mean, err := ArithmeticMean(values)
 	if err != nil {
 		return 0, err
 	}
 	var superMean []float64
 	var combined float64
-	for i := range vals {
-		result := math.Pow(vals[i]-mean, 2)
+	for i := range values {
+		result := math.Pow(values[i]-mean, 2)
 		superMean = append(superMean, result)
 		combined += result
 	}
@@ -143,10 +143,10 @@ func SampleStandardDeviation(vals []float64) (float64, error) {
 	return math.Sqrt(avg), nil
 }
 
-// GeometricAverage is an average which indicates the central tendency or
+// GeometricMean is an average which indicates the central tendency or
 // typical value of a set of numbers by using the product of their values
 // The geometric average can only process positive numbers
-func GeometricAverage(values []float64) (float64, error) {
+func GeometricMean(values []float64) (float64, error) {
 	if len(values) == 0 {
 		return 0, errZeroValue
 	}
@@ -162,12 +162,12 @@ func GeometricAverage(values []float64) (float64, error) {
 	return geometricPower, nil
 }
 
-// FinancialGeometricAverage is a modified geometric average to assess
+// FinancialGeometricMean is a modified geometric average to assess
 // the negative returns of investments. It accepts It adds +1 to each
 // This does impact the final figures as it is modifying values
 // It is still ultimately calculating a geometric average
 // which should only be compared to other financial geometric averages
-func FinancialGeometricAverage(values []float64) (float64, error) {
+func FinancialGeometricMean(values []float64) (float64, error) {
 	if len(values) == 0 {
 		return 0, errZeroValue
 	}
@@ -192,9 +192,9 @@ func FinancialGeometricAverage(values []float64) (float64, error) {
 	return geometricPower, nil
 }
 
-// ArithmeticAverage is the basic form of calculating an average.
+// ArithmeticMean is the basic form of calculating an average.
 // Divide the sum of all values by the length of values
-func ArithmeticAverage(values []float64) (float64, error) {
+func ArithmeticMean(values []float64) (float64, error) {
 	if len(values) == 0 {
 		return 0, errZeroValue
 	}
@@ -206,28 +206,32 @@ func ArithmeticAverage(values []float64) (float64, error) {
 }
 
 // SortinoRatio returns sortino ratio of backtest compared to risk-free
-func SortinoRatio(movementPerCandle []float64, riskFreeRate, average float64) (float64, error) {
-	if len(movementPerCandle) == 0 {
+func SortinoRatio(movementPerCandle []float64, riskFreeRatePerInterval, average float64) (float64, error) {
+	totalIntervals := float64(len(movementPerCandle))
+	if totalIntervals == 0 {
 		return 0, errZeroValue
 	}
 	totalNegativeResultsSquared := 0.0
 	for x := range movementPerCandle {
-		if movementPerCandle[x]-riskFreeRate < 0 {
-			totalNegativeResultsSquared += math.Pow(movementPerCandle[x]-riskFreeRate, 2)
+		if movementPerCandle[x]-riskFreeRatePerInterval < 0 {
+			totalNegativeResultsSquared += math.Pow(movementPerCandle[x]-riskFreeRatePerInterval, 2)
 		}
 	}
 	averageDownsideDeviation := math.Sqrt(totalNegativeResultsSquared / float64(len(movementPerCandle)))
-	return (average - riskFreeRate) / averageDownsideDeviation, nil
+	riskFreeForPeriod := riskFreeRatePerInterval * totalIntervals
+
+	return average - riskFreeForPeriod/averageDownsideDeviation, nil
 }
 
 // SharpeRatio returns sharpe ratio of backtest compared to risk-free
-func SharpeRatio(movementPerCandle []float64, riskFreeRate, average float64) (float64, error) {
-	if len(movementPerCandle) == 0 {
+func SharpeRatio(movementPerCandle []float64, riskFreeRatePerInterval, average float64) (float64, error) {
+	totalIntervals := float64(len(movementPerCandle))
+	if totalIntervals == 0 {
 		return 0, errZeroValue
 	}
 	var excessReturns []float64
 	for i := range movementPerCandle {
-		excessReturns = append(excessReturns, movementPerCandle[i]-riskFreeRate)
+		excessReturns = append(excessReturns, movementPerCandle[i]-riskFreeRatePerInterval)
 	}
 	standardDeviation, err := SampleStandardDeviation(excessReturns)
 	if err != nil {
@@ -236,5 +240,7 @@ func SharpeRatio(movementPerCandle []float64, riskFreeRate, average float64) (fl
 	if standardDeviation == 0 {
 		return 0, nil
 	}
-	return (average - riskFreeRate) / standardDeviation, nil
+	riskFreeForPeriod := riskFreeRatePerInterval * totalIntervals
+
+	return average - riskFreeForPeriod/standardDeviation, nil
 }

@@ -18,4 +18,4 @@ type Handler interface {
 	SetDefaults()
 }
 
-const errNotFound = "strategy '%v' not found. Please ensure the strategy-settings field 'name' is spelled properly in your .start config"
+var ()
