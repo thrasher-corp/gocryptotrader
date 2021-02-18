@@ -66,6 +66,7 @@ const (
 	bitfinexV2MarginFunding = "calc/trade/avg?"
 	bitfinexV2Balances      = "auth/r/wallets"
 	bitfinexV2AccountInfo   = "auth/r/info/user"
+	bitfinexV2MarginInfo    = "auth/r/info/margin/"
 	bitfinexV2FundingInfo   = "auth/r/info/funding/%s"
 	bitfinexDerivativeData  = "status/deriv?"
 	bitfinexPlatformStatus  = "platform/status"
@@ -116,6 +117,21 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	}
 
 	return -1, fmt.Errorf("unexpected platform status value %d", response[0])
+}
+
+// GetV2MarginInfo gets margin info
+func (b *Bitfinex) GetV2MarginInfo(symbol string) ([]interface{}, error) {
+	var resp []interface{}
+	err := b.SendAuthenticatedHTTPRequestV2(exchange.RestSpot, http.MethodPost,
+		bitfinexV2MarginInfo+symbol,
+		nil,
+		&resp,
+		tradeRateLimit)
+	if err != nil {
+		return resp, err
+	}
+	fmt.Println(resp)
+	return resp, nil
 }
 
 // GetV2MarginFunding gets borrowing rates for margin trading

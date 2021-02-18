@@ -72,6 +72,16 @@ func TestGetV2MarginFunding(t *testing.T) {
 	}
 }
 
+func TestGetV2MarginInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.SkipNow()
+	}
+	_, err := b.GetV2MarginInfo("sym_all")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetAccountInfoV2(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
@@ -87,7 +97,7 @@ func TestGetV2FundingInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
-	_, err := b.GetV2FundingInfo("fUSD")
+	_, err := b.GetV2FundingInfo("fUSD,fUST")
 	if err != nil {
 		t.Error(err)
 	}
@@ -105,7 +115,6 @@ func TestGetV2Balances(t *testing.T) {
 }
 
 func TestGetDerivativeData(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	a, err := b.GetDerivativeData("ALL", "", "", 0, 0)
 	fmt.Printf("%+v", a)
