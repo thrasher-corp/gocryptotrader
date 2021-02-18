@@ -17,5 +17,3 @@ type Handler interface {
 	SetCustomSettings(map[string]interface{}) error
 	SetDefaults()
 }
-
-var ()
