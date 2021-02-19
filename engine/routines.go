@@ -120,7 +120,7 @@ const (
 	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n"
 )
 
-func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
+func printOrderbookSummary(result *orderbook.Depth, protocol string, err error) {
 	if err != nil {
 		if result == nil {
 			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",
@@ -146,8 +146,8 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 		return
 	}
 
-	bidsAmount, bidsValue := result.TotalBidsAmount()
-	asksAmount, asksValue := result.TotalAsksAmount()
+	bidsAmount, bidsValue := result.TotalBidAmounts()
+	asksAmount, asksValue := result.TotalAskAmounts()
 
 	var bidValueResult, askValueResult string
 	// fmt.Printf("WOW: %+v\n", result)
@@ -168,11 +168,11 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 		protocol,
 		FormatCurrency(result.Pair),
 		strings.ToUpper(result.Asset.String()),
-		len(result.Bids),
+		result.GetBidLength(),
 		bidsAmount,
 		result.Pair.Base,
 		bidValueResult,
-		len(result.Asks),
+		result.GetAskLength(),
 		asksAmount,
 		result.Pair.Base,
 		askValueResult,
@@ -346,6 +346,8 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		return errors.New(d.Error())
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
+	case *orderbook.Depth:
+		// fmt.Println("Got some goods")
 	default:
 		if bot.Settings.Verbose {
 			log.Warnf(log.WebsocketMgr,

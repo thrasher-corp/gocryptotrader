@@ -4,6 +4,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Depth defines a linked list of orderbook items
@@ -20,6 +24,10 @@ type Depth struct {
 	wMtx    sync.Mutex
 	// -----
 
+	Exchange string
+	Pair     currency.Pair
+	Asset    asset.Item
+
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
@@ -29,15 +37,15 @@ type Depth struct {
 	sync.Mutex
 }
 
-// LenAsk returns length of asks
-func (d *Depth) LenAsk() int {
+// GetAskLength returns length of asks
+func (d *Depth) GetAskLength() int {
 	d.Lock()
 	defer d.Unlock()
 	return d.ask.length
 }
 
-// LenBids returns length of bids
-func (d *Depth) LenBids() int {
+// GetBidLength returns length of bids
+func (d *Depth) GetBidLength() int {
 	d.Lock()
 	defer d.Unlock()
 	return d.bid.length
@@ -115,6 +123,9 @@ func timeInForce(t time.Duration) kicker {
 // Wait pauses routine until depth change has been established
 func (d *Depth) Wait(kick <-chan struct{}) bool {
 	d.wMtx.Lock()
+	if d.wait == nil {
+		d.wait = make(chan struct{})
+	}
 	atomic.StoreUint32(&d.waiting, 1)
 	d.wMtx.Unlock()
 	select {
@@ -189,18 +200,22 @@ type outOfOrder func(float64, float64) bool
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates
 func (d *Depth) UpdateBidAskByPrice(bid, ask Items, maxDepth int) error {
+	var errs common.Errors
 	d.Lock()
 	defer d.Unlock()
 	err := d.bid.updateInsertBidsByPrice(bid, &d.stack, maxDepth)
 	if err != nil {
-		return err
+		errs = append(errs, err)
 	}
 
 	err = d.bid.updateInsertBidsByPrice(ask, &d.stack, maxDepth)
 	if err != nil {
-		return err
+		errs = append(errs, err)
 	}
 	d.alert()
+	if errs != nil {
+		return errs
+	}
 	return nil
 }
 

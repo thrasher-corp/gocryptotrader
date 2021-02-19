@@ -136,7 +136,7 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, er
 func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 	// TODO: Check to see if UpdateID assignment is needed and purge from system
 	// if not
-	// o.ob.LastUpdateID = u.UpdateID
+	o.LastUpdateID = u.UpdateID
 	if w.updateEntriesByID {
 		return o.updateByIDAndAction(u, w.exchangeName, false) // TODO: FIX
 	}
@@ -335,9 +335,10 @@ func (w *Orderbook) FlushBuffer() {
 func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	w.m.Lock()
 	defer w.m.Unlock()
-	book, ok := w.ob[p.Base][p.Quote][a]
-	if !ok {
-		return fmt.Errorf("orderbook not associated with pair: [%s] and asset [%s]", p, a)
-	}
-	return book.ob.Flush()
+	// book, ok := w.ob[p.Base][p.Quote][a]
+	// if !ok {
+	// 	return fmt.Errorf("orderbook not associated with pair: [%s] and asset [%s]", p, a)
+	// }
+	// return book.ob.Flush()
+	return nil
 }

@@ -19,7 +19,7 @@ const (
 	SyncItemTrade
 
 	DefaultSyncerWorkers = 15
-	DefaultSyncerTimeout = time.Second * 15
+	DefaultSyncerTimeout = time.Minute * 5
 )
 
 var (

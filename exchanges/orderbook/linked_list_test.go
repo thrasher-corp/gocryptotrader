@@ -146,13 +146,92 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	// Insert between price and up to and beyond max allowable depth level
 	asks.updateInsertAsksByPrice(Items{
 		{Price: 11.5, Amount: 2},
-		// {Price: 10.5, Amount: 2},
-		// {Price: 13, Amount: 2},
+		{Price: 10.5, Amount: 2},
+		{Price: 13, Amount: 2},
+	}, &stack, 10)
+
+	Check(asks, 15, 106, 10, false, t)
+
+	if stack.count != 1 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
+
+	// delete at tail
+	asks.updateInsertAsksByPrice(Items{
+		{Price: 12, Amount: 0},
 	}, &stack, 0)
 
-	Check(asks, 11, 38, 8, false, t)
+	Check(asks, 13, 82, 9, false, t)
+
+	if stack.count != 2 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
+
+	bids := linkedList{}
+	bidsSnapshot := Items{
+		{Price: 11, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 7, Amount: 1},
+		{Price: 5, Amount: 1},
+		{Price: 3, Amount: 1},
+		{Price: 1, Amount: 1},
+	}
+	bids.Load(bidsSnapshot, &stack)
+
+	// Update one instance with matching price
+	bids.updateInsertBidsByPrice(Items{
+		{Price: 11, Amount: 2},
+	}, &stack, 0)
+
+	Check(bids, 7, 47, 6, true, t)
 
 	if stack.count != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
+
+	// Insert at head
+	bids.updateInsertBidsByPrice(Items{
+		{Price: 12, Amount: 2},
+	}, &stack, 0)
+
+	Check(bids, 9, 71, 7, true, t)
+
+	if stack.count != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
+
+	// Insert at tail
+	bids.updateInsertBidsByPrice(Items{
+		{Price: 0.5, Amount: 2},
+	}, &stack, 0)
+
+	Check(bids, 11, 72, 8, true, t)
+
+	if stack.count != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
+
+	// Insert between price and up to and beyond max allowable depth level
+	bids.updateInsertBidsByPrice(Items{
+		{Price: 11.5, Amount: 2},
+		{Price: 10.5, Amount: 2},
+		{Price: 13, Amount: 2},
+	}, &stack, 10)
+
+	Check(bids, 15, 141, 10, true, t)
+
+	if stack.count != 1 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+	}
+
+	// Insert between price and up to and beyond max allowable depth level
+	bids.updateInsertBidsByPrice(Items{
+		{Price: 1, Amount: 0},
+	}, &stack, 0)
+
+	Check(bids, 14, 140, 9, true, t)
+
+	if stack.count != 2 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
 	}
 }
@@ -481,10 +560,10 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 			price = tip.value.Price
 		} else if bid && price < tip.value.Price {
 			ll.Display()
-			t.Fatal("pricing out of order should be descending")
+			t.Fatal("Bid pricing out of order should be descending")
 		} else if !bid && price > tip.value.Price {
 			ll.Display()
-			t.Fatal("pricing out of order should be ascending")
+			t.Fatal("Ask pricing out of order should be ascending")
 		} else {
 			price = tip.value.Price
 		}
@@ -507,14 +586,14 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 	if liquidity-liqReversed != 0 {
 		ll.Display()
 		fmt.Println(liquidity, liqReversed)
-		t.Errorf("mismatched liquidity when reversing direction expecting %v but received %v",
+		t.Fatalf("mismatched liquidity when reversing direction expecting %v but received %v",
 			0,
 			liquidity-liqReversed)
 	}
 
 	if nodeCount-nodeReversed != 0 {
 		ll.Display()
-		t.Errorf("mismatched node count when reversing direction expecting %v but received %v",
+		t.Fatalf("mismatched node count when reversing direction expecting %v but received %v",
 			0,
 			nodeCount-nodeReversed)
 	}
@@ -522,7 +601,7 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 	if value-valReversed != 0 {
 		ll.Display()
 		fmt.Println(valReversed, value)
-		t.Errorf("mismatched total book value when reversing direction expecting %v but received %v",
+		t.Fatalf("mismatched total book value when reversing direction expecting %v but received %v",
 			0,
 			value-valReversed)
 	}

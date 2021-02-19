@@ -26,8 +26,9 @@ type Orderbook struct {
 // orderbookHolder defines a store of pending updates and a pointer to the
 // orderbook depth
 type orderbookHolder struct {
-	ob     *orderbook.Depth
-	buffer *[]Update
+	LastUpdateID int64
+	ob           *orderbook.Depth
+	buffer       *[]Update
 }
 
 // Update stores orderbook updates and dictates what features to use when processing

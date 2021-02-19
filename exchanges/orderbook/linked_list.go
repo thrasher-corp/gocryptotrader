@@ -123,6 +123,8 @@ updates:
 					if old.prev == nil { // Head
 						*tip = old.next
 						old.next.prev = nil
+					} else if old.next == nil { // tail
+						old.prev.next = nil
 					} else {
 						old.prev.next = old.next
 						old.next.prev = old.prev
@@ -136,30 +138,24 @@ updates:
 			}
 
 			if (*tip).value.Price > updts[x].Price { // Insert
-				fmt.Println("WOW", updts[x], *tip)
-				if updts[x].Amount > 0 { // Filter delete, should be hit at this tranche level, so obviously not accounted for in depth
-					fmt.Println("something wow")
+				if updts[x].Amount > 0 { // Filter delete, should already be
+					// removed
 					n := stack.Pop()
 					n.value = updts[x]
-					fmt.Println("PTR ADDR:", n)
-
 					n.next = *tip
 					n.prev = (*tip).prev
-					if (*tip).prev == nil { // Head
-						fmt.Println("replaced head")
+					if (*tip).prev == nil { // Tip is at head; replace
 						*tip = n
 					} else {
 						(*tip).prev.next = n
-						(*tip).prev = n
 					}
-
+					n.next.prev = n
 					ll.length++
 				}
 				continue updates
 			}
 
-			if (*tip).next == nil {
-				fmt.Println("wha")
+			if (*tip).next == nil { // Tip is at tail so pop and append
 				if updts[x].Amount > 0 {
 					n := stack.Pop()
 					n.value = updts[x]
@@ -169,7 +165,9 @@ updates:
 				}
 			}
 		}
-		return errors.New("could not apply update :(")
+		if updts[x].Amount > 0 {
+			return fmt.Errorf("could not apply update %+v", updts[x])
+		}
 	}
 	return nil
 }
@@ -180,7 +178,6 @@ func (ll *linkedList) updateInsertBidsByPrice(updts Items, stack *Stack, maxChai
 	defer ll.cleanup(maxChainLength, stack)
 updates:
 	for x := range updts {
-		fmt.Println("UPDT BRO", updts[x])
 		for tip := &ll.head; *tip != nil; tip = &(*tip).next {
 			if (*tip).value.Price == updts[x].Price { // Match check
 				if updts[x].Amount <= 0 { // Delete
@@ -188,6 +185,8 @@ updates:
 					if old.prev == nil { // Head
 						*tip = old.next
 						old.next.prev = nil
+					} else if old.next == nil { // tail
+						old.prev.next = nil
 					} else {
 						old.prev.next = old.next
 						old.next.prev = old.prev
@@ -200,31 +199,24 @@ updates:
 				continue updates
 			}
 
-			if (*tip).value.Price > updts[x].Price { // Insert
-				fmt.Println("WOW", updts[x], *tip)
+			if (*tip).value.Price < updts[x].Price { // Insert
 				if updts[x].Amount > 0 { // Filter delete, should be hit at this tranche level, so obviously not accounted for in depth
-					fmt.Println("something wow")
 					n := stack.Pop()
 					n.value = updts[x]
-					fmt.Println("PTR ADDR:", n)
-
 					n.next = *tip
 					n.prev = (*tip).prev
-					if (*tip).prev == nil { // Head
-						fmt.Println("replaced head")
+					if (*tip).prev == nil { // Tip is at head; replace
 						*tip = n
 					} else {
 						(*tip).prev.next = n
-						(*tip).prev = n
 					}
-
+					n.next.prev = n
 					ll.length++
 				}
 				continue updates
 			}
 
 			if (*tip).next == nil {
-				fmt.Println("wha")
 				if updts[x].Amount > 0 {
 					n := stack.Pop()
 					n.value = updts[x]
@@ -234,7 +226,9 @@ updates:
 				}
 			}
 		}
-		return errors.New("could not apply update :(")
+		if updts[x].Amount > 0 {
+			return fmt.Errorf("could not apply update %+v", updts[x])
+		}
 	}
 	return nil
 }
@@ -243,21 +237,22 @@ updates:
 // updates have been applied instead of adhoc, reason being its easier to prune
 // at the end.
 func (ll *linkedList) cleanup(maxChainLength int, stack *Stack) {
-	// fmt.Println("POWER")
 	if maxChainLength == 0 || ll.length <= maxChainLength {
-		// fmt.Println("WOW")
 		return
 	}
 
 	n := ll.head
 	for i := 0; i < maxChainLength; i++ {
-		fmt.Printf("BRUH %+v\n", n)
 		n = n.next
 		if n.next == nil {
 			break
 		}
 	}
-	fmt.Println()
+
+	// cleave reference to current node
+	if n.prev != nil {
+		n.prev.next = nil
+	}
 
 	var pruned int
 	for n != nil {
