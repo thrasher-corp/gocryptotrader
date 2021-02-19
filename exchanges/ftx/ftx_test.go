@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -26,8 +25,14 @@ const (
 	canManipulateRealOrders = false
 	spotPair                = "FTT/BTC"
 	futuresPair             = "DOGE-PERP"
-	testToken               = "ADAMOON"
-	btcusd                  = "BTC/USD"
+	testLeverageToken       = "ADAMOON"
+
+	validFTTBTCStartTime   = 1565445600           // Sat Aug 10 2019 14:00:00 GMT+0000
+	validFTTBTCEndTime     = 1565532000           // Sat Aug 10 2019 14:00:00 GMT+0000
+	invalidFTTBTCStartTime = 1559881511           // Fri Jun 07 2019 04:25:11 GMT+0000
+	invalidFTTBTCEndTime   = 1559901511           // Fri Jun 07 2019 09:58:31 GMT+0000
+	authStartTime          = validFTTBTCStartTime // Adjust these to test auth requests
+	authEndTime            = validFTTBTCEndTime
 )
 
 var f FTX
@@ -91,33 +96,70 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetTrades(spotPair, 0, 0, 200)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = f.GetTrades(spotPair, 0, 0, 5)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = f.GetTrades(spotPair, 1559901511, 1559881511, 5)
+	// test empty market
+	_, err := f.GetTrades("", 0, 0, 200)
 	if err == nil {
+		t.Error("empty market should return an error")
+	}
+	_, err = f.GetTrades(spotPair, validFTTBTCEndTime, validFTTBTCStartTime, 5)
+	if err != errStartTimeCannotBeAfterEndTime {
+		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
+	}
+	// test optional params
+	var trades []TradeData
+	trades, err = f.GetTrades(spotPair, 0, 0, 0)
+	if err != nil {
 		t.Error(err)
+	}
+	if len(trades) != 20 {
+		t.Error("default limit should return 20 items")
+	}
+	trades, err = f.GetTrades(spotPair, validFTTBTCStartTime, validFTTBTCEndTime, 5)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(trades) != 5 {
+		t.Error("limit of 5 should return 5 items")
+	}
+	trades, err = f.GetTrades(spotPair, invalidFTTBTCStartTime, invalidFTTBTCEndTime, 5)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(trades) != 0 {
+		t.Error("invalid time range should return 0 items")
 	}
 }
 
 func TestGetHistoricalData(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetHistoricalData(spotPair, "86400", "5", time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(1559881511, 0), time.Unix(1559901511, 0))
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(1559901511, 0), time.Unix(1559881511, 0))
+	// test empty market
+	_, err := f.GetHistoricalData("", "86400", "5", time.Time{}, time.Time{})
 	if err == nil {
+		t.Error("empty market should return an error")
+	}
+	// test empty resolution
+	_, err = f.GetHistoricalData(spotPair, "", "5", time.Time{}, time.Time{})
+	if err == nil {
+		t.Error("empty resolution should return an error")
+	}
+	_, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0))
+	if err != errStartTimeCannotBeAfterEndTime {
+		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
+	}
+	var o []OHLCVData
+	o, err = f.GetHistoricalData(spotPair, "86400", "5", time.Time{}, time.Time{})
+	if err != nil {
 		t.Error(err)
+	}
+	if len(o) != 5 {
+		t.Error("limit of 5 should return 5 items")
+	}
+	o, err = f.GetHistoricalData(spotPair, "86400", "5", time.Unix(invalidFTTBTCStartTime, 0), time.Unix(invalidFTTBTCEndTime, 0))
+	if err != nil {
+		t.Error(err)
+	}
+	if len(o) != 0 {
+		t.Error("invalid time range should return 0 items")
 	}
 }
 
@@ -147,7 +189,12 @@ func TestGetFutureStats(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetFundingRates(time.Now().Add(-time.Hour), time.Now(), "BTC-PERP")
+	// optional params
+	_, err := f.GetFundingRates(time.Time{}, time.Time{}, "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetFundingRates(time.Now().Add(-time.Hour), time.Now(), "BTC-PERP")
 	if err != nil {
 		t.Error(err)
 	}
@@ -243,9 +290,6 @@ func TestGetMarginLendingRates(t *testing.T) {
 
 func TestMarginDailyBorrowedAmounts(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip()
-	}
 	_, err := f.MarginDailyBorrowedAmounts()
 	if err != nil {
 		t.Error(err)
@@ -312,8 +356,7 @@ func TestSubmitLendingOffer(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
-	_, err := f.SubmitLendingOffer("btc", 0.1, 500)
-	if err != nil {
+	if err := f.SubmitLendingOffer("bTc", 0.1, 500); err != nil {
 		t.Error(err)
 	}
 }
@@ -323,7 +366,7 @@ func TestFetchDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.FetchDepositAddress("TUSD")
+	_, err := f.FetchDepositAddress("tUsD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -356,7 +399,7 @@ func TestWithdraw(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.Withdraw("BTC", core.BitcoinDonationAddress, "", "", "957378", 0.0009)
+	_, err := f.Withdraw("BtC", core.BitcoinDonationAddress, "", "", "957378", 0.0009)
 	if err != nil {
 		t.Error(err)
 	}
@@ -367,7 +410,11 @@ func TestGetOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetOpenOrders(spotPair)
+	_, err := f.GetOpenOrders("")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetOpenOrders(spotPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -378,17 +425,17 @@ func TestFetchOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.FetchOrderHistory(spotPair, time.Time{}, time.Time{}, "2")
+	_, err := f.FetchOrderHistory("", time.Time{}, time.Time{}, "2")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.FetchOrderHistory(spotPair, time.Unix(1559881511, 0), time.Unix(1559901511, 0), "2")
+	_, err = f.FetchOrderHistory(spotPair, time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), "2")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.FetchOrderHistory(spotPair, time.Unix(1559901511, 0), time.Unix(1559881511, 0), "2")
-	if err == nil {
-		t.Error(err)
+	_, err = f.FetchOrderHistory(spotPair, time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), "2")
+	if err != errStartTimeCannotBeAfterEndTime {
+		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 }
 
@@ -397,7 +444,12 @@ func TestGetOpenTriggerOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetOpenTriggerOrders(spotPair, "")
+	// optional params
+	_, err := f.GetOpenTriggerOrders("", "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetOpenTriggerOrders(spotPair, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -419,17 +471,21 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetTriggerOrderHistory(spotPair, time.Time{}, time.Time{}, order.Buy.Lower(), "stop", "1")
+	_, err := f.GetTriggerOrderHistory("", time.Time{}, time.Time{}, "", "", "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetTriggerOrderHistory(spotPair, time.Unix(1559881511, 0), time.Unix(1559901511, 0), order.Buy.Lower(), "stop", "1")
+	_, err = f.GetTriggerOrderHistory(spotPair, time.Time{}, time.Time{}, order.Buy.Lower(), "stop", "1")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetTriggerOrderHistory(spotPair, time.Unix(1559901511, 0), time.Unix(1559881511, 0), order.Buy.Lower(), "stop", "1")
-	if err == nil {
+	_, err = f.GetTriggerOrderHistory(spotPair, time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), order.Buy.Lower(), "stop", "1")
+	if err != nil {
 		t.Error(err)
+	}
+	_, err = f.GetTriggerOrderHistory(spotPair, time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), order.Buy.Lower(), "stop", "1")
+	if err != errStartTimeCannotBeAfterEndTime {
+		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 }
 
@@ -546,17 +602,22 @@ func TestGetFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetFills(spotPair, "", time.Time{}, time.Time{})
+	// optional params
+	_, err := f.GetFills("", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFills(spotPair, "", time.Unix(1559881511, 0), time.Unix(1559901511, 0))
+	_, err = f.GetFills(spotPair, "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFills(spotPair, "", time.Unix(1559901511, 0), time.Unix(1559881511, 0))
-	if err == nil {
+	_, err = f.GetFills(spotPair, "", time.Unix(authStartTime, 0), time.Unix(authEndTime, 0))
+	if err != nil {
 		t.Error(err)
+	}
+	_, err = f.GetFills(spotPair, "", time.Unix(authEndTime, 0), time.Unix(authStartTime, 0))
+	if err != errStartTimeCannotBeAfterEndTime {
+		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 }
 
@@ -565,13 +626,18 @@ func TestGetFundingPayments(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetFundingPayments(time.Unix(1559881511, 0), time.Unix(1559901511, 0), "")
+	// optional params
+	_, err := f.GetFundingPayments(time.Time{}, time.Time{}, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetFundingPayments(time.Unix(1559901511, 0), time.Unix(1559881511, 0), "")
-	if err == nil {
+	_, err = f.GetFundingPayments(time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), futuresPair)
+	if err != nil {
 		t.Error(err)
+	}
+	_, err = f.GetFundingPayments(time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), futuresPair)
+	if err != errStartTimeCannotBeAfterEndTime {
+		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 }
 
@@ -624,7 +690,7 @@ func TestRequestLTCreation(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.RequestLTCreation(testToken, 1)
+	_, err := f.RequestLTCreation(testLeverageToken, 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -668,7 +734,7 @@ func TestCreateQuoteRequest(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.CreateQuoteRequest(strings.ToUpper(currency.BTC.String()), "call", order.Buy.Lower(), 1593140400, "", 10, 10, 5, 0, false)
+	_, err := f.CreateQuoteRequest(currency.BTC.String(), "call", order.Buy.Lower(), 1593140400, "", 10, 10, 5, 0, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -764,20 +830,25 @@ func TestGetOptionsPositions(t *testing.T) {
 
 func TestGetPublicOptionsTrades(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip()
-	}
-	_, err := f.GetPublicOptionsTrades(time.Time{}, time.Time{}, "5")
+	// test optional params
+	result, err := f.GetPublicOptionsTrades(time.Time{}, time.Time{}, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetPublicOptionsTrades(time.Unix(1559881511, 0), time.Unix(1559901511, 0), "5")
+	if len(result) != 20 {
+		t.Error("default limit should have returned 20 items")
+	}
+	tmNow := time.Now()
+	result, err = f.GetPublicOptionsTrades(tmNow.AddDate(0, 0, -1), tmNow, "5")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetPublicOptionsTrades(time.Unix(1559901511, 0), time.Unix(1559881511, 0), "5")
-	if err == nil {
-		t.Error(err)
+	if len(result) != 5 {
+		t.Error("limit of 5 should return 5 items")
+	}
+	_, err = f.GetPublicOptionsTrades(time.Unix(validFTTBTCEndTime, 0), time.Unix(validFTTBTCStartTime, 0), "5")
+	if err != errStartTimeCannotBeAfterEndTime {
+		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 }
 
@@ -790,13 +861,13 @@ func TestGetOptionsFills(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetOptionsFills(time.Unix(1559881511, 0), time.Unix(1559901511, 0), "5")
+	_, err = f.GetOptionsFills(time.Unix(authStartTime, 0), time.Unix(authEndTime, 0), "5")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetOptionsFills(time.Unix(1559901511, 0), time.Unix(1559881511, 0), "5")
-	if err == nil {
-		t.Error(err)
+	_, err = f.GetOptionsFills(time.Unix(authEndTime, 0), time.Unix(authStartTime, 0), "5")
+	if err != errStartTimeCannotBeAfterEndTime {
+		t.Errorf("should have thrown errStartTimeCannotBeAfterEndTime, got %v", err)
 	}
 }
 
@@ -1223,7 +1294,7 @@ func TestGetOTCQuoteStatus(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.GetOTCQuoteStatus(btcusd, "1")
+	_, err := f.GetOTCQuoteStatus(spotPair, "1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1234,7 +1305,7 @@ func TestRequestForQuotes(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or canManipulateRealOrders isnt set correctly")
 	}
-	_, err := f.RequestForQuotes("BTC", "USD", 0.5)
+	_, err := f.RequestForQuotes("BtC", "UsD", 0.5)
 	if err != nil {
 		t.Error(err)
 	}
