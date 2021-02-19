@@ -1,7 +1,7 @@
 package compliance
 
 import (
-	"strings"
+	"errors"
 	"testing"
 	"time"
 )
@@ -16,8 +16,8 @@ func TestAddSnapshot(t *testing.T) {
 	}
 
 	err = m.AddSnapshot([]SnapshotOrder{}, tt, false)
-	if err != nil && !strings.Contains(err.Error(), "already exists. Use force to overwrite") {
-		t.Error(err)
+	if !errors.Is(err, errSnapshotExists) {
+		t.Errorf("expected: %v, reveived %v", errSnapshotExists, err)
 	}
 
 	err = m.AddSnapshot([]SnapshotOrder{}, tt, true)
@@ -54,8 +54,8 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	}
 
 	_, err = m.GetSnapshotAtTime(time.Now().Add(time.Hour))
-	if err != nil && !strings.Contains(err.Error(), "not found") {
-		t.Error(err)
+	if !errors.Is(err, errSnapshotNotFound) {
+		t.Errorf("expected: %v, reveived %v", errSnapshotNotFound, err)
 	}
 }
 

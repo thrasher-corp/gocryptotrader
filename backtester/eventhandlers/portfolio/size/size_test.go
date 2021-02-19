@@ -2,7 +2,6 @@ package size
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -77,8 +76,8 @@ func TestSizingUnderMinSize(t *testing.T) {
 	feeRate := 0.02
 
 	_, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
-	if err != nil && !strings.Contains(err.Error(), "less than minimum '1'") {
-		t.Error(err)
+	if !errors.Is(err, errLessThanMinimum) {
+		t.Errorf("expected: %v, reveived %v", errLessThanMinimum, err)
 	}
 }
 
@@ -98,8 +97,8 @@ func TestSizingErrors(t *testing.T) {
 	feeRate := 0.02
 
 	_, err := sizer.calculateBuySize(price, availableFunds, feeRate, globalMinMax)
-	if err != nil && err.Error() != "no fund available" {
-		t.Error(err)
+	if !errors.Is(err, errNoFunds) {
+		t.Errorf("expected: %v, reveived %v", errNoFunds, err)
 	}
 }
 
@@ -119,13 +118,13 @@ func TestCalculateSellSize(t *testing.T) {
 	feeRate := 0.02
 
 	_, err := sizer.calculateSellSize(price, availableFunds, feeRate, globalMinMax)
-	if err != nil && err.Error() != "no fund available" {
-		t.Error(err)
+	if !errors.Is(err, errNoFunds) {
+		t.Errorf("expected: %v, reveived %v", errNoFunds, err)
 	}
 	availableFunds = 1337
 	_, err = sizer.calculateSellSize(price, availableFunds, feeRate, globalMinMax)
-	if err != nil && !strings.Contains(err.Error(), "less than minimum '1'") {
-		t.Error(err)
+	if !errors.Is(err, errLessThanMinimum) {
+		t.Errorf("expected: %v, reveived %v", errLessThanMinimum, err)
 	}
 	price = 12
 	availableFunds = 1339
@@ -145,13 +144,13 @@ func TestSizeOrder(t *testing.T) {
 	o := &order.Order{}
 	cs := &exchange.Settings{}
 	_, err = s.SizeOrder(o, 0, cs)
-	if err != nil && err.Error() != "received availableFunds <= 0, cannot size order" {
-		t.Error(err)
+	if !errors.Is(err, errNoFunds) {
+		t.Errorf("expected: %v, reveived %v", errNoFunds, err)
 	}
 
 	_, err = s.SizeOrder(o, 1337, cs)
-	if err != nil && !strings.Contains(err.Error(), "portfolio manager cannot allocate funds for an order at") {
-		t.Error(err)
+	if !errors.Is(err, errCannotAllocate) {
+		t.Errorf("expected: %v, reveived %v", errCannotAllocate, err)
 	}
 
 	o.Direction = gctorder.Buy

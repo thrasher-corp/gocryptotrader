@@ -1,11 +1,15 @@
 package holdings
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+// ErrInitialFundsZero is an error when initial funds are zero or less
+var ErrInitialFundsZero = errors.New("initial funds <= 0")
 
 // Holding contains pricing statistics for a given time
 // for a given exchange asset pair

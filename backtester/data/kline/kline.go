@@ -1,7 +1,6 @@
 package kline
 
 import (
-	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -21,7 +20,7 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 func (d *DataFromKline) Load() error {
 	d.addedTimes = make(map[time.Time]bool)
 	if len(d.Item.Candles) == 0 {
-		return errors.New("no candle data provided")
+		return errNoCandleData
 	}
 
 	klineData := make([]common.DataEventHandler, len(d.Item.Candles))

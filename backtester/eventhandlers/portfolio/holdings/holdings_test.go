@@ -1,9 +1,11 @@
 package holdings
 
 import (
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -20,14 +22,19 @@ const (
 
 func TestCreate(t *testing.T) {
 	t.Parallel()
-	_, err := Create(&fill.Fill{}, -1, riskFreeRate)
-	if err != nil && err.Error() != "initial funds <= 0" {
-		t.Error(err)
+	_, err := Create(nil, -1, riskFreeRate)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", ErrInitialFundsZero, err)
+	}
+
+	_, err = Create(&fill.Fill{}, -1, riskFreeRate)
+	if !errors.Is(err, ErrInitialFundsZero) {
+		t.Errorf("expected: %v, reveived %v", ErrInitialFundsZero, err)
 	}
 
 	_, err = Create(nil, 1, riskFreeRate)
-	if err != nil && err.Error() != "nil event received" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 
 	h, err := Create(&fill.Fill{}, 1, riskFreeRate)

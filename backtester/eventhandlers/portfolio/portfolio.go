@@ -1,7 +1,6 @@
 package portfolio
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -24,13 +23,13 @@ import (
 // Setup creates a portfolio manager instance and sets private fields
 func Setup(sh SizeHandler, r risk.Handler, riskFreeRate float64) (*Portfolio, error) {
 	if sh == nil {
-		return nil, errors.New("received nil sizeHandler")
+		return nil, errSizeManagerUnset
 	}
 	if riskFreeRate < 0 {
-		return nil, errors.New("received negative riskFreeRate")
+		return nil, errNegativeRiskFreeRate
 	}
 	if r == nil {
-		return nil, errors.New("received nil risk handler")
+		return nil, errRiskManagerUnset
 	}
 	p := &Portfolio{}
 	p.sizeManager = sh
@@ -54,10 +53,10 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 		return nil, common.ErrNilArguments
 	}
 	if p.sizeManager == nil {
-		return nil, errors.New("no size manager set")
+		return nil, errSizeManagerUnset
 	}
 	if p.riskManager == nil {
-		return nil, errors.New("no risk manager set")
+		return nil, errRiskManagerUnset
 	}
 
 	o := &order.Order{
@@ -72,12 +71,16 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 		Direction: signal.GetDirection(),
 	}
 	if signal.GetDirection() == "" {
-		return o, errors.New("invalid Direction")
+		return o, errInvalidDirection
 	}
 
 	lookup := p.exchangeAssetPairSettings[signal.GetExchange()][signal.GetAssetType()][signal.Pair()]
 	if lookup == nil {
-		return nil, fmt.Errorf("no portfolio settings for %v %v %v", signal.GetExchange(), signal.GetAssetType(), signal.Pair())
+		return nil, fmt.Errorf("%w for %v %v %v",
+			errNoPortfolioSettings,
+			signal.GetExchange(),
+			signal.GetAssetType(),
+			signal.Pair())
 	}
 	prevHolding := lookup.GetLatestHoldings()
 	if p.iteration == 0 {
@@ -182,11 +185,11 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions.
 func (p *Portfolio) OnFill(fillEvent fill.Event) (*fill.Fill, error) {
 	if fillEvent == nil {
-		return nil, errors.New("nil fill event received, cannot process OnFill")
+		return nil, common.ErrNilEvent
 	}
 	lookup := p.exchangeAssetPairSettings[fillEvent.GetExchange()][fillEvent.GetAssetType()][fillEvent.Pair()]
 	if lookup == nil {
-		return nil, fmt.Errorf("no currency settings found for %v %v %v", fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair())
+		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair())
 	}
 	var err error
 	// Get the holding from the previous iteration, create it if it doesn't yet have a timestamp
@@ -231,6 +234,9 @@ func (p *Portfolio) OnFill(fillEvent fill.Event) (*fill.Fill, error) {
 // addComplianceSnapshot gets the previous snapshot of compliance events, updates with the latest fillevent
 // then saves the snapshot to the c
 func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
+	if fillEvent == nil {
+		return common.ErrNilEvent
+	}
 	complianceManager, err := p.GetComplianceManager(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair())
 	if err != nil {
 		return err
@@ -258,7 +264,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 func (p *Portfolio) GetComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
 	lookup := p.exchangeAssetPairSettings[exchangeName][a][cp]
 	if lookup == nil {
-		return nil, fmt.Errorf("no exchange settings found for %v %v %v could not retrieve compliance manager", exchangeName, a, cp)
+		return nil, fmt.Errorf("%w for %v %v %v could not retrieve compliance manager", errNoPortfolioSettings, exchangeName, a, cp)
 	}
 	return &lookup.ComplianceManager, nil
 }
@@ -351,7 +357,7 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 
 func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h *holdings.Holding, force bool) error {
 	if h.Timestamp.IsZero() {
-		return errors.New("holding with unset timestamp received")
+		return errHoldingsNoTimestamp
 	}
 	lookup := p.exchangeAssetPairSettings[exch][a][cp]
 	if lookup == nil {
@@ -364,7 +370,7 @@ func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h *
 	for i := range lookup.HoldingsSnapshots {
 		if lookup.HoldingsSnapshots[i].Timestamp.Equal(h.Timestamp) {
 			if !force {
-				return fmt.Errorf("holdings for %v %v %v at %v already set", exch, a, cp, h.Timestamp)
+				return fmt.Errorf("%w for %v %v %v at %v", errHoldingsAlreadySet, exch, a, cp, h.Timestamp)
 			}
 			lookup.HoldingsSnapshots[i] = *h
 			return nil
@@ -379,7 +385,7 @@ func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h *
 func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp currency.Pair, t time.Time) (holdings.Holding, error) {
 	exchangeAssetPairSettings := p.exchangeAssetPairSettings[exch][a][cp]
 	if exchangeAssetPairSettings == nil {
-		return holdings.Holding{}, fmt.Errorf("no holdings found for %v %v %v", exch, a, cp)
+		return holdings.Holding{}, fmt.Errorf("%w for %v %v %v", errNoHoldings, exch, a, cp)
 	}
 	for i := range exchangeAssetPairSettings.HoldingsSnapshots {
 		if t.Equal(exchangeAssetPairSettings.HoldingsSnapshots[i].Timestamp) {
@@ -387,19 +393,19 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp curren
 		}
 	}
 
-	return holdings.Holding{}, fmt.Errorf("no holdings found for %v %v %v at %v", exch, a, cp, t)
+	return holdings.Holding{}, fmt.Errorf("%w for %v %v %v at %v", errNoHoldings, exch, a, cp, t)
 }
 
 // SetupCurrencySettingsMap ensures a map is created and no panics happen
 func (p *Portfolio) SetupCurrencySettingsMap(exch string, a asset.Item, cp currency.Pair) (*settings.Settings, error) {
 	if exch == "" {
-		return nil, errors.New("received empty exchange name")
+		return nil, errExchangeUnset
 	}
 	if a == "" {
-		return nil, errors.New("received empty asset")
+		return nil, errAssetUnset
 	}
 	if cp.IsEmpty() {
-		return nil, errors.New("received unset currency pair")
+		return nil, errCurrencyPairUnset
 	}
 	if p.exchangeAssetPairSettings == nil {
 		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*settings.Settings)

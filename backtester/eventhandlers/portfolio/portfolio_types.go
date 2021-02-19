@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -14,6 +15,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+)
+
+var (
+	errInvalidDirection     = errors.New("invalid direction")
+	errRiskManagerUnset     = errors.New("risk manager unset")
+	errSizeManagerUnset     = errors.New("size manager unset")
+	errAssetUnset           = errors.New("asset unset")
+	errCurrencyPairUnset    = errors.New("currency pair unset")
+	errExchangeUnset        = errors.New("exchange unset")
+	errNegativeRiskFreeRate = errors.New("received negative risk free rate")
+	errNoPortfolioSettings  = errors.New("no portfolio settings")
+	errNoHoldings           = errors.New("no holdings found")
+	errHoldingsNoTimestamp  = errors.New("holding with unset timestamp received")
+	errHoldingsAlreadySet   = errors.New("holding already set")
 )
 
 // Portfolio stores all holdings and rules to assess orders, allowing the portfolio manager to

@@ -2,7 +2,6 @@ package statistics
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -61,10 +60,10 @@ func (s *Statistic) setupMap(ex string, a asset.Item) {
 // SetEventForTime sets the event for the time period in the event
 func (s *Statistic) SetEventForTime(e common.EventHandler) error {
 	if e == nil {
-		return fmt.Errorf("nil event received")
+		return common.ErrNilEvent
 	}
 	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("exchangeAssetPairStatistics not setup")
+		return errExchangeAssetPairStatsUnset
 	}
 	exch := e.GetExchange()
 	a := e.GetAssetType()
@@ -72,7 +71,7 @@ func (s *Statistic) SetEventForTime(e common.EventHandler) error {
 
 	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
 	if lookup == nil {
-		return fmt.Errorf("no data for %v %v %v to set signal event", exch, a, p)
+		return fmt.Errorf("%w for %v %v %v to set signal event", errCurrencyStatisticsUnset, exch, a, p)
 	}
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) {
@@ -96,11 +95,11 @@ func (s *Statistic) SetEventForTime(e common.EventHandler) error {
 // AddHoldingsForTime adds all holdings to the statistics at the time period
 func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("exchangeAssetPairStatistics not setup")
+		return errExchangeAssetPairStatsUnset
 	}
 	lookup := s.ExchangeAssetPairStatistics[h.Exchange][h.Asset][h.Pair]
 	if lookup == nil {
-		return fmt.Errorf("no data for %v %v %v to set holding event", h.Exchange, h.Asset, h.Pair)
+		return fmt.Errorf("%w for %v %v %v to set holding event", errCurrencyStatisticsUnset, h.Exchange, h.Asset, h.Pair)
 	}
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(h.Timestamp) {
@@ -113,17 +112,17 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 // AddComplianceSnapshotForTime adds the compliance snapshot to the statistics at the time period
 func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.Event) error {
 	if e == nil {
-		return errors.New("nil fill event received")
+		return common.ErrNilEvent
 	}
 	if s.ExchangeAssetPairStatistics == nil {
-		return errors.New("exchangeAssetPairStatistics not setup")
+		return errExchangeAssetPairStatsUnset
 	}
 	exch := e.GetExchange()
 	a := e.GetAssetType()
 	p := e.Pair()
 	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
 	if lookup == nil {
-		return fmt.Errorf("no data for %v %v %v to set compliance snapshot", exch, a, p)
+		return fmt.Errorf("%w for %v %v %v to set compliance snapshot", errCurrencyStatisticsUnset, exch, a, p)
 	}
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetTime().Equal(c.Timestamp) {

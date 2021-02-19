@@ -2,7 +2,6 @@ package portfolio
 
 import (
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -39,18 +38,18 @@ func TestReset(t *testing.T) {
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	_, err := Setup(nil, nil, -1)
-	if err != nil && err.Error() != "received nil sizeHandler" {
-		t.Error(err)
+	if !errors.Is(err, errSizeManagerUnset) {
+		t.Errorf("expected: %v, reveived %v", errSizeManagerUnset, err)
 	}
 
 	_, err = Setup(&size.Size{}, nil, -1)
-	if err != nil && err.Error() != "received negative riskFreeRate" {
-		t.Error(err)
+	if !errors.Is(err, errNegativeRiskFreeRate) {
+		t.Errorf("expected: %v, reveived %v", errNegativeRiskFreeRate, err)
 	}
 
 	_, err = Setup(&size.Size{}, nil, 1)
-	if err != nil && err.Error() != "received nil risk handler" {
-		t.Error(err)
+	if !errors.Is(err, errRiskManagerUnset) {
+		t.Errorf("expected: %v, reveived %v", errRiskManagerUnset, err)
 	}
 	var p *Portfolio
 	p, err = Setup(&size.Size{}, &risk.Risk{}, 1)
@@ -66,18 +65,18 @@ func TestSetupCurrencySettingsMap(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{}
 	_, err := p.SetupCurrencySettingsMap("", "", currency.Pair{})
-	if err != nil && err.Error() != "received empty exchange name" {
-		t.Error(err)
+	if !errors.Is(err, errExchangeUnset) {
+		t.Errorf("expected: %v, reveived %v", errExchangeUnset, err)
 	}
 
 	_, err = p.SetupCurrencySettingsMap("hi", "", currency.Pair{})
-	if err != nil && err.Error() != "received empty asset" {
-		t.Error(err)
+	if !errors.Is(err, errAssetUnset) {
+		t.Errorf("expected: %v, reveived %v", errAssetUnset, err)
 	}
 
 	_, err = p.SetupCurrencySettingsMap("hi", asset.Spot, currency.Pair{})
-	if err != nil && err.Error() != "received unset currency pair" {
-		t.Error(err)
+	if !errors.Is(err, errCurrencyPairUnset) {
+		t.Errorf("expected: %v, reveived %v", errCurrencyPairUnset, err)
 	}
 
 	_, err = p.SetupCurrencySettingsMap("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
@@ -91,14 +90,14 @@ func TestSetHoldings(t *testing.T) {
 	p := &Portfolio{}
 
 	err := p.setHoldings("", "", currency.Pair{}, &holdings.Holding{}, false)
-	if err != nil && !strings.Contains(err.Error(), "holding with unset timestamp received") {
-		t.Error(err)
+	if !errors.Is(err, errHoldingsNoTimestamp) {
+		t.Errorf("expected: %v, reveived %v", errHoldingsNoTimestamp, err)
 	}
 	tt := time.Now()
 
 	err = p.setHoldings("", "", currency.Pair{}, &holdings.Holding{Timestamp: tt}, false)
-	if err != nil && !strings.Contains(err.Error(), "received empty exchange name") {
-		t.Error(err)
+	if !errors.Is(err, errExchangeUnset) {
+		t.Errorf("expected: %v, reveived %v", errExchangeUnset, err)
 	}
 
 	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt}, false)
@@ -107,8 +106,8 @@ func TestSetHoldings(t *testing.T) {
 	}
 
 	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt}, false)
-	if err != nil && !strings.Contains(err.Error(), "holdings for binance spot BTCUSD at") {
-		t.Error(err)
+	if !errors.Is(err, errHoldingsAlreadySet) {
+		t.Errorf("expected: %v, reveived %v", errHoldingsAlreadySet, err)
 	}
 
 	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt}, true)
@@ -152,8 +151,8 @@ func TestGetInitialFunds(t *testing.T) {
 	}
 
 	err := p.SetInitialFunds("", "", currency.Pair{}, 1)
-	if err != nil && err.Error() != "received empty exchange name" {
-		t.Error(err)
+	if !errors.Is(err, errExchangeUnset) {
+		t.Errorf("expected: %v, reveived %v", errExchangeUnset, err)
 	}
 
 	err = p.SetInitialFunds(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), 1)
@@ -172,8 +171,8 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 	p := Portfolio{}
 	tt := time.Now()
 	_, err := p.ViewHoldingAtTimePeriod("", "", currency.Pair{}, tt)
-	if err != nil && !strings.Contains(err.Error(), "no holdings found for") {
-		t.Error(err)
+	if !errors.Is(err, errNoHoldings) {
+		t.Errorf("expected: %v, reveived %v", errNoHoldings, err)
 	}
 
 	err = p.setHoldings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), &holdings.Holding{Timestamp: tt}, true)
@@ -185,7 +184,7 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = p.ViewHoldingAtTimePeriod(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USD), tt)
-	if err != nil && !strings.Contains(err.Error(), "no holdings found for") {
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -208,7 +207,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	err = p.Update(&kline.Kline{})
-	if err != nil && !strings.Contains(err.Error(), "no holdings for") {
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -219,7 +218,7 @@ func TestUpdate(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 	})
-	if err != nil && !strings.Contains(err.Error(), "no holdings for") {
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -266,8 +265,8 @@ func TestGetComplianceManager(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
 	_, err := p.GetComplianceManager("", "", currency.Pair{})
-	if err != nil && !strings.Contains(err.Error(), "no exchange settings found for") {
-		t.Error(err)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("expected: %v, reveived %v", errNoPortfolioSettings, err)
 	}
 
 	_, err = p.SetupCurrencySettingsMap("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
@@ -287,9 +286,14 @@ func TestGetComplianceManager(t *testing.T) {
 func TestAddComplianceSnapshot(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
-	err := p.addComplianceSnapshot(&fill.Fill{})
-	if err != nil && !strings.Contains(err.Error(), "could not retrieve compliance manager") {
-		t.Error(err)
+	err := p.addComplianceSnapshot(nil)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
+	}
+
+	err = p.addComplianceSnapshot(&fill.Fill{})
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("expected: %v, reveived %v", errNoPortfolioSettings, err)
 	}
 
 	_, err = p.SetupCurrencySettingsMap("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
@@ -318,8 +322,8 @@ func TestOnFill(t *testing.T) {
 	t.Parallel()
 	p := Portfolio{}
 	_, err := p.OnFill(nil)
-	if err != nil && err.Error() != "nil fill event received, cannot process OnFill" {
-		t.Error(err)
+	if !errors.Is(err, common.ErrNilEvent) {
+		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
 	}
 
 	f := &fill.Fill{
@@ -335,8 +339,8 @@ func TestOnFill(t *testing.T) {
 		},
 	}
 	_, err = p.OnFill(f)
-	if err != nil && !strings.Contains(err.Error(), "no currency settings found for") {
-		t.Error(err)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("expected: %v, reveived %v", errNoPortfolioSettings, err)
 	}
 	var s *settings.Settings
 	s, err = p.SetupCurrencySettingsMap("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
@@ -344,8 +348,8 @@ func TestOnFill(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = p.OnFill(f)
-	if err != nil && err.Error() != "initial funds <= 0" {
-		t.Error(err)
+	if !errors.Is(err, holdings.ErrInitialFundsZero) {
+		t.Errorf("expected: %v, reveived %v", holdings.ErrInitialFundsZero, err)
 	}
 
 	s.InitialFunds = 1337
@@ -371,27 +375,27 @@ func TestOnSignal(t *testing.T) {
 
 	s := &signal.Signal{}
 	_, err = p.OnSignal(s, &exchange.Settings{})
-	if err != nil && err.Error() != "no size manager set" {
-		t.Error(err)
+	if !errors.Is(err, errSizeManagerUnset) {
+		t.Errorf("expected: %v, reveived %v", errSizeManagerUnset, err)
 	}
 	p.sizeManager = &size.Size{}
 
 	_, err = p.OnSignal(s, &exchange.Settings{})
-	if err != nil && err.Error() != "no risk manager set" {
-		t.Error(err)
+	if !errors.Is(err, errRiskManagerUnset) {
+		t.Errorf("expected: %v, reveived %v", errRiskManagerUnset, err)
 	}
 
 	p.riskManager = &risk.Risk{}
 
 	_, err = p.OnSignal(s, &exchange.Settings{})
-	if err != nil && err.Error() != "invalid Direction" {
-		t.Error(err)
+	if !errors.Is(err, errInvalidDirection) {
+		t.Errorf("expected: %v, reveived %v", errInvalidDirection, err)
 	}
 
 	s.Direction = gctorder.Buy
 	_, err = p.OnSignal(s, &exchange.Settings{})
-	if err != nil && !strings.Contains(err.Error(), "no portfolio settings for") {
-		t.Error(err)
+	if !errors.Is(err, errNoPortfolioSettings) {
+		t.Errorf("expected: %v, reveived %v", errNoPortfolioSettings, err)
 	}
 	_, err = p.SetupCurrencySettingsMap("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USD))
 	if err != nil {

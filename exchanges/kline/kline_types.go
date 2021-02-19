@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -35,6 +36,10 @@ const (
 const (
 	// ErrRequestExceedsExchangeLimits locale for exceeding rate limits message
 	ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
+)
+
+var (
+	errMissingCandleData = errors.New("missing candle data")
 )
 
 // Item holds all the relevant information for internal kline elements

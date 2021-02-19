@@ -1,7 +1,6 @@
 package size
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -17,7 +16,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 		return nil, common.ErrNilArguments
 	}
 	if amountAvailable <= 0 {
-		return nil, errors.New("received availableFunds <= 0, cannot size order")
+		return nil, errNoFunds
 	}
 	retOrder := o.(*order.Order)
 	var amount float64
@@ -57,7 +56,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 		}
 	}
 	if amount <= 0 {
-		return retOrder, fmt.Errorf("portfolio manager cannot allocate funds for an order at %v for %v %v %v", o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
+		return retOrder, fmt.Errorf("%w at %v for %v %v %v", errCannotAllocate, o.GetTime(), o.GetExchange(), o.GetAssetType(), o.Pair())
 	}
 	retOrder.SetAmount(amount)
 
@@ -70,7 +69,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable float64, cs *exchange.Se
 // this can only attempt to factor the potential fee to remain under the max rules
 func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
 	if availableFunds <= 0 {
-		return 0, errors.New("no fund available")
+		return 0, errNoFunds
 	}
 	if price == 0 {
 		return 0, nil
@@ -83,7 +82,7 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSe
 		amount = minMaxSettings.MaximumTotal * (1 - feeRate) / price
 	}
 	if amount < minMaxSettings.MinimumSize {
-		return 0, fmt.Errorf("sized amount '%.8f' less than minimum '%v'", amount, minMaxSettings.MinimumSize)
+		return 0, fmt.Errorf("%w. Sized: '%.8f' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
 
 	return amount, nil
@@ -97,7 +96,7 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSe
 // this can only attempt to factor the potential fee to remain under the max rules
 func (s *Size) calculateSellSize(price, baseAmount, feeRate float64, minMaxSettings config.MinMax) (float64, error) {
 	if baseAmount <= 0 {
-		return 0, errors.New("no fund available")
+		return 0, errNoFunds
 	}
 	if price == 0 {
 		return 0, nil
@@ -110,7 +109,7 @@ func (s *Size) calculateSellSize(price, baseAmount, feeRate float64, minMaxSetti
 		amount = minMaxSettings.MaximumTotal * (1 - feeRate) / price
 	}
 	if amount < minMaxSettings.MinimumSize {
-		return 0, fmt.Errorf("sized amount '%.8f' less than minimum '%v'", amount, minMaxSettings.MinimumSize)
+		return 0, fmt.Errorf("%w. Sized: '%.8f' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
 
 	return amount, nil

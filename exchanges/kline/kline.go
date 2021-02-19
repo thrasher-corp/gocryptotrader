@@ -423,7 +423,12 @@ func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
 	for x := range h.Ranges {
 		for y := range h.Ranges[x].Intervals {
 			if !h.Ranges[x].Intervals[y].HasData {
-				errs = append(errs, fmt.Errorf("missing candles data between %v (%v) & %v (%v)", h.Ranges[x].Intervals[y].Start, h.Ranges[x].Intervals[y].Start.Unix(), h.Ranges[x].Intervals[y].End, h.Ranges[x].Intervals[y].End.Unix()))
+				errs = append(errs, fmt.Errorf("%w between %v (%v) & %v (%v)",
+					errMissingCandleData,
+					h.Ranges[x].Intervals[y].Start,
+					h.Ranges[x].Intervals[y].Start.Unix(),
+					h.Ranges[x].Intervals[y].End,
+					h.Ranges[x].Intervals[y].End.Unix()))
 			}
 		}
 	}

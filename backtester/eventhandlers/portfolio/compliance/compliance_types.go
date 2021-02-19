@@ -1,9 +1,15 @@
 package compliance
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
+
+var (
+	errSnapshotNotFound = errors.New("snapshot not found")
+	errSnapshotExists   = errors.New("snapshot already exists")
 )
 
 // Manager holds a snapshot of all orders at each timeperiod, allowing

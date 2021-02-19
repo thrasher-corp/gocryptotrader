@@ -330,16 +330,16 @@ func TestGetHistoricCandles(t *testing.T) {
 	_, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "",
 	})
-	if err != nil && err.Error() != errExchangeNameUnset {
-		t.Error(err)
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Errorf("expected: %v, reveived %v", errExchangeNameUnset, err)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
 		Pair:     &gctrpc.CurrencyPair{},
 	})
-	if err != nil && err.Error() != errCurrencyPairUnset {
-		t.Error(err)
+	if !errors.Is(err, errCurrencyPairUnset) {
+		t.Errorf("expected: %v, reveived %v", errCurrencyPairUnset, err)
 	}
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
@@ -348,8 +348,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Quote: currency.USD.String(),
 		},
 	})
-	if err != nil && err.Error() != errStartEndTimesUnset {
-		t.Error(err)
+	if !errors.Is(err, errStartEndTimesUnset) {
+		t.Errorf("expected: %v, reveived %v", errStartEndTimesUnset, err)
 	}
 	var results *gctrpc.GetHistoricCandlesResponse
 	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)

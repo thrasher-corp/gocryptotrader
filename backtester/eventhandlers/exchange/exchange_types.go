@@ -12,7 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var errDataMayBeIncorrect = errors.New("data may be incorrect")
+var (
+	errDataMayBeIncorrect = errors.New("data may be incorrect")
+	errExchangeUnset      = errors.New("exchange unset")
+)
 
 // ExecutionHandler interface dictates what functions are required to submit an order
 type ExecutionHandler interface {

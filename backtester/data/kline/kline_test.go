@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -22,8 +23,8 @@ func TestLoad(t *testing.T) {
 	tt := time.Now()
 	d := DataFromKline{}
 	err := d.Load()
-	if err != nil && err.Error() != "no candle data provided" {
-		t.Error(err)
+	if !errors.Is(err, errNoCandleData) {
+		t.Errorf("expected: %v, reveived %v", errNoCandleData, err)
 	}
 	d.Item = gctkline.Item{
 		Exchange: exch,

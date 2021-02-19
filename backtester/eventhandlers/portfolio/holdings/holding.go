@@ -1,8 +1,6 @@
 package holdings
 
 import (
-	"errors"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -11,10 +9,10 @@ import (
 // Create takes a fill event and creates a new holding for the exchange, asset, pair
 func Create(f fill.Event, initialFunds, riskFreeRate float64) (Holding, error) {
 	if f == nil {
-		return Holding{}, errors.New("nil event received")
+		return Holding{}, common.ErrNilEvent
 	}
 	if initialFunds <= 0 {
-		return Holding{}, errors.New("initial funds <= 0")
+		return Holding{}, ErrInitialFundsZero
 	}
 	h := Holding{
 		Pair:           f.Pair(),

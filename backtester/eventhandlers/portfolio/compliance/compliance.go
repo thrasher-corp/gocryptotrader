@@ -14,7 +14,7 @@ func (m *Manager) AddSnapshot(orders []SnapshotOrder, t time.Time, force bool) e
 				m.Snapshots[i].Orders = orders
 				return nil
 			}
-			return fmt.Errorf("snapshot at timestamp %v already exists. Use force to overwrite", m.Snapshots[i].Timestamp)
+			return fmt.Errorf("%w at %v. Use force to overwrite", errSnapshotExists, m.Snapshots[i].Timestamp)
 		}
 	}
 	m.Snapshots = append(m.Snapshots, Snapshot{
@@ -32,7 +32,7 @@ func (m *Manager) GetSnapshotAtTime(t time.Time) (Snapshot, error) {
 			return m.Snapshots[i], nil
 		}
 	}
-	return Snapshot{}, fmt.Errorf("snapshot at %v not found", t)
+	return Snapshot{}, fmt.Errorf("%w at %v", errSnapshotNotFound, t)
 }
 
 // GetLatestSnapshot returns the snapshot of t - 1 interval

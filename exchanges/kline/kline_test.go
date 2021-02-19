@@ -719,8 +719,11 @@ func TestVerifyResultsHaveData(t *testing.T) {
 	}
 
 	err := dateRanges.VerifyResultsHaveData(nil)
-	if err != nil && !strings.Contains(err.Error(), "missing candles data") {
-		t.Error("expected missing data error")
+	if err == nil {
+		t.Error("expected error")
+	}
+	if err != nil && !strings.Contains(err.Error(), errMissingCandleData.Error()) {
+		t.Errorf("expected %v", errMissingCandleData)
 	}
 
 	err = dateRanges.VerifyResultsHaveData([]Candle{

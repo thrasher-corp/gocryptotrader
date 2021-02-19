@@ -1,6 +1,7 @@
 package statistics
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -11,6 +12,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
+
+var (
+	errExchangeAssetPairStatsUnset = errors.New("exchangeAssetPairStatistics not setup")
+	errCurrencyStatisticsUnset     = errors.New("no data")
 )
 
 // Statistic holds all statistical information for a backtester run, from drawdowns to ratios.
