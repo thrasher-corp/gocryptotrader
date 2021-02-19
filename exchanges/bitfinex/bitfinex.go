@@ -146,7 +146,7 @@ func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (Marg
 		bitfinexV2MarginFunding,
 		params,
 		&resp,
-		getAccountFees)
+		leaderBoardReqRate)
 	if err != nil {
 		return response, err
 	}
