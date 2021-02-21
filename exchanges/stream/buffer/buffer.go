@@ -109,7 +109,7 @@ func (w *Orderbook) Update(u *Update) error {
 // defined by w.obBufferLimit it well then sort and apply updates.
 func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, error) {
 	*o.buffer = append(*o.buffer, *u)
-	if len(*o.buffer) < w.obBufferLimit {
+	if len(*o.buffer) > w.obBufferLimit {
 		return false, nil
 	}
 
