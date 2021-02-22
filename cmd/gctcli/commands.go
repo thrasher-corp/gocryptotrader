@@ -1230,7 +1230,7 @@ func getForexRates(_ *cli.Context) error {
 var getOrdersCommand = cli.Command{
 	Name:      "getorders",
 	Usage:     "gets the open orders",
-	ArgsUsage: "<exchange> <asset> <pair>",
+	ArgsUsage: "<exchange> <asset> <pair> <start> <end>",
 	Action:    getOrders,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1247,13 +1247,13 @@ var getOrdersCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:        "start",
-			Usage:       "start date, optional",
+			Usage:       "start date, optional. Will filter any results before this date",
 			Value:       time.Now().AddDate(-1, 0, 0).Round(kline.OneDay.Duration()).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
 			Name:        "end",
-			Usage:       "end date, optional",
+			Usage:       "end date, optional. Will filter any results after this date",
 			Value:       time.Now().Round(kline.OneDay.Duration()).Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
@@ -1261,6 +1261,10 @@ var getOrdersCommand = cli.Command{
 }
 
 func getOrders(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getorders")
+	}
+
 	var exchangeName string
 	var assetType string
 	var currencyPair string
@@ -2744,7 +2748,7 @@ var withdrawalRequestCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "id",
-					Usage: "<id>",
+					Usage: "withdrawal id",
 				},
 			},
 			Action: withdrawlRequestByID,
@@ -2756,11 +2760,11 @@ var withdrawalRequestCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "exchange",
-					Usage: "<exchange>",
+					Usage: "exchange name",
 				},
 				cli.StringFlag{
 					Name:  "id",
-					Usage: "<id>",
+					Usage: "withdrawal id",
 				},
 			},
 			Action: withdrawlRequestByExchangeID,
@@ -2772,11 +2776,11 @@ var withdrawalRequestCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "exchange",
-					Usage: "<exchange>",
+					Usage: "exchange name",
 				},
 				cli.Int64Flag{
 					Name:  "limit",
-					Usage: "<limit>",
+					Usage: "max number of withdrawals to return",
 				},
 				cli.StringFlag{
 					Name:  "currency",
@@ -2792,23 +2796,23 @@ var withdrawalRequestCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "exchange",
-					Usage: "<exchange>",
+					Usage: "the currency used in to withdraw",
 				},
 				cli.StringFlag{
 					Name:        "start",
-					Usage:       "<start>",
+					Usage:       "the start date to get withdrawals from. Any withdrawal before this date will be filtered",
 					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 					Destination: &startTime,
 				},
 				cli.StringFlag{
 					Name:        "end",
-					Usage:       "<end>",
+					Usage:       "the end date to get withdrawals from. Any withdrawal after this date will be filtered",
 					Value:       time.Now().Format(common.SimpleTimeFormat),
 					Destination: &endTime,
 				},
 				cli.Int64Flag{
 					Name:  "limit",
-					Usage: "<limit>",
+					Usage: "max number of withdrawals to return",
 				},
 			},
 			Action: withdrawlRequestByDate,
@@ -3617,12 +3621,12 @@ var gctScriptCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "filename",
-					Usage:       "<filename>",
+					Usage:       "the script filename",
 					Destination: &filename,
 				},
 				cli.StringFlag{
 					Name:        "path",
-					Usage:       "<script path>",
+					Usage:       "the directory of the script file",
 					Destination: &path,
 				},
 			},
@@ -3634,7 +3638,7 @@ var gctScriptCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "uuid",
-					Usage:       "<uuid>",
+					Usage:       "the unique id of the script in memory",
 					Destination: &uuid,
 				},
 			},
@@ -3646,7 +3650,7 @@ var gctScriptCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "name",
-					Usage:       "<name>",
+					Usage:       "the script name",
 					Destination: &uuid,
 				},
 			},
@@ -3668,7 +3672,7 @@ var gctScriptCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "uuid",
-					Usage:       "<uuid>",
+					Usage:       "the unique id of the script in memory",
 					Destination: &uuid,
 				},
 			},
@@ -4204,13 +4208,13 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:        "start",
-			Usage:       "<start>",
+			Usage:       "the date to begin retrieveing candles. Any candles before this date will be filtered",
 			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
 			Name:        "end",
-			Usage:       "<end>",
+			Usage:       "the date to end retrieveing candles. Any candles after this date will be filtered",
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
