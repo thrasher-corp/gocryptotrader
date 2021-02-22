@@ -444,6 +444,9 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			}
 		}
 	case cfg.DataSettings.DatabaseData != nil:
+		if cfg.DataSettings.DatabaseData.InclusiveEndDate {
+			cfg.DataSettings.DatabaseData.EndDate = cfg.DataSettings.DatabaseData.EndDate.Add(cfg.DataSettings.Interval)
+		}
 		if cfg.DataSettings.DatabaseData.ConfigOverride != nil {
 			bt.Bot.Config.Database = *cfg.DataSettings.DatabaseData.ConfigOverride
 			gctdatabase.DB.DataPath = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
@@ -481,6 +484,9 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			}
 		}
 	case cfg.DataSettings.APIData != nil:
+		if cfg.DataSettings.APIData.InclusiveEndDate {
+			cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.EndDate.Add(cfg.DataSettings.Interval)
+		}
 		resp, err = loadAPIData(
 			cfg,
 			exch,

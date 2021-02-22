@@ -130,6 +130,7 @@ func TestNewFromConfig(t *testing.T) {
 
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
 	cfg.DataSettings.APIData.EndDate = time.Now()
+	cfg.DataSettings.APIData.InclusiveEndDate = true
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, errIntervalUnset) {
 		t.Errorf("expected: %v, received %v", errIntervalUnset, err)
@@ -206,12 +207,14 @@ func TestLoadData(t *testing.T) {
 
 	cfg.DataSettings.APIData = nil
 	cfg.DataSettings.DatabaseData = &config.DatabaseData{
-		StartDate:      time.Now().Add(-time.Hour),
-		EndDate:        time.Now(),
-		ConfigOverride: nil,
+		StartDate:        time.Now().Add(-time.Hour),
+		EndDate:          time.Now(),
+		ConfigOverride:   nil,
+		InclusiveEndDate: true,
 	}
 	cfg.DataSettings.DataType = common.CandleStr
 	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
+
 	bt.Bot = bot
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot)
 	if err != nil && !strings.Contains(err.Error(), "unable to retrieve data from GoCryptoTrader database") {

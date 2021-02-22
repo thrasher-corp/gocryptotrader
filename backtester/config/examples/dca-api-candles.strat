@@ -39,7 +39,8 @@
   "data-type": "candle",
   "api-data": {
    "start-date": "2021-01-23T11:00:00+11:00",
-   "end-date": "2021-02-22T11:00:00+11:00"
+   "end-date": "2021-02-22T11:00:00+11:00",
+   "inclusive-end-date": false
   }
  },
  "portfolio-settings": {

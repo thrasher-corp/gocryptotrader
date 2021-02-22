@@ -22,7 +22,7 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = true
 )
 
 var (
@@ -110,8 +110,9 @@ func TestPrintSettings(t *testing.T) {
 			Interval: kline.OneMin.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: startDate,
-				EndDate:   endDate,
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: true,
 			},
 			CSVData: &CSVData{
 				FullPath: "fake",
@@ -124,9 +125,10 @@ func TestPrintSettings(t *testing.T) {
 				RealOrders:          false,
 			},
 			DatabaseData: &DatabaseData{
-				StartDate:      startDate,
-				EndDate:        endDate,
-				ConfigOverride: nil,
+				StartDate:        startDate,
+				EndDate:          endDate,
+				ConfigOverride:   nil,
+				InclusiveEndDate: false,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -185,8 +187,9 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: startDate,
-				EndDate:   endDate,
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -258,8 +261,9 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.TradeStr,
 			APIData: &APIData{
-				StartDate: startDate,
-				EndDate:   endDate,
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -353,8 +357,9 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: startDate,
-				EndDate:   endDate,
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -449,8 +454,9 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: startDate,
-				EndDate:   endDate,
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -625,8 +631,9 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: startDate,
-				EndDate:   endDate,
+				StartDate:        startDate,
+				EndDate:          endDate,
+				InclusiveEndDate: false,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -855,6 +862,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 						Database: "testsqlite.db",
 					},
 				},
+				InclusiveEndDate: false,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{

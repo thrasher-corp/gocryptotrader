@@ -52,7 +52,8 @@
      "database": "testsqlite.db",
      "sslmode": ""
     }
-   }
+   },
+   "inclusive-end-date": false
   }
  },
  "portfolio-settings": {

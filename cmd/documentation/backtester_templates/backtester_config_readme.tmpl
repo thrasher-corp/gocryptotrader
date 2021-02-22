@@ -77,6 +77,7 @@ See below for a set of tables and fields, expected values and what they can do
 | Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
 | StartDate | The start date to retrieve data | `2021-01-23T11:00:00+11:00` |
 | EndDate | The end date to retrieve data | `2021-01-24T11:00:00+11:00` |
+| InclusiveEndDate | When enabled, the end date's candle is included in the results. ie `2021-01-24T11:00:00+11:00` with a one hour candle, the final candle will be `2021-01-24T11:00:00+11:00` to `2021-01-24T12:00:00+11:00` | `false` |
 
 #### CSVData
 
@@ -95,6 +96,7 @@ See below for a set of tables and fields, expected values and what they can do
 | StartDate | The start date to retrieve data | `2021-01-23T11:00:00+11:00` |
 | EndDate | The end date to retrieve data | `2021-01-24T11:00:00+11:00` |
 | ConfigOverride | Override GoCryptoTrader's config database data with custom settings | `true` |
+| InclusiveEndDate | When enabled, the end date's candle is included in the results. ie `2021-01-24T11:00:00+11:00` with a one hour candle, the final candle will be `2021-01-24T11:00:00+11:00` to `2021-01-24T12:00:00+11:00` | `false` |
 
 #### LiveData
 
