@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -822,7 +821,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 }
 
 func TestGetOrders(t *testing.T) {
-	binance := "binance"
+	exchName := "binance"
 	bot := SetupTestHelpers(t)
 	s := RPCServer{Engine: bot}
 
@@ -837,13 +836,13 @@ func TestGetOrders(t *testing.T) {
 		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
 	}
 
-	err = bot.LoadExchange("binance", false, nil)
+	err = bot.LoadExchange(exchName, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  binance,
+		Exchange:  exchName,
 		AssetType: "",
 		Pair:      nil,
 		StartDate: "",
@@ -854,7 +853,7 @@ func TestGetOrders(t *testing.T) {
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  binance,
+		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
 		Pair:      nil,
 		StartDate: "",
@@ -865,7 +864,7 @@ func TestGetOrders(t *testing.T) {
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  binance,
+		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: "-",
@@ -880,7 +879,7 @@ func TestGetOrders(t *testing.T) {
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  binance,
+		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: "-",
@@ -895,7 +894,7 @@ func TestGetOrders(t *testing.T) {
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  binance,
+		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: "-",
@@ -912,8 +911,7 @@ func TestGetOrders(t *testing.T) {
 		t.Error("expected error")
 	}
 
-	var exch exchange.IBotExchange
-	exch = bot.GetExchangeByName(binance)
+	exch := bot.GetExchangeByName(exchName)
 	if exch == nil {
 		t.Fatal("expected an exchange")
 	}
@@ -923,7 +921,7 @@ func TestGetOrders(t *testing.T) {
 	b.API.Credentials.Secret = "test"
 	b.API.AuthenticatedSupport = true
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  binance,
+		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: "-",
