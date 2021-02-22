@@ -1863,7 +1863,7 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
 	if r.Exchange == "" {
-		return nil, errCurrencyPairUnset
+		return nil, fmt.Errorf("%w. blank exchange name received", errInvalidArguments)
 	}
 	if r.Pair.String() == "" {
 		return nil, errCurrencyPairUnset

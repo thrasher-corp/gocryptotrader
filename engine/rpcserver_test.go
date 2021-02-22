@@ -331,8 +331,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	_, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "",
 	})
-	if err != nil && err.Error() != errExchangeNameUnset {
-		t.Error(err)
+	if !errors.Is(err, errInvalidArguments) {
+		t.Errorf("expected %v, received %v", errInvalidArguments, err)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
