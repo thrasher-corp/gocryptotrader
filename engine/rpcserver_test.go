@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,8 +18,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -69,7 +71,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 		t.Fatalf("failed to run migrations %v", err)
 	}
 	uuider, _ := uuid.NewV4()
-	err = exchange.Insert(exchange.Details{Name: testExchange, UUID: uuider})
+	err = dbexchange.Insert(dbexchange.Details{Name: testExchange, UUID: uuider})
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
 	}
@@ -338,8 +340,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		Exchange: testExchange,
 		Pair:     &gctrpc.CurrencyPair{},
 	})
-	if err != nil && err.Error() != errCurrencyPairUnset {
-		t.Error(err)
+	if !errors.Is(err, errCurrencyPairUnset) {
+		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
 	}
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
@@ -348,8 +350,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Quote: currency.USD.String(),
 		},
 	})
-	if err != nil && err.Error() != errStartEndTimesUnset {
-		t.Error(err)
+	if !errors.Is(err, errInvalidStartEndTime) {
+		t.Errorf("expected %v, received %v", errInvalidStartEndTime, err)
 	}
 	var results *gctrpc.GetHistoricCandlesResponse
 	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)
@@ -816,5 +818,122 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 	if getResponse.Accounts[0].Currencies[0].TotalValue == updateResponse.Accounts[0].Currencies[0].TotalValue {
 		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+	}
+}
+
+func TestGetOrders(t *testing.T) {
+	binance := "binance"
+	bot := SetupTestHelpers(t)
+	s := RPCServer{Engine: bot}
+
+	_, err := s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  "",
+		AssetType: "",
+		Pair:      nil,
+		StartDate: "",
+		EndDate:   "",
+	})
+	if !errors.Is(err, errExchangeNotLoaded) {
+		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
+	}
+
+	err = bot.LoadExchange("binance", false, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  binance,
+		AssetType: "",
+		Pair:      nil,
+		StartDate: "",
+		EndDate:   "",
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, received %v", asset.ErrNotSupported, err)
+	}
+
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  binance,
+		AssetType: asset.Spot.String(),
+		Pair:      nil,
+		StartDate: "",
+		EndDate:   "",
+	})
+	if !errors.Is(err, errCurrencyPairUnset) {
+		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
+	}
+
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  binance,
+		AssetType: asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: "-",
+			Base:      "lol",
+			Quote:     "fake",
+		},
+		StartDate: "",
+		EndDate:   "",
+	})
+	if !errors.Is(err, errCurrencyNotEnabled) {
+		t.Errorf("expected %v, received %v", errCurrencyNotEnabled, err)
+	}
+
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  binance,
+		AssetType: asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: "-",
+			Base:      currency.BTC.String(),
+			Quote:     currency.USDT.String(),
+		},
+		StartDate: time.Now().Format(common.SimpleTimeFormat),
+		EndDate:   time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
+	})
+	if !errors.Is(err, errInvalidStartEndTime) {
+		t.Errorf("expected %v, received %v", errInvalidStartEndTime, err)
+	}
+
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  binance,
+		AssetType: asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: "-",
+			Base:      currency.BTC.String(),
+			Quote:     currency.USDT.String(),
+		},
+		StartDate: "",
+		EndDate:   "",
+	})
+	if err != nil && !strings.Contains(err.Error(), "not supported due to unset/default API keys") {
+		t.Error(err)
+	}
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	var exch exchange.IBotExchange
+	exch = bot.GetExchangeByName(binance)
+	if exch == nil {
+		t.Fatal("expected an exchange")
+	}
+
+	b := exch.GetBase()
+	b.API.Credentials.Key = "test"
+	b.API.Credentials.Secret = "test"
+	b.API.AuthenticatedSupport = true
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange:  binance,
+		AssetType: asset.Spot.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: "-",
+			Base:      currency.BTC.String(),
+			Quote:     currency.USDT.String(),
+		},
+		StartDate: "",
+		EndDate:   "",
+	})
+	if err == nil {
+		t.Error("expected error")
 	}
 }

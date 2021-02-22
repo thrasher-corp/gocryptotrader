@@ -552,8 +552,8 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTime,
+		getOrdersRequest.EndTime)
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 
 	return orders, nil
@@ -638,8 +638,8 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
+	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTime,
+		getOrdersRequest.EndTime)
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 
 	return orders, nil

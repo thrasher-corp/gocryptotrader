@@ -1124,7 +1124,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	default:
 		return nil, fmt.Errorf("%s assetType not supported", req.AssetType)
 	}
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
@@ -1140,11 +1140,11 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 	switch getOrdersRequest.AssetType {
 	case asset.Spot:
 		req := GetClosedOrdersOptions{}
-		if getOrdersRequest.StartTicks.Unix() > 0 {
-			req.Start = strconv.FormatInt(getOrdersRequest.StartTicks.Unix(), 10)
+		if getOrdersRequest.StartTime.Unix() > 0 {
+			req.Start = strconv.FormatInt(getOrdersRequest.StartTime.Unix(), 10)
 		}
-		if getOrdersRequest.EndTicks.Unix() > 0 {
-			req.End = strconv.FormatInt(getOrdersRequest.EndTicks.Unix(), 10)
+		if getOrdersRequest.EndTime.Unix() > 0 {
+			req.End = strconv.FormatInt(getOrdersRequest.EndTime.Unix(), 10)
 		}
 
 		assetType := getOrdersRequest.AssetType

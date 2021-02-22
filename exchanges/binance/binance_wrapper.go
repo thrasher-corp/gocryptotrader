@@ -189,7 +189,6 @@ func (b *Binance) SetDefaults() {
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -1253,9 +1252,11 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	default:
 		return orders, fmt.Errorf("assetType not supported")
 	}
+
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 
@@ -1310,18 +1311,18 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			var orderHistory []FuturesOrderData
 			var err error
 			switch {
-			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
-				if req.EndTicks.Before(req.StartTicks) {
+			case !req.StartTime.IsZero() && !req.EndTime.IsZero() && req.OrderID == "":
+				if req.EndTime.Before(req.StartTime) {
 					return nil, errors.New("endTime cannot be before startTime")
 				}
-				if time.Since(req.StartTicks) > time.Hour*24*30 {
+				if time.Since(req.StartTime) > time.Hour*24*30 {
 					return nil, fmt.Errorf("can only fetch orders 30 days out")
 				}
-				orderHistory, err = b.GetAllFuturesOrders(req.Pairs[i], "", req.StartTicks, req.EndTicks, 0, 0)
+				orderHistory, err = b.GetAllFuturesOrders(req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
 				if err != nil {
 					return nil, err
 				}
-			case req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero():
+			case req.OrderID != "" && req.StartTime.IsZero() && req.EndTime.IsZero():
 				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
 				if err != nil {
 					return nil, err
@@ -1365,18 +1366,18 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			var orderHistory []UFuturesOrderData
 			var err error
 			switch {
-			case !req.StartTicks.IsZero() && !req.EndTicks.IsZero() && req.OrderID == "":
-				if req.EndTicks.Before(req.StartTicks) {
+			case !req.StartTime.IsZero() && !req.EndTime.IsZero() && req.OrderID == "":
+				if req.EndTime.Before(req.StartTime) {
 					return nil, errors.New("endTime cannot be before startTime")
 				}
-				if time.Since(req.StartTicks) > time.Hour*24*7 {
+				if time.Since(req.StartTime) > time.Hour*24*7 {
 					return nil, fmt.Errorf("can only fetch orders 7 days out")
 				}
-				orderHistory, err = b.UAllAccountOrders(req.Pairs[i], 0, 0, req.StartTicks, req.EndTicks)
+				orderHistory, err = b.UAllAccountOrders(req.Pairs[i], 0, 0, req.StartTime, req.EndTime)
 				if err != nil {
 					return nil, err
 				}
-			case req.OrderID != "" && req.StartTicks.IsZero() && req.EndTicks.IsZero():
+			case req.OrderID != "" && req.StartTime.IsZero() && req.EndTime.IsZero():
 				fromID, err := strconv.ParseInt(req.OrderID, 10, 64)
 				if err != nil {
 					return nil, err
@@ -1420,7 +1421,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	}
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 

@@ -14,8 +14,10 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli"
+	"google.golang.org/grpc"
 )
 
 var startTime, endTime, order string
@@ -1243,6 +1245,18 @@ var getOrdersCommand = cli.Command{
 			Name:  "pair",
 			Usage: "the currency pair to get orders for",
 		},
+		cli.StringFlag{
+			Name:        "start",
+			Usage:       "start date, optional",
+			Value:       time.Now().AddDate(-1, 0, 0).Round(kline.OneDay.Duration()).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		cli.StringFlag{
+			Name:        "end",
+			Usage:       "end date, optional",
+			Value:       time.Now().Round(kline.OneDay.Duration()).Format(common.SimpleTimeFormat),
+			Destination: &endTime,
+		},
 	},
 }
 
@@ -1287,7 +1301,33 @@ func getOrders(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	if !c.IsSet("start") {
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
+		}
+	}
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after end")
+	}
+
+	var conn *grpc.ClientConn
+	conn, err = setupClient()
 	if err != nil {
 		return err
 	}
@@ -1302,6 +1342,8 @@ func getOrders(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
+		StartDate: negateLocalOffset(s),
+		EndDate:   negateLocalOffset(e),
 	})
 	if err != nil {
 		return err

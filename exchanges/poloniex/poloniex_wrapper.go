@@ -767,7 +767,7 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		}
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	order.FilterOrdersBySide(&orders, req.Side)
 
@@ -781,8 +781,8 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		return nil, err
 	}
 
-	resp, err := p.GetAuthenticatedTradeHistory(req.StartTicks.Unix(),
-		req.EndTicks.Unix(),
+	resp, err := p.GetAuthenticatedTradeHistory(req.StartTime.Unix(),
+		req.EndTime.Unix(),
 		10000)
 	if err != nil {
 		return nil, err

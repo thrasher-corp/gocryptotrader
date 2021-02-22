@@ -50,18 +50,19 @@ import (
 )
 
 const (
-	errExchangeNameUnset  = "exchange name unset"
-	errCurrencyPairUnset  = "currency pair unset"
-	errStartEndTimesUnset = "invalid start and end times"
-	errAssetTypeUnset     = "asset type unset"
-	errDispatchSystem     = "dispatch system offline"
-	invalidArguments      = "invalid arguments received"
+	errExchangeNameUnset = "exchange name unset"
+	errAssetTypeUnset    = "asset type unset"
+	errDispatchSystem    = "dispatch system offline"
+	invalidArguments     = "invalid arguments received"
 )
 
 var (
 	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
 	errExchangeBaseNotFound = errors.New("cannot get exchange base")
 	errInvalidArguments     = errors.New(invalidArguments)
+	errCurrencyPairUnset    = errors.New("currency pair unset")
+	errCurrencyNotEnabled   = errors.New("currency not enabled")
+	errInvalidStartEndTime  = errors.New("invalid start and end times")
 )
 
 // RPCServer struct
@@ -801,37 +802,104 @@ func (s *RPCServer) GetForexRates(_ context.Context, r *gctrpc.GetForexRatesRequ
 }
 
 // GetOrders returns all open orders, filtered by exchange, currency pair or
-// asset type
+// asset type between optional dates
 func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
 	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
 	}
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	var start, end time.Time
+	if r.StartDate != "" {
+		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if r.EndDate != "" {
+		end, err = time.Parse(common.SimpleTimeFormat, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if !start.IsZero() && !end.IsZero() && start.After(end) {
+		return nil, errInvalidStartEndTime
+	}
 
-	resp, err := exch.GetActiveOrders(&order.GetOrdersRequest{
-		Pairs: []currency.Pair{
-			currency.NewPairWithDelimiter(r.Pair.Base,
-				r.Pair.Quote, r.Pair.Delimiter),
-		},
-	})
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
+	}
+
+	cp := currency.NewPairWithDelimiter(
+		r.Pair.Base,
+		r.Pair.Quote,
+		r.Pair.Delimiter)
+	var pairs currency.Pairs
+	pairs, err = exch.GetEnabledPairs(a)
+	if err != nil {
+		return nil, err
+	}
+	if !pairs.Contains(cp, false) {
+		return nil, fmt.Errorf("%s %w %v, please check your config",
+			exch.GetName(),
+			errCurrencyNotEnabled,
+			cp.String())
+	}
+
+	request := &order.GetOrdersRequest{
+		Pairs:     []currency.Pair{cp},
+		AssetType: a,
+	}
+	if !start.IsZero() {
+		request.StartTime = start
+	}
+	if !end.IsZero() {
+		request.EndTime = end
+	}
+
+	var resp []order.Detail
+	resp, err = exch.GetActiveOrders(request)
 	if err != nil {
 		return nil, err
 	}
 
 	var orders []*gctrpc.OrderDetails
 	for x := range resp {
+		var trades []*gctrpc.TradeHistory
+		for i := range resp[x].Trades {
+			trades = append(trades, &gctrpc.TradeHistory{
+				CreationTime: resp[x].Trades[i].Timestamp.Unix(),
+				Id:           resp[x].Trades[i].TID,
+				Price:        resp[x].Trades[i].Price,
+				Amount:       resp[x].Trades[i].Amount,
+				Exchange:     r.Exchange,
+				AssetType:    a.String(),
+				OrderSide:    resp[x].Trades[i].Side.String(),
+				Fee:          resp[x].Trades[i].Fee,
+				Total:        resp[x].Trades[i].Total,
+			})
+		}
 		orders = append(orders, &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
 			Id:            resp[x].ID,
+			ClientOrderId: resp[x].ClientOrderID,
 			BaseCurrency:  resp[x].Pair.Base.String(),
 			QuoteCurrency: resp[x].Pair.Quote.String(),
-			AssetType:     asset.Spot.String(),
-			OrderType:     resp[x].Type.String(),
+			AssetType:     resp[x].AssetType.String(),
 			OrderSide:     resp[x].Side.String(),
+			OrderType:     resp[x].Type.String(),
 			CreationTime:  resp[x].Date.Unix(),
+			UpdateTime:    resp[x].LastUpdated.Unix(),
 			Status:        resp[x].Status.String(),
 			Price:         resp[x].Price,
 			Amount:        resp[x].Amount,
+			OpenVolume:    resp[x].Amount - resp[x].ExecutedAmount,
+			Fee:           resp[x].Fee,
+			Cost:          resp[x].Cost,
+			Trades:        trades,
 		})
 	}
 
@@ -1542,7 +1610,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	}
 
 	if r.Pair.String() == "" {
-		return errors.New(errCurrencyPairUnset)
+		return errCurrencyPairUnset
 	}
 
 	if r.AssetType == "" {
@@ -1656,7 +1724,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	}
 
 	if r.Pair.String() == "" {
-		return errors.New(errCurrencyPairUnset)
+		return errCurrencyPairUnset
 	}
 
 	if r.AssetType == "" {
@@ -1795,13 +1863,13 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
 	if r.Exchange == "" {
-		return nil, errors.New(errExchangeNameUnset)
+		return nil, errCurrencyPairUnset
 	}
 	if r.Pair.String() == "" {
-		return nil, errors.New(errCurrencyPairUnset)
+		return nil, errCurrencyPairUnset
 	}
 	if r.Start == r.End {
-		return nil, errors.New(errStartEndTimesUnset)
+		return nil, errInvalidStartEndTime
 	}
 
 	var klineItem kline.Item
