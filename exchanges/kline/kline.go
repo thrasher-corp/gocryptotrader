@@ -423,8 +423,7 @@ func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
 	for x := range h.Ranges {
 		for y := range h.Ranges[x].Intervals {
 			if !h.Ranges[x].Intervals[y].HasData {
-				errs = append(errs, fmt.Errorf("%w between %v (%v) & %v (%v)",
-					errMissingCandleData,
+				errs = append(errs, fmt.Errorf("between %v (%v) & %v (%v). ",
 					h.Ranges[x].Intervals[y].Start,
 					h.Ranges[x].Intervals[y].Start.Unix(),
 					h.Ranges[x].Intervals[y].End,
@@ -433,7 +432,7 @@ func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
 		}
 	}
 	if len(errs) > 0 {
-		return errs
+		return fmt.Errorf("%w - %v", ErrMissingCandleData, errs)
 	}
 
 	return nil

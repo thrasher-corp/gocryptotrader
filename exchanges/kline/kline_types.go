@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	errMissingCandleData = errors.New("missing candle data")
+	ErrMissingCandleData = errors.New("missing candle data")
 )
 
 // Item holds all the relevant information for internal kline elements

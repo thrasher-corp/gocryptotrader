@@ -255,7 +255,7 @@
 					<thead>
 					<th>Can Use Leverage</th>
 					<th>Max Leverage Rate</th>
-					<th>Max Leverage Ratio</th>
+					<th>Max Orders With Leverage Ratio</th>
 					<th>Buy side Min Amount</th>
 					<th>Buy side Max Amount</th>
 					<th>Buy side Max Total</th>
@@ -267,7 +267,7 @@
 					<tr>
 						<td>{{.Config.PortfolioSettings.Leverage.CanUseLeverage}}</td>
 						<td>{{.Config.PortfolioSettings.Leverage.MaximumLeverageRate}}</td>
-						<td>{{.Config.PortfolioSettings.Leverage.MaximumLeverageRatio}}</td>
+						<td>{{.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MinimumSize}}</td>
 						<td>{{.Config.PortfolioSettings.BuySide.MaximumSize}}</td>
 						<td>${{printf "%.8f" .Config.PortfolioSettings.BuySide.MaximumTotal}}</td>

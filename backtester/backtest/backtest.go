@@ -141,9 +141,9 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 				err)
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr] = &risk.CurrencySettings{
-			MaxOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumLeverageRatio,
-			MaxLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
-			MaximumHoldingRatio:        cfg.CurrencySettings[i].MaximumHoldingsRatio,
+			MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
+			MaxLeverageRate:                cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
+			MaximumHoldingRatio:            cfg.CurrencySettings[i].MaximumHoldingsRatio,
 		}
 		if cfg.CurrencySettings[i].MakerFee > cfg.CurrencySettings[i].TakerFee {
 			log.Warnf(log.BackTester, "maker fee '%v' should not exceed taker fee '%v'. Please review config",
@@ -177,13 +177,12 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	if err != nil {
 		return nil, err
 	}
+	bt.Strategy.SetDefaults()
 	if cfg.StrategySettings.CustomSettings != nil {
 		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
 		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
 			return nil, err
 		}
-	} else {
-		bt.Strategy.SetDefaults()
 	}
 	stats := &statistics.Statistic{
 		StrategyName:                cfg.StrategySettings.Name,
@@ -297,9 +296,9 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			BuySide:             buyRule,
 			SellSide:            sellRule,
 			Leverage: config.Leverage{
-				CanUseLeverage:       cfg.CurrencySettings[i].Leverage.CanUseLeverage,
-				MaximumLeverageRate:  cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
-				MaximumLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumLeverageRatio,
+				CanUseLeverage:                 cfg.CurrencySettings[i].Leverage.CanUseLeverage,
+				MaximumLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
+				MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
 			},
 		})
 	}
@@ -570,12 +569,10 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 		return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 	}
 	err = dates.VerifyResultsHaveData(candles.Candles)
-	if err != nil {
-		if strings.Contains(err.Error(), "missing candles data between") {
-			log.Warn(log.BackTester, err.Error())
-		} else {
-			return nil, err
-		}
+	if err != nil && errors.Is(err, gctkline.ErrMissingCandleData) {
+		log.Warn(log.BackTester, err.Error())
+	} else if err != nil {
+		return nil, err
 	}
 
 	candles.FillMissingDataWithEmptyEntries(dates)

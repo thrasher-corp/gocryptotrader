@@ -2,7 +2,7 @@
  "nickname": "TestGenerateConfigForDCALiveCandles",
  "strategy-settings": {
   "name": "dollarcostaverage",
-  "is-multi-currency": false,
+  "use-simultaneous-signal-processing": false,
   "custom-settings": null
  },
  "currency-settings": [
@@ -14,7 +14,7 @@
    "initial-funds": 100000,
    "leverage": {
     "can-use-leverage": false,
-    "maximum-leverage-ratio": 0,
+    "maximum-orders-with-leverage-ratio": 0,
     "maximum-leverage-rate": 0
    },
    "buy-side": {
@@ -29,8 +29,8 @@
    },
    "min-slippage-percent": 0,
    "max-slippage-percent": 0,
-   "maker-fee-override": 0.002,
-   "taker-fee-override": 0.001,
+   "maker-fee-override": 0.001,
+   "taker-fee-override": 0.002,
    "maximum-holdings-ratio": 0
   }
  ],
@@ -48,7 +48,7 @@
  "portfolio-settings": {
   "leverage": {
    "can-use-leverage": false,
-   "maximum-leverage-ratio": 0,
+   "maximum-orders-with-leverage-ratio": 0,
    "maximum-leverage-rate": 0
   },
   "buy-side": {
@@ -64,5 +64,6 @@
  },
  "statistic-settings": {
   "risk-free-rate": 0.03
- }
+ },
+ "gocryptotrader-config-path": ""
 }

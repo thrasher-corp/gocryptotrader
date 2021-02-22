@@ -55,9 +55,9 @@ type PortfolioSettings struct {
 // Leverage rules are used to allow or limit the use of leverage in orders
 // when supported
 type Leverage struct {
-	CanUseLeverage       bool    `json:"can-use-leverage"`
-	MaximumLeverageRatio float64 `json:"maximum-leverage-ratio"`
-	MaximumLeverageRate  float64 `json:"maximum-leverage-rate"`
+	CanUseLeverage                 bool    `json:"can-use-leverage"`
+	MaximumOrdersWithLeverageRatio float64 `json:"maximum-orders-with-leverage-ratio"`
+	MaximumLeverageRate            float64 `json:"maximum-leverage-rate"`
 }
 
 // MinMax are the rules which limit the placement of orders.

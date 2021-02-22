@@ -73,9 +73,9 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	r.CurrencySettings[e][a][p] = &CurrencySettings{
-		MaxOrdersWithLeverageRatio: 0.3,
-		MaxLeverageRate:            0.3,
-		MaximumHoldingRatio:        0.3,
+		MaximumOrdersWithLeverageRatio: 0.3,
+		MaxLeverageRate:                0.3,
+		MaximumHoldingRatio:            0.3,
 	}
 
 	h = append(h, holdings.Holding{

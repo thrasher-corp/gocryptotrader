@@ -30,7 +30,7 @@ type Risk struct {
 
 // CurrencySettings contains relevant limits to assess risk
 type CurrencySettings struct {
-	MaxOrdersWithLeverageRatio float64
-	MaxLeverageRate            float64
-	MaximumHoldingRatio        float64
+	MaximumOrdersWithLeverageRatio float64
+	MaxLeverageRate                float64
+	MaximumHoldingRatio            float64
 }

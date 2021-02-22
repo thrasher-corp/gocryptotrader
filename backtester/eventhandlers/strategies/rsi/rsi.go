@@ -1,10 +1,10 @@
 package rsi
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -55,7 +55,8 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 
 	if d.Offset() <= int(s.rsiPeriod) {
 		es.AppendReason("Not enough data for signal generation")
-		return &es, errors.New(es.Reason)
+		es.SetDirection(common.DoNothing)
+		return &es, nil
 	}
 	dataRange := d.StreamClose()[:d.Offset()]
 
@@ -81,7 +82,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 	return false
 }
 
-// OnSignals analyses multiple data points simultaneously, allowing flexibility
+// OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For rsi, multi-currency signal processing is unsupported for demonstration purposes
 func (s *Strategy) OnSimultaneousSignals(_ []data.Handler, _ portfolio.Handler) ([]signal.Event, error) {

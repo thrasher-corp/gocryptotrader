@@ -105,8 +105,11 @@ func (d *Data) enhanceCandles() error {
 			continue
 		}
 		for j := range d.OriginalCandles[i].Candles {
+			_, offset := time.Now().Zone()
+			tt := d.OriginalCandles[i].Candles[j].Time.Add(time.Duration(offset) * time.Second)
+
 			enhancedCandle := DetailedCandle{
-				Time:         d.OriginalCandles[i].Candles[j].Time.Unix(),
+				Time:         tt.Unix(),
 				Open:         d.OriginalCandles[i].Candles[j].Open,
 				High:         d.OriginalCandles[i].Candles[j].High,
 				Low:          d.OriginalCandles[i].Candles[j].Low,

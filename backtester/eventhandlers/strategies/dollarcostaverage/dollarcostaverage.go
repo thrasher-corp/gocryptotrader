@@ -53,7 +53,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 	return true
 }
 
-// OnSignals analyses multiple data points simultaneously, allowing flexibility
+// OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For dollarcostaverage, the strategy is always "buy", so it uses the OnSignal function
 func (s *Strategy) OnSimultaneousSignals(d []data.Handler, p portfolio.Handler) ([]signal.Event, error) {

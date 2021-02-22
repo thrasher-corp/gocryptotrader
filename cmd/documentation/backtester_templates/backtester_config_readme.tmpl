@@ -31,97 +31,98 @@ See below for a set of tables and fields, expected values and what they can do
 
 #### Currency Settings
 
-| Key | Description |
-| --- | -------|
-| ExchangeName | The exchange to load. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges |
-| Asset | The asset type. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports|
-| Base | The base of a currency, eg BTC |
-| Quote | The quote of a currency, eg USDT |
-| InitialFunds | The funds that the GoCryptoTraderBacktester has for the specific currency, eg 10000 |
-| Leverage | This struct defines the leverage rules that this specific currency setting must abide by |
-| BuySide | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount |
-| SellSide | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount |
-| MinimumSlippagePercent | Is the lower bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 90, then the most a price can be affected is 10% |
-| MaximumSlippagePercent | Is the upper bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 99, then the least a price can be affected is 1%. Set both upper and lower to 100 to have no randomness applied to purchase events |
-| MakerFee | The fee to use when sizing and purchasing currency |
-| TakerFee | Unused fee for when an order is placed in the orderbook, rather than taken from the orderbook |
-| MaximumHoldingsRatio | When multiple currency settings are used, you may set a maximum holdings ratio to prevent having too large a stake in a single currency |
+| Key | Description | Example |
+| --- | ------- | ----- |
+| ExchangeName | The exchange to load. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges | `Binance` |
+| Asset | The asset type. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports| `spot` |
+| Base | The base of a currency | `BTC` |
+| Quote | The quote of a currency | `DOGE` |
+| InitialFunds | The funds that the GoCryptoTraderBacktester has for the specific currency | `10000` |
+| Leverage | This struct defines the leverage rules that this specific currency setting must abide by | `1` |
+| BuySide | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount | - |
+| SellSide | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount | - |
+| MinimumSlippagePercent | Is the lower bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 90, then the most a price can be affected is 10% | `90` |
+| MaximumSlippagePercent | Is the upper bounds in a random number generated that make purchases more expensive, or sell events less valuable. If this value is 99, then the least a price can be affected is 1%. Set both upper and lower to 100 to have no randomness applied to purchase events | `100` |
+| MakerFee | The fee to use when sizing and purchasing currency | `0.001` |
+| TakerFee | Unused fee for when an order is placed in the orderbook, rather than taken from the orderbook | `0.002` |
+| MaximumHoldingsRatio | When multiple currency settings are used, you may set a maximum holdings ratio to prevent having too large a stake in a single currency | `0.5` |
 
 #### Strategy Settings
 
-| Key | Description |
-| --- | -------|
-| Name | The strategy to use. |
-| UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC. |
-| CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 |
+| Key | Description | Example |
+| --- | ------- | --- |
+| Name | The strategy to use. | `rsi` |
+| UsesSimultaneousProcessing | This denotes whether multiple currencies are processed simultaneously with the strategy function `OnSimultaneousSignals`. Eg If you have multiple CurrencySettings and only wish to purchase BTC-USDT when XRP-DOGE is 1337, this setting is useful as you can analyse both signal events to output a purchase call for BTC. | `true` |
+| CustomSettings | This is a map where you can enter custom settings for a strategy. The RSI strategy allows for customisation of the upper, lower and length variables to allow you to change them from 70, 30 and 14 respectively to 69, 36, 12 | `"custom-settings": { "rsi-high": 70, "rsi-low": 30, "rsi-period": 14 } ` |
 
 #### PortfolioSettings
 
 | Key | Description |
-| --- | -------|
+| --- | ------- |
 | Leverage | This struct defines the leverage rules that this specific currency setting must abide by |
 | BuySide | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount |
 | SellSide | This struct defines the selling side rules this specific currency setting must abide by such as maximum selling amount |
 
 #### StatisticsSettings
 
-| Key | Description |
-| --- | -------|
-| RiskFreeRate | The risk free rate used in the calculation of sharpe and sortino ratios |
+| Key | Description | Example |
+| --- | ----------- | ------- |
+| RiskFreeRate | The risk free rate used in the calculation of sharpe and sortino ratios | `0.03` |
 
 #### APIData
 
-| Key | Description |
-| --- | -------|
-| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles |
-| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` |
-| StartDate | The start date to retrieve data |
-| EndDate | The end date to retrieve data |
+| Key | Description | Example |
+| --- | ----------- | ------- |
+| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `trade` |
+| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
+| StartDate | The start date to retrieve data | `2021-01-23T11:00:00+11:00` |
+| EndDate | The end date to retrieve data | `2021-01-24T11:00:00+11:00` |
 
 #### CSVData
 
-| Key | Description |
-| --- | -------|
-| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles |
-| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` |
-| FullPath | The file to load eg `/data/exchangelist.csv` |
+| Key | Description | Example |
+| --- | ----------- | ------- |
+| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `candle` |
+| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
+| FullPath | The file to load  | `/data/exchangelist.csv` |
 
 #### DatabaseData
 
-| Key | Description |
-| --- | -------|
-| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles |
-| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` |
-| StartDate | The start date to retrieve data |
-| ConfigOverride | Override GoCryptoTrader's config database data with custom settings |
+| Key | Description | Example |
+| --- | ----------- | ------- |
+| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `trade` |
+| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
+| StartDate | The start date to retrieve data | `2021-01-23T11:00:00+11:00` |
+| EndDate | The end date to retrieve data | `2021-01-24T11:00:00+11:00` |
+| ConfigOverride | Override GoCryptoTrader's config database data with custom settings | `true` |
 
 #### LiveData
 
-| Key | Description |
-| --- | -------|
-| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles |
-| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` |
-| APIKeyOverride | Will set the GoCryptoTrader exchange to use the following API Key |
-| APISecretOverride | Will set the GoCryptoTrader exchange to use the following API Secret |
-| APIClientIDOverride | Will set the GoCryptoTrader exchange to use the following API Client ID |
-| API2FAOverride | Will set the GoCryptoTrader exchange to use the following 2FA seed |
-| RealOrders | Whether to place real orders. You really should never consider using this. Ever ever. |
+| Key | Description | Example |
+| --- | ----------- | ------- |
+| DataType | Choose whether `candle` or `trade` data is used. If trades are used, they will be converted to candles | `candle` |
+| Interval | The candle interval in `time.Duration` format eg set as`15000000000` for a value of `time.Second * 15` | `15000000000` |
+| APIKeyOverride | Will set the GoCryptoTrader exchange to use the following API Key | `1234` |
+| APISecretOverride | Will set the GoCryptoTrader exchange to use the following API Secret | `5678` |
+| APIClientIDOverride | Will set the GoCryptoTrader exchange to use the following API Client ID | `9012` |
+| API2FAOverride | Will set the GoCryptoTrader exchange to use the following 2FA seed | `hello-moto` |
+| RealOrders | Whether to place real orders. You really should never consider using this. Ever ever. | `true` |
 
 ##### Leverage Settings
 
-| Key | Description |
-| --- | -------|
-| CanUseLeverage | Allows the use of leverage |
-| MaximumLeverageRatio | If the amount of leverage for a currency exceeds this, the order cannot be placed |
-| MaximumLeverageRate | Orders cannot be placed with leverage over this amount |
+| Key | Description | Example |
+| --- | ----------- | ------- |
+| CanUseLeverage | Allows the use of leverage | `false` |
+| MaximumOrdersWithLeverageRatio | If the ratio of leveraged orders for a currency exceeds this, the order cannot be placed | `0.5` |
+| MaximumLeverageRate | Orders cannot be placed with leverage over this amount | `100` |
 
 ##### Buy/Sell Settings
 
-| Key | Description |
-| --- | -------|
-| MinimumSize | If the order's quantity is below this, the order cannot be placed |
-| MaximumSize | If the order's quantity is over this amount, it cannot be placed and will be reduced to the maximum amount |
-| MaximumTotal | If the order's price * amount exceeds this number, the order cannot be placed and will be reduced to this figure |
+| Key | Description | Example |
+| --- | ----------- | ------- |
+| MinimumSize | If the order's quantity is below this, the order cannot be placed | `0.1` |
+| MaximumSize | If the order's quantity is over this amount, it cannot be placed and will be reduced to the maximum amount | `10` |
+| MaximumTotal | If the order's price * amount exceeds this number, the order cannot be placed and will be reduced to this figure | `1337` |
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}

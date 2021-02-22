@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	makerFee     = 0.002
-	takerFee     = 0.001
+	makerFee     = 0.001
+	takerFee     = 0.002
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
