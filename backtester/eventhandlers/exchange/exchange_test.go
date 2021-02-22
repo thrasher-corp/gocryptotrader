@@ -116,7 +116,7 @@ func TestSizeOrder(t *testing.T) {
 	}
 	_, _, err = e.sizeOfflineOrder(0, 0, 0, cs, f)
 	if !errors.Is(err, errDataMayBeIncorrect) {
-		t.Errorf("expected: %v, reveived %v", errDataMayBeIncorrect, err)
+		t.Errorf("expected: %v, received %v", errDataMayBeIncorrect, err)
 	}
 	var p, a float64
 	p, a, err = e.sizeOfflineOrder(10, 2, 10, cs, f)
@@ -151,7 +151,7 @@ func TestPlaceOrder(t *testing.T) {
 	e := Exchange{}
 	_, err = e.placeOrder(1, 1, false, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
+		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 	f := &fill.Fill{}
 	_, err = e.placeOrder(1, 1, false, f, bot)

@@ -70,12 +70,12 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	_, err = NewFromConfig(cfg, "", "", nil)
 	if !errors.Is(err, errNilBot) {
-		t.Errorf("expected: %v, reveived %v", errNilBot, err)
+		t.Errorf("expected: %v, received %v", errNilBot, err)
 	}
 
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, errMinOneCurrency) {
-		t.Errorf("expected: %v, reveived %v", errMinOneCurrency, err)
+		t.Errorf("expected: %v, received %v", errMinOneCurrency, err)
 	}
 
 	cfg.CurrencySettings = []config.CurrencySettings{
@@ -88,7 +88,7 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, engine.ErrExchangeNotFound) {
-		t.Errorf("expected: %v, reveived %v", engine.ErrExchangeNotFound, err)
+		t.Errorf("expected: %v, received %v", engine.ErrExchangeNotFound, err)
 	}
 
 	cfg.CurrencySettings[0].ExchangeName = testExchange
@@ -103,14 +103,14 @@ func TestNewFromConfig(t *testing.T) {
 
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, errInitialFundsUnset) {
-		t.Errorf("expected: %v, reveived %v", errInitialFundsUnset, err)
+		t.Errorf("expected: %v, received %v", errInitialFundsUnset, err)
 	}
 
 	cfg.CurrencySettings[0].InitialFunds = 1337
 
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, errNoDataSource) {
-		t.Errorf("expected: %v, reveived %v", errNoDataSource, err)
+		t.Errorf("expected: %v, received %v", errNoDataSource, err)
 	}
 
 	cfg.DataSettings.APIData = &config.APIData{
@@ -125,21 +125,21 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.DataSettings.DataType = common.CandleStr
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, errStartEndDateUnset) {
-		t.Errorf("expected: %v, reveived %v", errStartEndDateUnset, err)
+		t.Errorf("expected: %v, received %v", errStartEndDateUnset, err)
 	}
 
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
 	cfg.DataSettings.APIData.EndDate = time.Now()
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, errIntervalUnset) {
-		t.Errorf("expected: %v, reveived %v", errIntervalUnset, err)
+		t.Errorf("expected: %v, received %v", errIntervalUnset, err)
 	}
 
 	cfg.DataSettings.Interval = gctkline.FifteenMin.Duration()
 
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("expected: %v, reveived %v", base.ErrStrategyNotFound, err)
+		t.Errorf("expected: %v, received %v", base.ErrStrategyNotFound, err)
 	}
 
 	cfg.StrategySettings = config.StrategySettings{

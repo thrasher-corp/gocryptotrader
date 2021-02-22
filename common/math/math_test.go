@@ -115,7 +115,7 @@ func TestSortinoRatio(t *testing.T) {
 	}
 	_, err = SortinoRatio(nil, rfr, avg)
 	if !errors.Is(err, errZeroValue) {
-		t.Errorf("expected: %v, reveived %v", errZeroValue, err)
+		t.Errorf("expected: %v, received %v", errZeroValue, err)
 	}
 
 	var r float64
@@ -193,7 +193,7 @@ func TestCalmarRatio(t *testing.T) {
 	t.Parallel()
 	_, err := CalmarRatio(0, 0, 0, 0)
 	if !errors.Is(err, errCalmarHighest) {
-		t.Errorf("expected: %v, reveived %v", errCalmarHighest, err)
+		t.Errorf("expected: %v, received %v", errCalmarHighest, err)
 	}
 	var ratio float64
 	ratio, err = CalmarRatio(50000, 15000, 0.2, 0.1)

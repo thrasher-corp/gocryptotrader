@@ -331,7 +331,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		Exchange: "",
 	})
 	if !errors.Is(err, errExchangeNameUnset) {
-		t.Errorf("expected: %v, reveived %v", errExchangeNameUnset, err)
+		t.Errorf("expected: %v, received %v", errExchangeNameUnset, err)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
@@ -339,7 +339,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		Pair:     &gctrpc.CurrencyPair{},
 	})
 	if !errors.Is(err, errCurrencyPairUnset) {
-		t.Errorf("expected: %v, reveived %v", errCurrencyPairUnset, err)
+		t.Errorf("expected: %v, received %v", errCurrencyPairUnset, err)
 	}
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
@@ -349,7 +349,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		},
 	})
 	if !errors.Is(err, errStartEndTimesUnset) {
-		t.Errorf("expected: %v, reveived %v", errStartEndTimesUnset, err)
+		t.Errorf("expected: %v, received %v", errStartEndTimesUnset, err)
 	}
 	var results *gctrpc.GetHistoricCandlesResponse
 	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)

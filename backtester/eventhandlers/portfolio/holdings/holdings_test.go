@@ -24,17 +24,17 @@ func TestCreate(t *testing.T) {
 	t.Parallel()
 	_, err := Create(nil, -1, riskFreeRate)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, reveived %v", ErrInitialFundsZero, err)
+		t.Errorf("expected: %v, received %v", ErrInitialFundsZero, err)
 	}
 
 	_, err = Create(&fill.Fill{}, -1, riskFreeRate)
 	if !errors.Is(err, ErrInitialFundsZero) {
-		t.Errorf("expected: %v, reveived %v", ErrInitialFundsZero, err)
+		t.Errorf("expected: %v, received %v", ErrInitialFundsZero, err)
 	}
 
 	_, err = Create(nil, 1, riskFreeRate)
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
+		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 
 	h, err := Create(&fill.Fill{}, 1, riskFreeRate)

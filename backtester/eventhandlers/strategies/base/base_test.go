@@ -19,12 +19,12 @@ func TestGetBase(t *testing.T) {
 	s := Strategy{}
 	_, err := s.GetBase(nil)
 	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("expected: %v, reveived %v", common.ErrNilArguments, err)
+		t.Errorf("expected: %v, received %v", common.ErrNilArguments, err)
 	}
 
 	_, err = s.GetBase(&datakline.DataFromKline{})
 	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("expected: %v, reveived %v", common.ErrNilEvent, err)
+		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 	tt := time.Now()
 	exch := "binance"
