@@ -70,11 +70,16 @@ func main() {
 		path = cfg.GoCryptoTraderConfigPath
 	}
 	var bot *engine.Engine
+	flags := map[string]bool{
+		"tickersync":    false,
+		"orderbooksync": false,
+		"tradesync":     false,
+	}
 	bot, err = engine.NewFromSettings(&engine.Settings{
 		EnableDryRun:   true,
 		EnableAllPairs: true,
 		ConfigFile:     path,
-	}, nil)
+	}, flags)
 	if err != nil {
 		fmt.Printf("Could not load backtester. Error: %v.\n", err)
 		os.Exit(-1)

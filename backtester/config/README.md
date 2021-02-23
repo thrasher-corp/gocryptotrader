@@ -54,7 +54,7 @@ See below for a set of tables and fields, expected values and what they can do
 | ExchangeName | The exchange to load. See [here](https://github.com/thrasher-corp/gocryptotrader/blob/master/README.md) for a list of supported exchanges | `Binance` |
 | Asset | The asset type. Typically, this will be `spot`, however, see [this package](https://github.com/thrasher-corp/gocryptotrader/blob/master/exchanges/asset/asset.go) for the various asset types GoCryptoTrader supports| `spot` |
 | Base | The base of a currency | `BTC` |
-| Quote | The quote of a currency | `DOGE` |
+| Quote | The quote of a currency | `USDT` |
 | InitialFunds | The funds that the GoCryptoTraderBacktester has for the specific currency | `10000` |
 | Leverage | This struct defines the leverage rules that this specific currency setting must abide by | `1` |
 | BuySide | This struct defines the buying side rules this specific currency setting must abide by such as maximum purchase amount | - |

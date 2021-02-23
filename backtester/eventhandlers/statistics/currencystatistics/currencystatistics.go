@@ -223,11 +223,11 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 		currHigh := closePrices[i].HighPrice()
 		currLow := closePrices[i].LowPrice()
 		currTime := closePrices[i].GetTime()
-		if lowestPrice > currLow {
+		if lowestPrice > currLow && currLow != 0 {
 			lowestPrice = currLow
 			lowestTime = currTime
 		}
-		if highestPrice < currHigh {
+		if highestPrice < currHigh && highestPrice > 0 {
 			intervals := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[i].GetInterval(), 0)
 			swings = append(swings, Swing{
 				Highest: Iteration{
