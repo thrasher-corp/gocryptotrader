@@ -905,8 +905,8 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 		if !resp[x].Date.IsZero() {
 			o.CreationTime = resp[x].Date.Unix()
 		}
-		if !resp[x].Date.IsZero() {
-			o.CreationTime = resp[x].LastUpdated.Unix()
+		if !resp[x].LastUpdated.IsZero() {
+			o.UpdateTime = resp[x].LastUpdated.Unix()
 		}
 		orders = append(orders, o)
 	}
