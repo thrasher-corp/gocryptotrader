@@ -870,19 +870,22 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 	for x := range resp {
 		var trades []*gctrpc.TradeHistory
 		for i := range resp[x].Trades {
-			trades = append(trades, &gctrpc.TradeHistory{
-				CreationTime: resp[x].Trades[i].Timestamp.Unix(),
-				Id:           resp[x].Trades[i].TID,
-				Price:        resp[x].Trades[i].Price,
-				Amount:       resp[x].Trades[i].Amount,
-				Exchange:     r.Exchange,
-				AssetType:    a.String(),
-				OrderSide:    resp[x].Trades[i].Side.String(),
-				Fee:          resp[x].Trades[i].Fee,
-				Total:        resp[x].Trades[i].Total,
-			})
+			t := &gctrpc.TradeHistory{
+				Id:        resp[x].Trades[i].TID,
+				Price:     resp[x].Trades[i].Price,
+				Amount:    resp[x].Trades[i].Amount,
+				Exchange:  r.Exchange,
+				AssetType: a.String(),
+				OrderSide: resp[x].Trades[i].Side.String(),
+				Fee:       resp[x].Trades[i].Fee,
+				Total:     resp[x].Trades[i].Total,
+			}
+			if !resp[x].Trades[i].Timestamp.IsZero() {
+				t.CreationTime = resp[x].Trades[i].Timestamp.Unix()
+			}
+			trades = append(trades, t)
 		}
-		orders = append(orders, &gctrpc.OrderDetails{
+		o := &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
 			Id:            resp[x].ID,
 			ClientOrderId: resp[x].ClientOrderID,
@@ -891,8 +894,6 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 			AssetType:     resp[x].AssetType.String(),
 			OrderSide:     resp[x].Side.String(),
 			OrderType:     resp[x].Type.String(),
-			CreationTime:  resp[x].Date.Unix(),
-			UpdateTime:    resp[x].LastUpdated.Unix(),
 			Status:        resp[x].Status.String(),
 			Price:         resp[x].Price,
 			Amount:        resp[x].Amount,
@@ -900,7 +901,14 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 			Fee:           resp[x].Fee,
 			Cost:          resp[x].Cost,
 			Trades:        trades,
-		})
+		}
+		if !resp[x].Date.IsZero() {
+			o.CreationTime = resp[x].Date.Unix()
+		}
+		if !resp[x].Date.IsZero() {
+			o.CreationTime = resp[x].LastUpdated.Unix()
+		}
+		orders = append(orders, o)
 	}
 
 	return &gctrpc.GetOrdersResponse{Orders: orders}, nil

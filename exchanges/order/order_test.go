@@ -241,7 +241,7 @@ func TestFilterOrdersByTimeRange(t *testing.T) {
 	// test for event no timestamp is set on an order, best to include it
 	FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
 	if len(orders) != 1 {
-		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
+		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 }
 

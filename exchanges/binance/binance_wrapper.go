@@ -1158,16 +1158,17 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				orderSide := order.Side(strings.ToUpper(resp[x].Side))
 				orderType := order.Type(strings.ToUpper(resp[x].Type))
 				orders = append(orders, order.Detail{
-					Amount:    resp[x].OrigQty,
-					Date:      resp[x].Time,
-					Exchange:  b.Name,
-					ID:        strconv.FormatInt(resp[x].OrderID, 10),
-					Side:      orderSide,
-					Type:      orderType,
-					Price:     resp[x].Price,
-					Status:    order.Status(resp[x].Status),
-					Pair:      req.Pairs[i],
-					AssetType: asset.Spot,
+					Amount:      resp[x].OrigQty,
+					Date:        resp[x].Time,
+					Exchange:    b.Name,
+					ID:          strconv.FormatInt(resp[x].OrderID, 10),
+					Side:        orderSide,
+					Type:        orderType,
+					Price:       resp[x].Price,
+					Status:      order.Status(resp[x].Status),
+					Pair:        req.Pairs[i],
+					AssetType:   asset.Spot,
+					LastUpdated: resp[x].UpdateTime,
 				})
 			}
 		case asset.CoinMarginedFutures:
@@ -1200,6 +1201,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 					Pair:            req.Pairs[i],
 					AssetType:       asset.CoinMarginedFutures,
 					Date:            openOrders[y].Time,
+					LastUpdated:     openOrders[y].UpdateTime,
 				})
 			}
 		case asset.USDTMarginedFutures:
@@ -1232,6 +1234,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 					Pair:            req.Pairs[i],
 					AssetType:       asset.USDTMarginedFutures,
 					Date:            openOrders[y].Time,
+					LastUpdated:     openOrders[y].UpdateTime,
 				})
 			}
 		default:
