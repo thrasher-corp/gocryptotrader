@@ -1124,7 +1124,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	default:
 		return nil, fmt.Errorf("%s assetType not supported", req.AssetType)
 	}
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil

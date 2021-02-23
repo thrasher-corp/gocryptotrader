@@ -752,7 +752,7 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			})
 		}
 	}
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -798,7 +798,7 @@ func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }

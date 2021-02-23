@@ -203,7 +203,7 @@ func TestFilterOrdersBySide(t *testing.T) {
 	}
 }
 
-func TestFilterOrdersByTickRange(t *testing.T) {
+func TestFilterOrdersByTimeRange(t *testing.T) {
 	t.Parallel()
 
 	var orders = []Detail{
@@ -218,23 +218,29 @@ func TestFilterOrdersByTickRange(t *testing.T) {
 		},
 	}
 
-	FilterOrdersByTickRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
+	FilterOrdersByTimeRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
-	FilterOrdersByTickRange(&orders, time.Unix(100, 0), time.Unix(111, 0))
+	FilterOrdersByTimeRange(&orders, time.Unix(100, 0), time.Unix(111, 0))
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
-	FilterOrdersByTickRange(&orders, time.Unix(101, 0), time.Unix(111, 0))
+	FilterOrdersByTimeRange(&orders, time.Unix(101, 0), time.Unix(111, 0))
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
-	FilterOrdersByTickRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
+	FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
 	if len(orders) != 0 {
+		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
+	}
+	orders = append(orders, Detail{})
+	// test for event no timestamp is set on an order, best to include it
+	FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
+	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
 	}
 }
@@ -276,6 +282,11 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 	}
 
 	currencies = []currency.Pair{}
+	FilterOrdersByCurrencies(&orders, currencies)
+	if len(orders) != 1 {
+		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	}
+	currencies = append(currencies, currency.Pair{})
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))

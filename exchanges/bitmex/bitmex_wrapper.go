@@ -719,6 +719,7 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 
 		orderDetail := order.Detail{
+			Date:     resp[i].Timestamp,
 			Price:    resp[i].Price,
 			Amount:   float64(resp[i].OrderQty),
 			Exchange: b.Name,
@@ -736,7 +737,7 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
@@ -786,7 +787,7 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }

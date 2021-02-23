@@ -548,24 +548,19 @@ func (b *Binance) CancelExistingOrder(symbol currency.Pair, orderID int64, origC
 // OpenOrders Current open orders. Get all open orders on a symbol.
 // Careful when accessing this with no symbol: The number of requests counted against the rate limiter
 // is significantly higher
-func (b *Binance) OpenOrders(pair *currency.Pair) ([]QueryOrderData, error) {
+func (b *Binance) OpenOrders(pair currency.Pair) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
-
 	params := url.Values{}
-
-	var symbol string
-	if pair != nil {
-		var err error
-		symbol, err = b.FormatSymbol(*pair, asset.Spot)
+	var p string
+	var err error
+	if !pair.IsEmpty() {
+		p, err = b.FormatSymbol(pair, asset.Spot)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
+		params.Add("symbol", p)
 	}
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
-
-	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, openOrders, params, openOrdersLimit(symbol), &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, openOrders, params, openOrdersLimit(p), &resp); err != nil {
 		return resp, err
 	}
 

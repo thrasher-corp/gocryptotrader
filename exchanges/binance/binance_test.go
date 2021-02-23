@@ -1270,7 +1270,7 @@ func TestOpenOrders(t *testing.T) {
 	t.Parallel()
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := b.OpenOrders(&p)
+	_, err := b.OpenOrders(p)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("OpenOrders() error", err)

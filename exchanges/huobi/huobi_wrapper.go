@@ -1384,7 +1384,7 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 	}
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 
@@ -1528,7 +1528,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 			}
 		}
 	}
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 

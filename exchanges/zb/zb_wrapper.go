@@ -724,7 +724,7 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -807,7 +807,7 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 

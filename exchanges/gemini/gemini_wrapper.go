@@ -599,7 +599,7 @@ func (g *Gemini) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
@@ -660,7 +660,7 @@ func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }

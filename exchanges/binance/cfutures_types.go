@@ -262,30 +262,30 @@ type FuturesOrderGetData struct {
 
 // FuturesOrderData stores order data for futures
 type FuturesOrderData struct {
-	AvgPrice      float64 `json:"avgPrice,string"`
-	ClientOrderID string  `json:"clientOrderId"`
-	CumBase       string  `json:"cumBase"`
-	ExecutedQty   float64 `json:"executedQty,string"`
-	OrderID       int64   `json:"orderId"`
-	OrigQty       float64 `json:"origQty,string"`
-	OrigType      string  `json:"origType"`
-	Price         float64 `json:"price,string"`
-	ReduceOnly    bool    `json:"reduceOnly"`
-	Side          string  `json:"side"`
-	PositionSide  string  `json:"positionSide"`
-	Status        string  `json:"status"`
-	StopPrice     float64 `json:"stopPrice,string"`
-	ClosePosition bool    `json:"closePosition"`
-	Symbol        string  `json:"symbol"`
-	Pair          string  `json:"pair"`
-	Time          int64   `json:"time"`
-	TimeInForce   string  `json:"timeInForce"`
-	OrderType     string  `json:"type"`
-	ActivatePrice float64 `json:"activatePrice,string"`
-	PriceRate     float64 `json:"priceRate,string"`
-	UpdateTime    int64   `json:"updateTime"`
-	WorkingType   string  `json:"workingType"`
-	PriceProtect  bool    `json:"priceProtect"`
+	AvgPrice      float64   `json:"avgPrice,string"`
+	ClientOrderID string    `json:"clientOrderId"`
+	CumBase       string    `json:"cumBase"`
+	ExecutedQty   float64   `json:"executedQty,string"`
+	OrderID       int64     `json:"orderId"`
+	OrigQty       float64   `json:"origQty,string"`
+	OrigType      string    `json:"origType"`
+	Price         float64   `json:"price,string"`
+	ReduceOnly    bool      `json:"reduceOnly"`
+	Side          string    `json:"side"`
+	PositionSide  string    `json:"positionSide"`
+	Status        string    `json:"status"`
+	StopPrice     float64   `json:"stopPrice,string"`
+	ClosePosition bool      `json:"closePosition"`
+	Symbol        string    `json:"symbol"`
+	Pair          string    `json:"pair"`
+	Time          time.Time `json:"time"`
+	TimeInForce   string    `json:"timeInForce"`
+	OrderType     string    `json:"type"`
+	ActivatePrice float64   `json:"activatePrice,string"`
+	PriceRate     float64   `json:"priceRate,string"`
+	UpdateTime    time.Time `json:"updateTime"`
+	WorkingType   string    `json:"workingType"`
+	PriceProtect  bool      `json:"priceProtect"`
 }
 
 // OrderVars stores side, status and type for any order/trade

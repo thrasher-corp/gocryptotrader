@@ -625,7 +625,7 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
@@ -676,7 +676,7 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	}
 
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }

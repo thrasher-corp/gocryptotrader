@@ -767,7 +767,7 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		}
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	order.FilterOrdersBySide(&orders, req.Side)
 

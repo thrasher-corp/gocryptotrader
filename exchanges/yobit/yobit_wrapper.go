@@ -577,7 +577,7 @@ func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		}
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTime, req.EndTime)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
