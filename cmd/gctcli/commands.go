@@ -1368,12 +1368,16 @@ var getOrderCommand = cli.Command{
 			Usage: "the exchange to get the order for",
 		},
 		cli.StringFlag{
-			Name:  "order_id",
-			Usage: "the order id to retrieve",
+			Name:  "asset",
+			Usage: "required asset type",
 		},
 		cli.StringFlag{
 			Name:  "pair",
 			Usage: "the pair to retrieve",
+		},
+		cli.StringFlag{
+			Name:  "order_id",
+			Usage: "the order id to retrieve",
 		},
 	},
 }
@@ -1386,19 +1390,32 @@ func getOrder(c *cli.Context) error {
 	var exchangeName string
 	var orderID string
 	var currencyPair string
-
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
-	}
+	var assetType string
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
 
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
@@ -1408,14 +1425,10 @@ func getOrder(c *cli.Context) error {
 		return err
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("order_id") {
 		orderID = c.String("order_id")
 	} else {
-		orderID = c.Args().Get(1)
+		orderID = c.Args().Get(3)
 	}
 
 	conn, err := setupClient()
@@ -1433,6 +1446,7 @@ func getOrder(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
+		Asset: assetType,
 	})
 	if err != nil {
 		return err

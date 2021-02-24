@@ -329,6 +329,7 @@ message GetOrderRequest {
     string exchange = 1;
     string order_id = 2;
     CurrencyPair pair = 3;
+    string asset = 4;
 }
 
 message SubmitOrderRequest {

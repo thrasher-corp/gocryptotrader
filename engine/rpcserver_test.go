@@ -935,3 +935,81 @@ func TestGetOrders(t *testing.T) {
 		t.Error("expected error")
 	}
 }
+
+func TestGetOrder(t *testing.T) {
+	exchName := "binance"
+	bot := SetupTestHelpers(t)
+	s := RPCServer{Engine: bot}
+
+	_, err := s.GetOrder(context.Background(), nil)
+	if !errors.Is(err, errInvalidArguments) {
+		t.Errorf("expected %v, received %v", errInvalidArguments, err)
+	}
+
+	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
+		Exchange: exchName,
+		OrderId:  "",
+		Pair:     nil,
+		Asset:    "",
+	})
+	if !errors.Is(err, errExchangeNotLoaded) {
+		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
+	}
+
+	err = bot.LoadExchange(exchName, false, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
+		Exchange: exchName,
+		OrderId:  "",
+		Pair:     nil,
+		Asset:    "",
+	})
+	if !errors.Is(err, errInvalidArguments) {
+		t.Errorf("expected %v, received %v", errInvalidArguments, err)
+	}
+
+	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
+		Exchange: exchName,
+		OrderId:  "",
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: "-",
+			Base:      "BTC",
+			Quote:     "USDT",
+		},
+		Asset: "",
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, received %v", asset.ErrNotSupported, err)
+	}
+
+	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
+		Exchange: exchName,
+		OrderId:  "",
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: "-",
+			Base:      "BTC",
+			Quote:     "USDT",
+		},
+		Asset: asset.Spot.String(),
+	})
+	if !errors.Is(err, errOrderCannotBeEmpty) {
+		t.Errorf("expected %v, received %v", errOrderCannotBeEmpty, err)
+	}
+
+	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
+		Exchange: exchName,
+		OrderId:  "1234",
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: "-",
+			Base:      "BTC",
+			Quote:     "USDT",
+		},
+		Asset: asset.Spot.String(),
+	})
+	if err == nil {
+		t.Error("expected error")
+	}
+}

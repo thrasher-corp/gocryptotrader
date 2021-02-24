@@ -804,6 +804,13 @@ func (s *RPCServer) GetForexRates(_ context.Context, r *gctrpc.GetForexRatesRequ
 // GetOrders returns all open orders, filtered by exchange, currency pair or
 // asset type between optional dates
 func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
+	if r == nil {
+		return nil, errInvalidArguments
+	}
+	if r.Pair == nil {
+		return nil, errInvalidArguments
+	}
+
 	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
@@ -916,9 +923,15 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 
 // GetOrder returns order information based on exchange and order ID
 func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
+	if r == nil {
+		return nil, errInvalidArguments
+	}
 	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
+	}
+	if r.Pair == nil {
+		return nil, errInvalidArguments
 	}
 
 	pair := currency.Pair{
@@ -927,9 +940,14 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
-	result, err := s.OrderManager.GetOrderInfo(r.Exchange, r.OrderId, pair, "") // assetType will be implemented in the future
+	a, err := asset.New(r.Asset)
 	if err != nil {
-		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
+		return nil, err
+	}
+
+	result, err := s.OrderManager.GetOrderInfo(r.Exchange, r.OrderId, pair, a)
+	if err != nil {
+		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %w", r.OrderId, err)
 	}
 	var trades []*gctrpc.TradeHistory
 	for i := range result.Trades {
