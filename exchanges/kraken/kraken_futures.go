@@ -186,7 +186,7 @@ func (k *Kraken) FuturesNotifications() (FuturesNotificationData, error) {
 func (k *Kraken) FuturesCancelAllOrders(symbol currency.Pair) (CancelAllOrdersData, error) {
 	var resp CancelAllOrdersData
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
 		if err != nil {
 			return resp, err
@@ -214,7 +214,7 @@ func (k *Kraken) FuturesOpenOrders() (FuturesOpenOrdersData, error) {
 func (k *Kraken) FuturesRecentOrders(symbol currency.Pair) (FuturesRecentOrdersData, error) {
 	var resp FuturesRecentOrdersData
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
 		if err != nil {
 			return resp, err

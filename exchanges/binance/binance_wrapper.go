@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -982,23 +981,15 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 	}
 	switch assetType {
 	case asset.Spot:
-		orderIDInt64, err := convert.Int64FromString(orderID)
+		resp, err := b.QueryOrder(pair, "", orderIDInt)
 		if err != nil {
 			return respData, err
 		}
-
-		resp, err := b.QueryOrder(pair, "", orderIDInt64)
-		if err != nil {
-			return respData, err
-		}
-
 		orderSide := order.Side(resp.Side)
-
 		status, err := order.StringToOrderStatus(resp.Status)
 		if err != nil {
 			return respData, err
 		}
-
 		orderType := order.Limit
 		if resp.Type == "MARKET" {
 			orderType = order.Market
@@ -1019,70 +1010,56 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 			ExecutedAmount: resp.ExecutedQty,
 		}, nil
 	case asset.CoinMarginedFutures:
-		orderData, err := b.GetAllFuturesOrders(pair, "", time.Time{}, time.Time{}, orderIDInt, 0)
-		if err != nil {
-			return respData, err
-		}
-		if len(orderData) != 1 {
-			return respData, fmt.Errorf("no orders received")
-		}
-		p, err := currency.NewPairFromString(orderData[0].Pair)
+		orderData, err := b.FuturesOpenOrderData(pair, orderID, "")
 		if err != nil {
 			return respData, err
 		}
 		var feeBuilder exchange.FeeBuilder
-		feeBuilder.Amount = orderData[0].ExecutedQty
-		feeBuilder.PurchasePrice = orderData[0].AvgPrice
-		feeBuilder.Pair = p
+		feeBuilder.Amount = orderData.ExecutedQuantity
+		feeBuilder.PurchasePrice = orderData.AveragePrice
+		feeBuilder.Pair = pair
 		fee, err := b.GetFee(&feeBuilder)
 		if err != nil {
 			return respData, err
 		}
-		orderVars := compatibleOrderVars(orderData[0].Side, orderData[0].Status, orderData[0].OrderType)
-		respData.Amount = orderData[0].OrigQty
+		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
+		respData.Amount = orderData.OriginalQuantity
 		respData.AssetType = assetType
-		respData.ClientOrderID = orderData[0].ClientOrderID
+		respData.ClientOrderID = orderData.ClientOrderID
 		respData.Exchange = b.Name
-		respData.ExecutedAmount = orderData[0].ExecutedQty
+		respData.ExecutedAmount = orderData.ExecutedQuantity
 		respData.Fee = fee
 		respData.ID = orderID
-		respData.Pair = p
-		respData.Price = orderData[0].Price
-		respData.RemainingAmount = orderData[0].OrigQty - orderData[0].ExecutedQty
+		respData.Pair = pair
+		respData.Price = orderData.Price
+		respData.RemainingAmount = orderData.OriginalQuantity - orderData.ExecutedQuantity
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
 	case asset.USDTMarginedFutures:
-		orderData, err := b.UAllAccountOrders(currency.Pair{}, 0, 0, time.Time{}, time.Time{})
-		if err != nil {
-			return respData, err
-		}
-		if len(orderData) != 1 {
-			return respData, fmt.Errorf("invalid data received")
-		}
-		p, err := currency.NewPairFromString(orderData[0].Symbol)
+		orderData, err := b.UGetOrderData(pair, orderID, "")
 		if err != nil {
 			return respData, err
 		}
 		var feeBuilder exchange.FeeBuilder
-		feeBuilder.Amount = orderData[0].ExecutedQty
-		feeBuilder.PurchasePrice = orderData[0].AvgPrice
-		feeBuilder.Pair = p
+		feeBuilder.Amount = orderData.ExecutedQty
+		feeBuilder.PurchasePrice = orderData.AvgPrice
+		feeBuilder.Pair = pair
 		fee, err := b.GetFee(&feeBuilder)
 		if err != nil {
 			return respData, err
 		}
-		orderVars := compatibleOrderVars(orderData[0].Side, orderData[0].Status, orderData[0].OrderType)
-		respData.Amount = orderData[0].OrigQty
+		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
+		respData.Amount = orderData.OrigQty
 		respData.AssetType = assetType
-		respData.ClientOrderID = orderData[0].ClientOrderID
+		respData.ClientOrderID = orderData.ClientOrderID
 		respData.Exchange = b.Name
-		respData.ExecutedAmount = orderData[0].ExecutedQty
+		respData.ExecutedAmount = orderData.ExecutedQty
 		respData.Fee = fee
 		respData.ID = orderID
-		respData.Pair = p
-		respData.Price = orderData[0].Price
-		respData.RemainingAmount = orderData[0].OrigQty - orderData[0].ExecutedQty
+		respData.Pair = pair
+		respData.Price = orderData.Price
+		respData.RemainingAmount = orderData.OrigQty - orderData.ExecutedQty
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType

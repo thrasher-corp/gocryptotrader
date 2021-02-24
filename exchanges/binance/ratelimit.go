@@ -11,34 +11,92 @@ const (
 	// Binance limit rates
 	// Global dictates the max rate limit for general request items which is
 	// 1200 requests per minute
-	binanceGlobalInterval    = time.Minute
-	binanceGlobalRequestRate = 1200
+	spotInterval    = time.Minute
+	spotRequestRate = 1200
 	// Order related limits which are segregated from the global rate limits
 	// 100 requests per 10 seconds and max 100000 requests per day.
-	binanceOrderInterval         = 10 * time.Second
-	binanceOrderRequestRate      = 100
-	binanceOrderDailyInterval    = time.Hour * 24
-	binanceOrderDailyMaxRequests = 100000
+	spotOrderInterval        = 10 * time.Second
+	spotOrderRequestRate     = 100
+	cFuturesInterval         = time.Minute
+	cFuturesRequestRate      = 6000
+	cFuturesOrderInterval    = time.Minute
+	cFuturesOrderRequestRate = 1200
+	uFuturesInterval         = time.Minute
+	uFuturesRequestRate      = 6000
+	uFuturesOrderInterval    = time.Minute
+	uFuturesOrderRequestRate = 1200
 )
 
+// Binance Spot rate limits
 const (
-	limitDefault request.EndpointLimit = iota
-	limitHistoricalTrades
-	limitOrderbookDepth500
-	limitOrderbookDepth1000
-	limitOrderbookDepth5000
-	limitOrderbookTickerAll
-	limitPriceChangeAll
-	limitSymbolPriceAll
-	limitOpenOrdersAll
-	limitOrder
-	limitOrdersAll
+	spotDefaultRate request.EndpointLimit = iota
+	spotHistoricalTradesRate
+	spotOrderbookDepth500Rate
+	spotOrderbookDepth1000Rate
+	spotOrderbookDepth5000Rate
+	spotOrderbookTickerAllRate
+	spotPriceChangeAllRate
+	spotSymbolPriceAllRate
+	spotOpenOrdersAllRate
+	spotOrderRate
+	spotOrdersAllRate
+	spotAccountInformationRate
+	uFuturesDefaultRate
+	uFuturesHistoricalTradesRate
+	uFuturesSymbolOrdersRate
+	uFuturesPairOrdersRate
+	uFuturesCurrencyForceOrdersRate
+	uFuturesAllForceOrdersRate
+	uFuturesIncomeHistoryRate
+	uFuturesOrderbook50Rate
+	uFuturesOrderbook100Rate
+	uFuturesOrderbook500Rate
+	uFuturesOrderbook1000Rate
+	uFuturesKline100Rate
+	uFuturesKline500Rate
+	uFuturesKline1000Rate
+	uFuturesKlineMaxRate
+	uFuturesTickerPriceHistoryRate
+	uFuturesOrdersDefaultRate
+	uFuturesGetAllOrdersRate
+	uFuturesAccountInformationRate
+	uFuturesOrderbookTickerAllRate
+	uFuturesCountdownCancelRate
+	uFuturesBatchOrdersRate
+	uFuturesGetAllOpenOrdersRate
+	cFuturesDefaultRate
+	cFuturesHistoricalTradesRate
+	cFuturesTickerPriceHistoryRate
+	cFuturesIncomeHistoryRate
+	cFuturesOrderbook50Rate
+	cFuturesOrderbook100Rate
+	cFuturesOrderbook500Rate
+	cFuturesOrderbook1000Rate
+	cFuturesKline100Rate
+	cFuturesKline500Rate
+	cFuturesKline1000Rate
+	cFuturesKlineMaxRate
+	cFuturesIndexMarkPriceRate
+	cFuturesBatchOrdersRate
+	cFuturesCancelAllOrdersRate
+	cFuturesGetAllOpenOrdersRate
+	cFuturesAllForceOrdersRate
+	cFuturesCurrencyForceOrdersRate
+	cFuturesPairOrdersRate
+	cFuturesSymbolOrdersRate
+	cFuturesAccountInformationRate
+	cFuturesOrderbookTickerAllRate
+	cFuturesOrdersDefaultRate
 )
 
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
-	GlobalRate *rate.Limiter
-	Orders     *rate.Limiter
+	SpotRate           *rate.Limiter
+	SpotOrdersRate     *rate.Limiter
+	UFuturesRate       *rate.Limiter
+	UFuturesOrdersRate *rate.Limiter
+	CFuturesRate       *rate.Limiter
+	CFuturesOrdersRate *rate.Limiter
 }
 
 // Limit executes rate limiting functionality for Binance
@@ -46,28 +104,95 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	var limiter *rate.Limiter
 	var tokens int
 	switch f {
-	case limitHistoricalTrades:
-		limiter, tokens = r.GlobalRate, 5
-	case limitOrderbookDepth500:
-		limiter, tokens = r.GlobalRate, 5
-	case limitOrderbookDepth1000:
-		limiter, tokens = r.GlobalRate, 10
-	case limitOrderbookDepth5000:
-		limiter, tokens = r.GlobalRate, 50
-	case limitOrderbookTickerAll:
-		limiter, tokens = r.GlobalRate, 2
-	case limitPriceChangeAll:
-		limiter, tokens = r.GlobalRate, 40
-	case limitSymbolPriceAll:
-		limiter, tokens = r.GlobalRate, 2
-	case limitOpenOrdersAll:
-		limiter, tokens = r.Orders, 40
-	case limitOrder:
-		limiter, tokens = r.Orders, 1
-	case limitOrdersAll:
-		limiter, tokens = r.Orders, 5
+	case spotDefaultRate:
+		limiter, tokens = r.SpotRate, 1
+	case spotOrderbookTickerAllRate,
+		spotSymbolPriceAllRate:
+		limiter, tokens = r.SpotRate, 2
+	case spotHistoricalTradesRate,
+		spotAccountInformationRate,
+		spotOrderbookDepth500Rate:
+		limiter, tokens = r.SpotRate, 5
+	case spotOrderbookDepth1000Rate:
+		limiter, tokens = r.SpotRate, 10
+	case spotPriceChangeAllRate:
+		limiter, tokens = r.SpotRate, 40
+	case spotOrderbookDepth5000Rate:
+		limiter, tokens = r.SpotRate, 50
+	case spotOrderRate:
+		limiter, tokens = r.SpotOrdersRate, 1
+	case spotOrdersAllRate:
+		limiter, tokens = r.SpotOrdersRate, 5
+	case spotOpenOrdersAllRate:
+		limiter, tokens = r.SpotOrdersRate, 40
+	case uFuturesDefaultRate,
+		uFuturesKline100Rate:
+		limiter, tokens = r.UFuturesRate, 1
+	case uFuturesOrderbook50Rate,
+		uFuturesKline500Rate,
+		uFuturesOrderbookTickerAllRate:
+		limiter, tokens = r.UFuturesRate, 2
+	case uFuturesOrderbook100Rate,
+		uFuturesKline1000Rate,
+		uFuturesAccountInformationRate:
+		limiter, tokens = r.UFuturesRate, 5
+	case uFuturesOrderbook500Rate,
+		uFuturesKlineMaxRate:
+		limiter, tokens = r.UFuturesRate, 10
+	case uFuturesOrderbook1000Rate,
+		uFuturesHistoricalTradesRate:
+		limiter, tokens = r.UFuturesRate, 20
+	case uFuturesTickerPriceHistoryRate:
+		limiter, tokens = r.UFuturesRate, 40
+	case uFuturesOrdersDefaultRate:
+		limiter, tokens = r.UFuturesOrdersRate, 1
+	case uFuturesBatchOrdersRate,
+		uFuturesGetAllOrdersRate:
+		limiter, tokens = r.UFuturesOrdersRate, 5
+	case uFuturesCountdownCancelRate:
+		limiter, tokens = r.UFuturesOrdersRate, 10
+	case uFuturesCurrencyForceOrdersRate,
+		uFuturesSymbolOrdersRate:
+		limiter, tokens = r.UFuturesOrdersRate, 20
+	case uFuturesIncomeHistoryRate:
+		limiter, tokens = r.UFuturesOrdersRate, 30
+	case uFuturesPairOrdersRate,
+		uFuturesGetAllOpenOrdersRate:
+		limiter, tokens = r.UFuturesOrdersRate, 40
+	case uFuturesAllForceOrdersRate:
+		limiter, tokens = r.UFuturesOrdersRate, 50
+	case cFuturesKline100Rate:
+		limiter, tokens = r.CFuturesRate, 1
+	case cFuturesKline500Rate,
+		cFuturesOrderbookTickerAllRate:
+		limiter, tokens = r.CFuturesRate, 2
+	case cFuturesKline1000Rate,
+		cFuturesAccountInformationRate:
+		limiter, tokens = r.CFuturesRate, 5
+	case cFuturesKlineMaxRate,
+		cFuturesIndexMarkPriceRate:
+		limiter, tokens = r.CFuturesRate, 10
+	case cFuturesHistoricalTradesRate,
+		cFuturesCurrencyForceOrdersRate:
+		limiter, tokens = r.CFuturesRate, 20
+	case cFuturesTickerPriceHistoryRate:
+		limiter, tokens = r.CFuturesRate, 40
+	case cFuturesAllForceOrdersRate:
+		limiter, tokens = r.CFuturesRate, 50
+	case cFuturesOrdersDefaultRate:
+		limiter, tokens = r.CFuturesOrdersRate, 1
+	case cFuturesBatchOrdersRate,
+		cFuturesGetAllOpenOrdersRate:
+		limiter, tokens = r.CFuturesOrdersRate, 5
+	case cFuturesCancelAllOrdersRate:
+		limiter, tokens = r.CFuturesOrdersRate, 10
+	case cFuturesIncomeHistoryRate,
+		cFuturesSymbolOrdersRate:
+		limiter, tokens = r.CFuturesOrdersRate, 20
+	case cFuturesPairOrdersRate:
+		limiter, tokens = r.CFuturesOrdersRate, 40
 	default:
-		limiter, tokens = r.GlobalRate, 1
+		limiter, tokens = r.SpotRate, 1
 	}
 
 	var finalDelay time.Duration
@@ -83,44 +208,40 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		GlobalRate: request.NewRateLimit(binanceGlobalInterval, binanceGlobalRequestRate),
-		Orders:     request.NewRateLimit(binanceOrderInterval, binanceOrderRequestRate),
+		SpotRate:           request.NewRateLimit(spotInterval, spotRequestRate),
+		SpotOrdersRate:     request.NewRateLimit(spotOrderInterval, spotOrderRequestRate),
+		UFuturesRate:       request.NewRateLimit(uFuturesInterval, uFuturesRequestRate),
+		UFuturesOrdersRate: request.NewRateLimit(uFuturesOrderInterval, uFuturesOrderRequestRate),
+		CFuturesRate:       request.NewRateLimit(cFuturesInterval, cFuturesRequestRate),
+		CFuturesOrdersRate: request.NewRateLimit(cFuturesOrderInterval, cFuturesOrderRequestRate),
 	}
 }
 
 func bestPriceLimit(symbol string) request.EndpointLimit {
 	if symbol == "" {
-		return limitOrderbookTickerAll
+		return spotOrderbookTickerAllRate
 	}
 
-	return limitDefault
+	return spotDefaultRate
 }
 
 func openOrdersLimit(symbol string) request.EndpointLimit {
 	if symbol == "" {
-		return limitOpenOrdersAll
+		return spotOpenOrdersAllRate
 	}
 
-	return limitOrder
+	return spotOrderRate
 }
 
 func orderbookLimit(depth int) request.EndpointLimit {
 	switch {
 	case depth <= 100:
-		return limitDefault
+		return spotDefaultRate
 	case depth <= 500:
-		return limitOrderbookDepth500
+		return spotOrderbookDepth500Rate
 	case depth <= 1000:
-		return limitOrderbookDepth1000
+		return spotOrderbookDepth1000Rate
 	}
 
-	return limitOrderbookDepth5000
-}
-
-func symbolPriceLimit(symbol string) request.EndpointLimit {
-	if symbol == "" {
-		return limitSymbolPriceAll
-	}
-
-	return limitDefault
+	return spotOrderbookDepth5000Rate
 }

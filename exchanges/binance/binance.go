@@ -27,8 +27,7 @@ type Binance struct {
 	exchange.Base
 	// Valid string list that is required by the exchange
 	validLimits []int
-
-	obm *orderbookManager
+	obm         *orderbookManager
 }
 
 const (
@@ -74,7 +73,7 @@ const (
 // GetInterestHistory gets interest history for currency/currencies provided
 func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 	var resp MarginInfoData
-	if err := b.SendHTTPRequest(exchange.EdgeCase1, undocumentedInterestHistory, limitDefault, &resp); err != nil {
+	if err := b.SendHTTPRequest(exchange.EdgeCase1, undocumentedInterestHistory, spotDefaultRate, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -83,7 +82,7 @@ func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
 // GetCrossMarginInterestHistory gets cross-margin interest history for currency/currencies provided
 func (b *Binance) GetCrossMarginInterestHistory() (CrossMarginInterestData, error) {
 	var resp CrossMarginInterestData
-	if err := b.SendHTTPRequest(exchange.EdgeCase1, undocumentedCrossMarginInterestHistory, limitDefault, &resp); err != nil {
+	if err := b.SendHTTPRequest(exchange.EdgeCase1, undocumentedCrossMarginInterestHistory, spotDefaultRate, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -92,14 +91,14 @@ func (b *Binance) GetCrossMarginInterestHistory() (CrossMarginInterestData, erro
 // GetMarginMarkets returns exchange information. Check binance_types for more information
 func (b *Binance) GetMarginMarkets() (PerpsExchangeInfo, error) {
 	var resp PerpsExchangeInfo
-	return resp, b.SendHTTPRequest(exchange.RestSpot, perpExchangeInfo, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpot, perpExchangeInfo, spotDefaultRate, &resp)
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
 // information
 func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 	var resp ExchangeInfo
-	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, exchangeInfo, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, exchangeInfo, spotDefaultRate, &resp)
 }
 
 // GetOrderBook returns full orderbook information
@@ -179,7 +178,7 @@ func (b *Binance) GetMostRecentTrades(rtr RecentTradeRequestParams) ([]RecentTra
 
 	path := recentTrades + "?" + params.Encode()
 
-	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetHistoricalTrades returns historical trade activity
@@ -243,7 +242,7 @@ func (b *Binance) GetAggregatedTrades(arg *AggregatedTradeRequestParams) ([]Aggr
 	}
 	var resp []AggregatedTrade
 	path := aggregatedTrades + "?" + params.Encode()
-	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // batchAggregateTrades fetches trades in multiple requests
@@ -269,7 +268,7 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 			params.Set("startTime", timeString(start))
 			params.Set("endTime", timeString(start.Add(time.Hour)))
 			path := aggregatedTrades + "?" + params.Encode()
-			err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, limitDefault, &resp)
+			err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
 				log.Warn(log.ExchangeSys, err.Error())
 				return resp, err
@@ -287,7 +286,7 @@ func (b *Binance) batchAggregateTrades(arg *AggregatedTradeRequestParams, params
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 		path := aggregatedTrades + "?" + params.Encode()
 		var additionalTrades []AggregatedTrade
-		err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, limitDefault, &additionalTrades)
+		err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &additionalTrades)
 		if err != nil {
 			return resp, err
 		}
@@ -344,7 +343,7 @@ func (b *Binance) GetSpotKline(arg *KlinesRequestParams) ([]CandleStick, error) 
 
 	path := candleStick + "?" + params.Encode()
 
-	if err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, limitDefault, &resp); err != nil {
+	if err := b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp); err != nil {
 		return klineData, err
 	}
 
@@ -405,7 +404,7 @@ func (b *Binance) GetAveragePrice(symbol currency.Pair) (AveragePrice, error) {
 
 	path := averagePrice + "?" + params.Encode()
 
-	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetPriceChangeStats returns price change statistics for the last 24 hours
@@ -414,21 +413,24 @@ func (b *Binance) GetAveragePrice(symbol currency.Pair) (AveragePrice, error) {
 func (b *Binance) GetPriceChangeStats(symbol currency.Pair) (PriceChangeStats, error) {
 	resp := PriceChangeStats{}
 	params := url.Values{}
-	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
-	if err != nil {
-		return resp, err
+	rateLimit := spotPriceChangeAllRate
+	if !symbol.IsEmpty() {
+		rateLimit = spotDefaultRate
+		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", symbolValue)
 	}
-	params.Set("symbol", symbolValue)
-
 	path := priceChange + "?" + params.Encode()
 
-	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, limitDefault, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, rateLimit, &resp)
 }
 
 // GetTickers returns the ticker data for the last 24 hrs
 func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
-	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, priceChange, limitPriceChangeAll, &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, priceChange, spotPriceChangeAllRate, &resp)
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
@@ -437,15 +439,18 @@ func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 func (b *Binance) GetLatestSpotPrice(symbol currency.Pair) (SymbolPrice, error) {
 	resp := SymbolPrice{}
 	params := url.Values{}
-	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
-	if err != nil {
-		return resp, err
+	rateLimit := spotSymbolPriceAllRate
+	if !symbol.IsEmpty() {
+		rateLimit = spotDefaultRate
+		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", symbolValue)
 	}
-	params.Set("symbol", symbolValue)
-
 	path := symbolPrice + "?" + params.Encode()
 
-	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, symbolPriceLimit(symbolValue), &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, rateLimit, &resp)
 }
 
 // GetBestPrice returns the latest best price for symbol
@@ -454,15 +459,18 @@ func (b *Binance) GetLatestSpotPrice(symbol currency.Pair) (SymbolPrice, error) 
 func (b *Binance) GetBestPrice(symbol currency.Pair) (BestPrice, error) {
 	resp := BestPrice{}
 	params := url.Values{}
-	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
-	if err != nil {
-		return resp, err
+	rateLimit := spotOrderbookTickerAllRate
+	if !symbol.IsEmpty() {
+		rateLimit = spotDefaultRate
+		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", symbolValue)
 	}
-	params.Set("symbol", symbolValue)
-
 	path := bestPrice + "?" + params.Encode()
 
-	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, bestPriceLimit(symbolValue), &resp)
+	return resp, b.SendHTTPRequest(exchange.RestSpotSupplementary, path, rateLimit, &resp)
 }
 
 // NewOrder sends a new order to Binance
@@ -521,7 +529,7 @@ func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderRespons
 	if o.NewOrderRespType != "" {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
-	return b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodPost, api, params, limitOrder, resp)
+	return b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodPost, api, params, spotOrderRate, resp)
 }
 
 // CancelExistingOrder sends a cancel order to Binance
@@ -542,7 +550,7 @@ func (b *Binance) CancelExistingOrder(symbol currency.Pair, orderID int64, origC
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	return resp, b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodDelete, orderEndpoint, params, limitOrder, &resp)
+	return resp, b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodDelete, orderEndpoint, params, spotOrderRate, &resp)
 }
 
 // OpenOrders Current open orders. Get all open orders on a symbol.
@@ -590,7 +598,7 @@ func (b *Binance) AllOrders(symbol currency.Pair, orderID, limit string) ([]Quer
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, allOrders, params, limitOrdersAll, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, allOrders, params, spotOrdersAllRate, &resp); err != nil {
 		return resp, err
 	}
 
@@ -614,7 +622,7 @@ func (b *Binance) QueryOrder(symbol currency.Pair, origClientOrderID string, ord
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 
-	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, orderEndpoint, params, limitOrder, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, orderEndpoint, params, spotOrderRate, &resp); err != nil {
 		return resp, err
 	}
 
@@ -634,7 +642,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 	var resp response
 	params := url.Values{}
 
-	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, accountInfo, params, request.Unset, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, accountInfo, params, spotAccountInformationRate, &resp); err != nil {
 		return &resp.Account, err
 	}
 
