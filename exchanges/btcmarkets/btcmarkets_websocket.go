@@ -83,7 +83,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		var bids, asks []orderbook.Item
+		var bids, asks orderbook.Items
 		for x := range ob.Bids {
 			var price, amount float64
 			price, err = strconv.ParseFloat(ob.Bids[x][0].(string), 64)
@@ -117,9 +117,10 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			})
 		}
 		if ob.Snapshot {
+			bids.SortBids() // Alignment completely out, sort is needed.
 			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Pair:               p,
-				Bids:               orderbook.SortBids(bids), // Alignment completely out sort is needed
+				Bids:               bids,
 				Asks:               asks,
 				LastUpdated:        ob.Timestamp,
 				Asset:              asset.Spot,

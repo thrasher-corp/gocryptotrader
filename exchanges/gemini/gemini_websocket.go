@@ -397,10 +397,10 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			}
 		}
 
-		orderbook.Reverse(bids) // Correct bid alignment
 		var newOrderBook orderbook.Base
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
+		newOrderBook.Bids.Reverse() // Correct bid alignment
 		newOrderBook.Asset = asset.Spot
 		newOrderBook.Pair = pair
 		newOrderBook.Exchange = g.Name

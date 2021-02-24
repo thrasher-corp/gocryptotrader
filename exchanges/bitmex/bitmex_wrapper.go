@@ -384,7 +384,7 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 					orderbookNew[i].Side)
 		}
 	}
-	orderbook.Reverse(book.Asks)
+	book.Asks.Reverse() // Reverse order of asks to ascending
 
 	err = book.Process()
 	if err != nil {

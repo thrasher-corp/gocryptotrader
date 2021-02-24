@@ -143,7 +143,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		orderbook.Reverse(book.Asks) // Reverse asks for correct alignment
+		book.Asks.Reverse() // Reverse asks for correct alignment
 		book.Asset = asset.Spot
 		book.Pair = cPair
 		book.Exchange = z.Name

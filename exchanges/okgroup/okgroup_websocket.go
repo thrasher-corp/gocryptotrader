@@ -715,7 +715,10 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, inst
 		return err
 	}
 
-	updatedOb := o.Websocket.Orderbook.GetOrderbook(instrument, a)
+	updatedOb, err := o.Websocket.Orderbook.GetOrderbook(instrument, a)
+	if err != nil {
+		return err
+	}
 	checksum := o.CalculateUpdateOrderbookChecksum(updatedOb)
 
 	if checksum != wsEventData.Checksum {

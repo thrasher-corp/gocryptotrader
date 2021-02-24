@@ -508,7 +508,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 					data[i].Side)
 			}
 		}
-		orderbook.Reverse(book.Asks) // Reverse asks for correct alignment
+		book.Asks.Reverse() // Reverse asks for correct alignment
 		book.Asset = a
 		book.Pair = p
 		book.Exchange = b.Name

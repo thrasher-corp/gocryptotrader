@@ -503,8 +503,8 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	}
 
 	// Both sides are completely out of order - sort needs to be used
-	book.Asks = orderbook.SortAsks(book.Asks)
-	book.Bids = orderbook.SortBids(book.Bids)
+	book.Asks.SortAsks()
+	book.Bids.SortBids()
 	book.Asset = asset.Spot
 	book.VerificationBypass = p.OrderbookVerificationBypass
 

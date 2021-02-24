@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Depth defines a linked list of orderbook items
@@ -24,16 +22,8 @@ type Depth struct {
 	wMtx    sync.Mutex
 	// -----
 
-	Exchange string
-	Pair     currency.Pair
-	Asset    asset.Item
+	options
 
-	// RestSnapshot defines if the depth was applied via the REST protocol thus
-	// an update cannot be applied via websocket mechanics and a resubscription
-	// would need to take place to maintain book integrity
-	restSnapshot bool
-
-	lastUpdated time.Time
 	sync.Mutex
 }
 
@@ -59,10 +49,19 @@ func (d *Depth) AddBid(i Item) error {
 }
 
 // Retrieve gets stuff
-func (d *Depth) Retrieve() (bids, asks Items) {
+func (d *Depth) Retrieve() *Base {
 	d.Lock()
 	defer d.Unlock()
-	return d.bid.Retrieve(), d.ask.Retrieve()
+	return &Base{
+		Bids:          d.bid.Retrieve(),
+		Asks:          d.ask.Retrieve(),
+		Exchange:      d.Exchange,
+		Asset:         d.Asset,
+		Pair:          d.Pair,
+		LastUpdated:   d.LastUpdated,
+		NotAggregated: d.NotAggregated,
+		IsFundingRate: d.IsFundingRate,
+	}
 }
 
 // // AddBids adds a collection of bids to the linked list
@@ -153,8 +152,9 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64) {
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Item) (err error) {
+func (d *Depth) LoadSnapshot(bids, asks []Item, REST bool) (err error) {
 	d.Lock()
+	d.RestSnapshot = REST
 	defer func() {
 		// TODO: Restructure locks as this will alert routines after slip ring actuates
 		if err != nil {
@@ -207,8 +207,7 @@ func (d *Depth) UpdateBidAskByPrice(bid, ask Items, maxDepth int) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-
-	err = d.bid.updateInsertBidsByPrice(ask, &d.stack, maxDepth)
+	err = d.ask.updateInsertAsksByPrice(ask, &d.stack, maxDepth)
 	if err != nil {
 		errs = append(errs, err)
 	}

@@ -995,11 +995,12 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		return err
 	}
 
-	book := k.Websocket.Orderbook.GetOrderbook(channelData.Pair, asset.Spot)
-	if book == nil {
-		return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s",
+	book, err := k.Websocket.Orderbook.GetOrderbook(channelData.Pair, asset.Spot)
+	if err != nil {
+		return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s %w",
 			channelData.Pair,
-			asset.Spot)
+			asset.Spot,
+			err)
 	}
 
 	token, err := strconv.ParseInt(checksum, 10, 64)

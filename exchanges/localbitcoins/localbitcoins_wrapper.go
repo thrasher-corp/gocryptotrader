@@ -223,6 +223,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 		Asset:              assetType,
 		VerificationBypass: l.OrderbookVerificationBypass,
 	}
+
 	orderbookNew, err := l.GetOrderbook(p.Quote.String())
 	if err != nil {
 		return book, err

@@ -617,8 +617,8 @@ func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
 		return nil
 	}
 
-	recent := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	if recent == nil || (recent.Asks == nil && recent.Bids == nil) {
+	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if err != nil || (recent.Asks == nil && recent.Bids == nil) {
 		return b.obm.fetchBookViaREST(pair)
 	}
 

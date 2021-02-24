@@ -1653,34 +1653,21 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		return err
 	}
 
-	// pipe, err := orderbook.SubscribeOrderbook(r.Exchange, p, a)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// defer pipe.Release()
-	kick := make(chan struct{})
 	for {
-		// data, ok := <-pipe.C
-		// if !ok {
-		// 	return errors.New(errDispatchSystem)
-		// }
-
-		// ob := (*data.(*interface{})).(orderbook.Base)
-		b, a := depth.Retrieve()
+		base := depth.Retrieve()
 		var bids, asks []*gctrpc.OrderbookItem
-		for i := range b {
+		for i := range base.Bids {
 			bids = append(bids, &gctrpc.OrderbookItem{
-				Amount: b[i].Amount,
-				Price:  b[i].Price,
-				Id:     b[i].ID,
+				Amount: base.Bids[i].Amount,
+				Price:  base.Bids[i].Price,
+				Id:     base.Bids[i].ID,
 			})
 		}
-		for i := range a {
+		for i := range base.Asks {
 			asks = append(asks, &gctrpc.OrderbookItem{
-				Amount: a[i].Amount,
-				Price:  a[i].Price,
-				Id:     a[i].ID,
+				Amount: base.Asks[i].Amount,
+				Price:  base.Asks[i].Price,
+				Id:     base.Asks[i].ID,
 			})
 		}
 		err := stream.Send(&gctrpc.OrderbookResponse{
@@ -1692,7 +1679,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		if err != nil {
 			return err
 		}
-		depth.Wait(kick)
+		depth.Wait(nil)
 	}
 }
 

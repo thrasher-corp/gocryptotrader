@@ -43,9 +43,7 @@ func init() {
 
 // Book defines an orderbook with its links to different dispatch outputs
 type Book struct {
-	depth Depth
-	Identifier
-	Options
+	Depth
 	main  uuid.UUID
 	assoc []uuid.UUID
 }
@@ -77,30 +75,30 @@ type Items []Item
 
 // Base holds the fields for the orderbook base
 type Base struct {
-	Bids         Items
-	Asks         Items
-	Exchange     string
-	Pair         currency.Pair
-	Asset        asset.Item
+	Bids Items
+	Asks Items
+
+	Exchange string
+	Pair     currency.Pair
+	Asset    asset.Item
+
 	LastUpdated  time.Time
 	LastUpdateID int64
 	// NotAggregated defines whether an orderbook can contain duplicate prices
 	// in a payload
 	NotAggregated bool
 	IsFundingRate bool
-
 	// VerificationBypass is a complete orderbook verification bypass set by
 	// user configuration
 	VerificationBypass bool `json:"-"`
 	// HasChecksumValidation defines an allowance to bypass internal
 	// verification if the book has been verified by checksum.
 	HasChecksumValidation bool `json:"-"`
+	// RestSnapshot defines if the depth was applied via the REST protocol thus
+	// an update cannot be applied via websocket mechanics and a resubscription
+	// would need to take place to maintain book integrity
+	RestSnapshot bool
 }
-
-// func Pro() {
-// 	wow := Base{}
-// 	fmt.Println(wow)
-// }
 
 type byOBPrice []Item
 
@@ -108,23 +106,15 @@ func (a byOBPrice) Len() int           { return len(a) }
 func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
 
-// Identifier defines fields that are required to match depth instance
-type Identifier struct {
-	Exchange string
-	Pair     currency.Pair
-	Asset    asset.Item
-}
-
-// Options define params for a depth instance
-type Options struct {
-	LastUpdated  time.Time
-	LastUpdateID int64
-	// NotAggregated defines whether an orderbook can contain duplicate prices
-	// in a payload
-	NotAggregated bool
-	IsFundingRate bool
-
-	// HasChecksumValidation defines an allowance to bypass internal
-	// verification if the book has been verified by checksum.
-	HasChecksumValidation bool `json:"-"`
+type options struct {
+	Exchange              string
+	Pair                  currency.Pair
+	Asset                 asset.Item
+	LastUpdated           time.Time
+	LastUpdateID          int64
+	NotAggregated         bool
+	IsFundingRate         bool
+	VerificationBypass    bool
+	HasChecksumValidation bool
+	RestSnapshot          bool
 }

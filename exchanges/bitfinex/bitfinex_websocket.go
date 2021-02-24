@@ -1036,14 +1036,15 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 	if checkme.Sequence+1 == sequenceNo {
 		// Sequence numbers get dropped, if checksum is not in line with
 		// sequence, do not check.
-		ob := b.Websocket.Orderbook.GetOrderbook(p, assetType)
-		if ob == nil {
-			return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s",
+		ob, err := b.Websocket.Orderbook.GetOrderbook(p, assetType)
+		if err != nil {
+			return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s %w",
 				p,
-				assetType)
+				assetType,
+				err)
 		}
 
-		err := validateCRC32(ob, checkme.Token)
+		err = validateCRC32(ob, checkme.Token)
 		if err != nil {
 			return err
 		}

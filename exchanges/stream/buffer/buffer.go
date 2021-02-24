@@ -18,6 +18,7 @@ var (
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errUpdateIsNil                  = errors.New("update is nil")
 	errUpdateNoTargets              = errors.New("update bid/ask targets cannot be nil")
+	errDepthNotFound                = errors.New("orderbook depth not found")
 )
 
 // Setup sets private variables
@@ -57,19 +58,16 @@ func (w *Orderbook) validate(u *Update) error {
 	return nil
 }
 
-// Update updates a local buffer using bid targets and ask targets then updates
-// main orderbook
-// Volume == 0; deletion at price target
-// Price target not found; append of price target
-// Price target found; amend volume of price target
+// Update updates a stored pointer to an orderbook.Depth struct containing a
+// linked list, this switches between the usage of a buffered update
 func (w *Orderbook) Update(u *Update) error {
 	if err := w.validate(u); err != nil {
 		return err
 	}
 	w.m.Lock()
-	defer w.m.Unlock()
 	obLookup, ok := w.ob[u.Pair.Base][u.Pair.Quote][u.Asset]
 	if !ok {
+		w.m.Unlock()
 		return fmt.Errorf("ob.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
 			w.exchangeName,
 			u.Pair,
@@ -78,6 +76,7 @@ func (w *Orderbook) Update(u *Update) error {
 
 	if w.bufferEnabled {
 		processed, err := w.processBufferUpdate(obLookup, u)
+		w.m.Unlock()
 		if err != nil {
 			return err
 		}
@@ -87,6 +86,7 @@ func (w *Orderbook) Update(u *Update) error {
 		}
 	} else {
 		err := w.processObUpdate(obLookup, u)
+		w.m.Unlock()
 		if err != nil {
 			return err
 		}
@@ -96,6 +96,7 @@ func (w *Orderbook) Update(u *Update) error {
 	select {
 	case w.dataHandler <- obLookup.ob:
 	default:
+		// If no receiver, discard alert as this will slow down future updates
 	}
 	return nil
 }
@@ -134,11 +135,9 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, er
 // processObUpdate processes updates either by its corresponding id or by
 // price level
 func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
-	// TODO: Check to see if UpdateID assignment is needed and purge from system
-	// if not
 	o.LastUpdateID = u.UpdateID
 	if w.updateEntriesByID {
-		return o.updateByIDAndAction(u, w.exchangeName, false) // TODO: FIX
+		return o.updateByIDAndAction(u)
 	}
 	return o.updateByPrice(u)
 }
@@ -151,14 +150,14 @@ func (o *orderbookHolder) updateByPrice(updts *Update) error {
 
 // updateByIDAndAction will receive an action to execute against the orderbook
 // it will then match by IDs instead of price to perform the action
-func (o *orderbookHolder) updateByIDAndAction(updts *Update, exch string, isFundingRate bool) (err error) {
+func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 	switch updts.Action {
 	case Amend:
-		err = o.ob.UpdateBidAskByID(updts.Bids, updts.Asks)
+		return o.ob.UpdateBidAskByID(updts.Bids, updts.Asks)
 	case Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
-		bypassErr := exch == "Bitfinex" && isFundingRate
-		err = o.ob.DeleteBidAskByID(updts.Bids, updts.Asks, bypassErr)
+		bypassErr := o.ob.Exchange == "Bitfinex" && o.ob.IsFundingRate
+		return o.ob.DeleteBidAskByID(updts.Bids, updts.Asks, bypassErr)
 	case Insert:
 		o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
 	case UpdateInsert:
@@ -166,112 +165,13 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update, exch string, isFund
 	default:
 		return fmt.Errorf("invalid action [%s]", updts.Action)
 	}
-	return
+	return nil
 }
 
-// // applyUpdates amends amount by ID and returns an error if not found
-// func applyUpdates(updts, book []orderbook.Item) error {
-// updates:
-// 	for x := range updts {
-// 		for y := range book {
-// 			if book[y].ID == updts[x].ID {
-// 				book[y].Amount = updts[x].Amount
-// 				continue updates
-// 			}
-// 		}
-// 		return fmt.Errorf("update cannot be applied id: %d not found",
-// 			updts[x].ID)
-// 	}
-// 	return nil
-// }
-
-// // deleteUpdates removes updates from orderbook and returns an error if not
-// // found
-// func deleteUpdates(updt []orderbook.Item, book *orderbook.Items, bypassErr bool) error {
-// updates:
-// 	for x := range updt {
-// 		for y := range *book {
-// 			if (*book)[y].ID == updt[x].ID {
-// 				*book = append((*book)[:y], (*book)[y+1:]...) // nolint:gocritic
-// 				continue updates
-// 			}
-// 		}
-// 		// bypassErr is for expected duplication from endpoint.
-// 		if !bypassErr {
-// 			return fmt.Errorf("update cannot be deleted id: %d not found",
-// 				updt[x].ID)
-// 		}
-// 	}
-// 	return nil
-// }
-
-// func insertAsk(updt orderbook.Item, book *orderbook.Items) {
-// 	for target := range *book {
-// 		if updt.Price < (*book)[target].Price {
-// 			insertItem(updt, book, target)
-// 			return
-// 		}
-// 	}
-// 	*book = append(*book, updt)
-// }
-
-// func insertBid(updt orderbook.Item, book *orderbook.Items) {
-// 	for target := range *book {
-// 		if updt.Price > (*book)[target].Price {
-// 			insertItem(updt, book, target)
-// 			return
-// 		}
-// 	}
-// 	*book = append(*book, updt)
-// }
-
-// // insertUpdatesBid inserts on **correctly aligned** book at price level
-// func insertUpdatesBid(updt []orderbook.Item, book *orderbook.Items) {
-// updates:
-// 	for x := range updt {
-// 		for target := range *book {
-// 			if updt[x].Price > (*book)[target].Price {
-// 				insertItem(updt[x], book, target)
-// 				continue updates
-// 			}
-// 		}
-// 		*book = append(*book, updt[x])
-// 	}
-// }
-
-// // insertUpdatesBid inserts on **correctly aligned** book at price level
-// func insertUpdatesAsk(updt []orderbook.Item, book *orderbook.Items) {
-// updates:
-// 	for x := range updt {
-// 		for target := range *book {
-// 			if updt[x].Price < (*book)[target].Price {
-// 				insertItem(updt[x], book, target)
-// 				continue updates
-// 			}
-// 		}
-// 		*book = append(*book, updt[x])
-// 	}
-// }
-
-// // insertItem inserts item in slice by target element this is an optimization
-// // to reduce the need for sorting algorithms
-// func insertItem(update orderbook.Item, book *orderbook.Items, target int) {
-// 	// TODO: extend slice by incoming update length before this gets hit
-// 	*book = append(*book, orderbook.Item{})
-// 	copy((*book)[target+1:], (*book)[target:])
-// 	(*book)[target] = update
-// }
-
-// LoadSnapshot loads initial snapshot of ob data from websocket
+// LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
+	// fmt.Printf("BOOK: %+v\n", book)
 	w.m.Lock()
-	defer w.m.Unlock()
-
-	err := book.Process()
-	if err != nil {
-		return err
-	}
-
 	m1, ok := w.ob[book.Pair.Base]
 	if !ok {
 		m1 = make(map[currency.Code]map[asset.Item]*orderbookHolder)
@@ -282,63 +182,102 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		m2 = make(map[asset.Item]*orderbookHolder)
 		m1[book.Pair.Quote] = m2
 	}
-	m3, ok := m2[book.Asset]
+	holder, ok := m2[book.Asset]
 	if !ok {
-		// TODO: Shadow moon
+		// Associate orderbook pointer with local exchange depth map
 		depth, err := orderbook.GetDepth(book.Exchange, book.Pair, book.Asset)
 		if err != nil {
+			w.m.Unlock()
 			return err
 		}
-		m3 = &orderbookHolder{ob: depth, buffer: &[]Update{}}
-		m2[book.Asset] = m3
-	} else {
 		// TODO ADD THIS IN!!!
 		// m3.ob.LastUpdateID = book.LastUpdateID
-		err = m3.ob.LoadSnapshot(book.Bids, book.Asks)
+		depth.Asset = book.Asset
+		depth.Exchange = book.Exchange
+		depth.Asset = book.Asset
+		depth.HasChecksumValidation = book.HasChecksumValidation
+		depth.IsFundingRate = book.IsFundingRate
+		depth.LastUpdateID = book.LastUpdateID
+		depth.LastUpdated = book.LastUpdated
+		depth.NotAggregated = book.NotAggregated
+		depth.Pair = book.Pair
+		depth.RestSnapshot = book.RestSnapshot
+		depth.VerificationBypass = book.VerificationBypass
+		buffer := make([]Update, w.obBufferLimit)
+		holder = &orderbookHolder{ob: depth, buffer: &buffer}
+		m2[book.Asset] = holder
+	}
+
+	if book.CanVerify() {
+		// Checks if book can deploy to linked list
+		err := book.Verify()
 		if err != nil {
 			return err
 		}
 	}
-	w.dataHandler <- m3.ob
+
+	err := holder.ob.LoadSnapshot(book.Bids, book.Asks, false)
+	w.m.Unlock()
+	if err != nil {
+		return err
+	}
+
+	if book.CanVerify() {
+		// Checks to see if booked that was deployed has not been altered in
+		// any way
+		err = holder.ob.Retrieve().Verify()
+		if err != nil {
+			return err
+		}
+	}
+
+	select {
+	case w.dataHandler <- book:
+	default:
+		// If no receiver, discard alert as this will slow down future updates
+	}
 	return nil
 }
 
 // GetOrderbook returns orderbook stored in current buffer
-func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base {
-	// TODO: Change to return depth pointer and deprecate orderbook base
+func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	w.m.Lock()
-	defer w.m.Unlock()
 	book, ok := w.ob[p.Base][p.Quote][a]
+	w.m.Unlock()
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("%s %s %s %w",
+			w.exchangeName,
+			p,
+			a,
+			errDepthNotFound)
 	}
-
-	bids, asks := book.ob.Retrieve()
-
-	return &orderbook.Base{
-		Exchange: w.exchangeName,
-		Pair:     p,
-		Asset:    a,
-		Bids:     bids,
-		Asks:     asks}
+	return book.ob.Retrieve(), nil
 }
+
+// empty eager bucket
+var empty map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder
 
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
 func (w *Orderbook) FlushBuffer() {
 	w.m.Lock()
-	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+	w.ob = empty
 	w.m.Unlock()
+	empty = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 }
 
 // FlushOrderbook flushes independent orderbook
 func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	w.m.Lock()
-	defer w.m.Unlock()
-	// book, ok := w.ob[p.Base][p.Quote][a]
-	// if !ok {
-	// 	return fmt.Errorf("orderbook not associated with pair: [%s] and asset [%s]", p, a)
-	// }
-	// return book.ob.Flush()
+	book, ok := w.ob[p.Base][p.Quote][a]
+	w.m.Unlock()
+	if !ok {
+		return fmt.Errorf("%s %s %s %w",
+			w.exchangeName,
+			p,
+			a,
+			errDepthNotFound)
+	}
+	book.ob.Flush()
 	return nil
 }

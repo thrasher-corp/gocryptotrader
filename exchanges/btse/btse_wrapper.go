@@ -366,7 +366,7 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 			Price:  a.SellQuote[x].Price,
 			Amount: a.SellQuote[x].Size})
 	}
-	orderbook.Reverse(book.Asks) // Reverse asks for correct alignment
+	book.Asks.Reverse() // Reverse asks for correct alignment
 	book.Pair = p
 	book.Exchange = b.Name
 	book.Asset = assetType

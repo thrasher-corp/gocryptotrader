@@ -454,10 +454,8 @@ updates:
 
 			if tip.next == nil {
 				if bookmark == nil {
-					// fmt.Println("first to go")
 					bookmark = tip
 				} else {
-					// fmt.Println("WOW", updts[x])
 					bookmark.value = updts[x]
 					bookmark.next.prev = bookmark.prev
 					bookmark.prev.next = bookmark.next
@@ -468,7 +466,6 @@ updates:
 				}
 			}
 		}
-		// fmt.Println("MEOW")
 		n := stack.Pop()
 		n.value = updts[x]
 		if bookmark.prev == nil {
@@ -487,7 +484,7 @@ updates:
 }
 
 // move moves a node from a point in a node chain to another node position,
-// this left justified as towards head as element zero is the top of the depth
+// this left justified towards head as element zero is the top of the depth
 // side.
 func move(head **Node, from, to *Node) {
 	// remove 'from' node from current position in chain

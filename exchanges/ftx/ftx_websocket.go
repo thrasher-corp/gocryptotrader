@@ -452,7 +452,10 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 		return err
 	}
 
-	updatedOb := f.Websocket.Orderbook.GetOrderbook(p, a)
+	updatedOb, err := f.Websocket.Orderbook.GetOrderbook(p, a)
+	if err != nil {
+		return err
+	}
 	checksum := f.CalcUpdateOBChecksum(updatedOb)
 
 	if checksum != data.Checksum {

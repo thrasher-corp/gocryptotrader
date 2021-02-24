@@ -120,7 +120,7 @@ const (
 	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n"
 )
 
-func printOrderbookSummary(result *orderbook.Depth, protocol string, err error) {
+func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if err != nil {
 		if result == nil {
 			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",
@@ -146,17 +146,18 @@ func printOrderbookSummary(result *orderbook.Depth, protocol string, err error) 
 		return
 	}
 
-	bidsAmount, bidsValue := result.TotalBidAmounts()
-	asksAmount, asksValue := result.TotalAskAmounts()
+	bidsAmount, bidsValue := result.TotalBidsAmount()
+	asksAmount, asksValue := result.TotalAsksAmount()
 
 	var bidValueResult, askValueResult string
-	// fmt.Printf("WOW: %+v\n", result)
 	switch {
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency:
+	case result.Pair.Quote.IsFiatCurrency() &&
+		result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency:
 		origCurrency := result.Pair.Quote.Upper()
 		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue)
 		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue)
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency:
+	case result.Pair.Quote.IsFiatCurrency() &&
+		result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency:
 		bidValueResult = printCurrencyFormat(bidsValue)
 		askValueResult = printCurrencyFormat(asksValue)
 	default:
@@ -168,11 +169,11 @@ func printOrderbookSummary(result *orderbook.Depth, protocol string, err error) 
 		protocol,
 		FormatCurrency(result.Pair),
 		strings.ToUpper(result.Asset.String()),
-		result.GetBidLength(),
+		len(result.Bids),
 		bidsAmount,
 		result.Pair.Base,
 		bidValueResult,
-		result.GetAskLength(),
+		len(result.Asks),
 		asksAmount,
 		result.Pair.Base,
 		askValueResult,

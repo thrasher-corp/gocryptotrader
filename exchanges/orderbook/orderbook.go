@@ -83,8 +83,9 @@ func (s *Service) Update(b *Base) error {
 		return err
 	}
 
-	book.depth.Process(b.Bids, b.Asks)
-	book.depth.lastUpdated = b.LastUpdated
+	book.Process(b.Bids, b.Asks)
+	book.LastUpdated = b.LastUpdated
+	book.RestSnapshot = true
 	ids := append(book.assoc, book.main)
 	s.Unlock()
 	return s.mux.Publish(ids, b)
@@ -102,10 +103,11 @@ func (s *Service) SetNewData(ob *Base, book *Book, exch string) error {
 		return err
 	}
 
-	book.depth.Process(ob.Bids, ob.Asks)
+	book.Process(ob.Bids, ob.Asks)
 	book.Exchange = ob.Exchange
 	book.Asset = ob.Asset
 	book.Pair = ob.Pair
+	book.RestSnapshot = ob.RestSnapshot
 	book.IsFundingRate = ob.IsFundingRate
 	book.LastUpdateID = ob.LastUpdateID
 	book.HasChecksumValidation = ob.HasChecksumValidation
@@ -130,37 +132,36 @@ func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	return ids, nil
 }
 
-// GetDepth returns the actual depth
+// GetDepth returns the actual depth struct for potential subsystems and
+// strategies to interract with
 func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	s.Lock()
 	defer s.Unlock()
 	m1, ok := s.Books[strings.ToLower(exchange)]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
+		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Book)
+		s.Books[strings.ToLower(exchange)] = m1
 	}
-
 	m2, ok := m1[a]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
-			a)
+		m2 = make(map[*currency.Item]map[*currency.Item]*Book)
+		m1[a] = m2
 	}
-
 	m3, ok := m2[p.Base.Item]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
-			p.Base)
+		m3 = make(map[*currency.Item]*Book)
+		m2[p.Base.Item] = m3
 	}
-
 	book, ok := m3[p.Quote.Item]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
-			p.Quote)
+		book = &Book{}
+		m3[p.Quote.Item] = book
 	}
-
-	return &book.depth, nil
+	return &book.Depth, nil
 }
 
-// Retrieve gets orderbook data from the slice
+// Retrieve gets orderbook depth data from the associated linked list and
+// returns the base equivalent copy
 func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	s.Lock()
 	defer s.Unlock()
@@ -187,13 +188,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 			p.Quote)
 	}
 
-	return &Base{
-		Bids:     book.depth.bid.Retrieve(),
-		Asks:     book.depth.ask.Retrieve(),
-		Exchange: book.Exchange,
-		Pair:     book.Pair,
-		Asset:    book.Asset,
-	}, nil
+	return book.Retrieve(), nil
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
@@ -216,12 +211,12 @@ func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
 	return amountCollated, total
 }
 
-// Update updates the bids and asks
-func (b *Base) Update(bids, asks []Item) {
-	b.Bids = bids
-	b.Asks = asks
-	b.LastUpdated = time.Now()
-}
+// // Update updates the bids and asks
+// func (b *Base) Update(bids, asks []Item) {
+// 	b.Bids = bids
+// 	b.Asks = asks
+// 	b.LastUpdated = time.Now()
+// }
 
 // Verify ensures that the orderbook items are correctly sorted prior to being
 // set and will reject any book with incorrect values.
@@ -313,7 +308,7 @@ func (b *Base) Process() error {
 		b.LastUpdated = time.Now()
 	}
 
-	if !b.VerificationBypass && !b.HasChecksumValidation {
+	if b.CanVerify() {
 		err := b.Verify()
 		if err != nil {
 			return err
@@ -322,33 +317,36 @@ func (b *Base) Process() error {
 	return service.Update(b)
 }
 
+// CanVerify checks to see if orderbook should be verified or it is not required
+func (b *Base) CanVerify() bool {
+	return !b.VerificationBypass && !b.HasChecksumValidation
+}
+
 // Reverse reverses the order of orderbook items; some bid/asks are
 // returned in either ascending or descending order. One bid or ask slice
 // depending on whats received can be reversed. This is usually faster than
 // using a sort algorithm as the algorithm could be impeded by a worst case time
 // complexity when elements are shifted as opposed to just swapping element
 // values.
-func Reverse(elem []Item) {
-	eLen := len(elem)
+func (elem *Items) Reverse() {
+	eLen := len(*elem)
 	var target int
 	for i := eLen/2 - 1; i >= 0; i-- {
 		target = eLen - 1 - i
-		elem[i], elem[target] = elem[target], elem[i]
+		(*elem)[i], (*elem)[target] = (*elem)[target], (*elem)[i]
 	}
 }
 
 // SortAsks sorts ask items to the correct ascending order if pricing values are
 // scattered. If order from exchange is descending consider using the Reverse
 // function.
-func SortAsks(d []Item) []Item {
-	sort.Sort(byOBPrice(d))
-	return d
+func (elem *Items) SortAsks() {
+	sort.Sort(byOBPrice(*elem))
 }
 
 // SortBids sorts bid items to the correct descending order if pricing values
 // are scattered. If order from exchange is ascending consider using the Reverse
 // function.
-func SortBids(d []Item) []Item {
-	sort.Sort(sort.Reverse(byOBPrice(d)))
-	return d
+func (elem *Items) SortBids() {
+	sort.Sort(sort.Reverse(byOBPrice(*elem)))
 }
