@@ -1142,7 +1142,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	if len(req.Pairs) == 0 {
+	if len(req.Pairs) == 0 || len(req.Pairs) >= 40 {
 		// sending an empty currency pair retrieves data for all currencies
 		req.Pairs = append(req.Pairs, currency.Pair{})
 	}

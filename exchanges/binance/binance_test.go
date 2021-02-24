@@ -1268,16 +1268,18 @@ func TestQueryOrder(t *testing.T) {
 
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := b.OpenOrders(currency.Pair{})
+	if err != nil {
+		t.Error(err)
+	}
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	_, err := b.OpenOrders(p)
-	switch {
-	case areTestAPIKeysSet() && err != nil:
-		t.Error("OpenOrders() error", err)
-	case !areTestAPIKeysSet() && err == nil && !mockTests:
-		t.Error("OpenOrders() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock OpenOrders() error", err)
+	_, err = b.OpenOrders(p)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

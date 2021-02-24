@@ -559,6 +559,9 @@ func (b *Binance) OpenOrders(pair currency.Pair) ([]QueryOrderData, error) {
 			return nil, err
 		}
 		params.Add("symbol", p)
+	} else {
+		// extend the receive window when all currencies to prevent "recvwindow" error
+		params.Set("recvWindow", "10000")
 	}
 	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, openOrders, params, openOrdersLimit(p), &resp); err != nil {
 		return resp, err
@@ -670,6 +673,17 @@ func (b *Binance) SendAuthHTTPRequest(ePath exchange.URL, method, path string, p
 		params = url.Values{}
 	}
 	recvWindow := 5 * time.Second
+	if params.Get("recvWindow") != "" {
+		// convert recvWindow value into time.Duration
+		var recvWindowParam int64
+		recvWindowParam, err = convert.Int64FromString(params.Get("recvWindow"))
+		if err != nil {
+			return err
+		}
+		recvWindow = time.Duration(recvWindowParam) * time.Millisecond
+	} else {
+		params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
+	}
 	params.Set("recvWindow", strconv.FormatInt(convert.RecvWindow(recvWindow), 10))
 	params.Set("timestamp", strconv.FormatInt(time.Now().Unix()*1000, 10))
 	signature := params.Encode()
