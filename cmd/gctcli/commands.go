@@ -1247,7 +1247,7 @@ var getOrdersCommand = cli.Command{
 		cli.StringFlag{
 			Name:        "start",
 			Usage:       "start date, optional. Will filter any results before this date",
-			Value:       time.Now().AddDate(-1, 0, 0).Format(common.SimpleTimeFormat),
+			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
