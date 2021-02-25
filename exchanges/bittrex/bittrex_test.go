@@ -98,7 +98,7 @@ func TestGetMarketSummary(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetOrderbook(currPair)
+	_, err := b.GetOrderbook(currPair, 500)
 	if err != nil {
 		t.Error(err)
 	}
@@ -113,20 +113,13 @@ func TestGetMarketHistory(t *testing.T) {
 	}
 }
 
-func TestPlaceBuyLimit(t *testing.T) {
+func TestOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.PlaceBuyLimit(currPair, 1, 1)
-	if err == nil {
-		t.Error("Expected error")
-	}
-}
-
-func TestPlaceSellLimit(t *testing.T) {
-	t.Parallel()
-
-	_, err := b.PlaceSellLimit(currPair, 1, 1)
-	if err == nil {
+	_, err := b.Order(currPair, order.Buy.String(), order.Limit.String(), "", 1, 1, 0.0)
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expected error")
 	}
 }
@@ -160,7 +153,7 @@ func TestCancelExistingOrder(t *testing.T) {
 func TestGetAccountBalances(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetAccountBalances()
+	_, err := b.GetBalances()
 	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -213,16 +206,10 @@ func TestGetOrderHistoryForCurrency(t *testing.T) {
 	}
 }
 
-func TestGetwithdrawalHistory(t *testing.T) {
+func TestGetClosedWithdrawals(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetWithdrawalHistory("")
-	if areTestAPIKeysSet() && err != nil {
-		t.Error(err)
-	} else if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expected error")
-	}
-	_, err = b.GetWithdrawalHistory(curr)
+	_, err := b.GetClosedWithdrawals()
 	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -230,16 +217,57 @@ func TestGetwithdrawalHistory(t *testing.T) {
 	}
 }
 
-func TestGetDepositHistory(t *testing.T) {
+func TestGetClosedWithdrawalsForCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetDepositHistory("")
+
+	_, err := b.GetClosedWithdrawalsForCurrency(curr)
 	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expected error")
 	}
-	_, err = b.GetDepositHistory(currPair)
-	if err == nil {
+}
+
+func TestGetOpenWithdrawals(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetOpenWithdrawals()
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expected error")
+	}
+}
+
+func TestGetClosedDeposits(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetClosedDeposits()
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expected error")
+	}
+}
+
+func TestGetClosedDepositsForCurrency(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetClosedDepositsForCurrency(curr)
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expected error")
+	}
+}
+
+func TestGetClosedDepositsPaginated(t *testing.T) {
+	t.Parallel()
+
+	_, err := b.GetClosedDepositsPaginated(100)
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expected error")
 	}
 }
