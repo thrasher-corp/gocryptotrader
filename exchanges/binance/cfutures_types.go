@@ -234,30 +234,31 @@ type FuturesOrderPlaceData struct {
 
 // FuturesOrderGetData stores futures order data for get requests
 type FuturesOrderGetData struct {
-	AveragePrice       float64 `json:"avgPrice,string"`
-	ClientOrderID      string  `json:"clientOrderID"`
-	CumulativeQuantity float64 `json:"cumQty,string"`
-	CumulativeBase     float64 `json:"cumBase,string"`
-	ExecutedQuantity   float64 `json:"executedQty,string"`
-	OrderID            int64   `json:"orderId"`
-	OriginalQuantity   float64 `json:"origQty,string"`
-	OriginalType       string  `json:"origType"`
-	Price              float64 `json:"price,string"`
-	ReduceOnly         bool    `json:"reduceOnly"`
-	Side               string  `json:"buy"`
-	PositionSide       string  `json:"positionSide"`
-	Status             string  `json:"status"`
-	StopPrice          float64 `json:"stopPrice,string"`
-	ClosePosition      bool    `json:"closePosition"`
-	Symbol             string  `json:"symbol"`
-	Pair               string  `json:"pair"`
-	TimeInForce        string  `json:"timeInForce"`
-	OrderType          string  `json:"type"`
-	ActivatePrice      float64 `json:"activatePrice,string"`
-	PriceRate          float64 `json:"priceRate,string"`
-	UpdateTime         int64   `json:"updateTime"`
-	WorkingType        string  `json:"workingType"`
-	PriceProtect       bool    `json:"priceProtect"`
+	AveragePrice       float64   `json:"avgPrice,string"`
+	ClientOrderID      string    `json:"clientOrderID"`
+	CumulativeQuantity float64   `json:"cumQty,string"`
+	CumulativeBase     float64   `json:"cumBase,string"`
+	ExecutedQuantity   float64   `json:"executedQty,string"`
+	OrderID            int64     `json:"orderId"`
+	OriginalQuantity   float64   `json:"origQty,string"`
+	OriginalType       string    `json:"origType"`
+	Price              float64   `json:"price,string"`
+	ReduceOnly         bool      `json:"reduceOnly"`
+	Side               string    `json:"buy"`
+	PositionSide       string    `json:"positionSide"`
+	Status             string    `json:"status"`
+	StopPrice          float64   `json:"stopPrice,string"`
+	ClosePosition      bool      `json:"closePosition"`
+	Symbol             string    `json:"symbol"`
+	Pair               string    `json:"pair"`
+	TimeInForce        string    `json:"timeInForce"`
+	OrderType          string    `json:"type"`
+	ActivatePrice      float64   `json:"activatePrice,string"`
+	PriceRate          float64   `json:"priceRate,string"`
+	Time               time.Time `json:"time"`
+	UpdateTime         time.Time `json:"updateTime"`
+	WorkingType        string    `json:"workingType"`
+	PriceProtect       bool      `json:"priceProtect"`
 }
 
 // FuturesOrderData stores order data for futures

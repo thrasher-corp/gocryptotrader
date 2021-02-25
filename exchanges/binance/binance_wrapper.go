@@ -1036,37 +1036,37 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
-		respData.Date = orderData[0].Time
-		respData.LastUpdated = orderData[0].UpdateTime
+		respData.Date = orderData.Time
+		respData.LastUpdated = orderData.UpdateTime
 	case asset.USDTMarginedFutures:
 		orderData, err := b.UGetOrderData(pair, orderID, "")
 		if err != nil {
 			return respData, err
 		}
 		var feeBuilder exchange.FeeBuilder
-		feeBuilder.Amount = orderData.ExecutedQty
-		feeBuilder.PurchasePrice = orderData.AvgPrice
+		feeBuilder.Amount = orderData.ExecutedQuantity
+		feeBuilder.PurchasePrice = orderData.AveragePrice
 		feeBuilder.Pair = pair
 		fee, err := b.GetFee(&feeBuilder)
 		if err != nil {
 			return respData, err
 		}
 		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
-		respData.Amount = orderData.OrigQty
+		respData.Amount = orderData.OriginalQuantity
 		respData.AssetType = assetType
 		respData.ClientOrderID = orderData.ClientOrderID
 		respData.Exchange = b.Name
-		respData.ExecutedAmount = orderData.ExecutedQty
+		respData.ExecutedAmount = orderData.ExecutedQuantity
 		respData.Fee = fee
 		respData.ID = orderID
 		respData.Pair = pair
 		respData.Price = orderData.Price
-		respData.RemainingAmount = orderData.OrigQty - orderData.ExecutedQty
+		respData.RemainingAmount = orderData.OriginalQuantity - orderData.ExecutedQuantity
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
-		respData.Date = orderData[0].Time
-		respData.LastUpdated = orderData[0].UpdateTime
+		respData.Date = orderData.Time
+		respData.LastUpdated = orderData.UpdateTime
 	default:
 		return respData, fmt.Errorf("assetType %s not supported", assetType)
 	}
