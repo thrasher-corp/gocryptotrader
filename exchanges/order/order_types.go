@@ -205,11 +205,11 @@ type TradeHistory struct {
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
 type GetOrdersRequest struct {
-	Type       Type
-	Side       Side
-	StartTicks time.Time
-	EndTicks   time.Time
-	OrderID    string
+	Type      Type
+	Side      Side
+	StartTime time.Time
+	EndTime   time.Time
+	OrderID   string
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
 	Pairs     currency.Pairs

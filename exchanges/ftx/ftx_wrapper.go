@@ -901,7 +901,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 		}
 
 		orderData, err := f.FetchOrderHistory(formattedPair.String(),
-			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "")
+			getOrdersRequest.StartTime, getOrdersRequest.EndTime, "")
 		if err != nil {
 			return resp, err
 		}
@@ -938,8 +938,8 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			resp = append(resp, tempResp)
 		}
 		triggerOrderData, err := f.GetTriggerOrderHistory(formattedPair.String(),
-			getOrdersRequest.StartTicks,
-			getOrdersRequest.EndTicks,
+			getOrdersRequest.StartTime,
+			getOrdersRequest.EndTime,
 			strings.ToLower(getOrdersRequest.Side.String()),
 			strings.ToLower(getOrdersRequest.Type.String()),
 			"")
