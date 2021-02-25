@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli"
+	"google.golang.org/grpc"
 )
 
 var startTime, endTime, order string
@@ -1228,7 +1229,7 @@ func getForexRates(_ *cli.Context) error {
 var getOrdersCommand = cli.Command{
 	Name:      "getorders",
 	Usage:     "gets the open orders",
-	ArgsUsage: "<exchange> <asset> <pair>",
+	ArgsUsage: "<exchange> <asset> <pair> <start> <end>",
 	Action:    getOrders,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1243,10 +1244,26 @@ var getOrdersCommand = cli.Command{
 			Name:  "pair",
 			Usage: "the currency pair to get orders for",
 		},
+		cli.StringFlag{
+			Name:        "start",
+			Usage:       "start date, optional. Will filter any results before this date",
+			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		cli.StringFlag{
+			Name:        "end",
+			Usage:       "end date, optional. Will filter any results after this date",
+			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Destination: &endTime,
+		},
 	},
 }
 
 func getOrders(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowCommandHelp(c, "getorders")
+	}
+
 	var exchangeName string
 	var assetType string
 	var currencyPair string
@@ -1287,7 +1304,33 @@ func getOrders(c *cli.Context) error {
 		return err
 	}
 
-	conn, err := setupClient()
+	if !c.IsSet("start") {
+		if c.Args().Get(3) != "" {
+			startTime = c.Args().Get(3)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(4) != "" {
+			endTime = c.Args().Get(4)
+		}
+	}
+	var s, e time.Time
+	s, err = time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+	e, err = time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after end")
+	}
+
+	var conn *grpc.ClientConn
+	conn, err = setupClient()
 	if err != nil {
 		return err
 	}
@@ -1302,6 +1345,8 @@ func getOrders(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
+		StartDate: negateLocalOffset(s),
+		EndDate:   negateLocalOffset(e),
 	})
 	if err != nil {
 		return err
@@ -1322,12 +1367,16 @@ var getOrderCommand = cli.Command{
 			Usage: "the exchange to get the order for",
 		},
 		cli.StringFlag{
-			Name:  "order_id",
-			Usage: "the order id to retrieve",
+			Name:  "asset",
+			Usage: "required asset type",
 		},
 		cli.StringFlag{
 			Name:  "pair",
 			Usage: "the pair to retrieve",
+		},
+		cli.StringFlag{
+			Name:  "order_id",
+			Usage: "the order id to retrieve",
 		},
 	},
 }
@@ -1340,19 +1389,32 @@ func getOrder(c *cli.Context) error {
 	var exchangeName string
 	var orderID string
 	var currencyPair string
-
-	if c.IsSet("pair") {
-		currencyPair = c.String("pair")
-	} else {
-		currencyPair = c.Args().Get(2)
-	}
+	var assetType string
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
 	}
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
 
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+	assetType = strings.ToLower(assetType)
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
@@ -1362,14 +1424,10 @@ func getOrder(c *cli.Context) error {
 		return err
 	}
 
-	if !validExchange(exchangeName) {
-		return errInvalidExchange
-	}
-
 	if c.IsSet("order_id") {
 		orderID = c.String("order_id")
 	} else {
-		orderID = c.Args().Get(1)
+		orderID = c.Args().Get(3)
 	}
 
 	conn, err := setupClient()
@@ -1387,6 +1445,7 @@ func getOrder(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
+		Asset: assetType,
 	})
 	if err != nil {
 		return err
@@ -2702,7 +2761,7 @@ var withdrawalRequestCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "id",
-					Usage: "<id>",
+					Usage: "withdrawal id",
 				},
 			},
 			Action: withdrawlRequestByID,
@@ -2714,11 +2773,11 @@ var withdrawalRequestCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "exchange",
-					Usage: "<exchange>",
+					Usage: "exchange name",
 				},
 				cli.StringFlag{
 					Name:  "id",
-					Usage: "<id>",
+					Usage: "withdrawal id",
 				},
 			},
 			Action: withdrawlRequestByExchangeID,
@@ -2730,11 +2789,11 @@ var withdrawalRequestCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "exchange",
-					Usage: "<exchange>",
+					Usage: "exchange name",
 				},
 				cli.Int64Flag{
 					Name:  "limit",
-					Usage: "<limit>",
+					Usage: "max number of withdrawals to return",
 				},
 				cli.StringFlag{
 					Name:  "currency",
@@ -2750,23 +2809,23 @@ var withdrawalRequestCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "exchange",
-					Usage: "<exchange>",
+					Usage: "the currency used in to withdraw",
 				},
 				cli.StringFlag{
 					Name:        "start",
-					Usage:       "<start>",
+					Usage:       "the start date to get withdrawals from. Any withdrawal before this date will be filtered",
 					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 					Destination: &startTime,
 				},
 				cli.StringFlag{
 					Name:        "end",
-					Usage:       "<end>",
+					Usage:       "the end date to get withdrawals from. Any withdrawal after this date will be filtered",
 					Value:       time.Now().Format(common.SimpleTimeFormat),
 					Destination: &endTime,
 				},
 				cli.Int64Flag{
 					Name:  "limit",
-					Usage: "<limit>",
+					Usage: "max number of withdrawals to return",
 				},
 			},
 			Action: withdrawlRequestByDate,
@@ -3575,12 +3634,12 @@ var gctScriptCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "filename",
-					Usage:       "<filename>",
+					Usage:       "the script filename",
 					Destination: &filename,
 				},
 				cli.StringFlag{
 					Name:        "path",
-					Usage:       "<script path>",
+					Usage:       "the directory of the script file",
 					Destination: &path,
 				},
 			},
@@ -3592,7 +3651,7 @@ var gctScriptCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "uuid",
-					Usage:       "<uuid>",
+					Usage:       "the unique id of the script in memory",
 					Destination: &uuid,
 				},
 			},
@@ -3604,7 +3663,7 @@ var gctScriptCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "name",
-					Usage:       "<name>",
+					Usage:       "the script name",
 					Destination: &uuid,
 				},
 			},
@@ -3626,7 +3685,7 @@ var gctScriptCommand = cli.Command{
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "uuid",
-					Usage:       "<uuid>",
+					Usage:       "the unique id of the script in memory",
 					Destination: &uuid,
 				},
 			},
@@ -4162,13 +4221,13 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 		},
 		cli.StringFlag{
 			Name:        "start",
-			Usage:       "<start>",
+			Usage:       "the date to begin retrieveing candles. Any candles before this date will be filtered",
 			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
 			Name:        "end",
-			Usage:       "<end>",
+			Usage:       "the date to end retrieveing candles. Any candles after this date will be filtered",
 			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},

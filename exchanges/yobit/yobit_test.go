@@ -347,8 +347,8 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
-		StartTicks: time.Unix(0, 0),
-		EndTicks:   time.Unix(math.MaxInt64, 0),
+		StartTime: time.Unix(0, 0),
+		EndTime:   time.Unix(math.MaxInt64, 0),
 	}
 
 	_, err := y.GetOrderHistory(&getOrdersRequest)

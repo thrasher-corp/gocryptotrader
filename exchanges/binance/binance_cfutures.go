@@ -1136,7 +1136,7 @@ func (b *Binance) FuturesOpenOrderData(symbol currency.Pair, orderID, origClient
 func (b *Binance) GetFuturesAllOpenOrders(symbol currency.Pair, pair string) ([]FuturesOrderData, error) {
 	var resp []FuturesOrderData
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err
@@ -1153,7 +1153,7 @@ func (b *Binance) GetFuturesAllOpenOrders(symbol currency.Pair, pair string) ([]
 func (b *Binance) GetAllFuturesOrders(symbol currency.Pair, pair string, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderData, error) {
 	var resp []FuturesOrderData
 	params := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 		if err != nil {
 			return resp, err

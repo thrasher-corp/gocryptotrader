@@ -780,7 +780,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 		}
 	}
 	order.FilterOrdersByType(&resp, req.Type)
-	order.FilterOrdersByTickRange(&resp, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&resp, req.Side)
 	return resp, nil
 }

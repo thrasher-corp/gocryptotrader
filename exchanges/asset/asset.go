@@ -1,8 +1,13 @@
 package asset
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+)
+
+var (
+	ErrNotSupported = errors.New("received unsupported asset type")
 )
 
 // Item stores the asset type
@@ -101,7 +106,8 @@ func New(input string) (Item, error) {
 			return supported[i], nil
 		}
 	}
-	return "", fmt.Errorf("cannot create new asset: input %s mismatch to supported asset list %s",
+	return "", fmt.Errorf("%w %v, only supports %v",
+		ErrNotSupported,
 		input,
 		supported)
 }

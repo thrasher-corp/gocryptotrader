@@ -3488,6 +3488,9 @@
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "asset": {
+          "type": "string"
         }
       }
     },
@@ -3527,6 +3530,12 @@
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "start_date": {
+          "type": "string"
+        },
+        "end_date": {
+          "type": "string"
         }
       }
     },
