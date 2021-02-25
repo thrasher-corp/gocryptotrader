@@ -822,31 +822,40 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	exchName := "binance"
-	bot := SetupTestHelpers(t)
-	s := RPCServer{Engine: bot}
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	s := RPCServer{Engine: engerino}
 
-	_, err := s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  "",
-		AssetType: "",
-		Pair:      nil,
-		StartDate: "",
-		EndDate:   "",
-	})
+	_, err := s.GetOrders(context.Background(), nil)
+	if !errors.Is(err, errInvalidArguments) {
+		t.Errorf("expected %v, received %v", errInvalidArguments, err)
+	}
+
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{})
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
 	}
 
-	err = bot.LoadExchange(exchName, false, nil)
+	err = engerino.LoadExchange(exchName, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  exchName,
-		AssetType: "",
-		Pair:      nil,
-		StartDate: "",
-		EndDate:   "",
+		Exchange: exchName,
+	})
+	if !errors.Is(err, errInvalidArguments) {
+		t.Errorf("expected %v, received %v", errInvalidArguments, err)
+	}
+
+	p := &gctrpc.CurrencyPair{
+		Delimiter: "-",
+		Base:      currency.BTC.String(),
+		Quote:     currency.USDT.String(),
+	}
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		Exchange: exchName,
+		Pair:     p,
 	})
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, received %v", asset.ErrNotSupported, err)
@@ -855,37 +864,7 @@ func TestGetOrders(t *testing.T) {
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
-		Pair:      nil,
-		StartDate: "",
-		EndDate:   "",
-	})
-	if !errors.Is(err, errCurrencyPairUnset) {
-		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
-	}
-
-	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  exchName,
-		AssetType: asset.Spot.String(),
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: "-",
-			Base:      "lol",
-			Quote:     "fake",
-		},
-		StartDate: "",
-		EndDate:   "",
-	})
-	if !errors.Is(err, errCurrencyNotEnabled) {
-		t.Errorf("expected %v, received %v", errCurrencyNotEnabled, err)
-	}
-
-	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange:  exchName,
-		AssetType: asset.Spot.String(),
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: "-",
-			Base:      currency.BTC.String(),
-			Quote:     currency.USDT.String(),
-		},
+		Pair:      p,
 		StartDate: time.Now().Format(common.SimpleTimeFormat),
 		EndDate:   time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
 	})
@@ -896,13 +875,9 @@ func TestGetOrders(t *testing.T) {
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: "-",
-			Base:      currency.BTC.String(),
-			Quote:     currency.USDT.String(),
-		},
-		StartDate: "",
-		EndDate:   "",
+		Pair:      p,
+		StartDate: time.Now().Format(common.SimpleTimeFormat),
+		EndDate:   time.Now().Add(time.Hour).Format(common.SimpleTimeFormat),
 	})
 	if err != nil && !strings.Contains(err.Error(), "not supported due to unset/default API keys") {
 		t.Error(err)
@@ -911,25 +886,19 @@ func TestGetOrders(t *testing.T) {
 		t.Error("expected error")
 	}
 
-	exch := bot.GetExchangeByName(exchName)
+	exch := engerino.GetExchangeByName(exchName)
 	if exch == nil {
 		t.Fatal("expected an exchange")
 	}
-
 	b := exch.GetBase()
 	b.API.Credentials.Key = "test"
 	b.API.Credentials.Secret = "test"
 	b.API.AuthenticatedSupport = true
+
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange:  exchName,
 		AssetType: asset.Spot.String(),
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: "-",
-			Base:      currency.BTC.String(),
-			Quote:     currency.USDT.String(),
-		},
-		StartDate: "",
-		EndDate:   "",
+		Pair:      p,
 	})
 	if err == nil {
 		t.Error("expected error")
@@ -938,8 +907,9 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	exchName := "binance"
-	bot := SetupTestHelpers(t)
-	s := RPCServer{Engine: bot}
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	s := RPCServer{Engine: engerino}
 
 	_, err := s.GetOrder(context.Background(), nil)
 	if !errors.Is(err, errInvalidArguments) {
@@ -956,7 +926,7 @@ func TestGetOrder(t *testing.T) {
 		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
 	}
 
-	err = bot.LoadExchange(exchName, false, nil)
+	err = engerino.LoadExchange(exchName, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -971,15 +941,17 @@ func TestGetOrder(t *testing.T) {
 		t.Errorf("expected %v, received %v", errInvalidArguments, err)
 	}
 
+	p := &gctrpc.CurrencyPair{
+		Delimiter: "-",
+		Base:      "BTC",
+		Quote:     "USDT",
+	}
+
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
 		OrderId:  "",
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: "-",
-			Base:      "BTC",
-			Quote:     "USDT",
-		},
-		Asset: "",
+		Pair:     p,
+		Asset:    "",
 	})
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, received %v", asset.ErrNotSupported, err)
@@ -988,12 +960,8 @@ func TestGetOrder(t *testing.T) {
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
 		OrderId:  "",
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: "-",
-			Base:      "BTC",
-			Quote:     "USDT",
-		},
-		Asset: asset.Spot.String(),
+		Pair:     p,
+		Asset:    asset.Spot.String(),
 	})
 	if !errors.Is(err, errOrderCannotBeEmpty) {
 		t.Errorf("expected %v, received %v", errOrderCannotBeEmpty, err)
@@ -1002,12 +970,8 @@ func TestGetOrder(t *testing.T) {
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
 		OrderId:  "1234",
-		Pair: &gctrpc.CurrencyPair{
-			Delimiter: "-",
-			Base:      "BTC",
-			Quote:     "USDT",
-		},
-		Asset: asset.Spot.String(),
+		Pair:     p,
+		Asset:    asset.Spot.String(),
 	})
 	if err == nil {
 		t.Error("expected error")

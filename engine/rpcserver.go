@@ -807,13 +807,12 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 	if r == nil {
 		return nil, errInvalidArguments
 	}
-	if r.Pair == nil {
-		return nil, errInvalidArguments
-	}
-
 	exch := s.GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
+	}
+	if r.Pair == nil {
+		return nil, errInvalidArguments
 	}
 	a, err := asset.New(r.AssetType)
 	if err != nil {
