@@ -14,6 +14,7 @@ var ErrInitialFundsZero = errors.New("initial funds <= 0")
 // Holding contains pricing statistics for a given time
 // for a given exchange asset pair
 type Holding struct {
+	Offset         int64
 	Pair           currency.Pair `json:"pair"`
 	Asset          asset.Item    `json:"asset"`
 	Exchange       string        `json:"exchange"`

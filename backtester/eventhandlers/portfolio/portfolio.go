@@ -61,6 +61,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 
 	o := &order.Order{
 		Base: event.Base{
+			Offset:       signal.GetOffset(),
 			Exchange:     signal.GetExchange(),
 			Time:         signal.GetTime(),
 			CurrencyPair: signal.Pair(),
@@ -368,7 +369,7 @@ func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h *
 		}
 	}
 	for i := range lookup.HoldingsSnapshots {
-		if lookup.HoldingsSnapshots[i].Timestamp.Equal(h.Timestamp) {
+		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
 			if !force {
 				return fmt.Errorf("%w for %v %v %v at %v", errHoldingsAlreadySet, exch, a, cp, h.Timestamp)
 			}

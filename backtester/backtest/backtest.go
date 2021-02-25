@@ -707,7 +707,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 			log.Error(log.BackTester, err)
 		}
 		for i := range signals {
-			err = bt.Statistic.SetEventForTime(signals[i])
+			err = bt.Statistic.SetEventForOffset(signals[i])
 			if err != nil {
 				log.Error(log.BackTester, err)
 			}
@@ -722,7 +722,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 			log.Error(log.BackTester, err)
 			return
 		}
-		err = bt.Statistic.SetEventForTime(s)
+		err = bt.Statistic.SetEventForOffset(s)
 		if err != nil {
 			log.Error(log.BackTester, err)
 		}
@@ -757,7 +757,7 @@ func (bt *BackTest) processSignalEvent(ev signal.Event) {
 		log.Error(log.BackTester, err)
 		return
 	}
-	err = bt.Statistic.SetEventForTime(o)
+	err = bt.Statistic.SetEventForOffset(o)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -775,7 +775,7 @@ func (bt *BackTest) processOrderEvent(ev order.Event) {
 		}
 		log.Errorf(log.BackTester, "%v %v %v %v", f.GetExchange(), f.GetAssetType(), f.Pair(), err)
 	}
-	err = bt.Statistic.SetEventForTime(f)
+	err = bt.Statistic.SetEventForOffset(f)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -789,7 +789,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event) {
 		return
 	}
 
-	err = bt.Statistic.SetEventForTime(t)
+	err = bt.Statistic.SetEventForOffset(t)
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}

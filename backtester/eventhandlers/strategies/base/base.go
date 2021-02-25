@@ -23,6 +23,7 @@ func (s *Strategy) GetBase(d data.Handler) (signal.Signal, error) {
 	}
 	return signal.Signal{
 		Base: event.Base{
+			Offset:       latest.GetOffset(),
 			Exchange:     latest.GetExchange(),
 			Time:         latest.GetTime(),
 			CurrencyPair: latest.Pair(),

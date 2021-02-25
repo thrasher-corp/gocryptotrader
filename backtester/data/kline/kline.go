@@ -27,6 +27,7 @@ func (d *DataFromKline) Load() error {
 	for i := range d.Item.Candles {
 		klineData[i] = &kline.Kline{
 			Base: event.Base{
+				Offset:       int64(i + 1),
 				Exchange:     d.Item.Exchange,
 				Time:         d.Item.Candles[i].Time,
 				Interval:     d.Item.Interval,
@@ -64,6 +65,7 @@ func (d *DataFromKline) Append(ki *gctkline.Item) {
 	for i := range gctCandles {
 		klineData = append(klineData, &kline.Kline{
 			Base: event.Base{
+				Offset:       int64(i + 1),
 				Exchange:     ki.Exchange,
 				Time:         gctCandles[i].Time,
 				Interval:     ki.Interval,

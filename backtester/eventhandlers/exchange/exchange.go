@@ -27,6 +27,7 @@ func (e *Exchange) Reset() {
 func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.Engine) (*fill.Fill, error) {
 	f := &fill.Fill{
 		Base: event.Base{
+			Offset:       o.GetOffset(),
 			Exchange:     o.GetExchange(),
 			Time:         o.GetTime(),
 			CurrencyPair: o.Pair(),

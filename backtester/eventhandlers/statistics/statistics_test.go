@@ -73,17 +73,17 @@ func TestAddSignalEventForTime(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
-	err := s.SetEventForTime(nil)
+	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
-	err = s.SetEventForTime(&signal.Signal{})
+	err = s.SetEventForOffset(&signal.Signal{})
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
 		t.Errorf("expected: %v, received %v", errExchangeAssetPairStatsUnset, err)
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	err = s.SetEventForTime(&signal.Signal{})
+	err = s.SetEventForOffset(&signal.Signal{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("expected: %v, received %v", errCurrencyStatisticsUnset, err)
 	}
@@ -105,7 +105,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.SetEventForTime(&signal.Signal{
+	err = s.SetEventForOffset(&signal.Signal{
 		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -127,17 +127,17 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
-	err := s.SetEventForTime(nil)
+	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
-	err = s.SetEventForTime(&order.Order{})
+	err = s.SetEventForOffset(&order.Order{})
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
 		t.Errorf("expected: %v, received %v", errExchangeAssetPairStatsUnset, err)
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	err = s.SetEventForTime(&order.Order{})
+	err = s.SetEventForOffset(&order.Order{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("expected: %v, received %v", errCurrencyStatisticsUnset, err)
 	}
@@ -159,7 +159,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.SetEventForTime(&order.Order{
+	err = s.SetEventForOffset(&order.Order{
 		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -186,17 +186,17 @@ func TestAddFillEventForTime(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	s := Statistic{}
-	err := s.SetEventForTime(nil)
+	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
-	err = s.SetEventForTime(&fill.Fill{})
+	err = s.SetEventForOffset(&fill.Fill{})
 	if err != nil && err.Error() != "exchangeAssetPairStatistics not setup" {
 		t.Error(err)
 	}
 	s.setupMap(exch, a)
 	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic)
-	err = s.SetEventForTime(&fill.Fill{})
+	err = s.SetEventForOffset(&fill.Fill{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("expected: %v, received %v", errCurrencyStatisticsUnset, err)
 	}
@@ -218,7 +218,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.SetEventForTime(&fill.Fill{
+	err = s.SetEventForOffset(&fill.Fill{
 		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -510,7 +510,7 @@ func TestPrintAllEvents(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = s.SetEventForTime(&fill.Fill{
+	err = s.SetEventForOffset(&fill.Fill{
 		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -530,7 +530,7 @@ func TestPrintAllEvents(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = s.SetEventForTime(&signal.Signal{
+	err = s.SetEventForOffset(&signal.Signal{
 		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -580,7 +580,7 @@ func TestCalculateTheResults(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = s.SetEventForTime(&signal.Signal{
+	err = s.SetEventForOffset(&signal.Signal{
 		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,
@@ -612,7 +612,7 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = s.SetEventForTime(&signal.Signal{
+	err = s.SetEventForOffset(&signal.Signal{
 		Base: event.Base{
 			Exchange:     exch,
 			Time:         tt,

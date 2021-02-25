@@ -57,8 +57,8 @@ func (s *Statistic) setupMap(ex string, a asset.Item) {
 	}
 }
 
-// SetEventForTime sets the event for the time period in the event
-func (s *Statistic) SetEventForTime(e common.EventHandler) error {
+// SetEventForOffset sets the event for the time period in the event
+func (s *Statistic) SetEventForOffset(e common.EventHandler) error {
 	if e == nil {
 		return common.ErrNilEvent
 	}
@@ -68,13 +68,13 @@ func (s *Statistic) SetEventForTime(e common.EventHandler) error {
 	exch := e.GetExchange()
 	a := e.GetAssetType()
 	p := e.Pair()
-
+	offset := e.GetOffset()
 	lookup := s.ExchangeAssetPairStatistics[exch][a][p]
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set signal event", errCurrencyStatisticsUnset, exch, a, p)
 	}
 	for i := range lookup.Events {
-		if lookup.Events[i].DataEvent.GetTime().Equal(e.GetTime()) {
+		if lookup.Events[i].DataEvent.GetOffset() == offset {
 			switch t := e.(type) {
 			case common.DataEventHandler:
 				lookup.Events[i].DataEvent = t
@@ -87,6 +87,7 @@ func (s *Statistic) SetEventForTime(e common.EventHandler) error {
 			default:
 				return fmt.Errorf("unknown event type received: %v", e)
 			}
+			return nil
 		}
 	}
 	return nil
@@ -102,8 +103,9 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 		return fmt.Errorf("%w for %v %v %v to set holding event", errCurrencyStatisticsUnset, h.Exchange, h.Asset, h.Pair)
 	}
 	for i := range lookup.Events {
-		if lookup.Events[i].DataEvent.GetTime().Equal(h.Timestamp) {
+		if lookup.Events[i].DataEvent.GetOffset() == h.Offset {
 			lookup.Events[i].Holdings = *h
+			break
 		}
 	}
 	return nil
@@ -125,8 +127,9 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 		return fmt.Errorf("%w for %v %v %v to set compliance snapshot", errCurrencyStatisticsUnset, exch, a, p)
 	}
 	for i := range lookup.Events {
-		if lookup.Events[i].DataEvent.GetTime().Equal(c.Timestamp) {
+		if lookup.Events[i].DataEvent.GetOffset() == e.GetOffset() {
 			lookup.Events[i].Transactions = c
+			break
 		}
 	}
 
@@ -209,6 +212,7 @@ func (s *Statistic) GetBestMarketPerformer(results []FinalResultsHolder) *FinalR
 	for i := range results {
 		if results[i].MarketMovement > result.MarketMovement || result.MarketMovement == 0 {
 			result = &results[i]
+			break
 		}
 	}
 
@@ -221,6 +225,7 @@ func (s *Statistic) GetBestStrategyPerformer(results []FinalResultsHolder) *Fina
 	for i := range results {
 		if results[i].StrategyMovement > result.StrategyMovement || result.StrategyMovement == 0 {
 			result = &results[i]
+			break
 		}
 	}
 
@@ -233,6 +238,7 @@ func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResults
 	for i := range results {
 		if results[i].MaxDrawdown.DrawdownPercent > result.MaxDrawdown.DrawdownPercent || result.MaxDrawdown.DrawdownPercent == 0 {
 			result = &results[i]
+			break
 		}
 	}
 

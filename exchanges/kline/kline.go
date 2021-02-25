@@ -409,14 +409,17 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 // allowing any missing data from an API request to be highlighted
 func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
 	for x := range h.Ranges {
-		for y := range h.Ranges[x].Intervals {
-			for z := range c {
-				if c[z].Time.Equal(h.Ranges[x].Intervals[y].Start) ||
-					(c[z].Time.After(h.Ranges[x].Intervals[y].Start) && c[z].Time.Before(h.Ranges[x].Intervals[y].End)) {
-					h.Ranges[x].Intervals[y].HasData = true
+		go func(iVal int) {
+			for y := range h.Ranges[iVal].Intervals {
+				for z := range c {
+					if c[z].Time.Equal(h.Ranges[iVal].Intervals[y].Start) ||
+						(c[z].Time.After(h.Ranges[iVal].Intervals[y].Start) && c[z].Time.Before(h.Ranges[iVal].Intervals[y].End)) {
+						h.Ranges[iVal].Intervals[y].HasData = true
+						break
+					}
 				}
 			}
-		}
+		}(x)
 	}
 
 	var errs common.Errors

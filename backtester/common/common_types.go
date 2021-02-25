@@ -44,6 +44,8 @@ var (
 
 // EventHandler interface implements required GetTime() & Pair() return
 type EventHandler interface {
+	GetOffset() int64
+	SetOffset(int64)
 	IsEvent() bool
 	GetTime() time.Time
 	Pair() currency.Pair

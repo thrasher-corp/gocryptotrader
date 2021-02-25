@@ -1,7 +1,6 @@
 package settings
 
 import (
-	"sort"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -13,9 +12,6 @@ func (e *Settings) GetLatestHoldings() holdings.Holding {
 		// no holdings yet
 		return holdings.Holding{}
 	}
-	sort.SliceStable(e.HoldingsSnapshots, func(i, j int) bool {
-		return e.HoldingsSnapshots[i].Timestamp.Before(e.HoldingsSnapshots[j].Timestamp)
-	})
 
 	return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
 }

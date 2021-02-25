@@ -12,6 +12,7 @@ import (
 // Data, fill, order events all contain the base event and store important and
 // consistent information
 type Base struct {
+	Offset       int64          `json:"-"`
 	Exchange     string         `json:"exchange"`
 	Time         time.Time      `json:"timestamp"`
 	Interval     kline.Interval `json:"interval-size"`

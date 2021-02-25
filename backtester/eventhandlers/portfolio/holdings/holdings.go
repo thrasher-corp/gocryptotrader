@@ -15,6 +15,7 @@ func Create(f fill.Event, initialFunds, riskFreeRate float64) (Holding, error) {
 		return Holding{}, ErrInitialFundsZero
 	}
 	h := Holding{
+		Offset:         f.GetOffset(),
 		Pair:           f.Pair(),
 		Asset:          f.GetAssetType(),
 		Exchange:       f.GetExchange(),
@@ -31,6 +32,7 @@ func Create(f fill.Event, initialFunds, riskFreeRate float64) (Holding, error) {
 // Update calculates holding statistics for the events time
 func (h *Holding) Update(f fill.Event) {
 	h.Timestamp = f.GetTime()
+	h.Offset = f.GetOffset()
 	h.update(f)
 }
 
@@ -38,6 +40,7 @@ func (h *Holding) Update(f fill.Event) {
 func (h *Holding) UpdateValue(d common.DataEventHandler) {
 	h.Timestamp = d.GetTime()
 	latest := d.ClosePrice()
+	h.Offset = d.GetOffset()
 	h.updateValue(latest)
 }
 

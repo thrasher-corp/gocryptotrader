@@ -8,6 +8,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+// GetOffset returns the offset
+func (b *Base) GetOffset() int64 {
+	return b.Offset
+}
+
+// SetOffset sets the offset
+func (b *Base) SetOffset(o int64) {
+	b.Offset = o
+}
+
 // IsEvent returns whether the event is an event
 func (b *Base) IsEvent() bool {
 	return true

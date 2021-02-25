@@ -48,7 +48,7 @@ type FinalResultsHolder struct {
 type Handler interface {
 	SetStrategyName(string)
 	SetupEventForTime(common.DataEventHandler) error
-	SetEventForTime(e common.EventHandler) error
+	SetEventForOffset(e common.EventHandler) error
 	AddHoldingsForTime(*holdings.Holding) error
 	AddComplianceSnapshotForTime(compliance.Snapshot, fill.Event) error
 	CalculateAllResults() error
