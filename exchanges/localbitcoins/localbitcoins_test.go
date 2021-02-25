@@ -96,6 +96,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 }
 
 func TestGetTrades(t *testing.T) {
+	t.Parallel()
 	_, err := l.GetTrades("LTC", nil)
 	if err != nil {
 		t.Error(err)
@@ -103,6 +104,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
 	ob, err := l.GetOrderbook("AUD")
 	if err != nil {
 		t.Fatal(err)
