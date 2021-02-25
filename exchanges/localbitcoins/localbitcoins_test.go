@@ -102,6 +102,19 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
+func TestGetOrderbook(t *testing.T) {
+	ob, err := l.GetOrderbook("AUD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mockTests {
+		if ob.Bids[0].Price != 88781.42 && ob.Bids[0].Amount != 10000.00 ||
+			ob.Asks[0].Price != 14400.00 && ob.Asks[0].Amount != 0.77 {
+			t.Error("incorrect orderbook values")
+		}
+	}
+}
+
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
