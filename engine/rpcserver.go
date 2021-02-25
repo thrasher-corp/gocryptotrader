@@ -967,8 +967,8 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	if result.Date.Unix() > 0 {
 		creationTime = result.Date.Unix()
 	}
-	if result.CloseTime.Unix() > 0 {
-		updateTime = result.CloseTime.Unix()
+	if result.LastUpdated.Unix() > 0 {
+		updateTime = result.LastUpdated.Unix()
 	}
 
 	return &gctrpc.OrderDetails{

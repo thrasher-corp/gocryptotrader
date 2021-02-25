@@ -1012,10 +1012,11 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 			Pair:           pair,
 			Cost:           resp.CummulativeQuoteQty,
 			AssetType:      assetType,
-			CloseTime:      resp.UpdateTime,
 			Status:         status,
 			Price:          resp.Price,
 			ExecutedAmount: resp.ExecutedQty,
+			Date:           resp.Time,
+			LastUpdated:    resp.UpdateTime,
 		}, nil
 	case asset.CoinMarginedFutures:
 		orderData, err := b.GetAllFuturesOrders(pair, "", time.Time{}, time.Time{}, orderIDInt, 0)
@@ -1051,6 +1052,8 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
+		respData.Date = orderData[0].Time
+		respData.LastUpdated = orderData[0].UpdateTime
 	case asset.USDTMarginedFutures:
 		orderData, err := b.UAllAccountOrders(currency.Pair{}, 0, 0, time.Time{}, time.Time{})
 		if err != nil {
@@ -1085,6 +1088,8 @@ func (b *Binance) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
+		respData.Date = orderData[0].Time
+		respData.LastUpdated = orderData[0].UpdateTime
 	default:
 		return respData, fmt.Errorf("assetType %s not supported", assetType)
 	}
