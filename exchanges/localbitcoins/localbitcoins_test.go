@@ -96,9 +96,24 @@ func setFeeBuilder() *exchange.FeeBuilder {
 }
 
 func TestGetTrades(t *testing.T) {
+	t.Parallel()
 	_, err := l.GetTrades("LTC", nil)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
+	ob, err := l.GetOrderbook("AUD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mockTests {
+		if ob.Bids[0].Price != 88781.42 && ob.Bids[0].Amount != 10000.00 ||
+			ob.Asks[0].Price != 14400.00 && ob.Asks[0].Amount != 0.77 {
+			t.Error("incorrect orderbook values")
+		}
 	}
 }
 
