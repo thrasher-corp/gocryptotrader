@@ -812,7 +812,7 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 		return nil, errExchangeNotLoaded
 	}
 	if r.Pair == nil {
-		return nil, errInvalidArguments
+		return nil, errCurrencyPairUnset
 	}
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -833,10 +833,6 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 	}
 	if !start.IsZero() && !end.IsZero() && start.After(end) {
 		return nil, errInvalidStartEndTime
-	}
-
-	if r.Pair == nil {
-		return nil, errCurrencyPairUnset
 	}
 
 	cp := currency.NewPairWithDelimiter(
@@ -930,7 +926,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 		return nil, errExchangeNotLoaded
 	}
 	if r.Pair == nil {
-		return nil, errInvalidArguments
+		return nil, errCurrencyPairUnset
 	}
 
 	pair := currency.Pair{

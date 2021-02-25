@@ -14,7 +14,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
@@ -1248,13 +1247,13 @@ var getOrdersCommand = cli.Command{
 		cli.StringFlag{
 			Name:        "start",
 			Usage:       "start date, optional. Will filter any results before this date",
-			Value:       time.Now().AddDate(-1, 0, 0).Round(kline.OneDay.Duration()).Format(common.SimpleTimeFormat),
+			Value:       time.Now().AddDate(-1, 0, 0).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
 			Name:        "end",
 			Usage:       "end date, optional. Will filter any results after this date",
-			Value:       time.Now().Round(kline.OneDay.Duration()).Format(common.SimpleTimeFormat),
+			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
 	},

@@ -844,8 +844,8 @@ func TestGetOrders(t *testing.T) {
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange: exchName,
 	})
-	if !errors.Is(err, errInvalidArguments) {
-		t.Errorf("expected %v, received %v", errInvalidArguments, err)
+	if !errors.Is(err, errCurrencyPairUnset) {
+		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
 	}
 
 	p := &gctrpc.CurrencyPair{
@@ -937,8 +937,8 @@ func TestGetOrder(t *testing.T) {
 		Pair:     nil,
 		Asset:    "",
 	})
-	if !errors.Is(err, errInvalidArguments) {
-		t.Errorf("expected %v, received %v", errInvalidArguments, err)
+	if !errors.Is(err, errCurrencyPairUnset) {
+		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
 	}
 
 	p := &gctrpc.CurrencyPair{
@@ -966,7 +966,13 @@ func TestGetOrder(t *testing.T) {
 	if !errors.Is(err, errOrderCannotBeEmpty) {
 		t.Errorf("expected %v, received %v", errOrderCannotBeEmpty, err)
 	}
-
+	if Bot == nil {
+		Bot = engerino
+	}
+	err = Bot.OrderManager.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
 		OrderId:  "1234",
