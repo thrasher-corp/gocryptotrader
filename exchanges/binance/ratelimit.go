@@ -22,7 +22,7 @@ const (
 	cFuturesOrderInterval    = time.Minute
 	cFuturesOrderRequestRate = 1200
 	uFuturesInterval         = time.Minute
-	uFuturesRequestRate      = 6000
+	uFuturesRequestRate      = 2400
 	uFuturesOrderInterval    = time.Minute
 	uFuturesOrderRequestRate = 1200
 )
