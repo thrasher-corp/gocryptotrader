@@ -949,12 +949,12 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 		data, err = l.GetKlines(formattedPair.String(),
 			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
 			l.FormatExchangeKlineInterval(interval),
-			strconv.FormatInt(dates.Ranges[x].Start.UTC().Unix(), 10))
+			strconv.FormatInt(dates.Ranges[x].Start.Ticks, 10))
 		if err != nil {
 			return kline.Item{}, err
 		}
 		for i := range data {
-			if time.Unix(data[i].TimeStamp, 0).UTC().Before(dates.Ranges[x].Start.UTC()) || time.Unix(data[i].TimeStamp, 0).UTC().After(dates.Ranges[x].End.UTC()) {
+			if data[i].TimeStamp < dates.Ranges[x].Start.Ticks || data[i].TimeStamp > dates.Ranges[x].End.Ticks {
 				continue
 			}
 			ret.Candles = append(ret.Candles, kline.Candle{

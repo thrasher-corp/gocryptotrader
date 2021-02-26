@@ -1504,8 +1504,8 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
 			Symbol:    pair,
-			StartTime: dates.Ranges[x].Start,
-			EndTime:   dates.Ranges[x].End,
+			StartTime: dates.Ranges[x].Start.Time,
+			EndTime:   dates.Ranges[x].End.Time,
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		}
 

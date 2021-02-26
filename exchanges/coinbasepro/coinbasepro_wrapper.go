@@ -920,8 +920,8 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 	for x := range dates.Ranges {
 		var history []History
 		history, err = c.GetHistoricRates(formattedPair.String(),
-			dates.Ranges[x].Start.Format(time.RFC3339),
-			dates.Ranges[x].End.Format(time.RFC3339),
+			dates.Ranges[x].Start.Time.Format(time.RFC3339),
+			dates.Ranges[x].End.Time.Format(time.RFC3339),
 			gran)
 		if err != nil {
 			return kline.Item{}, err

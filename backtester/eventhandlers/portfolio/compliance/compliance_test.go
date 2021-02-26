@@ -10,14 +10,14 @@ func TestAddSnapshot(t *testing.T) {
 	t.Parallel()
 	m := Manager{}
 	tt := time.Now()
-	err := m.AddSnapshot([]SnapshotOrder{}, tt, false)
-	if err != nil {
-		t.Error(err)
+	err := m.AddSnapshot([]SnapshotOrder{}, tt, true)
+	if !errors.Is(err, errSnapshotNotFound) {
+		t.Errorf("expected: %v, received %v", errSnapshotNotFound, err)
 	}
 
 	err = m.AddSnapshot([]SnapshotOrder{}, tt, false)
-	if !errors.Is(err, errSnapshotExists) {
-		t.Errorf("expected: %v, received %v", errSnapshotExists, err)
+	if err != nil {
+		t.Error(err)
 	}
 
 	err = m.AddSnapshot([]SnapshotOrder{}, tt, true)

@@ -113,7 +113,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error(err)
 	}
 	if resp.GetDirection() != gctorder.Buy {
-		t.Error("expected buy")
+		t.Errorf("expected buy, received %v", resp.GetDirection())
 	}
 }
 
@@ -132,6 +132,7 @@ func TestOnSignals(t *testing.T) {
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
 		Base: event.Base{
+			Offset:       1,
 			Exchange:     exch,
 			Time:         dInsert,
 			Interval:     gctkline.OneDay,

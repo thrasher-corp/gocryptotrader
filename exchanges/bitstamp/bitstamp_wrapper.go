@@ -859,8 +859,8 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 		var candles OHLCResponse
 		candles, err = b.OHLC(
 			formattedPair.Lower().String(),
-			dates.Ranges[x].Start,
-			dates.Ranges[x].End,
+			dates.Ranges[x].Start.Time,
+			dates.Ranges[x].End.Time,
 			b.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
 		)

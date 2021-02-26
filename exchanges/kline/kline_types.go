@@ -109,31 +109,33 @@ func (k *ErrorKline) Unwrap() error {
 	return k.Err
 }
 
-// DateRange holds a start and end date for kline usage
-type DateRange struct {
-	Start time.Time
-	End   time.Time
-}
-
 // IntervalRangeHolder holds the entire range of intervals
 // and the start end dates of everything
 type IntervalRangeHolder struct {
-	Start  time.Time
-	End    time.Time
+	Start  IntervalTime
+	End    IntervalTime
 	Ranges []IntervalRange
 }
 
 // IntervalRange is a subset of candles based on exchange API request limits
 type IntervalRange struct {
-	Start     time.Time
-	End       time.Time
+	Start     IntervalTime
+	End       IntervalTime
 	Intervals []IntervalData
 }
 
 // IntervalData is used to monitor which candles contain data
 // to determine if any data is missing
 type IntervalData struct {
-	Start   time.Time
-	End     time.Time
+	Start   IntervalTime
+	End     IntervalTime
 	HasData bool
+}
+
+// IntervalTime benchmarks demonstrate, see
+// BenchmarkJustifyIntervalTimeStoringUnixValues1 &&
+// BenchmarkJustifyIntervalTimeStoringUnixValues2
+type IntervalTime struct {
+	Time  time.Time
+	Ticks int64
 }

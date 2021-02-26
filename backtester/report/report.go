@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -24,10 +23,6 @@ func (d *Data) GenerateReport() error {
 	}
 
 	for i := range d.EnhancedCandles {
-		cands := d.EnhancedCandles[i].Candles
-		sort.Slice(cands, func(x, y int) bool {
-			return cands[x].Time < cands[y].Time
-		})
 		if len(d.EnhancedCandles[i].Candles) >= maxChartLimit {
 			d.EnhancedCandles[i].IsOverLimit = true
 			d.EnhancedCandles[i].Candles = d.EnhancedCandles[i].Candles[:maxChartLimit]
@@ -89,8 +84,8 @@ func (d *Data) enhanceCandles() error {
 	}
 	d.Statistics.RiskFreeRate *= 100
 
-	for i := range d.OriginalCandles {
-		lookup := d.OriginalCandles[i]
+	for intVal := range d.OriginalCandles {
+		lookup := d.OriginalCandles[intVal]
 		enhancedKline := DetailedKline{
 			Exchange:  lookup.Exchange,
 			Asset:     lookup.Asset,
@@ -104,45 +99,44 @@ func (d *Data) enhanceCandles() error {
 		if statsForCandles == nil {
 			continue
 		}
-		for j := range d.OriginalCandles[i].Candles {
-			_, offset := time.Now().Zone()
-			tt := d.OriginalCandles[i].Candles[j].Time.Add(time.Duration(offset) * time.Second)
 
+		requiresIteration := false
+		if len(statsForCandles.Events) != len(d.OriginalCandles[intVal].Candles) {
+			requiresIteration = true
+		}
+		for j := range d.OriginalCandles[intVal].Candles {
+			_, offset := time.Now().Zone()
+			tt := d.OriginalCandles[intVal].Candles[j].Time.Add(time.Duration(offset) * time.Second)
 			enhancedCandle := DetailedCandle{
 				Time:         tt.Unix(),
-				Open:         d.OriginalCandles[i].Candles[j].Open,
-				High:         d.OriginalCandles[i].Candles[j].High,
-				Low:          d.OriginalCandles[i].Candles[j].Low,
-				Close:        d.OriginalCandles[i].Candles[j].Close,
-				Volume:       d.OriginalCandles[i].Candles[j].Volume,
+				Open:         d.OriginalCandles[intVal].Candles[j].Open,
+				High:         d.OriginalCandles[intVal].Candles[j].High,
+				Low:          d.OriginalCandles[intVal].Candles[j].Low,
+				Close:        d.OriginalCandles[intVal].Candles[j].Close,
+				Volume:       d.OriginalCandles[intVal].Candles[j].Volume,
 				VolumeColour: "rgba(47, 194, 27, 0.8)",
 			}
 			if j != 0 {
-				if d.OriginalCandles[i].Candles[j].Close < d.OriginalCandles[i].Candles[j-1].Close {
+				if d.OriginalCandles[intVal].Candles[j].Close < d.OriginalCandles[intVal].Candles[j-1].Close {
 					enhancedCandle.VolumeColour = "rgba(252, 3, 3, 0.8)"
 				}
 			}
-			for k := range statsForCandles.Events {
-				if statsForCandles.Events[k].SignalEvent == nil ||
-					!statsForCandles.Events[k].SignalEvent.GetTime().Equal(d.OriginalCandles[i].Candles[j].Time) ||
-					statsForCandles.Events[k].SignalEvent.GetDirection() != common.MissingData {
-					continue
+			if !requiresIteration {
+				if statsForCandles.Events[intVal].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
+					statsForCandles.Events[intVal].SignalEvent.GetDirection() == common.MissingData {
+					enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
 				}
-
-				// if the data is missing, ensure that all values just continue the previous candle's close price visually
-				enhancedCandle.Open = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-				enhancedCandle.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-				enhancedCandle.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-				enhancedCandle.Close = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
-
-				enhancedCandle.Colour = "white"
-				enhancedCandle.Position = "aboveBar"
-				enhancedCandle.Shape = "arrowDown"
-				enhancedCandle.Text = common.MissingData.String()
+			} else {
+				for k := range statsForCandles.Events {
+					if statsForCandles.Events[k].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
+						statsForCandles.Events[k].SignalEvent.GetDirection() == common.MissingData {
+						enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
+					}
+				}
 			}
 			for k := range statsForCandles.FinalOrders.Orders {
 				if statsForCandles.FinalOrders.Orders[k].Detail == nil ||
-					!statsForCandles.FinalOrders.Orders[k].Date.Equal(d.OriginalCandles[i].Candles[j].Time) {
+					!statsForCandles.FinalOrders.Orders[k].Date.Equal(d.OriginalCandles[intVal].Candles[j].Time) {
 					continue
 				}
 				// an order was placed here, can enhance chart!
@@ -168,4 +162,17 @@ func (d *Data) enhanceCandles() error {
 	}
 
 	return nil
+}
+
+func (d *DetailedCandle) copyCloseFromPreviousEvent(enhancedKline *DetailedKline) {
+	// if the data is missing, ensure that all values just continue the previous candle's close price visually
+	d.Open = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+	d.High = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+	d.Low = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+	d.Close = enhancedKline.Candles[len(enhancedKline.Candles)-1].Close
+
+	d.Colour = "white"
+	d.Position = "aboveBar"
+	d.Shape = "arrowDown"
+	d.Text = common.MissingData.String()
 }

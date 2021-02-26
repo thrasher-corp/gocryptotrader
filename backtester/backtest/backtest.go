@@ -62,6 +62,7 @@ func (bt *BackTest) Reset() {
 
 // NewFromConfig takes a strategy config and configures a backtester variable to run
 func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.Engine) (*BackTest, error) {
+	log.Infoln(log.BackTester, "loading config...")
 	if cfg == nil {
 		return nil, errNilConfig
 	}
@@ -198,6 +199,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange, error) {
+	log.Infoln(log.BackTester, "setting exchange settings...")
 	resp := exchange.Exchange{}
 
 	for i := range cfg.CurrencySettings {
@@ -392,6 +394,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
 func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
+	log.Infof(log.BackTester, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -583,7 +586,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 		return nil, err
 	}
 
-	candles.FillMissingDataWithEmptyEntries(dates)
+	candles.FillMissingDataWithEmptyEntries(&dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
 	return &kline.DataFromKline{
 		Item:  *candles,
@@ -931,16 +934,16 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 			0,
 		)
 		resp.Range = gctkline.IntervalRangeHolder{
-			Start:  startDate,
-			End:    endDate,
+			Start:  gctkline.CreateIntervalTime(startDate),
+			End:    gctkline.CreateIntervalTime(endDate),
 			Ranges: dataRange.Ranges,
 		}
 	}
 	var intervalData []gctkline.IntervalData
 	for i := range candles.Candles {
 		intervalData = append(intervalData, gctkline.IntervalData{
-			Start:   candles.Candles[i].Time,
-			End:     candles.Candles[i].Time.Add(cfg.DataSettings.Interval),
+			Start:   gctkline.CreateIntervalTime(candles.Candles[i].Time),
+			End:     gctkline.CreateIntervalTime(candles.Candles[i].Time.Add(cfg.DataSettings.Interval)),
 			HasData: true,
 		})
 	}

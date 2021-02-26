@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -160,21 +161,21 @@ func (i Interval) Short() string {
 	return s
 }
 
-// FillMissingDataWithEmptyEntries ammends a kline item to have candle entries
+// FillMissingDataWithEmptyEntries amends a kline item to have candle entries
 // for every interval between its start and end dates derived from ranges
-func (k *Item) FillMissingDataWithEmptyEntries(i IntervalRangeHolder) {
+func (k *Item) FillMissingDataWithEmptyEntries(i *IntervalRangeHolder) {
 	var anyChanges bool
 	for x := range i.Ranges {
 		for y := range i.Ranges[x].Intervals {
 			if !i.Ranges[x].Intervals[y].HasData {
 				for z := range k.Candles {
-					if k.Candles[z].Time.Equal(i.Ranges[x].Intervals[y].Start) {
+					if i.Ranges[x].Intervals[y].Start.Equal(k.Candles[z].Time) {
 						break
 					}
 				}
 				anyChanges = true
 				k.Candles = append(k.Candles, Candle{
-					Time: i.Ranges[x].Intervals[y].Start,
+					Time: i.Ranges[x].Intervals[y].Start.Time,
 				})
 			}
 		}
@@ -338,20 +339,20 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 	start = start.Round(interval.Duration())
 	end = end.Round(interval.Duration())
 	resp := IntervalRangeHolder{
-		Start: start,
-		End:   end,
+		Start: CreateIntervalTime(start),
+		End:   CreateIntervalTime(end),
 	}
 	var intervalsInWholePeriod []IntervalData
 	for i := start; !i.After(end) && !i.Equal(end); i = i.Add(interval.Duration()) {
 		intervalsInWholePeriod = append(intervalsInWholePeriod, IntervalData{
-			Start: i.Round(interval.Duration()),
-			End:   i.Round(interval.Duration()).Add(interval.Duration()),
+			Start: CreateIntervalTime(i.Round(interval.Duration())),
+			End:   CreateIntervalTime(i.Round(interval.Duration()).Add(interval.Duration())),
 		})
 	}
 	if len(intervalsInWholePeriod) < int(limit) || limit == 0 {
 		resp.Ranges = []IntervalRange{{
-			Start:     start,
-			End:       end,
+			Start:     CreateIntervalTime(start),
+			End:       CreateIntervalTime(end),
 			Intervals: intervalsInWholePeriod,
 		}}
 		return resp
@@ -381,20 +382,18 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 // HasDataAtDate determines whether a there is any data at a set
 // date inside the existing limits
 func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
-	if t.Before(h.Start) || t.After(h.End) {
+	tu := t.Unix()
+	if tu < h.Start.Ticks || tu > h.End.Ticks {
 		return false
 	}
 	for i := range h.Ranges {
-		if t.Equal(h.Ranges[i].Start) ||
-			(t.After(h.Ranges[i].Start) && t.Before(h.Ranges[i].End)) ||
-			t.Equal(h.Ranges[i].End) {
+		if tu >= h.Ranges[i].Start.Ticks && tu <= h.Ranges[i].End.Ticks {
 			for j := range h.Ranges[i].Intervals {
-				if t.Equal(h.Ranges[i].Intervals[j].Start) ||
-					(t.After(h.Ranges[i].Intervals[j].Start) && t.Before(h.Ranges[i].Intervals[j].End)) {
+				if tu >= h.Ranges[i].Intervals[j].Start.Ticks && tu < h.Ranges[i].Intervals[j].End.Ticks {
 					return h.Ranges[i].Intervals[j].HasData
 				}
 				if j == len(h.Ranges[i].Intervals)-1 {
-					if t.Equal(h.Ranges[i].Start) {
+					if tu == h.Ranges[i].Start.Ticks {
 						return h.Ranges[i].Intervals[j].HasData
 					}
 				}
@@ -408,29 +407,33 @@ func (h *IntervalRangeHolder) HasDataAtDate(t time.Time) bool {
 // VerifyResultsHaveData will calculate whether there is data in each candle
 // allowing any missing data from an API request to be highlighted
 func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
+	var wg sync.WaitGroup
+	wg.Add(len(h.Ranges))
 	for x := range h.Ranges {
 		go func(iVal int) {
 			for y := range h.Ranges[iVal].Intervals {
 				for z := range c {
-					if c[z].Time.Equal(h.Ranges[iVal].Intervals[y].Start) ||
-						(c[z].Time.After(h.Ranges[iVal].Intervals[y].Start) && c[z].Time.Before(h.Ranges[iVal].Intervals[y].End)) {
+					cu := c[z].Time.Unix()
+					if cu >= h.Ranges[iVal].Intervals[y].Start.Ticks && cu < h.Ranges[iVal].Intervals[y].End.Ticks {
 						h.Ranges[iVal].Intervals[y].HasData = true
 						break
 					}
 				}
 			}
+			wg.Done()
 		}(x)
 	}
+	wg.Wait()
 
 	var errs common.Errors
 	for x := range h.Ranges {
 		for y := range h.Ranges[x].Intervals {
 			if !h.Ranges[x].Intervals[y].HasData {
-				errs = append(errs, fmt.Errorf("between %v (%v) & %v (%v). ",
-					h.Ranges[x].Intervals[y].Start,
-					h.Ranges[x].Intervals[y].Start.Unix(),
-					h.Ranges[x].Intervals[y].End,
-					h.Ranges[x].Intervals[y].End.Unix()))
+				errs = append(errs, fmt.Errorf("between %v (%v) & %v (%v)",
+					h.Ranges[x].Intervals[y].Start.Time,
+					h.Ranges[x].Intervals[y].Start.Ticks,
+					h.Ranges[x].Intervals[y].End.Time,
+					h.Ranges[x].Intervals[y].End.Ticks))
 			}
 		}
 	}
@@ -439,4 +442,17 @@ func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
 	}
 
 	return nil
+}
+
+// Set is a simple helper function to set the time twice
+func CreateIntervalTime(tt time.Time) IntervalTime {
+	return IntervalTime{
+		Time:  tt,
+		Ticks: tt.Unix(),
+	}
+}
+
+// Equal allows for easier unix comparison
+func (i *IntervalTime) Equal(tt time.Time) bool {
+	return tt.Unix() == i.Ticks
 }

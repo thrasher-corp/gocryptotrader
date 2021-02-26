@@ -73,22 +73,40 @@ func (s *Statistic) SetEventForOffset(e common.EventHandler) error {
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set signal event", errCurrencyStatisticsUnset, exch, a, p)
 	}
+	// check if the event is the latest event as it is the most likely scenario and will save time
+	var err error
+	if lookup.Events[len(lookup.Events)-1].DataEvent.GetOffset() == offset {
+		err = applyEventAtOffset(e, lookup, len(lookup.Events)-1)
+		if err == nil {
+			// nil error means successfully set, so no need to loop
+			return nil
+		}
+	}
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetOffset() == offset {
-			switch t := e.(type) {
-			case common.DataEventHandler:
-				lookup.Events[i].DataEvent = t
-			case signal.Event:
-				lookup.Events[i].SignalEvent = t
-			case order.Event:
-				lookup.Events[i].OrderEvent = t
-			case fill.Event:
-				lookup.Events[i].FillEvent = t
-			default:
-				return fmt.Errorf("unknown event type received: %v", e)
+			err := applyEventAtOffset(e, lookup, i)
+			if err != nil {
+				return err
 			}
 			return nil
 		}
+	}
+
+	return nil
+}
+
+func applyEventAtOffset(e common.EventHandler, lookup *currencystatistics.CurrencyStatistic, i int) error {
+	switch t := e.(type) {
+	case common.DataEventHandler:
+		lookup.Events[i].DataEvent = t
+	case signal.Event:
+		lookup.Events[i].SignalEvent = t
+	case order.Event:
+		lookup.Events[i].OrderEvent = t
+	case fill.Event:
+		lookup.Events[i].FillEvent = t
+	default:
+		return fmt.Errorf("unknown event type received: %v", e)
 	}
 	return nil
 }
@@ -102,6 +120,12 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set holding event", errCurrencyStatisticsUnset, h.Exchange, h.Asset, h.Pair)
 	}
+	// check if the event is the latest event as it is the most likely scenario and will save time
+	if lookup.Events[len(lookup.Events)-1].DataEvent.GetOffset() == h.Offset {
+		lookup.Events[len(lookup.Events)-1].Holdings = *h
+		return nil
+	}
+
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetOffset() == h.Offset {
 			lookup.Events[i].Holdings = *h
@@ -126,6 +150,12 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set compliance snapshot", errCurrencyStatisticsUnset, exch, a, p)
 	}
+	// check if the event is the latest event as it is the most likely scenario and will save time
+	if lookup.Events[len(lookup.Events)-1].DataEvent.GetOffset() == e.GetOffset() {
+		lookup.Events[len(lookup.Events)-1].Transactions = c
+		return nil
+	}
+
 	for i := range lookup.Events {
 		if lookup.Events[i].DataEvent.GetOffset() == e.GetOffset() {
 			lookup.Events[i].Transactions = c
@@ -225,7 +255,6 @@ func (s *Statistic) GetBestStrategyPerformer(results []FinalResultsHolder) *Fina
 	for i := range results {
 		if results[i].StrategyMovement > result.StrategyMovement || result.StrategyMovement == 0 {
 			result = &results[i]
-			break
 		}
 	}
 
@@ -238,7 +267,6 @@ func (s *Statistic) GetTheBiggestDrawdownAcrossCurrencies(results []FinalResults
 	for i := range results {
 		if results[i].MaxDrawdown.DrawdownPercent > result.MaxDrawdown.DrawdownPercent || result.MaxDrawdown.DrawdownPercent == 0 {
 			result = &results[i]
-			break
 		}
 	}
 

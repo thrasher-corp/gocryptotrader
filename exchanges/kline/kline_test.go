@@ -403,8 +403,8 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 
 	v := CalculateCandleDateRanges(start, end, OneMin, 300)
 
-	if v.Ranges[0].Start.Unix() != time.Unix(1546300800, 0).Unix() {
-		t.Errorf("expected %v received %v", 1546300800, v.Ranges[0].Start.Unix())
+	if v.Ranges[0].Start.Ticks != time.Unix(1546300800, 0).Unix() {
+		t.Errorf("expected %v received %v", 1546300800, v.Ranges[0].Start.Ticks)
 	}
 
 	v = CalculateCandleDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
@@ -782,5 +782,34 @@ func TestIntervalsPerYear(t *testing.T) {
 	i = TwoHour + FifteenSecond
 	if i.IntervalsPerYear() != 4370.893970893971 {
 		t.Error("expected 4370...")
+	}
+}
+
+// The purpose of this benchmark is to highlight that requesting
+// '.Unix()` frequently is a slow process
+func BenchmarkJustifyIntervalTimeStoringUnixValues1(b *testing.B) {
+	tt1 := time.Now()
+	tt2 := time.Now().Add(-time.Hour)
+	tt3 := time.Now().Add(time.Hour)
+	for i := 0; i < b.N; i++ {
+		if tt1.Unix() == tt2.Unix() || // nolint:staticcheck // it is a benchmark to demonstrate inefficiency in calling
+			(tt1.Unix() > tt2.Unix() && tt1.Unix() < tt3.Unix()) {
+
+		}
+	}
+}
+
+// The purpose of this benchmark is to highlight that storing the unix value
+// at time of creation is dramatically faster than frequently requesting `.Unix()`
+// at runtime at scale. When dealing with the backtester and comparing
+// tens of thousands of candle times
+func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
+	tt1 := time.Now().Unix()
+	tt2 := time.Now().Add(-time.Hour).Unix()
+	tt3 := time.Now().Add(time.Hour).Unix()
+	for i := 0; i < b.N; i++ {
+		if tt1 >= tt2 && tt1 <= tt3 { // nolint:staticcheck // it is a benchmark to demonstrate inefficiency in calling
+
+		}
 	}
 }

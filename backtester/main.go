@@ -17,7 +17,7 @@ import (
 
 func main() {
 	var configPath, templatePath, reportOutput string
-	var printLogo bool
+	var printLogo, generateReport bool
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Could get working directory. Error: %v.\n", err)
@@ -40,6 +40,11 @@ func main() {
 			"report",
 			"tpl.gohtml"),
 		"the report template to use")
+	flag.BoolVar(
+		&generateReport,
+		"generatereport",
+		true,
+		"whether to generate the report file")
 	flag.StringVar(
 		&reportOutput,
 		"outputpath",
@@ -52,10 +57,12 @@ func main() {
 		"printlogo",
 		true,
 		"print out the logo to the command line, projected profits likely won't be affected if disabled")
+
 	flag.Parse()
 
 	var bt *backtest.BackTest
 	var cfg *config.Config
+	fmt.Println("reading config...")
 	cfg, err = config.ReadConfigFromFile(configPath)
 	if err != nil {
 		fmt.Printf("Could not read config. Error: %v.\n", err)
@@ -74,11 +81,14 @@ func main() {
 		"tickersync":    false,
 		"orderbooksync": false,
 		"tradesync":     false,
+		"ratelimiter":   true,
 	}
+	fmt.Println("preparing gocryptotrader bot...")
 	bot, err = engine.NewFromSettings(&engine.Settings{
-		EnableDryRun:   true,
-		EnableAllPairs: true,
-		ConfigFile:     path,
+		ConfigFile:                    path,
+		EnableDryRun:                  true,
+		EnableAllPairs:                true,
+		EnableExchangeHTTPRateLimiter: true,
 	}, flags)
 	if err != nil {
 		fmt.Printf("Could not load backtester. Error: %v.\n", err)
@@ -91,6 +101,7 @@ func main() {
 		os.Exit(1)
 	}
 	if cfg.DataSettings.LiveData != nil {
+		fmt.Println("running backtester against live data...")
 		go func() {
 			err = bt.RunLive()
 			if err != nil {
@@ -102,6 +113,7 @@ func main() {
 		gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
 		bt.Stop()
 	} else {
+		fmt.Println("running backtester...")
 		err = bt.Run()
 		if err != nil {
 			fmt.Printf("Could not complete run. Error: %v.\n", err)
@@ -109,13 +121,17 @@ func main() {
 		}
 	}
 
+	fmt.Println("calculating results...")
 	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
 		gctlog.Error(gctlog.BackTester, err)
 	}
 
-	err = bt.Reports.GenerateReport()
-	if err != nil {
-		gctlog.Error(gctlog.BackTester, err)
+	if generateReport {
+		fmt.Println("generating report...")
+		err = bt.Reports.GenerateReport()
+		if err != nil {
+			gctlog.Error(gctlog.BackTester, err)
+		}
 	}
 }

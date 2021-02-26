@@ -681,8 +681,8 @@ func (o *OKGroup) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 	for x := range dates.Ranges {
 		req := &GetMarketDataRequest{
 			Asset:        a,
-			Start:        dates.Ranges[x].Start.UTC().Format(time.RFC3339),
-			End:          dates.Ranges[x].End.UTC().Format(time.RFC3339),
+			Start:        dates.Ranges[x].Start.Time.UTC().Format(time.RFC3339),
+			End:          dates.Ranges[x].End.Time.UTC().Format(time.RFC3339),
 			Granularity:  o.FormatExchangeKlineInterval(interval),
 			InstrumentID: formattedPair.String(),
 		}

@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -208,7 +209,10 @@ func (p *Portfolio) OnFill(fillEvent fill.Event) (*fill.Fill, error) {
 			}
 		}
 	}
-	err = p.setHoldings(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), &h, true)
+	err = p.setHoldingsForOffset(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), &h, true)
+	if errors.Is(err, errNoHoldings) {
+		err = p.setHoldingsForOffset(fillEvent.GetExchange(), fillEvent.GetAssetType(), fillEvent.Pair(), &h, false)
+	}
 	if err != nil {
 		log.Error(log.BackTester, err)
 	}
@@ -254,7 +258,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 		}
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 	}
-	err = complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), true)
+	err = complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), false)
 	if err != nil {
 		return err
 	}
@@ -311,7 +315,10 @@ func (p *Portfolio) Update(d common.DataEventHandler) error {
 		return nil
 	}
 	h.UpdateValue(d)
-	err := p.setHoldings(d.GetExchange(), d.GetAssetType(), d.Pair(), &h, true)
+	err := p.setHoldingsForOffset(d.GetExchange(), d.GetAssetType(), d.Pair(), &h, true)
+	if errors.Is(err, errNoHoldings) {
+		err = p.setHoldingsForOffset(d.GetExchange(), d.GetAssetType(), d.Pair(), &h, false)
+	}
 	if err != nil {
 		return err
 	}
@@ -349,14 +356,17 @@ func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 	for _, x := range p.exchangeAssetPairSettings {
 		for _, y := range x {
 			for _, z := range y {
-				resp = append(resp, z.GetLatestHoldings())
+				holds := z.GetLatestHoldings()
+				if holds.Offset != 0 {
+					resp = append(resp, holds)
+				}
 			}
 		}
 	}
 	return resp
 }
 
-func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h *holdings.Holding, force bool) error {
+func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.Pair, h *holdings.Holding, overwriteExisting bool) error {
 	if h.Timestamp.IsZero() {
 		return errHoldingsNoTimestamp
 	}
@@ -368,15 +378,24 @@ func (p *Portfolio) setHoldings(exch string, a asset.Item, cp currency.Pair, h *
 			return err
 		}
 	}
-	for i := range lookup.HoldingsSnapshots {
-		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
-			if !force {
-				return fmt.Errorf("%w for %v %v %v at %v", errHoldingsAlreadySet, exch, a, cp, h.Timestamp)
-			}
-			lookup.HoldingsSnapshots[i] = *h
+	if overwriteExisting {
+		if len(lookup.HoldingsSnapshots) == 0 {
+			return errNoHoldings
+		}
+		// check if this is setting it to the latest, which will save heaps of time if true
+		if lookup.HoldingsSnapshots[len(lookup.HoldingsSnapshots)-1].Offset == h.Offset {
+			lookup.HoldingsSnapshots[len(lookup.HoldingsSnapshots)-1] = *h
 			return nil
 		}
+		for i := range lookup.HoldingsSnapshots {
+			if lookup.HoldingsSnapshots[i].Offset == h.Offset {
+				lookup.HoldingsSnapshots[i] = *h
+				return nil
+			}
+		}
+		return fmt.Errorf("%w at %v", errNoHoldings, h.Timestamp)
 	}
+
 	lookup.HoldingsSnapshots = append(lookup.HoldingsSnapshots, *h)
 	return nil
 }
@@ -388,6 +407,12 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp curren
 	if exchangeAssetPairSettings == nil {
 		return holdings.Holding{}, fmt.Errorf("%w for %v %v %v", errNoHoldings, exch, a, cp)
 	}
+
+	// check if this is setting it to the latest, which will save heaps of time if true
+	if t.Equal(exchangeAssetPairSettings.HoldingsSnapshots[len(exchangeAssetPairSettings.HoldingsSnapshots)-1].Timestamp) {
+		return exchangeAssetPairSettings.HoldingsSnapshots[len(exchangeAssetPairSettings.HoldingsSnapshots)-1], nil
+	}
+
 	for i := range exchangeAssetPairSettings.HoldingsSnapshots {
 		if t.Equal(exchangeAssetPairSettings.HoldingsSnapshots[i].Timestamp) {
 			return exchangeAssetPairSettings.HoldingsSnapshots[i], nil
