@@ -1,10 +1,15 @@
 package engine
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
+
+var (
+	errOrderCannotBeEmpty = errors.New("order cannot be empty")
 )
 
 type orderManagerConfig struct {

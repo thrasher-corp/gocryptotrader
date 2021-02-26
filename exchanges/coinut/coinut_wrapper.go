@@ -928,7 +928,7 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -1034,7 +1034,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 	}
 
-	order.FilterOrdersByTickRange(&allOrders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&allOrders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&allOrders, req.Side)
 	return allOrders, nil
 }

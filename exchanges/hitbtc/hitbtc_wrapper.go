@@ -719,7 +719,7 @@ func (h *HitBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -769,7 +769,7 @@ func (h *HitBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }

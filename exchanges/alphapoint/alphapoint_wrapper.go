@@ -388,7 +388,7 @@ func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 
@@ -434,7 +434,7 @@ func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 
