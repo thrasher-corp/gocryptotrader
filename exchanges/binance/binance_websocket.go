@@ -487,7 +487,6 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	err = b.applyBufferUpdate(currencyPair)
 	if err != nil {
 		b.flushAndCleanup(currencyPair)
-		return false, err
 	}
 
 	return false, err
