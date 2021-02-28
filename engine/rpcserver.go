@@ -58,7 +58,6 @@ var (
 	errStartEndTimesUnset   = errors.New("invalid start and end times")
 	errAssetTypeUnset       = errors.New("asset type unset")
 	errDispatchSystem       = errors.New("dispatch system offline")
-	errCurrencyPairUnset    = errors.New("currency pair unset")
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
 	errInvalidStartEndTime  = errors.New("invalid start and end times")
 )

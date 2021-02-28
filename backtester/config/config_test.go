@@ -184,7 +184,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
+			Interval: kline.OneMin.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
 				StartDate:        startDate,

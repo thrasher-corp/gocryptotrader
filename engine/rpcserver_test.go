@@ -966,10 +966,7 @@ func TestGetOrder(t *testing.T) {
 	if !errors.Is(err, errOrderCannotBeEmpty) {
 		t.Errorf("expected %v, received %v", errOrderCannotBeEmpty, err)
 	}
-	if Bot == nil {
-		Bot = engerino
-	}
-	err = Bot.OrderManager.Start()
+	err = engerino.OrderManager.Start(engerino)
 	if err != nil {
 		t.Fatal(err)
 	}
