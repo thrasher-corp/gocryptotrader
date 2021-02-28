@@ -30,7 +30,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"dca-api-candles.strat"),
+			"rsi-api-candles.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,

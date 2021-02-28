@@ -41,6 +41,7 @@ See below for a set of tables and fields, expected values and what they can do
 | Key | Description |
 | --- | ------|
 | Nickname | A nickname for the specific config. When running multiple variants of the same strategy, use the nickname to help differentiate between runs |
+| Goal | A description of what you would hope the outcome to be. When verifying output, you can review and confirm whether the strategy met that goal  |
 | CurrencySettings | Currency settings is an array of settings for each individual currency you wish to run the strategy against. |
 | StrategySettings | Select which strategy to run, what custom settings to load and whether the strategy can assess multiple currencies at once to make more in-depth decisions |
 | PortfolioSettings | Contains a list of global rules for the portfolio manager. CurrencySettings contain their own rules on things like how big a position is allowable, the portfolio manager rules are the same, but override any individual currency's settings |

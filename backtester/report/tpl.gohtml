@@ -57,8 +57,8 @@
 </header>
 <div class="container" style="max-width: 90%">
 	<div >
-		<h1 >{{.Config.Nickname }}</h1>
-		<h2>{{.Statistics.StrategyName}}</h2>
+		<h1>{{.Statistics.StrategyName}}</h1>
+		<h2 >{{.Config.Nickname }}</h2>
 		<h3>Results</h3>
 	</div>
 	<div >
@@ -67,6 +67,8 @@
 				<h2  class="px-4 card-header-title white-text">Executive Summary</h2>
 			</div>
 			<div class="card-body card-body-cascade text-center">
+				<h4>Goal</h4>
+				<p>{{.Config.Goal}}</p>
                 {{ if or .Config.DataSettings.APIData .Config.DataSettings.DatabaseData }}
 					<table class="table table-hover table-bordered table-striped">
 						<tbody>
@@ -502,11 +504,15 @@
 								</tr>
 								<tr>
 									<td><b>Lowest Close Price</b></td>
-									<td>${{printf "%.8f" .LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8f" $val.LowestClosePrice}} {{$val.FinalHoldings.Pair.Quote}}</td>
 								</tr>
 								<tr>
 									<td><b>Highest Close Price</b></td>
-									<td>${{printf "%.8f" .HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+									<td>${{printf "%.8f" $val.HighestClosePrice}} {{ $val.FinalHoldings.Pair.Quote}}</td>
+								</tr>
+								<tr>
+									<td><b>Highest Committed Funds</b></td>
+									<td>${{printf "%.8f" $val.HighestCommittedFunds.Price}} at {{ $val.HighestCommittedFunds.Price}}</td>
 								</tr>
 								<tr>
 									<td><b>Market Movement</b></td>
@@ -679,6 +685,7 @@
 									<th>Price</th>
 									<th>Action</th>
 									<th>Why</th>
+									<th>Committed Funds</th>
 									</thead>
 									<tbody >
                                     {{range $ev := $data.Events}}
@@ -694,6 +701,7 @@
 												<td>{{$ev.SignalEvent.GetDirection}}</td>
 												<td>{{$ev.SignalEvent.GetReason}}</td>
                                             {{ end }}
+											<td>${{printf "%.8f" $ev.Holdings.CommittedFunds}} {{$pair.Quote}}</td>
 										</tr>
                                     {{end}}
 									</tbody>

@@ -9,6 +9,7 @@ import (
 // Config defines what is in an individual strategy config
 type Config struct {
 	Nickname                 string             `json:"nickname"`
+	Goal                     string             `json:"goal"`
 	StrategySettings         StrategySettings   `json:"strategy-settings"`
 	CurrencySettings         []CurrencySettings `json:"currency-settings"`
 	DataSettings             DataSettings       `json:"data-settings"`

@@ -1,5 +1,6 @@
 {
  "nickname": "TestGenerateConfigForDCACSVCandles",
+ "goal": "To demonstrate the DCA strategy using CSV candle data",
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": false,

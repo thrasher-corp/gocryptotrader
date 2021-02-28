@@ -1,5 +1,6 @@
 {
  "nickname": "TestGenerateConfigForDCADatabaseCandles",
+ "goal": "To demonstrate the DCA strategy using database candle data",
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": false,
@@ -38,8 +39,8 @@
   "interval": 86400000000000,
   "data-type": "candle",
   "database-data": {
-   "start-date": "2021-01-27T11:00:00+11:00",
-   "end-date": "2021-02-26T11:00:00+11:00",
+   "start-date": "2021-01-29T11:00:00+11:00",
+   "end-date": "2021-02-28T11:00:00+11:00",
    "config-override": {
     "enabled": true,
     "verbose": false,

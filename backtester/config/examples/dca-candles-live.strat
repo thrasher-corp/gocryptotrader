@@ -1,5 +1,6 @@
 {
  "nickname": "TestGenerateConfigForDCALiveCandles",
+ "goal": "To demonstrate live trading proof of concept against candle data",
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": false,

@@ -187,6 +187,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	}
 	stats := &statistics.Statistic{
 		StrategyName:                cfg.StrategySettings.Name,
+		StrategyNickname:            cfg.Nickname,
+		StrategyGoal:                cfg.Goal,
 		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic),
 		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,
 	}

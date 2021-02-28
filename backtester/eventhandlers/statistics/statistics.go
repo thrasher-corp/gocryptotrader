@@ -212,6 +212,10 @@ func (s *Statistic) CalculateAllResults() error {
 
 // PrintTotalResults outputs all results to the CMD
 func (s *Statistic) PrintTotalResults() {
+	log.Info(log.BackTester, "------------------Strategy-----------------------------------")
+	log.Infof(log.BackTester, "Strategy Name: %v", s.StrategyName)
+	log.Infof(log.BackTester, "Strategy Nickname: %v", s.StrategyNickname)
+	log.Infof(log.BackTester, "Strategy Goal: %v\n\n", s.StrategyGoal)
 	log.Info(log.BackTester, "------------------Total Results------------------------------")
 	log.Info(log.BackTester, "------------------Orders----------------------------------")
 	log.Infof(log.BackTester, "Total buy orders: %v", s.TotalBuyOrders)
@@ -232,7 +236,7 @@ func (s *Statistic) PrintTotalResults() {
 	if s.BestMarketMovement != nil && s.BestStrategyResults != nil {
 		log.Info(log.BackTester, "------------------Orders----------------------------------")
 		log.Infof(log.BackTester, "Best performing market movement: %v %v %v %v%%", s.BestMarketMovement.Exchange, s.BestMarketMovement.Asset, s.BestMarketMovement.Pair, s.BestMarketMovement.MarketMovement)
-		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
+		log.Infof(log.BackTester, "Best performing strategy movement: %v %v %v %v%%\n\n", s.BestStrategyResults.Exchange, s.BestStrategyResults.Asset, s.BestStrategyResults.Pair, s.BestStrategyResults.StrategyMovement)
 	}
 }
 

@@ -1,5 +1,6 @@
 {
  "nickname": "TestGenerateConfigForDCACSVTrades",
+ "goal": "To demonstrate the DCA strategy using CSV trade data",
  "strategy-settings": {
   "name": "dollarcostaverage",
   "use-simultaneous-signal-processing": false,

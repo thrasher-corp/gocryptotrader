@@ -42,6 +42,7 @@ type CurrencyStatistic struct {
 	HighestClosePrice        float64             `json:"highest-close-price"`
 	MarketMovement           float64             `json:"market-movement"`
 	StrategyMovement         float64             `json:"strategy-movement"`
+	HighestCommittedFunds    Iteration           `json:"highest-committed-funds"`
 	RiskFreeRate             float64             `json:"risk-free-rate"`
 	BuyOrders                int64               `json:"buy-orders"`
 	GeometricRatios          Ratios              `json:"geometric-ratios"`

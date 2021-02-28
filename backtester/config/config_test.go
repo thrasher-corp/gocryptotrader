@@ -22,7 +22,7 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = true
 )
 
 var (
@@ -79,6 +79,7 @@ func TestReadConfigFromFile(t *testing.T) {
 func TestPrintSettings(t *testing.T) {
 	cfg := Config{
 		Nickname: "super fun run",
+		Goal:     "To demonstrate rendering of settings",
 		StrategySettings: StrategySettings{
 			Name: dca,
 		},
@@ -156,6 +157,7 @@ func TestPrintSettings(t *testing.T) {
 func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCAAPICandles",
+		Goal:     "To demonstrate DCA strategy using API candles",
 		StrategySettings: StrategySettings{
 			Name: dca,
 		},
@@ -230,6 +232,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCAAPITrades",
+		Goal:     "To demonstrate running the DCA strategy using API trade data",
 		StrategySettings: StrategySettings{
 			Name: dca,
 		},
@@ -304,6 +307,7 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCAAPICandlesMultipleCurrencies",
+		Goal:     "To demonstrate running the DCA strategy using the API against multiple currencies candle data",
 		StrategySettings: StrategySettings{
 			Name: dca,
 		},
@@ -400,6 +404,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCAAPICandlesSimultaneousProcessing",
+		Goal:     "To demonstrate how simultaneous processing can work",
 		StrategySettings: StrategySettings{
 			Name:                         dca,
 			SimultaneousSignalProcessing: true,
@@ -497,6 +502,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCALiveCandles",
+		Goal:     "To demonstrate live trading proof of concept against candle data",
 		StrategySettings: StrategySettings{
 			Name: dca,
 		},
@@ -573,6 +579,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateRSICandleAPICustomSettingsStrat",
+		Goal:     "To demonstrate the RSI strategy using API candle data and custom settings",
 		StrategySettings: StrategySettings{
 			Name: "rsi",
 			CustomSettings: map[string]interface{}{
@@ -631,7 +638,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate:        startDate,
+				StartDate:        startDate.Add(-time.Hour * 24 * 365),
 				EndDate:          endDate,
 				InclusiveEndDate: false,
 			},
@@ -675,6 +682,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv")
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCACSVCandles",
+		Goal:     "To demonstrate the DCA strategy using CSV candle data",
 		StrategySettings: StrategySettings{
 			Name: dca,
 		},
@@ -748,6 +756,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 	fp := filepath.Join("..", "testdata", "binance_BTCUSDT_24h-trades_2020_11_16.csv")
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCACSVTrades",
+		Goal:     "To demonstrate the DCA strategy using CSV trade data",
 		StrategySettings: StrategySettings{
 			Name: dca,
 		},
@@ -820,6 +829,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 	cfg := Config{
 		Nickname: "TestGenerateConfigForDCADatabaseCandles",
+		Goal:     "To demonstrate the DCA strategy using database candle data",
 		StrategySettings: StrategySettings{
 			Name: dca,
 		},

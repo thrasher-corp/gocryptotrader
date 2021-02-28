@@ -59,7 +59,6 @@ var (
 	errAssetTypeUnset       = errors.New("asset type unset")
 	errDispatchSystem       = errors.New("dispatch system offline")
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
-	errInvalidStartEndTime  = errors.New("invalid start and end times")
 )
 
 // RPCServer struct
@@ -829,7 +828,7 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 		}
 	}
 	if !start.IsZero() && !end.IsZero() && start.After(end) {
-		return nil, errInvalidStartEndTime
+		return nil, errStartEndTimesUnset
 	}
 
 	cp := currency.NewPairWithDelimiter(

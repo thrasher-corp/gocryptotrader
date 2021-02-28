@@ -81,7 +81,6 @@ func TestNewFromConfig(t *testing.T) {
 	cfg.CurrencySettings = []config.CurrencySettings{
 		{
 			ExchangeName: "test",
-			Asset:        "test",
 			Base:         "test",
 			Quote:        "test",
 		},
@@ -93,8 +92,8 @@ func TestNewFromConfig(t *testing.T) {
 
 	cfg.CurrencySettings[0].ExchangeName = testExchange
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if err != nil && !strings.Contains(err.Error(), "cannot create new asset") {
-		t.Error(err)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
 	}
 
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()

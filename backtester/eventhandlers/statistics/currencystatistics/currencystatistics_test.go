@@ -301,3 +301,23 @@ func TestCalculateMaxDrawdown(t *testing.T) {
 		t.Error("unexpected max drawdown")
 	}
 }
+
+func TestCalculateHighestCommittedFunds(t *testing.T) {
+	c := CurrencyStatistic{}
+	c.calculateHighestCommittedFunds()
+	if !c.HighestCommittedFunds.Time.IsZero() {
+		t.Error("expected no time with not committed funds")
+	}
+	tt1 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	tt2 := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
+	tt3 := time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC)
+	c.Events = append(c.Events,
+		EventStore{Holdings: holdings.Holding{Timestamp: tt1, CommittedFunds: 10}},
+		EventStore{Holdings: holdings.Holding{Timestamp: tt2, CommittedFunds: 1337}},
+		EventStore{Holdings: holdings.Holding{Timestamp: tt3, CommittedFunds: 11}},
+	)
+	c.calculateHighestCommittedFunds()
+	if c.HighestCommittedFunds.Time != tt2 {
+		t.Errorf("expected %v, received %v", tt2, c.HighestCommittedFunds.Time)
+	}
+}

@@ -27,6 +27,7 @@ type Holding struct {
 	BoughtAmount   float64       `json:"bought-amount"`
 	BoughtValue    float64       `json:"bought-value"`
 	RemainingFunds float64       `json:"remaining-funds"`
+	CommittedFunds float64       `json:"committed-funds"`
 
 	TotalValueDifference      float64
 	ChangeInTotalValuePercent float64

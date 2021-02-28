@@ -94,6 +94,7 @@ func (c *CurrencyStatistic) CalculateResults() error {
 		InformationRatio: arithmeticInformation,
 		CalmarRatio:      arithmeticCalmar,
 	}
+	c.calculateHighestCommittedFunds()
 
 	geomSharpe, err = math.SharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil {
@@ -146,7 +147,8 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	last.Holdings.TotalValueLost = last.Holdings.TotalValueLostToSlippage + last.Holdings.TotalValueLostToVolumeSizing
 	currStr := fmt.Sprintf("------------------Stats for %v %v %v-------------------------", e, a, p)
 	log.Infof(log.BackTester, currStr[:61])
-	log.Infof(log.BackTester, "Initial funds: $%v\n\n", last.Holdings.InitialFunds)
+	log.Infof(log.BackTester, "Initial funds: $%v", last.Holdings.InitialFunds)
+	log.Infof(log.BackTester, "Highest committed funds: $%v at %v\n\n", c.HighestCommittedFunds.Price, c.HighestCommittedFunds.Time)
 
 	log.Infof(log.BackTester, "Buy orders: %v", c.BuyOrders)
 	log.Infof(log.BackTester, "Buy value: $%v", last.Holdings.BoughtValue)
@@ -281,4 +283,13 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 	}
 
 	return maxDrawdown
+}
+
+func (c *CurrencyStatistic) calculateHighestCommittedFunds() {
+	for i := range c.Events {
+		if c.Events[i].Holdings.CommittedFunds > c.HighestCommittedFunds.Price {
+			c.HighestCommittedFunds.Price = c.Events[i].Holdings.CommittedFunds
+			c.HighestCommittedFunds.Time = c.Events[i].Holdings.Timestamp
+		}
+	}
 }

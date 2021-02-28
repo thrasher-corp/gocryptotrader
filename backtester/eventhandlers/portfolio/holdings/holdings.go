@@ -49,6 +49,7 @@ func (h *Holding) update(f fill.Event) {
 	o := f.GetOrder()
 	switch direction {
 	case order.Buy:
+		h.CommittedFunds += (o.Amount * o.Price) + o.Fee
 		h.PositionsSize += o.Amount
 		h.PositionsValue += o.Amount * o.Price
 		h.RemainingFunds -= (o.Amount * o.Price) + o.Fee
@@ -56,6 +57,7 @@ func (h *Holding) update(f fill.Event) {
 		h.BoughtAmount += o.Amount
 		h.BoughtValue += o.Amount * o.Price
 	case order.Sell:
+		h.CommittedFunds -= (o.Amount * o.Price) + o.Fee
 		h.PositionsSize -= o.Amount
 		h.PositionsValue -= o.Amount * o.Price
 		h.RemainingFunds += (o.Amount * o.Price) - o.Fee
