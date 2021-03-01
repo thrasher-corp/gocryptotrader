@@ -10,7 +10,7 @@ import (
 )
 
 func TestGetStrategies(t *testing.T) {
-	resp := getStrategies()
+	resp := GetStrategies()
 	if len(resp) < 2 {
 		t.Error("expected at least 2 strategies to be loaded")
 	}

@@ -11,7 +11,7 @@ import (
 
 // LoadStrategyByName returns the strategy by its name
 func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, error) {
-	strats := getStrategies()
+	strats := GetStrategies()
 	for i := range strats {
 		if !strings.EqualFold(name, strats[i].Name()) {
 			continue
@@ -30,7 +30,9 @@ func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, e
 	return nil, fmt.Errorf("strategy '%v' %w", name, base.ErrStrategyNotFound)
 }
 
-func getStrategies() []Handler {
+// GetStrategies returns a static list of set strategies
+// they must be set in here for the backtester to recognise them
+func GetStrategies() []Handler {
 	var strats []Handler
 	strats = append(strats,
 		new(dollarcostaverage.Strategy),
