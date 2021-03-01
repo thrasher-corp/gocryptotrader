@@ -39,8 +39,8 @@
   "interval": 60000000000,
   "data-type": "candle",
   "api-data": {
-   "start-date": "2021-01-29T11:00:00+11:00",
-   "end-date": "2021-02-28T11:00:00+11:00",
+   "start-date": "2021-01-30T11:00:00+11:00",
+   "end-date": "2021-03-01T11:00:00+11:00",
    "inclusive-end-date": false
   }
  },

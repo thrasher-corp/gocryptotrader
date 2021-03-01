@@ -228,7 +228,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		if err != nil {
 			return resp, err
 		}
-		bt.Bot.Stop()
 		bt.Datas.SetDataForCurrency(exchangeName, a, pair, klineData)
 		var makerFee, takerFee float64
 		if cfg.CurrencySettings[i].MakerFee > 0 {
@@ -358,7 +357,6 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 		}
 	}
 	if !bt.Bot.OrderManager.Started() {
-		engine.OrderManagerDelay = time.Hour * 5
 		return bt.Bot.OrderManager.Start(bt.Bot)
 	}
 

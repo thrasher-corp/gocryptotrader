@@ -18,7 +18,7 @@ import (
 
 // vars for the fund manager package
 var (
-	OrderManagerDelay      = time.Second * 10
+	orderManagerDelay      = time.Second * 10
 	ErrOrdersAlreadyExists = errors.New("order already exists")
 	ErrOrderNotFound       = errors.New("order does not exist")
 )
@@ -176,7 +176,7 @@ func (o *orderManager) gracefulShutdown() {
 
 func (o *orderManager) run() {
 	log.Debugln(log.OrderBook, "Order manager started.")
-	tick := time.NewTicker(OrderManagerDelay)
+	tick := time.NewTicker(orderManagerDelay)
 	o.orderStore.bot.ServicesWG.Add(1)
 	defer func() {
 		log.Debugln(log.OrderMgr, "Order manager shutdown.")

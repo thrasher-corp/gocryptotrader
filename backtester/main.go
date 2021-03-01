@@ -100,6 +100,7 @@ func main() {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
 		os.Exit(1)
 	}
+	bt.Bot.Stop()
 	if cfg.DataSettings.LiveData != nil {
 		fmt.Println("running backtester against live data...")
 		go func() {

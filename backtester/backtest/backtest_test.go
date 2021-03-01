@@ -3,7 +3,6 @@ package backtest
 import (
 	"errors"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -33,14 +32,8 @@ import (
 
 const testExchange = "binance"
 
-var (
-	bot  *engine.Engine
-	exch gctexchange.IBotExchange
-)
-
-func TestMain(m *testing.M) {
-	var err error
-	bot, err = engine.NewFromSettings(&engine.Settings{
+func newBotWithExchange() (*engine.Engine, gctexchange.IBotExchange) {
+	bot, err := engine.NewFromSettings(&engine.Settings{
 		ConfigFile:   filepath.Join("..", "..", "testdata", "configtest.json"),
 		EnableDryRun: true,
 	}, nil)
@@ -51,11 +44,11 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	exch = bot.GetExchangeByName(testExchange)
+	exch := bot.GetExchangeByName(testExchange)
 	if exch == nil {
 		log.Fatal("expected not nil")
 	}
-	os.Exit(m.Run())
+	return bot, exch
 }
 
 func TestNewFromConfig(t *testing.T) {
@@ -73,6 +66,7 @@ func TestNewFromConfig(t *testing.T) {
 		t.Errorf("expected: %v, received %v", errNilBot, err)
 	}
 
+	bot, _ := newBotWithExchange()
 	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, errMinOneCurrency) {
 		t.Errorf("expected: %v, received %v", errMinOneCurrency, err)
@@ -190,6 +184,8 @@ func TestLoadData(t *testing.T) {
 	}
 	cfg.CurrencySettings[0].MakerFee = 1337
 	cfg.CurrencySettings[0].TakerFee = 1337
+	bot, exch := newBotWithExchange()
+
 	_, err := NewFromConfig(cfg, "", "", bot)
 	if err != nil {
 		t.Error(err)
@@ -393,6 +389,7 @@ func TestFullCycle(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	bot, _ := newBotWithExchange()
 
 	bt := BackTest{
 		Bot:        bot,
@@ -486,6 +483,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	bot, _ := newBotWithExchange()
 
 	bt := BackTest{
 		Bot:        bot,
