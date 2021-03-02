@@ -85,7 +85,12 @@ func main() {
 
 	fmt.Println("-----GoCryptoTrader config Settings-----")
 	fmt.Printf("Enter the path to the GoCryptoTrader config you wish to use. Leave blank to use \"%v\"\n", gctconfig.DefaultFilePath())
-	cfg.GoCryptoTraderConfigPath = quickParse(reader)
+	path := quickParse(reader)
+	if path != "" {
+		cfg.GoCryptoTraderConfigPath = path
+	} else {
+		cfg.GoCryptoTraderConfigPath = gctconfig.DefaultFilePath()
+	}
 
 	var resp []byte
 	resp, err = json.MarshalIndent(cfg, "", " ")
@@ -98,7 +103,12 @@ func main() {
 	if yn == "y" || yn == "yes" {
 		var wd string
 		wd, err = os.Getwd()
-		wd = filepath.Join(wd, cfg.StrategySettings.Name+"-"+cfg.Nickname, ".strat")
+		fn := cfg.StrategySettings.Name
+		if cfg.Nickname != "" {
+			fn += "-" + cfg.Nickname
+		}
+		fn += ".strat"
+		wd = filepath.Join(wd, fn)
 		fmt.Printf("Enter output file. If blank, will output to \"%v\"\n", wd)
 		path := quickParse(reader)
 		if path == "" {
@@ -279,17 +289,28 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	cfg.DataSettings.DatabaseData = &config.DatabaseData{}
 	var input string
 	var err error
-	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", time.Now().Add(-time.Hour*24*365).Format(gctcommon.SimpleTimeFormat))
-	input = quickParse(reader)
-	cfg.DataSettings.DatabaseData.StartDate, err = time.Parse(input, gctcommon.SimpleTimeFormat)
-	if err != nil {
-		log.Fatal(err)
+	defaultStart := time.Now().Add(-time.Hour * 24 * 365)
+	defaultEnd := time.Now()
+	fmt.Printf("What is the start date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
+	startDate := quickParse(reader)
+	if startDate != "" {
+		cfg.DataSettings.DatabaseData.StartDate, err = time.Parse(startDate, gctcommon.SimpleTimeFormat)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		cfg.DataSettings.DatabaseData.StartDate = defaultStart
 	}
-	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", time.Now().Format(gctcommon.SimpleTimeFormat))
-	input = quickParse(reader)
-	cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(input, gctcommon.SimpleTimeFormat)
-	if err != nil {
-		log.Fatal(err)
+
+	fmt.Printf("What is the end date? Leave blank for \"%v\"\n", defaultStart.Format(gctcommon.SimpleTimeFormat))
+	endDate := quickParse(reader)
+	if endDate != "" {
+		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(endDate, gctcommon.SimpleTimeFormat)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		cfg.DataSettings.DatabaseData.EndDate = defaultEnd
 	}
 	fmt.Println("Is the end date inclusive? y/n")
 	input = quickParse(reader)
@@ -314,7 +335,7 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 		fmt.Println("What is the database username?")
 		cfg.DataSettings.DatabaseData.ConfigOverride.Username = quickParse(reader)
 
-		fmt.Println("What is the database password?")
+		fmt.Println("What is the database password? eg 1234")
 		cfg.DataSettings.DatabaseData.ConfigOverride.Password = quickParse(reader)
 
 		fmt.Println("What is the database? eg database.db")
@@ -453,24 +474,15 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	num, err := strconv.ParseFloat(response, 64)
 	if err == nil {
 		intNum := int(num)
-		if intNum > len(dataOptions) {
+		if intNum > len(supported) {
 			return nil, errors.New("unknown option")
 		}
-		return dataOptions[intNum-1], nil
+		setting.Asset = supported[intNum-1].String()
 	}
-	for i := range dataOptions {
-		if strings.EqualFold(response, dataOptions[i]) {
-			return dataOptions[i], nil
+	for i := range supported {
+		if strings.EqualFold(response, supported[i].String()) {
+			setting.Asset = supported[i].String()
 		}
-	}
-	setting.Asset = quickParse(reader)
-	if setting.Asset == "help" {
-		supported := asset.Supported()
-		for i := range supported {
-			fmt.Println(supported[i].String())
-		}
-		fmt.Println("Enter the asset. eg spot")
-		setting.Asset = quickParse(reader)
 	}
 
 	fmt.Println("Enter the currency base. eg BTC")
@@ -480,7 +492,6 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	setting.Quote = quickParse(reader)
 
 	fmt.Println("Enter the initial funds. eg 10000")
-	var err error
 	setting.InitialFunds, err = strconv.ParseFloat(quickParse(reader), 64)
 	if err != nil {
 		return nil, err
@@ -509,6 +520,25 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	yn = quickParse(reader)
 	if yn == "y" || yn == "yes" {
 		setting.SellSide, err = minMaxParse("sell", reader)
+		if err != nil {
+			return nil, err
+		}
+	}
+	fmt.Println("Do you wish to include slippage? y/n")
+	yn = quickParse(reader)
+	if yn == "y" || yn == "yes" {
+		fmt.Println("Slippage is randomly determined between the lower and upper bounds.")
+		fmt.Println("If the lower bound is 80, then the price can change up to 80% of itself. eg if the price is 100 and the lower bound is 80, then the lowest slipped price is $80")
+		fmt.Println("If the upper bound is 100, then the price can be unaffected. A minimum of 80 and a maximum of 100 means that the price will randomly be set between those bounds as a way of emulating slippage")
+
+		fmt.Println("What is the lower bounds of slippage? eg 80")
+		setting.MinimumSlippagePercent, err = strconv.ParseFloat(quickParse(reader), 64)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Println("What is the upper bounds of slippage? eg 100")
+		setting.MaximumSlippagePercent, err = strconv.ParseFloat(quickParse(reader), 64)
 		if err != nil {
 			return nil, err
 		}
@@ -544,5 +574,6 @@ func quickParse(reader *bufio.Reader) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return strings.Replace(customSettingField, "\n", "", 1)
+	customSettingField = strings.Replace(customSettingField, "\r", "", -1)
+	return strings.Replace(customSettingField, "\n", "", -1)
 }
