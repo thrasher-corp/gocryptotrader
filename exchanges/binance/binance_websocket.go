@@ -31,7 +31,7 @@ var listenKey string
 var (
 	// maxWSUpdateBuffer defines max websocket updates to apply when an
 	// orderbook is initially fetched
-	maxWSUpdateBuffer = 100
+	maxWSUpdateBuffer = 150
 	// maxWSOrderbookJobs defines max websocket orderbook jobs in queue to fetch
 	// an orderbook snapshot via REST
 	maxWSOrderbookJobs = 2000
