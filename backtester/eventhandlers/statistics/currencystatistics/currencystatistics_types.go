@@ -34,24 +34,24 @@ type EventStore struct {
 
 // CurrencyStatistic Holds all events and statistics relevant to an exchange, asset type and currency pair
 type CurrencyStatistic struct {
-	Events                   []EventStore        `json:"-"`
-	MaxDrawdown              Swing               `json:"max-drawdown,omitempty"`
-	StartingClosePrice       float64             `json:"starting-close-price"`
-	EndingClosePrice         float64             `json:"ending-close-price"`
-	LowestClosePrice         float64             `json:"lowest-close-price"`
-	HighestClosePrice        float64             `json:"highest-close-price"`
-	MarketMovement           float64             `json:"market-movement"`
-	StrategyMovement         float64             `json:"strategy-movement"`
-	HighestCommittedFunds    Iteration           `json:"highest-committed-funds"`
-	RiskFreeRate             float64             `json:"risk-free-rate"`
-	BuyOrders                int64               `json:"buy-orders"`
-	GeometricRatios          Ratios              `json:"geometric-ratios"`
-	ArithmeticRatios         Ratios              `json:"arithmetic-ratios"`
-	CompoundAnnualGrowthRate float64             `json:"compound-annual-growth-rate"`
-	SellOrders               int64               `json:"sell-orders"`
-	TotalOrders              int64               `json:"total-orders"`
-	FinalHoldings            holdings.Holding    `json:"final-holdings"`
-	FinalOrders              compliance.Snapshot `json:"final-orders"`
+	Events                   []EventStore          `json:"-"`
+	MaxDrawdown              Swing                 `json:"max-drawdown,omitempty"`
+	StartingClosePrice       float64               `json:"starting-close-price"`
+	EndingClosePrice         float64               `json:"ending-close-price"`
+	LowestClosePrice         float64               `json:"lowest-close-price"`
+	HighestClosePrice        float64               `json:"highest-close-price"`
+	MarketMovement           float64               `json:"market-movement"`
+	StrategyMovement         float64               `json:"strategy-movement"`
+	HighestCommittedFunds    HighestCommittedFunds `json:"highest-committed-funds"`
+	RiskFreeRate             float64               `json:"risk-free-rate"`
+	BuyOrders                int64                 `json:"buy-orders"`
+	GeometricRatios          Ratios                `json:"geometric-ratios"`
+	ArithmeticRatios         Ratios                `json:"arithmetic-ratios"`
+	CompoundAnnualGrowthRate float64               `json:"compound-annual-growth-rate"`
+	SellOrders               int64                 `json:"sell-orders"`
+	TotalOrders              int64                 `json:"total-orders"`
+	FinalHoldings            holdings.Holding      `json:"final-holdings"`
+	FinalOrders              compliance.Snapshot   `json:"final-orders"`
 }
 
 // Ratios stores all the ratios used for statistics
@@ -74,4 +74,10 @@ type Swing struct {
 type Iteration struct {
 	Time  time.Time `json:"time"`
 	Price float64   `json:"price"`
+}
+
+// HighestCommittedFunds is an individual iteration of price at a time
+type HighestCommittedFunds struct {
+	Time  time.Time `json:"time"`
+	Value float64   `json:"value"`
 }

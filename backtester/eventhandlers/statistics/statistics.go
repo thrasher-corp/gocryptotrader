@@ -73,7 +73,7 @@ func (s *Statistic) SetEventForOffset(e common.EventHandler) error {
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set signal event", errCurrencyStatisticsUnset, exch, a, p)
 	}
-	for i := len(lookup.Events) - 1; i > 0; i-- {
+	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == offset {
 			return applyEventAtOffset(e, lookup, i)
 		}
@@ -107,7 +107,7 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set holding event", errCurrencyStatisticsUnset, h.Exchange, h.Asset, h.Pair)
 	}
-	for i := len(lookup.Events) - 1; i > 0; i-- {
+	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == h.Offset {
 			lookup.Events[i].Holdings = *h
 			break
@@ -131,7 +131,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set compliance snapshot", errCurrencyStatisticsUnset, exch, a, p)
 	}
-	for i := len(lookup.Events) - 1; i > 0; i-- {
+	for i := len(lookup.Events) - 1; i >= 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == e.GetOffset() {
 			lookup.Events[i].Transactions = c
 			break

@@ -22,7 +22,7 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 		// no holdings yet
 		return holdings.Holding{}
 	}
-	for i := len(e.HoldingsSnapshots) - 1; i > 0; i-- {
+	for i := len(e.HoldingsSnapshots) - 1; i >= 0; i-- {
 		if e.HoldingsSnapshots[i].Timestamp.Equal(t) {
 			return e.HoldingsSnapshots[i]
 		}

@@ -12,7 +12,7 @@ func (m *Manager) AddSnapshot(orders []SnapshotOrder, t time.Time, offset int64,
 		if len(m.Snapshots) == 0 {
 			return errSnapshotNotFound
 		}
-		for i := len(m.Snapshots) - 1; i > 0; i-- {
+		for i := len(m.Snapshots) - 1; i >= 0; i-- {
 			if offset == m.Snapshots[i].Offset {
 				m.Snapshots[i].Orders = orders
 				return nil
@@ -31,7 +31,7 @@ func (m *Manager) AddSnapshot(orders []SnapshotOrder, t time.Time, offset int64,
 
 // GetSnapshotAtTime returns the snapshot of orders a t time
 func (m *Manager) GetSnapshotAtTime(t time.Time) (Snapshot, error) {
-	for i := len(m.Snapshots) - 1; i > 0; i-- {
+	for i := len(m.Snapshots) - 1; i >= 0; i-- {
 		if t.Equal(m.Snapshots[i].Timestamp) {
 			return m.Snapshots[i], nil
 		}
