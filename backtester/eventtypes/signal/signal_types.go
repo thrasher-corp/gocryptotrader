@@ -19,6 +19,10 @@ type Event interface {
 // Signal contains everything needed for a strategy to raise a signal event
 type Signal struct {
 	event.Base
-	Price     float64
-	Direction order.Side
+	OpenPrice  float64
+	HighPrice  float64
+	LowPrice   float64
+	ClosePrice float64
+	Volume     float64
+	Direction  order.Side
 }

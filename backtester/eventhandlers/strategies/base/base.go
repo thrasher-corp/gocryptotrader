@@ -30,6 +30,10 @@ func (s *Strategy) GetBase(d data.Handler) (signal.Signal, error) {
 			AssetType:    latest.GetAssetType(),
 			Interval:     latest.GetInterval(),
 		},
+		ClosePrice: latest.ClosePrice(),
+		HighPrice:  latest.HighPrice(),
+		OpenPrice:  latest.OpenPrice(),
+		LowPrice:   latest.LowPrice(),
 	}, nil
 }
 

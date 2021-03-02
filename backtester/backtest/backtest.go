@@ -86,6 +86,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	bt.Reports = reports
 
 	e, err = bt.setupExchangeSettings(cfg)
+	bt.Bot.Stop()
 	if err != nil {
 		return nil, err
 	}
@@ -667,7 +668,7 @@ dataLoadingIssue:
 func (bt *BackTest) handleEvent(e common.EventHandler) error {
 	switch ev := e.(type) {
 	case common.DataEventHandler:
-		bt.processDataEvent(ev)
+		return bt.processDataEvent(ev)
 	case signal.Event:
 		bt.processSignalEvent(ev)
 	case order.Event:
@@ -692,7 +693,7 @@ func (bt *BackTest) handleEvent(e common.EventHandler) error {
 //
 // for non-multi-currency-consideration strategies, it will simply process every currency individually
 // against the strategy and generate signals
-func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
+func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 	if bt.Strategy.UseSimultaneousProcessing() {
 		var dataEvents []data.Handler
 		dataHandlerMap := bt.Datas.GetAllData()
@@ -722,8 +723,12 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 
 		s, err := bt.Strategy.OnSignal(d, bt.Portfolio)
 		if err != nil {
+			if errors.Is(err, base.ErrTooMuchBadData) {
+				// too much bad data is a severe error and backtesting must cease
+				return err
+			}
 			log.Error(log.BackTester, err)
-			return
+			return nil
 		}
 		err = bt.Statistic.SetEventForOffset(s)
 		if err != nil {
@@ -731,6 +736,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) {
 		}
 		bt.EventQueue.AppendEvent(s)
 	}
+	return nil
 }
 
 // updateStatsForDataEvent makes various systems aware of price movements from

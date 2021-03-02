@@ -452,7 +452,7 @@ func TestOnSignal(t *testing.T) {
 		t.Errorf("expected common.CouldNotBuy, received %v", resp.Direction)
 	}
 
-	s.Price = 10
+	s.ClosePrice = 10
 	s.Direction = gctorder.Buy
 	resp, err = p.OnSignal(s, &exchange.Settings{})
 	if err != nil {

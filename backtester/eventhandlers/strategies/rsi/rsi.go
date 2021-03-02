@@ -2,6 +2,7 @@ package rsi
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -9,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -45,31 +47,37 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 		return nil, err
 	}
 	es.SetPrice(d.Latest().ClosePrice())
+	offset := d.Offset()
 
-	if !d.HasDataAtTime(d.Latest().GetTime()) {
-		es.SetDirection(common.MissingData)
-		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions", d.Latest().GetTime()))
-		return &es, nil
-	}
-
-	if d.Offset() <= int(s.rsiPeriod) {
+	if offset <= int(s.rsiPeriod) {
 		es.AppendReason("Not enough data for signal generation")
 		es.SetDirection(common.DoNothing)
 		return &es, nil
 	}
-	dataRange := d.StreamClose()[:d.Offset()]
 
-	rsi := indicators.RSI(dataRange, int(s.rsiPeriod))
-	latesttRSIValue := rsi[len(rsi)-1]
+	dataRange := d.StreamClose()
+	var massagedData []float64
+	massagedData, err = s.massageMissingData(dataRange, es.GetTime())
+	if err != nil {
+		return nil, err
+	}
+	rsi := indicators.RSI(massagedData, int(s.rsiPeriod))
+	latestRSIValue := rsi[len(rsi)-1]
+	if !d.HasDataAtTime(d.Latest().GetTime()) {
+		es.SetDirection(common.MissingData)
+		es.AppendReason(fmt.Sprintf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue))
+		return &es, nil
+	}
+
 	switch {
-	case latesttRSIValue >= s.rsiHigh:
+	case latestRSIValue >= s.rsiHigh:
 		es.SetDirection(order.Sell)
-	case latesttRSIValue <= s.rsiLow:
+	case latestRSIValue <= s.rsiLow:
 		es.SetDirection(order.Buy)
 	default:
 		es.SetDirection(common.DoNothing)
 	}
-	es.AppendReason(fmt.Sprintf("RSI at %.2f", latesttRSIValue))
+	es.AppendReason(fmt.Sprintf("RSI at %.2f", latestRSIValue))
 
 	return &es, nil
 }
@@ -123,4 +131,27 @@ func (s *Strategy) SetDefaults() {
 	s.rsiHigh = 70
 	s.rsiLow = 30
 	s.rsiPeriod = 14
+}
+
+// massageMissingData will replace missing data with the previous candle's data
+// this will ensure that RSI can be calculated correctly
+// the decision to handle missing data occurs at the strategy level, not all strategies
+// may wish to modify data
+func (s *Strategy) massageMissingData(data []float64, t time.Time) ([]float64, error) {
+
+	var resp []float64
+	var missingDataStreak float64
+	for i := range data {
+		if data[i] == 0 && i > int(s.rsiPeriod) {
+			data[i] = data[i-1]
+			missingDataStreak++
+		} else {
+			missingDataStreak = 0
+		}
+		if missingDataStreak >= s.rsiPeriod {
+			return nil, fmt.Errorf("missing data exceeds RSI period length of %v at %s and will distort results. %w", s.rsiPeriod, t.Format(gctcommon.SimpleTimeFormat), base.ErrTooMuchBadData)
+		}
+		resp = append(resp, data[i])
+	}
+	return resp, nil
 }

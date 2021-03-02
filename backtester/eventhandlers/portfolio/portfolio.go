@@ -258,7 +258,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 		}
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 	}
-	err = complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), false)
+	err = complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), fillEvent.GetOffset(), false)
 	if err != nil {
 		return err
 	}
@@ -382,12 +382,7 @@ func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.
 		if len(lookup.HoldingsSnapshots) == 0 {
 			return errNoHoldings
 		}
-		// check if this is setting it to the latest, which will save heaps of time if true
-		if lookup.HoldingsSnapshots[len(lookup.HoldingsSnapshots)-1].Offset == h.Offset {
-			lookup.HoldingsSnapshots[len(lookup.HoldingsSnapshots)-1] = *h
-			return nil
-		}
-		for i := range lookup.HoldingsSnapshots {
+		for i := len(lookup.HoldingsSnapshots) - 1; i > 0; i-- {
 			if lookup.HoldingsSnapshots[i].Offset == h.Offset {
 				lookup.HoldingsSnapshots[i] = *h
 				return nil
@@ -408,12 +403,7 @@ func (p *Portfolio) ViewHoldingAtTimePeriod(exch string, a asset.Item, cp curren
 		return holdings.Holding{}, fmt.Errorf("%w for %v %v %v", errNoHoldings, exch, a, cp)
 	}
 
-	// check if this is setting it to the latest, which will save heaps of time if true
-	if t.Equal(exchangeAssetPairSettings.HoldingsSnapshots[len(exchangeAssetPairSettings.HoldingsSnapshots)-1].Timestamp) {
-		return exchangeAssetPairSettings.HoldingsSnapshots[len(exchangeAssetPairSettings.HoldingsSnapshots)-1], nil
-	}
-
-	for i := range exchangeAssetPairSettings.HoldingsSnapshots {
+	for i := len(exchangeAssetPairSettings.HoldingsSnapshots) - 1; i > 0; i-- {
 		if t.Equal(exchangeAssetPairSettings.HoldingsSnapshots[i].Timestamp) {
 			return exchangeAssetPairSettings.HoldingsSnapshots[i], nil
 		}

@@ -65,8 +65,8 @@ func TestCalculateResults(t *testing.T) {
 			Volume: 2000,
 		},
 		SignalEvent: &signal.Signal{
-			Base:  even,
-			Price: 2000,
+			Base:       even,
+			ClosePrice: 2000,
 		},
 	}
 	even2 := even
@@ -104,8 +104,8 @@ func TestCalculateResults(t *testing.T) {
 			Volume: 1337,
 		},
 		SignalEvent: &signal.Signal{
-			Base:  even2,
-			Price: 1337,
+			Base:       even2,
+			ClosePrice: 1337,
 		},
 	}
 
@@ -166,8 +166,8 @@ func TestPrintResults(t *testing.T) {
 			Volume: 2000,
 		},
 		SignalEvent: &signal.Signal{
-			Base:  even,
-			Price: 2000,
+			Base:       even,
+			ClosePrice: 2000,
 		},
 	}
 	even2 := even
@@ -205,8 +205,8 @@ func TestPrintResults(t *testing.T) {
 			Volume: 1337,
 		},
 		SignalEvent: &signal.Signal{
-			Base:  even2,
-			Price: 1337,
+			Base:       even2,
+			ClosePrice: 1337,
 		},
 	}
 

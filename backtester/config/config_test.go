@@ -22,7 +22,7 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = true
 )
 
 var (
@@ -186,7 +186,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.OneMin.Duration(),
+			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
 				StartDate:        startDate,
@@ -638,7 +638,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			Interval: kline.OneDay.Duration(),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate:        startDate.Add(-time.Hour * 24 * 365),
+				StartDate:        startDate,
 				EndDate:          endDate,
 				InclusiveEndDate: false,
 			},

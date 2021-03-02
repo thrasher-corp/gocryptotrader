@@ -40,29 +40,29 @@ const (
 
 var (
 	ErrMissingCandleData = errors.New("missing candle data")
-	// SupportedCandles is a list of all supported candles in string form
-	SupportedCandles = []string{
-		FifteenSecond.Word(),
-		OneMin.Word(),
-		ThreeMin.Word(),
-		FiveMin.Word(),
-		TenMin.Word(),
-		FifteenMin.Word(),
-		ThirtyMin.Word(),
-		OneHour.Word(),
-		TwoHour.Word(),
-		FourHour.Word(),
-		SixHour.Word(),
-		EightHour.Word(),
-		TwelveHour.Word(),
-		OneDay.Word(),
-		ThreeDay.Word(),
-		SevenDay.Word(),
-		FifteenDay.Word(),
-		OneWeek.Word(),
-		TwoWeek.Word(),
-		OneMonth.Word(),
-		OneYear.Word(),
+	// SupportedIntervals is a list of all supported intervals
+	SupportedIntervals = []Interval{
+		FifteenSecond,
+		OneMin,
+		ThreeMin,
+		FiveMin,
+		TenMin,
+		FifteenMin,
+		ThirtyMin,
+		OneHour,
+		TwoHour,
+		FourHour,
+		SixHour,
+		EightHour,
+		TwelveHour,
+		OneDay,
+		ThreeDay,
+		SevenDay,
+		FifteenDay,
+		OneWeek,
+		TwoWeek,
+		OneMonth,
+		OneYear,
 	}
 )
 

@@ -23,7 +23,7 @@ func TestSetDirection(t *testing.T) {
 
 func TestSetPrice(t *testing.T) {
 	s := Signal{
-		Price: 1,
+		ClosePrice: 1,
 	}
 	s.SetPrice(1337)
 	if s.GetPrice() != 1337 {

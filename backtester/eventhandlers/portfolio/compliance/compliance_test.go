@@ -10,17 +10,17 @@ func TestAddSnapshot(t *testing.T) {
 	t.Parallel()
 	m := Manager{}
 	tt := time.Now()
-	err := m.AddSnapshot([]SnapshotOrder{}, tt, true)
+	err := m.AddSnapshot([]SnapshotOrder{}, tt, 1, true)
 	if !errors.Is(err, errSnapshotNotFound) {
 		t.Errorf("expected: %v, received %v", errSnapshotNotFound, err)
 	}
 
-	err = m.AddSnapshot([]SnapshotOrder{}, tt, false)
+	err = m.AddSnapshot([]SnapshotOrder{}, tt, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = m.AddSnapshot([]SnapshotOrder{}, tt, true)
+	err = m.AddSnapshot([]SnapshotOrder{}, tt, 1, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -34,7 +34,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 		{
 			ClosePrice: 1337,
 		},
-	}, tt, false)
+	}, tt, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,7 +71,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 		{
 			ClosePrice: 1337,
 		},
-	}, tt, false)
+	}, tt, 1, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -79,7 +79,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 		{
 			ClosePrice: 1337,
 		},
-	}, tt.Add(time.Hour), false)
+	}, tt.Add(time.Hour), 1, false)
 	if err != nil {
 		t.Error(err)
 	}

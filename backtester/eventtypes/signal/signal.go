@@ -27,10 +27,10 @@ func (s *Signal) Pair() currency.Pair {
 
 // GetPrice returns the price
 func (s *Signal) GetPrice() float64 {
-	return s.Price
+	return s.ClosePrice
 }
 
 // SetPrice sets the price
 func (s *Signal) SetPrice(f float64) {
-	s.Price = f
+	s.ClosePrice = f
 }

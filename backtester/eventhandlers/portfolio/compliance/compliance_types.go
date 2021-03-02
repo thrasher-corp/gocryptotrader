@@ -9,7 +9,6 @@ import (
 
 var (
 	errSnapshotNotFound = errors.New("snapshot not found")
-	errSnapshotExists   = errors.New("snapshot already exists")
 )
 
 // Manager holds a snapshot of all orders at each timeperiod, allowing
@@ -23,6 +22,7 @@ type Manager struct {
 type Snapshot struct {
 	Orders    []SnapshotOrder `json:"orders"`
 	Timestamp time.Time       `json:"timestamp"`
+	Offset    int64           `json:"offset"`
 }
 
 // SnapshotOrder adds some additional data that's only relevant for backtesting

@@ -113,8 +113,8 @@ func TestAddSignalEventForTime(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Price:     1337,
-		Direction: gctorder.Buy,
+		ClosePrice: 1337,
+		Direction:  gctorder.Buy,
 	})
 	if err != nil {
 		t.Error(err)
@@ -538,8 +538,8 @@ func TestPrintAllEvents(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Price:     1337,
-		Direction: gctorder.Buy,
+		ClosePrice: 1337,
+		Direction:  gctorder.Buy,
 	})
 	if err != nil {
 		t.Error(err)
@@ -588,8 +588,8 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Price:     1337,
-		Direction: gctorder.Buy,
+		ClosePrice: 1337,
+		Direction:  gctorder.Buy,
 	})
 	if err != nil {
 		t.Error(err)
@@ -620,8 +620,8 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: currency.NewPair(currency.DOCK, currency.AAA),
 			AssetType:    a,
 		},
-		Price:     1337,
-		Direction: gctorder.Buy,
+		ClosePrice: 1337,
+		Direction:  gctorder.Buy,
 	})
 	if err != nil {
 		t.Error(err)

@@ -175,6 +175,9 @@ func (o *orderManager) gracefulShutdown() {
 }
 
 func (o *orderManager) run() {
+	if atomic.AddInt32(&o.started, 1) != 1 {
+		return
+	}
 	log.Debugln(log.OrderBook, "Order manager started.")
 	tick := time.NewTicker(orderManagerDelay)
 	o.orderStore.bot.ServicesWG.Add(1)

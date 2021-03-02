@@ -73,22 +73,9 @@ func (s *Statistic) SetEventForOffset(e common.EventHandler) error {
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set signal event", errCurrencyStatisticsUnset, exch, a, p)
 	}
-	// check if the event is the latest event as it is the most likely scenario and will save time
-	var err error
-	if lookup.Events[len(lookup.Events)-1].DataEvent.GetOffset() == offset {
-		err = applyEventAtOffset(e, lookup, len(lookup.Events)-1)
-		if err == nil {
-			// nil error means successfully set, so no need to loop
-			return nil
-		}
-	}
-	for i := range lookup.Events {
+	for i := len(lookup.Events) - 1; i > 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == offset {
-			err := applyEventAtOffset(e, lookup, i)
-			if err != nil {
-				return err
-			}
-			return nil
+			return applyEventAtOffset(e, lookup, i)
 		}
 	}
 
@@ -120,13 +107,7 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set holding event", errCurrencyStatisticsUnset, h.Exchange, h.Asset, h.Pair)
 	}
-	// check if the event is the latest event as it is the most likely scenario and will save time
-	if lookup.Events[len(lookup.Events)-1].DataEvent.GetOffset() == h.Offset {
-		lookup.Events[len(lookup.Events)-1].Holdings = *h
-		return nil
-	}
-
-	for i := range lookup.Events {
+	for i := len(lookup.Events) - 1; i > 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == h.Offset {
 			lookup.Events[i].Holdings = *h
 			break
@@ -150,13 +131,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c compliance.Snapshot, e fill.E
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set compliance snapshot", errCurrencyStatisticsUnset, exch, a, p)
 	}
-	// check if the event is the latest event as it is the most likely scenario and will save time
-	if lookup.Events[len(lookup.Events)-1].DataEvent.GetOffset() == e.GetOffset() {
-		lookup.Events[len(lookup.Events)-1].Transactions = c
-		return nil
-	}
-
-	for i := range lookup.Events {
+	for i := len(lookup.Events) - 1; i > 0; i-- {
 		if lookup.Events[i].DataEvent.GetOffset() == e.GetOffset() {
 			lookup.Events[i].Transactions = c
 			break

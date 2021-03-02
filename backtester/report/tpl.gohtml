@@ -439,7 +439,7 @@
                     {{ if .Statistics.BestStrategyResults}}
 						<tr>
 							<td><b>Best performing strategy movement</b></td>
-							<td>{{.Statistics.BestStrategyResults.Exchange }} {{.Statistics.BestStrategyResults.Asset}} {{.Statistics.BestStrategyResults.Pair}} {{.Statistics.BestStrategyResults.MarketMovement}}%</td>
+							<td>{{.Statistics.BestStrategyResults.Exchange }} {{.Statistics.BestStrategyResults.Asset}} {{.Statistics.BestStrategyResults.Pair}} {{.Statistics.BestStrategyResults.StrategyMovement}}%</td>
 						</tr>
                     {{ end}}
 					</tbody>
@@ -512,7 +512,7 @@
 								</tr>
 								<tr>
 									<td><b>Highest Committed Funds</b></td>
-									<td>${{printf "%.8f" $val.HighestCommittedFunds.Price}} at {{ $val.HighestCommittedFunds.Price}}</td>
+									<td>${{printf "%.8f" $val.HighestCommittedFunds.Price}} at {{ $val.HighestCommittedFunds.Time}}</td>
 								</tr>
 								<tr>
 									<td><b>Market Movement</b></td>

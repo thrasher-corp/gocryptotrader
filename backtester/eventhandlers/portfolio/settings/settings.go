@@ -22,16 +22,7 @@ func (e *Settings) GetHoldingsForTime(t time.Time) holdings.Holding {
 		// no holdings yet
 		return holdings.Holding{}
 	}
-	// check if this is the latest, if so, it will save lots of time
-	if t.Equal(e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1].Timestamp) {
-		return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]
-	}
-	// and event the one before it. This will save thousands of iterations if true
-	if t.Equal(e.HoldingsSnapshots[len(e.HoldingsSnapshots)-2].Timestamp) {
-		return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-2]
-	}
-
-	for i := range e.HoldingsSnapshots {
+	for i := len(e.HoldingsSnapshots) - 1; i > 0; i-- {
 		if e.HoldingsSnapshots[i].Timestamp.Equal(t) {
 			return e.HoldingsSnapshots[i]
 		}
