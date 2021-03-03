@@ -191,6 +191,16 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		limiter, tokens = r.CFuturesOrdersRate, 20
 	case cFuturesPairOrdersRate:
 		limiter, tokens = r.CFuturesOrdersRate, 40
+	case cFuturesOrderbook50Rate:
+		limiter, tokens = r.CFuturesRate, 2
+	case cFuturesOrderbook100Rate:
+		limiter, tokens = r.CFuturesRate, 5
+	case cFuturesOrderbook500Rate:
+		limiter, tokens = r.CFuturesRate, 10
+	case cFuturesOrderbook1000Rate:
+		limiter, tokens = r.CFuturesRate, 20
+	case cFuturesDefaultRate:
+		limiter, tokens = r.CFuturesRate, 1
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}

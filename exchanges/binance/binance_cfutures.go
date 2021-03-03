@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -244,18 +245,7 @@ func (b *Binance) GetFuturesKlineData(symbol currency.Pair, interval string, lim
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	rateBudget := cFuturesDefaultRate
-	switch {
-	case limit > 0 && limit < 100:
-		rateBudget = cFuturesKline100Rate
-	case limit >= 100 && limit < 500:
-		rateBudget = cFuturesKline500Rate
-	case limit >= 500 && limit < 1000:
-		rateBudget = cFuturesKline1000Rate
-	case limit >= 1000:
-		rateBudget = cFuturesKlineMaxRate
-	}
-
+	rateBudget := getKlineRateBudget(limit)
 	err := b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesKlineData+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return resp, err
@@ -373,17 +363,7 @@ func (b *Binance) GetContinuousKlineData(pair, contractType, interval string, li
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 
-	rateBudget := cFuturesDefaultRate
-	switch {
-	case limit > 0 && limit < 100:
-		rateBudget = cFuturesKline100Rate
-	case limit >= 100 && limit < 500:
-		rateBudget = cFuturesKline500Rate
-	case limit >= 500 && limit < 1000:
-		rateBudget = cFuturesKline1000Rate
-	case limit >= 1000:
-		rateBudget = cFuturesKlineMaxRate
-	}
+	rateBudget := getKlineRateBudget(limit)
 	err := b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesContinuousKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return resp, err
@@ -496,17 +476,7 @@ func (b *Binance) GetIndexPriceKlines(pair, interval string, limit int64, startT
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	rateBudget := cFuturesDefaultRate
-	switch {
-	case limit > 0 && limit < 100:
-		rateBudget = cFuturesKline100Rate
-	case limit >= 100 && limit < 500:
-		rateBudget = cFuturesKline500Rate
-	case limit >= 500 && limit < 1000:
-		rateBudget = cFuturesKline1000Rate
-	case limit >= 1000:
-		rateBudget = cFuturesKlineMaxRate
-	}
+	rateBudget := getKlineRateBudget(limit)
 	err := b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesIndexKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return resp, err
@@ -623,18 +593,7 @@ func (b *Binance) GetMarkPriceKline(symbol currency.Pair, interval string, limit
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	rateBudget := cFuturesDefaultRate
-	switch {
-	case limit > 0 && limit < 100:
-		rateBudget = cFuturesKline100Rate
-	case limit >= 100 && limit < 500:
-		rateBudget = cFuturesKline500Rate
-	case limit >= 500 && limit < 1000:
-		rateBudget = cFuturesKline1000Rate
-	case limit >= 1000:
-		rateBudget = cFuturesKlineMaxRate
-	}
-
+	rateBudget := getKlineRateBudget(limit)
 	err = b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesMarkPriceKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return resp, err
@@ -725,6 +684,21 @@ func (b *Binance) GetMarkPriceKline(symbol currency.Pair, interval string, limit
 		resp = append(resp, tempData)
 	}
 	return resp, nil
+}
+
+func getKlineRateBudget(limit int64) request.EndpointLimit {
+	rateBudget := cFuturesDefaultRate
+	switch {
+	case limit > 0 && limit < 100:
+		rateBudget = cFuturesKline100Rate
+	case limit >= 100 && limit < 500:
+		rateBudget = cFuturesKline500Rate
+	case limit >= 500 && limit < 1000:
+		rateBudget = cFuturesKline1000Rate
+	case limit >= 1000:
+		rateBudget = cFuturesKlineMaxRate
+	}
+	return rateBudget
 }
 
 // GetFuturesSwapTickerChangeStats gets 24hr ticker change stats for CoinMarginedFutures,

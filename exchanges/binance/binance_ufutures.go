@@ -828,12 +828,10 @@ func (b *Binance) UFetchOpenOrder(symbol currency.Pair, orderID, origClientOrder
 func (b *Binance) UAllAccountOpenOrders(symbol currency.Pair) ([]UOrderData, error) {
 	var resp []UOrderData
 	params := url.Values{}
-	var err error
-	var p string
 	rateLimit := uFuturesGetAllOpenOrdersRate
 	if !symbol.IsEmpty() {
 		rateLimit = uFuturesOrdersDefaultRate
-		p, err = b.FormatSymbol(symbol, asset.USDTMarginedFutures)
+		p, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
 			return resp, err
 		}
