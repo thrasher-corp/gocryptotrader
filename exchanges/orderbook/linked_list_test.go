@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -51,12 +52,20 @@ var ask = Items{
 	Item{Price: 1356, Amount: 1},
 }
 
+// Display displays depth content for tests
+func (ll *linkedList) display() {
+	for tip := ll.head; tip != nil; tip = tip.next {
+		fmt.Printf("NODE: %+v %p \n", tip, tip)
+	}
+	fmt.Println()
+}
+
 func TestLoad(t *testing.T) {
-	list := linkedList{}
-	Check(list, 0, 0, 0, false, t)
+	list := asks{}
+	Check(list, 0, 0, 0, t)
 
 	stack := &Stack{}
-	list.Load(Items{
+	list.load(Items{
 		{Price: 1, Amount: 1},
 		{Price: 3, Amount: 1},
 		{Price: 5, Amount: 1},
@@ -69,9 +78,9 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
 	}
 
-	Check(list, 6, 36, 6, false, t)
+	Check(list, 6, 36, 6, t)
 
-	list.Load(Items{
+	list.load(Items{
 		{Price: 1, Amount: 1},
 		{Price: 3, Amount: 1},
 		{Price: 5, Amount: 1},
@@ -81,9 +90,9 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.count)
 	}
 
-	Check(list, 3, 9, 3, false, t)
+	Check(list, 3, 9, 3, t)
 
-	list.Load(Items{
+	list.load(Items{
 		{Price: 1, Amount: 1},
 		{Price: 3, Amount: 1},
 		{Price: 5, Amount: 1},
@@ -91,14 +100,33 @@ func TestLoad(t *testing.T) {
 	}, stack)
 
 	if stack.count != 2 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.count)
+		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.count)
 	}
 
-	Check(list, 4, 16, 4, false, t)
+	Check(list, 4, 16, 4, t)
+
+	// purge entire list
+	list.load(nil, stack)
+
+	if stack.count != 6 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 6, stack.count)
+	}
+
+	Check(list, 0, 0, 0, t)
+}
+
+// 22222386	        57.3 ns/op	       0 B/op	       0 allocs/op (old)
+// 27906781	        42.4 ns/op	       0 B/op	       0 allocs/op (new)
+func BenchmarkLoad(b *testing.B) {
+	ll := linkedList{}
+	s := Stack{}
+	for i := 0; i < b.N; i++ {
+		ll.load(ask, &s)
+	}
 }
 
 func TestUpdateInsertByPrice(t *testing.T) {
-	asks := linkedList{}
+	a := asks{}
 	stack := Stack{}
 	asksSnapshot := Items{
 		{Price: 1, Amount: 1},
@@ -108,66 +136,88 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 9, Amount: 1},
 		{Price: 11, Amount: 1},
 	}
-	asks.Load(asksSnapshot, &stack)
+	a.load(asksSnapshot, &stack)
 
 	// Update one instance with matching price
-	asks.updateInsertAsksByPrice(Items{
+	a.updateInsertByPrice(Items{
 		{Price: 1, Amount: 2},
 	}, &stack, 0)
 
-	Check(asks, 7, 37, 6, false, t)
+	Check(a, 7, 37, 6, t)
 
 	if stack.count != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
 	}
 
 	// Insert at head
-	asks.updateInsertAsksByPrice(Items{
+	a.updateInsertByPrice(Items{
 		{Price: 0.5, Amount: 2},
 	}, &stack, 0)
 
-	Check(asks, 9, 38, 7, false, t)
+	Check(a, 9, 38, 7, t)
 
 	if stack.count != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
 	}
 
 	// Insert at tail
-	asks.updateInsertAsksByPrice(Items{
+	a.updateInsertByPrice(Items{
 		{Price: 12, Amount: 2},
 	}, &stack, 0)
 
-	Check(asks, 11, 62, 8, false, t)
+	Check(a, 11, 62, 8, t)
 
 	if stack.count != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
 	}
 
 	// Insert between price and up to and beyond max allowable depth level
-	asks.updateInsertAsksByPrice(Items{
+	a.updateInsertByPrice(Items{
 		{Price: 11.5, Amount: 2},
 		{Price: 10.5, Amount: 2},
 		{Price: 13, Amount: 2},
 	}, &stack, 10)
 
-	Check(asks, 15, 106, 10, false, t)
+	Check(a, 15, 106, 10, t)
 
 	if stack.count != 1 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+		t.Fatalf("incorrect stack count expected: %v received: %v", 1, stack.count)
 	}
 
 	// delete at tail
-	asks.updateInsertAsksByPrice(Items{
+	a.updateInsertByPrice(Items{
 		{Price: 12, Amount: 0},
 	}, &stack, 0)
 
-	Check(asks, 13, 82, 9, false, t)
+	Check(a, 13, 82, 9, t)
 
 	if stack.count != 2 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.count)
 	}
 
-	bids := linkedList{}
+	// delete at mid
+	a.updateInsertByPrice(Items{
+		{Price: 7, Amount: 0},
+	}, &stack, 0)
+
+	Check(a, 12, 75, 8, t)
+
+	if stack.count != 3 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.count)
+	}
+
+	// delete at head
+	a.updateInsertByPrice(Items{
+		{Price: 0.5, Amount: 0},
+	}, &stack, 0)
+
+	Check(a, 10, 74, 7, t)
+
+	if stack.count != 4 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.count)
+	}
+
+	b := bids{}
 	bidsSnapshot := Items{
 		{Price: 11, Amount: 1},
 		{Price: 9, Amount: 1},
@@ -176,67 +226,172 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		{Price: 3, Amount: 1},
 		{Price: 1, Amount: 1},
 	}
-	bids.Load(bidsSnapshot, &stack)
+	b.load(bidsSnapshot, &stack)
 
 	// Update one instance with matching price
-	bids.updateInsertBidsByPrice(Items{
+	b.updateInsertByPrice(Items{
 		{Price: 11, Amount: 2},
 	}, &stack, 0)
 
-	Check(bids, 7, 47, 6, true, t)
+	Check(b, 7, 47, 6, t)
 
 	if stack.count != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
 	}
 
 	// Insert at head
-	bids.updateInsertBidsByPrice(Items{
+	b.updateInsertByPrice(Items{
 		{Price: 12, Amount: 2},
 	}, &stack, 0)
 
-	Check(bids, 9, 71, 7, true, t)
+	Check(b, 9, 71, 7, t)
 
 	if stack.count != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
 	}
 
 	// Insert at tail
-	bids.updateInsertBidsByPrice(Items{
+	b.updateInsertByPrice(Items{
 		{Price: 0.5, Amount: 2},
 	}, &stack, 0)
 
-	Check(bids, 11, 72, 8, true, t)
+	Check(b, 11, 72, 8, t)
 
 	if stack.count != 0 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
 	}
 
 	// Insert between price and up to and beyond max allowable depth level
-	bids.updateInsertBidsByPrice(Items{
+	b.updateInsertByPrice(Items{
 		{Price: 11.5, Amount: 2},
 		{Price: 10.5, Amount: 2},
 		{Price: 13, Amount: 2},
 	}, &stack, 10)
 
-	Check(bids, 15, 141, 10, true, t)
+	Check(b, 15, 141, 10, t)
 
 	if stack.count != 1 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
 	}
 
 	// Insert between price and up to and beyond max allowable depth level
-	bids.updateInsertBidsByPrice(Items{
+	b.updateInsertByPrice(Items{
 		{Price: 1, Amount: 0},
 	}, &stack, 0)
 
-	Check(bids, 14, 140, 9, true, t)
+	Check(b, 14, 140, 9, t)
 
 	if stack.count != 2 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.count)
+		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.count)
+	}
+
+	// delete at mid
+	b.updateInsertByPrice(Items{
+		{Price: 10.5, Amount: 0},
+	}, &stack, 0)
+
+	Check(b, 12, 119, 8, t)
+
+	if stack.count != 3 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.count)
+	}
+
+	// delete at head
+	b.updateInsertByPrice(Items{
+		{Price: 13, Amount: 0},
+	}, &stack, 0)
+
+	Check(b, 10, 93, 7, t)
+
+	if stack.count != 4 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.count)
 	}
 }
 
-func TestUpdateInsertByID(t *testing.T) {
+// 46154023	        24.0 ns/op	       0 B/op	       0 allocs/op (old)
+// 134830672	         9.83 ns/op	       0 B/op	       0 allocs/op (new)
+func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
+	a := asks{}
+	stack := Stack{}
+
+	a.load(ask, &stack)
+
+	updates := Items{
+		{
+			Price:  1337, // Amend
+			Amount: 2,
+		},
+		{
+			Price:  1337, // Amend
+			Amount: 1,
+		},
+	}
+
+	for i := 0; i < b.N; i++ {
+		a.updateInsertByPrice(updates, &stack, 0)
+	}
+}
+
+// 49763002	        24.9 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkUpdateInsertByPrice_Insert_Delete(b *testing.B) {
+	a := asks{}
+	stack := Stack{}
+
+	a.load(ask, &stack)
+
+	updates := Items{
+		{
+			Price:  1337.5, // Insert
+			Amount: 2,
+		},
+		{
+			Price:  1337.5, // Delete
+			Amount: 0,
+		},
+	}
+
+	for i := 0; i < b.N; i++ {
+		a.updateInsertByPrice(updates, &stack, 0)
+	}
+}
+
+func TestUpdateByID(t *testing.T) {
+	a := asks{}
+	s := Stack{}
+	asksSnapshot := Items{
+		{Price: 1, Amount: 1, ID: 1},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 11, Amount: 1, ID: 11},
+	}
+	a.load(asksSnapshot, &s)
+
+	err := a.updateByID(Items{
+		{Price: 1, Amount: 1, ID: 1},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 11, Amount: 1, ID: 11},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 6, 36, 6, t)
+
+	err = a.updateByID(Items{
+		{Price: 11, Amount: 1, ID: 1337},
+	})
+	if !errors.Is(err, errIDCannotBeMatched) {
+		t.Fatalf("expecting %s but received %v", errIDCannotBeMatched, err)
+	}
+}
+
+// 46043871	        25.9 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkUpdateByID(b *testing.B) {
 	asks := linkedList{}
 	s := Stack{}
 	asksSnapshot := Items{
@@ -247,20 +402,108 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 9, Amount: 1, ID: 9},
 		{Price: 11, Amount: 1, ID: 11},
 	}
-	asks.Load(asksSnapshot, &s)
+	asks.load(asksSnapshot, &s)
+
+	for i := 0; i < b.N; i++ {
+		err := asks.updateByID(Items{
+			{Price: 1, Amount: 1, ID: 1},
+			{Price: 3, Amount: 1, ID: 3},
+			{Price: 5, Amount: 1, ID: 5},
+			{Price: 7, Amount: 1, ID: 7},
+			{Price: 9, Amount: 1, ID: 9},
+			{Price: 11, Amount: 1, ID: 11},
+		})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func TestDeleteByID(t *testing.T) {
+	a := asks{}
+	s := Stack{}
+	asksSnapshot := Items{
+		{Price: 1, Amount: 1, ID: 1},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 11, Amount: 1, ID: 11},
+	}
+	a.load(asksSnapshot, &s)
+
+	// Delete at head
+	err := a.deleteByID(Items{
+		{Price: 1, Amount: 1, ID: 1},
+	}, &s, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 5, 35, 5, t)
+
+	// Delete at tail
+	err = a.deleteByID(Items{
+		{Price: 1, Amount: 1, ID: 11},
+	}, &s, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 4, 24, 4, t)
+
+	// Delete in middle
+	err = a.deleteByID(Items{
+		{Price: 1, Amount: 1, ID: 5},
+	}, &s, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 3, 19, 3, t)
+
+	// Intentional error
+	err = a.deleteByID(Items{
+		{Price: 11, Amount: 1, ID: 1337},
+	}, &s, false)
+	if !errors.Is(err, errIDCannotBeMatched) {
+		t.Fatalf("expecting %s but received %v", errIDCannotBeMatched, err)
+	}
+
+	// Error bypass
+	err = a.deleteByID(Items{
+		{Price: 11, Amount: 1, ID: 1337},
+	}, &s, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateInsertByID(t *testing.T) {
+	a := asks{}
+	s := Stack{}
+	asksSnapshot := Items{
+		{Price: 1, Amount: 1, ID: 1},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 11, Amount: 1, ID: 11},
+	}
+	a.load(asksSnapshot, &s)
 
 	// Update one instance with matching ID
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 	}, &s)
 
-	Check(asks, 7, 37, 6, false, t)
+	Check(a, 7, 37, 6, t)
 
 	// Reset
-	asks.Load(asksSnapshot, &s)
+	a.load(asksSnapshot, &s)
 
 	// Update all instances with matching ID in order
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 5, Amount: 2, ID: 5},
@@ -269,10 +512,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(asks, 12, 72, 6, false, t)
+	Check(a, 12, 72, 6, t)
 
 	// Update all instances with matching ID in backwards
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 7, Amount: 2, ID: 7},
@@ -281,10 +524,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 1, Amount: 2, ID: 1},
 	}, &s)
 
-	Check(asks, 12, 72, 6, false, t)
+	Check(a, 12, 72, 6, t)
 
 	// Update all instances with matching ID all over the ship
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 7, Amount: 2, ID: 7},
@@ -293,10 +536,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 5, Amount: 2, ID: 5},
 	}, &s)
 
-	Check(asks, 12, 72, 6, false, t)
+	Check(a, 12, 72, 6, t)
 
 	// Update all instances move one before ID in middle
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 2, Amount: 2, ID: 5},
@@ -305,10 +548,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(asks, 12, 66, 6, false, t)
+	Check(a, 12, 66, 6, t)
 
 	// Update all instances move one before ID at head
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: .5, Amount: 2, ID: 5},
@@ -317,13 +560,13 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(asks, 12, 63, 6, false, t)
+	Check(a, 12, 63, 6, t)
 
 	// Reset
-	asks.Load(asksSnapshot, &s)
+	a.load(asksSnapshot, &s)
 
 	// Update all instances move one after ID
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 8, Amount: 2, ID: 5},
@@ -332,13 +575,13 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(asks, 12, 78, 6, false, t)
+	Check(a, 12, 78, 6, t)
 
 	// Reset
-	asks.Load(asksSnapshot, &s)
+	a.load(asksSnapshot, &s)
 
 	// Update all instances move one after ID to tail
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
@@ -347,10 +590,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(asks, 12, 86, 6, false, t)
+	Check(a, 12, 86, 6, t)
 
 	// Update all instances then pop new instance
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
@@ -360,13 +603,13 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 10, Amount: 2, ID: 10},
 	}, &s)
 
-	Check(asks, 14, 106, 7, false, t)
+	Check(a, 14, 106, 7, t)
 
 	// Reset
-	asks.Load(asksSnapshot, &s)
+	a.load(asksSnapshot, &s)
 
 	// Update all instances pop at head
-	asks.updateInsertByIDAsk(Items{
+	a.updateInsertByID(Items{
 		{Price: 0.5, Amount: 2, ID: 0},
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
@@ -376,11 +619,11 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(asks, 14, 87, 7, false, t)
+	Check(a, 14, 87, 7, t)
 
 	// Bids -------------------------------------------------------------------
 
-	bids := linkedList{}
+	b := bids{}
 	bidsSnapshot := Items{
 		{Price: 11, Amount: 1, ID: 11},
 		{Price: 9, Amount: 1, ID: 9},
@@ -389,20 +632,20 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 3, Amount: 1, ID: 3},
 		{Price: 1, Amount: 1, ID: 1},
 	}
-	bids.Load(bidsSnapshot, &s)
+	b.load(bidsSnapshot, &s)
 
 	// Update one instance with matching ID
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 	}, &s)
 
-	Check(bids, 7, 37, 6, true, t)
+	Check(b, 7, 37, 6, t)
 
 	// Reset
-	bids.Load(bidsSnapshot, &s)
+	b.load(bidsSnapshot, &s)
 
 	// Update all instances with matching ID in order
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 5, Amount: 2, ID: 5},
@@ -411,10 +654,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(bids, 12, 72, 6, true, t)
+	Check(b, 12, 72, 6, t)
 
 	// Update all instances with matching ID in backwards
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 7, Amount: 2, ID: 7},
@@ -423,10 +666,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 1, Amount: 2, ID: 1},
 	}, &s)
 
-	Check(bids, 12, 72, 6, true, t)
+	Check(b, 12, 72, 6, t)
 
 	// Update all instances with matching ID all over the ship
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 7, Amount: 2, ID: 7},
@@ -435,10 +678,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 5, Amount: 2, ID: 5},
 	}, &s)
 
-	Check(bids, 12, 72, 6, true, t)
+	Check(b, 12, 72, 6, t)
 
 	// Update all instances move one before ID in middle
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 2, Amount: 2, ID: 5},
@@ -447,10 +690,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(bids, 12, 66, 6, true, t)
+	Check(b, 12, 66, 6, t)
 
 	// Update all instances move one before ID at head
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: .5, Amount: 2, ID: 5},
@@ -459,13 +702,13 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(bids, 12, 63, 6, true, t)
+	Check(b, 12, 63, 6, t)
 
 	// Reset
-	bids.Load(bidsSnapshot, &s)
+	b.load(bidsSnapshot, &s)
 
 	// Update all instances move one after ID
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 8, Amount: 2, ID: 5},
@@ -474,13 +717,13 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(bids, 12, 78, 6, true, t)
+	Check(b, 12, 78, 6, t)
 
 	// Reset
-	bids.Load(bidsSnapshot, &s)
+	b.load(bidsSnapshot, &s)
 
 	// Update all instances move one after ID to tail
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
@@ -489,10 +732,10 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(bids, 12, 86, 6, true, t)
+	Check(b, 12, 86, 6, t)
 
 	// Update all instances then pop new instance
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
@@ -502,14 +745,13 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 10, Amount: 2, ID: 10},
 	}, &s)
 
-	Check(bids, 14, 106, 7, true, t)
+	Check(b, 14, 106, 7, t)
 
 	// Reset
-	bids.Load(bidsSnapshot, &s)
+	b.load(bidsSnapshot, &s)
 
-	bids.Display()
 	// Update all instances pop at tail
-	bids.updateInsertByIDBid(Items{
+	b.updateInsertByID(Items{
 		{Price: 0.5, Amount: 2, ID: 0},
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
@@ -519,34 +761,186 @@ func TestUpdateInsertByID(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 	}, &s)
 
-	Check(bids, 14, 87, 7, true, t)
+	Check(b, 14, 87, 7, t)
+}
 
-	bids.Display()
+func TestInsertUpdatesBid(t *testing.T) {
+	b := bids{}
+	s := &Stack{}
+	bidsSnapshot := Items{
+		{Price: 11, Amount: 1, ID: 11},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 1, Amount: 1, ID: 1},
+	}
+	b.load(bidsSnapshot, s)
+
+	err := b.insertUpdates(Items{
+		{Price: 11, Amount: 1, ID: 11},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 1, Amount: 1, ID: 1},
+	}, s)
+	if !errors.Is(err, errCollisionDetected) {
+		t.Fatalf("expected error %s but received %v", errCollisionDetected, err)
+	}
+
+	Check(b, 6, 36, 6, t)
+
+	// Insert at head
+	err = b.insertUpdates(Items{
+		{Price: 12, Amount: 1, ID: 11},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(b, 7, 48, 7, t)
+
+	// Insert at tail
+	err = b.insertUpdates(Items{
+		{Price: 0.5, Amount: 1, ID: 12},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(b, 8, 48.5, 8, t)
+
+	// Insert at mid
+	err = b.insertUpdates(Items{
+		{Price: 5.5, Amount: 1, ID: 13},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(b, 9, 54, 9, t)
+
+	// purge
+	b.load(nil, s)
+
+	// Add one at head
+	err = b.insertUpdates(Items{
+		{Price: 5.5, Amount: 1, ID: 13},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(b, 1, 5.5, 1, t)
+}
+
+func TestInsertUpdatesAsk(t *testing.T) {
+	a := asks{}
+	s := &Stack{}
+	askSnapshot := Items{
+		{Price: 1, Amount: 1, ID: 1},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 11, Amount: 1, ID: 11},
+	}
+	a.load(askSnapshot, s)
+
+	err := a.insertUpdates(Items{
+		{Price: 11, Amount: 1, ID: 11},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 1, Amount: 1, ID: 1},
+	}, s)
+	if !errors.Is(err, errCollisionDetected) {
+		t.Fatalf("expected error %s but received %v", errCollisionDetected, err)
+	}
+
+	Check(a, 6, 36, 6, t)
+
+	// Insert at tail
+	err = a.insertUpdates(Items{
+		{Price: 12, Amount: 1, ID: 11},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 7, 48, 7, t)
+
+	// Insert at head
+	err = a.insertUpdates(Items{
+		{Price: 0.5, Amount: 1, ID: 12},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 8, 48.5, 8, t)
+
+	// Insert at mid
+	err = a.insertUpdates(Items{
+		{Price: 5.5, Amount: 1, ID: 13},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 9, 54, 9, t)
+
+	// purge
+	a.load(nil, s)
+
+	// Add one at head
+	err = a.insertUpdates(Items{
+		{Price: 5.5, Amount: 1, ID: 13},
+	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Check(a, 1, 5.5, 1, t)
 }
 
 // check checks depth values after an update has taken place
-func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *testing.T) {
+func Check(depth interface{}, liquidity, value float64, nodeCount int, t *testing.T) {
 	t.Helper()
-	if ll.Liquidity() != liquidity {
-		ll.Display()
+	b, isBid := depth.(bids)
+	a, isAsk := depth.(asks)
+
+	var ll linkedList
+	if isBid {
+		ll = b.linkedList
+	} else if isAsk {
+		ll = a.linkedList
+	} else {
+		t.Fatal("value passed in is not of type bids or asks")
+	}
+
+	if ll.liquidity() != liquidity {
+		ll.display()
 		t.Fatalf("mismatched liquidity expecting %v but received %v",
 			liquidity,
-			ll.Liquidity())
+			ll.liquidity())
 	}
 
-	if ll.length != nodeCount {
-		ll.Display()
-		t.Fatalf("mismatched node count expecting %v but received %v",
-			nodeCount,
-			ll.length)
-	}
-
-	valueTotal := ll.Value()
+	valueTotal := ll.value()
 	if valueTotal != value {
-		ll.Display()
+		ll.display()
 		t.Fatalf("mismatched total value expecting %v but received %v",
 			value,
 			valueTotal)
+	}
+
+	if ll.length != nodeCount {
+		ll.display()
+		t.Fatalf("mismatched node count expecting %v but received %v",
+			nodeCount,
+			ll.length)
 	}
 
 	if ll.head == nil {
@@ -558,11 +952,11 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 	for tip := ll.head; ; tip = tip.next {
 		if price == 0 {
 			price = tip.value.Price
-		} else if bid && price < tip.value.Price {
-			ll.Display()
+		} else if isBid && price < tip.value.Price {
+			ll.display()
 			t.Fatal("Bid pricing out of order should be descending")
-		} else if !bid && price > tip.value.Price {
-			ll.Display()
+		} else if isAsk && price > tip.value.Price {
+			ll.display()
 			t.Fatal("Ask pricing out of order should be ascending")
 		} else {
 			price = tip.value.Price
@@ -584,7 +978,7 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 	}
 
 	if liquidity-liqReversed != 0 {
-		ll.Display()
+		ll.display()
 		fmt.Println(liquidity, liqReversed)
 		t.Fatalf("mismatched liquidity when reversing direction expecting %v but received %v",
 			0,
@@ -592,14 +986,14 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 	}
 
 	if nodeCount-nodeReversed != 0 {
-		ll.Display()
+		ll.display()
 		t.Fatalf("mismatched node count when reversing direction expecting %v but received %v",
 			0,
 			nodeCount-nodeReversed)
 	}
 
 	if value-valReversed != 0 {
-		ll.Display()
+		ll.display()
 		fmt.Println(valReversed, value)
 		t.Fatalf("mismatched total book value when reversing direction expecting %v but received %v",
 			0,
@@ -607,30 +1001,25 @@ func Check(ll linkedList, liquidity, value float64, nodeCount int, bid bool, t *
 	}
 }
 
-//  158	   9,521,717 ns/op	 9600104 B/op	  100001 allocs/op
-func BenchmarkWithoutStack(b *testing.B) {
-	var n *Node
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 100000; j++ {
-			n = new(Node)
-			n.value.Price = 1337
-		}
+func TestAmount(t *testing.T) {
+	a := asks{}
+	s := &Stack{}
+	askSnapshot := Items{
+		{Price: 1, Amount: 1, ID: 1},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 11, Amount: 1, ID: 11},
 	}
-}
+	a.load(askSnapshot, s)
 
-//  949	   1,427,820 ns/op	       0 B/op	       0 allocs/op
-func BenchmarkWithStack(b *testing.B) {
-	var n *Node
-	stack := NewStack()
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < 100000; j++ {
-			n = stack.Pop()
-			n.value.Price = 1337
-			stack.Push(n)
-		}
+	liquidity, value := a.amount()
+	if liquidity != 6 {
+		t.Fatalf("incorrect liquidity calculation expected 6 but receieved %f", liquidity)
+	}
+
+	if value != 36 {
+		t.Fatalf("incorrect value calculation expected 36 but receieved %f", value)
 	}
 }

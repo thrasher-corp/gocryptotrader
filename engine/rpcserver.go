@@ -1689,46 +1689,47 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 		return errors.New(errExchangeNameUnset)
 	}
 
-	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
-	if err != nil {
-		return err
-	}
+	// pipe, err := orderbook.GetDepth(r.Exchange)
+	// if err != nil {
+	// 	return err
+	// }
 
-	defer pipe.Release()
+	// defer pipe.Release()
 
-	for {
-		data, ok := <-pipe.C
-		if !ok {
-			return errors.New(errDispatchSystem)
-		}
+	// for {
+	// 	data, ok := <-pipe.C
+	// 	if !ok {
+	// 		return errors.New(errDispatchSystem)
+	// 	}
 
-		ob := (*data.(*interface{})).(orderbook.Base)
-		var bids, asks []*gctrpc.OrderbookItem
-		for i := range ob.Bids {
-			bids = append(bids, &gctrpc.OrderbookItem{
-				Amount: ob.Bids[i].Amount,
-				Price:  ob.Bids[i].Price,
-				Id:     ob.Bids[i].ID,
-			})
-		}
-		for i := range ob.Asks {
-			asks = append(asks, &gctrpc.OrderbookItem{
-				Amount: ob.Asks[i].Amount,
-				Price:  ob.Asks[i].Price,
-				Id:     ob.Asks[i].ID,
-			})
-		}
-		err := stream.Send(&gctrpc.OrderbookResponse{
-			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
-				Quote: ob.Pair.Quote.String()},
-			Bids:      bids,
-			Asks:      asks,
-			AssetType: ob.Asset.String(),
-		})
-		if err != nil {
-			return err
-		}
-	}
+	// 	ob := (*data.(*interface{})).(orderbook.Base)
+	// 	var bids, asks []*gctrpc.OrderbookItem
+	// 	for i := range ob.Bids {
+	// 		bids = append(bids, &gctrpc.OrderbookItem{
+	// 			Amount: ob.Bids[i].Amount,
+	// 			Price:  ob.Bids[i].Price,
+	// 			Id:     ob.Bids[i].ID,
+	// 		})
+	// 	}
+	// 	for i := range ob.Asks {
+	// 		asks = append(asks, &gctrpc.OrderbookItem{
+	// 			Amount: ob.Asks[i].Amount,
+	// 			Price:  ob.Asks[i].Price,
+	// 			Id:     ob.Asks[i].ID,
+	// 		})
+	// 	}
+	// 	err := stream.Send(&gctrpc.OrderbookResponse{
+	// 		Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
+	// 			Quote: ob.Pair.Quote.String()},
+	// 		Bids:      bids,
+	// 		Asks:      asks,
+	// 		AssetType: ob.Asset.String(),
+	// 	})
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
+	return nil
 }
 
 // GetTickerStream streams the requested updated ticker

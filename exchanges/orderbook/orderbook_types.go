@@ -5,9 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -20,39 +18,26 @@ const (
 
 // Vars for the orderbook package
 var (
-	service *Service
-
 	errExchangeNameUnset = errors.New("orderbook exchange name not set")
 	errPairNotSet        = errors.New("orderbook currency pair not set")
 	errAssetTypeNotSet   = errors.New("orderbook asset type not set")
 	errNoOrderbook       = errors.New("orderbook bids and asks are empty")
 	errPriceNotSet       = errors.New("price cannot be zero")
 	errAmountInvalid     = errors.New("amount cannot be less or equal to zero")
-	errOutOfOrder        = errors.New("pricing out of order")
+	errPriceOutOfOrder   = errors.New("pricing out of order")
+	errIDOutOfOrder      = errors.New("ID out of order")
 	errDuplication       = errors.New("price duplication")
 	errIDDuplication     = errors.New("id duplication")
 	errPeriodUnset       = errors.New("funding rate period is unset")
 )
 
-func init() {
-	service = new(Service)
-	service.mux = dispatch.GetNewMux()
-	service.Books = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Book)
-	service.Exchange = make(map[string]uuid.UUID)
+var service = Service{
+	books: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
 }
 
-// Book defines an orderbook with its links to different dispatch outputs
-type Book struct {
-	Depth
-	main  uuid.UUID
-	assoc []uuid.UUID
-}
-
-// Service holds orderbook information for each individual exchange
+// Service provides a store for difference exchange orderbooks
 type Service struct {
-	Books    map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Book
-	Exchange map[string]uuid.UUID
-	mux      *dispatch.Mux
+	books map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth
 	sync.Mutex
 }
 

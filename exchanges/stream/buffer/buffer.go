@@ -3,6 +3,7 @@ package buffer
 import (
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sort"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,6 +20,7 @@ var (
 	errUpdateIsNil                  = errors.New("update is nil")
 	errUpdateNoTargets              = errors.New("update bid/ask targets cannot be nil")
 	errDepthNotFound                = errors.New("orderbook depth not found")
+	errRESTOverwrite                = errors.New("orderbook has been overwritten by REST protocol")
 )
 
 // Setup sets private variables
@@ -61,22 +63,32 @@ func (w *Orderbook) validate(u *Update) error {
 // Update updates a stored pointer to an orderbook.Depth struct containing a
 // linked list, this switches between the usage of a buffered update
 func (w *Orderbook) Update(u *Update) error {
+	debug.SetGCPercent(-1)
+	defer debug.SetGCPercent(100)
 	if err := w.validate(u); err != nil {
 		return err
 	}
-	w.m.Lock()
-	obLookup, ok := w.ob[u.Pair.Base][u.Pair.Quote][u.Asset]
+	w.Lock()
+	defer w.Unlock()
+	book, ok := w.ob[u.Pair.Base][u.Pair.Quote][u.Asset]
 	if !ok {
-		w.m.Unlock()
-		return fmt.Errorf("ob.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
+		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
+			errDepthNotFound,
+			w.exchangeName,
+			u.Pair,
+			u.Asset)
+	}
+
+	if book.ob.RestSnapshot {
+		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
+			errRESTOverwrite,
 			w.exchangeName,
 			u.Pair,
 			u.Asset)
 	}
 
 	if w.bufferEnabled {
-		processed, err := w.processBufferUpdate(obLookup, u)
-		w.m.Unlock()
+		processed, err := w.processBufferUpdate(book, u)
 		if err != nil {
 			return err
 		}
@@ -85,8 +97,7 @@ func (w *Orderbook) Update(u *Update) error {
 			return nil
 		}
 	} else {
-		err := w.processObUpdate(obLookup, u)
-		w.m.Unlock()
+		err := w.processObUpdate(book, u)
 		if err != nil {
 			return err
 		}
@@ -94,7 +105,7 @@ func (w *Orderbook) Update(u *Update) error {
 
 	// Send pointer to orderbook.Depth to datahandler for logging purposes
 	select {
-	case w.dataHandler <- obLookup.ob:
+	case w.dataHandler <- book.ob:
 	default:
 		// If no receiver, discard alert as this will slow down future updates
 	}
@@ -170,8 +181,8 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
-	// fmt.Printf("BOOK: %+v\n", book)
-	w.m.Lock()
+	w.Lock()
+	defer w.Unlock()
 	m1, ok := w.ob[book.Pair.Base]
 	if !ok {
 		m1 = make(map[currency.Code]map[asset.Item]*orderbookHolder)
@@ -185,9 +196,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	holder, ok := m2[book.Asset]
 	if !ok {
 		// Associate orderbook pointer with local exchange depth map
-		depth, err := orderbook.GetDepth(book.Exchange, book.Pair, book.Asset)
+		depth, err := orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
 		if err != nil {
-			w.m.Unlock()
 			return err
 		}
 		// TODO ADD THIS IN!!!
@@ -217,7 +227,6 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	}
 
 	err := holder.ob.LoadSnapshot(book.Bids, book.Asks, false)
-	w.m.Unlock()
 	if err != nil {
 		return err
 	}
@@ -241,9 +250,9 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 // GetOrderbook returns orderbook stored in current buffer
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
-	w.m.Lock()
+	w.Lock()
+	defer w.Unlock()
 	book, ok := w.ob[p.Base][p.Quote][a]
-	w.m.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w",
 			w.exchangeName,
@@ -260,17 +269,17 @@ var empty map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
 func (w *Orderbook) FlushBuffer() {
-	w.m.Lock()
+	w.Lock()
 	w.ob = empty
-	w.m.Unlock()
+	w.Unlock()
 	empty = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 }
 
 // FlushOrderbook flushes independent orderbook
 func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
-	w.m.Lock()
+	w.Lock()
+	defer w.Unlock()
 	book, ok := w.ob[p.Base][p.Quote][a]
-	w.m.Unlock()
 	if !ok {
 		return fmt.Errorf("%s %s %s %w",
 			w.exchangeName,

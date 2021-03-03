@@ -348,7 +348,13 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	case *orderbook.Depth:
-		// fmt.Println("Got some goods")
+		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
+			bot.ExchangeCurrencyPairManager.update(exchName,
+				d.Pair,
+				d.Asset,
+				SyncItemOrderbook,
+				nil)
+		}
 	default:
 		if bot.Settings.Verbose {
 			log.Warnf(log.WebsocketMgr,

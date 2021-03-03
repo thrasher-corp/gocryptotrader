@@ -6,9 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -23,113 +21,79 @@ func GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	return service.GetDepth(exchange, p, a)
 }
 
-// SubscribeOrderbook subcribes to an orderbook and returns a communication
-// channel to stream orderbook data updates
-func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
-	exchange = strings.ToLower(exchange)
-	service.Lock()
-	defer service.Unlock()
-	book, ok := service.Books[exchange][a][p.Base.Item][p.Quote.Item]
-	if !ok {
-		return dispatch.Pipe{},
-			fmt.Errorf("orderbook item not found for %s %s %s",
-				exchange,
-				p,
-				a)
-	}
-	return service.mux.Subscribe(book.main)
-}
-
-// SubscribeToExchangeOrderbooks subcribes to all orderbooks on an exchange
-func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
-	service.Lock()
-	defer service.Unlock()
-	id, ok := service.Exchange[strings.ToLower(exchange)]
-	if !ok {
-		return dispatch.Pipe{}, fmt.Errorf("%s exchange orderbooks not found",
-			exchange)
-	}
-	return service.mux.Subscribe(id)
+// GetDepth returns depth
+func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	return service.DeployDepth(exchange, p, a)
 }
 
 // Update stores orderbook data
 func (s *Service) Update(b *Base) error {
 	name := strings.ToLower(b.Exchange)
 	s.Lock()
-	m1, ok := s.Books[name]
+	m1, ok := s.books[name]
 	if !ok {
-		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Book)
-		s.Books[name] = m1
+		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth)
+		s.books[name] = m1
 	}
 
 	m2, ok := m1[b.Asset]
 	if !ok {
-		m2 = make(map[*currency.Item]map[*currency.Item]*Book)
+		m2 = make(map[*currency.Item]map[*currency.Item]*Depth)
 		m1[b.Asset] = m2
 	}
 
 	m3, ok := m2[b.Pair.Base.Item]
 	if !ok {
-		m3 = make(map[*currency.Item]*Book)
+		m3 = make(map[*currency.Item]*Depth)
 		m2[b.Pair.Base.Item] = m3
 	}
 
 	book, ok := m3[b.Pair.Quote.Item]
 	if !ok {
-		book = new(Book)
+		book = new(Depth)
+		book.Exchange = b.Exchange
+		book.Asset = b.Asset
+		book.Pair = b.Pair
+		book.RestSnapshot = b.RestSnapshot
+		book.IsFundingRate = b.IsFundingRate
+		book.HasChecksumValidation = b.HasChecksumValidation
+		book.NotAggregated = b.NotAggregated
 		m3[b.Pair.Quote.Item] = book
-		err := s.SetNewData(b, book, name)
-		s.Unlock()
-		return err
 	}
-
-	book.Process(b.Bids, b.Asks)
 	book.LastUpdated = b.LastUpdated
+	book.LastUpdateID = b.LastUpdateID
 	book.RestSnapshot = true
-	ids := append(book.assoc, book.main)
+	err := book.Process(b.Bids, b.Asks)
 	s.Unlock()
-	return s.mux.Publish(ids, b)
+	return err
 }
 
-// SetNewData sets new data
-func (s *Service) SetNewData(ob *Base, book *Book, exch string) error {
-	var err error
-	book.assoc, err = s.getAssociations(strings.ToLower(exch))
-	if err != nil {
-		return err
-	}
-	book.main, err = s.mux.GetID()
-	if err != nil {
-		return err
-	}
-
-	book.Process(ob.Bids, ob.Asks)
-	book.Exchange = ob.Exchange
-	book.Asset = ob.Asset
-	book.Pair = ob.Pair
-	book.RestSnapshot = ob.RestSnapshot
-	book.IsFundingRate = ob.IsFundingRate
-	book.LastUpdateID = ob.LastUpdateID
-	book.HasChecksumValidation = ob.HasChecksumValidation
-	book.NotAggregated = ob.NotAggregated
-	return nil
-}
-
-// GetAssociations links a singular book with it's dispatch associations
-func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
-	var ids []uuid.UUID
-	exchangeID, ok := s.Exchange[exch]
+// DeployDepth used for subsystem deployment creates a depth item in the struct
+// then returns a ptr to that Depth item
+func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	s.Lock()
+	defer s.Unlock()
+	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
-		var err error
-		exchangeID, err = s.mux.GetID()
-		if err != nil {
-			return nil, err
-		}
-		s.Exchange[exch] = exchangeID
+		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth)
+		s.books[strings.ToLower(exchange)] = m1
 	}
-
-	ids = append(ids, exchangeID)
-	return ids, nil
+	m2, ok := m1[a]
+	if !ok {
+		m2 = make(map[*currency.Item]map[*currency.Item]*Depth)
+		m1[a] = m2
+	}
+	m3, ok := m2[p.Base.Item]
+	if !ok {
+		m3 = make(map[*currency.Item]*Depth)
+		m2[p.Base.Item] = m3
+	}
+	book, ok := m3[p.Quote.Item]
+	if !ok {
+		book = new(Depth)
+		m3[p.Quote.Item] = book
+	}
+	return book, nil
 }
 
 // GetDepth returns the actual depth struct for potential subsystems and
@@ -137,35 +101,7 @@ func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	s.Lock()
 	defer s.Unlock()
-	m1, ok := s.Books[strings.ToLower(exchange)]
-	if !ok {
-		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Book)
-		s.Books[strings.ToLower(exchange)] = m1
-	}
-	m2, ok := m1[a]
-	if !ok {
-		m2 = make(map[*currency.Item]map[*currency.Item]*Book)
-		m1[a] = m2
-	}
-	m3, ok := m2[p.Base.Item]
-	if !ok {
-		m3 = make(map[*currency.Item]*Book)
-		m2[p.Base.Item] = m3
-	}
-	book, ok := m3[p.Quote.Item]
-	if !ok {
-		book = &Book{}
-		m3[p.Quote.Item] = book
-	}
-	return &book.Depth, nil
-}
-
-// Retrieve gets orderbook depth data from the associated linked list and
-// returns the base equivalent copy
-func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
-	s.Lock()
-	defer s.Unlock()
-	m1, ok := s.Books[strings.ToLower(exchange)]
+	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
 		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
 	}
@@ -187,7 +123,33 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
 			p.Quote)
 	}
+	return book, nil
+}
 
+// Retrieve gets orderbook depth data from the associated linked list and
+// returns the base equivalent copy
+func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+	s.Lock()
+	defer s.Unlock()
+	m1, ok := s.books[strings.ToLower(exchange)]
+	if !ok {
+		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
+	}
+	m2, ok := m1[a]
+	if !ok {
+		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
+			a)
+	}
+	m3, ok := m2[p.Base.Item]
+	if !ok {
+		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+			p.Base)
+	}
+	book, ok := m3[p.Quote.Item]
+	if !ok {
+		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+			p.Quote)
+	}
 	return book.Retrieve(), nil
 }
 
@@ -211,13 +173,6 @@ func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
 	return amountCollated, total
 }
 
-// // Update updates the bids and asks
-// func (b *Base) Update(bids, asks []Item) {
-// 	b.Bids = bids
-// 	b.Asks = asks
-// 	b.LastUpdated = time.Now()
-// }
-
 // Verify ensures that the orderbook items are correctly sorted prior to being
 // set and will reject any book with incorrect values.
 // Bids should always go from a high price to a low price and
@@ -237,52 +192,62 @@ func (b *Base) Verify() error {
 			len(b.Bids),
 			len(b.Asks))
 	}
-	for i := range b.Bids {
-		if b.Bids[i].Price == 0 {
-			return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errPriceNotSet)
-		}
-		if b.Bids[i].Amount <= 0 {
-			return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errAmountInvalid)
-		}
-		if b.IsFundingRate && b.Bids[i].Period == 0 {
-			return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errPeriodUnset)
-		}
-		if i != 0 {
-			if b.Bids[i].Price > b.Bids[i-1].Price {
-				return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errOutOfOrder)
-			}
-
-			if !b.NotAggregated && b.Bids[i].Price == b.Bids[i-1].Price {
-				return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errDuplication)
-			}
-
-			if b.Bids[i].ID != 0 && b.Bids[i].ID == b.Bids[i-1].ID {
-				return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, errIDDuplication)
-			}
-		}
+	err := checkAlignment(b.Bids, b.IsFundingRate, b.NotAggregated, dsc)
+	if err != nil {
+		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
+	err = checkAlignment(b.Asks, b.IsFundingRate, b.NotAggregated, asc)
+	if err != nil {
+		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
+	}
+	return nil
+}
 
-	for i := range b.Asks {
-		if b.Asks[i].Price == 0 {
-			return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errPriceNotSet)
+// checker defines specific functionality to determine ascending/descending
+// validation
+type checker func(current Item, previous Item) error
+
+// asc specfically defines ascending price check
+var asc = func(current Item, previous Item) error {
+	if current.Price < current.Price {
+		return errPriceOutOfOrder
+	}
+	return nil
+}
+
+// dsc specfically defines descending price check
+var dsc = func(current Item, previous Item) error {
+	if current.Price > current.Price {
+		return errPriceOutOfOrder
+	}
+	return nil
+}
+
+// checkAlignment validates full orderbook
+func checkAlignment(depth Items, fundingRate, notAggregated bool, c checker) error {
+	for i := range depth {
+		if depth[i].Price == 0 {
+			return errPriceNotSet
 		}
-		if b.Asks[i].Amount <= 0 {
-			return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errAmountInvalid)
+		if depth[i].Amount <= 0 {
+			return errAmountInvalid
 		}
-		if b.IsFundingRate && b.Asks[i].Period == 0 {
-			return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errPeriodUnset)
+		if fundingRate && depth[i].Period == 0 {
+			return errPeriodUnset
 		}
 		if i != 0 {
-			if b.Asks[i].Price < b.Asks[i-1].Price {
-				return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errOutOfOrder)
+			prev := i - 1
+			if err := c(depth[i], depth[prev]); err != nil {
+				return err
 			}
-
-			if !b.NotAggregated && b.Asks[i].Price == b.Asks[i-1].Price {
-				return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errDuplication)
+			if depth[i].ID < depth[prev].ID {
+				return errIDOutOfOrder
 			}
-
-			if b.Asks[i].ID != 0 && b.Asks[i].ID == b.Asks[i-1].ID {
-				return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, errIDDuplication)
+			if !notAggregated && depth[i].Price == depth[prev].Price {
+				return errDuplication
+			}
+			if depth[i].ID != 0 && depth[i].ID == depth[prev].ID {
+				return errIDDuplication
 			}
 		}
 	}
