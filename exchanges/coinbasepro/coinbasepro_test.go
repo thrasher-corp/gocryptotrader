@@ -23,7 +23,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var c CoinbasePro
+var (
+	c        CoinbasePro
+	testPair = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-")
+)
 
 // Please supply your APIKeys here for better testing
 const (
@@ -31,7 +34,6 @@ const (
 	apiSecret               = ""
 	clientID                = "" // passphrase you made at API CREATION
 	canManipulateRealOrders = false
-	testPair                = "BTC-USD"
 )
 
 func TestMain(m *testing.M) {
@@ -66,14 +68,14 @@ func TestGetProducts(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	_, err := c.GetTicker(testPair)
+	_, err := c.GetTicker(testPair.String())
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := c.GetTrades(testPair)
+	_, err := c.GetTrades(testPair.String())
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -82,8 +84,7 @@ func TestGetTrades(t *testing.T) {
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour * 2)
-	p := currency.NewPairWithDelimiter("BTC", "USD", "-")
-	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneHour)
+	_, err := c.GetHistoricCandles(testPair, asset.Spot, start, end, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,15 +94,14 @@ func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	p := currency.NewPairWithDelimiter("BTC", "USD", "-")
-	_, err := c.GetHistoricCandlesExtended(p, asset.Spot, start, end, kline.OneDay)
+	_, err := c.GetHistoricCandlesExtended(testPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetStats(t *testing.T) {
-	_, err := c.GetStats(testPair)
+	_, err := c.GetStats(testPair.String())
 	if err != nil {
 		t.Error("GetStats() error", err)
 	}
@@ -151,7 +151,7 @@ func TestAuthRequests(t *testing.T) {
 		t.Error("Expecting error")
 	}
 	orderResponse, err := c.PlaceLimitOrder("", 0.001, 0.001,
-		order.Buy.Lower(), "", "", testPair, "", false)
+		order.Buy.Lower(), "", "", testPair.String(), "", false)
 	if orderResponse != "" {
 		t.Error("Expecting no data returned")
 	}
@@ -159,14 +159,14 @@ func TestAuthRequests(t *testing.T) {
 		t.Error("Expecting error")
 	}
 	marketOrderResponse, err := c.PlaceMarketOrder("", 1, 0,
-		order.Buy.Lower(), testPair, "")
+		order.Buy.Lower(), testPair.String(), "")
 	if marketOrderResponse != "" {
 		t.Error("Expecting no data returned")
 	}
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	fillsResponse, err := c.GetFills("1337", testPair)
+	fillsResponse, err := c.GetFills("1337", testPair.String())
 	if len(fillsResponse) > 0 {
 		t.Error("Expecting no data returned")
 	}
@@ -206,7 +206,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:        1,
 		FeeType:       exchange.CryptocurrencyTradeFee,
-		Pair:          currency.NewPair(currency.BTC, currency.LTC),
+		Pair:          testPair,
 		PurchasePrice: 1,
 	}
 }
@@ -396,8 +396,7 @@ func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
-		Pairs: []currency.Pair{currency.NewPair(currency.BTC,
-			currency.LTC)},
+		Pairs:     []currency.Pair{testPair},
 	}
 
 	_, err := c.GetActiveOrders(&getOrdersRequest)
@@ -412,8 +411,7 @@ func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
-		Pairs: []currency.Pair{currency.NewPair(currency.BTC,
-			currency.LTC)},
+		Pairs:     []currency.Pair{testPair},
 	}
 
 	_, err := c.GetOrderHistory(&getOrdersRequest)
@@ -461,12 +459,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
 		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		Pair:          currencyPair,
+		Pair:          testPair,
 		AssetType:     asset.Spot,
 	}
 
@@ -484,12 +481,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
 		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		Pair:          currencyPair,
+		Pair:          testPair,
 		AssetType:     asset.Spot,
 	}
 
@@ -607,14 +603,10 @@ func TestWsAuth(t *testing.T) {
 	}
 	go c.wsReadData()
 
-	p, err := currency.NewPairFromString(testPair)
-	if err != nil {
-		t.Fatal(err)
-	}
 	err = c.Subscribe([]stream.ChannelSubscription{
 		{
 			Channel:  "user",
-			Currency: p,
+			Currency: testPair,
 		},
 	})
 	if err != nil {
@@ -1014,11 +1006,7 @@ func TestCheckInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString(testPair)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = c.GetRecentTrades(currencyPair, asset.Spot)
+	_, err := c.GetRecentTrades(testPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1026,11 +1014,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString(testPair)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = c.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err := c.GetHistoricTrades(testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
 	}
