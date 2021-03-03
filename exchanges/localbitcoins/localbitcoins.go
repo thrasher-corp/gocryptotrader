@@ -67,6 +67,8 @@ const (
 	localbitcoinsAPIBitcoincharts  = "/bitcoincharts/"
 	localbitcoinsAPICashBuy        = "/buy-bitcoins-with-cash/"
 	localbitcoinsAPIOnlineBuy      = "/buy-bitcoins-online/"
+	localbitcoinsAPIOrderbook      = "/orderbook.json"
+	localbitcoinsAPITrades         = "/trades.json"
 
 	// Trade Types
 	tradeTypeLocalSell  = "LOCAL_SELL"
@@ -672,7 +674,8 @@ func (l *LocalBitcoins) GetTradableCurrencies() ([]string, error) {
 // GetTrades returns all closed trades in online buy and online sell categories,
 // updated every 15 minutes.
 func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]Trade, error) {
-	path := common.EncodeURLValues(fmt.Sprintf("%s%s/trades.json", localbitcoinsAPIBitcoincharts, currency), values)
+	endpoint := localbitcoinsAPIBitcoincharts + currency + localbitcoinsAPITrades
+	path := common.EncodeURLValues(endpoint, values)
 	var result []Trade
 	return result, l.SendHTTPRequest(exchange.RestSpot, path, &result, request.Unset)
 }
@@ -683,49 +686,42 @@ func (l *LocalBitcoins) GetTrades(currency string, values url.Values) ([]Trade, 
 // entered by the ad author.
 func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 	type response struct {
-		Bids [][]string `json:"bids"`
-		Asks [][]string `json:"asks"`
+		Bids [][2]string `json:"bids"`
+		Asks [][2]string `json:"asks"`
 	}
 
-	path := fmt.Sprintf("%s/%s/orderbook.json", localbitcoinsAPIBitcoincharts, currency+"/orderbook.json")
+	path := localbitcoinsAPIBitcoincharts + currency + localbitcoinsAPIOrderbook
 	resp := response{}
-	err := l.SendHTTPRequest(exchange.RestSpot, path, &resp, orderBookLimiter)
-
-	if err != nil {
-		return Orderbook{}, err
+	var ob Orderbook
+	if err := l.SendHTTPRequest(exchange.RestSpot, path, &resp, orderBookLimiter); err != nil {
+		return ob, err
 	}
 
-	orderbook := Orderbook{}
-
-	for _, x := range resp.Bids {
-		price, err := strconv.ParseFloat(x[0], 64)
+	for x := range resp.Bids {
+		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
-			continue
+			return ob, err
 		}
-		amount, err := strconv.ParseFloat(x[1], 64)
+		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
-			continue
+			return ob, err
 		}
-		orderbook.Bids = append(orderbook.Bids, Price{price, amount})
+		ob.Bids = append(ob.Bids, Price{price, amount})
 	}
 
-	for _, x := range resp.Asks {
-		price, err := strconv.ParseFloat(x[0], 64)
+	for x := range resp.Asks {
+		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
-			continue
+			return ob, err
 		}
-		amount, err := strconv.ParseFloat(x[1], 64)
+		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
 		if err != nil {
-			log.Error(log.ExchangeSys, err)
-			continue
+			return ob, err
 		}
-		orderbook.Asks = append(orderbook.Asks, Price{price, amount})
+		ob.Asks = append(ob.Asks, Price{price, amount})
 	}
 
-	return orderbook, nil
+	return ob, nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -768,7 +764,13 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ep exchange.URL, method, pa
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	if l.Verbose {
-		log.Debugf(log.ExchangeSys, "Sending POST request to `%s`, path: `%s`, params: `%s`.", endpoint, path, encoded)
+		log.Debugf(log.ExchangeSys, "%s Sending `%s` request to `%s`, path: `%s`, params: `%s`.",
+			l.Name,
+			method,
+			endpoint,
+			path,
+			encoded,
+		)
 	}
 
 	if method == http.MethodGet && len(encoded) > 0 {
