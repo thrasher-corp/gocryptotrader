@@ -148,8 +148,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 86 |
 | [xtda](https://github.com/xtda) | 47 |
 | [Rots](https://github.com/Rots) | 15 |
+| [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [vazha](https://github.com/vazha) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 10 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
