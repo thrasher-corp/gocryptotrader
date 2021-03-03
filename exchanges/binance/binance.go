@@ -817,7 +817,7 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 		params.Set("addressTag", addressTag)
 	}
 
-	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodPost, withdrawEndpoint, params, request.Unset, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodPost, withdrawEndpoint, params, spotDefaultRate, &resp); err != nil {
 		return "", err
 	}
 
@@ -862,7 +862,7 @@ func (b *Binance) WithdrawStatus(c currency.Code, status string, startTime, endT
 		params.Set("endTime", strconv.FormatInt(endTime, 10))
 	}
 
-	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, withdrawalHistory, params, request.Unset, &response); err != nil {
+	if err := b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, withdrawalHistory, params, spotDefaultRate, &response); err != nil {
 		return response.WithdrawList, err
 	}
 
@@ -880,9 +880,10 @@ func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) 
 	params := url.Values{}
 	params.Set("asset", currency)
 	params.Set("status", "true")
+	params.Set("recvWindow", "10000")
 
 	return resp.Address,
-		b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, depositAddress, params, request.Unset, &resp)
+		b.SendAuthHTTPRequest(exchange.RestSpotSupplementary, http.MethodGet, depositAddress, params, spotDefaultRate, &resp)
 }
 
 // GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming

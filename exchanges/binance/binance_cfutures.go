@@ -782,7 +782,7 @@ func (b *Binance) GetFuturesOrderbookTicker(symbol currency.Pair, pair string) (
 	return resp, b.SendHTTPRequest(exchange.RestCoinMargined, cfuturesSymbolOrderbook+params.Encode(), rateLimit, &resp)
 }
 
-// GetFuturesLiquidationOrders gets orderbook ticker for symbol
+// GetFuturesLiquidationOrders gets forced liquidation orders
 func (b *Binance) GetFuturesLiquidationOrders(symbol currency.Pair, pair string, limit int64, startTime, endTime time.Time) ([]AllLiquidationOrders, error) {
 	var resp []AllLiquidationOrders
 	params := url.Values{}
