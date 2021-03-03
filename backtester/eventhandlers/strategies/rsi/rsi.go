@@ -138,7 +138,6 @@ func (s *Strategy) SetDefaults() {
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
 func (s *Strategy) massageMissingData(data []float64, t time.Time) ([]float64, error) {
-
 	var resp []float64
 	var missingDataStreak float64
 	for i := range data {
@@ -149,7 +148,10 @@ func (s *Strategy) massageMissingData(data []float64, t time.Time) ([]float64, e
 			missingDataStreak = 0
 		}
 		if missingDataStreak >= s.rsiPeriod {
-			return nil, fmt.Errorf("missing data exceeds RSI period length of %v at %s and will distort results. %w", s.rsiPeriod, t.Format(gctcommon.SimpleTimeFormat), base.ErrTooMuchBadData)
+			return nil, fmt.Errorf("missing data exceeds RSI period length of %v at %s and will distort results. %w",
+				s.rsiPeriod,
+				t.Format(gctcommon.SimpleTimeFormat),
+				base.ErrTooMuchBadData)
 		}
 		resp = append(resp, data[i])
 	}

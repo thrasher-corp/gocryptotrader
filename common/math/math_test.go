@@ -184,8 +184,8 @@ func TestInformationRatio(t *testing.T) {
 	}
 
 	_, err = InformationRatio(figures, []float64{1}, avg, avgComparison)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, errInformationBadLength) {
+		t.Errorf("expected: %v, received %v", errInformationBadLength, err)
 	}
 }
 

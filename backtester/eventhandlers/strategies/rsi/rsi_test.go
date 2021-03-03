@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestName(t *testing.T) {
@@ -93,6 +92,7 @@ func TestOnSignal(t *testing.T) {
 	d := data.Base{}
 	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
 		Base: event.Base{
+			Offset:       3,
 			Exchange:     exch,
 			Time:         dInsert,
 			Interval:     gctkline.OneDay,
@@ -104,7 +104,8 @@ func TestOnSignal(t *testing.T) {
 		Low:    1337,
 		High:   1337,
 		Volume: 1337,
-	}})
+	}},
+	)
 	d.Next()
 	da := &kline.DataFromKline{
 		Item:  gctkline.Item{},
@@ -112,12 +113,15 @@ func TestOnSignal(t *testing.T) {
 		Range: gctkline.IntervalRangeHolder{},
 	}
 	var resp signal.Event
-	resp, err = s.OnSignal(da, nil)
+	_, err = s.OnSignal(da, nil)
+	if !errors.Is(err, base.ErrTooMuchBadData) {
+		t.Fatalf("expected: %v, received %v", base.ErrTooMuchBadData, err)
+	}
+
+	s.rsiPeriod = 1
+	_, err = s.OnSignal(da, nil)
 	if err != nil {
 		t.Error(err)
-	}
-	if resp.GetDirection() != common.MissingData {
-		t.Error("expected missing data")
 	}
 
 	da.Item = gctkline.Item{
@@ -148,8 +152,8 @@ func TestOnSignal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if resp.GetDirection() != gctorder.Sell {
-		t.Error("expected sell")
+	if resp.GetDirection() != common.DoNothing {
+		t.Error("expected do nothing")
 	}
 }
 

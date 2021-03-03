@@ -70,10 +70,6 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		return nil, errNilBot
 	}
 	bt := New()
-	err := bt.setupBot(cfg, bot)
-	if err != nil {
-		return nil, err
-	}
 
 	var e exchange.Exchange
 	bt.Datas = &data.HandlerPerCurrency{}
@@ -85,8 +81,11 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	}
 	bt.Reports = reports
 
+	err := bt.setupBot(cfg, bot)
+	if err != nil {
+		return nil, err
+	}
 	e, err = bt.setupExchangeSettings(cfg)
-	bt.Bot.Stop()
 	if err != nil {
 		return nil, err
 	}

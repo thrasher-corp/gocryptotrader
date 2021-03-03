@@ -22,6 +22,11 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+const (
+	yes = "yes"
+	y   = "y"
+)
+
 var dataOptions = []string{
 	"API",
 	"CSV",
@@ -58,6 +63,9 @@ func main() {
 	}
 	fmt.Println("-----Strategy Settings-----")
 	strats, err := parseStrategySettings(&cfg, reader)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("-----Exchange Settings-----")
 	err = parseExchangeSettings(reader, &cfg, strats)
@@ -98,16 +106,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("Write strat to file? If no, the output will be on screen y/n")
+	fmt.Println("Write strategy config to file? If no, the output will be on screen y/n")
 	yn := quickParse(reader)
-	if yn == "y" || yn == "yes" {
+	if yn == y || yn == yes {
 		var wd string
 		wd, err = os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
 		fn := cfg.StrategySettings.Name
 		if cfg.Nickname != "" {
 			fn += "-" + cfg.Nickname
 		}
-		fn += ".strat"
+		fn += ".strat" // nolint:misspell // its shorthand for strategy
 		wd = filepath.Join(wd, fn)
 		fmt.Printf("Enter output file. If blank, will output to \"%v\"\n", wd)
 		path := quickParse(reader)
@@ -161,7 +172,7 @@ func parseDataSettings(cfg *config.Config, reader *bufio.Reader) error {
 	case "CSV":
 		parseCSV(reader, cfg)
 	case "Live":
-		err = parseLive(reader, cfg)
+		parseLive(reader, cfg)
 	}
 	if err != nil {
 		return err
@@ -173,7 +184,7 @@ func parsePortfolioSettings(reader *bufio.Reader, cfg *config.Config) error {
 	var err error
 	fmt.Println("Will there be global portfolio buy-side limits? y/n")
 	yn := quickParse(reader)
-	if yn == "y" || yn == "yes" {
+	if yn == y || yn == yes {
 		cfg.PortfolioSettings.BuySide, err = minMaxParse("buy", reader)
 		if err != nil {
 			return err
@@ -181,7 +192,7 @@ func parsePortfolioSettings(reader *bufio.Reader, cfg *config.Config) error {
 	}
 	fmt.Println("Will there be global portfolio sell-side limits? y/n")
 	yn = quickParse(reader)
-	if yn == "y" || yn == "yes" {
+	if yn == y || yn == yes {
 		cfg.PortfolioSettings.SellSide, err = minMaxParse("sell", reader)
 		if err != nil {
 			return err
@@ -192,8 +203,8 @@ func parsePortfolioSettings(reader *bufio.Reader, cfg *config.Config) error {
 
 func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config, strats []strategies.Handler) error {
 	var err error
-	addCurrency := "y"
-	for strings.Contains(addCurrency, "y") {
+	addCurrency := y
+	for strings.Contains(addCurrency, y) {
 		var currencySetting *config.CurrencySettings
 		currencySetting, err = addCurrencySetting(reader)
 		if err != nil {
@@ -211,11 +222,11 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config, strats []st
 				strats[i].SupportsSimultaneousProcessing() {
 				fmt.Println("Will this strategy use simultaneous processing? y/n")
 				yn := quickParse(reader)
-				if yn == "y" || yn == "yes" {
+				if yn == y || yn == yes {
 					cfg.StrategySettings.SimultaneousSignalProcessing = true
 				}
+				break
 			}
-			break
 		}
 	}
 	return nil
@@ -239,7 +250,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategi
 	cfg.Nickname = quickParse(reader)
 	fmt.Println("Does this strategy have custom settings? y/n")
 	customSettings := quickParse(reader)
-	if strings.Contains(customSettings, "y") {
+	if strings.Contains(customSettings, y) {
 		cfg.StrategySettings.CustomSettings = customSettingsLoop(reader)
 	}
 	return strats, err
@@ -256,7 +267,7 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 	if startDate != "" {
 		cfg.DataSettings.APIData.StartDate, err = time.Parse(startDate, gctcommon.SimpleTimeFormat)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	} else {
 		cfg.DataSettings.APIData.StartDate = defaultStart
@@ -267,14 +278,14 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 	if endDate != "" {
 		cfg.DataSettings.APIData.EndDate, err = time.Parse(endDate, gctcommon.SimpleTimeFormat)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	} else {
 		cfg.DataSettings.APIData.EndDate = defaultEnd
 	}
 	fmt.Println("Is the end date inclusive? y/n")
 	inclusive = quickParse(reader)
-	cfg.DataSettings.APIData.InclusiveEndDate = inclusive == "y" || inclusive == "yes"
+	cfg.DataSettings.APIData.InclusiveEndDate = inclusive == y || inclusive == yes
 
 	return nil
 }
@@ -296,7 +307,7 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	if startDate != "" {
 		cfg.DataSettings.DatabaseData.StartDate, err = time.Parse(startDate, gctcommon.SimpleTimeFormat)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	} else {
 		cfg.DataSettings.DatabaseData.StartDate = defaultStart
@@ -307,24 +318,24 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	if endDate != "" {
 		cfg.DataSettings.DatabaseData.EndDate, err = time.Parse(endDate, gctcommon.SimpleTimeFormat)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	} else {
 		cfg.DataSettings.DatabaseData.EndDate = defaultEnd
 	}
 	fmt.Println("Is the end date inclusive? y/n")
 	input = quickParse(reader)
-	cfg.DataSettings.DatabaseData.InclusiveEndDate = input == "y" || input == "yes"
+	cfg.DataSettings.DatabaseData.InclusiveEndDate = input == y || input == yes
 
 	fmt.Println("Do you wish to override GoCryptoTrader's database config? y/n")
 	input = quickParse(reader)
-	if input == "y" || input == "yes" {
+	if input == y || input == yes {
 		cfg.DataSettings.DatabaseData.ConfigOverride = &database.Config{
 			Enabled: true,
 		}
 		fmt.Println("Do you want database verbose output? y/n")
 		input = quickParse(reader)
-		cfg.DataSettings.DatabaseData.ConfigOverride.Verbose = input == "y" || input == "yes"
+		cfg.DataSettings.DatabaseData.ConfigOverride.Verbose = input == y || input == yes
 
 		fmt.Println("What database driver to use? eg sqlite")
 		cfg.DataSettings.DatabaseData.ConfigOverride.Driver = quickParse(reader)
@@ -349,7 +360,7 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 		var port float64
 		port, err = strconv.ParseFloat(input, 64)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		cfg.DataSettings.DatabaseData.ConfigOverride.Port = uint16(port)
 	}
@@ -357,15 +368,15 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	return nil
 }
 
-func parseLive(reader *bufio.Reader, cfg *config.Config) error {
+func parseLive(reader *bufio.Reader, cfg *config.Config) {
 	cfg.DataSettings.LiveData = &config.LiveData{}
 	fmt.Println("Do you wish to use live trading? It's highly recommended that you do not. y/n")
 	input := quickParse(reader)
-	cfg.DataSettings.LiveData.RealOrders = input == "y" || input == "yes"
+	cfg.DataSettings.LiveData.RealOrders = input == y || input == yes
 	if cfg.DataSettings.LiveData.RealOrders {
 		fmt.Printf("Do you want to override GoCryptoTrader's API credentials for %s? y/n\n", cfg.CurrencySettings[0].ExchangeName)
 		input = quickParse(reader)
-		if input == "y" || input == "yes" {
+		if input == y || input == yes {
 			fmt.Println("What is the API key?")
 			cfg.DataSettings.DatabaseData.ConfigOverride.Database = quickParse(reader)
 			fmt.Println("What is the API secret?")
@@ -376,7 +387,6 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) error {
 			cfg.DataSettings.DatabaseData.ConfigOverride.Database = quickParse(reader)
 		}
 	}
-	return nil
 }
 
 func parseDataChoice(reader *bufio.Reader, multiCurrency bool) (string, error) {
@@ -510,7 +520,7 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 
 	fmt.Println("Will there be buy-side limits? y/n")
 	yn := quickParse(reader)
-	if yn == "y" || yn == "yes" {
+	if yn == y || yn == yes {
 		setting.BuySide, err = minMaxParse("buy", reader)
 		if err != nil {
 			return nil, err
@@ -518,7 +528,7 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	}
 	fmt.Println("Will there be sell-side limits? y/n")
 	yn = quickParse(reader)
-	if yn == "y" || yn == "yes" {
+	if yn == y || yn == yes {
 		setting.SellSide, err = minMaxParse("sell", reader)
 		if err != nil {
 			return nil, err
@@ -526,7 +536,7 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	}
 	fmt.Println("Do you wish to include slippage? y/n")
 	yn = quickParse(reader)
-	if yn == "y" || yn == "yes" {
+	if yn == y || yn == yes {
 		fmt.Println("Slippage is randomly determined between the lower and upper bounds.")
 		fmt.Println("If the lower bound is 80, then the price can change up to 80% of itself. eg if the price is 100 and the lower bound is 80, then the lowest slipped price is $80")
 		fmt.Println("If the upper bound is 100, then the price can be unaffected. A minimum of 80 and a maximum of 100 means that the price will randomly be set between those bounds as a way of emulating slippage")

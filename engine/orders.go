@@ -133,17 +133,21 @@ func (o *orderManager) Started() bool {
 
 // Start will boot up the orderManager
 func (o *orderManager) Start(bot *Engine) error {
-	if atomic.AddInt32(&o.started, 1) != 1 {
+	if atomic.LoadInt32(&o.started) != 0 {
 		return errors.New("order manager already started")
 	}
 	if bot == nil {
 		return errors.New("cannot start with nil bot")
+	}
+	if !atomic.CompareAndSwapInt32(&o.started, 0, 1) {
+		return errors.New("could not start order manager")
 	}
 	log.Debugln(log.OrderBook, "Order manager starting...")
 
 	o.shutdown = make(chan struct{})
 	o.orderStore.Orders = make(map[string][]*order.Detail)
 	o.orderStore.bot = bot
+
 	go o.run()
 	return nil
 }
@@ -154,7 +158,7 @@ func (o *orderManager) Stop() error {
 		return errors.New("order manager not started")
 	}
 
-	if atomic.AddInt32(&o.stopped, 1) != 1 {
+	if !atomic.CompareAndSwapInt32(&o.stopped, 0, 1) {
 		return errors.New("order manager is already stopped")
 	}
 	defer func() {
@@ -175,9 +179,6 @@ func (o *orderManager) gracefulShutdown() {
 }
 
 func (o *orderManager) run() {
-	if atomic.AddInt32(&o.started, 1) != 1 {
-		return
-	}
 	log.Debugln(log.OrderBook, "Order manager started.")
 	tick := time.NewTicker(orderManagerDelay)
 	o.orderStore.bot.ServicesWG.Add(1)

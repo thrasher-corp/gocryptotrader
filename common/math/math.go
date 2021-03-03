@@ -12,6 +12,7 @@ var (
 	errCalmarHighest           = errors.New("cannot calculate calmar ratio with highest price of 0")
 	errCAGRNoIntervals         = errors.New("cannot calculate CAGR with no intervals")
 	errCAGRZeroOpenValue       = errors.New("cannot calculate CAGR with an open value of 0")
+	errInformationBadLength    = errors.New("benchmark rates length does not match returns rates")
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee
@@ -77,18 +78,13 @@ func CalmarRatio(highestPrice, lowestPrice, average, riskFreeRateForPeriod float
 // InformationRatio The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark,
 // usually an index, compared to the volatility of those returns.
 // The benchmark used is typically an index that represents the market or a particular sector or industry.
-func InformationRatio(values, benchmarkRates []float64, averageValues, averageComparison float64) (float64, error) {
-	if len(benchmarkRates) == 1 {
-		for i := range values {
-			if i == 0 {
-				continue
-			}
-			benchmarkRates = append(benchmarkRates, benchmarkRates[0])
-		}
+func InformationRatio(returnsRates, benchmarkRates []float64, averageValues, averageComparison float64) (float64, error) {
+	if len(benchmarkRates) != len(returnsRates) {
+		return 0, errInformationBadLength
 	}
 	var diffs []float64
-	for i := range values {
-		diffs = append(diffs, values[i]-benchmarkRates[i])
+	for i := range returnsRates {
+		diffs = append(diffs, returnsRates[i]-benchmarkRates[i])
 	}
 	stdDev, err := PopulationStandardDeviation(diffs)
 	if err != nil {

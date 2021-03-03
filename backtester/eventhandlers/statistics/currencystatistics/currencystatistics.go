@@ -40,26 +40,39 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	}
 	c.MarketMovement = ((lastPrice - firstPrice) / firstPrice) * 100
 	c.StrategyMovement = ((last.Holdings.TotalValue - last.Holdings.InitialFunds) / last.Holdings.InitialFunds) * 100
+	c.calculateHighestCommittedFunds()
 	c.RiskFreeRate = last.Holdings.RiskFreeRate * 100
 	returnPerCandle := make([]float64, len(c.Events))
+	benchmarkRates := make([]float64, len(c.Events))
 
 	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
 		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
+		if i == 0 {
+			benchmarkRates[i] = 0
+		} else {
+			benchmarkRates[i] = (c.Events[i].DataEvent.ClosePrice() - c.Events[i-1].DataEvent.ClosePrice()) / c.Events[i-1].DataEvent.ClosePrice()
+		}
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
+	}
+	var arithmeticBenchmarkAverage, geometricBenchmarkAverage float64
+	var err error
+	arithmeticBenchmarkAverage, err = math.ArithmeticMean(benchmarkRates)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	geometricBenchmarkAverage, err = math.FinancialGeometricMean(benchmarkRates)
+	if err != nil {
+		errs = append(errs, err)
 	}
 
 	c.MaxDrawdown = calculateMaxDrawdown(allDataEvents)
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
-	durationPerYear := intervalsPerYear * float64(interval.Duration())
-	btDuration := float64(last.DataEvent.GetTime().Sub(first.DataEvent.GetTime()))
 
-	marketMovementPercent := c.MarketMovement / 100
 	riskFreeRatePerCandle := first.Holdings.RiskFreeRate / intervalsPerYear
 	riskFreeRateForPeriod := riskFreeRatePerCandle * float64(len(c.Events))
 
-	var err error
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
 		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar float64
 
@@ -80,7 +93,7 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-	arithmeticInformation, err = math.InformationRatio(returnPerCandle, []float64{marketMovementPercent}, arithmeticReturnsPerCandle, marketMovementPercent)
+	arithmeticInformation, err = math.InformationRatio(returnPerCandle, benchmarkRates, arithmeticReturnsPerCandle, arithmeticBenchmarkAverage)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -94,7 +107,6 @@ func (c *CurrencyStatistic) CalculateResults() error {
 		InformationRatio: arithmeticInformation,
 		CalmarRatio:      arithmeticCalmar,
 	}
-	c.calculateHighestCommittedFunds()
 
 	geomSharpe, err = math.SharpeRatio(returnPerCandle, riskFreeRatePerCandle, geometricReturnsPerCandle)
 	if err != nil {
@@ -104,7 +116,7 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-	geomInformation, err = math.InformationRatio(returnPerCandle, []float64{marketMovementPercent}, geometricReturnsPerCandle, marketMovementPercent)
+	geomInformation, err = math.InformationRatio(returnPerCandle, benchmarkRates, geometricReturnsPerCandle, geometricBenchmarkAverage)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -122,8 +134,8 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	c.CompoundAnnualGrowthRate, err = math.CompoundAnnualGrowthRate(
 		last.Holdings.InitialFunds,
 		last.Holdings.TotalValue,
-		durationPerYear,
-		btDuration)
+		intervalsPerYear,
+		float64(len(c.Events)))
 	if err != nil {
 		errs = append(errs, err)
 	}

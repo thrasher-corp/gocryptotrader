@@ -15,6 +15,7 @@ func OrdersSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatal(err)
 	}
+	bot.ServicesWG.Wait()
 	if !bot.OrderManager.Started() {
 		t.Fatal("Order manager not started")
 	}

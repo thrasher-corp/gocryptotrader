@@ -82,6 +82,7 @@ func main() {
 		"orderbooksync": false,
 		"tradesync":     false,
 		"ratelimiter":   true,
+		"ordermanager":  false,
 	}
 	fmt.Println("preparing gocryptotrader bot...")
 	bot, err = engine.NewFromSettings(&engine.Settings{
@@ -94,7 +95,6 @@ func main() {
 		fmt.Printf("Could not load backtester. Error: %v.\n", err)
 		os.Exit(-1)
 	}
-
 	bt, err = backtest.NewFromConfig(cfg, templatePath, reportOutput, bot)
 	if err != nil {
 		fmt.Printf("Could not setup backtester from config. Error: %v.\n", err)
