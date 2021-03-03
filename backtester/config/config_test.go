@@ -22,7 +22,7 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = true
+	saveConfig = false
 )
 
 var (
@@ -531,7 +531,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.OneMin.Duration(),
+			Interval: kline.OneHour.Duration(),
 			DataType: common.CandleStr,
 			LiveData: &LiveData{
 				APIKeyOverride:      "",

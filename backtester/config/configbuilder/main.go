@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -125,7 +126,7 @@ func main() {
 		if path == "" {
 			path = wd
 		}
-		err = os.WriteFile(path, resp, 0770)
+		err = ioutil.WriteFile(path, resp, 0770)
 		if err != nil {
 			log.Fatal(err)
 		}
