@@ -392,9 +392,8 @@ func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.
 			if overwriteExisting {
 				lookup.HoldingsSnapshots[i] = *h
 				return nil
-			} else {
-				return errHoldingsAlreadySet
 			}
+			return errHoldingsAlreadySet
 		}
 	}
 	if overwriteExisting {
