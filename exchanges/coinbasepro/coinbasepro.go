@@ -450,10 +450,8 @@ func (c *CoinbasePro) GetOrders(status []string, currencyPair string) ([]General
 	}
 
 	path := common.EncodeURLValues(coinbaseproOrders, params)
-	path = common.GetURIPath(path)
-
 	return resp,
-		c.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, path[1:], nil, &resp)
+		c.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, path, nil, &resp)
 }
 
 // GetOrder returns a single order by order id.
@@ -480,10 +478,8 @@ func (c *CoinbasePro) GetFills(orderID, currencyPair string) ([]FillResponse, er
 	}
 
 	path := common.EncodeURLValues(coinbaseproFills, params)
-	uri := common.GetURIPath(path)
-
 	return resp,
-		c.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, uri[1:], nil, &resp)
+		c.SendAuthenticatedHTTPRequest(exchange.RestSpot, http.MethodGet, path, nil, &resp)
 }
 
 // MarginTransfer sends funds between a standard/default profile and a margin

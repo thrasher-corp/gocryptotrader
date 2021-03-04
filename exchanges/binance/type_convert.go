@@ -248,6 +248,24 @@ func (a *UFuturesOrderData) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp
+func (a *FuturesOrderGetData) UnmarshalJSON(data []byte) error {
+	type Alias FuturesOrderGetData
+	aux := &struct {
+		Time       binanceTime `json:"time"`
+		UpdateTime binanceTime `json:"updateTime"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	a.Time = aux.Time.Time()
+	a.UpdateTime = aux.UpdateTime.Time()
+	return nil
+}
+
+// UnmarshalJSON deserialises the JSON info, including the timestamp
 func (a *UOrderData) UnmarshalJSON(data []byte) error {
 	type Alias UOrderData
 	aux := &struct {

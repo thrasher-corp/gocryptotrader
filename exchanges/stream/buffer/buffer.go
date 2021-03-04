@@ -378,6 +378,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		m3 = &orderbookHolder{ob: book, buffer: &[]Update{}}
 		m2[book.AssetType] = m3
 	} else {
+		m3.ob.LastUpdateID = book.LastUpdateID
 		m3.ob.Bids = book.Bids
 		m3.ob.Asks = book.Asks
 	}

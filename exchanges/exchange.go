@@ -558,11 +558,11 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 
 	if exch.HTTPTimeout <= time.Duration(0) {
 		exch.HTTPTimeout = DefaultHTTPTimeout
-	} else {
-		err := e.SetHTTPClientTimeout(exch.HTTPTimeout)
-		if err != nil {
-			return err
-		}
+	}
+
+	err := e.SetHTTPClientTimeout(exch.HTTPTimeout)
+	if err != nil {
+		return err
 	}
 
 	if exch.CurrencyPairs == nil {
@@ -573,7 +573,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 	e.SetCurrencyPairFormat()
 
-	err := e.SetConfigPairs()
+	err = e.SetConfigPairs()
 	if err != nil {
 		return err
 	}
