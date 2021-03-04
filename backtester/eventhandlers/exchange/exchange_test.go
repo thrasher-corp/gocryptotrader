@@ -81,9 +81,8 @@ func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 	}
 
 	adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(123, 1, 100, 99, 80)
-	if adjustedAmount != 0.7999992 {
-		t.Log(adjustedAmount)
-		t.Errorf("expected %v", adjustedAmount)
+	if adjustedAmount != 0.7999999919999999 {
+		t.Errorf("expected %v received %v", 0.7999999919999999, adjustedAmount)
 	}
 	if adjustedPrice != 100 {
 		t.Error("expected 100")

@@ -133,9 +133,6 @@ func (o *orderManager) Started() bool {
 
 // Start will boot up the orderManager
 func (o *orderManager) Start(bot *Engine) error {
-	if atomic.LoadInt32(&o.started) != 0 {
-		return errors.New("order manager already started")
-	}
 	if bot == nil {
 		return errors.New("cannot start with nil bot")
 	}

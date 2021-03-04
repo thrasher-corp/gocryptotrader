@@ -81,7 +81,7 @@ func (s *Size) calculateBuySize(price, availableFunds, feeRate float64, minMaxSe
 	if minMaxSettings.MaximumTotal > 0 && (amount+feeRate)*price > minMaxSettings.MaximumTotal {
 		amount = minMaxSettings.MaximumTotal * (1 - feeRate) / price
 	}
-	if amount < minMaxSettings.MinimumSize {
+	if amount < minMaxSettings.MinimumSize && minMaxSettings.MinimumSize > 0 {
 		return 0, fmt.Errorf("%w. Sized: '%.8f' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
 
@@ -108,7 +108,7 @@ func (s *Size) calculateSellSize(price, baseAmount, feeRate float64, minMaxSetti
 	if minMaxSettings.MaximumTotal > 0 && amount*price > minMaxSettings.MaximumTotal {
 		amount = minMaxSettings.MaximumTotal * (1 - feeRate) / price
 	}
-	if amount < minMaxSettings.MinimumSize {
+	if amount < minMaxSettings.MinimumSize && minMaxSettings.MinimumSize > 0 {
 		return 0, fmt.Errorf("%w. Sized: '%.8f' Minimum: '%v'", errLessThanMinimum, amount, minMaxSettings.MinimumSize)
 	}
 

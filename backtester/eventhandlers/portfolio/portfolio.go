@@ -3,6 +3,7 @@ package portfolio
 import (
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -106,7 +107,9 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 		return o, nil
 	}
 
-	if signal.GetDirection() == gctorder.Buy && prevHolding.RemainingFunds <= 0 {
+	// cryptocurrencies support up to 8 decimal places*
+	remainingFundsRounded := math.Floor(prevHolding.RemainingFunds*100000000) / 100000000
+	if signal.GetDirection() == gctorder.Buy && remainingFundsRounded <= 0 {
 		o.AppendReason("not enough funds to buy")
 		o.SetDirection(common.CouldNotBuy)
 		signal.SetDirection(o.Direction)
@@ -122,6 +125,16 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 
 	sizedOrder := p.sizeOrder(signal, cs, o, sizingFunds)
 	o.Funds = sizingFunds
+	sizedAmountRounded := math.Floor(sizedOrder.Amount*100000000) / 100000000
+	if sizedAmountRounded <= 0 {
+		o.AppendReason("sized amount is zero")
+		if o.Direction == gctorder.Buy {
+			o.SetDirection(common.CouldNotBuy)
+		} else if o.Direction == gctorder.Sell {
+			o.SetDirection(common.CouldNotSell)
+		}
+		return o, nil
+	}
 
 	return p.evaluateOrder(signal, o, sizedOrder)
 }
@@ -258,11 +271,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 		}
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 	}
-	err = complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), fillEvent.GetOffset(), false)
-	if err != nil {
-		return err
-	}
-	return nil
+	return complianceManager.AddSnapshot(prevSnap.Orders, fillEvent.GetTime(), fillEvent.GetOffset(), false)
 }
 
 // GetComplianceManager returns the order snapshots for a given exchange, asset, pair
@@ -319,10 +328,7 @@ func (p *Portfolio) Update(d common.DataEventHandler) error {
 	if errors.Is(err, errNoHoldings) {
 		err = p.setHoldingsForOffset(d.GetExchange(), d.GetAssetType(), d.Pair(), &h, false)
 	}
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // SetInitialFunds sets the initial funds
@@ -378,16 +384,20 @@ func (p *Portfolio) setHoldingsForOffset(exch string, a asset.Item, cp currency.
 			return err
 		}
 	}
-	if overwriteExisting {
-		if len(lookup.HoldingsSnapshots) == 0 {
-			return errNoHoldings
-		}
-		for i := len(lookup.HoldingsSnapshots) - 1; i >= 0; i-- {
-			if lookup.HoldingsSnapshots[i].Offset == h.Offset {
+	if overwriteExisting && len(lookup.HoldingsSnapshots) == 0 {
+		return errNoHoldings
+	}
+	for i := len(lookup.HoldingsSnapshots) - 1; i >= 0; i-- {
+		if lookup.HoldingsSnapshots[i].Offset == h.Offset {
+			if overwriteExisting {
 				lookup.HoldingsSnapshots[i] = *h
 				return nil
+			} else {
+				return errHoldingsAlreadySet
 			}
 		}
+	}
+	if overwriteExisting {
 		return fmt.Errorf("%w at %v", errNoHoldings, h.Timestamp)
 	}
 

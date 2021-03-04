@@ -42,7 +42,9 @@ func (m *Manager) GetSnapshotAtTime(t time.Time) (Snapshot, error) {
 // GetLatestSnapshot returns the snapshot of t - 1 interval
 func (m *Manager) GetLatestSnapshot() Snapshot {
 	if len(m.Snapshots) == 0 {
-		return Snapshot{}
+		return Snapshot{
+			Offset: 1,
+		}
 	}
 
 	return m.Snapshots[len(m.Snapshots)-1]

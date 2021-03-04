@@ -19,6 +19,8 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -63,42 +65,72 @@ func main() {
 		GoCryptoTraderConfigPath: "",
 	}
 	fmt.Println("-----Strategy Settings-----")
-	strats, err := parseStrategySettings(&cfg, reader)
-	if err != nil {
-		log.Fatal(err)
+	var err error
+	var strats []strategies.Handler
+	firstRun := true
+	for err != nil || firstRun {
+		firstRun = false
+		strats, err = parseStrategySettings(&cfg, reader)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	fmt.Println("-----Exchange Settings-----")
-	err = parseExchangeSettings(reader, &cfg, strats)
-	if err != nil {
-		log.Fatal(err)
+	firstRun = true
+	for err != nil || firstRun {
+		firstRun = false
+		err = parseExchangeSettings(reader, &cfg, strats)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	fmt.Println("-----Portfolio Settings-----")
-	err = parsePortfolioSettings(reader, &cfg)
-	if err != nil {
-		log.Fatal(err)
+	firstRun = true
+	for err != nil || firstRun {
+		firstRun = false
+		err = parsePortfolioSettings(reader, &cfg)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	fmt.Println("-----Data Settings-----")
-	err = parseDataSettings(&cfg, reader)
-	if err != nil {
-		log.Fatal(err)
+	firstRun = true
+	for err != nil || firstRun {
+		firstRun = false
+		err = parseDataSettings(&cfg, reader)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	fmt.Println("-----Statistics Settings-----")
-	err = parseStatisticsSettings(&cfg, reader)
-	if err != nil {
-		log.Fatal(err)
+	firstRun = true
+	for err != nil || firstRun {
+		firstRun = false
+		err = parseStatisticsSettings(&cfg, reader)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	fmt.Println("-----GoCryptoTrader config Settings-----")
-	fmt.Printf("Enter the path to the GoCryptoTrader config you wish to use. Leave blank to use \"%v\"\n", gctconfig.DefaultFilePath())
-	path := quickParse(reader)
-	if path != "" {
-		cfg.GoCryptoTraderConfigPath = path
-	} else {
-		cfg.GoCryptoTraderConfigPath = gctconfig.DefaultFilePath()
+	firstRun = true
+	for err != nil || firstRun {
+		firstRun = false
+		fmt.Printf("Enter the path to the GoCryptoTrader config you wish to use. Leave blank to use \"%v\"\n", gctconfig.DefaultFilePath())
+		path := quickParse(reader)
+		if path != "" {
+			cfg.GoCryptoTraderConfigPath = path
+		} else {
+			cfg.GoCryptoTraderConfigPath = gctconfig.DefaultFilePath()
+		}
+		_, err = os.Stat(cfg.GoCryptoTraderConfigPath)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	var resp []byte
@@ -140,10 +172,7 @@ func parseStatisticsSettings(cfg *config.Config, reader *bufio.Reader) error {
 	fmt.Println("Enter the risk free rate. eg 0.03")
 	var err error
 	cfg.StatisticSettings.RiskFreeRate, err = strconv.ParseFloat(quickParse(reader), 64)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func parseDataSettings(cfg *config.Config, reader *bufio.Reader) error {
@@ -175,10 +204,7 @@ func parseDataSettings(cfg *config.Config, reader *bufio.Reader) error {
 	case "Live":
 		parseLive(reader, cfg)
 	}
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func parsePortfolioSettings(reader *bufio.Reader, cfg *config.Config) error {
@@ -243,10 +269,12 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategi
 	}
 	var err error
 	cfg.StrategySettings.Name, err = parseStratName(quickParse(reader), strategiesToUse)
+	if err != nil {
+		return nil, err
+	}
 
 	fmt.Println("What is the goal of your strategy?")
 	cfg.Goal = quickParse(reader)
-
 	fmt.Println("Enter a nickname, it can help distinguish between different configs using the same strategy")
 	cfg.Nickname = quickParse(reader)
 	fmt.Println("Does this strategy have custom settings? y/n")
@@ -254,7 +282,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) ([]strategi
 	if strings.Contains(customSettings, y) {
 		cfg.StrategySettings.CustomSettings = customSettingsLoop(reader)
 	}
-	return strats, err
+	return strats, nil
 }
 
 func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
@@ -338,10 +366,10 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 		input = quickParse(reader)
 		cfg.DataSettings.DatabaseData.ConfigOverride.Verbose = input == y || input == yes
 
-		fmt.Println("What database driver to use? eg sqlite")
+		fmt.Printf("What database driver to use? %v %v or %v\n", database.DBPostgreSQL, database.DBSQLite, database.DBSQLite3)
 		cfg.DataSettings.DatabaseData.ConfigOverride.Driver = quickParse(reader)
 
-		fmt.Println("What is the database host? eg localhost")
+		fmt.Println("What is the database host?")
 		cfg.DataSettings.DatabaseData.ConfigOverride.Host = quickParse(reader)
 
 		fmt.Println("What is the database username?")
@@ -353,17 +381,33 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 		fmt.Println("What is the database? eg database.db")
 		cfg.DataSettings.DatabaseData.ConfigOverride.Database = quickParse(reader)
 
-		fmt.Println("What is the database SSLMode? eg disable")
-		cfg.DataSettings.DatabaseData.ConfigOverride.SSLMode = quickParse(reader)
-
+		if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBPostgreSQL {
+			fmt.Println("What is the database SSLMode? eg disable")
+			cfg.DataSettings.DatabaseData.ConfigOverride.SSLMode = quickParse(reader)
+		}
 		fmt.Println("What is the database Port? eg 1337")
 		input = quickParse(reader)
 		var port float64
-		port, err = strconv.ParseFloat(input, 64)
-		if err != nil {
-			return err
+		if input != "" {
+			port, err = strconv.ParseFloat(input, 64)
+			if err != nil {
+				return err
+			}
 		}
 		cfg.DataSettings.DatabaseData.ConfigOverride.Port = uint16(port)
+		database.DB.Config = cfg.DataSettings.DatabaseData.ConfigOverride
+		if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBPostgreSQL {
+			_, err = dbPSQL.Connect()
+			if err != nil {
+				return fmt.Errorf("database failed to connect: %v", err)
+			}
+		} else if cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBSQLite ||
+			cfg.DataSettings.DatabaseData.ConfigOverride.Driver == database.DBSQLite3 {
+			_, err = dbsqlite3.Connect()
+			if err != nil {
+				return fmt.Errorf("database failed to connect: %v", err)
+			}
+		}
 	}
 
 	return nil
@@ -402,7 +446,7 @@ func parseDataChoice(reader *bufio.Reader, multiCurrency bool) (string, error) {
 	num, err := strconv.ParseFloat(response, 64)
 	if err == nil {
 		intNum := int(num)
-		if intNum > len(dataOptions) {
+		if intNum > len(dataOptions) || intNum <= 0 {
 			return "", errors.New("unknown option")
 		}
 		return dataOptions[intNum-1], nil
@@ -424,7 +468,7 @@ func parseKlineInterval(reader *bufio.Reader) (time.Duration, error) {
 	num, err := strconv.ParseFloat(response, 64)
 	if err == nil {
 		intNum := int(num)
-		if intNum > len(allCandles) {
+		if intNum > len(allCandles) || intNum <= 0 {
 			return 0, errors.New("unknown option")
 		}
 		return allCandles[intNum-1].Duration(), nil
@@ -441,7 +485,7 @@ func parseStratName(name string, strategiesToUse []string) (string, error) {
 	num, err := strconv.ParseFloat(name, 64)
 	if err == nil {
 		intNum := int(num)
-		if intNum > len(strategiesToUse) {
+		if intNum > len(strategiesToUse) || intNum <= 0 {
 			return "", errors.New("unknown option")
 		}
 		return strategiesToUse[intNum-1], nil
@@ -485,7 +529,7 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	num, err := strconv.ParseFloat(response, 64)
 	if err == nil {
 		intNum := int(num)
-		if intNum > len(supported) {
+		if intNum > len(supported) || intNum <= 0 {
 			return nil, errors.New("unknown option")
 		}
 		setting.Asset = supported[intNum-1].String()
@@ -503,20 +547,29 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 	setting.Quote = quickParse(reader)
 
 	fmt.Println("Enter the initial funds. eg 10000")
-	setting.InitialFunds, err = strconv.ParseFloat(quickParse(reader), 64)
-	if err != nil {
-		return nil, err
+	parseNum := quickParse(reader)
+	if parseNum != "" {
+		setting.InitialFunds, err = strconv.ParseFloat(parseNum, 64)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	fmt.Println("Enter the maker-fee. eg 0.001")
-	setting.MakerFee, err = strconv.ParseFloat(quickParse(reader), 64)
-	if err != nil {
-		return nil, err
+	parseNum = quickParse(reader)
+	if parseNum != "" {
+		setting.MakerFee, err = strconv.ParseFloat(parseNum, 64)
+		if err != nil {
+			return nil, err
+		}
 	}
 	fmt.Println("Enter the taker-fee. eg 0.01")
-	setting.TakerFee, err = strconv.ParseFloat(quickParse(reader), 64)
-	if err != nil {
-		return nil, err
+	parseNum = quickParse(reader)
+	if parseNum != "" {
+		setting.TakerFee, err = strconv.ParseFloat(parseNum, 64)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	fmt.Println("Will there be buy-side limits? y/n")
@@ -562,19 +615,28 @@ func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
 	resp := config.MinMax{}
 	var err error
 	fmt.Printf("What is the maximum %s size? eg 1\n", buySell)
-	resp.MaximumSize, err = strconv.ParseFloat(quickParse(reader), 64)
-	if err != nil {
-		return resp, err
+	parseNum := quickParse(reader)
+	if parseNum != "" {
+		resp.MaximumSize, err = strconv.ParseFloat(parseNum, 64)
+		if err != nil {
+			return resp, err
+		}
 	}
 	fmt.Printf("What is the minimum %s size? eg 0.1\n", buySell)
-	resp.MinimumSize, err = strconv.ParseFloat(quickParse(reader), 64)
-	if err != nil {
-		return resp, err
+	parseNum = quickParse(reader)
+	if parseNum != "" {
+		resp.MinimumSize, err = strconv.ParseFloat(parseNum, 64)
+		if err != nil {
+			return resp, err
+		}
 	}
 	fmt.Printf("What is the maximum spend %s buy? eg 12000\n", buySell)
-	resp.MaximumTotal, err = strconv.ParseFloat(quickParse(reader), 64)
-	if err != nil {
-		return resp, err
+	parseNum = quickParse(reader)
+	if parseNum != "" {
+		resp.MaximumTotal, err = strconv.ParseFloat(parseNum, 64)
+		if err != nil {
+			return resp, err
+		}
 	}
 
 	return resp, nil

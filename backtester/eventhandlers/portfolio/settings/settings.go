@@ -10,7 +10,7 @@ import (
 func (e *Settings) GetLatestHoldings() holdings.Holding {
 	if e.HoldingsSnapshots == nil {
 		// no holdings yet
-		return holdings.Holding{}
+		return holdings.Holding{Offset: 1}
 	}
 
 	return e.HoldingsSnapshots[len(e.HoldingsSnapshots)-1]

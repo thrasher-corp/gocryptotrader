@@ -32,7 +32,7 @@ func TestSizingAccuracy(t *testing.T) {
 	}
 	totalWithFee := (price * amountWithoutFee) + (globalMinMax.MaximumTotal * feeRate)
 	if totalWithFee != globalMinMax.MaximumTotal {
-		t.Log("incorrect amount calculation")
+		t.Error("incorrect amount calculation")
 	}
 }
 

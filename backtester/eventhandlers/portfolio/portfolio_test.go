@@ -124,27 +124,32 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 		t.Errorf("expected: %v, received %v", errNoHoldings, err)
 	}
 	h = p.GetLatestHoldingsForAllCurrencies()
-	if len(h) != 0 {
-		t.Log(h)
-		t.Error("expected 0")
+	if len(h) != 1 {
+		t.Error("expected 1")
+	}
+	if !h[0].Timestamp.IsZero() {
+		t.Error("expected unset holding")
 	}
 	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), &holdings.Holding{Offset: 1, Timestamp: tt}, false)
 	if err != nil {
 		t.Error(err)
 	}
 	h = p.GetLatestHoldingsForAllCurrencies()
-	if len(h) != 1 {
-		t.Log(h)
-		t.Error("expected 1")
+	if len(h) != 2 {
+		t.Error("expected 2")
 	}
+	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), &holdings.Holding{Offset: 1, Timestamp: tt}, false)
+	if !errors.Is(err, errHoldingsAlreadySet) {
+		t.Errorf("expected: %v, received %v", errHoldingsAlreadySet, err)
+	}
+
 	err = p.setHoldingsForOffset(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.DOGE), &holdings.Holding{Offset: 2, Timestamp: tt.Add(time.Minute)}, true)
 	if !errors.Is(err, errNoHoldings) {
 		t.Errorf("expected: %v, received %v", errNoHoldings, err)
 	}
 	h = p.GetLatestHoldingsForAllCurrencies()
-	if len(h) != 1 {
-		t.Log(h)
-		t.Error("expected 1")
+	if len(h) != 2 {
+		t.Error("expected 2")
 	}
 }
 

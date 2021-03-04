@@ -56,13 +56,6 @@ type Streamer interface {
 	StreamLow() []float64
 	StreamClose() []float64
 	StreamVol() []float64
-	//
-	//	OpenRange(int, int) []float64
-	//	HighRange(int, int) []float64
-	//	LowRange(int, int) []float64
-	//	CloseRange(int, int) []float64
-	//	VolumeRange(int, int) []float64
-	//
 
 	HasDataAtTime(time.Time) bool
 }

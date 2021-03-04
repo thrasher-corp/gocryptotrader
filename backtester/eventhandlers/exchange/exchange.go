@@ -85,7 +85,10 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 			return f, err
 		}
 	}
-	amount = reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds())
+	reducedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds())
+	if reducedAmount != amount {
+		f.AppendReason(fmt.Sprintf("order size shrunk from %v to %v to remain within portfolio limits", amount, reducedAmount))
+	}
 
 	var orderID string
 	orderID, err = e.placeOrder(adjustedPrice, amount, cs.UseRealOrders, f, bot)
@@ -178,6 +181,10 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *
 	// provide history and estimate volatility
 	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
+	if adjustedAmount != f.Amount {
+		f.AppendReason(fmt.Sprintf("order size shrunk from %v to %v to fit candle", f.Amount, adjustedAmount))
+	}
+
 	if adjustedAmount <= 0 && f.Amount > 0 {
 		return 0, 0, fmt.Errorf("amount set to 0, %w", errDataMayBeIncorrect)
 	}
@@ -248,7 +255,7 @@ func ensureOrderFitsWithinHLV(slippagePrice, amount, high, low, volume float64) 
 		// it is slightly less than the total to still allow for the illusion
 		// that open high low close values are valid with the remaining volume
 		// this is very opinionated
-		currentVolume = volume * 0.999999
+		currentVolume = volume * 0.99999999
 	}
 	// extract the amount from the adjusted volume
 	adjustedAmount = currentVolume / adjustedPrice

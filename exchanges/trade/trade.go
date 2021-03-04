@@ -119,11 +119,7 @@ func SaveTradesToDatabase(trades ...Data) error {
 	if err != nil {
 		return err
 	}
-	err = tradesql.Insert(sqlTrades...)
-	if err != nil {
-		return err
-	}
-	return nil
+	return tradesql.Insert(sqlTrades...)
 }
 
 // GetTradesInRange calls db function to return trades in range
