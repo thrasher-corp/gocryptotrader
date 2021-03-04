@@ -38,6 +38,27 @@ func TestGetSymbols(t *testing.T) {
 	}
 }
 
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	r, err := g.FetchTradablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pairs, err := currency.NewPairsFromStrings(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pairs.Contains(currency.NewPair(currency.STORJ, currency.USD), false) {
+		t.Error("expected pair STORJ-USD")
+	}
+	if !pairs.Contains(currency.NewPair(currency.BTC, currency.USD), false) {
+		t.Error("expected pair BTC-USD")
+	}
+	if !pairs.Contains(currency.NewPair(currency.AAVE, currency.USD), false) {
+		t.Error("expected pair AAVE-BTC")
+	}
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetTicker("BTCUSD")
