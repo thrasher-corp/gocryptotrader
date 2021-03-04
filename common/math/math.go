@@ -72,7 +72,7 @@ func CalmarRatio(highestPrice, lowestPrice, average, riskFreeRateForPeriod float
 	if drawdownDiff == 0 {
 		return 0, nil
 	}
-	return average - riskFreeRateForPeriod/drawdownDiff, nil
+	return (average - riskFreeRateForPeriod) / drawdownDiff, nil
 }
 
 // InformationRatio The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark,
@@ -216,7 +216,7 @@ func SortinoRatio(movementPerCandle []float64, riskFreeRatePerInterval, average 
 	averageDownsideDeviation := math.Sqrt(totalNegativeResultsSquared / float64(len(movementPerCandle)))
 	riskFreeForPeriod := riskFreeRatePerInterval * totalIntervals
 
-	return average - riskFreeForPeriod/averageDownsideDeviation, nil
+	return (average - riskFreeForPeriod) / averageDownsideDeviation, nil
 }
 
 // SharpeRatio returns sharpe ratio of backtest compared to risk-free
@@ -238,5 +238,5 @@ func SharpeRatio(movementPerCandle []float64, riskFreeRatePerInterval, average f
 	}
 	riskFreeForPeriod := riskFreeRatePerInterval * totalIntervals
 
-	return average - riskFreeForPeriod/standardDeviation, nil
+	return (average - riskFreeForPeriod) / standardDeviation, nil
 }
