@@ -171,6 +171,9 @@ func (s *Statistic) CalculateAllResults() error {
 				})
 				s.TotalBuyOrders += stats.BuyOrders
 				s.TotalSellOrders += stats.SellOrders
+				if stats.ShowMissingDataWarning {
+					s.WasAnyDataMissing = true
+				}
 			}
 		}
 	}

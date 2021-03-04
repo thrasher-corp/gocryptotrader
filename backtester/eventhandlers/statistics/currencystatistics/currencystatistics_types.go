@@ -52,6 +52,7 @@ type CurrencyStatistic struct {
 	TotalOrders              int64                 `json:"total-orders"`
 	FinalHoldings            holdings.Holding      `json:"final-holdings"`
 	FinalOrders              compliance.Snapshot   `json:"final-orders"`
+	ShowMissingDataWarning   bool                  `json:"-"`
 }
 
 // Ratios stores all the ratios used for statistics

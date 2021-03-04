@@ -51,6 +51,9 @@ func (c *CurrencyStatistic) CalculateResults() error {
 		if i == 0 {
 			benchmarkRates[i] = 0
 		} else {
+			if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
+				c.ShowMissingDataWarning = true
+			}
 			benchmarkRates[i] = (c.Events[i].DataEvent.ClosePrice() - c.Events[i-1].DataEvent.ClosePrice()) / c.Events[i-1].DataEvent.ClosePrice()
 		}
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
@@ -184,12 +187,20 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Compound Annual Growth Rate: %.2f\n\n", c.CompoundAnnualGrowthRate)
 
 	log.Info(log.BackTester, "------------------Arithmetic Ratios-------------------------------------")
+	if c.ShowMissingDataWarning {
+		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
+		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+	}
 	log.Infof(log.BackTester, "Sharpe ratio: %.2f", c.ArithmeticRatios.SharpeRatio)
 	log.Infof(log.BackTester, "Sortino ratio: %.2f", c.ArithmeticRatios.SortinoRatio)
 	log.Infof(log.BackTester, "Information ratio: %.2f", c.ArithmeticRatios.InformationRatio)
 	log.Infof(log.BackTester, "Calmar ratio: %.2f\n\n", c.ArithmeticRatios.CalmarRatio)
 
 	log.Info(log.BackTester, "------------------Geometric Ratios-------------------------------------")
+	if c.ShowMissingDataWarning {
+		log.Infoln(log.BackTester, "Missing data was detected during this backtesting run")
+		log.Infoln(log.BackTester, "Ratio calculations will be skewed")
+	}
 	log.Infof(log.BackTester, "Sharpe ratio: %.2f", c.GeometricRatios.SharpeRatio)
 	log.Infof(log.BackTester, "Sortino ratio: %.2f", c.GeometricRatios.SortinoRatio)
 	log.Infof(log.BackTester, "Information ratio: %.2f", c.GeometricRatios.InformationRatio)

@@ -34,6 +34,7 @@ type Statistic struct {
 	BestStrategyResults         *FinalResultsHolder                                                               `json:"best-start-results,omitempty"`
 	BestMarketMovement          *FinalResultsHolder                                                               `json:"best-market-movement,omitempty"`
 	AllStats                    []currencystatistics.CurrencyStatistic                                            `json:"results"` // as ExchangeAssetPairStatistics cannot be rendered via json.Marshall, we append all result to this slice instead
+	WasAnyDataMissing           bool                                                                              `json:"was-any-data-missing"`
 }
 
 // FinalResultsHolder holds important stats about a currency's performance

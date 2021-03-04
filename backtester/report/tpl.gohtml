@@ -113,6 +113,13 @@
                                     {{.Config.DataSettings.Interval}}
 								</td>
 							</tr>
+                            {{if .Statistics.WasAnyDataMissing}}
+							<tr>
+								<td ><b>Was any data missing?</b></td>
+								<td  class="bg-warn" >{{ .Statistics.WasAnyDataMissing}}</td>
+							</tr>
+                            {{end}}
+
                         {{end}}
 						</tr>
 						</tbody>
@@ -573,6 +580,10 @@
 								</tr>
 								</tbody>
 							</table>
+							{{if  $val.ShowMissingDataWarning}}
+								<h3 class="bg-warning">Missing data was detected during this backtesting run<br />
+									Ratio calculations will be skewed</h3>
+							{{end}}
 							Arithmetic Ratios
 							<table class="table table-hover table-bordered table-striped">
 								<tbody>

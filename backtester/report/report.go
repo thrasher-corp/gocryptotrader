@@ -123,13 +123,15 @@ func (d *Data) enhanceCandles() error {
 			}
 			if !requiresIteration {
 				if statsForCandles.Events[intVal].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
-					statsForCandles.Events[intVal].SignalEvent.GetDirection() == common.MissingData {
+					statsForCandles.Events[intVal].SignalEvent.GetDirection() == common.MissingData &&
+					len(enhancedKline.Candles) > 0 {
 					enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
 				}
 			} else {
 				for k := range statsForCandles.Events {
 					if statsForCandles.Events[k].SignalEvent.GetTime().Equal(d.OriginalCandles[intVal].Candles[j].Time) &&
-						statsForCandles.Events[k].SignalEvent.GetDirection() == common.MissingData {
+						statsForCandles.Events[k].SignalEvent.GetDirection() == common.MissingData &&
+						len(enhancedKline.Candles) > 0 {
 						enhancedCandle.copyCloseFromPreviousEvent(&enhancedKline)
 					}
 				}
