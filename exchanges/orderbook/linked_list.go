@@ -630,7 +630,11 @@ updates:
 func move(head **Node, from, to *Node) {
 	// remove 'from' node from current position in chain
 	from.next.prev = from.prev
-	from.prev.next = from.next
+	if from.prev == nil {
+		*head = (*head).next
+	} else {
+		from.prev.next = from.next
+	}
 	// insert from node next to 'to' node
 	if to.prev == nil {
 		*head = from

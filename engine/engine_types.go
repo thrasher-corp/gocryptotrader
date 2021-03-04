@@ -41,7 +41,8 @@ type Settings struct {
 	EnableTradeSyncing     bool
 	SyncWorkers            int
 	SyncContinuously       bool
-	SyncTimeout            time.Duration
+	SyncTimeoutREST        time.Duration
+	SyncTimeoutStream      time.Duration
 
 	// Forex settings
 	EnableCurrencyConverter bool

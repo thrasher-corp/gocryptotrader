@@ -38,7 +38,8 @@ func (d *Depth) GetBidLength() int {
 	return d.bids.length
 }
 
-// Retrieve gets stuff
+// Retrieve returns the orderbook base a copy of the underlying linked list
+// spread
 func (d *Depth) Retrieve() *Base {
 	d.Lock()
 	defer d.Unlock()
@@ -49,6 +50,7 @@ func (d *Depth) Retrieve() *Base {
 		Asset:         d.Asset,
 		Pair:          d.Pair,
 		LastUpdated:   d.LastUpdated,
+		LastUpdateID:  d.LastUpdateID,
 		NotAggregated: d.NotAggregated,
 		IsFundingRate: d.IsFundingRate,
 	}
@@ -88,14 +90,12 @@ func (d *Depth) Flush() {
 }
 
 // Process processes incoming orderbook snapshots
-func (d *Depth) Process(bids, asks Items) error {
+func (d *Depth) Process(bids, asks Items) {
 	d.Lock()
-	defer d.Unlock() // TODO: Restructure locks as this will alert routines
-	// after slip ring actuates
 	d.bids.load(bids, &d.stack)
 	d.asks.load(asks, &d.stack)
 	d.alert()
-	return nil
+	d.Unlock()
 }
 
 // flush will pop entire bid and ask node chain onto stack when invalidated or
@@ -104,8 +104,6 @@ func (d *Depth) flush() {
 	d.bids.load(nil, &d.stack)
 	d.asks.load(nil, &d.stack)
 }
-
-type outOfOrder func(float64, float64) bool
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates
 func (d *Depth) UpdateBidAskByPrice(bid, ask Items, maxDepth int) error {
@@ -173,11 +171,11 @@ func (d *Depth) UpdateInsertByID(bidUpdates, askUpdates Items) {
 
 // POC: alert establishes state change for depth to all waiting routines
 func (d *Depth) alert() {
+	if !atomic.CompareAndSwapUint32(&d.waiting, 1, 0) {
+		// return if no waiting routines
+		return
+	}
 	go func() {
-		if !atomic.CompareAndSwapUint32(&d.waiting, 1, 0) {
-			// return if no waiting routines
-			return
-		}
 		d.wMtx.Lock()
 		close(d.wait)
 		d.wait = make(chan struct{})

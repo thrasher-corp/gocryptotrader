@@ -10,13 +10,14 @@ import (
 
 // CurrencyPairSyncerConfig stores the currency pair config
 type CurrencyPairSyncerConfig struct {
-	SyncTicker       bool
-	SyncOrderbook    bool
-	SyncTrades       bool
-	SyncContinuously bool
-	SyncTimeout      time.Duration
-	NumWorkers       int
-	Verbose          bool
+	SyncTicker        bool
+	SyncOrderbook     bool
+	SyncTrades        bool
+	SyncContinuously  bool
+	SyncTimeoutREST   time.Duration
+	SyncTimeoutStream time.Duration
+	NumWorkers        int
+	Verbose           bool
 }
 
 // ExchangeSyncerConfig stores the exchange syncer config

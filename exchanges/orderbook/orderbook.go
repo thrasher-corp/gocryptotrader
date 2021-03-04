@@ -21,13 +21,13 @@ func GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	return service.GetDepth(exchange, p, a)
 }
 
-// GetDepth returns depth
+// DeployDepth constructs and returns depth for subsystem usage
 func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	return service.DeployDepth(exchange, p, a)
 }
 
 // Update stores orderbook data
-func (s *Service) Update(b *Base) error {
+func (s *Service) Update(b *Base) {
 	name := strings.ToLower(b.Exchange)
 	s.Lock()
 	m1, ok := s.books[name]
@@ -63,9 +63,8 @@ func (s *Service) Update(b *Base) error {
 	book.LastUpdated = b.LastUpdated
 	book.LastUpdateID = b.LastUpdateID
 	book.RestSnapshot = true
-	err := book.Process(b.Bids, b.Asks)
+	book.Process(b.Bids, b.Asks)
 	s.Unlock()
-	return err
 }
 
 // DeployDepth used for subsystem deployment creates a depth item in the struct
@@ -279,7 +278,8 @@ func (b *Base) Process() error {
 			return err
 		}
 	}
-	return service.Update(b)
+	service.Update(b)
+	return nil
 }
 
 // CanVerify checks to see if orderbook should be verified or it is not required

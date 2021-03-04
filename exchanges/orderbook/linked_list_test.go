@@ -621,6 +621,13 @@ func TestUpdateInsertByID(t *testing.T) {
 
 	Check(a, 14, 87, 7, t)
 
+	// bookmark head and move to a different location
+	a.updateInsertByID(Items{
+		{Price: 1.5, Amount: 2, ID: 0},
+	}, &s)
+
+	Check(a, 14, 89, 7, t)
+
 	// Bids -------------------------------------------------------------------
 
 	b := bids{}
@@ -762,6 +769,13 @@ func TestUpdateInsertByID(t *testing.T) {
 	}, &s)
 
 	Check(b, 14, 87, 7, t)
+
+	// bookmark head and move to a different location
+	b.updateInsertByID(Items{
+		{Price: 9.5, Amount: 2, ID: 0},
+	}, &s)
+
+	Check(b, 14, 89, 7, t)
 }
 
 func TestInsertUpdatesBid(t *testing.T) {

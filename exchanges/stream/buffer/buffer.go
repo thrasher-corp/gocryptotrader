@@ -3,8 +3,8 @@ package buffer
 import (
 	"errors"
 	"fmt"
-	"runtime/debug"
 	"sort"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -63,8 +63,6 @@ func (w *Orderbook) validate(u *Update) error {
 // Update updates a stored pointer to an orderbook.Depth struct containing a
 // linked list, this switches between the usage of a buffered update
 func (w *Orderbook) Update(u *Update) error {
-	debug.SetGCPercent(-1)
-	defer debug.SetGCPercent(100)
 	if err := w.validate(u); err != nil {
 		return err
 	}
@@ -87,6 +85,9 @@ func (w *Orderbook) Update(u *Update) error {
 			u.Asset)
 	}
 
+	// Apply new update ID to book
+	book.ob.LastUpdateID = u.UpdateID
+
 	if w.bufferEnabled {
 		processed, err := w.processBufferUpdate(book, u)
 		if err != nil {
@@ -103,11 +104,15 @@ func (w *Orderbook) Update(u *Update) error {
 		}
 	}
 
-	// Send pointer to orderbook.Depth to datahandler for logging purposes
 	select {
-	case w.dataHandler <- book.ob:
+	case <-book.timer.C:
+		book.timer.Reset(timerDefault)
+		// Opted to wait for receiver because we are limiting here and the sync
+		// manager requires update
+		w.dataHandler <- book.ob.Retrieve()
 	default:
-		// If no receiver, discard alert as this will slow down future updates
+		// We do not need to send an update to the sync manager within this time
+		// window
 	}
 	return nil
 }
@@ -146,7 +151,6 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *Update) (bool, er
 // processObUpdate processes updates either by its corresponding id or by
 // price level
 func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
-	o.LastUpdateID = u.UpdateID
 	if w.updateEntriesByID {
 		return o.updateByIDAndAction(u)
 	}
@@ -200,8 +204,6 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		if err != nil {
 			return err
 		}
-		// TODO ADD THIS IN!!!
-		// m3.ob.LastUpdateID = book.LastUpdateID
 		depth.Asset = book.Asset
 		depth.Exchange = book.Exchange
 		depth.Asset = book.Asset
@@ -214,7 +216,12 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		depth.RestSnapshot = book.RestSnapshot
 		depth.VerificationBypass = book.VerificationBypass
 		buffer := make([]Update, w.obBufferLimit)
-		holder = &orderbookHolder{ob: depth, buffer: &buffer}
+		timer := time.NewTimer(0) // Fire immediately
+		holder = &orderbookHolder{
+			ob:     depth,
+			buffer: &buffer,
+			timer:  timer,
+		}
 		m2[book.Asset] = holder
 	}
 
@@ -241,9 +248,14 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	}
 
 	select {
-	case w.dataHandler <- book:
+	case <-holder.timer.C:
+		holder.timer.Reset(timerDefault)
+		// Opted to wait for receiver because we are limiting here and the sync
+		// manager requires update
+		w.dataHandler <- holder.ob.Retrieve()
 	default:
-		// If no receiver, discard alert as this will slow down future updates
+		// We do not need to send an update to the sync manager within this time
+		// window
 	}
 	return nil
 }
