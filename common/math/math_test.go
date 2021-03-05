@@ -123,8 +123,8 @@ func TestSortinoRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if r != -0.304530069360252 {
-		t.Errorf("expected -0.304530069360252, received %v", r)
+	if r != 3.0377875479459906 {
+		t.Errorf("expected 3.0377875479459906, received %v", r)
 	}
 	avg, err = FinancialGeometricMean(figures)
 	if err != nil {
@@ -134,9 +134,39 @@ func TestSortinoRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if r != -0.30886022022888726 {
-		t.Errorf("expected -0.30886022022888726, received %v", r)
+	if r != 2.8712802265603243 {
+		t.Errorf("expected 2.525203164136098, received %v", r)
 	}
+
+	// this follows and matches the example calculation from
+	// https://www.wallstreetmojo.com/sortino-ratio/
+	example := []float64{
+		0.1,
+		0.12,
+		0.07,
+		-0.03,
+		0.08,
+		-0.04,
+		0.15,
+		0.2,
+		0.12,
+		0.06,
+		-0.03,
+		0.02,
+	}
+	avg, err = ArithmeticMean(example)
+	if err != nil {
+		t.Error(err)
+	}
+	r, err = SortinoRatio(example, 0.06, avg)
+	if err != nil {
+		t.Error(err)
+	}
+	rr := math.Round(r*10) / 10
+	if rr != 0.2 {
+		t.Errorf("expected 0.2, received %v", rr)
+	}
+
 }
 
 func TestInformationRatio(t *testing.T) {
@@ -200,7 +230,7 @@ func TestCalmarRatio(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if ratio != 0.057142857142857134 {
+	if ratio != 0.14285714285714288 {
 		t.Error(ratio)
 	}
 }
@@ -279,32 +309,41 @@ func TestCalculateSharpeRatio(t *testing.T) {
 		t.Error("expected 0")
 	}
 
+	// this follows and matches the example calculation (without rounding) from
+	// https://www.educba.com/sharpe-ratio-formula/
 	returns := []float64{
-		0.1391,
-		0.0945,
-		0.1389,
-		0.0947,
-		0.1259,
-		0.1042,
-		0.0667,
-		0.1649,
-		0.1618,
-		0.0626,
-		0.1572,
-		0.1052,
+		-0.0005,
+		-0.0065,
+		-0.0113,
+		0.0031,
+		-0.0112,
+		0.0056,
+		0.0156,
+		0.0048,
+		0.0012,
+		0.0038,
+		-0.0008,
+		0.0032,
+		0,
+		-0.0128,
+		-0.0058,
+		0.003,
+		0.0042,
+		0.0055,
+		0.0009,
 	}
 	var avg float64
 	avg, err = ArithmeticMean(returns)
 	if err != nil {
 		t.Error(err)
 	}
-	result, err = SharpeRatio(returns, 0.003, avg)
+	result, err = SharpeRatio(returns, -0.0017, avg)
 	if err != nil {
 		t.Error(err)
 	}
 	result = math.Round(result*100) / 100
-	if result != -0.9 {
-		t.Errorf("expected -0.9, received %v", result)
+	if result != 0.26 {
+		t.Errorf("expected 0.26, received %v", result)
 	}
 }
 

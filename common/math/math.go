@@ -214,9 +214,8 @@ func SortinoRatio(movementPerCandle []float64, riskFreeRatePerInterval, average 
 		}
 	}
 	averageDownsideDeviation := math.Sqrt(totalNegativeResultsSquared / float64(len(movementPerCandle)))
-	riskFreeForPeriod := riskFreeRatePerInterval * totalIntervals
 
-	return (average - riskFreeForPeriod) / averageDownsideDeviation, nil
+	return (average - riskFreeRatePerInterval) / averageDownsideDeviation, nil
 }
 
 // SharpeRatio returns sharpe ratio of backtest compared to risk-free
@@ -229,14 +228,13 @@ func SharpeRatio(movementPerCandle []float64, riskFreeRatePerInterval, average f
 	for i := range movementPerCandle {
 		excessReturns = append(excessReturns, movementPerCandle[i]-riskFreeRatePerInterval)
 	}
-	standardDeviation, err := SampleStandardDeviation(excessReturns)
+	standardDeviation, err := PopulationStandardDeviation(excessReturns)
 	if err != nil {
 		return 0, err
 	}
 	if standardDeviation == 0 {
 		return 0, nil
 	}
-	riskFreeForPeriod := riskFreeRatePerInterval * totalIntervals
 
-	return (average - riskFreeForPeriod) / standardDeviation, nil
+	return (average - riskFreeRatePerInterval) / standardDeviation, nil
 }
