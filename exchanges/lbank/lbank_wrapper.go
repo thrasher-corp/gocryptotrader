@@ -102,7 +102,7 @@ func (l *Lbank) SetDefaults() {
 					kline.OneDay.Word():     true,
 					kline.OneWeek.Word():    true,
 				},
-				ResultLimit: 2880,
+				ResultLimit: 2000,
 			},
 		},
 	}
