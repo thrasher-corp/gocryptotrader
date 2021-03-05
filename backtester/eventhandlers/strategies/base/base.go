@@ -12,8 +12,8 @@ type Strategy struct {
 	useSimultaneousProcessing bool
 }
 
-// GetBase returns the non-interface version of the Handler
-func (s *Strategy) GetBase(d data.Handler) (signal.Signal, error) {
+// GetBaseData returns the non-interface version of the Handler
+func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
 	if d == nil {
 		return signal.Signal{}, common.ErrNilArguments
 	}

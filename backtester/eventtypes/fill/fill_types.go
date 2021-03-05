@@ -14,6 +14,7 @@ type Fill struct {
 	ClosePrice          float64       `json:"close-price"`
 	VolumeAdjustedPrice float64       `json:"volume-adjusted-price"`
 	PurchasePrice       float64       `json:"purchase-price"`
+	Total               float64       `json:"total"`
 	ExchangeFee         float64       `json:"exchange-fee"`
 	Slippage            float64       `json:"slippage"`
 	Order               *order.Detail `json:"-"`
@@ -30,6 +31,7 @@ type Event interface {
 	GetVolumeAdjustedPrice() float64
 	GetSlippageRate() float64
 	GetPurchasePrice() float64
+	GetTotal() float64
 	GetExchangeFee() float64
 	SetExchangeFee(float64)
 	GetOrder() *order.Detail

@@ -36,7 +36,7 @@
   }
  ],
  "data-settings": {
-  "interval": 60000000000,
+  "interval": 3600000000000,
   "data-type": "candle",
   "live-data": {
    "api-key-override": "",

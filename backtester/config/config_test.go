@@ -22,7 +22,7 @@ const (
 	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = true
 )
 
 var (
@@ -31,11 +31,8 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	startDate = time.Now().Add(-time.Hour * 24 * 30)
-	endDate = time.Now()
-	startDate = startDate.Truncate(kline.OneDay.Duration())
-	endDate = endDate.Truncate(kline.OneDay.Duration())
-
+	startDate = time.Date(time.Now().Year()-1, 11, 1, 0, 0, 0, 0, time.Local)
+	endDate = time.Date(time.Now().Year()-1, 12, 1, 0, 0, 0, 0, time.Local)
 	os.Exit(m.Run())
 }
 

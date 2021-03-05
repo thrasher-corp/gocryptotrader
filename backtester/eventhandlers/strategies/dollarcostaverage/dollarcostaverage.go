@@ -12,8 +12,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Name is the strategy name
-const Name = "dollarcostaverage"
+const (
+	// Name is the strategy name
+	Name        = "dollarcostaverage"
+	description = `Dollar-cost averaging (DCA) is an investment strategy in which an investor divides up the total amount to be invested across periodic purchases of a target asset in an effort to reduce the impact of volatility on the overall purchase. The purchases occur regardless of the asset's price and at regular intervals. In effect, this strategy removes much of the detailed work of attempting to time the market in order to make purchases of equities at the best prices.`
+)
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
@@ -25,13 +28,19 @@ func (s *Strategy) Name() string {
 	return Name
 }
 
+// Description provides a nice overview of the strategy
+// be it definition of terms or to highlight its purpose
+func (s *Strategy) Description() string {
+	return description
+}
+
 // OnSignal handles a data event and returns what action the strategy believes should occur
 // For dollarcostaverage, this means returning a buy signal on every event
 func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, error) {
 	if d == nil {
 		return nil, common.ErrNilEvent
 	}
-	es, err := s.GetBase(d)
+	es, err := s.GetBaseData(d)
 	if err != nil {
 		return nil, err
 	}

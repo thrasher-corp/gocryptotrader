@@ -66,9 +66,11 @@
 			<div class="view view-cascade bg-dark">
 				<h2  class="px-4 card-header-title white-text">Executive Summary</h2>
 			</div>
-			<div class="card-body card-body-cascade text-center">
+			<div class="card-body card-body-cascade">
 				<h4>Goal</h4>
 				<p>{{.Config.Goal}}</p>
+				<h5>Strategy Description</h5>
+				<p>{{.Statistics.StrategyDescription}}</p>
                 {{ if or .Config.DataSettings.APIData .Config.DataSettings.DatabaseData }}
 					<table class="table table-hover table-bordered table-striped">
 						<tbody>
@@ -655,6 +657,7 @@
 									<th>Slippage Rate</th>
 									<th>Amount</th>
 									<th>Fees</th>
+									<th>Cost Basis</th>
 									</thead>
 									<tbody >
                                     {{range $val.FinalOrders.Orders}}
@@ -666,6 +669,7 @@
 											<td>{{ .SlippageRate }}%</td>
 											<td>{{printf "%.8f" .Detail.Amount }} {{$pair.Base}}</td>
 											<td>${{printf "%.8f" .Detail.Fee }} {{$pair.Quote}}</td>
+											<td>${{printf "%.8f" .CostBasis }} {{$pair.Quote}}</td>
 										</tr>
                                     {{end}}
 									</tbody>

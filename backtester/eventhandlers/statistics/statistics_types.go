@@ -23,6 +23,7 @@ var (
 // Any currency specific information is handled in currencystatistics
 type Statistic struct {
 	StrategyName                string                                                                            `json:"strategy-name"`
+	StrategyDescription         string                                                                            `json:"strategy-description"`
 	StrategyNickname            string                                                                            `json:"strategy-nickname"`
 	StrategyGoal                string                                                                            `json:"strategy-goal"`
 	ExchangeAssetPairStatistics map[string]map[asset.Item]map[currency.Pair]*currencystatistics.CurrencyStatistic `json:"-"`

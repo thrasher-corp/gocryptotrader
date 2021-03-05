@@ -277,11 +277,12 @@ func (s *Statistic) PrintAllEvents() {
 								c.Events[i].FillEvent.GetDirection(),
 								c.Events[i].FillEvent.GetReason())
 						} else {
-							log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Direction %v - Reason: %s",
+							log.Infof(log.BackTester, "%v | Price: $%v - Amount: %v - Fee: $%v - Total: $%v - Direction %v - Reason: %s",
 								c.Events[i].FillEvent.GetTime().Format(gctcommon.SimpleTimeFormat),
 								c.Events[i].FillEvent.GetPurchasePrice(),
 								c.Events[i].FillEvent.GetAmount(),
 								c.Events[i].FillEvent.GetExchangeFee(),
+								c.Events[i].FillEvent.GetTotal(),
 								c.Events[i].FillEvent.GetDirection(),
 								c.Events[i].FillEvent.GetReason(),
 							)

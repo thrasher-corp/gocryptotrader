@@ -20,6 +20,7 @@ const (
 	rsiPeriodKey = "rsi-period"
 	rsiLowKey    = "rsi-low"
 	rsiHighKey   = "rsi-high"
+	description  = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
 )
 
 // Strategy is an implementation of the Handler interface
@@ -35,6 +36,12 @@ func (s *Strategy) Name() string {
 	return Name
 }
 
+// Description provides a nice overview of the strategy
+// be it definition of terms or to highlight its purpose
+func (s *Strategy) Description() string {
+	return description
+}
+
 // OnSignal handles a data event and returns what action the strategy believes should occur
 // For rsi, this means returning a buy signal when rsi is at or below a certain level, and a
 // sell signal when it is at or above a certain level
@@ -42,7 +49,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ portfolio.Handler) (signal.Event, 
 	if d == nil {
 		return nil, common.ErrNilEvent
 	}
-	es, err := s.GetBase(d)
+	es, err := s.GetBaseData(d)
 	if err != nil {
 		return nil, err
 	}

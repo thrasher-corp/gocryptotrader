@@ -87,11 +87,11 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 	}
 	reducedAmount := reduceAmountToFitPortfolioLimit(adjustedPrice, amount, o.GetFunds())
 	if reducedAmount != amount {
-		f.AppendReason(fmt.Sprintf("order size shrunk from %v to %v to remain within portfolio limits", amount, reducedAmount))
+		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within portfolio limits", amount, reducedAmount))
 	}
 
 	var orderID string
-	orderID, err = e.placeOrder(adjustedPrice, amount, cs.UseRealOrders, f, bot)
+	orderID, err = e.placeOrder(adjustedPrice, reducedAmount, cs.UseRealOrders, f, bot)
 	if err != nil {
 		return f, err
 	}
@@ -105,6 +105,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		ords[i].CloseTime = o.GetTime()
 		f.Order = &ords[i]
 		f.PurchasePrice = ords[i].Price
+		f.Total = (f.PurchasePrice * reducedAmount) + f.ExchangeFee
 	}
 
 	if f.Order == nil {
@@ -182,7 +183,7 @@ func (e *Exchange) sizeOfflineOrder(high, low, volume float64, cs *Settings, f *
 	slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
 	f.VolumeAdjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(f.ClosePrice, f.Amount, high, low, volume)
 	if adjustedAmount != f.Amount {
-		f.AppendReason(fmt.Sprintf("order size shrunk from %v to %v to fit candle", f.Amount, adjustedAmount))
+		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to fit candle", f.Amount, adjustedAmount))
 	}
 
 	if adjustedAmount <= 0 && f.Amount > 0 {

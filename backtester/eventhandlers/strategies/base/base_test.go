@@ -17,12 +17,12 @@ import (
 
 func TestGetBase(t *testing.T) {
 	s := Strategy{}
-	_, err := s.GetBase(nil)
+	_, err := s.GetBaseData(nil)
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("expected: %v, received %v", common.ErrNilArguments, err)
 	}
 
-	_, err = s.GetBase(&datakline.DataFromKline{})
+	_, err = s.GetBaseData(&datakline.DataFromKline{})
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
@@ -47,7 +47,7 @@ func TestGetBase(t *testing.T) {
 	}})
 
 	d.Next()
-	_, err = s.GetBase(&datakline.DataFromKline{
+	_, err = s.GetBaseData(&datakline.DataFromKline{
 		Item:  gctkline.Item{},
 		Base:  d,
 		Range: gctkline.IntervalRangeHolder{},

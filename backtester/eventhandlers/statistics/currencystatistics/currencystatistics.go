@@ -48,16 +48,21 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	var allDataEvents []common.DataEventHandler
 	for i := range c.Events {
 		returnPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
-		if i == 0 {
-			benchmarkRates[i] = 0
-		} else {
-			if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
-				c.ShowMissingDataWarning = true
-			}
-			benchmarkRates[i] = (c.Events[i].DataEvent.ClosePrice() - c.Events[i-1].DataEvent.ClosePrice()) / c.Events[i-1].DataEvent.ClosePrice()
-		}
 		allDataEvents = append(allDataEvents, c.Events[i].DataEvent)
+		if i == 0 {
+			continue
+		}
+		if c.Events[i].SignalEvent != nil && c.Events[i].SignalEvent.GetDirection() == common.MissingData {
+			c.ShowMissingDataWarning = true
+		}
+		benchmarkRates[i] = (c.Events[i].DataEvent.ClosePrice() - c.Events[i-1].DataEvent.ClosePrice()) / c.Events[i-1].DataEvent.ClosePrice()
 	}
+
+	// remove the first entry as its zero and impacts
+	// ratio calculations as no movement has been made
+	benchmarkRates = benchmarkRates[1:]
+	returnPerCandle = returnPerCandle[1:]
+
 	var arithmeticBenchmarkAverage, geometricBenchmarkAverage float64
 	var err error
 	arithmeticBenchmarkAverage, err = math.ArithmeticMean(benchmarkRates)
@@ -74,7 +79,7 @@ func (c *CurrencyStatistic) CalculateResults() error {
 	intervalsPerYear := interval.IntervalsPerYear()
 
 	riskFreeRatePerCandle := first.Holdings.RiskFreeRate / intervalsPerYear
-	riskFreeRateForPeriod := riskFreeRatePerCandle * float64(len(c.Events))
+	riskFreeRateForPeriod := riskFreeRatePerCandle * float64(len(benchmarkRates))
 
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
 		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar float64

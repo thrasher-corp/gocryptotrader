@@ -267,7 +267,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
 			SlippageRate:        fillEvent.GetSlippageRate(),
 			Detail:              fo,
-			CostBasis:           fo.Price + fo.Fee,
+			CostBasis:           (fo.Price * fo.Amount) + fo.Fee,
 		}
 		prevSnap.Orders = append(prevSnap.Orders, snapOrder)
 	}

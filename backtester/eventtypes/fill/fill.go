@@ -39,6 +39,11 @@ func (f *Fill) GetPurchasePrice() float64 {
 	return f.PurchasePrice
 }
 
+// GetTotal returns the total cost
+func (f *Fill) GetTotal() float64 {
+	return f.Total
+}
+
 // GetExchangeFee returns the exchange fee
 func (f *Fill) GetExchangeFee() float64 {
 	return f.ExchangeFee
