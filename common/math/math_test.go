@@ -166,7 +166,6 @@ func TestSortinoRatio(t *testing.T) {
 	if rr != 0.2 {
 		t.Errorf("expected 0.2, received %v", rr)
 	}
-
 }
 
 func TestInformationRatio(t *testing.T) {
