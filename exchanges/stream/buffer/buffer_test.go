@@ -26,26 +26,27 @@ const (
 	exchangeName = "exchangeTest"
 )
 
-func createSnapshot() (obl *Orderbook, asks, bids []orderbook.Item, err error) {
-	var snapShot1 orderbook.Base
-	snapShot1.Exchange = exchangeName
-	asks = []orderbook.Item{
-		{Price: 4000, Amount: 1, ID: 6},
+func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error) {
+	asks = orderbook.Items{{Price: 4000, Amount: 1, ID: 6}}
+	bids = orderbook.Items{{Price: 4000, Amount: 1, ID: 6}}
+
+	book := &orderbook.Base{
+		Exchange:      exchangeName,
+		Asks:          asks,
+		Bids:          bids,
+		Asset:         asset.Spot,
+		Pair:          cp,
+		NotAggregated: true,
 	}
-	bids = []orderbook.Item{
-		{Price: 4000, Amount: 1, ID: 6},
-	}
-	snapShot1.Asks = asks
-	snapShot1.Bids = bids
-	snapShot1.Asset = asset.Spot
-	snapShot1.Pair = cp
-	snapShot1.NotAggregated = true
-	obl = &Orderbook{
+
+	newBook := make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+
+	holder = &Orderbook{
 		exchangeName: exchangeName,
 		dataHandler:  make(chan interface{}, 100),
-		ob:           make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder),
+		ob:           newBook,
 	}
-	err = obl.LoadSnapshot(&snapShot1)
+	err = holder.LoadSnapshot(book)
 	return
 }
 
@@ -108,20 +109,13 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 
 // BenchmarkBufferPerformance demonstrates buffer more performant than multi
 // process calls
+// 4219518	       287 ns/op	     176 B/op	       1 allocs/op
 func BenchmarkBufferPerformance(b *testing.B) {
-	obl, asks, bids, err := createSnapshot()
+	holder, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.bufferEnabled = true
-	// This is to ensure we do not send in zero orderbook info to our main book
-	// in orderbook.go, orderbooks should not be zero even after an update.
-	dummyItem := orderbook.Item{
-		Amount: 1333337,
-		Price:  1337.1337,
-		ID:     1337,
-	}
-	obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids, dummyItem)
+	holder.bufferEnabled = true
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -134,7 +128,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
-		err = obl.Update(update)
+		err = holder.Update(update)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -142,21 +136,14 @@ func BenchmarkBufferPerformance(b *testing.B) {
 }
 
 // BenchmarkBufferSortingPerformance benchmark
+// 2693391	       467 ns/op	     208 B/op	       2 allocs/op
 func BenchmarkBufferSortingPerformance(b *testing.B) {
-	obl, asks, bids, err := createSnapshot()
+	holder, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.bufferEnabled = true
-	obl.sortBuffer = true
-	// This is to ensure we do not send in zero orderbook info to our main book
-	// in orderbook.go, orderbooks should not be zero even after an update.
-	dummyItem := orderbook.Item{
-		Amount: 1333337,
-		Price:  1337.1337,
-		ID:     1337,
-	}
-	obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids, dummyItem)
+	holder.bufferEnabled = true
+	holder.sortBuffer = true
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -169,7 +156,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
-		err = obl.Update(update)
+		err = holder.Update(update)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -177,22 +164,15 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 }
 
 // BenchmarkBufferSortingPerformance benchmark
+// 1000000	      1019 ns/op	     208 B/op	       2 allocs/op
 func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
-	obl, asks, bids, err := createSnapshot()
+	holder, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.bufferEnabled = true
-	obl.sortBuffer = true
-	obl.sortBufferByUpdateIDs = true
-	// This is to ensure we do not send in zero orderbook info to our main book
-	// in orderbook.go, orderbooks should not be zero even after an update.
-	dummyItem := orderbook.Item{
-		Amount: 1333337,
-		Price:  1337.1337,
-		ID:     1337,
-	}
-	obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids, dummyItem)
+	holder.bufferEnabled = true
+	holder.sortBuffer = true
+	holder.sortBufferByUpdateIDs = true
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -205,28 +185,21 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 		randomIndex := rand.Intn(4) // nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
-		err = obl.Update(update)
+		err = holder.Update(update)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-// BenchmarkNoBufferPerformance demonstrates orderbook process less performant
+// BenchmarkNoBufferPerformance demonstrates orderbook process more performant
 // than buffer
+// 9516966	       141 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkNoBufferPerformance(b *testing.B) {
 	obl, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	// This is to ensure we do not send in zero orderbook info to our main book
-	// in orderbook.go, orderbooks should not be zero even after an update.
-	dummyItem := orderbook.Item{
-		Amount: 1333337,
-		Price:  1337.1337,
-		ID:     1337,
-	}
-	obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids = append(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids, dummyItem)
 	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -247,13 +220,13 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 }
 
 func TestUpdates(t *testing.T) {
-	obl, _, _, err := createSnapshot()
+	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Error(err)
 	}
 
-	holder := obl.ob[cp.Base][cp.Quote][asset.Spot]
-	holder.updateByPrice(&Update{
+	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	book.updateByPrice(&Update{
 		Bids:       itemArray[5],
 		Asks:       itemArray[5],
 		Pair:       cp,
@@ -264,7 +237,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	holder.updateByPrice(&Update{
+	book.updateByPrice(&Update{
 		Bids:       itemArray[0],
 		Asks:       itemArray[0],
 		Pair:       cp,
@@ -275,23 +248,23 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(holder.ob.Asks) != 3 {
+	if book.ob.GetAskLength() != 3 {
 		t.Error("Did not update")
 	}
 }
 
 // TestHittingTheBuffer logic test
 func TestHittingTheBuffer(t *testing.T) {
-	obl, _, _, err := createSnapshot()
+	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.bufferEnabled = true
-	obl.obBufferLimit = 5
+	holder.bufferEnabled = true
+	holder.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = obl.Update(&Update{
+		err = holder.Update(&Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -302,32 +275,32 @@ func TestHittingTheBuffer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) != 3 {
-		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks))
+
+	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	if book.ob.GetAskLength() != 3 {
+		t.Errorf("expected 3 entries, received: %v", book.ob.GetAskLength())
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids) != 3 {
-		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids))
+	if book.ob.GetBidLength() != 3 {
+		t.Errorf("expected 3 entries, received: %v", book.ob.GetBidLength())
 	}
 }
 
 // TestInsertWithIDs logic test
 func TestInsertWithIDs(t *testing.T) {
-	obl, _, _, err := createSnapshot()
+	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.bufferEnabled = true
-	obl.updateEntriesByID = true
-	obl.obBufferLimit = 5
+	holder.bufferEnabled = true
+	holder.updateEntriesByID = true
+	holder.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
 		if asks[0].Amount <= 0 {
 			continue
 		}
 		bids := itemArray[i]
-		err = obl.Update(&Update{
+		err = holder.Update(&Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -339,30 +312,30 @@ func TestInsertWithIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) != 6 {
-		t.Errorf("expected 6 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks))
+
+	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	if book.ob.GetAskLength() != 5 {
+		t.Errorf("expected 5 entries, received: %v", book.ob.GetAskLength())
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids) != 6 {
-		t.Errorf("expected 6 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids))
+	if book.ob.GetBidLength() != 5 {
+		t.Errorf("expected 5 entries, received: %v", book.ob.GetBidLength())
 	}
 }
 
 // TestSortIDs logic test
 func TestSortIDs(t *testing.T) {
-	obl, _, _, err := createSnapshot()
+	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.bufferEnabled = true
-	obl.sortBufferByUpdateIDs = true
-	obl.sortBuffer = true
-	obl.obBufferLimit = 5
+	holder.bufferEnabled = true
+	holder.sortBufferByUpdateIDs = true
+	holder.sortBuffer = true
+	holder.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = obl.Update(&Update{
+		err = holder.Update(&Update{
 			Bids:     bids,
 			Asks:     asks,
 			Pair:     cp,
@@ -373,19 +346,18 @@ func TestSortIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks) != 3 {
-		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks))
+	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	if book.ob.GetAskLength() != 3 {
+		t.Errorf("expected 3 entries, received: %v", book.ob.GetAskLength())
 	}
-	if len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids) != 3 {
-		t.Errorf("expected 3 entries, received: %v",
-			len(obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Bids))
+	if book.ob.GetAskLength() != 3 {
+		t.Errorf("expected 3 entries, received: %v", book.ob.GetAskLength())
 	}
 }
 
 // TestOutOfOrderIDs logic test
 func TestOutOfOrderIDs(t *testing.T) {
-	obl, _, _, err := createSnapshot()
+	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -394,12 +366,12 @@ func TestOutOfOrderIDs(t *testing.T) {
 		t.Errorf("expected sorted price to be 3000, received: %v",
 			itemArray[1][0].Price)
 	}
-	obl.bufferEnabled = true
-	obl.sortBuffer = true
-	obl.obBufferLimit = 5
+	holder.bufferEnabled = true
+	holder.sortBuffer = true
+	holder.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
-		err = obl.Update(&Update{
+		err = holder.Update(&Update{
 			Asks:     asks,
 			Pair:     cp,
 			UpdateID: outOFOrderIDs[i],
@@ -409,15 +381,16 @@ func TestOutOfOrderIDs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	cpy := book.ob.Retrieve()
 	// Index 1 since index 0 is price 7000
-	if obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks[1].Price != 2000 {
-		t.Errorf("expected sorted price to be 3000, received: %v",
-			obl.ob[cp.Base][cp.Quote][asset.Spot].ob.Asks[1].Price)
+	if cpy.Asks[1].Price != 2000 {
+		t.Errorf("expected sorted price to be 2000, received: %v", cpy.Asks[1].Price)
 	}
 }
 
 func TestOrderbookLastUpdateID(t *testing.T) {
-	obl, _, _, err := createSnapshot()
+	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +401,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	for i := range itemArray {
 		asks := itemArray[i]
-		err = obl.Update(&Update{
+		err = holder.Update(&Update{
 			Asks:     asks,
 			Pair:     cp,
 			UpdateID: int64(i) + 1,
@@ -439,7 +412,10 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 		}
 	}
 
-	ob := obl.GetOrderbook(cp, asset.Spot)
+	ob, err := holder.GetOrderbook(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if exp := len(itemArray); ob.LastUpdateID != int64(exp) {
 		t.Errorf("expected last update id to be %d, received: %v", exp, ob.LastUpdateID)
 	}
@@ -447,7 +423,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 // TestRunUpdateWithoutSnapshot logic test
 func TestRunUpdateWithoutSnapshot(t *testing.T) {
-	var obl Orderbook
+	var holder Orderbook
 	var snapShot1 orderbook.Base
 	asks := []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 8},
@@ -460,19 +436,16 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
-	obl.exchangeName = exchangeName
-	err := obl.Update(&Update{
+	holder.exchangeName = exchangeName
+	err := holder.Update(&Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	})
-	if err == nil {
-		t.Fatal("expected an error running update with no snapshot loaded")
-	}
-	if err.Error() != "ob.Base could not be found for Exchange exchangeTest CurrencyPair: BTCUSD Asset: spot" {
-		t.Fatal(err)
+	if !errors.Is(err, errDepthNotFound) {
+		t.Fatalf("expected %v but received %v", errDepthNotFound, err)
 	}
 }
 
@@ -492,11 +465,8 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	})
-	if err == nil {
-		t.Fatal("expected an error running update with no snapshot loaded")
-	}
-	if err.Error() != "websocket orderbook buffer error: update bid/ask targets cannot be nil" {
-		t.Fatal("expected nil asks and bids error")
+	if !errors.Is(err, errUpdateNoTargets) {
+		t.Fatalf("expected %v but received %v", errDepthNotFound, err)
 	}
 }
 
@@ -556,9 +526,9 @@ func TestFlushbuffer(t *testing.T) {
 
 // TestInsertingSnapShots logic test
 func TestInsertingSnapShots(t *testing.T) {
-	var obl Orderbook
-	obl.dataHandler = make(chan interface{}, 100)
-	obl.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+	var holder Orderbook
+	holder.dataHandler = make(chan interface{}, 100)
+	holder.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "WSORDERBOOKTEST1"
 	asks := []orderbook.Item{
@@ -593,7 +563,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.Bids = bids
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
-	err := obl.LoadSnapshot(&snapShot1)
+	err := holder.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -627,14 +597,16 @@ func TestInsertingSnapShots(t *testing.T) {
 		{Price: 39, Amount: 7, ID: 22},
 	}
 
-	snapShot2.Asks = orderbook.SortAsks(asks)
-	snapShot2.Bids = orderbook.SortBids(bids)
+	snapShot2.Asks = asks
+	snapShot2.Asks.SortAsks()
+	snapShot2.Bids = bids
+	snapShot2.Bids.SortBids()
 	snapShot2.Asset = asset.Spot
 	snapShot2.Pair, err = currency.NewPairFromString("LTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = obl.LoadSnapshot(&snapShot2)
+	err = holder.LoadSnapshot(&snapShot2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -668,47 +640,60 @@ func TestInsertingSnapShots(t *testing.T) {
 		{Price: 39, Amount: 7, ID: 22},
 	}
 
-	snapShot3.Asks = orderbook.SortAsks(asks)
-	snapShot3.Bids = orderbook.SortBids(bids)
+	snapShot3.Asks = asks
+	snapShot3.Asks.SortAsks()
+	snapShot3.Bids = bids
+	snapShot3.Bids.SortBids()
 	snapShot3.Asset = "FUTURES"
 	snapShot3.Pair, err = currency.NewPairFromString("LTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = obl.LoadSnapshot(&snapShot3)
+	err = holder.LoadSnapshot(&snapShot3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.Asset].ob.Asks[0] != snapShot1.Asks[0] {
+	ob, err := holder.GetOrderbook(snapShot1.Pair, snapShot1.Asset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ob.Asks[0] != snapShot1.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot1.Asks[0],
-			obl.ob[snapShot1.Pair.Base][snapShot1.Pair.Quote][snapShot1.Asset].ob.Asks[0])
+			ob.Asks[0])
 	}
-	if obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.Asset].ob.Asks[0] != snapShot2.Asks[0] {
+	ob, err = holder.GetOrderbook(snapShot2.Pair, snapShot2.Asset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ob.Asks[0] != snapShot2.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot2.Asks[0],
-			obl.ob[snapShot2.Pair.Base][snapShot1.Pair.Quote][snapShot2.Asset].ob.Asks[0])
+			ob.Asks[0])
 	}
-	if obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.Asset].ob.Asks[0] != snapShot3.Asks[0] {
+	ob, err = holder.GetOrderbook(snapShot3.Pair, snapShot3.Asset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ob.Asks[0] != snapShot3.Asks[0] {
 		t.Errorf("loaded data mismatch. Expected %v, received %v",
 			snapShot3.Asks[0],
-			obl.ob[snapShot3.Pair.Base][snapShot1.Pair.Quote][snapShot3.Asset].ob.Asks[0])
+			ob.Asks[0])
 	}
 }
 
 func TestGetOrderbook(t *testing.T) {
-	obl, _, _, err := createSnapshot()
+	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ob := obl.GetOrderbook(cp, asset.Spot)
-	bufferOb := obl.ob[cp.Base][cp.Quote][asset.Spot]
-	if bufferOb.ob == ob {
-		t.Error("orderbooks should be separate in pointer value and not linked to orderbook package")
+	ob, err := holder.GetOrderbook(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	if len(bufferOb.ob.Asks) != len(ob.Asks) ||
-		len(bufferOb.ob.Bids) != len(ob.Bids) ||
+	bufferOb := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	if bufferOb.ob.GetAskLength() != len(ob.Asks) ||
+		bufferOb.ob.GetBidLength() != len(ob.Bids) ||
 		bufferOb.ob.Asset != ob.Asset ||
 		bufferOb.ob.Exchange != ob.Exchange ||
 		bufferOb.ob.LastUpdateID != ob.LastUpdateID ||
@@ -763,14 +748,14 @@ func TestValidate(t *testing.T) {
 }
 
 func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
-	obl, _, _, err := createSnapshot()
+	holder, _, _, err := createSnapshot()
 	if err != nil {
 		t.Error(err)
 	}
 
 	asks := bidAskGenerator()
-	holder := obl.ob[cp.Base][cp.Quote][asset.Spot]
-	holder.updateByPrice(&Update{
+	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	book.updateByPrice(&Update{
 		Bids:       asks,
 		Asks:       asks,
 		Pair:       cp,
@@ -781,69 +766,12 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(holder.ob.Asks) <= 3 {
+	if book.ob.GetAskLength() <= 3 {
 		t.Errorf("Insufficient updates")
 	}
 }
 
-func TestInsertItem(t *testing.T) {
-	update := []orderbook.Item{{Price: 4}}
-
-	// Correctly aligned
-	asks := orderbook.Items{
-		{
-			Price: 1,
-		},
-		{
-			Price: 2,
-		},
-		{
-			Price: 3,
-		},
-		{
-			Price: 5,
-		},
-		{
-			Price: 6,
-		},
-		{
-			Price: 7,
-		},
-	}
-
-	insertUpdatesAsk(update, &asks)
-	if asks[3].Price != 4 {
-		t.Fatal("incorrect insertion")
-	}
-
-	bids := orderbook.Items{
-		{
-			Price: 7,
-		},
-		{
-			Price: 6,
-		},
-		{
-			Price: 5,
-		},
-		{
-			Price: 3,
-		},
-		{
-			Price: 2,
-		},
-		{
-			Price: 1,
-		},
-	}
-
-	insertUpdatesBid(update, &bids)
-	if asks[3].Price != 4 {
-		t.Fatal("incorrect insertion")
-	}
-}
-
-func deploySliceOrdered(size int) []orderbook.Item {
+func deploySliceOrdered(size int) orderbook.Items {
 	rand.Seed(time.Now().UnixNano())
 	var items []orderbook.Item
 	for i := 0; i < size; i++ {
@@ -857,14 +785,13 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	asks := deploySliceOrdered(100)
 	bids := append(asks[:0:0], asks...)
-	orderbook.Reverse(bids)
+	bids.Reverse()
 
-	book := &orderbook.Base{
-		Bids: append(bids[:0:0], bids...),
-		Asks: append(asks[:0:0], asks...),
-	}
+	book := &orderbook.Depth{}
 
-	err := book.Verify()
+	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...))
+
+	err := book.Retrieve().Verify()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -909,10 +836,12 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if book.Bids[len(book.Bids)-1].Price != 0 {
+	cpy := book.Retrieve()
+
+	if cpy.Bids[len(cpy.Bids)-1].Price != 0 {
 		t.Fatal("did not append bid item")
 	}
-	if book.Asks[len(book.Asks)-1].Price != 100 {
+	if cpy.Asks[len(cpy.Asks)-1].Price != 100 {
 		t.Fatal("did not append ask item")
 	}
 
@@ -921,7 +850,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Action: UpdateInsert,
 		Bids: []orderbook.Item{
 			{
-				Price:  0,
+				Price:  1,
 				ID:     1337,
 				Amount: 100,
 			},
@@ -938,11 +867,11 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if book.Bids[len(book.Bids)-1].Amount != 100 {
+	if cpy.Bids[len(cpy.Bids)-1].Amount != 100 {
 		t.Fatal("did not update bid amount")
 	}
 
-	if book.Asks[len(book.Asks)-1].Amount != 100 {
+	if cpy.Asks[len(cpy.Asks)-1].Amount != 100 {
 		t.Fatal("did not update ask amount")
 	}
 
@@ -968,16 +897,15 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if book.Bids[0].Amount != 99 && book.Bids[0].Price != 100 {
+	if cpy.Bids[0].Amount != 99 && cpy.Bids[0].Price != 100 {
 		t.Fatal("did not adjust bid item placement and details")
 	}
 
-	if book.Asks[0].Amount != 99 && book.Asks[0].Amount != 0 {
+	if cpy.Asks[0].Amount != 99 && cpy.Asks[0].Amount != 0 {
 		t.Fatal("did not adjust ask item placement and details")
 	}
 
-	book.Bids = append(bids[:0:0], bids...) // nolint:gocritic
-	book.Asks = append(asks[:0:0], asks...) // nolint:gocritic
+	book.LoadSnapshot(append(bids[:0:0], bids...), append(bids[:0:0], bids...)) // nolint:gocritic
 
 	// Delete - not found
 	err = holder.updateByIDAndAction(&Update{
@@ -1018,7 +946,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(book.Asks) != 99 {
+	if book.GetAskLength() != 99 {
 		t.Fatal("element not deleted")
 	}
 
@@ -1033,7 +961,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	update := book.Asks[0]
+	update := book.Retrieve().Asks[0]
 	update.Amount = 1337
 
 	err = holder.updateByIDAndAction(&Update{
@@ -1046,7 +974,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if book.Asks[0].Amount != 1337 {
+	if book.Retrieve().Asks[0].Amount != 1337 {
 		t.Fatal("element not updated")
 	}
 }
@@ -1076,14 +1004,9 @@ func TestFlushOrderbook(t *testing.T) {
 		t.Fatal("book not loaded error cannot be nil")
 	}
 
-	o := w.GetOrderbook(cp, asset.Spot)
-	if o != nil {
+	_, err = w.GetOrderbook(cp, asset.Spot)
+	if err == nil {
 		t.Fatal("book not loaded, this should not happen")
-	}
-
-	err = w.LoadSnapshot(&snapShot1)
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	err = w.LoadSnapshot(&snapShot1)
@@ -1096,12 +1019,12 @@ func TestFlushOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	o = w.GetOrderbook(cp, asset.Spot)
-	if o == nil {
-		t.Fatal("cannot get book")
+	o, err := w.GetOrderbook(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if o.Bids != nil && o.Asks != nil {
+	if len(o.Bids) != 0 || len(o.Asks) != 0 {
 		t.Fatal("orderbook items not flushed")
 	}
 }

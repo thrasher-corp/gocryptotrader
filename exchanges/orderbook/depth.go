@@ -12,7 +12,7 @@ type Depth struct {
 	bids
 
 	// unexported stack of nodes
-	stack Stack
+	stack *stack
 
 	// Change of state to re-check depth list
 	wait    chan struct{}
@@ -22,6 +22,13 @@ type Depth struct {
 
 	options
 	sync.Mutex
+}
+
+// NewDepth returns a new depth item
+func newDepth() *Depth {
+	return &Depth{
+		stack: newStack(),
+	}
 }
 
 // GetAskLength returns length of asks
@@ -73,98 +80,104 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64) {
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Item, REST bool) error {
+func (d *Depth) LoadSnapshot(bids, asks []Item) {
 	d.Lock()
-	defer d.Unlock()
-	d.bids.load(bids, &d.stack)
-	d.asks.load(asks, &d.stack)
+	d.bids.load(bids, d.stack)
+	d.asks.load(asks, d.stack)
 	d.alert()
-	return nil
+	d.Unlock()
 }
 
-// Flush attempts to flush bid and ask sides
+// Flush flushes the bid and ask depths
 func (d *Depth) Flush() {
 	d.Lock()
 	d.flush()
 	d.Unlock()
 }
 
-// Process processes incoming orderbook snapshots
-func (d *Depth) Process(bids, asks Items) {
-	d.Lock()
-	d.bids.load(bids, &d.stack)
-	d.asks.load(asks, &d.stack)
-	d.alert()
-	d.Unlock()
-}
-
 // flush will pop entire bid and ask node chain onto stack when invalidated or
 // required for full flush when resubscribing
 func (d *Depth) flush() {
-	d.bids.load(nil, &d.stack)
-	d.asks.load(nil, &d.stack)
+	d.bids.load(nil, d.stack)
+	d.asks.load(nil, d.stack)
 }
 
-// UpdateBidAskByPrice updates the bid and ask spread by supplied updates
-func (d *Depth) UpdateBidAskByPrice(bid, ask Items, maxDepth int) error {
+// UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
+// will trim total length of depth level to a specified supplied number
+func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
 	d.Lock()
-	d.bids.updateInsertByPrice(bid, &d.stack, maxDepth)
-	d.asks.updateInsertByPrice(ask, &d.stack, maxDepth)
+	if len(bidUpdts) != 0 {
+		d.bids.updateInsertByPrice(bidUpdts, d.stack, maxDepth)
+	}
+	if len(askUpdts) != 0 {
+		d.asks.updateInsertByPrice(askUpdts, d.stack, maxDepth)
+	}
 	d.alert()
 	d.Unlock()
-	return nil
 }
 
 // UpdateBidAskByID amends details by ID
-func (d *Depth) UpdateBidAskByID(bid, ask Items) error {
+func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items) error {
 	d.Lock()
 	defer d.Unlock()
-	err := d.bids.updateByID(bid)
-	if err != nil {
-		return err
+	if len(bidUpdts) != 0 {
+		err := d.bids.updateByID(bidUpdts)
+		if err != nil {
+			return err
+		}
 	}
-
-	err = d.asks.updateByID(ask)
-	if err != nil {
-		return err
+	if len(askUpdts) != 0 {
+		err := d.asks.updateByID(askUpdts)
+		if err != nil {
+			return err
+		}
 	}
 	d.alert()
 	return nil
 }
 
 // DeleteBidAskByID deletes a price level by ID
-func (d *Depth) DeleteBidAskByID(bid, ask Items, bypassErr bool) error {
+func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool) error {
 	d.Lock()
 	defer d.Unlock()
-
-	err := d.bids.deleteByID(bid, &d.stack, bypassErr)
-	if err != nil {
-		return err
+	if len(bidUpdts) != 0 {
+		err := d.bids.deleteByID(bidUpdts, d.stack, bypassErr)
+		if err != nil {
+			return err
+		}
 	}
-
-	err = d.asks.deleteByID(ask, &d.stack, bypassErr)
-	if err != nil {
-		return err
+	if len(askUpdts) != 0 {
+		err := d.asks.deleteByID(askUpdts, d.stack, bypassErr)
+		if err != nil {
+			return err
+		}
 	}
-
 	d.alert()
 	return nil
 }
 
 // InsertBidAskByID inserts new updates
-func (d *Depth) InsertBidAskByID(bid, ask Items) {
+func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) {
 	d.Lock()
-	d.bids.insertUpdates(bid, &d.stack)
-	d.asks.insertUpdates(ask, &d.stack)
+	if len(bidUpdts) != 0 {
+		d.bids.insertUpdates(bidUpdts, d.stack)
+	}
+	if len(askUpdts) != 0 {
+		d.asks.insertUpdates(askUpdts, d.stack)
+	}
 	d.alert()
 	d.Unlock()
 }
 
 // UpdateInsertByID ...
-func (d *Depth) UpdateInsertByID(bidUpdates, askUpdates Items) {
+func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) {
 	d.Lock()
-	d.bids.updateInsertByID(bidUpdates, &d.stack)
-	d.asks.updateInsertByID(askUpdates, &d.stack)
+	if len(bidUpdts) != 0 {
+		d.bids.updateInsertByID(bidUpdts, d.stack)
+	}
+	if len(askUpdts) != 0 {
+		d.asks.updateInsertByID(askUpdts, d.stack)
+	}
 	d.alert()
 	d.Unlock()
 }

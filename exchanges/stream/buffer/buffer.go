@@ -77,6 +77,10 @@ func (w *Orderbook) Update(u *Update) error {
 			u.Asset)
 	}
 
+	// Checks for when the rest protocol overwrites a streaming dominated book
+	// will stop updating book via incremental updates. This occurs because our
+	// sync manager (engine/sync.go) timer has elapsed for streaming. Usually
+	// because the book is highly illiquid.
 	if book.ob.RestSnapshot {
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
 			errRESTOverwrite,
@@ -85,7 +89,7 @@ func (w *Orderbook) Update(u *Update) error {
 			u.Asset)
 	}
 
-	// Apply new update ID to book
+	// Apply new update ID to held book
 	book.ob.LastUpdateID = u.UpdateID
 
 	if w.bufferEnabled {
@@ -154,13 +158,14 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *Update) error {
 	if w.updateEntriesByID {
 		return o.updateByIDAndAction(u)
 	}
-	return o.updateByPrice(u)
+	o.updateByPrice(u)
+	return nil
 }
 
 // updateByPrice ammends amount if match occurs by price, deletes if amount is
 // zero or less and inserts if not found.
-func (o *orderbookHolder) updateByPrice(updts *Update) error {
-	return o.ob.UpdateBidAskByPrice(updts.Bids, updts.Asks, updts.MaxDepth)
+func (o *orderbookHolder) updateByPrice(updts *Update) {
+	o.ob.UpdateBidAskByPrice(updts.Bids, updts.Asks, updts.MaxDepth)
 }
 
 // updateByIDAndAction will receive an action to execute against the orderbook
@@ -216,7 +221,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		depth.RestSnapshot = book.RestSnapshot
 		depth.VerificationBypass = book.VerificationBypass
 		buffer := make([]Update, w.obBufferLimit)
-		timer := time.NewTimer(0) // Fire immediately
+		// Fire timer immediately to send initial update to sync manager
+		timer := time.NewTimer(0)
 		holder = &orderbookHolder{
 			ob:     depth,
 			buffer: &buffer,
@@ -233,15 +239,12 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		}
 	}
 
-	err := holder.ob.LoadSnapshot(book.Bids, book.Asks, false)
-	if err != nil {
-		return err
-	}
+	holder.ob.LoadSnapshot(book.Bids, book.Asks)
 
 	if book.CanVerify() {
-		// Checks to see if booked that was deployed has not been altered in
-		// any way
-		err = holder.ob.Retrieve().Verify()
+		// Checks to see if orderbook snapshot that was deployed has not been
+		// altered in any way
+		err := holder.ob.Retrieve().Verify()
 		if err != nil {
 			return err
 		}
@@ -260,7 +263,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	return nil
 }
 
-// GetOrderbook returns orderbook stored in current buffer
+// GetOrderbook returns an orderbook copy as orderbook.Base stored
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	w.Lock()
 	defer w.Unlock()
@@ -275,16 +278,12 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 	return book.ob.Retrieve(), nil
 }
 
-// empty eager bucket
-var empty map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder
-
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
 func (w *Orderbook) FlushBuffer() {
 	w.Lock()
-	w.ob = empty
+	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 	w.Unlock()
-	empty = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
 }
 
 // FlushOrderbook flushes independent orderbook
@@ -293,7 +292,7 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	defer w.Unlock()
 	book, ok := w.ob[p.Base][p.Quote][a]
 	if !ok {
-		return fmt.Errorf("%s %s %s %w",
+		return fmt.Errorf("cannot flush orderbook %s %s %s %w",
 			w.exchangeName,
 			p,
 			a,

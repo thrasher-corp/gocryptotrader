@@ -83,6 +83,8 @@ type Base struct {
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
 	RestSnapshot bool
+	// Checks if the orderbook needs ID alignment as well as price alignmentment
+	IDAlignment bool
 }
 
 type byOBPrice []Item
@@ -102,4 +104,5 @@ type options struct {
 	VerificationBypass    bool
 	HasChecksumValidation bool
 	RestSnapshot          bool
+	IDAligned             bool
 }

@@ -50,7 +50,7 @@ func (s *Service) Update(b *Base) {
 
 	book, ok := m3[b.Pair.Quote.Item]
 	if !ok {
-		book = new(Depth)
+		book = newDepth()
 		book.Exchange = b.Exchange
 		book.Asset = b.Asset
 		book.Pair = b.Pair
@@ -58,12 +58,13 @@ func (s *Service) Update(b *Base) {
 		book.IsFundingRate = b.IsFundingRate
 		book.HasChecksumValidation = b.HasChecksumValidation
 		book.NotAggregated = b.NotAggregated
+		book.IDAligned = b.IDAlignment
 		m3[b.Pair.Quote.Item] = book
 	}
 	book.LastUpdated = b.LastUpdated
 	book.LastUpdateID = b.LastUpdateID
 	book.RestSnapshot = true
-	book.Process(b.Bids, b.Asks)
+	book.LoadSnapshot(b.Bids, b.Asks)
 	s.Unlock()
 }
 
@@ -89,7 +90,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	}
 	book, ok := m3[p.Quote.Item]
 	if !ok {
-		book = new(Depth)
+		book = newDepth()
 		m3[p.Quote.Item] = book
 	}
 	return book, nil
@@ -191,11 +192,11 @@ func (b *Base) Verify() error {
 			len(b.Bids),
 			len(b.Asks))
 	}
-	err := checkAlignment(b.Bids, b.IsFundingRate, b.NotAggregated, dsc)
+	err := checkAlignment(b.Bids, b.IsFundingRate, b.NotAggregated, b.IDAlignment, dsc)
 	if err != nil {
 		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
-	err = checkAlignment(b.Asks, b.IsFundingRate, b.NotAggregated, asc)
+	err = checkAlignment(b.Asks, b.IsFundingRate, b.NotAggregated, b.IDAlignment, asc)
 	if err != nil {
 		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
@@ -223,7 +224,7 @@ var dsc = func(current Item, previous Item) error {
 }
 
 // checkAlignment validates full orderbook
-func checkAlignment(depth Items, fundingRate, notAggregated bool, c checker) error {
+func checkAlignment(depth Items, fundingRate, notAggregated, isIDAligned bool, c checker) error {
 	for i := range depth {
 		if depth[i].Price == 0 {
 			return errPriceNotSet
@@ -239,7 +240,7 @@ func checkAlignment(depth Items, fundingRate, notAggregated bool, c checker) err
 			if err := c(depth[i], depth[prev]); err != nil {
 				return err
 			}
-			if depth[i].ID < depth[prev].ID {
+			if isIDAligned && depth[i].ID < depth[prev].ID {
 				return errIDOutOfOrder
 			}
 			if !notAggregated && depth[i].Price == depth[prev].Price {
