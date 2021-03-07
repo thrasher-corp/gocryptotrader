@@ -59,7 +59,10 @@ func (g *Gemini) SetDefaults() {
 	g.API.CredentialsValidator.RequiresKey = true
 	g.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true}
+	requestFmt := &currency.PairFormat{
+		Uppercase: true,
+		Separator: ",",
+	}
 	configFmt := &currency.PairFormat{
 		Uppercase: true,
 		Delimiter: currency.DashDelimiter,
@@ -96,6 +99,8 @@ func (g *Gemini) SetDefaults() {
 				AuthenticatedEndpoints: true,
 				MessageSequenceNumbers: true,
 				KlineFetching:          true,
+				Subscribe:              true,
+				Unsubscribe:            true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawCryptoWithSetup |
@@ -147,7 +152,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return g.Websocket.Setup(&stream.WebsocketSetup{
+	err = g.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -156,10 +161,35 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       wsRunningURL,
 		Connector:                        g.WsConnect,
+		Subscriber:                       g.Subscribe,
+		UnSubscriber:                     g.Unsubscribe,
+		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
 		Features:                         &g.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
 		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
-		SortBuffer:                       true,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: fmt.Sprintf("%s/v2/%s",
+			geminiWebsocketEndpoint,
+			geminiWsMarketData),
+	})
+	if err != nil {
+		return err
+	}
+
+	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL: fmt.Sprintf("%s/v1/%s",
+			geminiWebsocketEndpoint,
+			geminiWsOrderEvents),
+		Authenticated: true,
 	})
 }
 
@@ -638,7 +668,7 @@ func (g *Gemini) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
-	format, err := g.GetPairFormat(asset.Spot, false)
+	format, err := g.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}

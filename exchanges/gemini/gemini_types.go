@@ -311,16 +311,57 @@ type WsOrderFilledData struct {
 	FeeCurrency string  `json:"fee_currency"`
 }
 
-type wsUnsubscribeResponse struct {
-	Type          string `json:"type"`
-	Subscriptions []struct {
-		Name    string   `json:"name"`
-		Symbols []string `json:"symbols"`
-	} `json:"subscriptions"`
-}
-
 type wsCandleResponse struct {
 	Type    string      `json:"type"`
 	Symbol  string      `json:"symbol"`
 	Changes [][]float64 `json:"changes"`
+}
+
+type wsSubscriptions struct {
+	Name    string   `json:"name"`
+	Symbols []string `json:"symbols"`
+}
+
+type wsSubscribeRequest struct {
+	Type          string            `json:"type"`
+	Subscriptions []wsSubscriptions `json:"subscriptions"`
+}
+
+type wsTrade struct {
+	Type      string  `json:"type"`
+	Symbol    string  `json:"symbol"`
+	EventID   int64   `json:"event_id"`
+	Timestamp int64   `json:"timestamp"`
+	Price     float64 `json:"price,string"`
+	Quantity  float64 `json:"quantity,string"`
+	Side      string  `json:"side"`
+}
+type wsAuctionResult struct {
+	Type             string  `json:"type"`
+	Symbol           string  `json:"symbol"`
+	Result           string  `json:"result"`
+	TimeMilliseconds int64   `json:"time_ms"`
+	HighestBidPrice  float64 `json:"highest_bid_price,string"`
+	LowestBidPrice   float64 `json:"lowest_ask_price,string"`
+	CollarPrice      float64 `json:"collar_price,string"`
+	AuctionPrice     float64 `json:"auction_price,string"`
+	AuctionQuantity  float64 `json:"auction_quantity,string"`
+}
+
+type wsL2MarketData struct {
+	Type          string            `json:"type"`
+	Symbol        string            `json:"symbol"`
+	Changes       [][3]string       `json:"changes"`
+	Trades        []wsL2Trade       `json:"trades"`
+	AuctionEvents []wsAuctionResult `json:"auction_events"`
+}
+
+type wsL2Trade struct {
+	Type      string  `json:"type"`
+	Symbol    string  `json:"symbol"`
+	EventID   int64   `json:"eventid"`
+	Timestamp int64   `json:"timestamp"`
+	Price     float64 `json:"price,string"`
+	Quantity  float64 `json:"quantity,string"`
+	Side      string  `json:"side"`
 }
