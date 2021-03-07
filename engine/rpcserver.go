@@ -1655,20 +1655,19 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 
 	for {
 		base := depth.Retrieve()
-		var bids, asks []*gctrpc.OrderbookItem
+		bids := make([]*gctrpc.OrderbookItem, len(base.Bids))
 		for i := range base.Bids {
-			bids = append(bids, &gctrpc.OrderbookItem{
+			bids[i] = &gctrpc.OrderbookItem{
 				Amount: base.Bids[i].Amount,
 				Price:  base.Bids[i].Price,
-				Id:     base.Bids[i].ID,
-			})
+				Id:     base.Bids[i].ID}
 		}
+		asks := make([]*gctrpc.OrderbookItem, len(base.Asks))
 		for i := range base.Asks {
-			asks = append(asks, &gctrpc.OrderbookItem{
+			asks[i] = &gctrpc.OrderbookItem{
 				Amount: base.Asks[i].Amount,
 				Price:  base.Asks[i].Price,
-				Id:     base.Asks[i].ID,
-			})
+				Id:     base.Asks[i].ID}
 		}
 		err := stream.Send(&gctrpc.OrderbookResponse{
 			Pair:      &gctrpc.CurrencyPair{Base: r.Pair.Base, Quote: r.Pair.Quote},
@@ -1689,47 +1688,45 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 		return errors.New(errExchangeNameUnset)
 	}
 
-	// pipe, err := orderbook.GetDepth(r.Exchange)
-	// if err != nil {
-	// 	return err
-	// }
+	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
+	if err != nil {
+		return err
+	}
 
-	// defer pipe.Release()
+	defer pipe.Release()
 
-	// for {
-	// 	data, ok := <-pipe.C
-	// 	if !ok {
-	// 		return errors.New(errDispatchSystem)
-	// 	}
+	for {
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New(errDispatchSystem)
+		}
 
-	// 	ob := (*data.(*interface{})).(orderbook.Base)
-	// 	var bids, asks []*gctrpc.OrderbookItem
-	// 	for i := range ob.Bids {
-	// 		bids = append(bids, &gctrpc.OrderbookItem{
-	// 			Amount: ob.Bids[i].Amount,
-	// 			Price:  ob.Bids[i].Price,
-	// 			Id:     ob.Bids[i].ID,
-	// 		})
-	// 	}
-	// 	for i := range ob.Asks {
-	// 		asks = append(asks, &gctrpc.OrderbookItem{
-	// 			Amount: ob.Asks[i].Amount,
-	// 			Price:  ob.Asks[i].Price,
-	// 			Id:     ob.Asks[i].ID,
-	// 		})
-	// 	}
-	// 	err := stream.Send(&gctrpc.OrderbookResponse{
-	// 		Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
-	// 			Quote: ob.Pair.Quote.String()},
-	// 		Bids:      bids,
-	// 		Asks:      asks,
-	// 		AssetType: ob.Asset.String(),
-	// 	})
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	return nil
+		ob := (*data.(*interface{})).(orderbook.Base)
+		bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
+		for i := range ob.Bids {
+			bids[i] = &gctrpc.OrderbookItem{
+				Amount: ob.Bids[i].Amount,
+				Price:  ob.Bids[i].Price,
+				Id:     ob.Bids[i].ID}
+		}
+		asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
+		for i := range ob.Asks {
+			asks[i] = &gctrpc.OrderbookItem{
+				Amount: ob.Asks[i].Amount,
+				Price:  ob.Asks[i].Price,
+				Id:     ob.Asks[i].ID}
+		}
+		err := stream.Send(&gctrpc.OrderbookResponse{
+			Pair: &gctrpc.CurrencyPair{Base: ob.Pair.Base.String(),
+				Quote: ob.Pair.Quote.String()},
+			Bids:      bids,
+			Asks:      asks,
+			AssetType: ob.Asset.String(),
+		})
+		if err != nil {
+			return err
+		}
+	}
 }
 
 // GetTickerStream streams the requested updated ticker

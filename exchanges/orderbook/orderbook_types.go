@@ -5,7 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -18,27 +20,35 @@ const (
 
 // Vars for the orderbook package
 var (
-	errExchangeNameUnset = errors.New("orderbook exchange name not set")
-	errPairNotSet        = errors.New("orderbook currency pair not set")
-	errAssetTypeNotSet   = errors.New("orderbook asset type not set")
-	errNoOrderbook       = errors.New("orderbook bids and asks are empty")
-	errPriceNotSet       = errors.New("price cannot be zero")
-	errAmountInvalid     = errors.New("amount cannot be less or equal to zero")
-	errPriceOutOfOrder   = errors.New("pricing out of order")
-	errIDOutOfOrder      = errors.New("ID out of order")
-	errDuplication       = errors.New("price duplication")
-	errIDDuplication     = errors.New("id duplication")
-	errPeriodUnset       = errors.New("funding rate period is unset")
+	errExchangeNameUnset   = errors.New("orderbook exchange name not set")
+	errPairNotSet          = errors.New("orderbook currency pair not set")
+	errAssetTypeNotSet     = errors.New("orderbook asset type not set")
+	errEmptyDepth          = errors.New("orderbook bids and asks are empty")
+	errCannotFindOrderbook = errors.New("cannot find orderbook(s)")
+	errPriceNotSet         = errors.New("price cannot be zero")
+	errAmountInvalid       = errors.New("amount cannot be less or equal to zero")
+	errPriceOutOfOrder     = errors.New("pricing out of order")
+	errIDOutOfOrder        = errors.New("ID out of order")
+	errDuplication         = errors.New("price duplication")
+	errIDDuplication       = errors.New("id duplication")
+	errPeriodUnset         = errors.New("funding rate period is unset")
 )
 
 var service = Service{
-	books: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
+	books: make(map[string]Exchange),
+	Mux:   dispatch.GetNewMux(),
 }
 
 // Service provides a store for difference exchange orderbooks
 type Service struct {
-	books map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth
+	books map[string]Exchange
+	*dispatch.Mux
 	sync.Mutex
+}
+
+type Exchange struct {
+	m  map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth
+	ID uuid.UUID
 }
 
 // Item stores the amount and price values

@@ -8,11 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
+var id, _ = uuid.NewV4()
+
 func TestGetLength(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	if d.GetAskLength() != 0 {
 		t.Errorf("expected len %v, bu received %v", 0, d.GetAskLength())
 	}
@@ -23,7 +26,7 @@ func TestGetLength(t *testing.T) {
 		t.Errorf("expected len %v, bu received %v", 1, d.GetAskLength())
 	}
 
-	d = newDepth()
+	d = newDepth(id)
 	if d.GetBidLength() != 0 {
 		t.Errorf("expected len %v, bu received %v", 0, d.GetBidLength())
 	}
@@ -36,7 +39,7 @@ func TestGetLength(t *testing.T) {
 }
 
 func TestRetrieve(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	d.asks.load([]Item{{Price: 1337}}, d.stack)
 	d.bids.load([]Item{{Price: 1337}}, d.stack)
 	d.options = options{
@@ -75,7 +78,7 @@ func TestRetrieve(t *testing.T) {
 }
 
 func TestTotalAmounts(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 
 	liquidity, value := d.TotalBidAmounts()
 	if liquidity != 0 || value != 0 {
@@ -118,7 +121,7 @@ func TestTotalAmounts(t *testing.T) {
 }
 
 func TestLoadSnapshot(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}})
 	if d.Retrieve().Asks[0].Price != 1337 || d.Retrieve().Bids[0].Price != 1337 {
 		t.Fatal("not set")
@@ -126,7 +129,7 @@ func TestLoadSnapshot(t *testing.T) {
 }
 
 func TestFlush(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}})
 	d.flush()
 	if len(d.Retrieve().Asks) != 0 || len(d.Retrieve().Bids) != 0 {
@@ -140,7 +143,7 @@ func TestFlush(t *testing.T) {
 }
 
 func TestUpdateBidAskByPrice(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
 	d.UpdateBidAskByPrice(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, 0)
 	if d.Retrieve().Asks[0].Amount != 2 || d.Retrieve().Bids[0].Amount != 2 {
@@ -153,7 +156,7 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 }
 
 func TestDeleteBidAskByID(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
 	err := d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}}, false)
 	if err != nil {
@@ -180,7 +183,7 @@ func TestDeleteBidAskByID(t *testing.T) {
 }
 
 func TestUpdateBidAskByID(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
 	err := d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, Items{{Price: 1337, Amount: 2, ID: 2}})
 	if err != nil {
@@ -203,7 +206,7 @@ func TestUpdateBidAskByID(t *testing.T) {
 }
 
 func TestInsertBidAskByID(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
 	d.InsertBidAskByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}})
 
@@ -213,7 +216,7 @@ func TestInsertBidAskByID(t *testing.T) {
 }
 
 func TestUpdateInsertByID(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
 	d.UpdateInsertByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}})
 
@@ -223,7 +226,7 @@ func TestUpdateInsertByID(t *testing.T) {
 }
 
 func TestAlert(t *testing.T) {
-	d := newDepth()
+	d := newDepth(id)
 	d.alert()
 
 	var wg sync.WaitGroup

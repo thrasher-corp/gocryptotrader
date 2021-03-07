@@ -114,6 +114,7 @@ func (w *Orderbook) Update(u *Update) error {
 		// Opted to wait for receiver because we are limiting here and the sync
 		// manager requires update
 		w.dataHandler <- book.ob.Retrieve()
+		book.ob.Publish()
 	default:
 		// We do not need to send an update to the sync manager within this time
 		// window
@@ -256,6 +257,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		// Opted to wait for receiver because we are limiting here and the sync
 		// manager requires update
 		w.dataHandler <- holder.ob.Retrieve()
+		holder.ob.Publish()
 	default:
 		// We do not need to send an update to the sync manager within this time
 		// window

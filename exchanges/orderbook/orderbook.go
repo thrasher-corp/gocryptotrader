@@ -6,7 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -26,20 +28,45 @@ func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error)
 	return service.DeployDepth(exchange, p, a)
 }
 
+// SubscribeToExchangeOrderbooks returns a pipe to an exchange feed
+func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
+	service.Lock()
+	defer service.Unlock()
+	exch, ok := service.books[strings.ToLower(exchange)]
+	if !ok {
+		return dispatch.Pipe{}, fmt.Errorf("%w for %s exchange",
+			errCannotFindOrderbook, exchange)
+	}
+	return service.Mux.Subscribe(exch.ID)
+}
+
+// GetDispatch returns the service mux for subsystem alerting
+func GetDispatch() *dispatch.Mux {
+	return service.Mux
+}
+
 // Update stores orderbook data
-func (s *Service) Update(b *Base) {
+func (s *Service) Update(b *Base) error {
 	name := strings.ToLower(b.Exchange)
 	s.Lock()
 	m1, ok := s.books[name]
 	if !ok {
-		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth)
+		uuid, err := s.Mux.GetID()
+		if err != nil {
+			s.Unlock()
+			return err
+		}
+		m1 = Exchange{
+			m:  make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
+			ID: uuid,
+		}
 		s.books[name] = m1
 	}
 
-	m2, ok := m1[b.Asset]
+	m2, ok := m1.m[b.Asset]
 	if !ok {
 		m2 = make(map[*currency.Item]map[*currency.Item]*Depth)
-		m1[b.Asset] = m2
+		m1.m[b.Asset] = m2
 	}
 
 	m3, ok := m2[b.Pair.Base.Item]
@@ -50,7 +77,7 @@ func (s *Service) Update(b *Base) {
 
 	book, ok := m3[b.Pair.Quote.Item]
 	if !ok {
-		book = newDepth()
+		book = newDepth(m1.ID)
 		book.Exchange = b.Exchange
 		book.Asset = b.Asset
 		book.Pair = b.Pair
@@ -66,22 +93,38 @@ func (s *Service) Update(b *Base) {
 	book.RestSnapshot = true
 	book.LoadSnapshot(b.Bids, b.Asks)
 	s.Unlock()
+	return s.Mux.Publish([]uuid.UUID{m1.ID}, book.Retrieve())
 }
 
 // DeployDepth used for subsystem deployment creates a depth item in the struct
 // then returns a ptr to that Depth item
 func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	if exchange == "" {
+		return nil, errExchangeNameUnset
+	}
+	if p.IsEmpty() {
+		return nil, errPairNotSet
+	}
+	if !a.IsValid() {
+		return nil, errAssetTypeNotSet
+	}
 	s.Lock()
-	defer s.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
-		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth)
+		uuid, err := s.Mux.GetID()
+		if err != nil {
+			return nil, err
+		}
+		m1 = Exchange{
+			m:  make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
+			ID: uuid,
+		}
 		s.books[strings.ToLower(exchange)] = m1
 	}
-	m2, ok := m1[a]
+	m2, ok := m1.m[a]
 	if !ok {
 		m2 = make(map[*currency.Item]map[*currency.Item]*Depth)
-		m1[a] = m2
+		m1.m[a] = m2
 	}
 	m3, ok := m2[p.Base.Item]
 	if !ok {
@@ -90,9 +133,10 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	}
 	book, ok := m3[p.Quote.Item]
 	if !ok {
-		book = newDepth()
+		book = newDepth(m1.ID)
 		m3[p.Quote.Item] = book
 	}
+	s.Unlock()
 	return book, nil
 }
 
@@ -103,24 +147,28 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 	defer s.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
+		return nil, fmt.Errorf("%w for %s exchange",
+			errCannotFindOrderbook, exchange)
 	}
 
-	m2, ok := m1[a]
+	m2, ok := m1.m[a]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
+		return nil, fmt.Errorf("%w associated with asset type %s",
+			errCannotFindOrderbook,
 			a)
 	}
 
 	m3, ok := m2[p.Base.Item]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+		return nil, fmt.Errorf("%w associated with base currency %s",
+			errCannotFindOrderbook,
 			p.Base)
 	}
 
 	book, ok := m3[p.Quote.Item]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+		return nil, fmt.Errorf("%w associated with base currency %s",
+			errCannotFindOrderbook,
 			p.Quote)
 	}
 	return book, nil
@@ -133,21 +181,26 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 	defer s.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
+		return nil, fmt.Errorf("%w for %s exchange",
+			errCannotFindOrderbook,
+			exchange)
 	}
-	m2, ok := m1[a]
+	m2, ok := m1.m[a]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
+		return nil, fmt.Errorf("%w associated with asset type %s",
+			errCannotFindOrderbook,
 			a)
 	}
 	m3, ok := m2[p.Base.Item]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+		return nil, fmt.Errorf("%w associated with base currency %s",
+			errCannotFindOrderbook,
 			p.Base)
 	}
 	book, ok := m3[p.Quote.Item]
 	if !ok {
-		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
+		return nil, fmt.Errorf("%w associated with base currency %s",
+			errCannotFindOrderbook,
 			p.Quote)
 	}
 	return book.Retrieve(), nil
@@ -209,7 +262,7 @@ type checker func(current Item, previous Item) error
 
 // asc specfically defines ascending price check
 var asc = func(current Item, previous Item) error {
-	if current.Price < current.Price {
+	if current.Price < previous.Price {
 		return errPriceOutOfOrder
 	}
 	return nil
@@ -217,7 +270,7 @@ var asc = func(current Item, previous Item) error {
 
 // dsc specfically defines descending price check
 var dsc = func(current Item, previous Item) error {
-	if current.Price > current.Price {
+	if current.Price > previous.Price {
 		return errPriceOutOfOrder
 	}
 	return nil

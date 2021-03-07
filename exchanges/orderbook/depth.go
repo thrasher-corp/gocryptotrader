@@ -4,6 +4,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Depth defines a linked list of orderbook items
@@ -20,14 +24,27 @@ type Depth struct {
 	wMtx    sync.Mutex
 	// -----
 
+	mux *dispatch.Mux
+	id  uuid.UUID
+
 	options
 	sync.Mutex
 }
 
 // NewDepth returns a new depth item
-func newDepth() *Depth {
+func newDepth(id uuid.UUID) *Depth {
 	return &Depth{
 		stack: newStack(),
+		id:    id,
+		mux:   service.Mux,
+	}
+}
+
+// Publish alerts any subscribed routines using a dispatch mux
+func (d *Depth) Publish() {
+	err := d.mux.Publish([]uuid.UUID{d.id}, d.Retrieve())
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
 	}
 }
 
