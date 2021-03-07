@@ -74,7 +74,7 @@ type HUOBI struct {
 func (h *HUOBI) GetMarginRates(symbol currency.Pair) (MarginRatesData, error) {
 	var resp MarginRatesData
 	vals := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
 			return resp, err
@@ -699,7 +699,7 @@ func (h *HUOBI) GetMarginAccountBalance(symbol currency.Pair) ([]MarginAccountBa
 		Balances []MarginAccountBalance `json:"data"`
 	}{}
 	vals := url.Values{}
-	if symbol != (currency.Pair{}) {
+	if !symbol.IsEmpty() {
 		symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
 			return resp.Balances, err
