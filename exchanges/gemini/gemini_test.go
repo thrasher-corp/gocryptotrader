@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -1053,6 +1054,49 @@ func TestWsMarketData(t *testing.T) {
 	}
 }
 
+func TestWsError(t *testing.T) {
+	tt := []struct {
+		Data               []byte
+		ErrorExpected      bool
+		ErrorShouldContain string
+	}{
+		{
+			Data:          []byte(`{"type": "test"}`),
+			ErrorExpected: false,
+		},
+		{
+			Data:          []byte(`{"result": "bla"}`),
+			ErrorExpected: false,
+		},
+		{
+			Data:               []byte(`{"result": "error"}`),
+			ErrorExpected:      true,
+			ErrorShouldContain: "Unhandled websocket error",
+		},
+		{
+			Data:               []byte(`{"result": "error","reason": "InvalidJson"}`),
+			ErrorExpected:      true,
+			ErrorShouldContain: "InvalidJson",
+		},
+		{
+			Data:               []byte(`{"result": "error","reason": "InvalidJson", "message": "WeAreGoingToTheMoonKirby"}`),
+			ErrorExpected:      true,
+			ErrorShouldContain: "InvalidJson - WeAreGoingToTheMoonKirby",
+		},
+	}
+
+	for x := range tt {
+		err := g.wsHandleData(tt[x].Data)
+		if tt[x].ErrorExpected && err != nil && !strings.Contains(err.Error(), tt[x].ErrorShouldContain) {
+			t.Errorf("expected error to contain: %s, got: %s",
+				tt[x].ErrorShouldContain, err.Error(),
+			)
+		} else if !tt[x].ErrorExpected && err != nil {
+			t.Errorf("unexpected error: %s", err)
+		}
+	}
+}
+
 func TestWsLevel2Update(t *testing.T) {
 	pressXToJSON := []byte(`{
 		"type": "l2_updates",
@@ -1072,7 +1116,7 @@ func TestWsLevel2Update(t *testing.T) {
 		"trades": [{
 			"type": "trade",
 			"symbol": "BTCUSD",
-			"eventid": 169841458,
+			"event_id": 169841458,
 			"timestamp": 1560976400428,
 			"price": "9122.04",
 			"quantity": "0.0073173",

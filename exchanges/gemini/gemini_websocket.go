@@ -62,15 +62,10 @@ func (g *Gemini) WsConnect() error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	// See gemini_types.go for more subscription/candle vars
 	var channels = []string{
-		"l2",
-		"candles_1m",
-		"candles_5m",
-		"candles_15m",
-		"candles_30m",
-		"candles_1h",
-		"candles_6h",
-		"candles_1d",
+		marketDataLevel2,
+		candles1d,
 	}
 
 	pairs, err := g.GetEnabledPairs(asset.Spot)
@@ -185,7 +180,7 @@ func (g *Gemini) WsAuth(dialer *websocket.Dialer) error {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
 	}
 	payload := WsRequestPayload{
-		Request: fmt.Sprintf("/v1/%s", geminiWsOrderEvents),
+		Request: "/v1/" + geminiWsOrderEvents,
 		Nonce:   time.Now().UnixNano(),
 	}
 	PayloadJSON, err := json.Marshal(payload)
@@ -328,8 +323,12 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			g.wsProcessUpdate(l2MarketData)
+			return g.wsProcessUpdate(l2MarketData)
 		case "trade":
+			if !g.IsSaveTradeDataEnabled() {
+				return nil
+			}
+
 			var result wsTrade
 			err := json.Unmarshal(respRaw, &result)
 			if err != nil {
@@ -369,13 +368,8 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				Side:         tSide,
 				TID:          strconv.FormatInt(result.EventID, 10),
 			}
-			if g.IsSaveTradeDataEnabled() {
-				err := trade.AddTradesToBuffer(g.Name, tradeEvent)
-				if err != nil {
-					return err
-				}
-			}
-			g.Websocket.DataHandler <- result
+
+			return trade.AddTradesToBuffer(g.Name, tradeEvent)
 		case "subscription_ack":
 			var result WsSubscriptionAcknowledgementResponse
 			err := json.Unmarshal(respRaw, &result)
@@ -420,6 +414,9 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			}
 
 			for i := range candle.Changes {
+				if len(candle.Changes[i]) != 6 {
+					continue
+				}
 				g.Websocket.DataHandler <- stream.KlineData{
 					Timestamp:  time.Unix(int64(candle.Changes[i][0])/1000, 0),
 					Pair:       pair,
@@ -437,15 +434,14 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			g.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: g.Name + stream.UnhandledMessage + string(respRaw)}
 			return nil
 		}
-	} else if _, ok := result["result"]; ok {
-		switch result["result"].(string) {
+	} else if r, ok := result["result"].(string); ok {
+		switch r {
 		case "error":
-			if _, ok := result["reason"]; ok {
-				errReason := result["reason"].(string)
-				if _, ok := result["message"]; ok {
-					errReason += " - " + result["message"].(string)
+			if reason, ok := result["reason"].(string); ok {
+				if msg, ok := result["message"].(string); ok {
+					reason += " - " + msg
 				}
-				return errors.New(errReason)
+				return errors.New(reason)
 			}
 			return fmt.Errorf("%v Unhandled websocket error %s", g.Name, respRaw)
 		default:
@@ -488,37 +484,32 @@ func stringToOrderType(oType string) (order.Type, error) {
 	}
 }
 
-func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) {
+func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 	isInitial := len(result.Changes) > 0 && len(result.Trades) > 0
 	enabledPairs, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		g.Websocket.DataHandler <- err
-		return
+		return err
 	}
 
 	format, err := g.GetPairFormat(asset.Spot, true)
 	if err != nil {
-		g.Websocket.DataHandler <- err
-		return
+		return err
 	}
 
 	pair, err := currency.NewPairFromFormattedPairs(result.Symbol, enabledPairs, format)
 	if err != nil {
-		g.Websocket.DataHandler <- err
-		return
+		return err
 	}
 
 	var bids, asks []orderbook.Item
 	for x := range result.Changes {
 		price, err := strconv.ParseFloat(result.Changes[x][1], 64)
 		if err != nil {
-			g.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		amount, err := strconv.ParseFloat(result.Changes[x][2], 64)
 		if err != nil {
-			g.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		obItem := orderbook.Item{
 			Amount: amount,
@@ -541,12 +532,11 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) {
 		newOrderBook.VerificationBypass = g.OrderbookVerificationBypass
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
-			g.Websocket.DataHandler <- err
-			return
+			return err
 		}
 	} else {
 		if len(asks) == 0 && len(bids) == 0 {
-			return
+			return nil
 		}
 		err := g.Websocket.Orderbook.Update(&buffer.Update{
 			Asks:  asks,
@@ -555,8 +545,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) {
 			Asset: asset.Spot,
 		})
 		if err != nil {
-			g.Websocket.DataHandler <- err
-			return
+			return err
 		}
 	}
 
@@ -565,7 +554,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) {
 	}
 
 	if !g.IsSaveTradeDataEnabled() {
-		return
+		return nil
 	}
 
 	var trades []trade.Data
@@ -589,7 +578,5 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) {
 		})
 	}
 
-	if err := trade.AddTradesToBuffer(g.Name, trades...); err != nil {
-		g.Websocket.DataHandler <- err
-	}
+	return trade.AddTradesToBuffer(g.Name, trades...)
 }
