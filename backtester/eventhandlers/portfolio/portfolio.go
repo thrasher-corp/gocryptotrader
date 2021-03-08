@@ -107,7 +107,7 @@ func (p *Portfolio) OnSignal(signal signal.Event, cs *exchange.Settings) (*order
 		return o, nil
 	}
 
-	// cryptocurrencies support up to 8 decimal places*
+	// for simplicity, the backtester will round to 8 decimal places
 	remainingFundsRounded := math.Floor(prevHolding.RemainingFunds*100000000) / 100000000
 	if signal.GetDirection() == gctorder.Buy && remainingFundsRounded <= 0 {
 		o.AppendReason("not enough funds to buy")
