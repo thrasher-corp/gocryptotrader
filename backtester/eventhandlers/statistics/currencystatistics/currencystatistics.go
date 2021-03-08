@@ -179,10 +179,10 @@ func (c *CurrencyStatistic) PrintResults(e string, a asset.Item, p currency.Pair
 	log.Infof(log.BackTester, "Total orders: %v\n\n", c.TotalOrders)
 
 	log.Info(log.BackTester, "------------------Max Drawdown-------------------------------")
-	log.Infof(log.BackTester, "Highest Price: $%.2f", c.MaxDrawdown.Highest.Price)
-	log.Infof(log.BackTester, "Highest Price Time: %v", c.MaxDrawdown.Highest.Time)
-	log.Infof(log.BackTester, "Lowest Price: $%.2f", c.MaxDrawdown.Lowest.Price)
-	log.Infof(log.BackTester, "Lowest Price Time: %v", c.MaxDrawdown.Lowest.Time)
+	log.Infof(log.BackTester, "Highest Price of drawdown: $%.2f", c.MaxDrawdown.Highest.Price)
+	log.Infof(log.BackTester, "Time of highest price of drawdown: %v", c.MaxDrawdown.Highest.Time)
+	log.Infof(log.BackTester, "Lowest Price of drawdown: $%.2f", c.MaxDrawdown.Lowest.Price)
+	log.Infof(log.BackTester, "Time of lowest price of drawdown: %v", c.MaxDrawdown.Lowest.Time)
 	log.Infof(log.BackTester, "Calculated Drawdown: %.2f%%", c.MaxDrawdown.DrawdownPercent)
 	log.Infof(log.BackTester, "Difference: $%.2f", c.MaxDrawdown.Highest.Price-c.MaxDrawdown.Lowest.Price)
 	log.Infof(log.BackTester, "Drawdown length: %v\n\n", c.MaxDrawdown.IntervalDuration)
@@ -259,6 +259,10 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 		}
 		if highestPrice < currHigh && highestPrice > 0 {
 			intervals := gctkline.CalculateCandleDateRanges(highestTime, lowestTime, closePrices[i].GetInterval(), 0)
+			if lowestTime.Equal(highestTime) {
+				// create distinction if the greatest drawdown occurs within the same candle
+				lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
+			}
 			swings = append(swings, Swing{
 				Highest: Iteration{
 					Time:  highestTime,
@@ -284,6 +288,10 @@ func calculateMaxDrawdown(closePrices []common.DataEventHandler) Swing {
 		drawdownPercent := 0.0
 		if highestPrice > 0 {
 			drawdownPercent = ((lowestPrice - highestPrice) / highestPrice) * 100
+		}
+		if lowestTime.Equal(highestTime) {
+			// create distinction if the greatest drawdown occurs within the same candle
+			lowestTime = lowestTime.Add((time.Hour * 23) + (time.Minute * 59) + (time.Second * 59))
 		}
 		swings = append(swings, Swing{
 			Highest: Iteration{
