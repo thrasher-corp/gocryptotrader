@@ -65,7 +65,7 @@ func (s *stack) Pop() *node {
 }
 
 // cleaner (POC) runs to the defaultTimer to clean excess nodes (nodes not being
-// utilised) TODO: Couple time parameters to chec for a reduction in activity.
+// utilised) TODO: Couple time parameters to check for a reduction in activity.
 // Add in counter per second function (?) so if there is a lot of activity don't
 // inhibit stack performance.
 func (s *stack) cleaner() {
@@ -100,7 +100,7 @@ sleeperino:
 					continue sleeperino
 				}
 			}
-			// All the nodes were old af, slightly upsetting
+			// Nodes are old, flush entirety.
 			s.count = 0
 			atomic.StoreUint32(&s.s, 0)
 			tt.Reset(defaultInterval)

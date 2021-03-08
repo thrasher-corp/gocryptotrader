@@ -70,13 +70,13 @@ func (d *Depth) Retrieve() *Base {
 	return &Base{
 		Bids:          d.bids.retrieve(),
 		Asks:          d.asks.retrieve(),
-		Exchange:      d.Exchange,
-		Asset:         d.Asset,
-		Pair:          d.Pair,
-		LastUpdated:   d.LastUpdated,
-		LastUpdateID:  d.LastUpdateID,
-		NotAggregated: d.NotAggregated,
-		IsFundingRate: d.IsFundingRate,
+		Exchange:      d.exchange,
+		Asset:         d.asset,
+		Pair:          d.pair,
+		LastUpdated:   d.lastUpdated,
+		LastUpdateID:  d.lastUpdateID,
+		NotAggregated: d.notAggregated,
+		IsFundingRate: d.isFundingRate,
 	}
 }
 
@@ -122,6 +122,9 @@ func (d *Depth) flush() {
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
 // will trim total length of depth level to a specified supplied number
 func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
+	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+		return
+	}
 	d.Lock()
 	if len(bidUpdts) != 0 {
 		d.bids.updateInsertByPrice(bidUpdts, d.stack, maxDepth)
@@ -135,6 +138,9 @@ func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
 
 // UpdateBidAskByID amends details by ID
 func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items) error {
+	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+		return nil
+	}
 	d.Lock()
 	defer d.Unlock()
 	if len(bidUpdts) != 0 {
@@ -155,6 +161,9 @@ func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items) error {
 
 // DeleteBidAskByID deletes a price level by ID
 func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool) error {
+	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+		return nil
+	}
 	d.Lock()
 	defer d.Unlock()
 	if len(bidUpdts) != 0 {
@@ -175,6 +184,9 @@ func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool) error
 
 // InsertBidAskByID inserts new updates
 func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) {
+	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+		return
+	}
 	d.Lock()
 	if len(bidUpdts) != 0 {
 		d.bids.insertUpdates(bidUpdts, d.stack)
@@ -188,6 +200,9 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) {
 
 // UpdateInsertByID ...
 func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) {
+	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+		return
+	}
 	d.Lock()
 	if len(bidUpdts) != 0 {
 		d.bids.updateInsertByID(bidUpdts, d.stack)
@@ -205,8 +220,8 @@ func (d *Depth) alert() {
 		// return if no waiting routines
 		return
 	}
+	d.wMtx.Lock()
 	go func() {
-		d.wMtx.Lock()
 		close(d.wait)
 		d.wait = make(chan struct{})
 		d.wMtx.Unlock()
@@ -241,4 +256,59 @@ func (d *Depth) Wait(kick <-chan struct{}) bool {
 	case <-kick:
 		return false
 	}
+}
+
+// AssignOptions assigns the initial options for the depth instance
+func (d *Depth) AssignOptions(b *Base) {
+	d.Lock()
+	d.options = options{
+		exchange:              b.Exchange,
+		pair:                  b.Pair,
+		asset:                 b.Asset,
+		lastUpdated:           b.LastUpdated,
+		notAggregated:         b.NotAggregated,
+		isFundingRate:         b.IsFundingRate,
+		verificationBypass:    b.VerificationBypass,
+		hasChecksumValidation: b.HasChecksumValidation,
+		restSnapshot:          b.RestSnapshot,
+		idAligned:             b.IDAlignment,
+	}
+	d.Unlock()
+}
+
+// SetLastUpdate sets details of last update information
+func (d *Depth) SetLastUpdate(lastUpdate time.Time, lastUpdateID int64, updateByREST bool) {
+	d.Lock()
+	d.lastUpdated = lastUpdate
+	d.lastUpdateID = lastUpdateID
+	d.restSnapshot = updateByREST
+	d.Unlock()
+}
+
+// GetName returns name of exchange
+func (d *Depth) GetName() string {
+	d.Lock()
+	defer d.Unlock()
+	return d.exchange
+}
+
+// IsRestSnapshot returns if the depth item was updated via REST
+func (d *Depth) IsRestSnapshot() bool {
+	d.Lock()
+	defer d.Unlock()
+	return d.restSnapshot
+}
+
+// LastUpdateID returns the last Update ID
+func (d *Depth) LastUpdateID() int64 {
+	d.Lock()
+	defer d.Unlock()
+	return d.lastUpdateID
+}
+
+// IsFundingRate returns if the depth is a funding rate
+func (d *Depth) IsFundingRate() bool {
+	d.Lock()
+	defer d.Unlock()
+	return d.isFundingRate
 }

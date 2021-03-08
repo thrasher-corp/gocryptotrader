@@ -17,24 +17,24 @@ var id, _ = uuid.NewV4()
 func TestGetLength(t *testing.T) {
 	d := newDepth(id)
 	if d.GetAskLength() != 0 {
-		t.Errorf("expected len %v, bu received %v", 0, d.GetAskLength())
+		t.Errorf("expected len %v, but received %v", 0, d.GetAskLength())
 	}
 
 	d.asks.load([]Item{{Price: 1337}}, d.stack)
 
 	if d.GetAskLength() != 1 {
-		t.Errorf("expected len %v, bu received %v", 1, d.GetAskLength())
+		t.Errorf("expected len %v, but received %v", 1, d.GetAskLength())
 	}
 
 	d = newDepth(id)
 	if d.GetBidLength() != 0 {
-		t.Errorf("expected len %v, bu received %v", 0, d.GetBidLength())
+		t.Errorf("expected len %v, but received %v", 0, d.GetBidLength())
 	}
 
 	d.bids.load([]Item{{Price: 1337}}, d.stack)
 
 	if d.GetBidLength() != 1 {
-		t.Errorf("expected len %v, bu received %v", 1, d.GetBidLength())
+		t.Errorf("expected len %v, but received %v", 1, d.GetBidLength())
 	}
 }
 
@@ -43,17 +43,17 @@ func TestRetrieve(t *testing.T) {
 	d.asks.load([]Item{{Price: 1337}}, d.stack)
 	d.bids.load([]Item{{Price: 1337}}, d.stack)
 	d.options = options{
-		Exchange:              "THE BIG ONE!!!!!!",
-		Pair:                  currency.NewPair(currency.THETA, currency.USD),
-		Asset:                 "Silly asset",
-		LastUpdated:           time.Now(),
-		LastUpdateID:          007,
-		NotAggregated:         true,
-		IsFundingRate:         true,
-		VerificationBypass:    true,
-		HasChecksumValidation: true,
-		RestSnapshot:          true,
-		IDAligned:             true,
+		exchange:              "THE BIG ONE!!!!!!",
+		pair:                  currency.NewPair(currency.THETA, currency.USD),
+		asset:                 "Silly asset",
+		lastUpdated:           time.Now(),
+		lastUpdateID:          007,
+		notAggregated:         true,
+		isFundingRate:         true,
+		verificationBypass:    true,
+		hasChecksumValidation: true,
+		restSnapshot:          true,
+		idAligned:             true,
 	}
 
 	// If we add anymore options to the options struct later this will complain
@@ -66,14 +66,13 @@ func TestRetrieve(t *testing.T) {
 				mirrored.Type().Field(n).Name)
 		}
 	}
-	// retreieve the d lol
 	theBigD := d.Retrieve()
 	if len(theBigD.Asks) != 1 {
-		t.Errorf("expected len %v, bu received %v", 1, len(theBigD.Bids))
+		t.Errorf("expected len %v, but received %v", 1, len(theBigD.Bids))
 	}
 
 	if len(theBigD.Bids) != 1 {
-		t.Errorf("expected len %v, bu received %v", 1, len(theBigD.Bids))
+		t.Errorf("expected len %v, but received %v", 1, len(theBigD.Bids))
 	}
 }
 
@@ -82,7 +81,7 @@ func TestTotalAmounts(t *testing.T) {
 
 	liquidity, value := d.TotalBidAmounts()
 	if liquidity != 0 || value != 0 {
-		t.Fatalf("liquidity expected %f receieved %f value expected %f receieved %f",
+		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
 			0.,
 			liquidity,
 			0.,
@@ -91,7 +90,7 @@ func TestTotalAmounts(t *testing.T) {
 
 	liquidity, value = d.TotalAskAmounts()
 	if liquidity != 0 || value != 0 {
-		t.Fatalf("liquidity expected %f receieved %f value expected %f receieved %f",
+		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
 			0.,
 			liquidity,
 			0.,
@@ -103,7 +102,7 @@ func TestTotalAmounts(t *testing.T) {
 
 	liquidity, value = d.TotalBidAmounts()
 	if liquidity != 10 || value != 13370 {
-		t.Fatalf("liquidity expected %f receieved %f value expected %f receieved %f",
+		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
 			10.,
 			liquidity,
 			13370.,
@@ -112,7 +111,7 @@ func TestTotalAmounts(t *testing.T) {
 
 	liquidity, value = d.TotalAskAmounts()
 	if liquidity != 1 || value != 1337 {
-		t.Fatalf("liquidity expected %f receieved %f value expected %f receieved %f",
+		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
 			1.,
 			liquidity,
 			1337.,
@@ -168,17 +167,17 @@ func TestDeleteBidAskByID(t *testing.T) {
 
 	err = d.DeleteBidAskByID(Items{{Price: 1337, Amount: 2, ID: 1}}, nil, false)
 	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v receieved %v", errIDCannotBeMatched, err)
+		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
 	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, false)
 	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v receieved %v", errIDCannotBeMatched, err)
+		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
 	err = d.DeleteBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 2}}, true)
 	if !errors.Is(err, nil) {
-		t.Fatalf("error expected %v receieved %v", nil, err)
+		t.Fatalf("error expected %v received %v", nil, err)
 	}
 }
 
@@ -196,12 +195,12 @@ func TestUpdateBidAskByID(t *testing.T) {
 	// random unmatching IDs
 	err = d.UpdateBidAskByID(Items{{Price: 1337, Amount: 2, ID: 666}}, nil)
 	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v receieved %v", errIDCannotBeMatched, err)
+		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 
 	err = d.UpdateBidAskByID(nil, Items{{Price: 1337, Amount: 2, ID: 69}})
 	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v receieved %v", errIDCannotBeMatched, err)
+		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
 	}
 }
 

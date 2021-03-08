@@ -331,7 +331,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 			return err
 		}
 
-		if update.Changes[i][0].(string) == "buy" {
+		if update.Changes[i][0].(string) == order.Buy.Lower() {
 			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
 		} else {
 			asks = append(asks, orderbook.Item{Price: price, Amount: volume})

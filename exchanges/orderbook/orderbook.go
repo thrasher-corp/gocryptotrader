@@ -78,19 +78,10 @@ func (s *Service) Update(b *Base) error {
 	book, ok := m3[b.Pair.Quote.Item]
 	if !ok {
 		book = newDepth(m1.ID)
-		book.Exchange = b.Exchange
-		book.Asset = b.Asset
-		book.Pair = b.Pair
-		book.RestSnapshot = b.RestSnapshot
-		book.IsFundingRate = b.IsFundingRate
-		book.HasChecksumValidation = b.HasChecksumValidation
-		book.NotAggregated = b.NotAggregated
-		book.IDAligned = b.IDAlignment
+		book.AssignOptions(b)
 		m3[b.Pair.Quote.Item] = book
 	}
-	book.LastUpdated = b.LastUpdated
-	book.LastUpdateID = b.LastUpdateID
-	book.RestSnapshot = true
+	book.SetLastUpdate(b.LastUpdated, b.LastUpdateID, true)
 	book.LoadSnapshot(b.Bids, b.Asks)
 	s.Unlock()
 	return s.Mux.Publish([]uuid.UUID{m1.ID}, book.Retrieve())
@@ -141,7 +132,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 }
 
 // GetDepth returns the actual depth struct for potential subsystems and
-// strategies to interract with
+// strategies to interact with
 func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	s.Lock()
 	defer s.Unlock()

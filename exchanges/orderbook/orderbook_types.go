@@ -46,6 +46,8 @@ type Service struct {
 	sync.Mutex
 }
 
+// Exchange defines a holder for the exchange specific depth items with a
+// specific ID associated with that exchange
 type Exchange struct {
 	m  map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth
 	ID uuid.UUID
@@ -104,15 +106,15 @@ func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
 
 type options struct {
-	Exchange              string
-	Pair                  currency.Pair
-	Asset                 asset.Item
-	LastUpdated           time.Time
-	LastUpdateID          int64
-	NotAggregated         bool
-	IsFundingRate         bool
-	VerificationBypass    bool
-	HasChecksumValidation bool
-	RestSnapshot          bool
-	IDAligned             bool
+	exchange              string
+	pair                  currency.Pair
+	asset                 asset.Item
+	lastUpdated           time.Time
+	lastUpdateID          int64
+	notAggregated         bool
+	isFundingRate         bool
+	verificationBypass    bool
+	hasChecksumValidation bool
+	restSnapshot          bool
+	idAligned             bool
 }

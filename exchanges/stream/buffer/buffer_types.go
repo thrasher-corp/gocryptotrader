@@ -36,7 +36,7 @@ type orderbookHolder struct {
 	// coinbasepro can have up too 100 updates per second introducing overhead.
 	// The sync agent only requires an alert every 15 seconds for a specific
 	// currency.
-	timer *time.Timer
+	ticker *time.Ticker
 }
 
 // Update stores orderbook updates and dictates what features to use when processing

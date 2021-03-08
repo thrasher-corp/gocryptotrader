@@ -254,7 +254,7 @@ func TestGetDepth(t *testing.T) {
 		t.Fatalf("TestGetOrderbook failed to get orderbook. Error %s",
 			err)
 	}
-	if !result.Pair.Equal(c) {
+	if !result.pair.Equal(c) {
 		t.Fatal("TestGetOrderbook failed. Mismatched pairs")
 	}
 

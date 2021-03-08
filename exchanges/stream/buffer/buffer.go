@@ -81,7 +81,7 @@ func (w *Orderbook) Update(u *Update) error {
 	// will stop updating book via incremental updates. This occurs because our
 	// sync manager (engine/sync.go) timer has elapsed for streaming. Usually
 	// because the book is highly illiquid.
-	if book.ob.RestSnapshot {
+	if book.ob.IsRestSnapshot() {
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
 			errRESTOverwrite,
 			w.exchangeName,
@@ -89,8 +89,8 @@ func (w *Orderbook) Update(u *Update) error {
 			u.Asset)
 	}
 
-	// Apply new update ID to held book
-	book.ob.LastUpdateID = u.UpdateID
+	// Apply new update information
+	book.ob.SetLastUpdate(u.UpdateTime, u.UpdateID, false)
 
 	if w.bufferEnabled {
 		processed, err := w.processBufferUpdate(book, u)
@@ -109,12 +109,13 @@ func (w *Orderbook) Update(u *Update) error {
 	}
 
 	select {
-	case <-book.timer.C:
-		book.timer.Reset(timerDefault)
+	case <-book.ticker.C:
 		// Opted to wait for receiver because we are limiting here and the sync
 		// manager requires update
-		w.dataHandler <- book.ob.Retrieve()
-		book.ob.Publish()
+		go func() {
+			w.dataHandler <- book.ob.Retrieve()
+			book.ob.Publish()
+		}()
 	default:
 		// We do not need to send an update to the sync manager within this time
 		// window
@@ -177,7 +178,7 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 		return o.ob.UpdateBidAskByID(updts.Bids, updts.Asks)
 	case Delete:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
-		bypassErr := o.ob.Exchange == "Bitfinex" && o.ob.IsFundingRate
+		bypassErr := o.ob.GetName() == "Bitfinex" && o.ob.IsFundingRate()
 		return o.ob.DeleteBidAskByID(updts.Bids, updts.Asks, bypassErr)
 	case Insert:
 		o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
@@ -210,24 +211,13 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		if err != nil {
 			return err
 		}
-		depth.Asset = book.Asset
-		depth.Exchange = book.Exchange
-		depth.Asset = book.Asset
-		depth.HasChecksumValidation = book.HasChecksumValidation
-		depth.IsFundingRate = book.IsFundingRate
-		depth.LastUpdateID = book.LastUpdateID
-		depth.LastUpdated = book.LastUpdated
-		depth.NotAggregated = book.NotAggregated
-		depth.Pair = book.Pair
-		depth.RestSnapshot = book.RestSnapshot
-		depth.VerificationBypass = book.VerificationBypass
+		depth.AssignOptions(book)
 		buffer := make([]Update, w.obBufferLimit)
-		// Fire timer immediately to send initial update to sync manager
-		timer := time.NewTimer(0)
+		ticker := time.NewTicker(timerDefault)
 		holder = &orderbookHolder{
 			ob:     depth,
 			buffer: &buffer,
-			timer:  timer,
+			ticker: ticker,
 		}
 		m2[book.Asset] = holder
 	}
@@ -250,18 +240,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 			return err
 		}
 	}
-
-	select {
-	case <-holder.timer.C:
-		holder.timer.Reset(timerDefault)
-		// Opted to wait for receiver because we are limiting here and the sync
-		// manager requires update
-		w.dataHandler <- holder.ob.Retrieve()
-		holder.ob.Publish()
-	default:
-		// We do not need to send an update to the sync manager within this time
-		// window
-	}
+	w.dataHandler <- holder.ob.Retrieve()
+	holder.ob.Publish()
 	return nil
 }
 

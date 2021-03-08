@@ -692,13 +692,14 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	bufferOb := holder.ob[cp.Base][cp.Quote][asset.Spot]
+	b := bufferOb.ob.Retrieve()
 	if bufferOb.ob.GetAskLength() != len(ob.Asks) ||
 		bufferOb.ob.GetBidLength() != len(ob.Bids) ||
-		bufferOb.ob.Asset != ob.Asset ||
-		bufferOb.ob.Exchange != ob.Exchange ||
-		bufferOb.ob.LastUpdateID != ob.LastUpdateID ||
-		bufferOb.ob.NotAggregated != ob.NotAggregated ||
-		bufferOb.ob.Pair != ob.Pair {
+		b.Asset != ob.Asset ||
+		b.Exchange != ob.Exchange ||
+		b.LastUpdateID != ob.LastUpdateID ||
+		b.NotAggregated != ob.NotAggregated ||
+		b.Pair != ob.Pair {
 		t.Fatal("data on both books should be the same")
 	}
 }
