@@ -284,17 +284,17 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 
 			enabledPairs, err := g.GetAvailablePairs(asset.Spot)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				return err
 			}
 
 			format, err := g.GetPairFormat(asset.Spot, true)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				return err
 			}
 
 			pair, err := currency.NewPairFromFormattedPairs(result[i].Symbol, enabledPairs, format)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				return err
 			}
 
 			g.Websocket.DataHandler <- &order.Detail{
@@ -346,17 +346,17 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 
 			enabledPairs, err := g.GetEnabledPairs(asset.Spot)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				return err
 			}
 
 			format, err := g.GetPairFormat(asset.Spot, true)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				return err
 			}
 
 			pair, err := currency.NewPairFromFormattedPairs(result.Symbol, enabledPairs, format)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				return err
 			}
 
 			tradeEvent := trade.Data{
@@ -372,7 +372,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			if g.IsSaveTradeDataEnabled() {
 				err := trade.AddTradesToBuffer(g.Name, tradeEvent)
 				if err != nil {
-					g.Websocket.DataHandler <- err
+					return err
 				}
 			}
 			g.Websocket.DataHandler <- result
@@ -406,17 +406,17 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			}
 			enabledPairs, err := g.GetEnabledPairs(asset.Spot)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				return err
 			}
 
 			format, err := g.GetPairFormat(asset.Spot, true)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				return err
 			}
 
 			pair, err := currency.NewPairFromFormattedPairs(candle.Symbol, enabledPairs, format)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				return err
 			}
 
 			for i := range candle.Changes {
@@ -493,16 +493,19 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) {
 	enabledPairs, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		g.Websocket.DataHandler <- err
+		return
 	}
 
 	format, err := g.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		g.Websocket.DataHandler <- err
+		return
 	}
 
 	pair, err := currency.NewPairFromFormattedPairs(result.Symbol, enabledPairs, format)
 	if err != nil {
 		g.Websocket.DataHandler <- err
+		return
 	}
 
 	var bids, asks []orderbook.Item
@@ -510,10 +513,12 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) {
 		price, err := strconv.ParseFloat(result.Changes[x][1], 64)
 		if err != nil {
 			g.Websocket.DataHandler <- err
+			return
 		}
 		amount, err := strconv.ParseFloat(result.Changes[x][2], 64)
 		if err != nil {
 			g.Websocket.DataHandler <- err
+			return
 		}
 		obItem := orderbook.Item{
 			Amount: amount,
@@ -550,8 +555,13 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) {
 			Asset: asset.Spot,
 		})
 		if err != nil {
-			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
+			g.Websocket.DataHandler <- err
+			return
 		}
+	}
+
+	if len(result.AuctionEvents) > 0 {
+		g.Websocket.DataHandler <- result.AuctionEvents
 	}
 
 	if !g.IsSaveTradeDataEnabled() {

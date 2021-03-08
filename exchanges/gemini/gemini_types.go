@@ -217,11 +217,6 @@ type ErrorCapture struct {
 	Message string `json:"message"`
 }
 
-// WsResponse generic response
-type WsResponse struct {
-	Type string `json:"type"`
-}
-
 // WsMarketUpdateResponse defines the main response type
 type WsMarketUpdateResponse struct {
 	Type           string  `json:"type"`
@@ -243,12 +238,6 @@ type Event struct {
 	MakerSide string  `json:"makerSide"`
 	ID        int64   `json:"tid"`
 	Amount    float64 `json:"amount,string"`
-}
-
-// ReadData defines read data from the websocket connection
-type ReadData struct {
-	Raw      []byte
-	Currency currency.Pair
 }
 
 // WsRequestPayload Request info to subscribe to a WS enpoint
@@ -336,6 +325,7 @@ type wsTrade struct {
 	Quantity  float64 `json:"quantity,string"`
 	Side      string  `json:"side"`
 }
+
 type wsAuctionResult struct {
 	Type             string  `json:"type"`
 	Symbol           string  `json:"symbol"`
@@ -359,7 +349,7 @@ type wsL2MarketData struct {
 type wsL2Trade struct {
 	Type      string  `json:"type"`
 	Symbol    string  `json:"symbol"`
-	EventID   int64   `json:"eventid"`
+	EventID   int64   `json:"eventid"` // Same as wsTrade, but for market l2 data they use "eventid" tag
 	Timestamp int64   `json:"timestamp"`
 	Price     float64 `json:"price,string"`
 	Quantity  float64 `json:"quantity,string"`
