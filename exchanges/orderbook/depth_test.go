@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 var id, _ = uuid.NewV4()
@@ -251,4 +252,80 @@ func TestAlert(t *testing.T) {
 	wait.Wait()
 	d.alert()
 	wg.Wait()
+}
+
+func TestAssignOptions(t *testing.T) {
+	d := Depth{}
+	cp := currency.NewPair(currency.LINK, currency.BTC)
+	tn := time.Now()
+	d.AssignOptions(&Base{
+		Exchange:              "test",
+		Pair:                  cp,
+		Asset:                 asset.Spot,
+		LastUpdated:           tn,
+		LastUpdateID:          1337,
+		NotAggregated:         true,
+		IsFundingRate:         true,
+		VerificationBypass:    true,
+		HasChecksumValidation: true,
+		RestSnapshot:          true,
+		IDAlignment:           true,
+	})
+
+	if d.exchange != "test" ||
+		d.pair != cp ||
+		d.asset != asset.Spot ||
+		d.lastUpdated != tn ||
+		d.lastUpdateID != 1337 ||
+		!d.notAggregated ||
+		!d.isFundingRate ||
+		!d.verificationBypass ||
+		!d.hasChecksumValidation ||
+		!d.restSnapshot ||
+		!d.idAligned {
+		t.Fatal("failed to set correctly")
+	}
+}
+
+func TestSetLastUpdate(t *testing.T) {
+	d := Depth{}
+	tn := time.Now()
+	d.SetLastUpdate(tn, 1337, true)
+	if d.lastUpdated != tn ||
+		d.lastUpdateID != 1337 ||
+		!d.restSnapshot {
+		t.Fatal("failed to set correctly")
+	}
+}
+
+func TestGetName(t *testing.T) {
+	d := Depth{}
+	d.exchange = "test"
+	if d.GetName() != "test" {
+		t.Fatal("failed to get correct value")
+	}
+}
+
+func TestIsRestSnapshot(t *testing.T) {
+	d := Depth{}
+	d.restSnapshot = true
+	if !d.IsRestSnapshot() {
+		t.Fatal("failed to set correctly")
+	}
+}
+
+func TestLastUpdateID(t *testing.T) {
+	d := Depth{}
+	d.lastUpdateID = 1337
+	if d.LastUpdateID() != 1337 {
+		t.Fatal("failed to get correct value")
+	}
+}
+
+func TestIsFundingRate(t *testing.T) {
+	d := Depth{}
+	d.isFundingRate = true
+	if !d.IsFundingRate() {
+		t.Fatal("failed to get correct value")
+	}
 }

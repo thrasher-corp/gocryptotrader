@@ -122,7 +122,7 @@ func (d *Depth) flush() {
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
 // will trim total length of depth level to a specified supplied number
 func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
-	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return
 	}
 	d.Lock()
@@ -138,7 +138,7 @@ func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
 
 // UpdateBidAskByID amends details by ID
 func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items) error {
-	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
 	d.Lock()
@@ -161,7 +161,7 @@ func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items) error {
 
 // DeleteBidAskByID deletes a price level by ID
 func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool) error {
-	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
 	d.Lock()
@@ -184,7 +184,7 @@ func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool) error
 
 // InsertBidAskByID inserts new updates
 func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) {
-	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return
 	}
 	d.Lock()
@@ -200,7 +200,7 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) {
 
 // UpdateInsertByID ...
 func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) {
-	if len(bidUpdts) == 0 && len(askUpdts) != 0 {
+	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return
 	}
 	d.Lock()
@@ -266,6 +266,7 @@ func (d *Depth) AssignOptions(b *Base) {
 		pair:                  b.Pair,
 		asset:                 b.Asset,
 		lastUpdated:           b.LastUpdated,
+		lastUpdateID:          b.LastUpdateID,
 		notAggregated:         b.NotAggregated,
 		isFundingRate:         b.IsFundingRate,
 		verificationBypass:    b.VerificationBypass,
