@@ -984,11 +984,12 @@ func Check(depth interface{}, liquidity, value float64, nodeCount int, t *testin
 	a, isAsk := depth.(asks)
 
 	var ll linkedList
-	if isBid {
+	switch {
+	case isBid:
 		ll = b.linkedList
-	} else if isAsk {
+	case isAsk:
 		ll = a.linkedList
-	} else {
+	default:
 		t.Fatal("value passed in is not of type bids or asks")
 	}
 
@@ -1021,20 +1022,20 @@ func Check(depth interface{}, liquidity, value float64, nodeCount int, t *testin
 	var tail *node
 	var price float64
 	for tip := ll.head; ; tip = tip.next {
-		if price == 0 {
+		switch {
+		case price == 0:
 			price = tip.value.Price
-		} else if isBid && price < tip.value.Price {
+		case isBid && price < tip.value.Price:
 			ll.display()
 			t.Fatal("Bid pricing out of order should be descending")
-		} else if isAsk && price > tip.value.Price {
+		case isAsk && price > tip.value.Price:
 			ll.display()
 			t.Fatal("Ask pricing out of order should be ascending")
-		} else {
+		default:
 			price = tip.value.Price
 		}
 
 		if tip.next == nil {
-
 			tail = tip
 			break
 		}

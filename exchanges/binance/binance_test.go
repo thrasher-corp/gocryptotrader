@@ -2218,7 +2218,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	  ]
 	}}`)
 
-	if err := b.wsHandleData(update2); err != nil {
+	if err = b.wsHandleData(update2); err != nil {
 		t.Error(err)
 	}
 

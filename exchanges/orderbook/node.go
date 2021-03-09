@@ -71,39 +71,37 @@ func (s *stack) Pop() *node {
 func (s *stack) cleaner() {
 	tt := time.NewTimer(defaultInterval)
 sleeperino:
-	for {
-		select {
-		case <-tt.C:
-			atomic.StoreUint32(&s.s, 1)
-			// We are going to iterate through slice running man styles
-			// As the old nodes are going to be left justified on this slice we
-			// should just be able to shift the nodes that are still within time
-			// allowance all the way to the left. Not going to resize capacity
-			// because if it can get this big, it might as well stay this big.
-			// TODO: Test and rethink if sizing is an issue
-			for x := int32(0); x < s.count; x++ {
-				// find the first good one, everything to the left can be
-				// reassigned
-				if time.Since(s.nodes[x].shelfed) < defaultAllowance {
-					// Go through good nodes
-					var counter int32
-					for y := int32(0); y+x < s.count; y++ {
-						// Reassign
-						s.nodes[y] = s.nodes[y+x]
-						// Add to the changed counter to remove from main
-						// counter
-						counter++
-					}
-					s.count -= counter
-					atomic.StoreUint32(&s.s, 0)
-					tt.Reset(defaultInterval)
-					continue sleeperino
-				}
+	for range tt.C {
+		atomic.StoreUint32(&s.s, 1)
+		// We are going to iterate through slice running man styles
+		// As the old nodes are going to be left justified on this slice we
+		// should just be able to shift the nodes that are still within time
+		// allowance all the way to the left. Not going to resize capacity
+		// because if it can get this big, it might as well stay this big.
+		// TODO: Test and rethink if sizing is an issue
+		for x := int32(0); x < s.count; x++ {
+			// find the first good one, everything to the left can be
+			// reassigned
+			if time.Since(s.nodes[x].shelfed) > defaultAllowance {
+				continue
 			}
-			// Nodes are old, flush entirety.
-			s.count = 0
+			// Go through good nodes
+			var counter int32
+			for y := int32(0); y+x < s.count; y++ {
+				// Reassign
+				s.nodes[y] = s.nodes[y+x]
+				// Add to the changed counter to remove from main
+				// counter
+				counter++
+			}
+			s.count -= counter
 			atomic.StoreUint32(&s.s, 0)
 			tt.Reset(defaultInterval)
+			continue sleeperino
 		}
+		// Nodes are old, flush entirety.
+		s.count = 0
+		atomic.StoreUint32(&s.s, 0)
+		tt.Reset(defaultInterval)
 	}
 }
