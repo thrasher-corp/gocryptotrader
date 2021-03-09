@@ -198,7 +198,7 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) {
 	d.Unlock()
 }
 
-// UpdateInsertByID ...
+// UpdateInsertByID updates or inserts by ID at current price level.
 func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return
