@@ -584,7 +584,6 @@ updates:
 
 // insertUpdates inserts new updates for asks based on price level
 func (ll *asks) insertUpdates(updts Items, stack *stack) error {
-updates:
 	for x := range updts {
 		var prev *node
 		for tip := &ll.head; ; tip = &(*tip).next {
@@ -597,7 +596,7 @@ updates:
 				n.prev = prev
 				ll.length++
 				*tip = n
-				continue updates
+				break // Continue updates
 			}
 
 			if (*tip).value.Price == updts[x].Price { // Price already found
@@ -624,7 +623,7 @@ updates:
 					n.next = old
 					old.prev = n
 				}
-				continue updates
+				break // Continue updates
 			}
 
 			if (*tip).next == nil { // Tail
@@ -634,7 +633,7 @@ updates:
 				ll.length++
 				(*tip).next = n
 				n.prev = *tip
-				continue updates
+				break // Continue updates
 			}
 			prev = *tip
 		}
