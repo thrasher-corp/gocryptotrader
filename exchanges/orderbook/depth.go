@@ -222,10 +222,12 @@ func (d *Depth) alert() {
 		return
 	}
 	d.wMtx.Lock()
-	close(d.wait)
-	d.wg.Wait()
-	d.wait = make(chan struct{})
-	d.wMtx.Unlock()
+	go func() {
+		close(d.wait)
+		d.wg.Wait()
+		d.wait = make(chan struct{})
+		d.wMtx.Unlock()
+	}()
 }
 
 // POC: kicker defines a channel that allows a system to kick routine away from
