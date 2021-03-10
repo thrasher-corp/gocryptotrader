@@ -7,6 +7,7 @@ import (
 
 var errIDCannotBeMatched = errors.New("cannot match ID on linked list")
 var errCollisionDetected = errors.New("cannot insert update collision detected")
+var errAmountCannotBeZero = errors.New("amount cannot be zero")
 
 // linkedList defines a linked list for a depth level, reutilisation of nodes
 // to and from a stack.
@@ -283,9 +284,12 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 // 3) Update price exceeds traversal node price before ID found, save node
 // address for either; node ID matches then re-address node or end of depth pop
 // a node from the stack (worst case)
-func (ll *bids) updateInsertByID(updts Items, stack *stack) {
+func (ll *bids) updateInsertByID(updts Items, stack *stack) error {
 updates:
 	for x := range updts {
+		if updts[x].Amount == 0 {
+			return errAmountCannotBeZero
+		}
 		// bookmark allows for saving of a position of a node in the event that
 		// an update price exceeds the current node price. We can then match an
 		// ID and re-assign that ID's node to that positioning without popping
@@ -362,6 +366,7 @@ updates:
 		}
 		ll.length++
 	}
+	return nil
 }
 
 // insertUpdates inserts new updates for bids based on price level
@@ -500,9 +505,12 @@ func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 // 3) Update price exceeds traversal node price before ID found, save node
 // address for either; node ID matches then re-address node or end of depth pop
 // a node from the stack (worst case)
-func (ll *asks) updateInsertByID(updts Items, stack *stack) {
+func (ll *asks) updateInsertByID(updts Items, stack *stack) error {
 updates:
 	for x := range updts {
+		if updts[x].Amount == 0 {
+			return errAmountCannotBeZero
+		}
 		// bookmark allows for saving of a position of a node in the event that
 		// an update price exceeds the current node price. We can then match an
 		// ID and re-assign that ID's node to that positioning without popping
@@ -580,6 +588,7 @@ updates:
 		}
 		ll.length++
 	}
+	return nil
 }
 
 // insertUpdates inserts new updates for asks based on price level

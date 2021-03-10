@@ -644,7 +644,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.Asks.SortAsks()
 	snapShot3.Bids = bids
 	snapShot3.Bids.SortBids()
-	snapShot3.Asset = "FUTURES"
+	snapShot3.Asset = asset.Futures
 	snapShot3.Pair, err = currency.NewPairFromString("LTCUSD")
 	if err != nil {
 		t.Fatal(err)
@@ -788,11 +788,14 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	bids := append(asks[:0:0], asks...)
 	bids.Reverse()
 
-	book := &orderbook.Depth{}
+	book, err := orderbook.DeployDepth("test", cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	book.LoadSnapshot(append(bids[:0:0], bids...), append(asks[:0:0], asks...))
 
-	err := book.Retrieve().Verify()
+	err = book.Retrieve().Verify()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -822,14 +825,16 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Action: UpdateInsert,
 		Bids: []orderbook.Item{
 			{
-				Price: 0,
-				ID:    1337,
+				Price:  0,
+				ID:     1337,
+				Amount: 1,
 			},
 		},
 		Asks: []orderbook.Item{
 			{
-				Price: 100,
-				ID:    1337,
+				Price:  100,
+				ID:     1337,
+				Amount: 1,
 			},
 		},
 	})
@@ -851,7 +856,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		Action: UpdateInsert,
 		Bids: []orderbook.Item{
 			{
-				Price:  1,
+				Price:  0,
 				ID:     1337,
 				Amount: 100,
 			},
@@ -868,8 +873,10 @@ func TestUpdateByIDAndAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	cpy = book.Retrieve()
+
 	if cpy.Bids[len(cpy.Bids)-1].Amount != 100 {
-		t.Fatal("did not update bid amount")
+		t.Fatal("did not update bid amount", cpy.Bids[len(cpy.Bids)-1].Amount)
 	}
 
 	if cpy.Asks[len(cpy.Asks)-1].Amount != 100 {
@@ -897,6 +904,8 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	cpy = book.Retrieve()
 
 	if cpy.Bids[0].Amount != 99 && cpy.Bids[0].Price != 100 {
 		t.Fatal("did not adjust bid item placement and details")

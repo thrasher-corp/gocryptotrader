@@ -183,7 +183,7 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 	case Insert:
 		o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
 	case UpdateInsert:
-		o.ob.UpdateInsertByID(updts.Bids, updts.Asks)
+		return o.ob.UpdateInsertByID(updts.Bids, updts.Asks)
 	default:
 		return fmt.Errorf("invalid action [%s]", updts.Action)
 	}

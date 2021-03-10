@@ -200,19 +200,26 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) {
 }
 
 // UpdateInsertByID updates or inserts by ID at current price level.
-func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) {
+func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) error {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
-		return
+		return nil
 	}
 	d.Lock()
+	defer d.Unlock()
 	if len(bidUpdts) != 0 {
-		d.bids.updateInsertByID(bidUpdts, d.stack)
+		err := d.bids.updateInsertByID(bidUpdts, d.stack)
+		if err != nil {
+			return err
+		}
 	}
 	if len(askUpdts) != 0 {
-		d.asks.updateInsertByID(askUpdts, d.stack)
+		err := d.asks.updateInsertByID(askUpdts, d.stack)
+		if err != nil {
+			return err
+		}
 	}
 	d.alert()
-	d.Unlock()
+	return nil
 }
 
 // POC: alert establishes state change for depth to all waiting routines
