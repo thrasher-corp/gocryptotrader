@@ -16,6 +16,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	// Sets up lower values for test environment
+	defaultInterval = time.Second
+	defaultAllowance = time.Millisecond * 500
 	err := dispatch.Start(1, dispatch.DefaultJobsLimit)
 	if err != nil {
 		log.Fatal(err)

@@ -21,6 +21,7 @@ type Depth struct {
 	// Change of state to re-check depth list
 	wait    chan struct{}
 	waiting uint32
+	wg      sync.WaitGroup
 	wMtx    sync.Mutex
 	// -----
 
@@ -221,11 +222,10 @@ func (d *Depth) alert() {
 		return
 	}
 	d.wMtx.Lock()
-	go func() {
-		close(d.wait)
-		d.wait = make(chan struct{})
-		d.wMtx.Unlock()
-	}()
+	close(d.wait)
+	d.wg.Wait()
+	d.wait = make(chan struct{})
+	d.wMtx.Unlock()
 }
 
 // POC: kicker defines a channel that allows a system to kick routine away from
@@ -245,10 +245,11 @@ func timeInForce(t time.Duration) kicker {
 // Wait pauses routine until depth change has been established (POC)
 func (d *Depth) Wait(kick <-chan struct{}) bool {
 	d.wMtx.Lock()
-	if d.wait == nil {
+	if atomic.CompareAndSwapUint32(&d.waiting, 0, 1) {
 		d.wait = make(chan struct{})
 	}
-	atomic.StoreUint32(&d.waiting, 1)
+	d.wg.Add(1)
+	defer d.wg.Done()
 	d.wMtx.Unlock()
 	select {
 	case <-d.wait:

@@ -2,6 +2,7 @@ package orderbook
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -13,22 +14,20 @@ func TestPushPop(t *testing.T) {
 		nSlice = append(nSlice, s.Pop())
 	}
 
-	if s.count != 0 {
-		t.Fatalf("incorrect stack count expected %v but received %v", 0, s.count)
+	if atomic.LoadInt32(&s.count) != 0 {
+		t.Fatalf("incorrect stack count expected %v but received %v", 0, atomic.LoadInt32(&s.count))
 	}
 
 	for i := 0; i < 100; i++ {
 		s.Push(nSlice[i])
 	}
 
-	if s.count != 100 {
-		t.Fatalf("incorrect stack count expected %v but received %v", 100, s.count)
+	if atomic.LoadInt32(&s.count) != 100 {
+		t.Fatalf("incorrect stack count expected %v but received %v", 100, atomic.LoadInt32(&s.count))
 	}
 }
 
 func TestCleaner(t *testing.T) {
-	defaultInterval = time.Second
-	defaultAllowance = time.Millisecond * 500
 
 	s := newStack()
 	var nSlice []*node
@@ -45,21 +44,21 @@ func TestCleaner(t *testing.T) {
 		s.Push(nSlice[i])
 	}
 	time.Sleep(time.Millisecond * 550)
-	if s.count != 50 {
-		t.Fatalf("incorrect stack count expected %v but received %v", 50, s.count)
+	if atomic.LoadInt32(&s.count) != 50 {
+		t.Fatalf("incorrect stack count expected %v but received %v", 50, atomic.LoadInt32(&s.count))
 	}
 	time.Sleep(time.Second)
-	if s.count != 0 {
-		t.Fatalf("incorrect stack count expected %v but received %v", 0, s.count)
+	if atomic.LoadInt32(&s.count) != 0 {
+		t.Fatalf("incorrect stack count expected %v but received %v", 0, atomic.LoadInt32(&s.count))
 	}
 }
 
 // Display nodes for testing purposes
 func (s *stack) Display() {
-	for i := int32(0); i < s.count; i++ {
-		fmt.Printf("node IN STACK: %+v %p \n", s.nodes[i], s.nodes[i])
+	for i := int32(0); i < atomic.LoadInt32(&s.count); i++ {
+		fmt.Printf("NODE IN STACK: %+v %p \n", s.nodes[i], s.nodes[i])
 	}
-	fmt.Println("Tatal Count:", s.count)
+	fmt.Println("Tatal Count:", atomic.LoadInt32(&s.count))
 }
 
 //  158	   9,521,717 ns/op	 9600104 B/op	  100001 allocs/op
