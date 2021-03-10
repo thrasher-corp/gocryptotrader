@@ -28,7 +28,6 @@ func TestPushPop(t *testing.T) {
 }
 
 func TestCleaner(t *testing.T) {
-
 	s := newStack()
 	var nSlice []*node
 	for i := 0; i < 100; i++ {
