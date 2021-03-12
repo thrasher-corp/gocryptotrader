@@ -219,16 +219,14 @@ func TestConforms(t *testing.T) {
 	if !errors.Is(err, ErrAmountExceedsStep) {
 		t.Fatalf("expected error %v but received %v", ErrAmountExceedsStep, err)
 	}
-	err = tt.Conforms(200, .003)
+	err = tt.Conforms(200000, .003)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 }
 
 func TestConformToAmount(t *testing.T) {
-	var tt *Tolerance
-
-	tt = &Tolerance{}
+	tt := &Tolerance{}
 	val := tt.ConformToAmount(1)
 	if val != 0 {
 		t.Fatal("unexpected amount")
@@ -242,6 +240,21 @@ func TestConformToAmount(t *testing.T) {
 
 	val = tt.ConformToAmount(0.7777)
 	if val != 0.777 {
+		t.Fatal("unexpected amount", val)
+	}
+
+	tt.stepSizeAmount = 100
+	val = tt.ConformToAmount(100)
+	if val != 100 {
+		t.Fatal("unexpected amount", val)
+	}
+
+	val = tt.ConformToAmount(200)
+	if val != 200 {
+		t.Fatal("unexpected amount", val)
+	}
+	val = tt.ConformToAmount(150)
+	if val != 100 {
 		t.Fatal("unexpected amount", val)
 	}
 }
