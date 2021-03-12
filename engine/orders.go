@@ -351,6 +351,14 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
+
+	// Checks for exchange min max limits for order amounts before order
+	// execution can occur
+	err := exch.CheckTolerance(newOrder.AssetType, newOrder.Pair, newOrder.Price, newOrder.Amount)
+	if err != nil {
+		return nil, err
+	}
+
 	result, err := exch.SubmitOrder(newOrder)
 	if err != nil {
 		return nil, err

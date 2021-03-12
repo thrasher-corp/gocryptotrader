@@ -87,4 +87,8 @@ type IBotExchange interface {
 	// pair,asset, url/proxy or subscription change
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket() error
+
+	// Exchange order related execution limits
+	GetTolerance(a asset.Item, cp currency.Pair) (*Tolerance, error)
+	CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64) error
 }

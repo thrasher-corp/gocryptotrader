@@ -61,6 +61,7 @@ type ExchangeInfo struct {
 			MaxNumAlgoOrders    int64   `json:"maxNumAlgoOrders"`
 			MaxNumIcebergOrders int64   `json:"maxNumIcebergOrders"`
 		} `json:"filters"`
+		Permissions []string `json:"permissions"`
 	} `json:"symbols"`
 }
 

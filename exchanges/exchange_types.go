@@ -222,6 +222,7 @@ type Base struct {
 	Config                      *config.ExchangeConfig
 	settingsMutex               sync.RWMutex
 	OrderbookVerificationBypass bool
+	ExecutionTolerance
 }
 
 // url lookup consts
