@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,14 +59,13 @@ const (
 	// Other Consts
 	trailingStopOrderType = "trailingStop"
 	takeProfitOrderType   = "takeProfit"
-	closedStatus          = "CLOSED"
 	spotString            = "spot"
 	futuresString         = "future"
 
 	ratePeriod     = time.Minute
 	rateLimit      = 60
 	timeLayout     = "2006-01-02T15:04:05.999Z07:00"
-	orderbookDepth = 25 // ws uses REST snapshots and needs identical depths
+	orderbookDepth = 500 // ws uses REST snapshots and needs identical depths
 )
 
 // GetMarkets is used to get the open and available trading markets at Bittrex
@@ -106,7 +104,7 @@ func (b *Bittrex) GetMarketSummary(marketName string) (MarketSummaryData, error)
 
 // GetOrderbook method returns current order book information by currency and depth.
 // "marketSymbol" ie ltc-btc
-// "depth" is either 1, 25 or 500 and defaults to 25.
+// "depth" is either 1, 25 or 500. Server side, the depth defaults to 25.
 func (b *Bittrex) GetOrderbook(marketName string, depth int64) (OrderbookData, error) {
 	strDepth := strconv.FormatInt(depth, 10)
 
@@ -117,6 +115,9 @@ func (b *Bittrex) GetOrderbook(marketName string, depth int64) (OrderbookData, e
 		return OrderbookData{}, err
 	}
 	resp.Sequence, err = strconv.Atoi(resultHeader.Get("sequence"))
+	if err != nil {
+		return OrderbookData{}, err
+	}
 
 	return resp, nil
 }
@@ -182,37 +183,31 @@ func (b *Bittrex) CancelOpenOrders(market string) ([]BulkCancelResultData, error
 }
 
 // GetRecentCandles retrieves recent candles; either a full year, month or day
-func (b *Bittrex) GetRecentCandles(marketName, candleInterval string) ([]CandleData, error) {
+// types of candle are: TRADE, MIDPOINT
+func (b *Bittrex) GetRecentCandles(marketName, candleInterval, candleType string) ([]CandleData, error) {
 	var resp []CandleData
-
-	// types of candle are: TRADE, MIDPOINT
-	candleType := "TRADE"
 
 	return resp, b.SendHTTPRequest(exchange.RestSpot, fmt.Sprintf(getRecentCandles, marketName, candleType, candleInterval), &resp, nil)
 }
 
 // GetHistoricalCandles retrieves recent candles
-func (b *Bittrex) GetHistoricalCandles(marketName, candleInterval string, year, month, day int) ([]CandleData, error) {
+// types of candle are: TRADE, MIDPOINT
+func (b *Bittrex) GetHistoricalCandles(marketName, candleInterval, candleType string, year, month, day int) ([]CandleData, error) {
 	var resp []CandleData
-
-	// types of candle are: TRADE, MIDPOINT
-	candleType := "TRADE"
 
 	var start string
 	switch candleInterval {
-	case "MINUTE_1":
-		fallthrough
-	case "MINUTE_5":
+	case "MINUTE_1", "MINUTE_5":
 		// Retrieve full day
 		start = fmt.Sprintf("%d/%d/%d", year, month, day)
 	case "HOUR_1":
-		// Retrive full month
+		// Retrieve full month
 		start = fmt.Sprintf("%d/%d", year, month)
 	case "DAY_1":
 		// Retrieve full year
 		start = fmt.Sprintf("%d", year)
 	default:
-		return resp, errors.New("Invalid interval")
+		return resp, fmt.Errorf("invalid interval %v, not supported", candleInterval)
 	}
 
 	return resp, b.SendHTTPRequest(exchange.RestSpot, fmt.Sprintf(getHistoricalCandles, marketName, candleType, candleInterval, start), &resp, nil)
@@ -352,11 +347,7 @@ func (b *Bittrex) SendHTTPRequest(ep exchange.URL, path string, result interface
 		HTTPRecording:  b.HTTPRecording,
 		HeaderResponse: resultHeader,
 	}
-	err = b.SendPayload(context.Background(), &requestItem)
-	if err != nil {
-		return err
-	}
-	return nil
+	return b.SendPayload(context.Background(), &requestItem)
 }
 
 // SendAuthHTTPRequest sends an authenticated request
@@ -438,9 +429,9 @@ func (b *Bittrex) GetWithdrawalFee(c currency.Code) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	for _, result := range currencies {
-		if result.Symbol == c.String() {
-			fee = result.TxFee
+	for i := range currencies {
+		if currencies[i].Symbol == c.String() {
+			fee = currencies[i].TxFee
 		}
 	}
 	return fee, nil

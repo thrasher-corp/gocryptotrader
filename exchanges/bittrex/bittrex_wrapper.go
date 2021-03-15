@@ -1,6 +1,7 @@
 package bittrex
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -394,12 +395,7 @@ func (b *Bittrex) UpdateAccountInfo(assetType asset.Item) (account.Holdings, err
 	})
 	resp.Exchange = b.Name
 
-	err = account.Process(&resp)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return resp, nil
+	return resp, account.Process(&resp)
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
@@ -427,7 +423,8 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	depositData := append(closedDepositData, openDepositData...)
 
 	for x := range depositData {
-		timestamp, err := parseTime(depositData[x].UpdatedAt)
+		var timestamp time.Time
+		timestamp, err = parseTime(depositData[x].UpdatedAt)
 		if err != nil {
 			timestamp = time.Now()
 		}
@@ -621,11 +618,11 @@ func (b *Bittrex) GetOrderInfo(orderID string, pair currency.Pair, assetType ass
 		return order.Detail{}, err
 	}
 
-	return b.ConstructOrderDetail(orderData)
+	return b.ConstructOrderDetail(&orderData)
 }
 
-// ConstructOrderDetail constructs an order detail item from the underlyihng data
-func (b *Bittrex) ConstructOrderDetail(orderData OrderData) (order.Detail, error) {
+// ConstructOrderDetail constructs an order detail item from the underlying data
+func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (order.Detail, error) {
 	immediateOrCancel := false
 	if orderData.TimeInForce == string(ImmediateOrCancel) {
 		immediateOrCancel = true
@@ -661,20 +658,20 @@ func (b *Bittrex) ConstructOrderDetail(orderData OrderData) (order.Detail, error
 	var orderStatus order.Status
 
 	switch orderData.Status {
-	case strings.ToLower(order.New.String()):
-		orderStatus = order.New
-	case strings.ToLower(order.Open.String()):
-		if orderData.FillQuantity == 0 {
+	case order.Open.String():
+		switch orderData.FillQuantity {
+		case 0:
 			orderStatus = order.Open
-		} else {
+		default:
 			orderStatus = order.PartiallyFilled
 		}
-	case closedStatus:
-		if orderData.FillQuantity == 0 {
+	case order.Closed.String():
+		switch orderData.FillQuantity {
+		case 0:
 			orderStatus = order.Cancelled
-		} else if orderData.FillQuantity == orderData.Quantity {
+		case orderData.Quantity:
 			orderStatus = order.Filled
-		} else {
+		default:
 			orderStatus = order.PartiallyCancelled
 		}
 	}
@@ -823,6 +820,9 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
+	if len(req.Pairs) == 0 {
+		return nil, errors.New("at least one currency is required to fetch order history")
+	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
@@ -930,7 +930,7 @@ func (b *Bittrex) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-// Candles set size returned by Bittrex depends on interval lenght:
+// Candles set size returned by Bittrex depends on interval length:
 // - 1m interval: candles for 1 day (0:00 - 23:59)
 // - 5m interval: candles for 1 day (0:00 - 23:55)
 // - 1 hour interval: candles for 31 days
@@ -950,7 +950,7 @@ func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	year, month, day := start.Date()
 
 	ohlcData, err := b.GetHistoricalCandles(formattedPair.String(),
-		b.FormatExchangeKlineInterval(interval), year, int(month), day)
+		b.FormatExchangeKlineInterval(interval), "TRADE", year, int(month), day)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -987,6 +987,5 @@ func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bittrex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-
 	return kline.Item{}, common.ErrNotYetImplemented
 }

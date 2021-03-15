@@ -25,22 +25,22 @@ type OrderData struct {
 	MarketSymbol  string  `json:"marketSymbol"`
 	Direction     string  `json:"direction"`
 	Type          string  `json:"type"`
-	Quantity      float64 `json:"quantity,string,optional"`
-	Limit         float64 `json:"limit,string,optional"`
-	Ceiling       float64 `json:"ceiling,string,optional"`
+	Quantity      float64 `json:"quantity,string"`
+	Limit         float64 `json:"limit,string"`
+	Ceiling       float64 `json:"ceiling,string"`
 	TimeInForce   string  `json:"timeInForce"`
-	ClientOrderID string  `json:"clientOrderId,optional"`
+	ClientOrderID string  `json:"clientOrderId"`
 	FillQuantity  float64 `json:"fillQuantity,string"`
 	Commission    float64 `json:"commission,string"`
 	Proceeds      float64 `json:"proceeds,string"`
 	Status        string  `json:"status"`
 	CreatedAt     string  `json:"createdAt"`
-	UpdatedAt     string  `json:"updatedAt,optional"`
-	ClosedAt      string  `json:"closedAt,optional"`
+	UpdatedAt     string  `json:"updatedAt"`
+	ClosedAt      string  `json:"closedAt"`
 	OrderToCancel struct {
 		Type string `json:"type,string"`
-		ID   string `json:"id,string,optional"`
-	} `json:"orderToCancel,optional"`
+		ID   string `json:"id,string"`
+	} `json:"orderToCancel"`
 }
 
 // BulkCancelResultData holds the result of a bulk cancel action
@@ -55,12 +55,12 @@ type NewOrder struct {
 	MarketSymbol  string  `json:"marketSymbol"`
 	Direction     string  `json:"direction"`
 	Type          string  `json:"type"`
-	Quantity      float64 `json:"quantity,string,optional"`
-	Ceiling       float64 `json:"ceiling,string,optional"`
-	Limit         float64 `json:"limit,string,optional"`
+	Quantity      float64 `json:"quantity,string"`
+	Ceiling       float64 `json:"ceiling,string"`
+	Limit         float64 `json:"limit,string"`
 	TimeInForce   string  `json:"timeInForce"`
-	ClientOrderID string  `json:"clientOrderId,optional"`
-	UseAwards     bool    `json:"useAwards,optional"`
+	ClientOrderID string  `json:"clientOrderId"`
+	UseAwards     bool    `json:"useAwards"`
 }
 
 // MarketData stores market data
@@ -130,8 +130,8 @@ type BalanceData struct {
 type AddressData struct {
 	Status           string `json:"status"`
 	CurrencySymbol   string `json:"currencySymbol"`
-	CryptoAddress    string `json:"cryptoAddress,optional"`
-	CryptoAddressTag string `json:"cryptoAddressTag,optional"`
+	CryptoAddress    string `json:"cryptoAddress"`
+	CryptoAddressTag string `json:"cryptoAddressTag"`
 }
 
 // CurrencyData holds currency data
@@ -150,16 +150,17 @@ type CurrencyData struct {
 
 // WithdrawalData holds withdrawal data
 type WithdrawalData struct {
-	ID               string  `json:"id"`
-	CurrencySymbol   string  `json:"currencySymbol"`
-	Quantity         float64 `json:"quantity,string"`
-	CryptoAddress    string  `json:"cryptoAddress"`
-	CryptoAddressTag string  `json:"cryptoAddressTag"`
-	TxCost           float64 `json:"txCost,string"`
-	TxID             string  `json:"txId"`
-	Status           string  `json:"status"`
-	CreatedAt        string  `json:"createdAt"`
-	CompletedAt      string  `json:"completedAt"`
+	ID                 string  `json:"id"`
+	CurrencySymbol     string  `json:"currencySymbol"`
+	Quantity           float64 `json:"quantity,string"`
+	CryptoAddress      string  `json:"cryptoAddress"`
+	CryptoAddressTag   string  `json:"cryptoAddressTag"`
+	TxCost             float64 `json:"txCost,string"`
+	TxID               string  `json:"txId"`
+	Status             string  `json:"status"`
+	CreatedAt          string  `json:"createdAt"`
+	CompletedAt        string  `json:"completedAt"`
+	ClientWithdrawalID string  `json:"clientWithdrawalId"`
 }
 
 // DepositData holds deposit data
@@ -218,43 +219,43 @@ type WsEventStatus struct {
 
 // WsEventResponse holds data on the websocket response
 type WsEventResponse struct {
-	C string      `json:"C"`
-	S int         `json:"S"`
-	G string      `json:"G"`
-	R interface{} `json:"R"`
-	I int         `json:"I,string"`
-	M []struct {
-		H string   `json:"H"`
-		M string   `json:"M"`
-		A []string `json:"A"`
+	C            string      `json:"C"`
+	S            int         `json:"S"`
+	G            string      `json:"G"`
+	Response     interface{} `json:"R"`
+	InvocationID int         `json:"I,string"`
+	Message      []struct {
+		Hub       string   `json:"H"`
+		Method    string   `json:"M"`
+		Arguments []string `json:"A"`
 	} `json:"M"`
 }
 
 // WsSubscriptionResponse holds data on the websocket response
 type WsSubscriptionResponse struct {
-	C string          `json:"C"`
-	S int             `json:"S"`
-	G string          `json:"G"`
-	R []WsEventStatus `json:"R"`
-	I int             `json:"I,string"`
-	M []struct {
-		H string   `json:"H"`
-		M string   `json:"M"`
-		A []string `json:"A"`
+	C            string          `json:"C"`
+	S            int             `json:"S"`
+	G            string          `json:"G"`
+	Response     []WsEventStatus `json:"R"`
+	InvocationID int             `json:"I,string"`
+	Message      []struct {
+		Hub       string   `json:"H"`
+		Method    string   `json:"M"`
+		Arguments []string `json:"A"`
 	} `json:"M"`
 }
 
 // WsAuthResponse holds data on the websocket response
 type WsAuthResponse struct {
-	C string        `json:"C"`
-	S int           `json:"S"`
-	G string        `json:"G"`
-	R WsEventStatus `json:"R"`
-	I int           `json:"I,string"`
-	M []struct {
-		H string   `json:"H"`
-		M string   `json:"M"`
-		A []string `json:"A"`
+	C            string        `json:"C"`
+	S            int           `json:"S"`
+	G            string        `json:"G"`
+	Response     WsEventStatus `json:"R"`
+	InvocationID int           `json:"I,string"`
+	Message      []struct {
+		Hub       string   `json:"H"`
+		Method    string   `json:"M"`
+		Arguments []string `json:"A"`
 	} `json:"M"`
 }
 

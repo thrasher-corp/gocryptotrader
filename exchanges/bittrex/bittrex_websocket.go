@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -60,7 +59,6 @@ var invocationIDCounter int
 
 // WsConnect connects to a websocket feed
 func (b *Bittrex) WsConnect() error {
-	log.Warnf(log.ExchangeSys, "Starting WsConnect")
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -168,7 +166,7 @@ func (b *Bittrex) WsAuth() error {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Sending JSON message - %s\n", b.Name, requestString)
+		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
 	}
 	err = b.Websocket.Conn.SendJSONMessage(request)
 	if err != nil {
@@ -205,7 +203,7 @@ func (b *Bittrex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			var channel string
 			switch channels[y] {
 			case wsOrderbook:
-				channel = channels[y] + "_" + pair.String() + "_" + fmt.Sprint(orderbookDepth)
+				channel = channels[y] + "_" + pair.String() + "_" + strconv.FormatInt(orderbookDepth, 10)
 			case wsTicker:
 				channel = channels[y] + "_" + pair.String()
 			case wsMarketSummary:
@@ -247,7 +245,7 @@ func (b *Bittrex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Sending JSON message - %s\n", b.Name, requestString)
+		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
 	}
 	err = b.Websocket.Conn.SendJSONMessage(request)
 	if err != nil {
@@ -284,7 +282,7 @@ func (b *Bittrex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Sending JSON message - %s\n", b.Name, requestString)
+		log.Debugf(log.WebsocketMgr, "%s Sending JSON message - %s\n", b.Name, requestString)
 	}
 	err = b.Websocket.Conn.SendJSONMessage(request)
 	if err != nil {
@@ -307,7 +305,7 @@ func (b *Bittrex) wsReadData() {
 		default:
 			resp := b.Websocket.Conn.ReadMessage()
 			if resp.Raw == nil {
-				log.Warnf(log.ExchangeSys, "%s Received empty message\n", b.Name)
+				log.Warnf(log.WebsocketMgr, "%s Received empty message\n", b.Name)
 				return
 			}
 
@@ -329,11 +327,7 @@ func (b *Bittrex) wsDecodeMessage(encodedMessage string, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(message, v)
-	if err != nil {
-		return err
-	}
-	return nil
+	return json.Unmarshal(message, v)
 }
 
 func (b *Bittrex) wsHandleResponseData(request WsPendingRequest, respRaw []byte) error {
@@ -342,11 +336,11 @@ func (b *Bittrex) wsHandleResponseData(request WsPendingRequest, respRaw []byte)
 		var response WsAuthResponse
 		err := json.Unmarshal(respRaw, &response)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s - wsHandleResponseData - Cannot unmarshal into WsAuthResponse (%s)\n", b.Name, string(respRaw))
+			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot unmarshal into WsAuthResponse (%s)\n", b.Name, string(respRaw))
 			return err
 		}
-		if !response.R.Success {
-			log.Warnf(log.ExchangeSys, "%s - Unable to authenticate (%s)", b.Name, response.R.ErrorCode)
+		if !response.Response.Success {
+			log.Warnf(log.WebsocketMgr, "%s - Unable to authenticate (%s)", b.Name, response.Response.ErrorCode)
 			return nil
 		}
 		return nil
@@ -354,16 +348,16 @@ func (b *Bittrex) wsHandleResponseData(request WsPendingRequest, respRaw []byte)
 		var response WsSubscriptionResponse
 		err := json.Unmarshal(respRaw, &response)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s - wsHandleResponseData - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
+			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
 			return err
 		}
 		channels, ok := request.Arguments.([][]string)
 		if !ok {
-			log.Warnf(log.ExchangeSys, "%s - wsHandleResponseData - Cannot get channel list\n", b.Name)
+			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot get channel list\n", b.Name)
 		}
-		for i := range response.R {
-			if !response.R[i].Success {
-				log.Warnf(log.ExchangeSys, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.R[i].ErrorCode)
+		for i := range response.Response {
+			if !response.Response[i].Success {
+				log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.Response[i].ErrorCode)
 				continue
 			}
 			b.Websocket.AddSuccessfulSubscriptions((*request.ChannelsToSubscribe)[i])
@@ -372,22 +366,22 @@ func (b *Bittrex) wsHandleResponseData(request WsPendingRequest, respRaw []byte)
 		var response WsSubscriptionResponse
 		err := json.Unmarshal(respRaw, &response)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s - wsHandleResponseData - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
+			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot unmarshal into WsSubscriptionResponse (%s)\n", b.Name, string(respRaw))
 			return err
 		}
 		channels, ok := request.Arguments.([][]string)
 		if !ok {
-			log.Warnf(log.ExchangeSys, "%s - wsHandleResponseData - Cannot get channel list\n", b.Name)
+			log.Warnf(log.WebsocketMgr, "%s - wsHandleResponseData - Cannot get channel list\n", b.Name)
 		}
-		for i := range response.R {
-			if !response.R[i].Success {
-				log.Warnf(log.ExchangeSys, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.R[i].ErrorCode)
+		for i := range response.Response {
+			if !response.Response[i].Success {
+				log.Warnf(log.WebsocketMgr, "%s - Unable to subscribe to %s (%s)", b.Name, channels[0][i], response.Response[i].ErrorCode)
 				continue
 			}
 			b.Websocket.RemoveSuccessfulUnsubscriptions((*request.ChannelsToSubscribe)[i])
 		}
 	default:
-		return errors.New("Unrecognized response message")
+		return errors.New("unrecognized response message")
 	}
 	return nil
 }
@@ -396,27 +390,27 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 	var response WsEventResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s Cannot unmarshal into eventResponse (%s)\n", b.Name, string(respRaw))
+		log.Warnf(log.WebsocketMgr, "%s Cannot unmarshal into eventResponse (%s)\n", b.Name, string(respRaw))
 		return err
 	}
-	if response.R != nil && response.I > 0 {
-		request, hasRequest := b.WsPendingRequests[response.I]
+	if response.Response != nil && response.InvocationID > 0 {
+		request, hasRequest := b.WsPendingRequests[response.InvocationID]
 		if !hasRequest {
-			return errors.New("Received response to unknown request")
+			return errors.New("received response to unknown request")
 		}
 		delete(b.WsPendingRequests, request.InvocationID)
 
 		return b.wsHandleResponseData(request, respRaw)
 	}
-	if response.R == nil && len(response.M) == 0 && response.C == "" {
-		log.Warnf(log.ExchangeSys, "%s Received keep-alive (%s)\n", b.Name, string(respRaw))
+	if response.Response == nil && len(response.Message) == 0 && response.C == "" {
+		log.Warnf(log.WebsocketMgr, "%s Received keep-alive (%s)\n", b.Name, string(respRaw))
 	}
-	for i := range response.M {
-		switch response.M[i].M {
+	for i := range response.Message {
+		switch response.Message[i].Method {
 		case "orderBook":
-			for j := range response.M[i].A {
+			for j := range response.Message[i].Arguments {
 				var orderbookUpdate OrderbookUpdateMessage
-				err := b.wsDecodeMessage(response.M[i].A[j], &orderbookUpdate)
+				err = b.wsDecodeMessage(response.Message[i].Arguments[j], &orderbookUpdate)
 				if err != nil {
 					return err
 				}
@@ -426,9 +420,9 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 				}
 			}
 		case "ticker":
-			for j := range response.M[i].A {
+			for j := range response.Message[i].Arguments {
 				var tickerUpdate TickerData
-				err := b.wsDecodeMessage(response.M[i].A[j], &tickerUpdate)
+				err = b.wsDecodeMessage(response.Message[i].Arguments[j], &tickerUpdate)
 				if err != nil {
 					return err
 				}
@@ -438,9 +432,9 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 				}
 			}
 		case "marketSummary":
-			for j := range response.M[i].A {
+			for j := range response.Message[i].Arguments {
 				var marketSummaryUpdate MarketSummaryData
-				err := b.wsDecodeMessage(response.M[i].A[j], &marketSummaryUpdate)
+				err = b.wsDecodeMessage(response.Message[i].Arguments[j], &marketSummaryUpdate)
 				if err != nil {
 					return err
 				}
@@ -451,23 +445,29 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 				}
 			}
 		case "heartbeat":
-			log.Warnf(log.ExchangeSys, "%s Received heartbeat\n", b.Name)
+			log.Warnf(log.WebsocketMgr, "%s Received heartbeat\n", b.Name)
 		case "authenticationExpiring":
 			if b.Verbose {
-				log.Debugf(log.ExchangeSys, "%s - Re-authenticating.\n", b.Name)
+				log.Debugf(log.WebsocketMgr, "%s - Re-authenticating.\n", b.Name)
 			}
 			err = b.WsAuth()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			}
-		default:
-			messageString, err := json.Marshal(response.M[i])
-			if err != nil {
-				return err
+		case "order":
+			log.Warnf(log.WebsocketMgr, "%s Order update (%s)\n", b.Name, string(respRaw))
+			for j := range response.Message[i].Arguments {
+				var orderUpdate OrderUpdateMessage
+				err = b.wsDecodeMessage(response.Message[i].Arguments[j], &orderUpdate)
+				if err != nil {
+					return err
+				}
+				err = b.WsProcessUpdateOrder(&orderUpdate)
+				if err != nil {
+					return err
+				}
 			}
-			log.Warnf(log.ExchangeSys, "\n%s - Received unidentified message (%s)\n", b.Name, messageString)
-
 		}
 	}
 	return nil
@@ -476,9 +476,9 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 // WsProcessUpdateOB processes an update on the orderbook
 func (b *Bittrex) WsProcessUpdateOB(data *OrderbookUpdateMessage) error {
 	if data.Sequence > b.WsSequenceOrderbook+1 {
-		log.Warnf(log.ExchangeSys, "%s - Update OrderBook - Sequence numbers not received in order (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
+		log.Warnf(log.WebsocketMgr, "%s - Update OrderBook - Sequence numbers not received in order (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
 	} else if data.Sequence <= b.WsSequenceOrderbook {
-		log.Warnf(log.ExchangeSys, "%s - Update OrderBook - Premature update (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
+		log.Warnf(log.WebsocketMgr, "%s - Update OrderBook - Premature update (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
 		// Premature update
 		return nil
 	}
@@ -599,7 +599,8 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryDa
 	tickerPrice, err := ticker.GetTicker(b.Name, pair, asset.Spot)
 	if err != nil {
 		// Received partial data for a ticker: request the missing data through REST
-		tickerData, err := b.GetTicker(marketSummaryData.Symbol)
+		var tickerData TickerData
+		tickerData, err = b.GetTicker(marketSummaryData.Symbol)
 		if err != nil {
 			return err
 		}
@@ -623,5 +624,49 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryDa
 
 	b.Websocket.DataHandler <- tickerPrice
 
+	return nil
+}
+
+// WsProcessUpdateOrder processes an update on the open orders
+func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
+	/*
+		if data.Sequence > b.WsSequenceOrderbook+1 {
+			log.Warnf(log.WebsocketMgr, "%s - Update OrderBook - Sequence numbers not received in order (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
+		} else if data.Sequence <= b.WsSequenceOrderbook {
+			log.Warnf(log.WebsocketMgr, "%s - Update OrderBook - Premature update (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
+			// Premature update
+			return nil
+		}
+		var pair currency.Pair
+		pair, err := currency.NewPairFromString(data.MarketSymbol)
+		if err != nil {
+			return err
+		}
+		update := buffer.Update{
+			Asset:    asset.Spot,
+			Pair:     pair,
+			UpdateID: int64(data.Sequence),
+			MaxDepth: orderbookDepth,
+		}
+
+		for x := range data.BidDeltas {
+			update.Bids = append(update.Bids, orderbook.Item{
+				Price:  data.BidDeltas[x].Rate,
+				Amount: data.BidDeltas[x].Quantity,
+			})
+		}
+		for x := range data.AskDeltas {
+			update.Asks = append(update.Asks, orderbook.Item{
+				Price:  data.AskDeltas[x].Rate,
+				Amount: data.AskDeltas[x].Quantity,
+			})
+		}
+
+		err = b.Websocket.Orderbook.Update(&update)
+		if err != nil {
+			return err
+		}
+		b.WsSequenceOrderbook = data.Sequence
+	*/
 	return nil
 }

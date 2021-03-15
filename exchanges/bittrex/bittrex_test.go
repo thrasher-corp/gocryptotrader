@@ -21,7 +21,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-	currPair                = "USDT-BTC"
+	currPair                = "BTC-USDT"
 	curr                    = "BTC"
 )
 
@@ -401,6 +401,15 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)
+	if err == nil {
+		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
+	}
+
+	getOrdersRequest.Pairs = []currency.Pair{
+		currency.NewPair(currency.BTC, currency.USDT),
+	}
+
+	_, err = b.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -567,17 +576,18 @@ func TestGetDepositAddress(t *testing.T) {
 func TestParseTime(t *testing.T) {
 	t.Parallel()
 
-	tm, err := parseTime("2019-11-21T02:08:34.87")
+	tm, err := parseTime("2015-12-11T06:31:40.633Z")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if tm.Year() != 2019 ||
-		tm.Month() != 11 ||
-		tm.Day() != 21 ||
-		tm.Hour() != 2 ||
-		tm.Minute() != 8 ||
-		tm.Second() != 34 {
+	if tm.Year() != 2015 ||
+		tm.Month() != 12 ||
+		tm.Day() != 11 ||
+		tm.Hour() != 6 ||
+		tm.Minute() != 31 ||
+		tm.Second() != 40 ||
+		tm.Nanosecond() != 633*1000000 {
 		t.Error("invalid time values")
 	}
 }
