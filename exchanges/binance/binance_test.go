@@ -2475,3 +2475,23 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestSetTolerances(t *testing.T) {
+	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.SetExchangeTolerances()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tol, err := b.GetTolerance(asset.CoinMarginedFutures, cmfCP)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tol == nil {
+		t.Fatal("exchange tolerance should be loaded")
+	}
+}
