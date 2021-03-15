@@ -165,6 +165,9 @@ func (b *Bittrex) GetOpenOrders(marketName string) ([]OrderData, int, error) {
 	var sequence int
 	resultHeader := http.Header{}
 	err := b.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, &resultHeader)
+	if err != nil {
+		return nil, 0, err
+	}
 	sequence, err = strconv.Atoi(resultHeader.Get("sequence"))
 	if err != nil {
 		return nil, 0, err
