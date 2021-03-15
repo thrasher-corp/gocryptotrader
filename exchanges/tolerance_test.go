@@ -228,19 +228,25 @@ func TestConforms(t *testing.T) {
 func TestConformToAmount(t *testing.T) {
 	tt := &Tolerance{}
 	val := tt.ConformToAmount(1)
-	if val != 0 {
+	if val != 1 { // If there is no step amount set this should not change
+		// the inputted amount
 		t.Fatal("unexpected amount")
 	}
 
 	tt.stepSizeAmount = 0.001
-	val = tt.ConformToAmount(1)
-	if val != 1 {
-		t.Fatal("unexpected amount")
+	val = tt.ConformToAmount(1.001)
+	if val != 1.001 {
+		t.Error("unexpected amount", val)
+	}
+
+	val = tt.ConformToAmount(0.0001)
+	if val != 0 {
+		t.Error("unexpected amount", val)
 	}
 
 	val = tt.ConformToAmount(0.7777)
-	if val != 0.777 {
-		t.Fatal("unexpected amount", val)
+	if val != 0.778 {
+		t.Error("unexpected amount", val)
 	}
 
 	tt.stepSizeAmount = 100
@@ -254,7 +260,7 @@ func TestConformToAmount(t *testing.T) {
 		t.Fatal("unexpected amount", val)
 	}
 	val = tt.ConformToAmount(150)
-	if val != 100 {
+	if val != 200 {
 		t.Fatal("unexpected amount", val)
 	}
 }

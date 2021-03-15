@@ -10,47 +10,41 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// ErrExchangeToleranceNotLoaded defines if an exchange does not have minmax
-// values
-var ErrExchangeToleranceNotLoaded = errors.New("exchange tolerances not loaded")
-var errExchangeToleranceAsset = errors.New("exchange tolerances not found for asset")
-var errExchangeToleranceBase = errors.New("exchange tolerances not found for base currency")
-var errExchangeToleranceQuote = errors.New("exchange tolerances not found for quote currency")
-var errCannotLoadTolerance = errors.New("cannot load tolerance levels not supplied")
-var errInvalidPriceLevels = errors.New("invalid price levels cannot load tolerances")
-var errInvalidAmountLevels = errors.New("invalid amount levels cannot load tolerances")
+var (
+	// ErrExchangeToleranceNotLoaded defines if an exchange does not have minmax
+	// values
+	ErrExchangeToleranceNotLoaded = errors.New("exchange tolerances not loaded")
+	// ErrPriceExceedsMin is when the price is lower than the minimum price
+	// tolerance accepted by the exchange
+	ErrPriceExceedsMin = errors.New("price exceeds minimum tolerance")
+	// ErrPriceExceedsMax is when the price is higher than the maximum price
+	// tolerance accepted by the exchange
+	ErrPriceExceedsMax = errors.New("price exceeds maximum tolerance")
+	// ErrPriceExceedsStep is when the price is not divisable by its step
+	ErrPriceExceedsStep = errors.New("price exceeds step tolerance")
+	// ErrAmountExceedsMin is when the amount is lower than the minimum amount
+	// tolerance accepted by the exchange
+	ErrAmountExceedsMin = errors.New("amount exceeds minimum tolerance")
+	// ErrAmountExceedsMax is when the amount is highger than the maxiumum amount
+	// tolerance accepted by the exchange
+	ErrAmountExceedsMax = errors.New("amount exceeds maximum tolerance")
+	// ErrAmountExceedsStep is when the amount is not divisable by its step
+	ErrAmountExceedsStep = errors.New("amount exceeds step tolerance")
+	// ErrNotionalValue is when the notional value does not exceed currency pair
+	// requirements
+	ErrNotionalValue = errors.New("total notional value is under minimum tolerance")
 
-// tolerance specific errors
-var errAmountDoesNotConform = errors.New("amount exceeds min/max parameters")
-var errCannotValidateAsset = errors.New("cannot check tolerance asset not loaded")
-var errCannotValidateBaseCurrency = errors.New("cannot check tolerance base currency not loaded")
-var errCannotValidateQuoteCurrency = errors.New("cannot check tolerance quote currency not loaded")
-
-// ErrPriceExceedsMin is when the price is lower than the minimum price
-// tolerance accepted by the exchange
-var ErrPriceExceedsMin = errors.New("price exceeds minimum tolerance")
-
-// ErrPriceExceedsMax is when the price is higher than the maximum price
-// tolerance accepted by the exchange
-var ErrPriceExceedsMax = errors.New("price exceeds maximum tolerance")
-
-// ErrPriceExceedsStep is when the price is not divisable by its step
-var ErrPriceExceedsStep = errors.New("price exceeds step tolerance")
-
-// ErrAmountExceedsMin is when the amount is lower than the minimum amount
-// tolerance accepted by the exchange
-var ErrAmountExceedsMin = errors.New("amount exceeds minimum tolerance")
-
-// ErrAmountExceedsMax is when the amount is highger than the maxiumum amount
-// tolerance accepted by the exchange
-var ErrAmountExceedsMax = errors.New("amount exceeds maximum tolerance")
-
-// ErrAmountExceedsStep is when the amount is not divisable by its step
-var ErrAmountExceedsStep = errors.New("amount exceeds step tolerance")
-
-// ErrNotionalValue is when the notional value does not exceed currency pair
-// requirements
-var ErrNotionalValue = errors.New("total notional value is under minimum tolerance")
+	errAmountDoesNotConform        = errors.New("amount exceeds min/max parameters")
+	errCannotValidateAsset         = errors.New("cannot check tolerance asset not loaded")
+	errCannotValidateBaseCurrency  = errors.New("cannot check tolerance base currency not loaded")
+	errCannotValidateQuoteCurrency = errors.New("cannot check tolerance quote currency not loaded")
+	errExchangeToleranceAsset      = errors.New("exchange tolerances not found for asset")
+	errExchangeToleranceBase       = errors.New("exchange tolerances not found for base currency")
+	errExchangeToleranceQuote      = errors.New("exchange tolerances not found for quote currency")
+	errCannotLoadTolerance         = errors.New("cannot load tolerance levels not supplied")
+	errInvalidPriceLevels          = errors.New("invalid price levels cannot load tolerances")
+	errInvalidAmountLevels         = errors.New("invalid amount levels cannot load tolerances")
+)
 
 // ExecutionTolerance defines minimum and maximum values in relation to
 // order size, order pricing, total notional values, total maximum orders etc
@@ -63,15 +57,24 @@ type ExecutionTolerance struct {
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
 // for outbound exchange execution
 type MinMaxLevel struct {
-	Pair        currency.Pair
-	Asset       asset.Item
-	MinPrice    float64
-	MaxPrice    float64
-	StepPrice   float64
-	MinAmount   float64
-	MaxAmount   float64
-	StepAmount  float64
-	MinNotional float64
+	Pair             currency.Pair
+	Asset            asset.Item
+	MinPrice         float64
+	MaxPrice         float64
+	StepPrice        float64
+	MultiplierUp     float64
+	MultiplierDown   float64
+	AveragePriceMins float64
+	MinAmount        float64
+	MaxAmount        float64
+	StepAmount       float64
+	MinNotional      float64
+	MaxIcebergeParts int64
+	MarketMinimumQty float64
+	MarketMaxQty     float64
+	MarketStepSize   float64
+	MaxTotalOrders   int64
+	MaxAlgoOrders    int64
 }
 
 // LoadTolerances loads all tolerances levels into memory
@@ -274,14 +277,17 @@ func (t *Tolerance) Conforms(price, amount float64) error {
 	return nil
 }
 
-// ConformToAmount (POC) conforms amount to its amount interval
+// ConformToAmount (POC) conforms amount to its amount interval (Warning: this
+// has a chance to increase position sizing to conform to step size amount)
+// TODO: Add in decimal package
 func (t *Tolerance) ConformToAmount(amount float64) float64 {
 	t.Lock()
 	defer t.Unlock()
 	if t.stepSizeAmount == 0 {
-		return 0
+		return amount
 	}
 	increase := 1 / t.stepSizeAmount
-	// math floor used because we don't want to ever increase the amount
-	return math.Floor(amount*increase) / increase
+	// math round used because we don't want miss precision the downside to this
+	// is that it will increase position size due to rounding issues.
+	return math.Round(amount*increase) / increase
 }

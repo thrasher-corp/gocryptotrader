@@ -302,58 +302,12 @@ func (b *Binance) Run() {
 		}
 	}
 
-	// TODO: Add in fetching of coinmargined and usdtmargined futures exchange
-	// info
-	info, err := b.GetExchangeInfo()
+	err = b.SetExchangeTolerances()
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "Cannot get exchange info for Binance and update tolerances: %v", err)
-	} else {
-		var limits []exchange.MinMaxLevel
-		for x := range info.Symbols {
-			var cp currency.Pair
-			cp, err = currency.NewPairFromStrings(info.Symbols[x].BaseAsset,
-				info.Symbols[x].QuoteAsset)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "Cannot load exchange info for Binance and update tolerances: %v", err)
-				return
-			}
-			var assets []asset.Item
-			for y := range info.Symbols[x].Permissions {
-				switch info.Symbols[x].Permissions[y] {
-				case "SPOT":
-					assets = append(assets, asset.Spot)
-				case "MARGIN":
-					assets = append(assets, asset.Margin)
-				case "LEVERAGED":
-				default:
-					log.Warnf(log.ExchangeSys, "Unhandled asset type for tolerance loading %s", info.Symbols[x].Permissions[y])
-				}
-			}
-
-			for z := range assets {
-				if len(info.Symbols[x].Filters) < 4 {
-					log.Errorln(log.ExchangeSys, "Cannot load exchange info for Binance and update tolerances due to length of filters")
-					return
-				}
-
-				limits = append(limits, exchange.MinMaxLevel{
-					Pair:        cp,
-					Asset:       assets[z],
-					MinPrice:    info.Symbols[x].Filters[0].MinPrice,
-					MaxPrice:    info.Symbols[x].Filters[0].MaxPrice,
-					StepPrice:   info.Symbols[x].Filters[0].TickSize,
-					MaxAmount:   info.Symbols[x].Filters[2].MaxQty,
-					MinAmount:   info.Symbols[x].Filters[2].MinQty,
-					StepAmount:  info.Symbols[x].Filters[2].StepSize,
-					MinNotional: info.Symbols[x].Filters[3].MinNotional,
-				})
-			}
-		}
-
-		err = b.LoadTolerances(limits)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "Cannot load exchange Binance order tolerances: %v", err)
-		}
+		log.Errorf(log.ExchangeSys,
+			"Could not set %s exchange tolerances: %v",
+			b.Name,
+			err)
 	}
 
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {

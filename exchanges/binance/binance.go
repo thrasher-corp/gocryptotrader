@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -939,4 +940,140 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	})
+}
+
+// SetExchangeTolerances sets exchange tolerances for all assets
+func (b *Binance) SetExchangeTolerances() error {
+	var limits []exchange.MinMaxLevel
+
+	spot, err := b.GetExchangeInfo()
+	if err != nil {
+		return err
+	}
+
+	for x := range spot.Symbols {
+		var cp currency.Pair
+		cp, err = currency.NewPairFromStrings(spot.Symbols[x].BaseAsset,
+			spot.Symbols[x].QuoteAsset)
+		if err != nil {
+			return err
+		}
+		var assets []asset.Item
+		for y := range spot.Symbols[x].Permissions {
+			switch spot.Symbols[x].Permissions[y] {
+			case "SPOT":
+				assets = append(assets, asset.Spot)
+			case "MARGIN":
+				assets = append(assets, asset.Margin)
+			case "LEVERAGED": // leveraged tokens not available for spot trading
+			default:
+				return fmt.Errorf("Unhandled asset type for tolerance loading %s",
+					spot.Symbols[x].Permissions[y])
+			}
+		}
+
+		for z := range assets {
+			if len(spot.Symbols[x].Filters) < 8 {
+				continue
+			}
+
+			limits = append(limits, exchange.MinMaxLevel{
+				Pair:             cp,
+				Asset:            assets[z],
+				MinPrice:         spot.Symbols[x].Filters[0].MinPrice,
+				MaxPrice:         spot.Symbols[x].Filters[0].MaxPrice,
+				StepPrice:        spot.Symbols[x].Filters[0].TickSize,
+				MultiplierUp:     spot.Symbols[x].Filters[1].MultiplierUp,
+				MultiplierDown:   spot.Symbols[x].Filters[1].MultiplierDown,
+				AveragePriceMins: spot.Symbols[x].Filters[1].StepSize,
+				MaxAmount:        spot.Symbols[x].Filters[2].MaxQty,
+				MinAmount:        spot.Symbols[x].Filters[2].MinQty,
+				StepAmount:       spot.Symbols[x].Filters[2].StepSize,
+				MinNotional:      spot.Symbols[x].Filters[3].MinNotional,
+				MaxIcebergeParts: spot.Symbols[x].Filters[4].MaxNumIcebergOrders,
+				MarketMinimumQty: spot.Symbols[x].Filters[5].MinQty,
+				MarketMaxQty:     spot.Symbols[x].Filters[5].MaxQty,
+				MarketStepSize:   spot.Symbols[x].Filters[5].StepSize,
+				MaxTotalOrders:   spot.Symbols[x].Filters[6].MaxNumOrders,
+				MaxAlgoOrders:    spot.Symbols[x].Filters[7].MaxNumAlgoOrders,
+			})
+		}
+	}
+
+	usdtFutures, err := b.UExchangeInfo()
+	if err != nil {
+		return err
+	}
+
+	for x := range usdtFutures.Symbols {
+		var cp currency.Pair
+		cp, err = currency.NewPairFromStrings(usdtFutures.Symbols[x].BaseAsset,
+			usdtFutures.Symbols[x].QuoteAsset)
+		if err != nil {
+			return err
+		}
+
+		if len(spot.Symbols[x].Filters) < 7 {
+			continue
+		}
+
+		limits = append(limits, exchange.MinMaxLevel{
+			Pair:             cp,
+			Asset:            asset.USDTMarginedFutures,
+			MinPrice:         usdtFutures.Symbols[x].Filters[0].MinPrice,
+			MaxPrice:         usdtFutures.Symbols[x].Filters[0].MaxPrice,
+			StepPrice:        usdtFutures.Symbols[x].Filters[0].TickSize,
+			MaxAmount:        usdtFutures.Symbols[x].Filters[1].MaxQty,
+			MinAmount:        usdtFutures.Symbols[x].Filters[1].MinQty,
+			StepAmount:       usdtFutures.Symbols[x].Filters[1].StepSize,
+			MarketMinimumQty: usdtFutures.Symbols[x].Filters[2].MinQty,
+			MarketMaxQty:     usdtFutures.Symbols[x].Filters[2].MaxQty,
+			MarketStepSize:   usdtFutures.Symbols[x].Filters[2].StepSize,
+			MaxTotalOrders:   usdtFutures.Symbols[x].Filters[3].Limit,
+			MaxAlgoOrders:    usdtFutures.Symbols[x].Filters[4].Limit,
+			MinNotional:      usdtFutures.Symbols[x].Filters[5].Notional,
+			MultiplierUp:     usdtFutures.Symbols[x].Filters[6].MultiplierUp,
+			MultiplierDown:   usdtFutures.Symbols[x].Filters[6].MultiplierDown,
+			AveragePriceMins: usdtFutures.Symbols[x].Filters[6].StepSize,
+		})
+	}
+
+	coinFutures, err := b.FuturesExchangeInfo()
+	if err != nil {
+		return err
+	}
+
+	for x := range coinFutures.Symbols {
+		symbol := strings.Split(coinFutures.Symbols[x].Symbol, "_")
+		var cp currency.Pair
+		cp, err = currency.NewPairFromStrings(symbol[0], symbol[1])
+		if err != nil {
+			return err
+		}
+
+		if len(spot.Symbols[x].Filters) < 6 {
+			continue
+		}
+
+		limits = append(limits, exchange.MinMaxLevel{
+			Pair:             cp,
+			Asset:            asset.CoinMarginedFutures,
+			MinPrice:         coinFutures.Symbols[x].Filters[0].MinPrice,
+			MaxPrice:         coinFutures.Symbols[x].Filters[0].MaxPrice,
+			StepPrice:        coinFutures.Symbols[x].Filters[0].StepSize,
+			MaxAmount:        coinFutures.Symbols[x].Filters[1].MaxQty,
+			MinAmount:        coinFutures.Symbols[x].Filters[1].MinQty,
+			StepAmount:       coinFutures.Symbols[x].Filters[1].StepSize,
+			MarketMinimumQty: coinFutures.Symbols[x].Filters[2].MinQty,
+			MarketMaxQty:     coinFutures.Symbols[x].Filters[2].MaxQty,
+			MarketStepSize:   coinFutures.Symbols[x].Filters[2].StepSize,
+			MaxTotalOrders:   coinFutures.Symbols[x].Filters[3].Limit,
+			MaxAlgoOrders:    coinFutures.Symbols[x].Filters[4].Limit,
+			MultiplierUp:     coinFutures.Symbols[x].Filters[5].MultiplierUp,
+			MultiplierDown:   coinFutures.Symbols[x].Filters[5].MultiplierDown,
+			AveragePriceMins: coinFutures.Symbols[x].Filters[5].StepSize,
+		})
+	}
+
+	return b.LoadTolerances(limits)
 }

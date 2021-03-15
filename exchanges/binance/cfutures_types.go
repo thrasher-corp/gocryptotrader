@@ -556,6 +556,7 @@ type UFuturesExchangeInfo struct {
 			MultiplierDown    float64 `json:"multiplierDown,string"`
 			MultiplierUp      float64 `json:"multiplierUp,string"`
 			MultiplierDecimal float64 `json:"multiplierDecimal,string"`
+			Notional          float64 `json:"notional,string"`
 		} `json:"filters"`
 		OrderTypes  []string `json:"orderTypes"`
 		TimeInForce []string `json:"timeInForce"`
