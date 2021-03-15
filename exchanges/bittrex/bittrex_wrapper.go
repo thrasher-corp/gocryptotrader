@@ -343,7 +343,7 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	}
 
 	// Valid order book depths are 1, 25 and 500
-	orderbookData, err := b.GetOrderbook(formattedPair.String(), orderbookDepth)
+	orderbookData, sequence, err := b.GetOrderbook(formattedPair.String(), orderbookDepth)
 	if err != nil {
 		return nil, err
 	}
@@ -369,6 +369,7 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	if err != nil {
 		return book, err
 	}
+	b.WsSequenceOrderbook = sequence
 
 	return orderbook.Get(b.Name, p, assetType)
 }
@@ -758,7 +759,7 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
-	orderData, err := b.GetOpenOrders(currPair)
+	orderData, sequence, err := b.GetOpenOrders(currPair)
 	if err != nil {
 		return nil, err
 	}
@@ -811,6 +812,8 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 	order.FilterOrdersByType(&resp, req.Type)
 	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
 	order.FilterOrdersByCurrencies(&resp, req.Pairs)
+
+	b.WsSequenceOrders = sequence
 	return resp, nil
 }
 

@@ -106,9 +106,8 @@ type MarketSummaryData struct {
 
 // OrderbookData holds the order book data
 type OrderbookData struct {
-	Bid      []OrderbookEntryData `json:"bid"`
-	Ask      []OrderbookEntryData `json:"ask"`
-	Sequence int
+	Bid []OrderbookEntryData `json:"bid"`
+	Ask []OrderbookEntryData `json:"ask"`
 }
 
 // OrderbookEntryData holds an order book entry

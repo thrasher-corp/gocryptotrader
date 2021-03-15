@@ -23,6 +23,7 @@ type Bittrex struct {
 	exchange.Base
 	WsPendingRequests   map[int]WsPendingRequest
 	WsSequenceOrderbook int
+	WsSequenceOrders    int
 }
 
 const (
@@ -105,21 +106,22 @@ func (b *Bittrex) GetMarketSummary(marketName string) (MarketSummaryData, error)
 // GetOrderbook method returns current order book information by currency and depth.
 // "marketSymbol" ie ltc-btc
 // "depth" is either 1, 25 or 500. Server side, the depth defaults to 25.
-func (b *Bittrex) GetOrderbook(marketName string, depth int64) (OrderbookData, error) {
+func (b *Bittrex) GetOrderbook(marketName string, depth int64) (OrderbookData, int, error) {
 	strDepth := strconv.FormatInt(depth, 10)
 
 	var resp OrderbookData
+	var sequence int
 	resultHeader := http.Header{}
 	err := b.SendHTTPRequest(exchange.RestSpot, fmt.Sprintf(getOrderbook, marketName, strDepth), &resp, &resultHeader)
 	if err != nil {
-		return OrderbookData{}, err
+		return OrderbookData{}, 0, err
 	}
-	resp.Sequence, err = strconv.Atoi(resultHeader.Get("sequence"))
+	sequence, err = strconv.Atoi(resultHeader.Get("sequence"))
 	if err != nil {
-		return OrderbookData{}, err
+		return OrderbookData{}, 0, err
 	}
 
-	return resp, nil
+	return resp, sequence, nil
 }
 
 // GetMarketHistory retrieves the latest trades that have occurred for a specific market
@@ -152,7 +154,7 @@ func (b *Bittrex) Order(marketName, side, orderType string, timeInForce TimeInFo
 
 // GetOpenOrders returns all orders that you currently have opened.
 // A specific market can be requested for example "ltc-btc"
-func (b *Bittrex) GetOpenOrders(marketName string) ([]OrderData, error) {
+func (b *Bittrex) GetOpenOrders(marketName string) ([]OrderData, int, error) {
 	var path string
 	if marketName == "" || marketName == " " {
 		path = getAllOpenOrders
@@ -160,7 +162,14 @@ func (b *Bittrex) GetOpenOrders(marketName string) ([]OrderData, error) {
 		path = fmt.Sprintf(getOpenOrders, marketName)
 	}
 	var resp []OrderData
-	return resp, b.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, nil)
+	var sequence int
+	resultHeader := http.Header{}
+	err := b.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, &resultHeader)
+	sequence, err = strconv.Atoi(resultHeader.Get("sequence"))
+	if err != nil {
+		return nil, 0, err
+	}
+	return resp, sequence, err
 }
 
 // CancelExistingOrder is used to cancel a buy or sell order.

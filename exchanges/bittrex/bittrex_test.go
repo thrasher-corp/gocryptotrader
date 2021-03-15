@@ -98,7 +98,7 @@ func TestGetMarketSummary(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetOrderbook(currPair, 500)
+	_, _, err := b.GetOrderbook(currPair, 500)
 	if err != nil {
 		t.Error(err)
 	}

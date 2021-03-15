@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -456,7 +457,6 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 				b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			}
 		case "order":
-			log.Warnf(log.WebsocketMgr, "%s Order update (%s)\n", b.Name, string(respRaw))
 			for j := range response.Message[i].Arguments {
 				var orderUpdate OrderUpdateMessage
 				err = b.wsDecodeMessage(response.Message[i].Arguments[j], &orderUpdate)
@@ -523,7 +523,7 @@ func (b *Bittrex) seedOrderBook() error {
 	}
 
 	for x := range p {
-		orderbookSeed, err := b.GetOrderbook(p[x].String(), orderbookDepth)
+		orderbookSeed, sequence, err := b.GetOrderbook(p[x].String(), orderbookDepth)
 		if err != nil {
 			return err
 		}
@@ -550,7 +550,7 @@ func (b *Bittrex) seedOrderBook() error {
 		if err != nil {
 			return err
 		}
-		b.WsSequenceOrderbook = orderbookSeed.Sequence
+		b.WsSequenceOrderbook = sequence
 	}
 	return nil
 }
@@ -629,44 +629,64 @@ func (b *Bittrex) WsProcessUpdateMarketSummary(marketSummaryData MarketSummaryDa
 
 // WsProcessUpdateOrder processes an update on the open orders
 func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
-	/*
-		if data.Sequence > b.WsSequenceOrderbook+1 {
-			log.Warnf(log.WebsocketMgr, "%s - Update OrderBook - Sequence numbers not received in order (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
-		} else if data.Sequence <= b.WsSequenceOrderbook {
-			log.Warnf(log.WebsocketMgr, "%s - Update OrderBook - Premature update (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
-			// Premature update
-			return nil
-		}
-		var pair currency.Pair
-		pair, err := currency.NewPairFromString(data.MarketSymbol)
-		if err != nil {
-			return err
-		}
-		update := buffer.Update{
-			Asset:    asset.Spot,
-			Pair:     pair,
-			UpdateID: int64(data.Sequence),
-			MaxDepth: orderbookDepth,
-		}
+	var orderType order.Type
+	var orderSide order.Side
 
-		for x := range data.BidDeltas {
-			update.Bids = append(update.Bids, orderbook.Item{
-				Price:  data.BidDeltas[x].Rate,
-				Amount: data.BidDeltas[x].Quantity,
-			})
-		}
-		for x := range data.AskDeltas {
-			update.Asks = append(update.Asks, orderbook.Item{
-				Price:  data.AskDeltas[x].Rate,
-				Amount: data.AskDeltas[x].Quantity,
-			})
-		}
+	orderDate, err := parseTime(data.Delta.CreatedAt)
+	if err != nil {
+		return err
+	}
 
-		err = b.Websocket.Orderbook.Update(&update)
-		if err != nil {
-			return err
+	orderType, err = order.StringToOrderType(data.Delta.Type)
+	if err != nil {
+		b.Websocket.DataHandler <- order.ClassificationError{
+			Exchange: b.Name,
+			OrderID:  data.Delta.ID,
+			Err:      err,
 		}
-		b.WsSequenceOrderbook = data.Sequence
-	*/
+	}
+	orderSide, err = order.StringToOrderSide(data.Delta.Direction)
+	if err != nil {
+		b.Websocket.DataHandler <- order.ClassificationError{
+			Exchange: b.Name,
+			OrderID:  data.Delta.ID,
+			Err:      err,
+		}
+	}
+	orderStatus, err := order.StringToOrderStatus(data.Delta.Status)
+	if err != nil {
+		b.Websocket.DataHandler <- order.ClassificationError{
+			Exchange: b.Name,
+			OrderID:  data.Delta.ID,
+			Err:      err,
+		}
+	}
+
+	pair, err := currency.NewPairFromString(data.Delta.MarketSymbol)
+	if err != nil {
+		b.Websocket.DataHandler <- order.ClassificationError{
+			Exchange: b.Name,
+			OrderID:  data.Delta.ID,
+			Err:      err,
+		}
+	}
+
+	b.Websocket.DataHandler <- &order.Detail{
+		ImmediateOrCancel: data.Delta.TimeInForce == string(ImmediateOrCancel),
+		FillOrKill:        data.Delta.TimeInForce == string(GoodTilCancelled),
+		PostOnly:          data.Delta.TimeInForce == string(PostOnlyGoodTilCancelled),
+		Price:             data.Delta.Limit,
+		Amount:            data.Delta.Quantity,
+		RemainingAmount:   data.Delta.Quantity - data.Delta.FillQuantity,
+		ExecutedAmount:    data.Delta.FillQuantity,
+		Exchange:          b.Name,
+		ID:                data.Delta.ID,
+		Type:              orderType,
+		Side:              orderSide,
+		Status:            orderStatus,
+		AssetType:         asset.Spot,
+		Date:              orderDate,
+		Pair:              pair,
+	}
 	return nil
 }
