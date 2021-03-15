@@ -51,7 +51,6 @@ var defaultSpotSubscribedChannels = []string{
 
 var defaultSpotSubscribedChannelsAuth = []string{
 	wsOrders,
-	//	wsFills,
 }
 
 var obSuccess = make(map[currency.Pair]bool)

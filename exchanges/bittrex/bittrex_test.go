@@ -127,13 +127,13 @@ func TestOrder(t *testing.T) {
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetOpenOrders("")
+	_, _, err := b.GetOpenOrders("")
 	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expected error")
 	}
-	_, err = b.GetOpenOrders(currPair)
+	_, _, err = b.GetOpenOrders(currPair)
 	if areTestAPIKeysSet() && err != nil {
 		t.Error(err)
 	} else if !areTestAPIKeysSet() && err == nil {
