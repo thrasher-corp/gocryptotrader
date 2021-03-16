@@ -181,13 +181,12 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 		bypassErr := o.ob.GetName() == "Bitfinex" && o.ob.IsFundingRate()
 		return o.ob.DeleteBidAskByID(updts.Bids, updts.Asks, bypassErr)
 	case Insert:
-		o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
+		return o.ob.InsertBidAskByID(updts.Bids, updts.Asks)
 	case UpdateInsert:
 		return o.ob.UpdateInsertByID(updts.Bids, updts.Asks)
 	default:
 		return fmt.Errorf("invalid action [%s]", updts.Action)
 	}
-	return nil
 }
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket

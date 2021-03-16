@@ -208,8 +208,10 @@ func TestUpdateBidAskByID(t *testing.T) {
 func TestInsertBidAskByID(t *testing.T) {
 	d := newDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}})
-	d.InsertBidAskByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}})
-
+	err := d.InsertBidAskByID(Items{{Price: 1338, Amount: 2, ID: 3}}, Items{{Price: 1336, Amount: 2, ID: 4}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(d.Retrieve().Asks) != 2 || len(d.Retrieve().Bids) != 2 {
 		t.Fatal("items not added correctly")
 	}

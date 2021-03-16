@@ -184,19 +184,26 @@ func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool) error
 }
 
 // InsertBidAskByID inserts new updates
-func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) {
+func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) error {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
-		return
+		return nil
 	}
 	d.Lock()
 	if len(bidUpdts) != 0 {
-		d.bids.insertUpdates(bidUpdts, d.stack)
+		err := d.bids.insertUpdates(bidUpdts, d.stack)
+		if err != nil {
+			return err
+		}
 	}
 	if len(askUpdts) != 0 {
-		d.asks.insertUpdates(askUpdts, d.stack)
+		err := d.asks.insertUpdates(askUpdts, d.stack)
+		if err != nil {
+			return err
+		}
 	}
 	d.alert()
 	d.Unlock()
+	return nil
 }
 
 // UpdateInsertByID updates or inserts by ID at current price level.

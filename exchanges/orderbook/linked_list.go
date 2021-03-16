@@ -41,7 +41,7 @@ func (ll *linkedList) load(items Items, stack *stack) {
 		// Set item value
 		(*tip).value = items[i]
 		// Set previous to current node
-		prev = (*tip)
+		prev = *tip
 		// Set tip to next node
 		tip = &(*tip).next
 	}
@@ -68,8 +68,7 @@ func (ll *linkedList) load(items Items, stack *stack) {
 	}
 }
 
-// updateByID ammends price by corresponding ID and returns an error if not
-// found
+// updateByID amends price by corresponding ID and returns an error if not found
 func (ll *linkedList) updateByID(updts []Item) error {
 updates:
 	for x := range updts {
@@ -88,7 +87,7 @@ updates:
 	return nil
 }
 
-// deleteByID deletes refererence by ID
+// deleteByID deletes reference by ID
 func (ll *linkedList) deleteByID(updts Items, stack *stack, bypassErr bool) error {
 updates:
 	for x := range updts {
@@ -133,7 +132,7 @@ updates:
 func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	// Reduces the max length of total linked list chain, occurs after updates
 	// have been implemented as updates can push length out of bounds, if
-	// cleaved after that update, new update might not applied correcly.
+	// cleaved after that update, new update might not applied correctly.
 	if maxChainLength == 0 || ll.length <= maxChainLength {
 		return
 	}
@@ -197,13 +196,13 @@ func (ll *linkedList) retrieve() Items {
 	return depth
 }
 
-// bids imbed a linked list to attach methods for bid depth specific
+// bids embed a linked list to attach methods for bid depth specific
 // functionality
 type bids struct {
 	linkedList
 }
 
-// updateInsertByPrice ammends, inserts, moves and cleaves length of depth by
+// updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates in bid linked list
 func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength int) {
 	for x := range updts {
@@ -304,7 +303,7 @@ updates:
 					bookmark = tip
 					continue // continue through node depth
 				}
-				// no price change, amend amount and conintue update
+				// no price change, amend amount and continue update
 				tip.value.Amount = updts[x].Amount
 				continue updates // continue to next update
 			}
@@ -351,6 +350,8 @@ updates:
 		n := stack.Pop()
 		n.value = updts[x]
 		switch {
+		case bookmark == nil: // Zero liqudity and we are rebuilding from scratch
+			ll.head = n
 		case bookmark.prev == nil:
 			n.next = ll.head
 			ll.head.prev = n
@@ -418,7 +419,7 @@ func (ll *bids) insertUpdates(updts Items, stack *stack) error {
 	return nil
 }
 
-// asks imbed a linked list to attach methods for ask depth specific
+// asks embed a linked list to attach methods for ask depth specific
 // functionality
 type asks struct {
 	linkedList
@@ -525,7 +526,7 @@ updates:
 					bookmark = tip
 					continue // continue through node depth
 				}
-				// no price change, amend amount and conintue updates
+				// no price change, amend amount and continue updates
 				tip.value.Amount = updts[x].Amount
 				continue updates // continue to next update
 			}
@@ -572,6 +573,8 @@ updates:
 		n := stack.Pop()
 		n.value = updts[x]
 		switch {
+		case bookmark == nil: // Zero liqudity and we are rebuilding from scratch
+			ll.head = n
 		case bookmark.prev == nil:
 			ll.head = n
 			n.prev = bookmark.prev
@@ -614,7 +617,7 @@ func (ll *asks) insertUpdates(updts Items, stack *stack) error {
 					updts[x].Price)
 			}
 
-			// Correct position/allignment found for price level
+			// Correct position/alignment found for price level
 			if (*tip).value.Price > updts[x].Price {
 				n := stack.Pop()
 				n.value = updts[x]

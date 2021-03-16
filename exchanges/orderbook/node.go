@@ -17,7 +17,7 @@ type node struct {
 	prev  *node
 	// Denotes time pushed to stack, this will influence cleanup routine when
 	// there is a pause or minimal actions during period
-	shelfed time.Time
+	shelved time.Time
 }
 
 // stack defines a FIFO list of reusable nodes
@@ -27,8 +27,8 @@ type stack struct {
 	count int32
 }
 
-// newstack returns a ptr to a new stack instance, also starts the cleaning
-// serbvice
+// newStack returns a ptr to a new stack instance, also starts the cleaning
+// service
 func newStack() *stack {
 	s := &stack{}
 	go s.cleaner()
@@ -43,7 +43,7 @@ func (s *stack) Push(n *node) {
 		return
 	}
 	// Adds a time when its placed back on to stack.
-	n.shelfed = time.Now()
+	n.shelved = time.Now()
 	n.next = nil
 	n.prev = nil
 	n.value = Item{}
@@ -85,14 +85,14 @@ sleeperino:
 		// TODO: Test and rethink if sizing is an issue
 		nodesLen := atomic.LoadInt32(&s.count)
 		for x := int32(0); x < nodesLen; x++ {
-			// find the first good one, everything to the left can be
-			// reassigned
-			if time.Since(s.nodes[x].shelfed) > defaultAllowance {
+			if time.Since(s.nodes[x].shelved) > defaultAllowance {
+				// Old node found continue
 				continue
 			}
-			// Go through good nodes
+			// First good node found, everything to the left of this on the
+			// slice can be reassigned
 			var counter int32
-			for y := int32(0); y+x < nodesLen; y++ {
+			for y := int32(0); y+x < nodesLen; y++ { // Go through good nodes
 				// Reassign
 				s.nodes[y] = s.nodes[y+x]
 				// Add to the changed counter to remove from main

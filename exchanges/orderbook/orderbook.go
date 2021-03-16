@@ -251,7 +251,7 @@ func (b *Base) Verify() error {
 // validation
 type checker func(current Item, previous Item) error
 
-// asc specfically defines ascending price check
+// asc specifically defines ascending price check
 var asc = func(current Item, previous Item) error {
 	if current.Price < previous.Price {
 		return errPriceOutOfOrder
@@ -259,7 +259,7 @@ var asc = func(current Item, previous Item) error {
 	return nil
 }
 
-// dsc specfically defines descending price check
+// dsc specifically defines descending price check
 var dsc = func(current Item, previous Item) error {
 	if current.Price > previous.Price {
 		return errPriceOutOfOrder
@@ -323,8 +323,7 @@ func (b *Base) Process() error {
 			return err
 		}
 	}
-	service.Update(b)
-	return nil
+	return service.Update(b)
 }
 
 // CanVerify checks to see if orderbook should be verified or it is not required

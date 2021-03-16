@@ -656,6 +656,22 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	}, s)
 
 	Check(a, 16, 156, 8, t)
+
+	// purge
+	a.load(nil, s)
+
+	// insert with no liquidity and jumbled
+	a.updateInsertByID(Items{
+		{Price: 11, Amount: 2, ID: 11},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 0.5, Amount: 2, ID: 0},
+		{Price: 12, Amount: 2, ID: 5},
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+	}, s)
+
+	Check(a, 14, 87, 7, t)
 }
 
 func TestUpdateInsertByIDBids(t *testing.T) {
@@ -834,6 +850,22 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	}, s)
 
 	Check(b, 16, 154, 8, t)
+
+	// purge
+	b.load(nil, s)
+
+	// insert with no liquidity and jumbled
+	b.updateInsertByID(Items{
+		{Price: 0.5, Amount: 2, ID: 0},
+		{Price: 1, Amount: 2, ID: 1},
+		{Price: 3, Amount: 2, ID: 3},
+		{Price: 12, Amount: 2, ID: 5},
+		{Price: 7, Amount: 2, ID: 7},
+		{Price: 9, Amount: 2, ID: 9},
+		{Price: 11, Amount: 2, ID: 11},
+	}, s)
+
+	Check(b, 14, 87, 7, t)
 }
 
 func TestInsertUpdatesBid(t *testing.T) {
