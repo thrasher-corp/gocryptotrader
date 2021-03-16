@@ -39,15 +39,15 @@ func (d *Data) GenerateReport() error {
 	if d.Config.Nickname != "" {
 		nickName = d.Config.Nickname + "-"
 	}
+	fileName := fmt.Sprintf(
+		"%v%v-%v.html",
+		nickName,
+		d.Statistics.StrategyName,
+		time.Now().Format("2006-01-02-15-04-05"))
 	var f *os.File
 	f, err = os.Create(
 		filepath.Join(d.OutputPath,
-			fmt.Sprintf(
-				"%v%v-%v.html",
-				nickName,
-				d.Statistics.StrategyName,
-				time.Now().Format("2006-01-02-15-04-05"),
-			),
+			fileName,
 		),
 	)
 	if err != nil {
@@ -64,7 +64,7 @@ func (d *Data) GenerateReport() error {
 	if err != nil {
 		return err
 	}
-	log.Infof(log.BackTester, "successfully saved report to %v", d.OutputPath)
+	log.Infof(log.BackTester, "successfully saved report to %v\\%v", d.OutputPath, fileName)
 	return nil
 }
 
