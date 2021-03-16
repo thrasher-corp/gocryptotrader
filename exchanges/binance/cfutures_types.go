@@ -580,6 +580,7 @@ type CExchangeInfo struct {
 			MinPrice          float64 `json:"minPrice,string"`
 			MaxPrice          float64 `json:"maxPrice,string"`
 			StepSize          float64 `json:"stepSize,string"`
+			TickSize          float64 `json:"tickSize,string"`
 			MaxQty            float64 `json:"maxQty,string"`
 			MinQty            float64 `json:"minQty,string"`
 			Limit             int64   `json:"limit"`

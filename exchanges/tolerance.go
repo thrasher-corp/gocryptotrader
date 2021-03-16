@@ -66,24 +66,25 @@ type ExecutionTolerance struct {
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
 // for outbound exchange execution
 type MinMaxLevel struct {
-	Pair             currency.Pair
-	Asset            asset.Item
-	MinPrice         float64
-	MaxPrice         float64
-	StepPrice        float64
-	MultiplierUp     float64
-	MultiplierDown   float64
-	AveragePriceMins float64
-	MinAmount        float64
-	MaxAmount        float64
-	StepAmount       float64
-	MinNotional      float64
-	MaxIcebergParts  int64
-	MarketMinimumQty float64
-	MarketMaxQty     float64
-	MarketStepSize   float64
-	MaxTotalOrders   int64
-	MaxAlgoOrders    int64
+	Pair              currency.Pair
+	Asset             asset.Item
+	MinPrice          float64
+	MaxPrice          float64
+	StepPrice         float64
+	MultiplierUp      float64
+	MultiplierDown    float64
+	MultiplierDecimal float64
+	AveragePriceMins  int64
+	MinAmount         float64
+	MaxAmount         float64
+	StepAmount        float64
+	MinNotional       float64
+	MaxIcebergParts   int64
+	MarketMinimumQty  float64
+	MarketMaxQty      float64
+	MarketStepSize    float64
+	MaxTotalOrders    int64
+	MaxAlgoOrders     int64
 }
 
 // LoadTolerances loads all tolerances levels into memory
@@ -227,7 +228,7 @@ type Tolerance struct {
 	minNotional      float64
 	multiplierUp     float64
 	multiplierDown   float64
-	averagePriceMins float64
+	averagePriceMins int64
 	maxIcebergParts  int64
 	marketMinimumQty float64
 	marketMaxQty     float64

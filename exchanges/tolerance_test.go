@@ -13,6 +13,7 @@ var ltcusd = currency.NewPair(currency.LTC, currency.USD)
 var btcltc = currency.NewPair(currency.BTC, currency.LTC)
 
 func TestLoadTolerances(t *testing.T) {
+	t.Parallel()
 	e := ExecutionTolerance{}
 	err := e.LoadTolerances(nil)
 	if !errors.Is(err, errCannotLoadTolerance) {
@@ -69,6 +70,7 @@ func TestLoadTolerances(t *testing.T) {
 }
 
 func TestGetTolerance(t *testing.T) {
+	t.Parallel()
 	e := ExecutionTolerance{}
 	_, err := e.GetTolerance(asset.Spot, btcusd)
 	if !errors.Is(err, ErrExchangeToleranceNotLoaded) {
@@ -120,6 +122,7 @@ func TestGetTolerance(t *testing.T) {
 }
 
 func TestCheckTolerance(t *testing.T) {
+	t.Parallel()
 	e := ExecutionTolerance{}
 	err := e.CheckTolerance(asset.Spot, btcusd, 1337, 1337, false)
 	if !errors.Is(err, nil) {
@@ -184,6 +187,7 @@ func TestCheckTolerance(t *testing.T) {
 }
 
 func TestConforms(t *testing.T) {
+	t.Parallel()
 	var tt *Tolerance
 	err := tt.Conforms(0, 0, false)
 	if err != nil {
@@ -247,6 +251,7 @@ func TestConforms(t *testing.T) {
 }
 
 func TestConformToAmount(t *testing.T) {
+	t.Parallel()
 	tt := &Tolerance{}
 	val := tt.ConformToAmount(1)
 	if val != 1 { // If there is no step amount set this should not change
