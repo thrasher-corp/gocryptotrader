@@ -967,7 +967,7 @@ func (b *Binance) SetExchangeTolerances() error {
 				assets = append(assets, asset.Margin)
 			case "LEVERAGED": // leveraged tokens not available for spot trading
 			default:
-				return fmt.Errorf("Unhandled asset type for tolerance loading %s",
+				return fmt.Errorf("unhandled asset type for tolerance loading %s",
 					spot.Symbols[x].Permissions[y])
 			}
 		}
