@@ -33,6 +33,15 @@ var (
 	// ErrNotionalValue is when the notional value does not exceed currency pair
 	// requirements
 	ErrNotionalValue = errors.New("total notional value is under minimum tolerance")
+	// ErrMarketAmountExceedsMin is when the amount is lower than the minimum
+	// amount tolerance accepted by the exchange for a market order
+	ErrMarketAmountExceedsMin = errors.New("market order amount exceeds minimum tolerance")
+	// ErrMarketAmountExceedsMax is when the amount is highger than the maxiumum
+	// amount tolerance accepted by the exchange for a market order
+	ErrMarketAmountExceedsMax = errors.New("market order amount exceeds maximum tolerance")
+	// ErrMarketAmountExceedsStep is when the amount is not divisable by its
+	// step for a market order
+	ErrMarketAmountExceedsStep = errors.New("market order amount exceeds step tolerance")
 
 	errAmountDoesNotConform        = errors.New("amount exceeds min/max parameters")
 	errCannotValidateAsset         = errors.New("cannot check tolerance asset not loaded")
@@ -69,7 +78,7 @@ type MinMaxLevel struct {
 	MaxAmount        float64
 	StepAmount       float64
 	MinNotional      float64
-	MaxIcebergeParts int64
+	MaxIcebergParts  int64
 	MarketMinimumQty float64
 	MarketMaxQty     float64
 	MarketStepSize   float64
@@ -132,6 +141,15 @@ func (e *ExecutionTolerance) LoadTolerances(levels []MinMaxLevel) error {
 		t.maxAmount = levels[x].MaxAmount
 		t.stepSizeAmount = levels[x].StepAmount
 		t.minNotional = levels[x].MinNotional
+		t.multiplierUp = levels[x].MultiplierUp
+		t.multiplierDown = levels[x].MultiplierDown
+		t.averagePriceMins = levels[x].AveragePriceMins
+		t.maxIcebergParts = levels[x].MaxIcebergParts
+		t.marketMinimumQty = levels[x].MarketMinimumQty
+		t.marketMaxQty = levels[x].MarketMaxQty
+		t.marketStepSize = levels[x].MarketStepSize
+		t.maxTotalOrders = levels[x].MaxTotalOrders
+		t.maxAlgoOrders = levels[x].MaxAlgoOrders
 	}
 	return nil
 }
@@ -165,7 +183,7 @@ func (e *ExecutionTolerance) GetTolerance(a asset.Item, cp currency.Pair) (*Tole
 
 // CheckTolerance checks to see if the price and amount conforms with exchange
 // level order execution tolerances
-func (e *ExecutionTolerance) CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64) error {
+func (e *ExecutionTolerance) CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64, marketOrder bool) error {
 	e.Lock()
 	defer e.Unlock()
 
@@ -189,7 +207,7 @@ func (e *ExecutionTolerance) CheckTolerance(a asset.Item, cp currency.Pair, pric
 		return errCannotValidateQuoteCurrency
 	}
 
-	err := t.Conforms(price, amount)
+	err := t.Conforms(price, amount, marketOrder)
 	if err != nil {
 		return fmt.Errorf("%w for %s %s", err, a, cp)
 	}
@@ -200,18 +218,27 @@ func (e *ExecutionTolerance) CheckTolerance(a asset.Item, cp currency.Pair, pric
 // Tolerance defines total limit values for an associated currency to be checked
 // before execution on an exchange
 type Tolerance struct {
-	minPrice       float64
-	maxPrice       float64
-	stepSizePrice  float64
-	minAmount      float64
-	maxAmount      float64
-	stepSizeAmount float64
-	minNotional    float64
+	minPrice         float64
+	maxPrice         float64
+	stepSizePrice    float64
+	minAmount        float64
+	maxAmount        float64
+	stepSizeAmount   float64
+	minNotional      float64
+	multiplierUp     float64
+	multiplierDown   float64
+	averagePriceMins float64
+	maxIcebergParts  int64
+	marketMinimumQty float64
+	marketMaxQty     float64
+	marketStepSize   float64
+	maxTotalOrders   int64
+	maxAlgoOrders    int64
 	sync.Mutex
 }
 
 // Conforms checks outbound parameters
-func (t *Tolerance) Conforms(price, amount float64) error {
+func (t *Tolerance) Conforms(price, amount float64, marketOrder bool) error {
 	if t == nil {
 		// For when we return a nil pointer we can assume there's nothing to
 		// check
@@ -273,6 +300,50 @@ func (t *Tolerance) Conforms(price, amount float64) error {
 			t.minNotional,
 			amount*price)
 	}
+
+	// Multiplier checking not done due to the fact we need coherence with the
+	// last average price (TODO)
+	// t.multiplierUp will be used to determine how far our price can go up
+	// t.multiplierDown will be used to determine how far our price can go down
+	// t.averagePriceMins will be used to determine mean over this period
+
+	//	Max iceberg parts checking not done as we do not have that
+	// functionality yet (TODO)
+	// t.maxIcebergeParts // How many components in an iceberg order
+
+	if marketOrder {
+		if t.marketMinimumQty != 0 &&
+			t.minAmount < t.marketMinimumQty &&
+			amount < t.marketMinimumQty {
+			return fmt.Errorf("%w min: %f suppplied %f",
+				ErrMarketAmountExceedsMin,
+				t.marketMinimumQty,
+				amount)
+		}
+		if t.marketMaxQty != 0 &&
+			t.maxAmount > t.marketMaxQty &&
+			amount > t.marketMaxQty {
+			return fmt.Errorf("%w max: %f suppplied %f",
+				ErrMarketAmountExceedsMax,
+				t.marketMaxQty,
+				amount)
+		}
+		if t.marketStepSize != 0 && t.stepSizeAmount != t.marketStepSize {
+			increase := 1 / t.marketStepSize
+			if math.Mod(amount*increase, t.marketStepSize*increase) != 0 {
+				return fmt.Errorf("%w stepSize: %f suppplied %f",
+					ErrMarketAmountExceedsStep,
+					t.marketStepSize,
+					amount)
+			}
+		}
+	}
+
+	// Max total orders not done due to order manager limitations (TODO)
+	// t.maxTotalOrders
+
+	// Max algo orders not done due to order manager limitations (TODO)
+	// t.maxAlgoOrders
 
 	return nil
 }

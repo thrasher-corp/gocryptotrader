@@ -90,5 +90,5 @@ type IBotExchange interface {
 
 	// Exchange order related execution limits
 	GetTolerance(a asset.Item, cp currency.Pair) (*Tolerance, error)
-	CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64) error
+	CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64, marketOrder bool) error
 }

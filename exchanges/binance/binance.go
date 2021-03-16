@@ -990,7 +990,7 @@ func (b *Binance) SetExchangeTolerances() error {
 				MinAmount:        spot.Symbols[x].Filters[2].MinQty,
 				StepAmount:       spot.Symbols[x].Filters[2].StepSize,
 				MinNotional:      spot.Symbols[x].Filters[3].MinNotional,
-				MaxIcebergeParts: spot.Symbols[x].Filters[4].MaxNumIcebergOrders,
+				MaxIcebergParts:  spot.Symbols[x].Filters[4].MaxNumIcebergOrders,
 				MarketMinimumQty: spot.Symbols[x].Filters[5].MinQty,
 				MarketMaxQty:     spot.Symbols[x].Filters[5].MaxQty,
 				MarketStepSize:   spot.Symbols[x].Filters[5].StepSize,

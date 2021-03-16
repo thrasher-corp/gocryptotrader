@@ -245,6 +245,6 @@ func (h *FakePassingExchange) GetTolerance(a asset.Item, cp currency.Pair) (*exc
 	return nil, nil
 }
 
-func (h *FakePassingExchange) CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64) error {
+func (h *FakePassingExchange) CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64, marketOrder bool) error {
 	return nil
 }
