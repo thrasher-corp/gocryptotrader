@@ -17,6 +17,7 @@ import (
 // GenerateReport sends final data from statistics to a template
 // to create a lovely final report for someone to view
 func (d *Data) GenerateReport() error {
+	log.Info(log.BackTester, "generating report")
 	err := d.enhanceCandles()
 	if err != nil {
 		return err
@@ -63,7 +64,7 @@ func (d *Data) GenerateReport() error {
 	if err != nil {
 		return err
 	}
-
+	log.Infof(log.BackTester, "successfully saved report to %v", d.OutputPath)
 	return nil
 }
 

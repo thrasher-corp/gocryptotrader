@@ -77,6 +77,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
 + Scripting support. See [gctscript](/gctscript/README.md).
 + Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
++ Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
 + WebGUI (discontinued).
 
 ## Planned Features
@@ -142,10 +143,10 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 648 |
+| [thrasher-](https://github.com/thrasher-) | 650 |
 | [shazbert](https://github.com/shazbert) | 202 |
-| [gloriousCode](https://github.com/gloriousCode) | 175 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 86 |
+| [gloriousCode](https://github.com/gloriousCode) | 176 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 87 |
 | [xtda](https://github.com/xtda) | 47 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
@@ -185,3 +186,5 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Jimexist](https://github.com/Jimexist) | 1 |
 | [lookfirst](https://github.com/lookfirst) | 1 |
 | [merkeld](https://github.com/merkeld) | 1 |
+| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
+| [Daanikus](https://github.com/Daanikus) | 1 |

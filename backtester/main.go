@@ -84,7 +84,6 @@ func main() {
 		"ratelimiter":   true,
 		"ordermanager":  false,
 	}
-	fmt.Println("preparing gocryptotrader bot...")
 	bot, err = engine.NewFromSettings(&engine.Settings{
 		ConfigFile:                    path,
 		EnableDryRun:                  true,
@@ -101,7 +100,6 @@ func main() {
 		os.Exit(1)
 	}
 	if cfg.DataSettings.LiveData != nil {
-		fmt.Println("running backtester against live data...")
 		go func() {
 			err = bt.RunLive()
 			if err != nil {
@@ -113,7 +111,6 @@ func main() {
 		gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
 		bt.Stop()
 	} else {
-		fmt.Println("running backtester...")
 		err = bt.Run()
 		if err != nil {
 			fmt.Printf("Could not complete run. Error: %v.\n", err)
@@ -121,14 +118,12 @@ func main() {
 		}
 	}
 
-	fmt.Println("calculating results...")
 	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
 		gctlog.Error(gctlog.BackTester, err)
 	}
 
 	if generateReport {
-		fmt.Println("generating report...")
 		err = bt.Reports.GenerateReport()
 		if err != nil {
 			gctlog.Error(gctlog.BackTester, err)

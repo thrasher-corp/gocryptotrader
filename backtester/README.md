@@ -1,6 +1,6 @@
 # GoCryptoTrader Backtester: Backtester package
 
-<img src="https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
@@ -45,7 +45,7 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
   - Start & end dates
   - The strategy to run
   - The candle interval
-  - Where the data is to be sourced ([API](/backtester/data/kline/api), [CSV](/backtester/data/kline/csv), [database](/backtester/data/kline/database), [live](/backtester/data/kline/live))
+  - Where the data is to be sourced ([API](/data/kline/api), [CSV](/data/kline/csv), [database](/data/kline/database), [live](/data/kline/live))
   - Whether to use trade or candle data ([readme](/data/kline/README.md))
   - A nickname for the strategy (to help differentiate between runs/configs using the same strategy)
   - The currency/currencies to use
@@ -63,10 +63,10 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 To run the application using the provided dollar cost average strategy, simply run `go run .` from `gocryptotrader/backtester`. An output of the results will be put in the `results` folder.
 
 # How do I create my own config?
-There is a config generating helper application under `/backtester/config/configbuilder` to help you create a `.strat` file. Read more about it [here](/config/configbuilder/README.md). There are also a number of tests under `/backtester/config/config_test.go` which generate configs into the `examples` folder, which if you have code knowledge, can write your own configs programmatically.
+There is a config generating helper application under `/backtester/config/configbuilder` to help you create a `.strat` file. Read more about it [here](/config/configbuilder/README.md). There are also a number of tests under `/config/config_test.go` which generate configs into the `examples` folder, which if you have code knowledge, can write your own configs programmatically.
 
 # How do I create my own strategy?
-Creating strategies requires programming skills. [Here](/backtester/eventhandlers/strategies/README.md) is a readme on the subject. After reading the readmes, please review the strategies [here](/backtester/eventhandlers/strategies/) to gain an understanding on how to write your own.
+Creating strategies requires programming skills. [Here](/eventhandlers/strategies/README.md) is a readme on the subject. After reading the readmes, please review the strategies [here](/eventhandlers/strategies/) to gain an understanding on how to write your own.
 
 # How does it work technically?
 - The readmes linked in the "How does it work" covers the main parts of the application.

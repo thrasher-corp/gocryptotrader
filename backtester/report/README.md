@@ -1,6 +1,6 @@
 # GoCryptoTrader Backtester: Report package
 
-<img src="https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
@@ -25,7 +25,7 @@ The report package helps generates the output under the `results` folder.
 As the application is run, many statistics such as purchase events are tracked. These events are utilised and enhanced in the report package in order to render an HTML report for easy comparison and historical strategy effectiveness.
 
 The report utilises the following sweet technologies:
-- go templating ([tpl.gohtml](/tpl.gohtml))
+- go templating ([tpl.gohtml](tpl.gohtml))
 - [mdbootstrap](https://mdbootstrap.com/)
 - [lightweightcharts](https://github.com/tradingview/lightweight-charts/) by [TradingView](https://www.tradingview.com/)
 

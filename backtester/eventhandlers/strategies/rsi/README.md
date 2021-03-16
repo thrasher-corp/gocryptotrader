@@ -1,6 +1,6 @@
 # GoCryptoTrader Backtester: Rsi package
 
-<img src="https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
@@ -21,7 +21,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Rsi package overview
 
 The RSI strategy utilises [the gct-ta RSI package](https://github.com/thrasher-corp/gct-ta) to analyse market signals and output buy or sell signals based on the RSI output.
-This strategy does not support `SimultaneousSignalProcessing` aka [use-simultaneous-signal-processing]().
+This strategy does not support `SimultaneousSignalProcessing` aka [use-simultaneous-signal-processing](../../../config/README.md).
 This strategy does support strategy customisation in the following ways:
 
 | Field | Description |  Example |

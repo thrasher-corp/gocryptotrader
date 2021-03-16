@@ -624,6 +624,7 @@ func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() error {
+	log.Info(log.BackTester, "running backtester against pre-defined data")
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
@@ -836,6 +837,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event) {
 // It runs by constantly checking for new live datas and running through the list of events
 // once new data is processed. It will run until application close event has been received
 func (bt *BackTest) RunLive() error {
+	log.Info(log.BackTester, "running backtester against live data")
 	timeoutTimer := time.NewTimer(time.Minute * 5)
 	// a frequent timer so that when a new candle is released by an exchange
 	// that it can be processed quickly

@@ -1,6 +1,6 @@
 # GoCryptoTrader Backtester: Risk package
 
-<img src="https://github.com/gloriousCode/gocryptotrader/blob/backscratcher/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
@@ -23,7 +23,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 The risk manager is responsible for ensuring that no order can be made if it is deemed too risky.
 Risk is currently defined by ensuring that orders cannot have too much leverage for the individual order, overall with all orders in the portfolio as well as whether there are too many orders for an individual currency
 
-See config package [readme](../../backtester/config/README.md) to view the risk related fields to customise
+See config package [readme](../../config/README.md) to view the risk related fields to customise
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
