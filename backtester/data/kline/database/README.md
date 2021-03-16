@@ -21,8 +21,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Database package overview
 
 This package is responsible for the loading of kline data via a user's existing GoCryptoTrader database. It can load existing data from the `candles` and `trades` tables.
-For more information on the GoCryptoTrader database, read [this readme](../../README.md).
-Ensure that your database has data and has been seeded with exchanges. For more information on this, please see [this readme](../../cmd/dbseed/README.md).
+For more information on the GoCryptoTrader database, read [this readme](../../../../database/README.md).
+Ensure that your database has data and has been seeded with exchanges. For more information on this, please see [this readme](../../../../cmd/dbseed/README.md).
 
 ### Database credentials
 #### Defaults
