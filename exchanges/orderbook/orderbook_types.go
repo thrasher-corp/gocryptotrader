@@ -117,5 +117,4 @@ type options struct {
 	hasChecksumValidation bool
 	restSnapshot          bool
 	idAligned             bool
-	gloriousField         bool
 }
