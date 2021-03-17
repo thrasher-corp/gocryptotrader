@@ -87,6 +87,6 @@ type IBotExchange interface {
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket() error
 	// Exchange order related execution limits
-	GetTolerance(a asset.Item, cp currency.Pair) (*Tolerance, error)
-	CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64, marketOrder bool) error
+	GetLimit(a asset.Item, cp currency.Pair) (*order.Limits, error)
+	CheckLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 }

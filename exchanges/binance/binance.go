@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -944,7 +945,7 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 
 // SetExchangeTolerances sets exchange tolerances for all assets
 func (b *Binance) SetExchangeTolerances() error {
-	var limits []exchange.MinMaxLevel
+	var limits []order.MinMaxLevel
 
 	spot, err := b.GetExchangeInfo()
 	if err != nil {
@@ -977,25 +978,25 @@ func (b *Binance) SetExchangeTolerances() error {
 				continue
 			}
 
-			limits = append(limits, exchange.MinMaxLevel{
-				Pair:             cp,
-				Asset:            assets[z],
-				MinPrice:         spot.Symbols[x].Filters[0].MinPrice,
-				MaxPrice:         spot.Symbols[x].Filters[0].MaxPrice,
-				StepPrice:        spot.Symbols[x].Filters[0].TickSize,
-				MultiplierUp:     spot.Symbols[x].Filters[1].MultiplierUp,
-				MultiplierDown:   spot.Symbols[x].Filters[1].MultiplierDown,
-				AveragePriceMins: spot.Symbols[x].Filters[1].AvgPriceMins,
-				MaxAmount:        spot.Symbols[x].Filters[2].MaxQty,
-				MinAmount:        spot.Symbols[x].Filters[2].MinQty,
-				StepAmount:       spot.Symbols[x].Filters[2].StepSize,
-				MinNotional:      spot.Symbols[x].Filters[3].MinNotional,
-				MaxIcebergParts:  spot.Symbols[x].Filters[4].Limit,
-				MarketMinQty:     spot.Symbols[x].Filters[5].MinQty,
-				MarketMaxQty:     spot.Symbols[x].Filters[5].MaxQty,
-				MarketStepSize:   spot.Symbols[x].Filters[5].StepSize,
-				MaxTotalOrders:   spot.Symbols[x].Filters[6].MaxNumOrders,
-				MaxAlgoOrders:    spot.Symbols[x].Filters[7].MaxNumAlgoOrders,
+			limits = append(limits, order.MinMaxLevel{
+				Pair:                cp,
+				Asset:               assets[z],
+				MinPrice:            spot.Symbols[x].Filters[0].MinPrice,
+				MaxPrice:            spot.Symbols[x].Filters[0].MaxPrice,
+				StepPrice:           spot.Symbols[x].Filters[0].TickSize,
+				MultiplierUp:        spot.Symbols[x].Filters[1].MultiplierUp,
+				MultiplierDown:      spot.Symbols[x].Filters[1].MultiplierDown,
+				AveragePriceMinutes: spot.Symbols[x].Filters[1].AvgPriceMinutes,
+				MaxAmount:           spot.Symbols[x].Filters[2].MaxQty,
+				MinAmount:           spot.Symbols[x].Filters[2].MinQty,
+				StepAmount:          spot.Symbols[x].Filters[2].StepSize,
+				MinNotional:         spot.Symbols[x].Filters[3].MinNotional,
+				MaxIcebergParts:     spot.Symbols[x].Filters[4].Limit,
+				MarketMinQty:        spot.Symbols[x].Filters[5].MinQty,
+				MarketMaxQty:        spot.Symbols[x].Filters[5].MaxQty,
+				MarketStepSize:      spot.Symbols[x].Filters[5].StepSize,
+				MaxTotalOrders:      spot.Symbols[x].Filters[6].MaxNumOrders,
+				MaxAlgoOrders:       spot.Symbols[x].Filters[7].MaxNumAlgoOrders,
 			})
 		}
 	}
@@ -1017,7 +1018,7 @@ func (b *Binance) SetExchangeTolerances() error {
 			continue
 		}
 
-		limits = append(limits, exchange.MinMaxLevel{
+		limits = append(limits, order.MinMaxLevel{
 			Pair:              cp,
 			Asset:             asset.USDTMarginedFutures,
 			MinPrice:          usdtFutures.Symbols[x].Filters[0].MinPrice,
@@ -1055,7 +1056,7 @@ func (b *Binance) SetExchangeTolerances() error {
 			continue
 		}
 
-		limits = append(limits, exchange.MinMaxLevel{
+		limits = append(limits, order.MinMaxLevel{
 			Pair:              cp,
 			Asset:             asset.CoinMarginedFutures,
 			MinPrice:          coinFutures.Symbols[x].Filters[0].MinPrice,
@@ -1074,5 +1075,5 @@ func (b *Binance) SetExchangeTolerances() error {
 			MultiplierDecimal: coinFutures.Symbols[x].Filters[5].MultiplierDecimal,
 		})
 	}
-	return b.LoadTolerances(limits)
+	return b.LoadLimits(limits)
 }

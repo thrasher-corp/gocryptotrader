@@ -51,7 +51,7 @@ type ExchangeInfo struct {
 			TickSize            float64 `json:"tickSize,string"`
 			MultiplierUp        float64 `json:"multiplierUp,string"`
 			MultiplierDown      float64 `json:"multiplierDown,string"`
-			AvgPriceMins        int64   `json:"avgPriceMins"`
+			AvgPriceMinutes     int64   `json:"avgPriceMins"`
 			MinQty              float64 `json:"minQty,string"`
 			MaxQty              float64 `json:"maxQty,string"`
 			StepSize            float64 `json:"stepSize,string"`

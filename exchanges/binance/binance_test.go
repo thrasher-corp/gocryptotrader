@@ -2486,7 +2486,7 @@ func TestSetTolerances(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tol, err := b.GetTolerance(asset.CoinMarginedFutures, cmfCP)
+	tol, err := b.GetLimit(asset.CoinMarginedFutures, cmfCP)
 	if err != nil {
 		t.Fatal(err)
 	}
