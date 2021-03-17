@@ -189,6 +189,7 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) error {
 		return nil
 	}
 	d.Lock()
+	defer d.Unlock()
 	if len(bidUpdts) != 0 {
 		err := d.bids.insertUpdates(bidUpdts, d.stack)
 		if err != nil {
@@ -201,8 +202,6 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) error {
 			return err
 		}
 	}
-	d.alert()
-	d.Unlock()
 	return nil
 }
 
