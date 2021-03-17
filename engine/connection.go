@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -25,7 +24,7 @@ func (c *connectionManager) Started() bool {
 // Start starts an instance of the connection manager
 func (c *connectionManager) Start(conf *config.ConnectionMonitorConfig) error {
 	if !atomic.CompareAndSwapInt32(&c.started, 0, 1) {
-		return errors.New("connection manager already started")
+		return fmt.Errorf("connection manager %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 
 	log.Debugln(log.ConnectionMgr, "Connection manager starting...")

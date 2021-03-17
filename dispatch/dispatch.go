@@ -80,7 +80,7 @@ func SpawnWorker() error {
 // configuration, then spawns workers
 func (d *Dispatcher) start(workers, channelCapacity int) error {
 	if atomic.LoadUint32(&d.running) == 1 {
-		return errors.New(errAlreadyStarted)
+		return fmt.Errorf("dispatcher %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 
 	if workers < 1 {

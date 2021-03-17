@@ -32,7 +32,7 @@ func (n *ntpManager) Started() bool {
 
 func (n *ntpManager) Start() error {
 	if !atomic.CompareAndSwapInt32(&n.started, 0, 1) {
-		return errors.New("NTP manager already started")
+		return fmt.Errorf("NTP manager %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 
 	if Bot.Config.NTPClient.Level == -1 {

@@ -969,9 +969,11 @@ func TestGetOrder(t *testing.T) {
 	if Bot == nil {
 		Bot = engerino
 	}
-	err = Bot.OrderManager.Start()
-	if err != nil {
-		t.Fatal(err)
+	if !Bot.OrderManager.Started() {
+		err = Bot.OrderManager.Start()
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,

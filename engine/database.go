@@ -29,7 +29,7 @@ func (a *databaseManager) Started() bool {
 
 func (a *databaseManager) Start(bot *Engine) (err error) {
 	if !atomic.CompareAndSwapInt32(&a.started, 0, 1) {
-		return errors.New("database manager already started")
+		return fmt.Errorf("database manager %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 
 	defer func() {
