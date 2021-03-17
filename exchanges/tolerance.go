@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
@@ -20,15 +21,15 @@ var (
 	// ErrPriceExceedsMax is when the price is higher than the maximum price
 	// tolerance accepted by the exchange
 	ErrPriceExceedsMax = errors.New("price exceeds maximum tolerance")
-	// ErrPriceExceedsStep is when the price is not divisable by its step
+	// ErrPriceExceedsStep is when the price is not divisible by its step
 	ErrPriceExceedsStep = errors.New("price exceeds step tolerance")
 	// ErrAmountExceedsMin is when the amount is lower than the minimum amount
 	// tolerance accepted by the exchange
 	ErrAmountExceedsMin = errors.New("amount exceeds minimum tolerance")
-	// ErrAmountExceedsMax is when the amount is highger than the maxiumum amount
+	// ErrAmountExceedsMax is when the amount is higher than the maximum amount
 	// tolerance accepted by the exchange
 	ErrAmountExceedsMax = errors.New("amount exceeds maximum tolerance")
-	// ErrAmountExceedsStep is when the amount is not divisable by its step
+	// ErrAmountExceedsStep is when the amount is not divisible by its step
 	ErrAmountExceedsStep = errors.New("amount exceeds step tolerance")
 	// ErrNotionalValue is when the notional value does not exceed currency pair
 	// requirements
@@ -36,10 +37,10 @@ var (
 	// ErrMarketAmountExceedsMin is when the amount is lower than the minimum
 	// amount tolerance accepted by the exchange for a market order
 	ErrMarketAmountExceedsMin = errors.New("market order amount exceeds minimum tolerance")
-	// ErrMarketAmountExceedsMax is when the amount is highger than the maxiumum
+	// ErrMarketAmountExceedsMax is when the amount is higher than the maximum
 	// amount tolerance accepted by the exchange for a market order
 	ErrMarketAmountExceedsMax = errors.New("market order amount exceeds maximum tolerance")
-	// ErrMarketAmountExceedsStep is when the amount is not divisable by its
+	// ErrMarketAmountExceedsStep is when the amount is not divisible by its
 	// step for a market order
 	ErrMarketAmountExceedsStep = errors.New("market order amount exceeds step tolerance")
 
@@ -65,25 +66,25 @@ type ExecutionTolerance struct {
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
 // for outbound exchange execution
 type MinMaxLevel struct {
-	Pair              currency.Pair
-	Asset             asset.Item
-	MinPrice          float64
-	MaxPrice          float64
-	StepPrice         float64
-	MultiplierUp      float64
-	MultiplierDown    float64
-	MultiplierDecimal float64
-	AveragePriceMins  int64
-	MinAmount         float64
-	MaxAmount         float64
-	StepAmount        float64
-	MinNotional       float64
-	MaxIcebergParts   int64
-	MarketMinQty      float64
-	MarketMaxQty      float64
-	MarketStepSize    float64
-	MaxTotalOrders    int64
-	MaxAlgoOrders     int64
+	Pair                currency.Pair
+	Asset               asset.Item
+	MinPrice            float64
+	MaxPrice            float64
+	StepPrice           float64
+	MultiplierUp        float64
+	MultiplierDown      float64
+	MultiplierDecimal   float64
+	AveragePriceMinutes int64
+	MinAmount           float64
+	MaxAmount           float64
+	StepAmount          float64
+	MinNotional         float64
+	MaxIcebergParts     int64
+	MarketMinQty        float64
+	MarketMaxQty        float64
+	MarketStepSize      float64
+	MaxTotalOrders      int64
+	MaxAlgoOrders       int64
 }
 
 // LoadTolerances loads all tolerances levels into memory
@@ -98,22 +99,22 @@ func (e *ExecutionTolerance) LoadTolerances(levels []MinMaxLevel) error {
 	}
 
 	for x := range levels {
-		assets, ok := e.m[levels[x].Asset]
+		m1, ok := e.m[levels[x].Asset]
 		if !ok {
-			assets = make(map[currency.Code]map[currency.Code]*Tolerance)
-			e.m[levels[x].Asset] = assets
+			m1 = make(map[currency.Code]map[currency.Code]*Tolerance)
+			e.m[levels[x].Asset] = m1
 		}
 
-		pairs, ok := assets[levels[x].Pair.Base]
+		m2, ok := m1[levels[x].Pair.Base]
 		if !ok {
-			pairs = make(map[currency.Code]*Tolerance)
-			assets[levels[x].Pair.Base] = pairs
+			m2 = make(map[currency.Code]*Tolerance)
+			m1[levels[x].Pair.Base] = m2
 		}
 
-		t, ok := pairs[levels[x].Pair.Quote]
+		limit, ok := m2[levels[x].Pair.Quote]
 		if !ok {
-			t = new(Tolerance)
-			pairs[levels[x].Pair.Quote] = t
+			limit = new(Tolerance)
+			m2[levels[x].Pair.Quote] = limit
 		}
 
 		if levels[x].MinPrice >= levels[x].MaxPrice {
@@ -134,22 +135,22 @@ func (e *ExecutionTolerance) LoadTolerances(levels []MinMaxLevel) error {
 				levels[x].MaxAmount)
 		}
 
-		t.minPrice = levels[x].MinPrice
-		t.maxPrice = levels[x].MaxPrice
-		t.stepSizePrice = levels[x].StepPrice
-		t.minAmount = levels[x].MinAmount
-		t.maxAmount = levels[x].MaxAmount
-		t.stepSizeAmount = levels[x].StepAmount
-		t.minNotional = levels[x].MinNotional
-		t.multiplierUp = levels[x].MultiplierUp
-		t.multiplierDown = levels[x].MultiplierDown
-		t.averagePriceMins = levels[x].AveragePriceMins
-		t.maxIcebergParts = levels[x].MaxIcebergParts
-		t.marketMinQty = levels[x].MarketMinQty
-		t.marketMaxQty = levels[x].MarketMaxQty
-		t.marketStepSize = levels[x].MarketStepSize
-		t.maxTotalOrders = levels[x].MaxTotalOrders
-		t.maxAlgoOrders = levels[x].MaxAlgoOrders
+		limit.minPrice = levels[x].MinPrice
+		limit.maxPrice = levels[x].MaxPrice
+		limit.stepIncrementSizePrice = levels[x].StepPrice
+		limit.minAmount = levels[x].MinAmount
+		limit.maxAmount = levels[x].MaxAmount
+		limit.stepIncrementSizeAmount = levels[x].StepAmount
+		limit.minNotional = levels[x].MinNotional
+		limit.multiplierUp = levels[x].MultiplierUp
+		limit.multiplierDown = levels[x].MultiplierDown
+		limit.averagePriceMinutes = levels[x].AveragePriceMinutes
+		limit.maxIcebergParts = levels[x].MaxIcebergParts
+		limit.marketMinQty = levels[x].MarketMinQty
+		limit.marketMaxQty = levels[x].MarketMaxQty
+		limit.marketStepIncrementSize = levels[x].MarketStepSize
+		limit.maxTotalOrders = levels[x].MaxTotalOrders
+		limit.maxAlgoOrders = levels[x].MaxAlgoOrders
 	}
 	return nil
 }
@@ -163,27 +164,27 @@ func (e *ExecutionTolerance) GetTolerance(a asset.Item, cp currency.Pair) (*Tole
 		return nil, ErrExchangeToleranceNotLoaded
 	}
 
-	assets, ok := e.m[a]
+	m1, ok := e.m[a]
 	if !ok {
 		return nil, errExchangeToleranceAsset
 	}
 
-	pairs, ok := assets[cp.Base]
+	m2, ok := m1[cp.Base]
 	if !ok {
 		return nil, errExchangeToleranceBase
 	}
 
-	t, ok := pairs[cp.Quote]
+	limit, ok := m2[cp.Quote]
 	if !ok {
 		return nil, errExchangeToleranceQuote
 	}
 
-	return t, nil
+	return limit, nil
 }
 
 // CheckTolerance checks to see if the price and amount conforms with exchange
 // level order execution tolerances
-func (e *ExecutionTolerance) CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64, marketOrder bool) error {
+func (e *ExecutionTolerance) CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error {
 	e.Lock()
 	defer e.Unlock()
 
@@ -192,22 +193,22 @@ func (e *ExecutionTolerance) CheckTolerance(a asset.Item, cp currency.Pair, pric
 		return nil
 	}
 
-	assets, ok := e.m[a]
+	m1, ok := e.m[a]
 	if !ok {
 		return errCannotValidateAsset
 	}
 
-	pairs, ok := assets[cp.Base]
+	m2, ok := m1[cp.Base]
 	if !ok {
 		return errCannotValidateBaseCurrency
 	}
 
-	t, ok := pairs[cp.Quote]
+	limit, ok := m2[cp.Quote]
 	if !ok {
 		return errCannotValidateQuoteCurrency
 	}
 
-	err := t.Conforms(price, amount, marketOrder)
+	err := limit.Conforms(price, amount, orderType)
 	if err != nil {
 		return fmt.Errorf("%w for %s %s", err, a, cp)
 	}
@@ -218,27 +219,27 @@ func (e *ExecutionTolerance) CheckTolerance(a asset.Item, cp currency.Pair, pric
 // Tolerance defines total limit values for an associated currency to be checked
 // before execution on an exchange
 type Tolerance struct {
-	minPrice         float64
-	maxPrice         float64
-	stepSizePrice    float64
-	minAmount        float64
-	maxAmount        float64
-	stepSizeAmount   float64
-	minNotional      float64
-	multiplierUp     float64
-	multiplierDown   float64
-	averagePriceMins int64
-	maxIcebergParts  int64
-	marketMinQty     float64
-	marketMaxQty     float64
-	marketStepSize   float64
-	maxTotalOrders   int64
-	maxAlgoOrders    int64
+	minPrice                float64
+	maxPrice                float64
+	stepIncrementSizePrice  float64
+	minAmount               float64
+	maxAmount               float64
+	stepIncrementSizeAmount float64
+	minNotional             float64
+	multiplierUp            float64
+	multiplierDown          float64
+	averagePriceMinutes     int64
+	maxIcebergParts         int64
+	marketMinQty            float64
+	marketMaxQty            float64
+	marketStepIncrementSize float64
+	maxTotalOrders          int64
+	maxAlgoOrders           int64
 	sync.Mutex
 }
 
 // Conforms checks outbound parameters
-func (t *Tolerance) Conforms(price, amount float64, marketOrder bool) error {
+func (t *Tolerance) Conforms(price, amount float64, orderType order.Type) error {
 	if t == nil {
 		// For when we return a nil pointer we can assume there's nothing to
 		// check
@@ -260,12 +261,12 @@ func (t *Tolerance) Conforms(price, amount float64, marketOrder bool) error {
 			price)
 	}
 
-	if t.stepSizePrice != 0 {
-		increase := 1 / t.stepSizePrice
-		if math.Mod(price*increase, t.stepSizePrice*increase) != 0 {
+	if t.stepIncrementSizePrice != 0 {
+		increase := 1 / t.stepIncrementSizePrice
+		if math.Mod(price*increase, t.stepIncrementSizePrice*increase) != 0 {
 			return fmt.Errorf("%w stepSize: %f suppplied %f",
 				ErrPriceExceedsStep,
-				t.stepSizePrice,
+				t.stepIncrementSizePrice,
 				price)
 		}
 	}
@@ -284,12 +285,12 @@ func (t *Tolerance) Conforms(price, amount float64, marketOrder bool) error {
 			price)
 	}
 
-	if t.stepSizeAmount != 0 {
-		increase := 1 / t.stepSizeAmount
-		if math.Mod(amount*increase, t.stepSizeAmount*increase) != 0 {
+	if t.stepIncrementSizeAmount != 0 {
+		increase := 1 / t.stepIncrementSizeAmount
+		if math.Mod(amount*increase, t.stepIncrementSizeAmount*increase) != 0 {
 			return fmt.Errorf("%w stepSize: %f suppplied %f",
 				ErrAmountExceedsStep,
-				t.stepSizeAmount,
+				t.stepIncrementSizeAmount,
 				amount)
 		}
 	}
@@ -305,13 +306,13 @@ func (t *Tolerance) Conforms(price, amount float64, marketOrder bool) error {
 	// last average price (TODO)
 	// t.multiplierUp will be used to determine how far our price can go up
 	// t.multiplierDown will be used to determine how far our price can go down
-	// t.averagePriceMins will be used to determine mean over this period
+	// t.averagePriceMinutes will be used to determine mean over this period
 
-	//	Max iceberg parts checking not done as we do not have that
+	// Max iceberg parts checking not done as we do not have that
 	// functionality yet (TODO)
-	// t.maxIcebergeParts // How many components in an iceberg order
+	// t.maxIcebergParts // How many components in an iceberg order
 
-	if marketOrder {
+	if orderType == order.Market {
 		if t.marketMinQty != 0 &&
 			t.minAmount < t.marketMinQty &&
 			amount < t.marketMinQty {
@@ -328,12 +329,12 @@ func (t *Tolerance) Conforms(price, amount float64, marketOrder bool) error {
 				t.marketMaxQty,
 				amount)
 		}
-		if t.marketStepSize != 0 && t.stepSizeAmount != t.marketStepSize {
-			increase := 1 / t.marketStepSize
-			if math.Mod(amount*increase, t.marketStepSize*increase) != 0 {
+		if t.marketStepIncrementSize != 0 && t.stepIncrementSizeAmount != t.marketStepIncrementSize {
+			increase := 1 / t.marketStepIncrementSize
+			if math.Mod(amount*increase, t.marketStepIncrementSize*increase) != 0 {
 				return fmt.Errorf("%w stepSize: %f suppplied %f",
 					ErrMarketAmountExceedsStep,
-					t.marketStepSize,
+					t.marketStepIncrementSize,
 					amount)
 			}
 		}
@@ -354,10 +355,10 @@ func (t *Tolerance) Conforms(price, amount float64, marketOrder bool) error {
 func (t *Tolerance) ConformToAmount(amount float64) float64 {
 	t.Lock()
 	defer t.Unlock()
-	if t.stepSizeAmount == 0 {
+	if t.stepIncrementSizeAmount == 0 {
 		return amount
 	}
-	increase := 1 / t.stepSizeAmount
+	increase := 1 / t.stepIncrementSizeAmount
 	// math round used because we don't want miss precision the downside to this
 	// is that it will increase position size due to rounding issues.
 	return math.Round(amount*increase) / increase

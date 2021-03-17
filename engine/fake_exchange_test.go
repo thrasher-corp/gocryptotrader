@@ -240,11 +240,3 @@ func (h *FakePassingExchange) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.
 func (h *FakePassingExchange) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
-
-func (h *FakePassingExchange) GetTolerance(a asset.Item, cp currency.Pair) (*exchange.Tolerance, error) {
-	return nil, nil
-}
-
-func (h *FakePassingExchange) CheckTolerance(a asset.Item, cp currency.Pair, price, amount float64, marketOrder bool) error {
-	return nil
-}
