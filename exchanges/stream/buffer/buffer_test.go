@@ -306,7 +306,7 @@ func TestInsertWithIDs(t *testing.T) {
 			Pair:       cp,
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
-			Action:     "insert",
+			Action:     UpdateInsert,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -314,10 +314,10 @@ func TestInsertWithIDs(t *testing.T) {
 	}
 
 	book := holder.ob[cp.Base][cp.Quote][asset.Spot]
-	if book.ob.GetAskLength() != 5 {
+	if book.ob.GetAskLength() != 6 {
 		t.Errorf("expected 5 entries, received: %v", book.ob.GetAskLength())
 	}
-	if book.ob.GetBidLength() != 5 {
+	if book.ob.GetBidLength() != 6 {
 		t.Errorf("expected 5 entries, received: %v", book.ob.GetBidLength())
 	}
 }
