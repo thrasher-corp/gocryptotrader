@@ -7,29 +7,6 @@ import (
 	"testing"
 )
 
-var bid = Items{
-	Item{Price: 1336, Amount: 1},
-	Item{Price: 1335, Amount: 1},
-	Item{Price: 1334, Amount: 1},
-	Item{Price: 1333, Amount: 1},
-	Item{Price: 1332, Amount: 1},
-	Item{Price: 1331, Amount: 1},
-	Item{Price: 1330, Amount: 1},
-	Item{Price: 1329, Amount: 1},
-	Item{Price: 1328, Amount: 1},
-	Item{Price: 1327, Amount: 1},
-	Item{Price: 1326, Amount: 1},
-	Item{Price: 1325, Amount: 1},
-	Item{Price: 1324, Amount: 1},
-	Item{Price: 1323, Amount: 1},
-	Item{Price: 1322, Amount: 1},
-	Item{Price: 1321, Amount: 1},
-	Item{Price: 1320, Amount: 1},
-	Item{Price: 1319, Amount: 1},
-	Item{Price: 1318, Amount: 1},
-	Item{Price: 1317, Amount: 1},
-}
-
 var ask = Items{
 	Item{Price: 1337, Amount: 1},
 	Item{Price: 1338, Amount: 1},
