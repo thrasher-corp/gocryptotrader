@@ -1636,7 +1636,10 @@ func (c *Config) SaveConfigToFile(configPath string) error {
 	}
 	defer func() {
 		if writer != nil {
-			writer.Close()
+			err = writer.Close()
+			if err != nil {
+				log.Error(log.Global, err)
+			}
 		}
 	}()
 	return c.Save(provider, func() ([]byte, error) { return PromptForConfigKey(true) })

@@ -228,7 +228,12 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 		return ErrExchangeFailedToLoad
 	}
 
-	exch.SetDefaults()
+	var localWG sync.WaitGroup
+	localWG.Add(1)
+	go func() {
+		exch.SetDefaults()
+		localWG.Done()
+	}()
 	exchCfg, err := bot.Config.GetExchangeConfig(name)
 	if err != nil {
 		return err
@@ -305,6 +310,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 		bot.dryrunParamInteraction("enableallexchanges")
 	}
 
+	localWG.Wait()
 	if !bot.Settings.EnableExchangeHTTPRateLimiter {
 		log.Warnf(log.ExchangeSys,
 			"Loaded exchange %s rate limiting has been turned off.\n",
@@ -375,17 +381,23 @@ func (bot *Engine) SetupExchanges() {
 			log.Debugf(log.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
 			continue
 		}
-		err := bot.LoadExchange(configs[x].Name, true, &wg)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "LoadExchange %s failed: %s\n", configs[x].Name, err)
-			continue
-		}
-		log.Debugf(log.ExchangeSys,
-			"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-			configs[x].Name,
-			common.IsEnabled(configs[x].API.AuthenticatedSupport),
-			common.IsEnabled(configs[x].Verbose),
-		)
+		wg.Add(1)
+		go func(iterator int) {
+			err := bot.LoadExchange(configs[iterator].Name, true, &wg)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "LoadExchange %s failed: %s\n", configs[iterator].Name, err)
+				wg.Done()
+				return
+			}
+			log.Debugf(log.ExchangeSys,
+				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
+				configs[iterator].Name,
+				common.IsEnabled(configs[iterator].API.AuthenticatedSupport),
+				common.IsEnabled(configs[iterator].Verbose),
+			)
+			log.Errorf(log.ExchangeSys, "done loading exchange %s", configs[iterator].Name)
+			wg.Done()
+		}(x)
 	}
 	wg.Wait()
 }

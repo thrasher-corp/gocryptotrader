@@ -2,10 +2,12 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -23,13 +25,14 @@ func (c *commsManager) Started() bool {
 }
 
 func (c *commsManager) Start() (err error) {
-	if atomic.AddInt32(&c.started, 1) != 1 {
-		return errors.New("communications manager already started")
+	if !atomic.CompareAndSwapInt32(&c.started, 0, 1) {
+		return fmt.Errorf("communications manager %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&c.started, 1, 0)
+			atomic.CompareAndSwapInt32(&c.stopped, 0, 1)
 		}
 	}()
 
@@ -56,13 +59,15 @@ func (c *commsManager) GetStatus() (map[string]base.CommsStatus, error) {
 
 func (c *commsManager) Stop() error {
 	if atomic.LoadInt32(&c.started) == 0 {
-		return errors.New("communications manager not started")
+		return fmt.Errorf("communications manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-
-	if atomic.AddInt32(&c.stopped, 1) != 1 {
-		return errors.New("communications manager is already stopped")
+	if atomic.LoadInt32(&c.stopped) == 1 {
+		return fmt.Errorf("communications manager %w", subsystem.ErrSubSystemAlreadyStopped)
 	}
-
+	defer func() {
+		atomic.CompareAndSwapInt32(&c.stopped, 0, 1)
+		atomic.CompareAndSwapInt32(&c.started, 1, 0)
+	}()
 	close(c.shutdown)
 	log.Debugln(log.CommunicationMgr, "Communications manager shutting down...")
 	return nil
@@ -82,15 +87,13 @@ func (c *commsManager) PushEvent(evt base.Event) {
 func (c *commsManager) run() {
 	defer func() {
 		// TO-DO shutdown comms connections for connected services (Slack etc)
-		atomic.CompareAndSwapInt32(&c.stopped, 1, 0)
-		atomic.CompareAndSwapInt32(&c.started, 1, 0)
 		log.Debugln(log.CommunicationMgr, "Communications manager shutdown.")
 	}()
 
 	for {
 		select {
 		case msg := <-c.relayMsg:
-			c.comms.PushEvent(msg)
+			go c.comms.PushEvent(msg)
 		case <-c.shutdown:
 			return
 		}

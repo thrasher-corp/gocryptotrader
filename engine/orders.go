@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -133,8 +134,8 @@ func (o *orderManager) Started() bool {
 
 // Start will boot up the orderManager
 func (o *orderManager) Start() error {
-	if atomic.AddInt32(&o.started, 1) != 1 {
-		return errors.New("order manager already started")
+	if !atomic.CompareAndSwapInt32(&o.started, 0, 1) {
+		return fmt.Errorf("order manager %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 
 	log.Debugln(log.OrderBook, "Order manager starting...")
@@ -148,14 +149,13 @@ func (o *orderManager) Start() error {
 // Stop will attempt to shutdown the orderManager
 func (o *orderManager) Stop() error {
 	if atomic.LoadInt32(&o.started) == 0 {
-		return errors.New("order manager not started")
+		return fmt.Errorf("order manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-
-	if atomic.AddInt32(&o.stopped, 1) != 1 {
-		return errors.New("order manager is already stopped")
+	if atomic.LoadInt32(&o.stopped) == 1 {
+		return fmt.Errorf("order manager %w", subsystem.ErrSubSystemAlreadyStopped)
 	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&o.stopped, 1, 0)
+		atomic.CompareAndSwapInt32(&o.stopped, 0, 1)
 		atomic.CompareAndSwapInt32(&o.started, 1, 0)
 	}()
 
@@ -187,7 +187,7 @@ func (o *orderManager) run() {
 			o.gracefulShutdown()
 			return
 		case <-tick.C:
-			o.processOrders()
+			go o.processOrders()
 		}
 	}
 }

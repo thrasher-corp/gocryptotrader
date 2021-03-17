@@ -2,10 +2,12 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -23,7 +25,7 @@ func (c *connectionManager) Started() bool {
 
 // Start starts an instance of the connection manager
 func (c *connectionManager) Start(conf *config.ConnectionMonitorConfig) error {
-	if atomic.AddInt32(&c.started, 1) != 1 {
+	if !atomic.CompareAndSwapInt32(&c.started, 0, 1) {
 		return errors.New("connection manager already started")
 	}
 
@@ -34,6 +36,7 @@ func (c *connectionManager) Start(conf *config.ConnectionMonitorConfig) error {
 		conf.CheckInterval)
 	if err != nil {
 		atomic.CompareAndSwapInt32(&c.started, 1, 0)
+		atomic.CompareAndSwapInt32(&c.stopped, 0, 1)
 		return err
 	}
 
@@ -44,17 +47,18 @@ func (c *connectionManager) Start(conf *config.ConnectionMonitorConfig) error {
 // Stop stops the connection manager
 func (c *connectionManager) Stop() error {
 	if atomic.LoadInt32(&c.started) == 0 {
-		return errors.New("connection manager not started")
+		return fmt.Errorf("connection manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-
-	if atomic.AddInt32(&c.stopped, 1) != 1 {
-		return errors.New("connection manager is already stopped")
+	if atomic.LoadInt32(&c.stopped) == 1 {
+		return fmt.Errorf("connection manager %w", subsystem.ErrSubSystemAlreadyStopped)
 	}
+	defer func() {
+		atomic.CompareAndSwapInt32(&c.stopped, 0, 1)
+		atomic.CompareAndSwapInt32(&c.started, 1, 0)
+	}()
 
 	log.Debugln(log.ConnectionMgr, "Connection manager shutting down...")
 	c.conn.Shutdown()
-	atomic.CompareAndSwapInt32(&c.stopped, 1, 0)
-	atomic.CompareAndSwapInt32(&c.started, 1, 0)
 	log.Debugln(log.ConnectionMgr, "Connection manager stopped.")
 	return nil
 }
