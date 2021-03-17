@@ -43,7 +43,6 @@ var (
 	// step for a market order
 	ErrMarketAmountExceedsStep = errors.New("market order amount exceeds step tolerance")
 
-	errAmountDoesNotConform        = errors.New("amount exceeds min/max parameters")
 	errCannotValidateAsset         = errors.New("cannot check tolerance asset not loaded")
 	errCannotValidateBaseCurrency  = errors.New("cannot check tolerance base currency not loaded")
 	errCannotValidateQuoteCurrency = errors.New("cannot check tolerance quote currency not loaded")
@@ -80,7 +79,7 @@ type MinMaxLevel struct {
 	StepAmount        float64
 	MinNotional       float64
 	MaxIcebergParts   int64
-	MarketMinimumQty  float64
+	MarketMinQty      float64
 	MarketMaxQty      float64
 	MarketStepSize    float64
 	MaxTotalOrders    int64
@@ -146,7 +145,7 @@ func (e *ExecutionTolerance) LoadTolerances(levels []MinMaxLevel) error {
 		t.multiplierDown = levels[x].MultiplierDown
 		t.averagePriceMins = levels[x].AveragePriceMins
 		t.maxIcebergParts = levels[x].MaxIcebergParts
-		t.marketMinimumQty = levels[x].MarketMinimumQty
+		t.marketMinQty = levels[x].MarketMinQty
 		t.marketMaxQty = levels[x].MarketMaxQty
 		t.marketStepSize = levels[x].MarketStepSize
 		t.maxTotalOrders = levels[x].MaxTotalOrders
@@ -230,7 +229,7 @@ type Tolerance struct {
 	multiplierDown   float64
 	averagePriceMins int64
 	maxIcebergParts  int64
-	marketMinimumQty float64
+	marketMinQty     float64
 	marketMaxQty     float64
 	marketStepSize   float64
 	maxTotalOrders   int64
@@ -313,12 +312,12 @@ func (t *Tolerance) Conforms(price, amount float64, marketOrder bool) error {
 	// t.maxIcebergeParts // How many components in an iceberg order
 
 	if marketOrder {
-		if t.marketMinimumQty != 0 &&
-			t.minAmount < t.marketMinimumQty &&
-			amount < t.marketMinimumQty {
+		if t.marketMinQty != 0 &&
+			t.minAmount < t.marketMinQty &&
+			amount < t.marketMinQty {
 			return fmt.Errorf("%w min: %f suppplied %f",
 				ErrMarketAmountExceedsMin,
-				t.marketMinimumQty,
+				t.marketMinQty,
 				amount)
 		}
 		if t.marketMaxQty != 0 &&

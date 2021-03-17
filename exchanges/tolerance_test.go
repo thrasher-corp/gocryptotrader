@@ -230,7 +230,7 @@ func TestConforms(t *testing.T) {
 
 	tt.minAmount = 1
 	tt.maxAmount = 10
-	tt.marketMinimumQty = 1.1
+	tt.marketMinQty = 1.1
 	tt.marketMaxQty = 9.9
 
 	err = tt.Conforms(200000, 1, true)
