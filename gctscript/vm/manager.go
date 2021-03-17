@@ -16,7 +16,6 @@ const gctscriptManagerName = "GCTScript"
 type GctScriptManager struct {
 	config   *Config
 	started  int32
-	stopped  int32
 	shutdown chan struct{}
 	// Optional values to override stored config ('nil' if not overridden)
 	MaxVirtualMachines *uint8
@@ -45,7 +44,6 @@ func (g *GctScriptManager) Start(wg *sync.WaitGroup) (err error) {
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&g.started, 1, 0)
-			atomic.CompareAndSwapInt32(&g.stopped, 0, 1)
 		}
 	}()
 	log.Debugln(log.Global, gctscriptManagerName, subsystem.MsgSubSystemStarting)
@@ -61,11 +59,7 @@ func (g *GctScriptManager) Stop() error {
 	if atomic.LoadInt32(&g.started) == 0 {
 		return fmt.Errorf("%s %w", gctscriptManagerName, subsystem.ErrSubSystemNotStarted)
 	}
-	if atomic.LoadInt32(&g.stopped) == 1 {
-		return fmt.Errorf("%s %w", gctscriptManagerName, subsystem.ErrSubSystemAlreadyStopped)
-	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&g.stopped, 0, 1)
 		atomic.CompareAndSwapInt32(&g.started, 1, 0)
 	}()
 

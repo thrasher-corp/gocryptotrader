@@ -14,7 +14,6 @@ import (
 // commsManager starts the NTP manager
 type commsManager struct {
 	started  int32
-	stopped  int32
 	shutdown chan struct{}
 	relayMsg chan base.Event
 	comms    *communications.Communications
@@ -32,7 +31,6 @@ func (c *commsManager) Start() (err error) {
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&c.started, 1, 0)
-			atomic.CompareAndSwapInt32(&c.stopped, 0, 1)
 		}
 	}()
 
@@ -61,11 +59,7 @@ func (c *commsManager) Stop() error {
 	if atomic.LoadInt32(&c.started) == 0 {
 		return fmt.Errorf("communications manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-	if atomic.LoadInt32(&c.stopped) == 1 {
-		return fmt.Errorf("communications manager %w", subsystem.ErrSubSystemAlreadyStopped)
-	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&c.stopped, 0, 1)
 		atomic.CompareAndSwapInt32(&c.started, 1, 0)
 	}()
 	close(c.shutdown)

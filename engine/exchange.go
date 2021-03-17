@@ -395,7 +395,6 @@ func (bot *Engine) SetupExchanges() {
 				common.IsEnabled(configs[iterator].API.AuthenticatedSupport),
 				common.IsEnabled(configs[iterator].Verbose),
 			)
-			log.Errorf(log.ExchangeSys, "done loading exchange %s", configs[iterator].Name)
 			wg.Done()
 		}(x)
 	}

@@ -14,7 +14,6 @@ import (
 // connectionManager manages the connchecker
 type connectionManager struct {
 	started int32
-	stopped int32
 	conn    *connchecker.Checker
 }
 
@@ -36,7 +35,6 @@ func (c *connectionManager) Start(conf *config.ConnectionMonitorConfig) error {
 		conf.CheckInterval)
 	if err != nil {
 		atomic.CompareAndSwapInt32(&c.started, 1, 0)
-		atomic.CompareAndSwapInt32(&c.stopped, 0, 1)
 		return err
 	}
 
@@ -49,11 +47,7 @@ func (c *connectionManager) Stop() error {
 	if atomic.LoadInt32(&c.started) == 0 {
 		return fmt.Errorf("connection manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-	if atomic.LoadInt32(&c.stopped) == 1 {
-		return fmt.Errorf("connection manager %w", subsystem.ErrSubSystemAlreadyStopped)
-	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&c.stopped, 0, 1)
 		atomic.CompareAndSwapInt32(&c.started, 1, 0)
 	}()
 

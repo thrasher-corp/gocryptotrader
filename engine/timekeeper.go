@@ -22,7 +22,6 @@ var (
 // ntpManager starts the NTP manager
 type ntpManager struct {
 	started      int32
-	stopped      int32
 	initialCheck bool
 	shutdown     chan struct{}
 }
@@ -38,7 +37,6 @@ func (n *ntpManager) Start() error {
 
 	if Bot.Config.NTPClient.Level == -1 {
 		atomic.CompareAndSwapInt32(&n.started, 1, 0)
-		atomic.CompareAndSwapInt32(&n.stopped, 0, 1)
 		return errors.New("NTP client disabled")
 	}
 
@@ -56,7 +54,6 @@ func (n *ntpManager) Start() error {
 			case errNTPDisabled:
 				log.Debugln(log.TimeMgr, "NTP manager: User disabled NTP prompts. Exiting.")
 				atomic.CompareAndSwapInt32(&n.started, 1, 0)
-				atomic.CompareAndSwapInt32(&n.stopped, 0, 1)
 				return nil
 			default:
 				if i == NTPRetryLimit-1 {
@@ -75,11 +72,7 @@ func (n *ntpManager) Stop() error {
 	if atomic.LoadInt32(&n.started) == 0 {
 		return fmt.Errorf("NTP manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-	if atomic.LoadInt32(&n.stopped) == 1 {
-		return fmt.Errorf("NTP manager %w", subsystem.ErrSubSystemAlreadyStopped)
-	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&n.stopped, 0, 1)
 		atomic.CompareAndSwapInt32(&n.started, 1, 0)
 	}()
 	log.Debugln(log.TimeMgr, "NTP manager shutting down...")

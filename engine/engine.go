@@ -339,36 +339,28 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDatabaseManager {
-		gctlog.Error(gctlog.Global, "starting dbm")
 		if err := bot.DatabaseManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
 		}
-		gctlog.Error(gctlog.Global, "done dbm")
 	}
 
 	if bot.Settings.EnableDispatcher {
-		gctlog.Error(gctlog.Global, "starting dispatcher")
 		if err := dispatch.Start(bot.Settings.DispatchMaxWorkerAmount, bot.Settings.DispatchJobsLimit); err != nil {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatcher unable to start: %v", err)
 		}
-		gctlog.Error(gctlog.Global, "done dispatcher")
 	}
 
 	// Sets up internet connectivity monitor
 	if bot.Settings.EnableConnectivityMonitor {
-		gctlog.Error(gctlog.Global, "starting connectivity")
 		if err := bot.ConnectionManager.Start(&bot.Config.ConnectionMonitor); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to start: %v", err)
 		}
-		gctlog.Error(gctlog.Global, "done connectivity")
 	}
 
 	if bot.Settings.EnableNTPClient {
-		gctlog.Error(gctlog.Global, "starting NTP")
 		if err := bot.NTPManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %v", err)
 		}
-		gctlog.Error(gctlog.Global, "done NTP")
 	}
 
 	bot.Uptime = time.Now()
@@ -396,22 +388,18 @@ func (bot *Engine) Start() error {
 		bot.Config.PurgeExchangeAPICredentials()
 	}
 
-	gctlog.Errorln(gctlog.Global, "Setting up exchanges..")
+	gctlog.Debugln(gctlog.Global, "Setting up exchanges..")
 	bot.SetupExchanges()
 	if bot.exchangeManager.Len() == 0 {
 		return errors.New("no exchanges are loaded")
 	}
-	gctlog.Error(gctlog.Global, "done exchanges NTP")
 
 	if bot.Settings.EnableCommsRelayer {
-		gctlog.Error(gctlog.Global, "starting comms")
 		if err := bot.CommsManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
-		gctlog.Error(gctlog.Global, "done comms")
 	}
 
-	gctlog.Error(gctlog.Global, "starting storage")
 	err := currency.RunStorageUpdater(currency.BotOverrides{
 		Coinmarketcap:       bot.Settings.EnableCoinmarketcapAnalysis,
 		FxCurrencyConverter: bot.Settings.EnableCurrencyConverter,
@@ -431,7 +419,6 @@ func (bot *Engine) Start() error {
 	if err != nil {
 		gctlog.Errorf(gctlog.Global, "Currency updater system failed to start %v", err)
 	}
-	gctlog.Error(gctlog.Global, "done storage")
 
 	if bot.Settings.EnableGRPC {
 		go StartRPCServer(bot)
@@ -443,17 +430,13 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableWebsocketRPC {
 		go StartWebsocketServer(bot)
-		gctlog.Error(gctlog.Global, "starting ws handler")
 		StartWebsocketHandler()
-		gctlog.Error(gctlog.Global, "done ws handler")
 	}
 
 	if bot.Settings.EnablePortfolioManager {
-		gctlog.Error(gctlog.Global, "starting portfolio manager")
 		if err = bot.PortfolioManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to start: %v", err)
 		}
-		gctlog.Error(gctlog.Global, "done portfolio manager")
 	}
 
 	if bot.Settings.EnableDepositAddressManager {
@@ -462,11 +445,9 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableOrderManager {
-		gctlog.Error(gctlog.Global, "starting order manager")
 		if err = bot.OrderManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
 		}
-		gctlog.Error(gctlog.Global, "done order manager")
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
@@ -497,11 +478,9 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGCTScriptManager {
-		gctlog.Error(gctlog.Global, "starting scripts")
 		if err := bot.GctScriptManager.Start(&bot.ServicesWG); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %v", err)
 		}
-		gctlog.Error(gctlog.Global, "done scripts")
 	}
 
 	return nil

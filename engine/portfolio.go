@@ -18,7 +18,6 @@ var (
 
 type portfolioManager struct {
 	started    int32
-	stopped    int32
 	processing int32
 	shutdown   chan struct{}
 }
@@ -45,11 +44,7 @@ func (p *portfolioManager) Stop() error {
 	if atomic.LoadInt32(&p.started) == 0 {
 		return fmt.Errorf("portfolio manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-	if atomic.LoadInt32(&p.stopped) == 1 {
-		return fmt.Errorf("portfolio manager %w", subsystem.ErrSubSystemAlreadyStopped)
-	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&p.stopped, 0, 1)
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 	}()
 

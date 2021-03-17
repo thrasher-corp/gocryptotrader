@@ -20,7 +20,6 @@ var (
 
 type databaseManager struct {
 	started  int32
-	stopped  int32
 	shutdown chan struct{}
 }
 
@@ -36,7 +35,6 @@ func (a *databaseManager) Start(bot *Engine) (err error) {
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&a.started, 1, 0)
-			atomic.CompareAndSwapInt32(&a.stopped, 0, 1)
 		}
 	}()
 
@@ -82,11 +80,7 @@ func (a *databaseManager) Stop() error {
 	if atomic.LoadInt32(&a.started) == 0 {
 		return fmt.Errorf("database manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-	if atomic.LoadInt32(&a.stopped) == 1 {
-		return fmt.Errorf("database manager %w", subsystem.ErrSubSystemAlreadyStopped)
-	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&a.stopped, 0, 1)
 		atomic.CompareAndSwapInt32(&a.started, 1, 0)
 	}()
 
