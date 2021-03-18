@@ -93,12 +93,10 @@ func (n *ntpManager) run() {
 		case <-n.shutdown:
 			return
 		case <-t.C:
-			go func() {
-				err := n.processTime()
-				if err != nil {
-					log.Error(log.TimeMgr, err)
-				}
-			}()
+			err := n.processTime()
+			if err != nil {
+				log.Error(log.TimeMgr, err)
+			}
 		}
 	}
 }

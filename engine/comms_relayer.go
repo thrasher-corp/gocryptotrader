@@ -87,7 +87,7 @@ func (c *commsManager) run() {
 	for {
 		select {
 		case msg := <-c.relayMsg:
-			go c.comms.PushEvent(msg)
+			c.comms.PushEvent(msg)
 		case <-c.shutdown:
 			return
 		}

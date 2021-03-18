@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -388,27 +389,27 @@ func (bot *Engine) SetupExchanges() {
 			continue
 		}
 		wg.Add(1)
-		go func(iterator int) {
-			err := bot.LoadExchange(configs[iterator].Name, true, &wg)
+		cfg := configs[x]
+		go func(currCfg config.ExchangeConfig) {
+			defer wg.Done()
+			err := bot.LoadExchange(currCfg.Name, true, &wg)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "LoadExchange %s failed: %s\n", configs[iterator].Name, err)
-				wg.Done()
+				log.Errorf(log.ExchangeSys, "LoadExchange %s failed: %s\n", currCfg.Name, err)
 				return
 			}
 			log.Debugf(log.ExchangeSys,
 				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-				configs[iterator].Name,
-				common.IsEnabled(configs[iterator].API.AuthenticatedSupport),
-				common.IsEnabled(configs[iterator].Verbose),
+				currCfg.Name,
+				common.IsEnabled(currCfg.API.AuthenticatedSupport),
+				common.IsEnabled(currCfg.Verbose),
 			)
-			wg.Done()
-		}(x)
+		}(cfg)
 	}
 	interruptChan := make(chan os.Signal)
 	waitForCompletionOrInterrupt(&wg, interruptChan)
 }
 
-// waitForCompletionOrInterrupt When starting exchanges, "UpdateTradablePairs" is called which is a REST request
+// waitForCompletionOrInterrupt upon starting exchanges, "UpdateTradablePairs" is called which is a REST request
 // if this request is delayed as a result of an exchange being down or rate limited
 // the application holds for wg.Wait() to finish.
 // waitForCompletionOrInterrupt adds an additional os interrupt signal listener to allow a user to close the application
