@@ -235,6 +235,10 @@ func (bot *Engine) WebsocketRoutine() {
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "%v\n", err)
 					}
+					err = ws.FlushChannels()
+					if err != nil {
+						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v\n", err)
+					}
 				}
 			} else if bot.Settings.Verbose {
 				log.Debugf(log.WebsocketMgr,

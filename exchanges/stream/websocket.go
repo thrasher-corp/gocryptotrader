@@ -205,15 +205,6 @@ func (w *Websocket) Connect() error {
 	if !w.IsConnectionMonitorRunning() {
 		w.connectionMonitor()
 	}
-
-	err = w.FlushChannels()
-	if err != nil {
-		w.setConnectingStatus(false)
-		w.setConnectedStatus(false)
-		return fmt.Errorf("%v Error flushing channels: %s",
-			w.exchangeName, err)
-	}
-
 	return nil
 }
 
@@ -236,7 +227,12 @@ func (w *Websocket) Enable() error {
 	}
 
 	w.setEnabled(true)
-	return w.Connect()
+	err := w.Connect()
+	if err != nil {
+		return err
+	}
+
+	return w.FlushChannels()
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
@@ -338,6 +334,11 @@ func (w *Websocket) connectionMonitor() {
 					err := w.Connect()
 					if err != nil {
 						log.Error(log.WebsocketMgr, err)
+					}else{
+						err = w.FlushChannels()
+						if err != nil {
+							log.Error(log.WebsocketMgr, err)
+						}
 					}
 				}
 				if !timer.Stop() {
@@ -407,7 +408,7 @@ func (w *Websocket) Shutdown() error {
 }
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (w *Websocket) FlushChannels() error {
+func (w *Websocket) FlushChannels() (err error) {
 	if !w.IsEnabled() {
 		return fmt.Errorf("%s websocket: service not enabled", w.exchangeName)
 	}
@@ -416,9 +417,12 @@ func (w *Websocket) FlushChannels() error {
 		return fmt.Errorf("%s websocket: service not connected", w.exchangeName)
 	}
 
-	if w.features == nil { // test case
-		return fmt.Errorf("%s websocket: features not set", w.exchangeName)
-	}
+	defer func() {
+		if err != nil {
+			w.setConnectingStatus(false)
+			w.setConnectedStatus(false)
+		}
+	}()
 
 	if w.features.Subscribe {
 		newsubs, err := w.GenerateSubs()
@@ -477,8 +481,7 @@ func (w *Websocket) FlushChannels() error {
 		return nil
 	}
 
-	err := w.Shutdown()
-	return err
+	return w.Shutdown()
 }
 
 // trafficMonitor uses a timer of WebsocketTrafficLimitTime and once it expires,
@@ -780,7 +783,12 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 				return err
 			}
 		}
-		return w.Connect()
+
+		err := w.Connect()
+		if err != nil {
+			return err
+		}
+		return w.FlushChannels()
 	}
 	return nil
 }
