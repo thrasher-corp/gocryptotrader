@@ -112,7 +112,7 @@ func (n *ntpManager) processTime() error {
 	diff := NTPTime.Sub(currentTime)
 	configNTPTime := *Bot.Config.NTPClient.AllowedDifference
 	negDiff := *Bot.Config.NTPClient.AllowedNegativeDifference
-	configNTPNegativeTime := negDiff - (negDiff * 2)
+	configNTPNegativeTime := -negDiff
 	if diff > configNTPTime || diff < configNTPNegativeTime {
 		log.Warnf(log.TimeMgr, "NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n",
 			NTPTime,
