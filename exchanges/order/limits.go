@@ -262,8 +262,7 @@ func (t *Limits) Conforms(price, amount float64, orderType Type) error {
 	}
 
 	if t.stepIncrementSizePrice != 0 {
-		increase := 1 / t.stepIncrementSizePrice
-		if math.Mod(price*increase, t.stepIncrementSizePrice*increase) != 0 {
+		if math.Mod(price/t.stepIncrementSizePrice, 1) != 0 {
 			return fmt.Errorf("%w stepSize: %f suppplied %f",
 				ErrPriceExceedsStep,
 				t.stepIncrementSizePrice,
@@ -286,8 +285,7 @@ func (t *Limits) Conforms(price, amount float64, orderType Type) error {
 	}
 
 	if t.stepIncrementSizeAmount != 0 {
-		increase := 1 / t.stepIncrementSizeAmount
-		if math.Mod(amount*increase, t.stepIncrementSizeAmount*increase) != 0 {
+		if math.Mod(amount/t.stepIncrementSizeAmount, 1) != 0 {
 			return fmt.Errorf("%w stepSize: %f suppplied %f",
 				ErrAmountExceedsStep,
 				t.stepIncrementSizeAmount,
@@ -330,8 +328,7 @@ func (t *Limits) Conforms(price, amount float64, orderType Type) error {
 				amount)
 		}
 		if t.marketStepIncrementSize != 0 && t.stepIncrementSizeAmount != t.marketStepIncrementSize {
-			increase := 1 / t.marketStepIncrementSize
-			if math.Mod(amount*increase, t.marketStepIncrementSize*increase) != 0 {
+			if math.Mod(amount/t.marketStepIncrementSize, 1) != 0 {
 				return fmt.Errorf("%w stepSize: %f suppplied %f",
 					ErrMarketAmountExceedsStep,
 					t.marketStepIncrementSize,
