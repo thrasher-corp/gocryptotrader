@@ -305,7 +305,7 @@ func (b *Binance) Run() {
 	a := b.GetAssetTypes()
 	for x := range a {
 		if err = b.CurrencyPairs.IsAssetEnabled(a[x]); err != nil {
-			err = b.UpdateLimits(a[x])
+			err = b.UpdateOrderExecutionLimits(a[x])
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"Could not set %s exchange tolerances: %v",
@@ -1554,8 +1554,8 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 	return resp
 }
 
-// UpdateLimits sets exchange executions for a required asset type
-func (b *Binance) UpdateLimits(a asset.Item) error {
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (b *Binance) UpdateOrderExecutionLimits(a asset.Item) error {
 	var limits []order.MinMaxLevel
 	var err error
 	switch a {

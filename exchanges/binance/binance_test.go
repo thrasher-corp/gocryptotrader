@@ -2477,22 +2477,22 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 }
 
 func TestSetTolerances(t *testing.T) {
-	err := b.UpdateLimits(asset.Spot)
+	err := b.UpdateOrderExecutionLimits(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = b.UpdateLimits(asset.CoinMarginedFutures)
+	err = b.UpdateOrderExecutionLimits(asset.CoinMarginedFutures)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = b.UpdateLimits(asset.USDTMarginedFutures)
+	err = b.UpdateOrderExecutionLimits(asset.USDTMarginedFutures)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = b.UpdateLimits(asset.Binary)
+	err = b.UpdateOrderExecutionLimits(asset.Binary)
 	if err == nil {
 		t.Fatal("expected unhandled case")
 	}
@@ -2502,7 +2502,7 @@ func TestSetTolerances(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tol, err := b.GetLimit(asset.CoinMarginedFutures, cmfCP)
+	tol, err := b.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,47 +11,47 @@ import (
 )
 
 var (
-	// ErrExchangeLimitNotLoaded defines if an exchange does not have minmax
+	// ErrExchangelimitNotLoaded defines if an exchange does not have minmax
 	// values
-	ErrExchangeLimitNotLoaded = errors.New("exchange Limits not loaded")
+	ErrExchangeLimitNotLoaded = errors.New("exchange limits not loaded")
 	// ErrPriceExceedsMin is when the price is lower than the minimum price
-	// Limit accepted by the exchange
-	ErrPriceExceedsMin = errors.New("price exceeds minimum Limit")
+	// limit accepted by the exchange
+	ErrPriceExceedsMin = errors.New("price exceeds minimum limit")
 	// ErrPriceExceedsMax is when the price is higher than the maximum price
-	// Limit accepted by the exchange
-	ErrPriceExceedsMax = errors.New("price exceeds maximum Limit")
+	// limit accepted by the exchange
+	ErrPriceExceedsMax = errors.New("price exceeds maximum limit")
 	// ErrPriceExceedsStep is when the price is not divisible by its step
-	ErrPriceExceedsStep = errors.New("price exceeds step Limit")
+	ErrPriceExceedsStep = errors.New("price exceeds step limit")
 	// ErrAmountExceedsMin is when the amount is lower than the minimum amount
-	// Limit accepted by the exchange
-	ErrAmountExceedsMin = errors.New("amount exceeds minimum Limit")
+	// limit accepted by the exchange
+	ErrAmountExceedsMin = errors.New("amount exceeds minimum limit")
 	// ErrAmountExceedsMax is when the amount is higher than the maximum amount
-	// Limit accepted by the exchange
-	ErrAmountExceedsMax = errors.New("amount exceeds maximum Limit")
+	// limit accepted by the exchange
+	ErrAmountExceedsMax = errors.New("amount exceeds maximum limit")
 	// ErrAmountExceedsStep is when the amount is not divisible by its step
-	ErrAmountExceedsStep = errors.New("amount exceeds step Limit")
+	ErrAmountExceedsStep = errors.New("amount exceeds step limit")
 	// ErrNotionalValue is when the notional value does not exceed currency pair
 	// requirements
-	ErrNotionalValue = errors.New("total notional value is under minimum Limit")
+	ErrNotionalValue = errors.New("total notional value is under minimum limit")
 	// ErrMarketAmountExceedsMin is when the amount is lower than the minimum
-	// amount Limit accepted by the exchange for a market order
-	ErrMarketAmountExceedsMin = errors.New("market order amount exceeds minimum Limit")
+	// amount limit accepted by the exchange for a market order
+	ErrMarketAmountExceedsMin = errors.New("market order amount exceeds minimum limit")
 	// ErrMarketAmountExceedsMax is when the amount is higher than the maximum
-	// amount Limit accepted by the exchange for a market order
-	ErrMarketAmountExceedsMax = errors.New("market order amount exceeds maximum Limit")
+	// amount limit accepted by the exchange for a market order
+	ErrMarketAmountExceedsMax = errors.New("market order amount exceeds maximum limit")
 	// ErrMarketAmountExceedsStep is when the amount is not divisible by its
 	// step for a market order
-	ErrMarketAmountExceedsStep = errors.New("market order amount exceeds step Limit")
+	ErrMarketAmountExceedsStep = errors.New("market order amount exceeds step limit")
 
-	errCannotValidateAsset         = errors.New("cannot check Limit asset not loaded")
-	errCannotValidateBaseCurrency  = errors.New("cannot check Limit base currency not loaded")
-	errCannotValidateQuoteCurrency = errors.New("cannot check Limit quote currency not loaded")
-	errExchangeLimitAsset          = errors.New("exchange Limits not found for asset")
-	errExchangeLimitBase           = errors.New("exchange Limits not found for base currency")
-	errExchangeLimitQuote          = errors.New("exchange Limits not found for quote currency")
-	errCannotLoadLimit             = errors.New("cannot load Limit levels not supplied")
-	errInvalidPriceLevels          = errors.New("invalid price levels cannot load Limits")
-	errInvalidAmountLevels         = errors.New("invalid amount levels cannot load Limits")
+	errCannotValidateAsset         = errors.New("cannot check limit, asset not loaded")
+	errCannotValidateBaseCurrency  = errors.New("cannot check limit, base currency not loaded")
+	errCannotValidateQuoteCurrency = errors.New("cannot check limit, quote currency not loaded")
+	errExchangeLimitAsset          = errors.New("exchange limits not found for asset")
+	errExchangeLimitBase           = errors.New("exchange limits not found for base currency")
+	errExchangeLimitQuote          = errors.New("exchange limits not found for quote currency")
+	errCannotLoadLimit             = errors.New("cannot load limit, levels not supplied")
+	errInvalidPriceLevels          = errors.New("invalid price levels, cannot load limits")
+	errInvalidAmountLevels         = errors.New("invalid amount levels, cannot load limits")
 )
 
 // ExecutionLimits defines minimum and maximum values in relation to
@@ -59,7 +59,7 @@ var (
 // for execution on an exchange.
 type ExecutionLimits struct {
 	m map[asset.Item]map[currency.Code]map[currency.Code]*Limits
-	sync.Mutex
+	sync.RWMutex
 }
 
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
@@ -86,7 +86,7 @@ type MinMaxLevel struct {
 	MaxAlgoOrders       int64
 }
 
-// LoadLimits loads all Limits levels into memory
+// LoadLimits loads all limits levels into memory
 func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 	if len(levels) == 0 {
 		return errCannotLoadLimit
@@ -133,7 +133,7 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 				levels[x].MinAmount,
 				levels[x].MaxAmount)
 		}
-
+		limit.Lock()
 		limit.minPrice = levels[x].MinPrice
 		limit.maxPrice = levels[x].MaxPrice
 		limit.stepIncrementSizePrice = levels[x].StepPrice
@@ -150,14 +150,15 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 		limit.marketStepIncrementSize = levels[x].MarketStepSize
 		limit.maxTotalOrders = levels[x].MaxTotalOrders
 		limit.maxAlgoOrders = levels[x].MaxAlgoOrders
+		limit.Unlock()
 	}
 	return nil
 }
 
-// GetLimit returns the exchange Limit parameters for a currency
-func (e *ExecutionLimits) GetLimit(a asset.Item, cp currency.Pair) (*Limits, error) {
-	e.Lock()
-	defer e.Unlock()
+// GetOrderExecutionLimits returns the exchange limit parameters for a currency
+func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*Limits, error) {
+	e.RLock()
+	defer e.RUnlock()
 
 	if e.m == nil {
 		return nil, ErrExchangeLimitNotLoaded
@@ -181,14 +182,14 @@ func (e *ExecutionLimits) GetLimit(a asset.Item, cp currency.Pair) (*Limits, err
 	return limit, nil
 }
 
-// CheckLimit checks to see if the price and amount conforms with exchange
-// level order execution Limits
-func (e *ExecutionLimits) CheckLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType Type) error {
-	e.Lock()
-	defer e.Unlock()
+// CheckOrderExecutionLimits checks to see if the price and amount conforms with
+// exchange level order execution limits
+func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType Type) error {
+	e.RLock()
+	defer e.RUnlock()
 
 	if e.m == nil {
-		// No exchange Limits loaded so we can nil this
+		// No exchange limits loaded so we can nil this
 		return nil
 	}
 
@@ -234,7 +235,7 @@ type Limits struct {
 	marketStepIncrementSize float64
 	maxTotalOrders          int64
 	maxAlgoOrders           int64
-	sync.Mutex
+	sync.RWMutex
 }
 
 // Conforms checks outbound parameters
@@ -245,8 +246,8 @@ func (t *Limits) Conforms(price, amount float64, orderType Type) error {
 		return nil
 	}
 
-	t.Lock()
-	defer t.Unlock()
+	t.RLock()
+	defer t.RUnlock()
 	if t.minPrice != 0 && price < t.minPrice {
 		return fmt.Errorf("%w min: %f suppplied %f",
 			ErrPriceExceedsMin,

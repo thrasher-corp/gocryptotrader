@@ -69,10 +69,10 @@ func TestLoadLimits(t *testing.T) {
 	}
 }
 
-func TestGetLimit(t *testing.T) {
+func TestGetOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	e := ExecutionLimits{}
-	_, err := e.GetLimit(asset.Spot, btcusd)
+	_, err := e.GetOrderExecutionLimits(asset.Spot, btcusd)
 	if !errors.Is(err, ErrExchangeLimitNotLoaded) {
 		t.Fatalf("expected error %v but received %v", ErrExchangeLimitNotLoaded, err)
 	}
@@ -93,22 +93,22 @@ func TestGetLimit(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", errCannotLoadLimit, err)
 	}
 
-	_, err = e.GetLimit(asset.Futures, ltcusd)
+	_, err = e.GetOrderExecutionLimits(asset.Futures, ltcusd)
 	if !errors.Is(err, errExchangeLimitAsset) {
 		t.Fatalf("expected error %v but received %v", errExchangeLimitAsset, err)
 	}
 
-	_, err = e.GetLimit(asset.Spot, ltcusd)
+	_, err = e.GetOrderExecutionLimits(asset.Spot, ltcusd)
 	if !errors.Is(err, errExchangeLimitBase) {
 		t.Fatalf("expected error %v but received %v", errExchangeLimitBase, err)
 	}
 
-	_, err = e.GetLimit(asset.Spot, btcltc)
+	_, err = e.GetOrderExecutionLimits(asset.Spot, btcltc)
 	if !errors.Is(err, errExchangeLimitQuote) {
 		t.Fatalf("expected error %v but received %v", errExchangeLimitQuote, err)
 	}
 
-	tt, err := e.GetLimit(asset.Spot, btcusd)
+	tt, err := e.GetOrderExecutionLimits(asset.Spot, btcusd)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
@@ -124,7 +124,7 @@ func TestGetLimit(t *testing.T) {
 func TestCheckLimit(t *testing.T) {
 	t.Parallel()
 	e := ExecutionLimits{}
-	err := e.CheckLimits(asset.Spot, btcusd, 1337, 1337, Limit)
+	err := e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 1337, Limit)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
@@ -145,42 +145,42 @@ func TestCheckLimit(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", errCannotLoadLimit, err)
 	}
 
-	err = e.CheckLimits(asset.Futures, ltcusd, 1337, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Futures, ltcusd, 1337, 1337, Limit)
 	if !errors.Is(err, errCannotValidateAsset) {
 		t.Fatalf("expected error %v but received %v", errCannotValidateAsset, err)
 	}
 
-	err = e.CheckLimits(asset.Spot, ltcusd, 1337, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, ltcusd, 1337, 1337, Limit)
 	if !errors.Is(err, errCannotValidateBaseCurrency) {
 		t.Fatalf("expected error %v but received %v", errCannotValidateBaseCurrency, err)
 	}
 
-	err = e.CheckLimits(asset.Spot, btcltc, 1337, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcltc, 1337, 1337, Limit)
 	if !errors.Is(err, errCannotValidateQuoteCurrency) {
 		t.Fatalf("expected error %v but received %v", errCannotValidateQuoteCurrency, err)
 	}
 
-	err = e.CheckLimits(asset.Spot, btcusd, 1337, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 1337, Limit)
 	if !errors.Is(err, ErrPriceExceedsMin) {
 		t.Fatalf("expected error %v but received %v", ErrPriceExceedsMin, err)
 	}
 
-	err = e.CheckLimits(asset.Spot, btcusd, 1000001, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1000001, 1337, Limit)
 	if !errors.Is(err, ErrPriceExceedsMax) {
 		t.Fatalf("expected error %v but received %v", ErrPriceExceedsMax, err)
 	}
 
-	err = e.CheckLimits(asset.Spot, btcusd, 999999, .5, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, .5, Limit)
 	if !errors.Is(err, ErrAmountExceedsMin) {
 		t.Fatalf("expected error %v but received %v", ErrAmountExceedsMin, err)
 	}
 
-	err = e.CheckLimits(asset.Spot, btcusd, 999999, 11, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 11, Limit)
 	if !errors.Is(err, ErrAmountExceedsMax) {
 		t.Fatalf("expected error %v but received %v", ErrAmountExceedsMax, err)
 	}
 
-	err = e.CheckLimits(asset.Spot, btcusd, 999999, 7, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 7, Limit)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
