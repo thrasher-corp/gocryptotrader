@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -943,13 +942,12 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 	})
 }
 
-// SetExchangeTolerances sets exchange tolerances for all assets
-func (b *Binance) SetExchangeTolerances() error {
+// FetchSpotExchangeLimits fetches spot order execution limits
+func (b *Binance) FetchSpotExchangeLimits() ([]order.MinMaxLevel, error) {
 	var limits []order.MinMaxLevel
-
 	spot, err := b.GetExchangeInfo()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for x := range spot.Symbols {
@@ -957,7 +955,7 @@ func (b *Binance) SetExchangeTolerances() error {
 		cp, err = currency.NewPairFromStrings(spot.Symbols[x].BaseAsset,
 			spot.Symbols[x].QuoteAsset)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		var assets []asset.Item
 		for y := range spot.Symbols[x].Permissions {
@@ -968,7 +966,7 @@ func (b *Binance) SetExchangeTolerances() error {
 				assets = append(assets, asset.Margin)
 			case "LEVERAGED": // leveraged tokens not available for spot trading
 			default:
-				return fmt.Errorf("unhandled asset type for tolerance loading %s",
+				return nil, fmt.Errorf("unhandled asset type for tolerance loading %s",
 					spot.Symbols[x].Permissions[y])
 			}
 		}
@@ -1000,80 +998,5 @@ func (b *Binance) SetExchangeTolerances() error {
 			})
 		}
 	}
-
-	usdtFutures, err := b.UExchangeInfo()
-	if err != nil {
-		return err
-	}
-
-	for x := range usdtFutures.Symbols {
-		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(usdtFutures.Symbols[x].BaseAsset,
-			usdtFutures.Symbols[x].QuoteAsset)
-		if err != nil {
-			return err
-		}
-
-		if len(spot.Symbols[x].Filters) < 7 {
-			continue
-		}
-
-		limits = append(limits, order.MinMaxLevel{
-			Pair:              cp,
-			Asset:             asset.USDTMarginedFutures,
-			MinPrice:          usdtFutures.Symbols[x].Filters[0].MinPrice,
-			MaxPrice:          usdtFutures.Symbols[x].Filters[0].MaxPrice,
-			StepPrice:         usdtFutures.Symbols[x].Filters[0].TickSize,
-			MaxAmount:         usdtFutures.Symbols[x].Filters[1].MaxQty,
-			MinAmount:         usdtFutures.Symbols[x].Filters[1].MinQty,
-			StepAmount:        usdtFutures.Symbols[x].Filters[1].StepSize,
-			MarketMinQty:      usdtFutures.Symbols[x].Filters[2].MinQty,
-			MarketMaxQty:      usdtFutures.Symbols[x].Filters[2].MaxQty,
-			MarketStepSize:    usdtFutures.Symbols[x].Filters[2].StepSize,
-			MaxTotalOrders:    usdtFutures.Symbols[x].Filters[3].Limit,
-			MaxAlgoOrders:     usdtFutures.Symbols[x].Filters[4].Limit,
-			MinNotional:       usdtFutures.Symbols[x].Filters[5].Notional,
-			MultiplierUp:      usdtFutures.Symbols[x].Filters[6].MultiplierUp,
-			MultiplierDown:    usdtFutures.Symbols[x].Filters[6].MultiplierDown,
-			MultiplierDecimal: usdtFutures.Symbols[x].Filters[6].MultiplierDecimal,
-		})
-	}
-
-	coinFutures, err := b.FuturesExchangeInfo()
-	if err != nil {
-		return err
-	}
-
-	for x := range coinFutures.Symbols {
-		symbol := strings.Split(coinFutures.Symbols[x].Symbol, "_")
-		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(symbol[0], symbol[1])
-		if err != nil {
-			return err
-		}
-
-		if len(spot.Symbols[x].Filters) < 6 {
-			continue
-		}
-
-		limits = append(limits, order.MinMaxLevel{
-			Pair:              cp,
-			Asset:             asset.CoinMarginedFutures,
-			MinPrice:          coinFutures.Symbols[x].Filters[0].MinPrice,
-			MaxPrice:          coinFutures.Symbols[x].Filters[0].MaxPrice,
-			StepPrice:         coinFutures.Symbols[x].Filters[0].TickSize,
-			MaxAmount:         coinFutures.Symbols[x].Filters[1].MaxQty,
-			MinAmount:         coinFutures.Symbols[x].Filters[1].MinQty,
-			StepAmount:        coinFutures.Symbols[x].Filters[1].StepSize,
-			MarketMinQty:      coinFutures.Symbols[x].Filters[2].MinQty,
-			MarketMaxQty:      coinFutures.Symbols[x].Filters[2].MaxQty,
-			MarketStepSize:    coinFutures.Symbols[x].Filters[2].StepSize,
-			MaxTotalOrders:    coinFutures.Symbols[x].Filters[3].Limit,
-			MaxAlgoOrders:     coinFutures.Symbols[x].Filters[4].Limit,
-			MultiplierUp:      coinFutures.Symbols[x].Filters[5].MultiplierUp,
-			MultiplierDown:    coinFutures.Symbols[x].Filters[5].MultiplierDown,
-			MultiplierDecimal: coinFutures.Symbols[x].Filters[5].MultiplierDecimal,
-		})
-	}
-	return b.LoadLimits(limits)
+	return limits, nil
 }

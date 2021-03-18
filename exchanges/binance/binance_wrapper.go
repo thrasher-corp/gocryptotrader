@@ -302,12 +302,17 @@ func (b *Binance) Run() {
 		}
 	}
 
-	err = b.SetExchangeTolerances()
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"Could not set %s exchange tolerances: %v",
-			b.Name,
-			err)
+	a := b.GetAssetTypes()
+	for x := range a {
+		if err = b.CurrencyPairs.IsAssetEnabled(a[x]); err != nil {
+			err = b.UpdateLimits(a[x])
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"Could not set %s exchange tolerances: %v",
+					b.Name,
+					err)
+			}
+		}
 	}
 
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
@@ -1547,4 +1552,27 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 		resp.OrderType = order.UnknownType
 	}
 	return resp
+}
+
+// UpdateLimits sets exchange executions for a required asset type
+func (b *Binance) UpdateLimits(a asset.Item) error {
+	var limits []order.MinMaxLevel
+	var err error
+	switch a {
+	case asset.Spot:
+		limits, err = b.FetchSpotExchangeLimits()
+	case asset.USDTMarginedFutures:
+		limits, err = b.FetchUSDTMarginExchangeLimits()
+	case asset.CoinMarginedFutures:
+		limits, err = b.FetchCoinMarginExchangeLimits()
+	case asset.Margin:
+		// This case is done in spot
+		return nil
+	default:
+		err = fmt.Errorf("unhandled asset type %s", a)
+	}
+	if err != nil {
+		return fmt.Errorf("cannot update exchange execution limits: %v", err)
+	}
+	return b.LoadLimits(limits)
 }

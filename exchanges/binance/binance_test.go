@@ -2477,11 +2477,27 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 }
 
 func TestSetTolerances(t *testing.T) {
-	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
+	err := b.UpdateLimits(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.SetExchangeTolerances()
+
+	err = b.UpdateLimits(asset.CoinMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateLimits(asset.USDTMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateLimits(asset.Binary)
+	if err == nil {
+		t.Fatal("expected unhandled case")
+	}
+
+	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
 	if err != nil {
 		t.Fatal(err)
 	}
