@@ -1,6 +1,9 @@
 package engine
 
 import (
+	"os"
+	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
@@ -202,4 +205,23 @@ func TestDryRunParamInteraction(t *testing.T) {
 		!exchCfg.Verbose {
 		t.Error("dryrun should be true and verbose should be true")
 	}
+}
+
+func TestWaitForCompletionOrInterrupt(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go func() {
+		wg.Done()
+		wg.Done()
+		wg.Done()
+	}()
+	waitForCompletionOrInterrupt(&wg, nil)
+
+	// add an impossible amount that won't be addressed
+	wg.Add(1337)
+	s := make(chan os.Signal)
+	go func() {
+		s <- syscall.SIGINT
+	}()
+	waitForCompletionOrInterrupt(&wg, s)
 }

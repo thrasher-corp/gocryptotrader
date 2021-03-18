@@ -2,8 +2,11 @@ package engine
 
 import (
 	"errors"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -398,5 +401,37 @@ func (bot *Engine) SetupExchanges() {
 			wg.Done()
 		}(x)
 	}
-	wg.Wait()
+	interruptChan := make(chan os.Signal)
+	waitForCompletionOrInterrupt(&wg, interruptChan)
+}
+
+// waitForCompletionOrInterrupt When starting exchanges, "UpdateTradablePairs" is called which is a REST request
+// if this request is delayed as a result of an exchange being down or rate limited
+// the application holds for wg.Wait() to finish.
+// waitForCompletionOrInterrupt adds an additional os interrupt signal listener to allow a user to close the application
+// on initial load in the event an exchange is down and the user wishes to close the application to disable the exchange
+func waitForCompletionOrInterrupt(wg *sync.WaitGroup, interruptChan chan os.Signal) {
+	if interruptChan == nil {
+		interruptChan = make(chan os.Signal)
+	}
+	exchangesHaveLoadedChan := make(chan struct{})
+	signals := []os.Signal{
+		os.Interrupt,
+		os.Kill,
+		syscall.SIGTERM,
+		syscall.SIGABRT,
+	}
+	signal.Notify(interruptChan, signals...)
+	go func() {
+		wg.Wait()
+		close(exchangesHaveLoadedChan)
+	}()
+	select {
+	case <-exchangesHaveLoadedChan:
+		// loaded all exchanges
+		return
+	case <-interruptChan:
+		// system interrupt received
+		return
+	}
 }
