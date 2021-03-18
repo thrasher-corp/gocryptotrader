@@ -46,11 +46,12 @@ func (n *ntpManager) Start() error {
 		n.initialCheck = true
 		// Sometimes the NTP client can have transient issues due to UDP, try
 		// the default retry limits before giving up
+	check:
 		for i := 0; i < NTPRetryLimit; i++ {
 			err := n.processTime()
 			switch err {
 			case nil:
-				break
+				break check
 			case errNTPDisabled:
 				log.Debugln(log.TimeMgr, "NTP manager: User disabled NTP prompts. Exiting.")
 				atomic.CompareAndSwapInt32(&n.started, 1, 0)

@@ -242,75 +242,48 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 		return err
 	}
 
-	if bot.Settings.EnableAllPairs {
-		if exchCfg.CurrencyPairs != nil {
-			bot.dryrunParamInteraction("enableallpairs")
-			assets := exchCfg.CurrencyPairs.GetAssetTypes()
-			for x := range assets {
-				var pairs currency.Pairs
-				pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
-				if err != nil {
-					return err
-				}
-				exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
+	if bot.Settings.EnableAllPairs &&
+		exchCfg.CurrencyPairs != nil {
+		assets := exchCfg.CurrencyPairs.GetAssetTypes()
+		for x := range assets {
+			var pairs currency.Pairs
+			pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
+			if err != nil {
+				return err
 			}
+			exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
 		}
 	}
 
 	if bot.Settings.EnableExchangeVerbose {
-		bot.dryrunParamInteraction("exchangeverbose")
 		exchCfg.Verbose = true
 	}
-
-	if bot.Settings.EnableExchangeWebsocketSupport {
-		bot.dryrunParamInteraction("exchangewebsocketsupport")
-		if exchCfg.Features != nil {
-			if exchCfg.Features.Supports.Websocket {
-				exchCfg.Features.Enabled.Websocket = true
-			}
+	if exchCfg.Features != nil {
+		if bot.Settings.EnableExchangeWebsocketSupport &&
+			exchCfg.Features.Supports.Websocket {
+			exchCfg.Features.Enabled.Websocket = true
 		}
-	}
-
-	if bot.Settings.EnableExchangeAutoPairUpdates {
-		bot.dryrunParamInteraction("exchangeautopairupdates")
-		if exchCfg.Features != nil {
-			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
-				exchCfg.Features.Enabled.AutoPairUpdates = true
-			}
+		if bot.Settings.EnableExchangeAutoPairUpdates &&
+			exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
+			exchCfg.Features.Enabled.AutoPairUpdates = true
 		}
-	}
-
-	if bot.Settings.DisableExchangeAutoPairUpdates {
-		bot.dryrunParamInteraction("exchangedisableautopairupdates")
-		if exchCfg.Features != nil {
+		if bot.Settings.DisableExchangeAutoPairUpdates {
 			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
 				exchCfg.Features.Enabled.AutoPairUpdates = false
 			}
 		}
 	}
-
 	if bot.Settings.HTTPUserAgent != "" {
-		bot.dryrunParamInteraction("httpuseragent")
 		exchCfg.HTTPUserAgent = bot.Settings.HTTPUserAgent
 	}
-
 	if bot.Settings.HTTPProxy != "" {
-		bot.dryrunParamInteraction("httpproxy")
 		exchCfg.ProxyAddress = bot.Settings.HTTPProxy
 	}
-
 	if bot.Settings.HTTPTimeout != exchange.DefaultHTTPTimeout {
-		bot.dryrunParamInteraction("httptimeout")
 		exchCfg.HTTPTimeout = bot.Settings.HTTPTimeout
 	}
-
 	if bot.Settings.EnableExchangeHTTPDebugging {
-		bot.dryrunParamInteraction("exchangehttpdebugging")
 		exchCfg.HTTPDebugging = bot.Settings.EnableExchangeHTTPDebugging
-	}
-
-	if bot.Settings.EnableAllExchanges {
-		bot.dryrunParamInteraction("enableallexchanges")
 	}
 
 	localWG.Wait()
@@ -337,7 +310,6 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	}
 
 	bot.exchangeManager.add(exch)
-
 	base := exch.GetBase()
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {
@@ -379,6 +351,37 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 func (bot *Engine) SetupExchanges() {
 	var wg sync.WaitGroup
 	configs := bot.Config.GetAllExchangeConfigs()
+	if bot.Settings.EnableAllPairs {
+		bot.dryrunParamInteraction("enableallpairs")
+	}
+	if bot.Settings.EnableAllExchanges {
+		bot.dryrunParamInteraction("enableallexchanges")
+	}
+	if bot.Settings.EnableExchangeVerbose {
+		bot.dryrunParamInteraction("exchangeverbose")
+	}
+	if bot.Settings.EnableExchangeWebsocketSupport {
+		bot.dryrunParamInteraction("exchangewebsocketsupport")
+	}
+	if bot.Settings.EnableExchangeAutoPairUpdates {
+		bot.dryrunParamInteraction("exchangeautopairupdates")
+	}
+	if bot.Settings.DisableExchangeAutoPairUpdates {
+		bot.dryrunParamInteraction("exchangedisableautopairupdates")
+	}
+	if bot.Settings.HTTPUserAgent != "" {
+		bot.dryrunParamInteraction("httpuseragent")
+	}
+	if bot.Settings.HTTPProxy != "" {
+		bot.dryrunParamInteraction("httpproxy")
+	}
+	if bot.Settings.HTTPTimeout != exchange.DefaultHTTPTimeout {
+		bot.dryrunParamInteraction("httptimeout")
+	}
+	if bot.Settings.EnableExchangeHTTPDebugging {
+		bot.dryrunParamInteraction("exchangehttpdebugging")
+	}
+
 	for x := range configs {
 		if !configs[x].Enabled && !bot.Settings.EnableAllExchanges {
 			log.Debugf(log.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
