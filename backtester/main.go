@@ -121,6 +121,7 @@ func main() {
 	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
 		gctlog.Error(gctlog.BackTester, err)
+		os.Exit(1)
 	}
 
 	if generateReport {

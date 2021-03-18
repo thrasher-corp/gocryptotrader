@@ -556,9 +556,11 @@ func TestCalculateTheResults(t *testing.T) {
 	}
 
 	tt := time.Now()
+	tt2 := time.Now().Add(time.Hour)
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
+	p2 := currency.NewPair(currency.DOGE, currency.DOGE)
 	err = s.SetupEventForTime(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
@@ -588,7 +590,11 @@ func TestCalculateTheResults(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
+		OpenPrice:  1337,
+		HighPrice:  1337,
+		LowPrice:   1337,
 		ClosePrice: 1337,
+		Volume:     1337,
 		Direction:  gctorder.Buy,
 	})
 	if err != nil {
@@ -599,7 +605,7 @@ func TestCalculateTheResults(t *testing.T) {
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
-			CurrencyPair: currency.NewPair(currency.DOCK, currency.AAA),
+			CurrencyPair: p2,
 			AssetType:    a,
 		},
 		Open:   1338,
@@ -617,21 +623,100 @@ func TestCalculateTheResults(t *testing.T) {
 			Exchange:     exch,
 			Time:         tt,
 			Interval:     gctkline.OneDay,
-			CurrencyPair: currency.NewPair(currency.DOCK, currency.AAA),
+			CurrencyPair: p2,
 			AssetType:    a,
 		},
+		OpenPrice:  1337,
+		HighPrice:  1337,
+		LowPrice:   1337,
 		ClosePrice: 1337,
+		Volume:     1337,
 		Direction:  gctorder.Buy,
 	})
 	if err != nil {
 		t.Error(err)
 	}
 
+	err = s.SetupEventForTime(&kline.Kline{
+		Base: event.Base{
+			Exchange:     exch,
+			Time:         tt2,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		},
+		Open:   1338,
+		Close:  1338,
+		Low:    1338,
+		High:   1338,
+		Volume: 1338,
+	})
 	if err != nil {
 		t.Error(err)
 	}
+	err = s.SetEventForOffset(&signal.Signal{
+		Base: event.Base{
+			Exchange:     exch,
+			Time:         tt2,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p,
+			AssetType:    a,
+		},
+		OpenPrice:  1338,
+		HighPrice:  1338,
+		LowPrice:   1338,
+		ClosePrice: 1338,
+		Volume:     1338,
+		Direction:  gctorder.Buy,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.SetupEventForTime(&kline.Kline{
+		Base: event.Base{
+			Exchange:     exch,
+			Time:         tt2,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p2,
+			AssetType:    a,
+		},
+		Open:   1338,
+		Close:  1338,
+		Low:    1338,
+		High:   1338,
+		Volume: 1338,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = s.SetEventForOffset(&signal.Signal{
+		Base: event.Base{
+			Exchange:     exch,
+			Time:         tt2,
+			Interval:     gctkline.OneDay,
+			CurrencyPair: p2,
+			AssetType:    a,
+		},
+		OpenPrice:  1338,
+		HighPrice:  1338,
+		LowPrice:   1338,
+		ClosePrice: 1338,
+		Volume:     1338,
+		Direction:  gctorder.Buy,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.InitialFunds = 1337
+	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.TotalValue = 13337
+	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.InitialFunds = 1337
+	s.ExchangeAssetPairStatistics[exch][a][p2].Events[1].Holdings.TotalValue = 13337
+
 	err = s.CalculateAllResults()
 	if err != nil {
 		t.Error(err)
 	}
+
 }

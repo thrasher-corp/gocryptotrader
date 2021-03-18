@@ -37,7 +37,7 @@ The following steps are taken for the `OnSignal` function:
 - If the order is deemed appropriate, the order event will be returned and appended to the event queue for the exchange event handler to run and place the order
 
 The following steps are taken for the `OnFill` function:
-- Previous holdings are retrieved and ammended with new order information.
+- Previous holdings are retrieved and amended with new order information.
   - The stats for the exchange asset currency pair will be updated to reflect the order and pricing
 - The order will be added to the compliance manager for analysis in future events or the statistics package
 

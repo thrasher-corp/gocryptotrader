@@ -782,7 +782,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.OneDay.Duration(),
+			Interval: kline.OneMin.Duration(),
 			DataType: common.TradeStr,
 			CSVData: &CSVData{
 				FullPath: fp,

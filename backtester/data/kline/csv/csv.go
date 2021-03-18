@@ -151,7 +151,10 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 	default:
 		return nil, fmt.Errorf("could not process csv data for %v %v %v, invalid data type received", exchangeName, a, fPair)
 	}
-	resp.Item.Exchange = strings.ToLower(resp.Item.Exchange)
+	resp.Item.Exchange = strings.ToLower(exchangeName)
+	resp.Item.Pair = fPair
+	resp.Item.Asset = a
+	resp.Item.Interval = kline.Interval(interval)
 
 	return resp, nil
 }

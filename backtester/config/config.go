@@ -50,7 +50,7 @@ func (cfg *Config) PrintSetting() {
 	log.Infof(log.BackTester, "Simultaneous Signal Processing: %v", cfg.StrategySettings.SimultaneousSignalProcessing)
 	for i := range cfg.CurrencySettings {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		currStr := fmt.Sprintf("------------------%v %v-%v Settings--------------------------",
+		currStr := fmt.Sprintf("------------------%v %v-%v Settings---------------------------------------------------------",
 			cfg.CurrencySettings[i].Asset,
 			cfg.CurrencySettings[i].Base,
 			cfg.CurrencySettings[i].Quote)
@@ -96,6 +96,7 @@ func (cfg *Config) PrintSetting() {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "Data type: %v", cfg.DataSettings.DataType)
 		log.Infof(log.BackTester, "Interval: %v", cfg.DataSettings.Interval)
+		log.Infof(log.BackTester, "CSV file: %v", cfg.DataSettings.CSVData.FullPath)
 	}
 	if cfg.DataSettings.DatabaseData != nil {
 		log.Info(log.BackTester, "-------------------------------------------------------------")

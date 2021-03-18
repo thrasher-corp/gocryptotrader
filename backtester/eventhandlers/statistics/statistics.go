@@ -154,7 +154,7 @@ func (s *Statistic) CalculateAllResults() error {
 				currCount++
 				err := stats.CalculateResults()
 				if err != nil {
-					log.Error(log.BackTester, err)
+					return err
 				}
 				stats.PrintResults(exchangeName, assetItem, pair)
 				last := stats.Events[len(stats.Events)-1]

@@ -437,7 +437,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		resp.Item.SortCandlesByTimestamp(false)
 		resp.Range = gctkline.CalculateCandleDateRanges(
 			resp.Item.Candles[0].Time,
-			resp.Item.Candles[len(resp.Item.Candles)-1].Time,
+			resp.Item.Candles[len(resp.Item.Candles)-1].Time.Add(cfg.DataSettings.Interval),
 			gctkline.Interval(cfg.DataSettings.Interval),
 			0,
 		)
