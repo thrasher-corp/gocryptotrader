@@ -1,6 +1,6 @@
 # GoCryptoTrader Backtester: Common package
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/backtester/common/backtester.png?raw=true" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
