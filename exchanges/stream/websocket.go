@@ -334,7 +334,7 @@ func (w *Websocket) connectionMonitor() {
 					err := w.Connect()
 					if err != nil {
 						log.Error(log.WebsocketMgr, err)
-					}else{
+					} else {
 						err = w.FlushChannels()
 						if err != nil {
 							log.Error(log.WebsocketMgr, err)
