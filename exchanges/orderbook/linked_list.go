@@ -30,7 +30,7 @@ func (ll *linkedList) load(items Items, stack *stack) {
 	// Prev denotes a place holder to node and all of its next references need
 	// to be pushed back onto stack.
 	var prev *node
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		if *tip == nil {
 			// Extend node chain
 			*tip = stack.Pop()
@@ -350,7 +350,7 @@ updates:
 		n := stack.Pop()
 		n.value = updts[x]
 		switch {
-		case bookmark == nil: // Zero liqudity and we are rebuilding from scratch
+		case bookmark == nil: // Zero liquidity and we are rebuilding from scratch
 			ll.head = n
 		case bookmark.prev == nil:
 			n.next = ll.head
@@ -573,7 +573,7 @@ updates:
 		n := stack.Pop()
 		n.value = updts[x]
 		switch {
-		case bookmark == nil: // Zero liqudity and we are rebuilding from scratch
+		case bookmark == nil: // Zero liquidity and we are rebuilding from scratch
 			ll.head = n
 		case bookmark.prev == nil:
 			ll.head = n

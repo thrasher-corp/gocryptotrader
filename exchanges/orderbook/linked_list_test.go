@@ -286,6 +286,31 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	}
 }
 
+func TestCleanup(t *testing.T) {
+	a := asks{}
+	stack := newStack()
+	asksSnapshot := Items{
+		{Price: 1, Amount: 1},
+		{Price: 3, Amount: 1},
+		{Price: 5, Amount: 1},
+		{Price: 7, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 11, Amount: 1},
+	}
+	a.load(asksSnapshot, stack)
+
+	a.cleanup(6, stack)
+	Check(a, 6, 36, 6, t)
+	a.cleanup(5, stack)
+	Check(a, 5, 25, 5, t)
+	a.cleanup(1, stack)
+	Check(a, 1, 1, 1, t)
+	a.cleanup(10, stack)
+	Check(a, 1, 1, 1, t)
+	a.cleanup(0, stack) // Should not change underlying
+	Check(a, 1, 1, 1, t)
+}
+
 // 46154023	        24.0 ns/op	       0 B/op	       0 allocs/op (old)
 // 134830672	         9.83 ns/op	       0 B/op	       0 allocs/op (new)
 func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
