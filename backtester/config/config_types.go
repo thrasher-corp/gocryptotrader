@@ -9,7 +9,7 @@ import (
 
 // Errors for config validation
 var (
-	ErrBadDate            = errors.New("end date >= start date, please check your config")
+	ErrBadDate            = errors.New("start date >= end date, please check your config")
 	ErrNoCurrencySettings = errors.New("no currency settings set in the config")
 	ErrBadInitialFunds    = errors.New("initial funds set with invalid data, please check your config")
 	ErrUnsetExchange      = errors.New("exchange name unset for currency settings, please check your config")
