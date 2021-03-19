@@ -271,7 +271,7 @@ func TestConformToAmount(t *testing.T) {
 	}
 
 	val = tt.ConformToAmount(0.7777)
-	if val != 0.778 {
+	if val != 0.777 {
 		t.Error("unexpected amount", val)
 	}
 
@@ -286,7 +286,7 @@ func TestConformToAmount(t *testing.T) {
 		t.Fatal("unexpected amount", val)
 	}
 	val = tt.ConformToAmount(150)
-	if val != 200 {
+	if val != 100 {
 		t.Fatal("unexpected amount", val)
 	}
 }

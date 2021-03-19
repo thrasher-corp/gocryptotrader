@@ -3,9 +3,9 @@ package order
 import (
 	"errors"
 	"fmt"
-	"math"
 	"sync"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -262,8 +262,9 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	}
 
 	if l.stepIncrementSizePrice != 0 {
-		increase := 1 / l.stepIncrementSizePrice
-		if math.Mod(price*increase, l.stepIncrementSizePrice*increase) != 0 {
+		dPrice := decimal.NewFromFloat(price)
+		dStep := decimal.NewFromFloat(l.stepIncrementSizePrice)
+		if !dPrice.Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %f supplied %f",
 				ErrPriceExceedsStep,
 				l.stepIncrementSizePrice,
@@ -286,8 +287,9 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	}
 
 	if l.stepIncrementSizeAmount != 0 {
-		increase := 1 / l.stepIncrementSizeAmount
-		if math.Mod(amount*increase, l.stepIncrementSizeAmount*increase) != 0 {
+		dAmount := decimal.NewFromFloat(amount)
+		dStep := decimal.NewFromFloat(l.stepIncrementSizeAmount)
+		if !dAmount.Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %f supplied %f",
 				ErrAmountExceedsStep,
 				l.stepIncrementSizeAmount,
@@ -330,8 +332,9 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 				amount)
 		}
 		if l.marketStepIncrementSize != 0 && l.stepIncrementSizeAmount != l.marketStepIncrementSize {
-			increase := 1 / l.marketStepIncrementSize
-			if math.Mod(amount*increase, l.marketStepIncrementSize*increase) != 0 {
+			dAmount := decimal.NewFromFloat(amount)
+			dStep := decimal.NewFromFloat(l.marketStepIncrementSize)
+			if !dAmount.Mod(dStep).IsZero() {
 				return fmt.Errorf("%w stepSize: %f supplied %f",
 					ErrMarketAmountExceedsStep,
 					l.marketStepIncrementSize,
@@ -349,17 +352,25 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	return nil
 }
 
-// ConformToAmount (POC) conforms amount to its amount interval (Warning: this
-// has a chance to increase position sizing to conform to step size amount)
-// TODO: Add in decimal package
+// ConformToAmount (POC) conforms amount to its amount interval
 func (l *Limits) ConformToAmount(amount float64) float64 {
 	l.m.Lock()
 	defer l.m.Unlock()
-	if l.stepIncrementSizeAmount == 0 {
+	if l.stepIncrementSizeAmount == 0 || amount == l.stepIncrementSizeAmount {
 		return amount
 	}
-	increase := 1 / l.stepIncrementSizeAmount
-	// math round used because we don't want miss precision the downside to this
-	// is that it will increase position size due to rounding issues.
-	return math.Round(amount*increase) / increase
+
+	if amount < l.stepIncrementSizeAmount {
+		return 0
+	}
+
+	// Convert floats to decimal types
+	dAmount := decimal.NewFromFloat(amount)
+	dStep := decimal.NewFromFloat(l.stepIncrementSizeAmount)
+	// derive modulus
+	mod := dAmount.Mod(dStep)
+	// subtract modulus to get the floor
+	rVal := dAmount.Sub(mod)
+	fVal, _ := rVal.Float64()
+	return fVal
 }
