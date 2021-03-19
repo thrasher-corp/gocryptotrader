@@ -1062,6 +1062,10 @@ func TestFlushChannels(t *testing.T) {
 		return nil, nil
 	}
 
+	noAuthSub := func() ([]ChannelSubscription, error) {
+		return nil, nil
+	}
+
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD)}
@@ -1078,6 +1082,8 @@ func TestFlushChannels(t *testing.T) {
 	}
 
 	web.GenerateSubs = noSub
+	web.GenerateAuthSubs = noAuthSub
+	web.connected = true
 	err = web.FlushChannels() // No subs to sub
 	if err != nil {
 		t.Fatal(err)
@@ -1105,6 +1111,7 @@ func TestFlushChannels(t *testing.T) {
 	}
 
 	web.GenerateSubs = newgen.generateSubs
+	web.connected = true
 	err = web.FlushChannels()
 	if err != nil {
 		t.Fatal(err)
