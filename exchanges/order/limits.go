@@ -58,8 +58,8 @@ var (
 // order size, order pricing, total notional values, total maximum orders etc
 // for execution on an exchange.
 type ExecutionLimits struct {
-	m map[asset.Item]map[currency.Code]map[currency.Code]*Limits
-	sync.RWMutex
+	m   map[asset.Item]map[currency.Code]map[currency.Code]*Limits
+	mtx sync.RWMutex
 }
 
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
@@ -91,8 +91,8 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 	if len(levels) == 0 {
 		return errCannotLoadLimit
 	}
-	e.Lock()
-	defer e.Unlock()
+	e.mtx.Lock()
+	defer e.mtx.Unlock()
 	if e.m == nil {
 		e.m = make(map[asset.Item]map[currency.Code]map[currency.Code]*Limits)
 	}
@@ -133,7 +133,7 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 				levels[x].MinAmount,
 				levels[x].MaxAmount)
 		}
-		limit.Lock()
+		limit.m.Lock()
 		limit.minPrice = levels[x].MinPrice
 		limit.maxPrice = levels[x].MaxPrice
 		limit.stepIncrementSizePrice = levels[x].StepPrice
@@ -150,15 +150,15 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 		limit.marketStepIncrementSize = levels[x].MarketStepSize
 		limit.maxTotalOrders = levels[x].MaxTotalOrders
 		limit.maxAlgoOrders = levels[x].MaxAlgoOrders
-		limit.Unlock()
+		limit.m.Unlock()
 	}
 	return nil
 }
 
 // GetOrderExecutionLimits returns the exchange limit parameters for a currency
 func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*Limits, error) {
-	e.RLock()
-	defer e.RUnlock()
+	e.mtx.RLock()
+	defer e.mtx.RUnlock()
 
 	if e.m == nil {
 		return nil, ErrExchangeLimitNotLoaded
@@ -185,8 +185,8 @@ func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair
 // CheckOrderExecutionLimits checks to see if the price and amount conforms with
 // exchange level order execution limits
 func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType Type) error {
-	e.RLock()
-	defer e.RUnlock()
+	e.mtx.RLock()
+	defer e.mtx.RUnlock()
 
 	if e.m == nil {
 		// No exchange limits loaded so we can nil this
@@ -235,7 +235,7 @@ type Limits struct {
 	marketStepIncrementSize float64
 	maxTotalOrders          int64
 	maxAlgoOrders           int64
-	sync.RWMutex
+	m                       sync.RWMutex
 }
 
 // Conforms checks outbound parameters
@@ -246,8 +246,8 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 		return nil
 	}
 
-	l.RLock()
-	defer l.RUnlock()
+	l.m.RLock()
+	defer l.m.RUnlock()
 	if l.minPrice != 0 && price < l.minPrice {
 		return fmt.Errorf("%w min: %f suppplied %f",
 			ErrPriceExceedsMin,
@@ -350,8 +350,8 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 // has a chance to increase position sizing to conform to step size amount)
 // TODO: Add in decimal package
 func (l *Limits) ConformToAmount(amount float64) float64 {
-	l.Lock()
-	defer l.Unlock()
+	l.m.Lock()
+	defer l.m.Unlock()
 	if l.stepIncrementSizeAmount == 0 {
 		return amount
 	}
