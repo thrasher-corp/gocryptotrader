@@ -1458,7 +1458,7 @@ func (b *Binance) FetchCoinMarginExchangeLimits() ([]order.MinMaxLevel, error) {
 	}
 
 	for x := range coinFutures.Symbols {
-		symbol := strings.Split(coinFutures.Symbols[x].Symbol, "_")
+		symbol := strings.Split(coinFutures.Symbols[x].Symbol, currency.UnderscoreDelimiter)
 		var cp currency.Pair
 		cp, err = currency.NewPairFromStrings(symbol[0], symbol[1])
 		if err != nil {

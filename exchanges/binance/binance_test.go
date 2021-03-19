@@ -2476,7 +2476,8 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 	}
 }
 
-func TestSetTolerances(t *testing.T) {
+func TestSetExchangeOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -2502,12 +2503,17 @@ func TestSetTolerances(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tol, err := b.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
+	limit, err := b.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if tol == nil {
-		t.Fatal("exchange tolerance should be loaded")
+	if limit == nil {
+		t.Fatal("exchange limit should be loaded")
+	}
+
+	err = limit.Conforms(0.000001, 0.000001, order.Limit)
+	if err == nil {
+		t.Fatal("limit not loaded for btcusd perp")
 	}
 }

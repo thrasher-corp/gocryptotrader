@@ -360,7 +360,9 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		newOrder.Amount,
 		newOrder.Type)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+			newOrder.Exchange,
+			err)
 	}
 
 	result, err := exch.SubmitOrder(newOrder)

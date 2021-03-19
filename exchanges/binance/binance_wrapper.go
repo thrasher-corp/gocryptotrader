@@ -304,7 +304,7 @@ func (b *Binance) Run() {
 
 	a := b.GetAssetTypes()
 	for x := range a {
-		if err = b.CurrencyPairs.IsAssetEnabled(a[x]); err != nil {
+		if err = b.CurrencyPairs.IsAssetEnabled(a[x]); err == nil {
 			err = b.UpdateOrderExecutionLimits(a[x])
 			if err != nil {
 				log.Errorf(log.ExchangeSys,

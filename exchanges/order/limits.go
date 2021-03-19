@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	// ErrExchangelimitNotLoaded defines if an exchange does not have minmax
+	// ErrExchangeLimitNotLoaded defines if an exchange does not have minmax
 	// values
 	ErrExchangeLimitNotLoaded = errors.New("exchange limits not loaded")
 	// ErrPriceExceedsMin is when the price is lower than the minimum price
@@ -239,109 +239,109 @@ type Limits struct {
 }
 
 // Conforms checks outbound parameters
-func (t *Limits) Conforms(price, amount float64, orderType Type) error {
-	if t == nil {
+func (l *Limits) Conforms(price, amount float64, orderType Type) error {
+	if l == nil {
 		// For when we return a nil pointer we can assume there's nothing to
 		// check
 		return nil
 	}
 
-	t.RLock()
-	defer t.RUnlock()
-	if t.minPrice != 0 && price < t.minPrice {
+	l.RLock()
+	defer l.RUnlock()
+	if l.minPrice != 0 && price < l.minPrice {
 		return fmt.Errorf("%w min: %f suppplied %f",
 			ErrPriceExceedsMin,
-			t.minPrice,
+			l.minPrice,
 			price)
 	}
-	if t.maxPrice != 0 && price > t.maxPrice {
+	if l.maxPrice != 0 && price > l.maxPrice {
 		return fmt.Errorf("%w max: %f suppplied %f",
 			ErrPriceExceedsMax,
-			t.maxPrice,
+			l.maxPrice,
 			price)
 	}
 
-	if t.stepIncrementSizePrice != 0 {
-		if math.Mod(price/t.stepIncrementSizePrice, 1) != 0 {
+	if l.stepIncrementSizePrice != 0 {
+		if math.Mod(price/l.stepIncrementSizePrice, 1) != 0 {
 			return fmt.Errorf("%w stepSize: %f suppplied %f",
 				ErrPriceExceedsStep,
-				t.stepIncrementSizePrice,
+				l.stepIncrementSizePrice,
 				price)
 		}
 	}
 
-	if t.minAmount != 0 && amount < t.minAmount {
+	if l.minAmount != 0 && amount < l.minAmount {
 		return fmt.Errorf("%w min: %f suppplied %f",
 			ErrAmountExceedsMin,
-			t.minAmount,
+			l.minAmount,
 			price)
 	}
 
-	if t.maxAmount != 0 && amount > t.maxAmount {
+	if l.maxAmount != 0 && amount > l.maxAmount {
 		return fmt.Errorf("%w min: %f suppplied %f",
 			ErrAmountExceedsMax,
-			t.maxAmount,
+			l.maxAmount,
 			price)
 	}
 
-	if t.stepIncrementSizeAmount != 0 {
-		if math.Mod(amount/t.stepIncrementSizeAmount, 1) != 0 {
+	if l.stepIncrementSizeAmount != 0 {
+		if math.Mod(amount/l.stepIncrementSizeAmount, 1) != 0 {
 			return fmt.Errorf("%w stepSize: %f suppplied %f",
 				ErrAmountExceedsStep,
-				t.stepIncrementSizeAmount,
+				l.stepIncrementSizeAmount,
 				amount)
 		}
 	}
 
-	if t.minNotional != 0 && (amount*price) < t.minNotional {
+	if l.minNotional != 0 && (amount*price) < l.minNotional {
 		return fmt.Errorf("%w minimum notional: %f value of order %f",
 			ErrNotionalValue,
-			t.minNotional,
+			l.minNotional,
 			amount*price)
 	}
 
 	// Multiplier checking not done due to the fact we need coherence with the
 	// last average price (TODO)
-	// t.multiplierUp will be used to determine how far our price can go up
-	// t.multiplierDown will be used to determine how far our price can go down
-	// t.averagePriceMinutes will be used to determine mean over this period
+	// l.multiplierUp will be used to determine how far our price can go up
+	// l.multiplierDown will be used to determine how far our price can go down
+	// l.averagePriceMinutes will be used to determine mean over this period
 
 	// Max iceberg parts checking not done as we do not have that
 	// functionality yet (TODO)
-	// t.maxIcebergParts // How many components in an iceberg order
+	// l.maxIcebergParts // How many components in an iceberg order
 
 	if orderType == Market {
-		if t.marketMinQty != 0 &&
-			t.minAmount < t.marketMinQty &&
-			amount < t.marketMinQty {
+		if l.marketMinQty != 0 &&
+			l.minAmount < l.marketMinQty &&
+			amount < l.marketMinQty {
 			return fmt.Errorf("%w min: %f suppplied %f",
 				ErrMarketAmountExceedsMin,
-				t.marketMinQty,
+				l.marketMinQty,
 				amount)
 		}
-		if t.marketMaxQty != 0 &&
-			t.maxAmount > t.marketMaxQty &&
-			amount > t.marketMaxQty {
+		if l.marketMaxQty != 0 &&
+			l.maxAmount > l.marketMaxQty &&
+			amount > l.marketMaxQty {
 			return fmt.Errorf("%w max: %f suppplied %f",
 				ErrMarketAmountExceedsMax,
-				t.marketMaxQty,
+				l.marketMaxQty,
 				amount)
 		}
-		if t.marketStepIncrementSize != 0 && t.stepIncrementSizeAmount != t.marketStepIncrementSize {
-			if math.Mod(amount/t.marketStepIncrementSize, 1) != 0 {
+		if l.marketStepIncrementSize != 0 && l.stepIncrementSizeAmount != l.marketStepIncrementSize {
+			if math.Mod(amount/l.marketStepIncrementSize, 1) != 0 {
 				return fmt.Errorf("%w stepSize: %f suppplied %f",
 					ErrMarketAmountExceedsStep,
-					t.marketStepIncrementSize,
+					l.marketStepIncrementSize,
 					amount)
 			}
 		}
 	}
 
 	// Max total orders not done due to order manager limitations (TODO)
-	// t.maxTotalOrders
+	// l.maxTotalOrders
 
 	// Max algo orders not done due to order manager limitations (TODO)
-	// t.maxAlgoOrders
+	// l.maxAlgoOrders
 
 	return nil
 }
@@ -349,13 +349,13 @@ func (t *Limits) Conforms(price, amount float64, orderType Type) error {
 // ConformToAmount (POC) conforms amount to its amount interval (Warning: this
 // has a chance to increase position sizing to conform to step size amount)
 // TODO: Add in decimal package
-func (t *Limits) ConformToAmount(amount float64) float64 {
-	t.Lock()
-	defer t.Unlock()
-	if t.stepIncrementSizeAmount == 0 {
+func (l *Limits) ConformToAmount(amount float64) float64 {
+	l.Lock()
+	defer l.Unlock()
+	if l.stepIncrementSizeAmount == 0 {
 		return amount
 	}
-	increase := 1 / t.stepIncrementSizeAmount
+	increase := 1 / l.stepIncrementSizeAmount
 	// math round used because we don't want miss precision the downside to this
 	// is that it will increase position size due to rounding issues.
 	return math.Round(amount*increase) / increase
