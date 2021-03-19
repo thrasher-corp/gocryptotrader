@@ -68,8 +68,8 @@ func TestNewFromConfig(t *testing.T) {
 
 	bot, _ := newBotWithExchange()
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, errMinOneCurrency) {
-		t.Errorf("expected: %v, received %v", errMinOneCurrency, err)
+	if !errors.Is(err, config.ErrNoCurrencySettings) {
+		t.Errorf("expected: %v, received %v", config.ErrNoCurrencySettings, err)
 	}
 
 	cfg.CurrencySettings = []config.CurrencySettings{
@@ -80,31 +80,30 @@ func TestNewFromConfig(t *testing.T) {
 		},
 	}
 	_, err = NewFromConfig(cfg, "", "", bot)
+	if !errors.Is(err, config.ErrBadInitialFunds) {
+		t.Errorf("expected: %v, received %v", config.ErrBadInitialFunds, err)
+	}
+
+	cfg.CurrencySettings[0].InitialFunds = 1337
+	_, err = NewFromConfig(cfg, "", "", bot)
+	if !errors.Is(err, config.ErrUnsetAsset) {
+		t.Errorf("expected: %v, received %v", config.ErrUnsetAsset, err)
+	}
+
+	cfg.CurrencySettings[0].Asset = asset.Spot.String()
+	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, engine.ErrExchangeNotFound) {
 		t.Errorf("expected: %v, received %v", engine.ErrExchangeNotFound, err)
 	}
 
 	cfg.CurrencySettings[0].ExchangeName = testExchange
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("expected: %v, received %v", asset.ErrNotSupported, err)
-	}
-
-	cfg.CurrencySettings[0].Asset = asset.Spot.String()
-	cfg.CurrencySettings[0].Base = "BTC"
-	cfg.CurrencySettings[0].Quote = "USDT"
-
-	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, errInitialFundsUnset) {
-		t.Errorf("expected: %v, received %v", errInitialFundsUnset, err)
-	}
-
-	cfg.CurrencySettings[0].InitialFunds = 1337
-
-	_, err = NewFromConfig(cfg, "", "", bot)
 	if !errors.Is(err, errNoDataSource) {
 		t.Errorf("expected: %v, received %v", errNoDataSource, err)
 	}
+
+	cfg.CurrencySettings[0].Base = "BTC"
+	cfg.CurrencySettings[0].Quote = "USDT"
 
 	cfg.DataSettings.APIData = &config.APIData{
 		StartDate: time.Time{},
@@ -117,8 +116,8 @@ func TestNewFromConfig(t *testing.T) {
 	}
 	cfg.DataSettings.DataType = common.CandleStr
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, errStartEndDateUnset) {
-		t.Errorf("expected: %v, received %v", errStartEndDateUnset, err)
+	if !errors.Is(err, config.ErrStartEndUnset) {
+		t.Errorf("expected: %v, received %v", config.ErrStartEndUnset, err)
 	}
 
 	cfg.DataSettings.APIData.StartDate = time.Now().Add(-time.Hour)
@@ -256,11 +255,17 @@ func TestLoadDatabaseData(t *testing.T) {
 		GoCryptoTraderConfigPath: filepath.Join("..", "..", "testdata", "configtest.json"),
 	}
 	_, err = loadDatabaseData(cfg, "", cp, "", -1)
-	if err != nil && !strings.Contains(err.Error(), "database data start and end dates must be set") {
-		t.Error(err)
+	if !errors.Is(err, config.ErrStartEndUnset) {
+		t.Errorf("expected %v, received %v", config.ErrStartEndUnset, err)
 	}
 	cfg.DataSettings.DatabaseData.StartDate = time.Now().Add(-time.Hour)
 	cfg.DataSettings.DatabaseData.EndDate = time.Now()
+	_, err = loadDatabaseData(cfg, "", cp, "", -1)
+	if !errors.Is(err, errIntervalUnset) {
+		t.Errorf("expected %v, received %v", errIntervalUnset, err)
+	}
+
+	cfg.DataSettings.Interval = gctkline.OneDay.Duration()
 	_, err = loadDatabaseData(cfg, "", cp, "", -1)
 	if err != nil && !strings.Contains(err.Error(), "could not retrieve database data") {
 		t.Error(err)
@@ -271,7 +276,6 @@ func TestLoadDatabaseData(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "exchange, base, quote, asset, interval, start & end cannot be empty") {
 		t.Error(err)
 	}
-	cfg.DataSettings.Interval = gctkline.OneDay.Duration()
 	_, err = loadDatabaseData(cfg, testExchange, cp, asset.Spot, common.DataCandle)
 	if err != nil && !strings.Contains(err.Error(), "database support is disabled") {
 		t.Error(err)

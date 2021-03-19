@@ -135,21 +135,21 @@ func (c *Config) ValidateDate() error {
 	if c.DataSettings.DatabaseData != nil {
 		if c.DataSettings.DatabaseData.StartDate.IsZero() ||
 			c.DataSettings.DatabaseData.EndDate.IsZero() {
-			return errStartEndUnset
+			return ErrStartEndUnset
 		}
 		if c.DataSettings.DatabaseData.StartDate.After(c.DataSettings.DatabaseData.EndDate) ||
 			c.DataSettings.DatabaseData.StartDate.Equal(c.DataSettings.DatabaseData.EndDate) {
-			return errBadDate
+			return ErrBadDate
 		}
 	}
 	if c.DataSettings.APIData != nil {
 		if c.DataSettings.APIData.StartDate.IsZero() ||
 			c.DataSettings.APIData.EndDate.IsZero() {
-			return errStartEndUnset
+			return ErrStartEndUnset
 		}
 		if c.DataSettings.APIData.StartDate.After(c.DataSettings.APIData.EndDate) ||
 			c.DataSettings.APIData.StartDate.Equal(c.DataSettings.APIData.EndDate) {
-			return errBadDate
+			return ErrBadDate
 		}
 	}
 	return nil
@@ -158,25 +158,25 @@ func (c *Config) ValidateDate() error {
 // ValidateCurrencySettings checks whether someone has set invalid currency setting data in their config
 func (c *Config) ValidateCurrencySettings() error {
 	if len(c.CurrencySettings) == 0 {
-		return errNoCurrencySettings
+		return ErrNoCurrencySettings
 	}
 	for i := range c.CurrencySettings {
 		if c.CurrencySettings[i].InitialFunds <= 0 {
-			return errBadInitialFunds
+			return ErrBadInitialFunds
 		}
 		if c.CurrencySettings[i].Base == "" {
-			return errUnsetCurrency
+			return ErrUnsetCurrency
 		}
 		if c.CurrencySettings[i].Asset == "" {
-			return errUnsetAsset
+			return ErrUnsetAsset
 		}
 		if c.CurrencySettings[i].ExchangeName == "" {
-			return errUnsetExchange
+			return ErrUnsetExchange
 		}
 		if c.CurrencySettings[i].MinimumSlippagePercent < 0 ||
 			c.CurrencySettings[i].MaximumSlippagePercent < 0 ||
 			c.CurrencySettings[i].MinimumSlippagePercent > c.CurrencySettings[i].MaximumSlippagePercent {
-			return errBadSlippageRates
+			return ErrBadSlippageRates
 		}
 	}
 	return nil

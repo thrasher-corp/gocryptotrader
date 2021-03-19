@@ -7,14 +7,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
-var errBadDate = errors.New("end date >= start date, please check your config")
-var errNoCurrencySettings = errors.New("no currency settings set in the config")
-var errBadInitialFunds = errors.New("initial funds set with invalid data, please check your config")
-var errUnsetExchange = errors.New("exchange name unset for currency settings, please check your config")
-var errUnsetAsset = errors.New("asset unset for currency settings, please check your config")
-var errUnsetCurrency = errors.New("currency unset for currency settings, please check your config")
-var errBadSlippageRates = errors.New("invalid slippage rates in currency settings, please check your config")
-var errStartEndUnset = errors.New("data start and end dates are invalid, please check your config")
+// Errors for config validation
+var (
+	ErrBadDate            = errors.New("end date >= start date, please check your config")
+	ErrNoCurrencySettings = errors.New("no currency settings set in the config")
+	ErrBadInitialFunds    = errors.New("initial funds set with invalid data, please check your config")
+	ErrUnsetExchange      = errors.New("exchange name unset for currency settings, please check your config")
+	ErrUnsetAsset         = errors.New("asset unset for currency settings, please check your config")
+	ErrUnsetCurrency      = errors.New("currency unset for currency settings, please check your config")
+	ErrBadSlippageRates   = errors.New("invalid slippage rates in currency settings, please check your config")
+	ErrStartEndUnset      = errors.New("data start and end dates are invalid, please check your config")
+)
 
 // Config defines what is in an individual strategy config
 type Config struct {

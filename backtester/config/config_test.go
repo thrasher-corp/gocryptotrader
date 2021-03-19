@@ -939,14 +939,14 @@ func TestValidateDate(t *testing.T) {
 		DatabaseData: &DatabaseData{},
 	}
 	err = c.ValidateDate()
-	if !errors.Is(errStartEndUnset, err) {
-		t.Errorf("expected %v, received %v", errStartEndUnset, err)
+	if !errors.Is(ErrStartEndUnset, err) {
+		t.Errorf("expected %v, received %v", ErrStartEndUnset, err)
 	}
 	c.DataSettings.DatabaseData.StartDate = time.Now()
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate
 	err = c.ValidateDate()
-	if !errors.Is(errBadDate, err) {
-		t.Errorf("expected %v, received %v", errBadDate, err)
+	if !errors.Is(ErrBadDate, err) {
+		t.Errorf("expected %v, received %v", ErrBadDate, err)
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.ValidateDate()
@@ -955,14 +955,14 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.APIData = &APIData{}
 	err = c.ValidateDate()
-	if !errors.Is(errStartEndUnset, err) {
-		t.Errorf("expected %v, received %v", errStartEndUnset, err)
+	if !errors.Is(ErrStartEndUnset, err) {
+		t.Errorf("expected %v, received %v", ErrStartEndUnset, err)
 	}
 	c.DataSettings.APIData.StartDate = time.Now()
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate
 	err = c.ValidateDate()
-	if !errors.Is(errBadDate, err) {
-		t.Errorf("expected %v, received %v", errBadDate, err)
+	if !errors.Is(ErrBadDate, err) {
+		t.Errorf("expected %v, received %v", ErrBadDate, err)
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.ValidateDate()
@@ -974,28 +974,28 @@ func TestValidateDate(t *testing.T) {
 func TestValidateCurrencySettings(t *testing.T) {
 	c := Config{}
 	err := c.ValidateCurrencySettings()
-	if !errors.Is(errNoCurrencySettings, err) {
-		t.Errorf("expected %v, received %v", errNoCurrencySettings, err)
+	if !errors.Is(ErrNoCurrencySettings, err) {
+		t.Errorf("expected %v, received %v", ErrNoCurrencySettings, err)
 	}
 	c.CurrencySettings = append(c.CurrencySettings, CurrencySettings{})
 	err = c.ValidateCurrencySettings()
-	if !errors.Is(errBadInitialFunds, err) {
-		t.Errorf("expected %v, received %v", errBadInitialFunds, err)
+	if !errors.Is(ErrBadInitialFunds, err) {
+		t.Errorf("expected %v, received %v", ErrBadInitialFunds, err)
 	}
 	c.CurrencySettings[0].InitialFunds = 1337
 	err = c.ValidateCurrencySettings()
-	if !errors.Is(errUnsetCurrency, err) {
-		t.Errorf("expected %v, received %v", errUnsetCurrency, err)
+	if !errors.Is(ErrUnsetCurrency, err) {
+		t.Errorf("expected %v, received %v", ErrUnsetCurrency, err)
 	}
 	c.CurrencySettings[0].Base = "lol"
 	err = c.ValidateCurrencySettings()
-	if !errors.Is(errUnsetAsset, err) {
-		t.Errorf("expected %v, received %v", errUnsetAsset, err)
+	if !errors.Is(ErrUnsetAsset, err) {
+		t.Errorf("expected %v, received %v", ErrUnsetAsset, err)
 	}
 	c.CurrencySettings[0].Asset = "lol"
 	err = c.ValidateCurrencySettings()
-	if !errors.Is(errUnsetExchange, err) {
-		t.Errorf("expected %v, received %v", errUnsetExchange, err)
+	if !errors.Is(ErrUnsetExchange, err) {
+		t.Errorf("expected %v, received %v", ErrUnsetExchange, err)
 	}
 	c.CurrencySettings[0].ExchangeName = "lol"
 	err = c.ValidateCurrencySettings()

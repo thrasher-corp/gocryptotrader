@@ -85,21 +85,13 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	if err != nil {
 		return nil, err
 	}
+
 	e, err = bt.setupExchangeSettings(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	bt.Exchange = &e
-
-	err = cfg.ValidateDate()
-	if err != nil {
-		return nil, err
-	}
-	err = cfg.ValidateCurrencySettings()
-	if err != nil {
-		return nil, err
-	}
 
 	buyRule := config.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
@@ -222,14 +214,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			cfg.CurrencySettings[i].Asset)
 		if err != nil {
 			return resp, err
-		}
-		if cfg.CurrencySettings[i].InitialFunds <= 0 {
-			return resp, fmt.Errorf("%w for %s %s %s-%s",
-				errInitialFundsUnset,
-				cfg.CurrencySettings[i].ExchangeName,
-				cfg.CurrencySettings[i].Asset,
-				cfg.CurrencySettings[i].Base,
-				cfg.CurrencySettings[i].Quote)
 		}
 
 		exchangeName := strings.ToLower(exch.GetName())
@@ -356,8 +340,9 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	var err error
 	bt.Bot = bot
-	if len(cfg.CurrencySettings) == 0 {
-		return errMinOneCurrency
+	err = cfg.ValidateCurrencySettings()
+	if err != nil {
+		return err
 	}
 
 	for i := range cfg.CurrencySettings {
@@ -432,6 +417,9 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 
 	switch {
 	case cfg.DataSettings.CSVData != nil:
+		if cfg.DataSettings.Interval <= 0 {
+			return nil, errIntervalUnset
+		}
 		resp, err = csv.LoadData(
 			dataType,
 			cfg.DataSettings.CSVData.FullPath,
@@ -550,9 +538,12 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
-	if cfg.DataSettings.DatabaseData.StartDate.IsZero() || cfg.DataSettings.DatabaseData.EndDate.IsZero() ||
-		cfg.DataSettings.DatabaseData.StartDate.After(cfg.DataSettings.DatabaseData.EndDate) {
-		return nil, errors.New("database data start and end dates must be set")
+	err := cfg.ValidateDate()
+	if err != nil {
+		return nil, err
+	}
+	if cfg.DataSettings.Interval <= 0 {
+		return nil, errIntervalUnset
 	}
 
 	return database.LoadData(
@@ -566,11 +557,11 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 }
 
 func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
-	if cfg.DataSettings.APIData.StartDate.IsZero() || cfg.DataSettings.APIData.EndDate.IsZero() ||
-		cfg.DataSettings.APIData.StartDate.After(cfg.DataSettings.APIData.EndDate) {
-		return nil, errStartEndDateUnset
+	err := cfg.ValidateDate()
+	if err != nil {
+		return nil, err
 	}
-	if cfg.DataSettings.Interval == 0 {
+	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
 	dates := gctkline.CalculateCandleDateRanges(
@@ -607,6 +598,9 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
 	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
 		return common.ErrNilArguments
+	}
+	if cfg.DataSettings.Interval <= 0 {
+		return errIntervalUnset
 	}
 
 	if cfg.DataSettings.LiveData.APIKeyOverride != "" {
