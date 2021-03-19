@@ -249,21 +249,22 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	l.m.RLock()
 	defer l.m.RUnlock()
 	if l.minPrice != 0 && price < l.minPrice {
-		return fmt.Errorf("%w min: %f suppplied %f",
+		return fmt.Errorf("%w min: %f supplied %f",
 			ErrPriceExceedsMin,
 			l.minPrice,
 			price)
 	}
 	if l.maxPrice != 0 && price > l.maxPrice {
-		return fmt.Errorf("%w max: %f suppplied %f",
+		return fmt.Errorf("%w max: %f supplied %f",
 			ErrPriceExceedsMax,
 			l.maxPrice,
 			price)
 	}
 
 	if l.stepIncrementSizePrice != 0 {
-		if math.Mod(price/l.stepIncrementSizePrice, 1) != 0 {
-			return fmt.Errorf("%w stepSize: %f suppplied %f",
+		increase := 1 / l.stepIncrementSizePrice
+		if math.Mod(price*increase, l.stepIncrementSizePrice*increase) != 0 {
+			return fmt.Errorf("%w stepSize: %f supplied %f",
 				ErrPriceExceedsStep,
 				l.stepIncrementSizePrice,
 				price)
@@ -271,22 +272,23 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	}
 
 	if l.minAmount != 0 && amount < l.minAmount {
-		return fmt.Errorf("%w min: %f suppplied %f",
+		return fmt.Errorf("%w min: %f supplied %f",
 			ErrAmountExceedsMin,
 			l.minAmount,
 			price)
 	}
 
 	if l.maxAmount != 0 && amount > l.maxAmount {
-		return fmt.Errorf("%w min: %f suppplied %f",
+		return fmt.Errorf("%w min: %f supplied %f",
 			ErrAmountExceedsMax,
 			l.maxAmount,
 			price)
 	}
 
 	if l.stepIncrementSizeAmount != 0 {
-		if math.Mod(amount/l.stepIncrementSizeAmount, 1) != 0 {
-			return fmt.Errorf("%w stepSize: %f suppplied %f",
+		increase := 1 / l.stepIncrementSizeAmount
+		if math.Mod(amount*increase, l.stepIncrementSizeAmount*increase) != 0 {
+			return fmt.Errorf("%w stepSize: %f supplied %f",
 				ErrAmountExceedsStep,
 				l.stepIncrementSizeAmount,
 				amount)
@@ -314,7 +316,7 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 		if l.marketMinQty != 0 &&
 			l.minAmount < l.marketMinQty &&
 			amount < l.marketMinQty {
-			return fmt.Errorf("%w min: %f suppplied %f",
+			return fmt.Errorf("%w min: %f supplied %f",
 				ErrMarketAmountExceedsMin,
 				l.marketMinQty,
 				amount)
@@ -322,14 +324,15 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 		if l.marketMaxQty != 0 &&
 			l.maxAmount > l.marketMaxQty &&
 			amount > l.marketMaxQty {
-			return fmt.Errorf("%w max: %f suppplied %f",
+			return fmt.Errorf("%w max: %f supplied %f",
 				ErrMarketAmountExceedsMax,
 				l.marketMaxQty,
 				amount)
 		}
 		if l.marketStepIncrementSize != 0 && l.stepIncrementSizeAmount != l.marketStepIncrementSize {
-			if math.Mod(amount/l.marketStepIncrementSize, 1) != 0 {
-				return fmt.Errorf("%w stepSize: %f suppplied %f",
+			increase := 1 / l.marketStepIncrementSize
+			if math.Mod(amount*increase, l.marketStepIncrementSize*increase) != 0 {
+				return fmt.Errorf("%w stepSize: %f supplied %f",
 					ErrMarketAmountExceedsStep,
 					l.marketStepIncrementSize,
 					amount)
