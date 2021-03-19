@@ -228,12 +228,7 @@ func (w *Websocket) Enable() error {
 	}
 
 	w.setEnabled(true)
-	err := w.Connect()
-	if err != nil {
-		return err
-	}
-
-	return w.FlushChannels()
+	return w.Connect()
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
