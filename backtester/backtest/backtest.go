@@ -92,6 +92,15 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 
 	bt.Exchange = &e
 
+	err = cfg.ValidateDate()
+	if err != nil {
+		return nil, err
+	}
+	err = cfg.ValidateCurrencySettings()
+	if err != nil {
+		return nil, err
+	}
+
 	buyRule := config.MinMax{
 		MinimumSize:  cfg.PortfolioSettings.BuySide.MinimumSize,
 		MaximumSize:  cfg.PortfolioSettings.BuySide.MaximumSize,

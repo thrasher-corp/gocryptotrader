@@ -32,80 +32,80 @@ func LoadConfig(data []byte) (resp *Config, err error) {
 }
 
 // PrintSetting prints relevant settings to the console for easy reading
-func (cfg *Config) PrintSetting() {
+func (c *Config) PrintSetting() {
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Backtester Settings------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Strategy Settings--------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Strategy: %s", cfg.StrategySettings.Name)
-	if len(cfg.StrategySettings.CustomSettings) > 0 {
+	log.Infof(log.BackTester, "Strategy: %s", c.StrategySettings.Name)
+	if len(c.StrategySettings.CustomSettings) > 0 {
 		log.Info(log.BackTester, "Custom strategy variables:")
-		for k, v := range cfg.StrategySettings.CustomSettings {
+		for k, v := range c.StrategySettings.CustomSettings {
 			log.Infof(log.BackTester, "%s: %v", k, v)
 		}
 	} else {
 		log.Info(log.BackTester, "Custom strategy variables: unset")
 	}
-	log.Infof(log.BackTester, "Simultaneous Signal Processing: %v", cfg.StrategySettings.SimultaneousSignalProcessing)
-	for i := range cfg.CurrencySettings {
+	log.Infof(log.BackTester, "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
+	for i := range c.CurrencySettings {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		currStr := fmt.Sprintf("------------------%v %v-%v Settings---------------------------------------------------------",
-			cfg.CurrencySettings[i].Asset,
-			cfg.CurrencySettings[i].Base,
-			cfg.CurrencySettings[i].Quote)
+			c.CurrencySettings[i].Asset,
+			c.CurrencySettings[i].Base,
+			c.CurrencySettings[i].Quote)
 		log.Infof(log.BackTester, currStr[:61])
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Exchange: %v", cfg.CurrencySettings[i].ExchangeName)
-		log.Infof(log.BackTester, "Initial funds: %.2f", cfg.CurrencySettings[i].InitialFunds)
-		log.Infof(log.BackTester, "Maker fee: %.2f", cfg.CurrencySettings[i].TakerFee)
-		log.Infof(log.BackTester, "Taker fee: %.2f", cfg.CurrencySettings[i].MakerFee)
-		log.Infof(log.BackTester, "Minimum slippage percent %.2f", cfg.CurrencySettings[i].MinimumSlippagePercent)
-		log.Infof(log.BackTester, "Maximum slippage percent: %.2f", cfg.CurrencySettings[i].MaximumSlippagePercent)
-		log.Infof(log.BackTester, "Buy rules: %+v", cfg.CurrencySettings[i].BuySide)
-		log.Infof(log.BackTester, "Sell rules: %+v", cfg.CurrencySettings[i].SellSide)
-		log.Infof(log.BackTester, "Leverage rules: %+v", cfg.CurrencySettings[i].Leverage)
+		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
+		log.Infof(log.BackTester, "Initial funds: %.2f", c.CurrencySettings[i].InitialFunds)
+		log.Infof(log.BackTester, "Maker fee: %.2f", c.CurrencySettings[i].TakerFee)
+		log.Infof(log.BackTester, "Taker fee: %.2f", c.CurrencySettings[i].MakerFee)
+		log.Infof(log.BackTester, "Minimum slippage percent %.2f", c.CurrencySettings[i].MinimumSlippagePercent)
+		log.Infof(log.BackTester, "Maximum slippage percent: %.2f", c.CurrencySettings[i].MaximumSlippagePercent)
+		log.Infof(log.BackTester, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
+		log.Infof(log.BackTester, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
+		log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].Leverage)
 	}
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")
 	log.Info(log.BackTester, "-------------------------------------------------------------")
-	log.Infof(log.BackTester, "Buy rules: %+v", cfg.PortfolioSettings.BuySide)
-	log.Infof(log.BackTester, "Sell rules: %+v", cfg.PortfolioSettings.SellSide)
-	log.Infof(log.BackTester, "Leverage rules: %+v", cfg.PortfolioSettings.Leverage)
-	if cfg.DataSettings.LiveData != nil {
+	log.Infof(log.BackTester, "Buy rules: %+v", c.PortfolioSettings.BuySide)
+	log.Infof(log.BackTester, "Sell rules: %+v", c.PortfolioSettings.SellSide)
+	log.Infof(log.BackTester, "Leverage rules: %+v", c.PortfolioSettings.Leverage)
+	if c.DataSettings.LiveData != nil {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Info(log.BackTester, "------------------Live Settings------------------------------")
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.DataSettings.Interval)
-		log.Infof(log.BackTester, "REAL ORDERS: %v", cfg.DataSettings.LiveData.RealOrders)
-		log.Infof(log.BackTester, "Overriding GCT API settings: %v", cfg.DataSettings.LiveData.APIClientIDOverride != "")
+		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
+		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
+		log.Infof(log.BackTester, "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
+		log.Infof(log.BackTester, "Overriding GCT API settings: %v", c.DataSettings.LiveData.APIClientIDOverride != "")
 	}
-	if cfg.DataSettings.APIData != nil {
+	if c.DataSettings.APIData != nil {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Info(log.BackTester, "------------------API Settings-------------------------------")
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.DataSettings.Interval)
-		log.Infof(log.BackTester, "Start date: %v", cfg.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", cfg.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
+		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
+		log.Infof(log.BackTester, "Start date: %v", c.DataSettings.APIData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "End date: %v", c.DataSettings.APIData.EndDate.Format(gctcommon.SimpleTimeFormat))
 	}
-	if cfg.DataSettings.CSVData != nil {
+	if c.DataSettings.CSVData != nil {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Info(log.BackTester, "------------------CSV Settings-------------------------------")
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.DataSettings.Interval)
-		log.Infof(log.BackTester, "CSV file: %v", cfg.DataSettings.CSVData.FullPath)
+		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
+		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
+		log.Infof(log.BackTester, "CSV file: %v", c.DataSettings.CSVData.FullPath)
 	}
-	if cfg.DataSettings.DatabaseData != nil {
+	if c.DataSettings.DatabaseData != nil {
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Info(log.BackTester, "------------------Database Settings--------------------------")
 		log.Info(log.BackTester, "-------------------------------------------------------------")
-		log.Infof(log.BackTester, "Data type: %v", cfg.DataSettings.DataType)
-		log.Infof(log.BackTester, "Interval: %v", cfg.DataSettings.Interval)
-		log.Infof(log.BackTester, "Start date: %v", cfg.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
-		log.Infof(log.BackTester, "End date: %v", cfg.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "Data type: %v", c.DataSettings.DataType)
+		log.Infof(log.BackTester, "Interval: %v", c.DataSettings.Interval)
+		log.Infof(log.BackTester, "Start date: %v", c.DataSettings.DatabaseData.StartDate.Format(gctcommon.SimpleTimeFormat))
+		log.Infof(log.BackTester, "End date: %v", c.DataSettings.DatabaseData.EndDate.Format(gctcommon.SimpleTimeFormat))
 	}
 	log.Info(log.BackTester, "-------------------------------------------------------------\n\n")
 }
@@ -128,4 +128,56 @@ func (m *MinMax) Validate() {
 		m.MaximumTotal *= -1
 		log.Warnf(log.BackTester, "invalid maximum total set to %v", m.MaximumTotal)
 	}
+}
+
+// ValidateDate checks whether someone has set a date poorly in their config
+func (c *Config) ValidateDate() error {
+	if c.DataSettings.DatabaseData != nil {
+		if c.DataSettings.DatabaseData.StartDate.IsZero() ||
+			c.DataSettings.DatabaseData.EndDate.IsZero() {
+			return errStartEndUnset
+		}
+		if c.DataSettings.DatabaseData.StartDate.After(c.DataSettings.DatabaseData.EndDate) ||
+			c.DataSettings.DatabaseData.StartDate.Equal(c.DataSettings.DatabaseData.EndDate) {
+			return errBadDate
+		}
+	}
+	if c.DataSettings.APIData != nil {
+		if c.DataSettings.APIData.StartDate.IsZero() ||
+			c.DataSettings.APIData.EndDate.IsZero() {
+			return errStartEndUnset
+		}
+		if c.DataSettings.APIData.StartDate.After(c.DataSettings.APIData.EndDate) ||
+			c.DataSettings.APIData.StartDate.Equal(c.DataSettings.APIData.EndDate) {
+			return errBadDate
+		}
+	}
+	return nil
+}
+
+// ValidateCurrencySettings checks whether someone has set invalid currency setting data in their config
+func (c *Config) ValidateCurrencySettings() error {
+	if len(c.CurrencySettings) == 0 {
+		return errNoCurrencySettings
+	}
+	for i := range c.CurrencySettings {
+		if c.CurrencySettings[i].InitialFunds <= 0 {
+			return errBadInitialFunds
+		}
+		if c.CurrencySettings[i].Base == "" {
+			return errUnsetCurrency
+		}
+		if c.CurrencySettings[i].Asset == "" {
+			return errUnsetAsset
+		}
+		if c.CurrencySettings[i].ExchangeName == "" {
+			return errUnsetExchange
+		}
+		if c.CurrencySettings[i].MinimumSlippagePercent < 0 ||
+			c.CurrencySettings[i].MaximumSlippagePercent < 0 ||
+			c.CurrencySettings[i].MinimumSlippagePercent > c.CurrencySettings[i].MaximumSlippagePercent {
+			return errBadSlippageRates
+		}
+	}
+	return nil
 }
