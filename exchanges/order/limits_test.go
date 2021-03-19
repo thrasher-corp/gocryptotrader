@@ -160,12 +160,12 @@ func TestCheckLimit(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", errCannotValidateQuoteCurrency, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 9, Limit)
 	if !errors.Is(err, ErrPriceExceedsMin) {
 		t.Fatalf("expected error %v but received %v", ErrPriceExceedsMin, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1000001, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1000001, 9, Limit)
 	if !errors.Is(err, ErrPriceExceedsMax) {
 		t.Fatalf("expected error %v but received %v", ErrPriceExceedsMax, err)
 	}
@@ -181,6 +181,11 @@ func TestCheckLimit(t *testing.T) {
 	}
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 7, Limit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error %v but received %v", nil, err)
+	}
+
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 7, Market)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}

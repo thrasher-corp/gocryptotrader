@@ -248,44 +248,18 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 
 	l.m.RLock()
 	defer l.m.RUnlock()
-	if l.minPrice != 0 && price < l.minPrice {
-		return fmt.Errorf("%w min: %f supplied %f",
-			ErrPriceExceedsMin,
-			l.minPrice,
-			price)
-	}
-	if l.maxPrice != 0 && price > l.maxPrice {
-		return fmt.Errorf("%w max: %f supplied %f",
-			ErrPriceExceedsMax,
-			l.maxPrice,
-			price)
-	}
-
-	if l.stepIncrementSizePrice != 0 {
-		dPrice := decimal.NewFromFloat(price)
-		dStep := decimal.NewFromFloat(l.stepIncrementSizePrice)
-		if !dPrice.Mod(dStep).IsZero() {
-			return fmt.Errorf("%w stepSize: %f supplied %f",
-				ErrPriceExceedsStep,
-				l.stepIncrementSizePrice,
-				price)
-		}
-	}
-
 	if l.minAmount != 0 && amount < l.minAmount {
 		return fmt.Errorf("%w min: %f supplied %f",
 			ErrAmountExceedsMin,
 			l.minAmount,
-			price)
+			amount)
 	}
-
 	if l.maxAmount != 0 && amount > l.maxAmount {
 		return fmt.Errorf("%w min: %f supplied %f",
 			ErrAmountExceedsMax,
 			l.maxAmount,
-			price)
+			amount)
 	}
-
 	if l.stepIncrementSizeAmount != 0 {
 		dAmount := decimal.NewFromFloat(amount)
 		dStep := decimal.NewFromFloat(l.stepIncrementSizeAmount)
@@ -295,13 +269,6 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 				l.stepIncrementSizeAmount,
 				amount)
 		}
-	}
-
-	if l.minNotional != 0 && (amount*price) < l.minNotional {
-		return fmt.Errorf("%w minimum notional: %f value of order %f",
-			ErrNotionalValue,
-			l.minNotional,
-			amount*price)
 	}
 
 	// Multiplier checking not done due to the fact we need coherence with the
@@ -314,41 +281,71 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	// functionality yet (TODO)
 	// l.maxIcebergParts // How many components in an iceberg order
 
-	if orderType == Market {
-		if l.marketMinQty != 0 &&
-			l.minAmount < l.marketMinQty &&
-			amount < l.marketMinQty {
-			return fmt.Errorf("%w min: %f supplied %f",
-				ErrMarketAmountExceedsMin,
-				l.marketMinQty,
-				amount)
-		}
-		if l.marketMaxQty != 0 &&
-			l.maxAmount > l.marketMaxQty &&
-			amount > l.marketMaxQty {
-			return fmt.Errorf("%w max: %f supplied %f",
-				ErrMarketAmountExceedsMax,
-				l.marketMaxQty,
-				amount)
-		}
-		if l.marketStepIncrementSize != 0 && l.stepIncrementSizeAmount != l.marketStepIncrementSize {
-			dAmount := decimal.NewFromFloat(amount)
-			dStep := decimal.NewFromFloat(l.marketStepIncrementSize)
-			if !dAmount.Mod(dStep).IsZero() {
-				return fmt.Errorf("%w stepSize: %f supplied %f",
-					ErrMarketAmountExceedsStep,
-					l.marketStepIncrementSize,
-					amount)
-			}
-		}
-	}
-
 	// Max total orders not done due to order manager limitations (TODO)
 	// l.maxTotalOrders
 
 	// Max algo orders not done due to order manager limitations (TODO)
 	// l.maxAlgoOrders
 
+	// If order type is Market we do not need to do price checks
+	if orderType != Market {
+		if l.minPrice != 0 && price < l.minPrice {
+			return fmt.Errorf("%w min: %f supplied %f",
+				ErrPriceExceedsMin,
+				l.minPrice,
+				price)
+		}
+		if l.maxPrice != 0 && price > l.maxPrice {
+			return fmt.Errorf("%w max: %f supplied %f",
+				ErrPriceExceedsMax,
+				l.maxPrice,
+				price)
+		}
+		if l.minNotional != 0 && (amount*price) < l.minNotional {
+			return fmt.Errorf("%w minimum notional: %f value of order %f",
+				ErrNotionalValue,
+				l.minNotional,
+				amount*price)
+		}
+		if l.stepIncrementSizePrice != 0 {
+			dPrice := decimal.NewFromFloat(price)
+			dStep := decimal.NewFromFloat(l.stepIncrementSizePrice)
+			if !dPrice.Mod(dStep).IsZero() {
+				return fmt.Errorf("%w stepSize: %f supplied %f",
+					ErrPriceExceedsStep,
+					l.stepIncrementSizePrice,
+					price)
+			}
+		}
+		return nil
+	}
+
+	if l.marketMinQty != 0 &&
+		l.minAmount < l.marketMinQty &&
+		amount < l.marketMinQty {
+		return fmt.Errorf("%w min: %f supplied %f",
+			ErrMarketAmountExceedsMin,
+			l.marketMinQty,
+			amount)
+	}
+	if l.marketMaxQty != 0 &&
+		l.maxAmount > l.marketMaxQty &&
+		amount > l.marketMaxQty {
+		return fmt.Errorf("%w max: %f supplied %f",
+			ErrMarketAmountExceedsMax,
+			l.marketMaxQty,
+			amount)
+	}
+	if l.marketStepIncrementSize != 0 && l.stepIncrementSizeAmount != l.marketStepIncrementSize {
+		dAmount := decimal.NewFromFloat(amount)
+		dStep := decimal.NewFromFloat(l.marketStepIncrementSize)
+		if !dAmount.Mod(dStep).IsZero() {
+			return fmt.Errorf("%w stepSize: %f supplied %f",
+				ErrMarketAmountExceedsStep,
+				l.marketStepIncrementSize,
+				amount)
+		}
+	}
 	return nil
 }
 
