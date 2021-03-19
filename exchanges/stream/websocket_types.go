@@ -57,7 +57,8 @@ type Websocket struct {
 	Unsubscriber func([]ChannelSubscription) error
 	// GenerateSubs function for package defined websocket generate
 	// subscriptions functionality
-	GenerateSubs func() ([]ChannelSubscription, error)
+	GenerateSubs     func() ([]ChannelSubscription, error)
+	GenerateAuthSubs func() ([]ChannelSubscription, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -72,7 +73,7 @@ type Websocket struct {
 	Orderbook buffer.Orderbook
 
 	// trafficAlert monitors if there is a halt in traffic throughput
-	TrafficAlert chan struct{}
+	TrafficAlert chan string
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and
 	// verify if its a disconnection
 	ReadMessageErrors chan error
@@ -86,19 +87,20 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	Enabled                          bool
-	Verbose                          bool
-	AuthenticatedWebsocketAPISupport bool
-	WebsocketTimeout                 time.Duration
-	DefaultURL                       string
-	ExchangeName                     string
-	RunningURL                       string
-	RunningURLAuth                   string
-	Connector                        func() error
-	Subscriber                       func([]ChannelSubscription) error
-	UnSubscriber                     func([]ChannelSubscription) error
-	GenerateSubscriptions            func() ([]ChannelSubscription, error)
-	Features                         *protocol.Features
+	Enabled                            bool
+	Verbose                            bool
+	AuthenticatedWebsocketAPISupport   bool
+	WebsocketTimeout                   time.Duration
+	DefaultURL                         string
+	ExchangeName                       string
+	RunningURL                         string
+	RunningURLAuth                     string
+	Connector                          func() error
+	Subscriber                         func([]ChannelSubscription) error
+	UnSubscriber                       func([]ChannelSubscription) error
+	GenerateSubscriptions              func() ([]ChannelSubscription, error)
+	GenerateAuthenticatedSubscriptions func() ([]ChannelSubscription, error)
+	Features                           *protocol.Features
 	// Local orderbook buffer config values
 	OrderbookBufferLimit  int
 	BufferEnabled         bool
@@ -127,6 +129,6 @@ type WebsocketConnection struct {
 
 	Match             *Match
 	ResponseMaxLimit  time.Duration
-	Traffic           chan struct{}
+	Traffic           chan string
 	readMessageErrors chan error
 }

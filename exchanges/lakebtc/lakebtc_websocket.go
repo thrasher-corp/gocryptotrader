@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"strconv"
 	"strings"
 	"time"
@@ -154,8 +155,14 @@ func (l *LakeBTC) wsHandleIncomingData() {
 				l.Websocket.DataHandler <- err
 			}
 		}
+
+		wsRunningURL, err := l.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return
+		}
+
 		select {
-		case l.Websocket.TrafficAlert <- struct{}{}:
+		case l.Websocket.TrafficAlert <- wsRunningURL:
 		default:
 		}
 	}

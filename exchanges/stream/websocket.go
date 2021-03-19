@@ -31,7 +31,7 @@ func New() *Websocket {
 		Init:              true,
 		DataHandler:       make(chan interface{}),
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
-		TrafficAlert:      make(chan struct{}),
+		TrafficAlert:      make(chan string),
 		ReadMessageErrors: make(chan error),
 		Subscribe:         make(chan []ChannelSubscription),
 		Unsubscribe:       make(chan []ChannelSubscription),
@@ -72,6 +72,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Unsubscriber = s.UnSubscriber
 
 	w.GenerateSubs = s.GenerateSubscriptions
+	w.GenerateAuthSubs = s.GenerateAuthenticatedSubscriptions
 
 	w.enabled = s.Enabled
 	if s.DefaultURL == "" {
@@ -205,14 +206,6 @@ func (w *Websocket) Connect() error {
 		w.connectionMonitor()
 	}
 
-	// Resubscribe after re-connection
-	if len(w.subscriptions) != 0 {
-		err = w.Subscriber(w.subscriptions)
-		if err != nil {
-			return fmt.Errorf("%v Error subscribing %s", w.exchangeName, err)
-		}
-	}
-
 	return nil
 }
 
@@ -235,7 +228,12 @@ func (w *Websocket) Enable() error {
 	}
 
 	w.setEnabled(true)
-	return w.Connect()
+	err := w.Connect()
+	if err != nil {
+		return err
+	}
+
+	return w.FlushChannels()
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
@@ -337,6 +335,11 @@ func (w *Websocket) connectionMonitor() {
 					err := w.Connect()
 					if err != nil {
 						log.Error(log.WebsocketMgr, err)
+					} else {
+						err = w.FlushChannels()
+						if err != nil {
+							log.Error(log.WebsocketMgr, err)
+						}
 					}
 				}
 				if !timer.Stop() {
@@ -406,7 +409,7 @@ func (w *Websocket) Shutdown() error {
 }
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (w *Websocket) FlushChannels() error {
+func (w *Websocket) FlushChannels() (err error) {
 	if !w.IsEnabled() {
 		return fmt.Errorf("%s websocket: service not enabled", w.exchangeName)
 	}
@@ -415,10 +418,25 @@ func (w *Websocket) FlushChannels() error {
 		return fmt.Errorf("%s websocket: service not connected", w.exchangeName)
 	}
 
+	defer func() {
+		if err != nil {
+			w.setConnectingStatus(false)
+			w.setConnectedStatus(false)
+		}
+	}()
+
 	if w.features.Subscribe {
 		newsubs, err := w.GenerateSubs()
 		if err != nil {
 			return err
+		}
+
+		if w.CanUseAuthenticatedEndpoints() && w.GenerateAuthSubs != nil {
+			newAuthSubs, err := w.GenerateAuthSubs()
+			if err != nil {
+				return err
+			}
+			newsubs = append(newsubs, newAuthSubs...) // add auth websockets subscriptions if enabled
 		}
 
 		subs, unsubs := w.GetChannelDifference(newsubs)
@@ -446,6 +464,14 @@ func (w *Websocket) FlushChannels() error {
 			return err
 		}
 
+		if w.CanUseAuthenticatedEndpoints() && w.GenerateAuthSubs != nil {
+			newAuthSubs, err := w.GenerateAuthSubs()
+			if err != nil {
+				return err
+			}
+			newsubs = append(newsubs, newAuthSubs...) // add auth websockets subscriptions if enabled
+		}
+
 		if len(newsubs) != 0 {
 			// Purge subscription list as there will be conflicts
 			w.subscriptionMutex.Lock()
@@ -456,11 +482,7 @@ func (w *Websocket) FlushChannels() error {
 		return nil
 	}
 
-	err := w.Shutdown()
-	if err != nil {
-		return err
-	}
-	return w.Connect()
+	return w.Shutdown()
 }
 
 // trafficMonitor uses a timer of WebsocketTrafficLimitTime and once it expires,
@@ -475,7 +497,11 @@ func (w *Websocket) trafficMonitor() {
 
 	go func() {
 		var trafficTimer = time.NewTimer(w.trafficTimeout)
-		pause := make(chan struct{})
+		var trafficAuthTimer = time.NewTimer(w.trafficTimeout)
+		if !w.CanUseAuthenticatedEndpoints() {
+			trafficAuthTimer.Stop()
+		}
+
 		for {
 			select {
 			case <-w.ShutdownC:
@@ -488,15 +514,26 @@ func (w *Websocket) trafficMonitor() {
 				w.setTrafficMonitorRunning(false)
 				w.Wg.Done()
 				return
-			case <-w.TrafficAlert:
-				if !trafficTimer.Stop() {
-					select {
-					case <-trafficTimer.C:
-					default:
+			case t := <-w.TrafficAlert:
+				if w.AuthConn != nil && w.AuthConn.GetURL() == t {
+					if !trafficAuthTimer.Stop() {
+						select {
+						case <-trafficAuthTimer.C:
+						default:
+						}
 					}
+					w.setConnectedStatus(true)
+					trafficAuthTimer.Reset(w.trafficTimeout)
+				} else if w.Conn != nil && w.Conn.GetURL() == t {
+					if !trafficTimer.Stop() {
+						select {
+						case <-trafficTimer.C:
+						default:
+						}
+					}
+					w.setConnectedStatus(true)
+					trafficTimer.Reset(w.trafficTimeout)
 				}
-				w.setConnectedStatus(true)
-				trafficTimer.Reset(w.trafficTimeout)
 			case <-trafficTimer.C: // Falls through when timer runs out
 				if w.verbose {
 					log.Warnf(log.WebsocketMgr,
@@ -516,22 +553,26 @@ func (w *Websocket) trafficMonitor() {
 				}
 				w.setTrafficMonitorRunning(false)
 				return
-			}
-
-			if w.IsConnected() {
-				// Routine pausing mechanism
-				go func(p chan<- struct{}) {
-					time.Sleep(defaultTrafficPeriod)
-					p <- struct{}{}
-				}(pause)
-				select {
-				case <-w.ShutdownC:
-					trafficTimer.Stop()
-					w.setTrafficMonitorRunning(false)
-					w.Wg.Done()
-					return
-				case <-pause:
+			case <-trafficAuthTimer.C: // Falls through when auth timer runs out
+				trafficAuthTimer.Reset(w.trafficTimeout)
+				if w.verbose {
+					log.Warnf(log.WebsocketMgr,
+						"%v auth websocket: has not received a traffic alert in %v. Reconnecting",
+						w.exchangeName,
+						w.trafficTimeout)
 				}
+				trafficAuthTimer.Stop()
+				w.Wg.Done()
+				if !w.IsConnecting() && w.IsConnected() {
+					err := w.Shutdown()
+					if err != nil {
+						log.Errorf(log.WebsocketMgr,
+							"%v auth websocket: trafficMonitor shutdown err: %s",
+							w.exchangeName, err)
+					}
+				}
+				w.setTrafficMonitorRunning(false)
+				return
 			}
 		}
 	}()
@@ -743,7 +784,12 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 				return err
 			}
 		}
-		return w.Connect()
+
+		err := w.Connect()
+		if err != nil {
+			return err
+		}
+		return w.FlushChannels()
 	}
 	return nil
 }

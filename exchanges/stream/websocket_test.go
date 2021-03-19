@@ -176,7 +176,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	}
 
 	// Deploy traffic alert
-	ws.TrafficAlert <- struct{}{}
+	ws.TrafficAlert <- ""
 	time.Sleep(time.Second * 2)
 	ws.Wg.Wait()
 	if ws.IsTrafficMonitorRunning() {
@@ -253,7 +253,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ws.TrafficAlert <- struct{}{}
+	ws.TrafficAlert <- ""
 
 	timer := time.NewTimer(900 * time.Millisecond)
 	ws.ReadMessageErrors <- errors.New("errorText")
@@ -1194,7 +1194,7 @@ func TestSetupNewConnection(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	nonsenseWebsock.TrafficAlert = make(chan struct{})
+	nonsenseWebsock.TrafficAlert = make(chan string)
 	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
 	if err == nil {
 		t.Fatal("error cannot be nil")
@@ -1205,7 +1205,7 @@ func TestSetupNewConnection(t *testing.T) {
 		Wg:                new(sync.WaitGroup),
 		ShutdownC:         make(chan struct{}),
 		Init:              true,
-		TrafficAlert:      make(chan struct{}),
+		TrafficAlert:      make(chan string),
 		ReadMessageErrors: make(chan error),
 		DataHandler:       make(chan interface{}),
 	}
