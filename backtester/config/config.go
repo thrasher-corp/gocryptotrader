@@ -57,7 +57,7 @@ func (c *Config) PrintSetting() {
 		log.Infof(log.BackTester, currStr[:61])
 		log.Info(log.BackTester, "-------------------------------------------------------------")
 		log.Infof(log.BackTester, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		log.Infof(log.BackTester, "Initial funds: %.2f", c.CurrencySettings[i].InitialFunds)
+		log.Infof(log.BackTester, "Initial funds: %.4f", c.CurrencySettings[i].InitialFunds)
 		log.Infof(log.BackTester, "Maker fee: %.2f", c.CurrencySettings[i].TakerFee)
 		log.Infof(log.BackTester, "Taker fee: %.2f", c.CurrencySettings[i].MakerFee)
 		log.Infof(log.BackTester, "Minimum slippage percent %.2f", c.CurrencySettings[i].MinimumSlippagePercent)
