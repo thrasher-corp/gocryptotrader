@@ -1,0 +1,12 @@
+{{define "backtester eventhandlers portfolio holdings" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+Holdings are used to calculate the holdings at any given time for a given exchange, asset, currency pair. If an order is placed, funds are removed from funding and placed under assets.
+Every data event will update and calculate holdings value based on the new price. This will allow for statistics to be easily calculated at the end of a backtesting run
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

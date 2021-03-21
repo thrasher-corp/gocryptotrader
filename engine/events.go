@@ -146,17 +146,17 @@ func (e *Event) String() string {
 	)
 }
 
-func (e *Event) processTicker() bool {
+func (e *Event) processTicker(verbose bool) bool {
 	t, err := ticker.GetTicker(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
-		if Bot.Settings.Verbose {
+		if verbose {
 			log.Debugf(log.EventMgr, "Events: failed to get ticker. Err: %s\n", err)
 		}
 		return false
 	}
 
 	if t.Last == 0 {
-		if Bot.Settings.Verbose {
+		if verbose {
 			log.Debugln(log.EventMgr, "Events: ticker last price is 0")
 		}
 		return false
@@ -190,10 +190,10 @@ func (e *Event) processCondition(actual, threshold float64) bool {
 	return false
 }
 
-func (e *Event) processOrderbook() bool {
+func (e *Event) processOrderbook(verbose bool) bool {
 	ob, err := orderbook.Get(e.Exchange, e.Pair, e.Asset)
 	if err != nil {
-		if Bot.Settings.Verbose {
+		if verbose {
 			log.Debugf(log.EventMgr, "Events: Failed to get orderbook. Err: %s\n", err)
 		}
 		return false
@@ -226,11 +226,11 @@ func (e *Event) processOrderbook() bool {
 
 // CheckEventCondition will check the event structure to see if there is a condition
 // met
-func (e *Event) CheckEventCondition() bool {
+func (e *Event) CheckEventCondition(verbose bool) bool {
 	if e.Item == ItemPrice {
-		return e.processTicker()
+		return e.processTicker(verbose)
 	}
-	return e.processOrderbook()
+	return e.processOrderbook(verbose)
 }
 
 // IsValidEvent checks the actions to be taken and returns an error if incorrect
@@ -278,7 +278,7 @@ func IsValidEvent(exchange, item string, condition EventConditionParams, action 
 
 // EventManger is the overarching routine that will iterate through the Events
 // chain
-func EventManger() {
+func EventManger(verbose bool, comManager *commsManager) {
 	log.Debugf(log.EventMgr, "EventManager started. SleepDelay: %v\n", EventSleepDelay.String())
 
 	for {
@@ -286,17 +286,17 @@ func EventManger() {
 		if total > 0 && executed != total {
 			for _, event := range Events {
 				if !event.Executed {
-					if Bot.Settings.Verbose {
+					if verbose {
 						log.Debugf(log.EventMgr, "Events: Processing event %s.\n", event.String())
 					}
-					success := event.CheckEventCondition()
+					success := event.CheckEventCondition(verbose)
 					if success {
 						msg := fmt.Sprintf(
 							"Events: ID: %d triggered on %s successfully [%v]\n", event.ID,
 							event.Exchange, event.String(),
 						)
 						log.Infoln(log.EventMgr, msg)
-						Bot.CommsManager.PushEvent(base.Event{Type: "event", Message: msg})
+						comManager.PushEvent(base.Event{Type: "event", Message: msg})
 						event.Executed = true
 					}
 				}

@@ -1,0 +1,23 @@
+{{define "backtester eventtypes fill" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+The Fill Event type contains details the outcome from attempting to make an order. Any slippage or pricing adjustment or fees are part of the fill event. If an order is placed, it is available to access on the event as well as in the compliance manager
+
+The Fill Event Type is based on `common.EventHandler` and `common.Directioner` while also having the following custom functions
+```
+SetAmount(float64)
+	GetAmount() float64
+	GetClosePrice() float64
+	GetVolumeAdjustedPrice() float64
+	GetSlippageRate() float64
+	GetPurchasePrice() float64
+	GetExchangeFee() float64
+	SetExchangeFee(float64)
+	GetOrder() *order.Detail
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

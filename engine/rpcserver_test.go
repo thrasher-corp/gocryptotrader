@@ -331,8 +331,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	_, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "",
 	})
-	if !errors.Is(err, errInvalidArguments) {
-		t.Errorf("expected %v, received %v", errInvalidArguments, err)
+	if !errors.Is(err, errExchangeNameUnset) {
+		t.Errorf("expected %v, received %v", errExchangeNameUnset, err)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
@@ -349,8 +349,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Quote: currency.USD.String(),
 		},
 	})
-	if !errors.Is(err, errInvalidStartEndTime) {
-		t.Errorf("expected %v, received %v", errInvalidStartEndTime, err)
+	if !errors.Is(err, errStartEndTimesUnset) {
+		t.Errorf("expected %v, received %v", errStartEndTimesUnset, err)
 	}
 	var results *gctrpc.GetHistoricCandlesResponse
 	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)
@@ -788,7 +788,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	bot := SetupTestHelpers(t)
+	bot := CreateTestBot(t)
 	s := RPCServer{Engine: bot}
 
 	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
@@ -802,7 +802,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
-	bot := SetupTestHelpers(t)
+	bot := CreateTestBot(t)
 	s := RPCServer{Engine: bot}
 
 	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
@@ -868,8 +868,8 @@ func TestGetOrders(t *testing.T) {
 		StartDate: time.Now().Format(common.SimpleTimeFormat),
 		EndDate:   time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
 	})
-	if !errors.Is(err, errInvalidStartEndTime) {
-		t.Errorf("expected %v, received %v", errInvalidStartEndTime, err)
+	if !errors.Is(err, errStartEndTimesUnset) {
+		t.Errorf("expected %v, received %v", errStartEndTimesUnset, err)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -966,10 +966,7 @@ func TestGetOrder(t *testing.T) {
 	if !errors.Is(err, errOrderCannotBeEmpty) {
 		t.Errorf("expected %v, received %v", errOrderCannotBeEmpty, err)
 	}
-	if Bot == nil {
-		Bot = engerino
-	}
-	err = Bot.OrderManager.Start()
+	err = engerino.OrderManager.Start(engerino)
 	if err != nil {
 		t.Fatal(err)
 	}

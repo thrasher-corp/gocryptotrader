@@ -1,0 +1,18 @@
+{{define "backtester config examples" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+Current Config Examples:
+
+| Config | Description |
+| --- | ------ |
+| dollar-cost-average.strat | A simple dollar cost average strategy which makes a purchase on every candle. |
+| dollar-cost-average-live.strat | Using the same dollar cost average strategy, but runs the analysis against live candles |
+| dollar-cost-average-multi-currency-assessment.strat | This strategy will assess multiple currencies in the one `OnSignals` function, however, it also just simply makes a purchase on every candle |
+| dollar-cost-average-multiple-currencies.strat | This runs the same strategy against multiple currencies independently |
+| rsi.strat | Runs a strategy using rsi figures to make buy or sell orders based on market figures |
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

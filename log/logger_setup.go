@@ -139,6 +139,7 @@ func init() {
 	Global = registerNewSubLogger("LOG")
 
 	ConnectionMgr = registerNewSubLogger("CONNECTION")
+	BackTester = registerNewSubLogger("BACKTESTER")
 	CommunicationMgr = registerNewSubLogger("COMMS")
 	ConfigMgr = registerNewSubLogger("CONFIG")
 	DatabaseMgr = registerNewSubLogger("DATABASE")

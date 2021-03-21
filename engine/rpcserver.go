@@ -49,20 +49,16 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const (
-	errExchangeNameUnset = "exchange name unset"
-	errAssetTypeUnset    = "asset type unset"
-	errDispatchSystem    = "dispatch system offline"
-	invalidArguments     = "invalid arguments received"
-)
-
 var (
 	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
 	errExchangeBaseNotFound = errors.New("cannot get exchange base")
-	errInvalidArguments     = errors.New(invalidArguments)
+	errInvalidArguments     = errors.New("invalid arguments received")
+	errExchangeNameUnset    = errors.New("exchange name unset")
 	errCurrencyPairUnset    = errors.New("currency pair unset")
+	errStartEndTimesUnset   = errors.New("invalid start and end times")
+	errAssetTypeUnset       = errors.New("asset type unset")
+	errDispatchSystem       = errors.New("dispatch system offline")
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
-	errInvalidStartEndTime  = errors.New("invalid start and end times")
 )
 
 // RPCServer struct
@@ -557,7 +553,7 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 // GetAccountInfoStream streams an account balance for a specific exchange
 func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream gctrpc.GoCryptoTrader_GetAccountInfoStreamServer) error {
 	if r.Exchange == "" {
-		return errors.New(errExchangeNameUnset)
+		return errExchangeNameUnset
 	}
 
 	exch := s.GetExchangeByName(r.Exchange)
@@ -609,7 +605,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 	for {
 		data, ok := <-pipe.C
 		if !ok {
-			return errors.New(errDispatchSystem)
+			return errDispatchSystem
 		}
 
 		acc := (*data.(*interface{})).(account.Holdings)
@@ -832,7 +828,7 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 		}
 	}
 	if !start.IsZero() && !end.IsZero() && start.After(end) {
-		return nil, errInvalidStartEndTime
+		return nil, errStartEndTimesUnset
 	}
 
 	cp := currency.NewPairWithDelimiter(
@@ -1294,7 +1290,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.Wit
 		},
 	}
 
-	resp, err := SubmitWithdrawal(request)
+	resp, err := s.Engine.SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}
@@ -1336,7 +1332,7 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 		},
 	}
 
-	resp, err := SubmitWithdrawal(request)
+	resp, err := s.Engine.SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}
@@ -1622,7 +1618,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 // GetOrderbookStream streams the requested updated orderbook
 func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetOrderbookStreamServer) error {
 	if r.Exchange == "" {
-		return errors.New(errExchangeNameUnset)
+		return errExchangeNameUnset
 	}
 
 	if r.Pair.String() == "" {
@@ -1630,7 +1626,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	}
 
 	if r.AssetType == "" {
-		return errors.New(errAssetTypeUnset)
+		return errAssetTypeUnset
 	}
 
 	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -1653,7 +1649,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 	for {
 		data, ok := <-pipe.C
 		if !ok {
-			return errors.New(errDispatchSystem)
+			return errDispatchSystem
 		}
 
 		ob := (*data.(*interface{})).(orderbook.Base)
@@ -1688,7 +1684,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 // GetExchangeOrderbookStream streams all orderbooks associated with an exchange
 func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeOrderbookStreamServer) error {
 	if r.Exchange == "" {
-		return errors.New(errExchangeNameUnset)
+		return errExchangeNameUnset
 	}
 
 	pipe, err := orderbook.SubscribeToExchangeOrderbooks(r.Exchange)
@@ -1701,7 +1697,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 	for {
 		data, ok := <-pipe.C
 		if !ok {
-			return errors.New(errDispatchSystem)
+			return errDispatchSystem
 		}
 
 		ob := (*data.(*interface{})).(orderbook.Base)
@@ -1736,7 +1732,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 // GetTickerStream streams the requested updated ticker
 func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetTickerStreamServer) error {
 	if r.Exchange == "" {
-		return errors.New(errExchangeNameUnset)
+		return errExchangeNameUnset
 	}
 
 	if r.Pair.String() == "" {
@@ -1744,7 +1740,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	}
 
 	if r.AssetType == "" {
-		return errors.New(errAssetTypeUnset)
+		return errAssetTypeUnset
 	}
 
 	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -1767,7 +1763,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	for {
 		data, ok := <-pipe.C
 		if !ok {
-			return errors.New(errDispatchSystem)
+			return errDispatchSystem
 		}
 		t := (*data.(*interface{})).(ticker.Price)
 
@@ -1794,7 +1790,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 // GetExchangeTickerStream streams all tickers associated with an exchange
 func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTrader_GetExchangeTickerStreamServer) error {
 	if r.Exchange == "" {
-		return errors.New(errExchangeNameUnset)
+		return errExchangeNameUnset
 	}
 
 	pipe, err := ticker.SubscribeToExchangeTickers(r.Exchange)
@@ -1807,7 +1803,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 	for {
 		data, ok := <-pipe.C
 		if !ok {
-			return errors.New(errDispatchSystem)
+			return errDispatchSystem
 		}
 		t := (*data.(*interface{})).(ticker.Price)
 
@@ -1879,13 +1875,13 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
 	if r.Exchange == "" {
-		return nil, fmt.Errorf("%w. blank exchange name received", errInvalidArguments)
+		return nil, errExchangeNameUnset
 	}
 	if r.Pair.String() == "" {
 		return nil, errCurrencyPairUnset
 	}
 	if r.Start == r.End {
-		return nil, errInvalidStartEndTime
+		return nil, errStartEndTimesUnset
 	}
 
 	var klineItem kline.Item

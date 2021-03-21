@@ -23,12 +23,12 @@ const (
 
 // SubmitWithdrawal performs validation and submits a new withdraw request to
 // exchange
-func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
+func (bot *Engine) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 	if req == nil {
 		return nil, withdraw.ErrRequestCannotBeNil
 	}
 
-	exch := Bot.GetExchangeByName(req.Exchange)
+	exch := bot.GetExchangeByName(req.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
@@ -41,7 +41,7 @@ func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 	}
 
 	var err error
-	if Bot.Settings.EnableDryRun {
+	if bot.Settings.EnableDryRun {
 		log.Warnln(log.Global, "Dry run enabled, no withdrawal request will be submitted or have an event created")
 		resp.ID = withdraw.DryRunID
 		resp.Exchange.Status = "dryrun"

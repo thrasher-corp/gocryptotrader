@@ -3,6 +3,7 @@ package engine
 import (
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -23,7 +24,10 @@ func addValidEvent() (int64, error) {
 }
 
 func TestAdd(t *testing.T) {
-	SetupTestHelpers(t)
+	bot := CreateTestBot(t)
+	if config.Cfg.Name == "" && bot != nil {
+		config.Cfg = *bot.Config
+	}
 	_, err := Add("", "", EventConditionParams{}, currency.Pair{}, "", "")
 	if err == nil {
 		t.Error("should err on invalid params")
@@ -45,7 +49,10 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	SetupTestHelpers(t)
+	bot := CreateTestBot(t)
+	if config.Cfg.Name == "" && bot != nil {
+		config.Cfg = *bot.Config
+	}
 	id, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -61,7 +68,10 @@ func TestRemove(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
-	SetupTestHelpers(t)
+	bot := CreateTestBot(t)
+	if config.Cfg.Name == "" && bot != nil {
+		config.Cfg = *bot.Config
+	}
 	_, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -81,8 +91,12 @@ func TestGetEventCounter(t *testing.T) {
 
 func TestExecuteAction(t *testing.T) {
 	t.Parallel()
+	bot := CreateTestBot(t)
 	if Bot == nil {
-		Bot = new(Engine)
+		Bot = bot
+	}
+	if config.Cfg.Name == "" && bot != nil {
+		config.Cfg = *bot.Config
 	}
 
 	var e Event
@@ -121,10 +135,6 @@ func TestString(t *testing.T) {
 }
 
 func TestProcessTicker(t *testing.T) {
-	if Bot == nil {
-		Bot = new(Engine)
-	}
-
 	e := Event{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
@@ -144,7 +154,7 @@ func TestProcessTicker(t *testing.T) {
 	if err := ticker.ProcessTicker(&tick); err != nil {
 		t.Fatal("unexpected result:", err)
 	}
-	if r := e.processTicker(); r {
+	if r := e.processTicker(false); r {
 		t.Error("unexpected result")
 	}
 
@@ -153,7 +163,7 @@ func TestProcessTicker(t *testing.T) {
 	if err := ticker.ProcessTicker(&tick); err != nil {
 		t.Fatal("unexpected result:", err)
 	}
-	if r := e.processTicker(); !r {
+	if r := e.processTicker(false); !r {
 		t.Error("unexpected result")
 	}
 }
@@ -187,10 +197,6 @@ func TestProcessCondition(t *testing.T) {
 }
 
 func TestProcessOrderbook(t *testing.T) {
-	if Bot == nil {
-		Bot = new(Engine)
-	}
-
 	e := Event{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
@@ -214,7 +220,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("unexpected result:", err)
 	}
 
-	if r := e.processOrderbook(); !r {
+	if r := e.processOrderbook(false); !r {
 		t.Error("unexpected result")
 	}
 }
@@ -228,18 +234,21 @@ func TestCheckEventCondition(t *testing.T) {
 	e := Event{
 		Item: ItemPrice,
 	}
-	if r := e.CheckEventCondition(); r {
+	if r := e.CheckEventCondition(false); r {
 		t.Error("unexpected result")
 	}
 
 	e.Item = ItemOrderbook
-	if r := e.CheckEventCondition(); r {
+	if r := e.CheckEventCondition(false); r {
 		t.Error("unexpected result")
 	}
 }
 
 func TestIsValidEvent(t *testing.T) {
-	SetupTestHelpers(t)
+	bot := CreateTestBot(t)
+	if config.Cfg.Name == "" && bot != nil {
+		config.Cfg = *bot.Config
+	}
 	// invalid exchange name
 	if err := IsValidEvent("meow", "", EventConditionParams{}, ""); err != errExchangeDisabled {
 		t.Error("unexpected result:", err)
@@ -290,7 +299,7 @@ func TestIsValidExchange(t *testing.T) {
 	if s := IsValidExchange("invalidexchangerino"); s {
 		t.Error("unexpected result")
 	}
-	SetupTestHelpers(t)
+	CreateTestBot(t)
 	if s := IsValidExchange(testExchange); !s {
 		t.Error("unexpected result")
 	}

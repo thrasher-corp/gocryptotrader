@@ -68,11 +68,7 @@ func (g *GctScriptManager) Stop() error {
 
 	log.Debugln(log.GCTScriptMgr, gctscriptManagerName, subsystem.MsgSubSystemShuttingDown)
 	close(g.shutdown)
-	err := g.ShutdownAll()
-	if err != nil {
-		return err
-	}
-	return nil
+	return g.ShutdownAll()
 }
 
 func (g *GctScriptManager) run(wg *sync.WaitGroup) {

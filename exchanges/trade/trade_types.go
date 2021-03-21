@@ -10,6 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// DefaultProcessorIntervalTime is the default timer
+// to process queued trades and save them to the database
 const DefaultProcessorIntervalTime = time.Second * 15
 
 var (
