@@ -395,6 +395,18 @@ func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
+	// Checks for exchange min max limits for order amounts before order
+	// execution can occur
+	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
+		newOrder.Pair,
+		newOrder.Price,
+		newOrder.Amount,
+		newOrder.Type)
+	if err != nil {
+		return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+			newOrder.Exchange,
+			err)
+	}
 	return o.processSubmittedOrder(newOrder, resultingOrder)
 }
 
