@@ -1,0 +1,8 @@
+package slippage
+
+// Default slippage rates. It works on a percentage basis
+// 100 means unaffected, 95 would mean 95%
+const (
+	DefaultMaximumSlippagePercent = 100
+	DefaultMinimumSlippagePercent = 100
+)

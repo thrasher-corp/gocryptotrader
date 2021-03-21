@@ -236,6 +236,16 @@ func main() {
 				URL:           "https://github.com/merkeld",
 				Contributions: 1,
 			},
+			{
+				Login:         "CodeLingoTeam",
+				URL:           "https://github.com/CodeLingoTeam",
+				Contributions: 1,
+			},
+			{
+				Login:         "Daanikus",
+				URL:           "https://github.com/Daanikus",
+				Contributions: 1,
+			},
 		}...)
 
 		if verbose {
@@ -423,7 +433,8 @@ func GetPackageName(name string, capital bool) string {
 	newStrings := strings.Split(name, " ")
 	var i int
 	if len(newStrings) > 1 {
-		i = 1
+		// retrieve the latest spacing to define the most childish package name
+		i = len(newStrings) - 1
 	}
 	if capital {
 		return strings.Title(newStrings[i])

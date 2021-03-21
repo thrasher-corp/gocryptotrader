@@ -11,7 +11,6 @@ import (
 func TestSimulate(t *testing.T) {
 	b := bitstamp.Bitstamp{}
 	b.SetDefaults()
-	b.Verbose = false
 	o, err := b.FetchOrderbook(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {
 		t.Error(err)

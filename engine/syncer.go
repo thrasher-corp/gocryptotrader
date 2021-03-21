@@ -97,7 +97,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 		if e.Cfg.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added ticker sync item %v: using websocket: %v using REST: %v\n",
-				c.Exchange, FormatCurrency(c.Pair).String(), c.Ticker.IsUsingWebsocket,
+				c.Exchange, Bot.FormatCurrency(c.Pair).String(), c.Ticker.IsUsingWebsocket,
 				c.Ticker.IsUsingREST)
 		}
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
@@ -110,7 +110,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 		if e.Cfg.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added orderbook sync item %v: using websocket: %v using REST: %v\n",
-				c.Exchange, FormatCurrency(c.Pair).String(), c.Orderbook.IsUsingWebsocket,
+				c.Exchange, Bot.FormatCurrency(c.Pair).String(), c.Orderbook.IsUsingWebsocket,
 				c.Orderbook.IsUsingREST)
 		}
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
@@ -123,7 +123,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 		if e.Cfg.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added trade sync item %v: using websocket: %v using REST: %v\n",
-				c.Exchange, FormatCurrency(c.Pair).String(), c.Trade.IsUsingWebsocket,
+				c.Exchange, Bot.FormatCurrency(c.Pair).String(), c.Trade.IsUsingWebsocket,
 				c.Trade.IsUsingREST)
 		}
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
@@ -237,7 +237,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].\n",
 						exchangeName,
-						FormatCurrency(p).String(),
+						Bot.FormatCurrency(p).String(),
 						removedCounter,
 						createdCounter)
 					e.initSyncWG.Done()
@@ -255,7 +255,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].\n",
 						exchangeName,
-						FormatCurrency(p).String(),
+						Bot.FormatCurrency(p).String(),
 						removedCounter,
 						createdCounter)
 					e.initSyncWG.Done()
@@ -273,7 +273,7 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].\n",
 						exchangeName,
-						FormatCurrency(p).String(),
+						Bot.FormatCurrency(p).String(),
 						removedCounter,
 						createdCounter)
 					e.initSyncWG.Done()
@@ -375,7 +375,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 					if switchedToRest && usingWebsocket {
 						log.Warnf(log.SyncMgr,
 							"%s %s: Websocket re-enabled, switching from rest to websocket\n",
-							c.Exchange, FormatCurrency(enabledPairs[i]).String())
+							c.Exchange, Bot.FormatCurrency(enabledPairs[i]).String())
 						switchedToRest = false
 					}
 					if e.Cfg.SyncTicker {
@@ -395,7 +395,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										log.Warnf(log.SyncMgr,
 											"%s %s %s: No ticker update after %s, switching from websocket to rest\n",
 											c.Exchange,
-											FormatCurrency(enabledPairs[i]).String(),
+											Bot.FormatCurrency(enabledPairs[i]).String(),
 											strings.ToUpper(c.AssetType.String()),
 											e.Cfg.SyncTimeoutStream,
 										)
@@ -464,7 +464,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										log.Warnf(log.SyncMgr,
 											"%s %s %s: No orderbook update after %s, switching from websocket to rest\n",
 											c.Exchange,
-											FormatCurrency(c.Pair).String(),
+											Bot.FormatCurrency(c.Pair).String(),
 											strings.ToUpper(c.AssetType.String()),
 											e.Cfg.SyncTimeoutStream,
 										)
@@ -475,7 +475,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 
 								e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
 								result, err := exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
-								printOrderbookSummary(result, "REST", err)
+								printOrderbookSummary(result, "REST", Bot, err)
 								if err == nil {
 									if Bot.Config.RemoteControl.WebsocketRPC.Enabled {
 										relayWebsocketEvent(result, "orderbook_update", c.AssetType.String(), exchangeName)

@@ -1,0 +1,24 @@
+{{define "backtester eventhandlers exchange" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+The exchange eventhandler is responsible for calling the `engine` package's `ordermanager` to place either a fake, or real order on the exchange via API.
+
+The following steps are taken for the `ExecuteOrder` function:
+
+- Calculate slippage. If the order is a sell order, it will reduce the price by a random percentage between the two values. If it is a buy order, it will raise the price by a random percentage between the two values
+  - If `RealOrders` is set to `false`:
+    - It will estimate the slippage based on what is in the config file under `min-slippage-percent` and `max-slippage-percent`.
+    - It will be sized within the constraints of the current candles OHLCV values
+    - It will generate the exchange fee based on what is stored in the config for the exchange asset currency pair
+  - If `RealOrders` is set to `true`, it will use the latest orderbook data to calculate slippage by simulating the order
+ - Place the order with the engine order manager
+  - If `RealOrders` is set to `false` it will submit the order with no calls to the exchange's API, use no API credentials and it will always pass
+  - If `RealOrders` is set to `true` it will submit the order via the exchange's API and if successful, will be stored in the order manager
+ - If an order is successfully placed, a snapshot of all existing orders in the run will be captured and store for statistical purposes
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

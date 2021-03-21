@@ -1,0 +1,12 @@
+{{define "backtester eventhandlers eventholder" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+The event holder is a simple interface implementation which allows the backtester to iterate over the event queue.
+The event holder is based on the `EventHolder` interface and is implemented by `Holder`.
+It is used by `backtest.Backtester` and it accepts appending any struct which implements the `common.EventHandler` interface, eg `order.Order`
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

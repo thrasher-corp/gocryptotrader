@@ -77,6 +77,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
 + Scripting support. See [gctscript](/gctscript/README.md).
 + Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
++ Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
 + WebGUI (discontinued).
 
 ## Planned Features
@@ -142,18 +143,18 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 645 |
-| [shazbert](https://github.com/shazbert) | 199 |
-| [gloriousCode](https://github.com/gloriousCode) | 173 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 70 |
+| [thrasher-](https://github.com/thrasher-) | 650 |
+| [shazbert](https://github.com/shazbert) | 202 |
+| [gloriousCode](https://github.com/gloriousCode) | 176 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 87 |
 | [xtda](https://github.com/xtda) | 47 |
+| [Rots](https://github.com/Rots) | 15 |
+| [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 10 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 9 |
-| [Rots](https://github.com/Rots) | 9 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
-| [vazha](https://github.com/vazha) | 7 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
@@ -164,14 +165,14 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
+| [mshogin](https://github.com/mshogin) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
-| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
-| [Daanikus](https://github.com/Daanikus) | 1 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |
@@ -185,3 +186,5 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Jimexist](https://github.com/Jimexist) | 1 |
 | [lookfirst](https://github.com/lookfirst) | 1 |
 | [merkeld](https://github.com/merkeld) | 1 |
+| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
+| [Daanikus](https://github.com/Daanikus) | 1 |
