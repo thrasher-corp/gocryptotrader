@@ -341,7 +341,7 @@ func (b *Bittrex) wsHandleResponseData(request WsPendingRequest, respRaw []byte)
 		}
 		if !response.Response.Success {
 			log.Warnf(log.WebsocketMgr, "%s - Unable to authenticate (%s)", b.Name, response.Response.ErrorCode)
-			return nil
+			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 		return nil
 	case "subscribe":
@@ -403,7 +403,10 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 		return b.wsHandleResponseData(request, respRaw)
 	}
 	if response.Response == nil && len(response.Message) == 0 && response.C == "" {
-		log.Warnf(log.WebsocketMgr, "%s Received keep-alive (%s)\n", b.Name, string(respRaw))
+		if b.Verbose {
+			log.Warnf(log.WebsocketMgr, "%s Received keep-alive (%s)\n", b.Name, string(respRaw))
+		}
+		return nil
 	}
 	for i := range response.Message {
 		switch response.Message[i].Method {
@@ -445,7 +448,9 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 				}
 			}
 		case "heartbeat":
-			log.Warnf(log.WebsocketMgr, "%s Received heartbeat\n", b.Name)
+			if b.Verbose {
+				log.Warnf(log.WebsocketMgr, "%s Received heartbeat\n", b.Name)
+			}
 		case "authenticationExpiring":
 			if b.Verbose {
 				log.Debugf(log.WebsocketMgr, "%s - Re-authenticating.\n", b.Name)
