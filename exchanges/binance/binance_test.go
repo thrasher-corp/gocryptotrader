@@ -2337,7 +2337,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	end := time.Unix(1577836799, 0)
 	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
@@ -2351,15 +2351,17 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
+
+	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
+
 	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
 	if err == nil {
-		t.Fatal("unexpected result")
+		t.Error("unexpected result")
 	}
 }
 
@@ -2378,6 +2380,11 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 			"OneDay",
 			kline.OneDay,
 			"1d",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"1w",
 		},
 		{
 			"OneMonth",

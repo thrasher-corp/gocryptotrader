@@ -1,0 +1,72 @@
+{{define "backtester" -}}
+{{template "backtester-header" .}}
+
+# GoCryptoTrader Backtester
+An event-driven backtesting tool to test and iterate trading strategies using historical or custom data.
+
+## Features
+- Works with all GoCryptoTrader exchanges that support trade/candle retrieval. See [candle readme](/docs/OHLCV.md) and [trade readme](/exchanges/trade/README.md) for supported exchanges
+- CSV data import
+- Database data import
+- Proof of concept live data running
+- Can run strategies against multiple cryptocurrencies
+- Can run strategies that can assess multiple currencies simultaneously to make complex decisions
+- Dollar cost strategy implementation
+- RSI strategy implementation
+- Rules customisation via config `.strat` files
+- Strategy customisation without requiring recompilation. For example, customising RSI high, low and length values via config `.strat` files.
+- Report generation
+- Portfolio manager to help size orders based on config rules, risk and candle volume
+- Order manager to place orders with customisable slippage estimator
+- Helpful statistics to help determine whether a strategy was effective
+- Compliance manager to keep snapshots of every transaction and their changes at every interval
+
+## How does it work?
+- The application will load a `.strat` config file as specified at runtime
+- The `.strat` config file will contain
+  - Start & end dates
+  - The strategy to run
+  - The candle interval
+  - Where the data is to be sourced ([API](/backtester/data/kline/api/README.md), [CSV](/backtester/data/kline/csv/README.md), [database](/backtester/data/kline/database/README.md), [live](/backtester/data/kline/live/README.md))
+  - Whether to use trade or candle data ([readme](/backtester/data/kline/README.md))
+  - A nickname for the strategy (to help differentiate between runs/configs using the same strategy)
+  - The currency/currencies to use
+  - The exchange(s) to run against
+  - See [readme](/backtester/config/README.md) for a breakdown of all config features
+- The GoCryptoTrader Backtester will retrieve the data specified in the config ([readme](/backtester/backtest/README.md))
+- The data is converted into candles and each candle is streamed as a data event.
+- The data event is analysed by the strategy which will output a purchasing signal such as `BUY`, `SELL` or `DONOTHING` ([readme](/backtester/eventtypes/signal/README.md))
+- The purchase signal is then processed by the portfolio manager ([readme](/backtester/eventhandlers/portfolio/README.md)) which will size the order ([readme](/backtester/eventhandlers/portfolio/size/README.md)) and assess risk ([readme](/backtester/eventhandlers/portfolio/risk/README.md)) before sending it to the exchange
+- The exchange order event handler will size to the candle data and run a slippage estimator ([readme](/backtester/eventhandlers/exchange/slippage/README.md)) and place the order ([readme](/backtester/eventhandlers/exchange/README.md))
+- Upon an order being placed, the order is snapshot for analysis in both the statistics package ([readme](/backtester/eventhandlers/statistics/README.md)) and the report package ([readme](/backtester/report/README.md))
+
+
+# Cool story, how do I use it?
+To run the application using the provided dollar cost average strategy, simply run `go run .` from `gocryptotrader/backtester`. An output of the results will be put in the `results` folder.
+
+# How do I create my own config?
+There is a config generating helper application under `/backtester/config/configbuilder` to help you create a `.strat` file. Read more about it [here](/backtester/config/configbuilder/README.md). There are also a number of tests under `/config/config_test.go` which generate configs into the `examples` folder, which if you have code knowledge, can write your own configs programmatically.
+
+# How do I create my own strategy?
+Creating strategies requires programming skills. [Here](/backtester/eventhandlers/strategies/README.md) is a readme on the subject. After reading the readmes, please review the strategies [here](/backtester/eventhandlers/strategies/) to gain an understanding on how to write your own.
+
+# How does it work technically?
+- The readmes linked in the "How does it work" covers the main parts of the application.
+  - If you are still unsure, please raise an issue, ask a question in our Slack or open a pull request
+- Here is an overview
+![workflow](https://user-images.githubusercontent.com/9261323/104982257-61d97900-5a5e-11eb-930e-3b431d6e6bab.png)
+
+
+# Important notes
+- This application is not considered production ready and you may experience issues
+  - If you encounter any issues, you can raise them in our Slack channel or via Github issues
+- **Past performance is no guarantee of future results**
+- While an experimental feature, it is **not** recommended to **ever** use live trading and real orders
+- **Past performance is no guarantee of future results**
+
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

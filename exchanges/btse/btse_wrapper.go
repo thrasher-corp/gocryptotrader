@@ -964,7 +964,7 @@ func (b *BTSE) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 		return kline.Item{}, err
 	}
 
-	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+	if kline.TotalCandlesPerInterval(start, end, interval) > float64(b.Features.Enabled.Kline.ResultLimit) {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 

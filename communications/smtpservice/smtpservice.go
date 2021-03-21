@@ -81,14 +81,10 @@ func (s *SMTPservice) Send(subject, msg string) error {
 		mime,
 		msg)
 
-	err := smtp.SendMail(
+	return smtp.SendMail(
 		s.Host+":"+s.Port,
 		smtp.PlainAuth("", s.AccountName, s.AccountPassword, s.Host),
 		s.From,
 		strings.Split(s.RecipientList, ","),
 		[]byte(messageToSend))
-	if err != nil {
-		return err
-	}
-	return nil
 }

@@ -283,7 +283,7 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 	testCases := []struct {
 		name     string
 		interval Interval
-		expected uint32
+		expected float64
 	}{
 		{
 			"FifteenSecond",
@@ -358,27 +358,27 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 		{
 			"ThreeDay",
 			ThreeDay,
-			121,
+			121.66666666666667,
 		},
 		{
 			"FifteenDay",
 			FifteenDay,
-			24,
+			24.333333333333332,
 		},
 		{
 			"OneWeek",
 			OneWeek,
-			52,
+			52.142857142857146,
 		},
 		{
 			"TwoWeek",
 			TwoWeek,
-			26,
+			26.071428571428573,
 		},
 		{
 			"OneMonth",
 			OneMonth,
-			12,
+			12.166666666666666,
 		},
 		{
 			"OneYear",
@@ -397,19 +397,37 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 	}
 }
 
-func TestCalcDateRanges(t *testing.T) {
+func TestCalculateCandleDateRanges(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	v := CalcDateRanges(start, end, OneMin, 300)
+	v := CalculateCandleDateRanges(start, end, OneMin, 300)
 
-	if v[0].Start.Unix() != time.Unix(1546300800, 0).Unix() {
-		t.Fatalf("unexpected result received %v", v[0].Start.Unix())
+	if v.Ranges[0].Start.Ticks != time.Unix(1546300800, 0).Unix() {
+		t.Errorf("expected %v received %v", 1546300800, v.Ranges[0].Start.Ticks)
 	}
 
-	v = CalcDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
-	if len(v) != 1 {
-		t.Fatal("expected CalcDateRanges() with a Item count lower than limit to return 1 result")
+	v = CalculateCandleDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
+	if len(v.Ranges) != 1 {
+		t.Fatalf("expected %v received %v", 1, len(v.Ranges))
+	}
+	if len(v.Ranges[0].Intervals) != 1 {
+		t.Errorf("expected %v received %v", 1, len(v.Ranges[0].Intervals))
+	}
+	start = time.Now()
+	end = time.Now().AddDate(0, 0, 10)
+	v = CalculateCandleDateRanges(start, end, OneDay, 5)
+	if len(v.Ranges) != 2 {
+		t.Errorf("expected %v received %v", 2, len(v.Ranges))
+	}
+	if len(v.Ranges[0].Intervals) != 5 {
+		t.Errorf("expected %v received %v", 5, len(v.Ranges[0].Intervals))
+	}
+	if len(v.Ranges[1].Intervals) != 5 {
+		t.Errorf("expected %v received %v", 5, len(v.Ranges[1].Intervals))
+	}
+	if !v.Ranges[1].Intervals[4].End.Equal(end.Round(OneDay.Duration())) {
+		t.Errorf("expected %v received %v", end.Round(OneDay.Duration()), v.Ranges[1].Intervals[4].End)
 	}
 }
 
@@ -688,5 +706,109 @@ func TestLoadCSV(t *testing.T) {
 
 	if v[364].Open != 7246 {
 		t.Fatalf("unexpected value received: %v", v[364].Open)
+	}
+}
+
+func TestVerifyResultsHaveData(t *testing.T) {
+	tt2 := time.Now().Round(OneDay.Duration())
+	tt1 := time.Now().Add(-time.Hour * 24).Round(OneDay.Duration())
+	dateRanges := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
+	if dateRanges.HasDataAtDate(tt1) {
+		t.Error("unexpected true value")
+	}
+
+	err := dateRanges.VerifyResultsHaveData(nil)
+	if err == nil {
+		t.Error("expected error")
+	}
+	if err != nil && !strings.Contains(err.Error(), ErrMissingCandleData.Error()) {
+		t.Errorf("expected %v", ErrMissingCandleData)
+	}
+
+	err = dateRanges.VerifyResultsHaveData([]Candle{
+		{
+			Time: tt1,
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHasDataAtDate(t *testing.T) {
+	tt2 := time.Now().Round(OneDay.Duration())
+	tt1 := time.Now().Add(-time.Hour * 24 * 30).Round(OneDay.Duration())
+	dateRanges := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
+	if dateRanges.HasDataAtDate(tt1) {
+		t.Error("unexpected true value")
+	}
+
+	_ = dateRanges.VerifyResultsHaveData([]Candle{
+		{
+			Time: tt1,
+		},
+		{
+			Time: tt2,
+		},
+	})
+
+	if !dateRanges.HasDataAtDate(tt1.Round(OneDay.Duration())) {
+		t.Error("unexpected false value")
+	}
+
+	if dateRanges.HasDataAtDate(tt2.Add(time.Hour * 24 * 26)) {
+		t.Error("should not have data")
+	}
+}
+
+func TestIntervalsPerYear(t *testing.T) {
+	i := OneYear
+	if i.IntervalsPerYear() != 1.0 {
+		t.Error("expected 1")
+	}
+	i = OneDay
+	if i.IntervalsPerYear() != 365 {
+		t.Error("expected 365")
+	}
+	i = OneHour
+	if i.IntervalsPerYear() != 8760 {
+		t.Error("expected 8670")
+	}
+	i = TwoHour
+	if i.IntervalsPerYear() != 4380 {
+		t.Error("expected 4380")
+	}
+	i = TwoHour + FifteenSecond
+	if i.IntervalsPerYear() != 4370.893970893971 {
+		t.Error("expected 4370...")
+	}
+}
+
+// The purpose of this benchmark is to highlight that requesting
+// '.Unix()` frequently is a slow process
+func BenchmarkJustifyIntervalTimeStoringUnixValues1(b *testing.B) {
+	tt1 := time.Now()
+	tt2 := time.Now().Add(-time.Hour)
+	tt3 := time.Now().Add(time.Hour)
+	for i := 0; i < b.N; i++ {
+		if tt1.Unix() == tt2.Unix() || // nolint:staticcheck // it is a benchmark to demonstrate inefficiency in calling
+			(tt1.Unix() > tt2.Unix() && tt1.Unix() < tt3.Unix()) {
+
+		}
+	}
+}
+
+// The purpose of this benchmark is to highlight that storing the unix value
+// at time of creation is dramatically faster than frequently requesting `.Unix()`
+// at runtime at scale. When dealing with the backtester and comparing
+// tens of thousands of candle times
+func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
+	tt1 := time.Now().Unix()
+	tt2 := time.Now().Add(-time.Hour).Unix()
+	tt3 := time.Now().Add(time.Hour).Unix()
+	for i := 0; i < b.N; i++ {
+		if tt1 >= tt2 && tt1 <= tt3 { // nolint:staticcheck // it is a benchmark to demonstrate inefficiency in calling
+
+		}
 	}
 }

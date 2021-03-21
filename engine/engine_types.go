@@ -1,6 +1,9 @@
 package engine
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // Settings stores engine params
 type Settings struct {
@@ -92,3 +95,8 @@ const (
 	// MsgStatusError message to display when failure occurs
 	MsgStatusError string = "error"
 )
+
+// newConfigMutex only locks and unlocks on engine creation functions
+// as engine modifies global files, this protects the main bot creation
+// functions from interfering with eachother
+var newEngineMutex sync.Mutex

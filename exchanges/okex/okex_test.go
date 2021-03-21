@@ -662,7 +662,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	startTime := time.Unix(1607494054, 0)
 	endTime := time.Unix(1607512054, 0)
-	_, err = o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, endTime, kline.OneHour)
+	_, err = o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, endTime, kline.OneWeek)
 	if err != nil {
 		t.Fatal(err)
 	}
