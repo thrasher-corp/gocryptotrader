@@ -351,6 +351,11 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 
 // ConformToAmount (POC) conforms amount to its amount interval
 func (l *Limits) ConformToAmount(amount float64) float64 {
+	if l == nil {
+		// For when we return a nil pointer we can assume there's nothing to
+		// check
+		return amount
+	}
 	l.m.Lock()
 	defer l.m.Unlock()
 	if l.stepIncrementSizeAmount == 0 || amount == l.stepIncrementSizeAmount {
