@@ -170,8 +170,7 @@ func (b *Bittrex) WsAuth() error {
 	}
 
 	b.WsPendingRequests[request.InvocationID] = WsPendingRequest{
-		request,
-		nil,
+		WsEventRequest: request,
 	}
 	return nil
 }
