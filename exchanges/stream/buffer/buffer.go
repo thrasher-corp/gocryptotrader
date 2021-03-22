@@ -66,8 +66,8 @@ func (w *Orderbook) Update(u *Update) error {
 	if err := w.validate(u); err != nil {
 		return err
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.m.Lock()
+	defer w.m.Unlock()
 	book, ok := w.ob[u.Pair.Base][u.Pair.Quote][u.Asset]
 	if !ok {
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
@@ -191,8 +191,8 @@ func (o *orderbookHolder) updateByIDAndAction(updts *Update) error {
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
-	w.Lock()
-	defer w.Unlock()
+	w.m.Lock()
+	defer w.m.Unlock()
 	m1, ok := w.ob[book.Pair.Base]
 	if !ok {
 		m1 = make(map[currency.Code]map[asset.Item]*orderbookHolder)
@@ -246,8 +246,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 // GetOrderbook returns an orderbook copy as orderbook.Base stored
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
-	w.Lock()
-	defer w.Unlock()
+	w.m.Lock()
+	defer w.m.Unlock()
 	book, ok := w.ob[p.Base][p.Quote][a]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w",
@@ -262,15 +262,15 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
 func (w *Orderbook) FlushBuffer() {
-	w.Lock()
+	w.m.Lock()
 	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
-	w.Unlock()
+	w.m.Unlock()
 }
 
 // FlushOrderbook flushes independent orderbook
 func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
-	w.Lock()
-	defer w.Unlock()
+	w.m.Lock()
+	defer w.m.Unlock()
 	book, ok := w.ob[p.Base][p.Quote][a]
 	if !ok {
 		return fmt.Errorf("cannot flush orderbook %s %s %s %w",

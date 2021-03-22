@@ -24,7 +24,7 @@ type Orderbook struct {
 	updateEntriesByID     bool // Use the update IDs to match ob entries
 	exchangeName          string
 	dataHandler           chan interface{}
-	sync.Mutex
+	m                     sync.Mutex
 }
 
 // orderbookHolder defines a store of pending updates and a pointer to the

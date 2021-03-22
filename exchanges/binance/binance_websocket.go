@@ -452,7 +452,6 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	newOrderBook.Exchange = b.Name
 	newOrderBook.LastUpdateID = orderbookNew.LastUpdateID
 	newOrderBook.VerificationBypass = b.OrderbookVerificationBypass
-	newOrderBook.RestSnapshot = false
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
