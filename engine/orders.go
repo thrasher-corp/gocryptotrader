@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -137,7 +138,7 @@ func (o *orderManager) Start(bot *Engine) error {
 		return errors.New("cannot start with nil bot")
 	}
 	if !atomic.CompareAndSwapInt32(&o.started, 0, 1) {
-		return errors.New("could not start order manager")
+		return fmt.Errorf("order manager %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 	log.Debugln(log.OrderBook, "Order manager starting...")
 
@@ -152,14 +153,10 @@ func (o *orderManager) Start(bot *Engine) error {
 // Stop will attempt to shutdown the orderManager
 func (o *orderManager) Stop() error {
 	if atomic.LoadInt32(&o.started) == 0 {
-		return errors.New("order manager not started")
+		return fmt.Errorf("order manager %w", subsystem.ErrSubSystemNotStarted)
 	}
 
-	if !atomic.CompareAndSwapInt32(&o.stopped, 0, 1) {
-		return errors.New("order manager is already stopped")
-	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&o.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&o.started, 1, 0)
 	}()
 
@@ -191,7 +188,7 @@ func (o *orderManager) run() {
 			o.gracefulShutdown()
 			return
 		case <-tick.C:
-			o.processOrders()
+			go o.processOrders()
 		}
 	}
 }

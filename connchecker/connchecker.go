@@ -92,7 +92,7 @@ func (c *Checker) Monitor(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-tick.C:
-			c.connectionTest()
+			go c.connectionTest()
 		case <-c.shutdown:
 			return
 		}
