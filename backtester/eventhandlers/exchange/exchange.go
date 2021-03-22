@@ -90,8 +90,15 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within portfolio limits", amount, reducedAmount))
 	}
 
+	// Conforms the amount to the exchange order defined step amount reducing it
+	// when needed
+	finalAmount := cs.Limits.ConformToAmount(reducedAmount)
+	if finalAmount != reducedAmount {
+		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within exchange step amount limits", reducedAmount, finalAmount))
+	}
+
 	var orderID string
-	orderID, err = e.placeOrder(adjustedPrice, reducedAmount, cs.UseRealOrders, f, bot)
+	orderID, err = e.placeOrder(adjustedPrice, finalAmount, cs.UseRealOrders, f, bot)
 	if err != nil {
 		return f, err
 	}
@@ -105,7 +112,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		ords[i].CloseTime = o.GetTime()
 		f.Order = &ords[i]
 		f.PurchasePrice = ords[i].Price
-		f.Total = (f.PurchasePrice * reducedAmount) + f.ExchangeFee
+		f.Total = (f.PurchasePrice * finalAmount) + f.ExchangeFee
 	}
 
 	if f.Order == nil {

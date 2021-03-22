@@ -10,11 +10,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
 	errDataMayBeIncorrect = errors.New("data may be incorrect")
-	errExchangeUnset      = errors.New("exchange unset")
 )
 
 // ExecutionHandler interface dictates what functions are required to submit an order
@@ -51,4 +51,6 @@ type Settings struct {
 
 	MinimumSlippageRate float64
 	MaximumSlippageRate float64
+
+	Limits *gctorder.Limits
 }
