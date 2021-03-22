@@ -1582,8 +1582,9 @@ func (b *Binance) UpdateOrderExecutionLimits(a asset.Item) error {
 	case asset.CoinMarginedFutures:
 		limits, err = b.FetchCoinMarginExchangeLimits()
 	case asset.Margin:
-		// This case is done in spot
-		return nil
+		if err = b.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
+			limits, err = b.FetchSpotExchangeLimits()
+		}
 	default:
 		err = fmt.Errorf("unhandled asset type %s", a)
 	}
