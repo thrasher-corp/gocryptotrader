@@ -305,7 +305,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			},
 			Limits: limits,
 		})
-
 	}
 
 	return resp, nil
