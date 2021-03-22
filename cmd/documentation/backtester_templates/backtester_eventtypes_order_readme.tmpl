@@ -1,0 +1,23 @@
+{{define "backtester eventtypes order" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+The Order Event Type is an event type raised after the portfolio manager has passed all its checks and wishes to make an order
+It is sent to the Exchange to process and if successful, will raise a Fill Event.
+
+The Order Event Type is based on `common.EventHandler` and `common.Directioner` while also having the following custom functions
+```
+	SetAmount(float64)
+	GetAmount() float64
+	IsOrder() bool
+	GetStatus() order.Status
+	SetID(id string)
+	GetID() string
+	GetLimit() float64
+	IsLeveraged() bool
+```
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}

@@ -25,7 +25,7 @@ func RESTfulError(method string, err error) {
 // RESTGetAllSettings replies to a request with an encoded JSON response about the
 // trading Bots configuration.
 func RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
-	err := RESTfulJSONResponse(w, Bot.Config)
+	err := RESTfulJSONResponse(w, config.Cfg)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -37,7 +38,10 @@ func cleanup() {
 }
 
 func TestSubmitWithdrawal(t *testing.T) {
-	SetupTestHelpers(t)
+	bot := CreateTestBot(t)
+	if config.Cfg.Name == "" {
+		config.Cfg = *bot.Config
+	}
 	banking.Accounts = append(banking.Accounts,
 		banking.Account{
 			Enabled:             true,
@@ -72,12 +76,12 @@ func TestSubmitWithdrawal(t *testing.T) {
 		},
 	}
 
-	_, err = SubmitWithdrawal(req)
+	_, err = bot.SubmitWithdrawal(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = SubmitWithdrawal(nil)
+	_, err = bot.SubmitWithdrawal(nil)
 	if err != nil {
 		if err.Error() != withdraw.ErrRequestCannotBeNil.Error() {
 			t.Fatal(err)

@@ -15,7 +15,8 @@ import (
 
 func TestWebsocketDataHandlerProcess(t *testing.T) {
 	ws := sharedtestvalues.NewTestWebsocket()
-	go Bot.WebsocketDataReceiver(ws)
+	b := OrdersSetup(t)
+	go b.WebsocketDataReceiver(ws)
 	ws.DataHandler <- "string"
 	time.Sleep(time.Second)
 	close(shutdowner)
@@ -112,7 +113,7 @@ func TestHandleData(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error")
 	}
-	if err.Error() != classificationError.Error() {
+	if err != nil && err.Error() != classificationError.Error() {
 		t.Errorf("Problem formatting error. Expected %v Received %v", classificationError.Error(), err.Error())
 	}
 

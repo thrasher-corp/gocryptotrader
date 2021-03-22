@@ -1,0 +1,35 @@
+{{define "backtester data kline csv" -}}
+{{template "backtester-header" .}}
+## {{.CapitalName}} package overview
+
+This package is responsible for the loading of kline data via a CSV file. It can retrieve candle data or trade data which is converted into candle data.
+
+### CSV Format
+#### Candle based CSV
+
+| Field | Example |
+| ----- | -------- |
+| Timestamp | 1546300800 |
+| Volume | 3 |
+| Open | 1335 |
+| High | 1338 |
+| Low | 1336 |
+| Close | 1337 |
+
+Additionally, you can view an example under `./testdata/binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv`
+
+#### Trade based CSV
+
+| Field | Example |
+| ----- | -------- |
+| Timestamp | 1546300800 |
+| Price | 1337 |
+| Amount | 420.69 |
+
+Additionally, you can view an example under `./testdata/binance_BTCUSDT_24h-trades_2020_11_16.csv`
+
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
+{{template "contributions"}}
+{{template "donations" .}}
+{{end}}
