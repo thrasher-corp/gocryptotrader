@@ -156,9 +156,6 @@ func (o *orderManager) Stop() error {
 		return fmt.Errorf("order manager %w", subsystem.ErrSubSystemNotStarted)
 	}
 
-	if !atomic.CompareAndSwapInt32(&o.stopped, 0, 1) {
-		return errors.New("order manager is already stopped")
-	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&o.started, 1, 0)
 	}()

@@ -396,17 +396,16 @@ func (bot *Engine) Start() error {
 	}
 
 	gctlog.Debugln(gctlog.Global, "Setting up exchanges..")
-	bot.SetupExchanges()
-	if bot.exchangeManager.Len() == 0 {
-		return errors.New("no exchanges are loaded")
+	err := bot.SetupExchanges()
+	if err != nil {
+		return err
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		if err := bot.CommsManager.Start(); err != nil {
+		if err = bot.CommsManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}
-	var err error
 	if bot.Settings.EnableCoinmarketcapAnalysis ||
 		bot.Settings.EnableCurrencyConverter ||
 		bot.Settings.EnableCurrencyLayer ||
@@ -556,6 +555,7 @@ func (bot *Engine) Stop() {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
 		}
 	}
+
 	if bot.Settings.EnableCoinmarketcapAnalysis ||
 		bot.Settings.EnableCurrencyConverter ||
 		bot.Settings.EnableCurrencyLayer ||
