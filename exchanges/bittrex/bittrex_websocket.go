@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -20,10 +21,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -52,8 +51,6 @@ var defaultSpotSubscribedChannels = []string{
 var defaultSpotSubscribedChannelsAuth = []string{
 	wsOrders,
 }
-
-var obSuccess = make(map[currency.Pair]bool)
 
 var invocationIDCounter int
 
@@ -99,13 +96,12 @@ func (b *Bittrex) WsConnect() error {
 		MessageType: websocket.PingMessage,
 		Delay:       bittrexWebsocketTimer,
 	})
-	err = b.seedOrderBook()
-	if err != nil {
-		return err
-	}
+
 	// This reader routine is called prior to initiating a subscription for
 	// efficient processing.
 	go b.wsReadData()
+	b.setupOrderbookManager()
+
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = b.WsAuth()
 		if err != nil {
@@ -417,9 +413,14 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				err = b.WsProcessUpdateOB(&orderbookUpdate)
+				init, err := b.UpdateLocalOBBuffer(&orderbookUpdate)
 				if err != nil {
-					return err
+					if init {
+						return nil
+					}
+					return fmt.Errorf("%v - UpdateLocalCache error: %s",
+						b.Name,
+						err)
 				}
 			}
 		case "ticker":
@@ -473,88 +474,6 @@ func (b *Bittrex) wsHandleData(respRaw []byte) error {
 				}
 			}
 		}
-	}
-	return nil
-}
-
-// WsProcessUpdateOB processes an update on the orderbook
-func (b *Bittrex) WsProcessUpdateOB(data *OrderbookUpdateMessage) error {
-	if data.Sequence > b.WsSequenceOrderbook+1 {
-		log.Warnf(log.WebsocketMgr, "%s - Update OrderBook - Sequence numbers not received in order (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
-	} else if data.Sequence <= b.WsSequenceOrderbook {
-		log.Warnf(log.WebsocketMgr, "%s - Update OrderBook - Premature update (%d vs %d)\n", b.Name, data.Sequence, b.WsSequenceOrderbook)
-		// Premature update
-		return nil
-	}
-	var pair currency.Pair
-	pair, err := currency.NewPairFromString(data.MarketSymbol)
-	if err != nil {
-		return err
-	}
-	update := buffer.Update{
-		Asset:    asset.Spot,
-		Pair:     pair,
-		UpdateID: int64(data.Sequence),
-		MaxDepth: orderbookDepth,
-	}
-
-	for x := range data.BidDeltas {
-		update.Bids = append(update.Bids, orderbook.Item{
-			Price:  data.BidDeltas[x].Rate,
-			Amount: data.BidDeltas[x].Quantity,
-		})
-	}
-	for x := range data.AskDeltas {
-		update.Asks = append(update.Asks, orderbook.Item{
-			Price:  data.AskDeltas[x].Rate,
-			Amount: data.AskDeltas[x].Quantity,
-		})
-	}
-
-	err = b.Websocket.Orderbook.Update(&update)
-	if err != nil {
-		return err
-	}
-	b.WsSequenceOrderbook = data.Sequence
-
-	return nil
-}
-
-func (b *Bittrex) seedOrderBook() error {
-	p, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-
-	for x := range p {
-		orderbookSeed, sequence, err := b.GetOrderbook(p[x].String(), orderbookDepth)
-		if err != nil {
-			return err
-		}
-
-		var newOrderBook orderbook.Base
-		for i := range orderbookSeed.Ask {
-			newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-				Price:  orderbookSeed.Ask[i].Rate,
-				Amount: orderbookSeed.Ask[i].Quantity,
-			})
-		}
-		for i := range orderbookSeed.Bid {
-			newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
-				Price:  orderbookSeed.Bid[i].Rate,
-				Amount: orderbookSeed.Bid[i].Quantity,
-			})
-		}
-		newOrderBook.Pair = p[x]
-		newOrderBook.AssetType = asset.Spot
-		newOrderBook.ExchangeName = b.Name
-		newOrderBook.VerificationBypass = b.OrderbookVerificationBypass
-
-		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-		if err != nil {
-			return err
-		}
-		b.WsSequenceOrderbook = sequence
 	}
 	return nil
 }

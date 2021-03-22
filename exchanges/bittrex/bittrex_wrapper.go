@@ -168,12 +168,12 @@ func (b *Bittrex) Setup(exch *config.ExchangeConfig) error {
 		Features:                         &b.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
 
 		// Orderbook buffer specific variables for processing orderbook updates via websocket feed.
-		OrderbookBufferLimit: exch.OrderbookConfig.WebsocketBufferLimit,
 		// Other orderbook buffer vars:
-		// SortBuffer            bool
-		// SortBufferByUpdateIDs bool
 		// UpdateEntriesByID     bool
-		BufferEnabled: true,
+		OrderbookBufferLimit:  exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:         exch.OrderbookConfig.WebsocketBufferEnabled,
+		SortBuffer:            true,
+		SortBufferByUpdateIDs: true,
 	})
 	if err != nil {
 		return err
@@ -331,21 +331,23 @@ func (b *Bittrex) FetchOrderbook(currency currency.Pair, assetType asset.Item) (
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
-	}
 	formattedPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return book, err
+		return nil, err
 	}
 
 	// Valid order book depths are 1, 25 and 500
 	orderbookData, sequence, err := b.GetOrderbook(formattedPair.String(), orderbookDepth)
 	if err != nil {
 		return nil, err
+	}
+
+	book := &orderbook.Base{
+		Exchange:        b.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: b.CanVerifyOrderbook,
+		LastUpdateID:    sequence,
 	}
 
 	for x := range orderbookData.Bid {
@@ -369,7 +371,6 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	if err != nil {
 		return book, err
 	}
-	b.WsSequenceOrderbook = sequence
 
 	return orderbook.Get(b.Name, p, assetType)
 }

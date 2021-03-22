@@ -1,6 +1,12 @@
 package bittrex
 
-import "github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+import (
+	"sync"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+)
 
 // CancelOrderRequest holds request data for CancelOrder
 type CancelOrderRequest struct {
@@ -262,7 +268,7 @@ type WsAuthResponse struct {
 type OrderbookUpdateMessage struct {
 	MarketSymbol string `json:"marketSymbol"`
 	Depth        int    `json:"depth"`
-	Sequence     int    `json:"sequence"`
+	Sequence     int64  `json:"sequence"`
 	BidDeltas    []struct {
 		Quantity float64 `json:"quantity,string"`
 		Rate     float64 `json:"rate,string"`
@@ -284,4 +290,25 @@ type OrderUpdateMessage struct {
 type WsPendingRequest struct {
 	WsEventRequest
 	ChannelsToSubscribe *[]stream.ChannelSubscription
+}
+
+// orderbookManager defines a way of managing and maintaining synchronisation
+// across connections and assets.
+type orderbookManager struct {
+	state map[currency.Code]map[currency.Code]map[asset.Item]*update
+	sync.Mutex
+
+	jobs chan job
+}
+
+type update struct {
+	buffer       chan *OrderbookUpdateMessage
+	fetchingBook bool
+	initialSync  bool
+}
+
+// job defines a synchonisation job that tells a go routine to fetch an
+// orderbook via the REST protocol
+type job struct {
+	Pair currency.Pair
 }

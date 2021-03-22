@@ -21,9 +21,10 @@ import (
 // Bittrex is the overaching type across the bittrex methods
 type Bittrex struct {
 	exchange.Base
-	WsPendingRequests   map[int]WsPendingRequest
-	WsSequenceOrderbook int
-	WsSequenceOrders    int
+	WsPendingRequests map[int]WsPendingRequest
+	WsSequenceOrders  int64
+
+	obm *orderbookManager
 }
 
 const (
@@ -106,17 +107,17 @@ func (b *Bittrex) GetMarketSummary(marketName string) (MarketSummaryData, error)
 // GetOrderbook method returns current order book information by currency and depth.
 // "marketSymbol" ie ltc-btc
 // "depth" is either 1, 25 or 500. Server side, the depth defaults to 25.
-func (b *Bittrex) GetOrderbook(marketName string, depth int64) (OrderbookData, int, error) {
+func (b *Bittrex) GetOrderbook(marketName string, depth int64) (OrderbookData, int64, error) {
 	strDepth := strconv.FormatInt(depth, 10)
 
 	var resp OrderbookData
-	var sequence int
+	var sequence int64
 	resultHeader := http.Header{}
 	err := b.SendHTTPRequest(exchange.RestSpot, fmt.Sprintf(getOrderbook, marketName, strDepth), &resp, &resultHeader)
 	if err != nil {
 		return OrderbookData{}, 0, err
 	}
-	sequence, err = strconv.Atoi(resultHeader.Get("sequence"))
+	sequence, err = strconv.ParseInt(resultHeader.Get("sequence"), 10, 0)
 	if err != nil {
 		return OrderbookData{}, 0, err
 	}
@@ -154,7 +155,7 @@ func (b *Bittrex) Order(marketName, side, orderType string, timeInForce TimeInFo
 
 // GetOpenOrders returns all orders that you currently have opened.
 // A specific market can be requested for example "ltc-btc"
-func (b *Bittrex) GetOpenOrders(marketName string) ([]OrderData, int, error) {
+func (b *Bittrex) GetOpenOrders(marketName string) ([]OrderData, int64, error) {
 	var path string
 	if marketName == "" || marketName == " " {
 		path = getAllOpenOrders
@@ -162,13 +163,13 @@ func (b *Bittrex) GetOpenOrders(marketName string) ([]OrderData, int, error) {
 		path = fmt.Sprintf(getOpenOrders, marketName)
 	}
 	var resp []OrderData
-	var sequence int
+	var sequence int64
 	resultHeader := http.Header{}
 	err := b.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, &resultHeader)
 	if err != nil {
 		return nil, 0, err
 	}
-	sequence, err = strconv.Atoi(resultHeader.Get("sequence"))
+	sequence, err = strconv.ParseInt(resultHeader.Get("sequence"), 10, 0)
 	if err != nil {
 		return nil, 0, err
 	}
