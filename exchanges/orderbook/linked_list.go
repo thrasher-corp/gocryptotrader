@@ -95,7 +95,7 @@ updates:
 			if updts[x].ID != (*tip).value.ID {
 				continue
 			}
-			stack.Push(deleteAtTip(ll, tip, stack))
+			stack.Push(deleteAtTip(ll, tip))
 			continue updates
 		}
 		if !bypassErr {
@@ -190,7 +190,7 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 		for tip := &ll.head; *tip != nil; tip = &(*tip).next {
 			if (*tip).value.Price == updts[x].Price { // Match check
 				if updts[x].Amount <= 0 { // Capture delete update
-					stack.Push(deleteAtTip(&ll.linkedList, tip, stack))
+					stack.Push(deleteAtTip(&ll.linkedList, tip))
 				} else { // Amend current amount value
 					(*tip).value.Amount = updts[x].Amount
 				}
@@ -276,7 +276,7 @@ updates:
 		}
 		n := stack.Pop()
 		n.value = updts[x]
-		if insertNodeAtBookmark(bookmark, n, stack) {
+		if insertNodeAtBookmark(bookmark, n) {
 			ll.head = n
 		}
 		ll.length++
@@ -341,7 +341,7 @@ func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 		for tip := &ll.head; *tip != nil; tip = &(*tip).next {
 			if (*tip).value.Price == updts[x].Price { // Match check
 				if updts[x].Amount <= 0 { // Capture delete update
-					stack.Push(deleteAtTip(&ll.linkedList, tip, stack))
+					stack.Push(deleteAtTip(&ll.linkedList, tip))
 				} else { // Amend current amount value
 					(*tip).value.Amount = updts[x].Amount
 				}
@@ -428,7 +428,7 @@ updates:
 		}
 		n := stack.Pop()
 		n.value = updts[x]
-		if insertNodeAtBookmark(bookmark, n, stack) {
+		if insertNodeAtBookmark(bookmark, n) {
 			ll.head = n
 		}
 		ll.length++
@@ -509,7 +509,7 @@ func move(head **node, from, to *node) {
 }
 
 // deleteAtTip removes a node from tip target returns old node (can inline)
-func deleteAtTip(ll *linkedList, tip **node, stack *stack) *node {
+func deleteAtTip(ll *linkedList, tip **node) *node {
 	// Old is a placeholder for current tips node value to push
 	// back on to the stack.
 	old := *tip
@@ -534,7 +534,7 @@ func deleteAtTip(ll *linkedList, tip **node, stack *stack) *node {
 	return old
 }
 
-// insert inserts at a tip target (can inline insert)
+// insert inserts at a tip target (can inline)
 func insert(ll *linkedList, tip **node, updt Item, stack *stack) {
 	n := stack.Pop()
 	n.value = updt
@@ -553,7 +553,7 @@ func insert(ll *linkedList, tip **node, updt Item, stack *stack) {
 	ll.length++
 }
 
-// insertAtTail inserts at tail end of node chain (can inline insertAtTail)
+// insertAtTail inserts at tail end of node chain (can inline)
 func insertAtTail(ll *linkedList, tip **node, updt Item, stack *stack) {
 	n := stack.Pop()
 	n.value = updt
@@ -566,7 +566,7 @@ func insertAtTail(ll *linkedList, tip **node, updt Item, stack *stack) {
 
 // insertHeadSpecific inserts at head specifically there might be an instance
 // where the liquidity on an exchange does fall to zero through a streaming
-// endpoint then it comes back online.
+// endpoint then it comes back online. (can inline)
 func insertHeadSpecific(tip **node, updt Item, stack *stack) {
 	n := stack.Pop()
 	n.value = updt
@@ -575,7 +575,7 @@ func insertHeadSpecific(tip **node, updt Item, stack *stack) {
 
 // insertNodeAtBookmark inserts a new node at a bookmarked node position
 // returns if a node needs to replace head (can inline)
-func insertNodeAtBookmark(bookmark, node *node, stack *stack) bool {
+func insertNodeAtBookmark(bookmark, node *node) bool {
 	switch {
 	case bookmark == nil: // Zero liquidity and we are rebuilding from scratch
 		return true
@@ -598,10 +598,10 @@ func insertNodeAtBookmark(bookmark, node *node, stack *stack) bool {
 }
 
 // shiftBookmark moves a bookmarked node to the tip position or if nil sets
-// tip as bookmark
+// tip as bookmark (can inline)
 func shiftBookmark(tip *node, bookmark, head **node, updt Item) bool {
 	if *bookmark == nil { // End of the chain and no bookmark set
-		*bookmark = tip // Set tip to book market so we can set a new node there
+		*bookmark = tip // Set tip to bookmark so we can set a new node there
 		return false
 	}
 	(*bookmark).value = updt
