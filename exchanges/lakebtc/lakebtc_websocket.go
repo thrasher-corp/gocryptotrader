@@ -132,6 +132,11 @@ func (l *LakeBTC) wsHandleIncomingData() {
 	l.Websocket.Wg.Add(1)
 	defer l.Websocket.Wg.Done()
 
+	wsRunningURL, err := l.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return
+	}
+
 	for {
 		select {
 		case <-l.Websocket.ShutdownC:
@@ -154,11 +159,6 @@ func (l *LakeBTC) wsHandleIncomingData() {
 			if err != nil {
 				l.Websocket.DataHandler <- err
 			}
-		}
-
-		wsRunningURL, err := l.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			return
 		}
 
 		select {

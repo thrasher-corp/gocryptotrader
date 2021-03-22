@@ -1083,7 +1083,7 @@ func TestFlushChannels(t *testing.T) {
 
 	web.GenerateSubs = noSub
 	web.GenerateAuthSubs = noAuthSub
-	web.connected = true
+	web.setConnectedStatus(true)
 	err = web.FlushChannels() // No subs to sub
 	if err != nil {
 		t.Fatal(err)
@@ -1111,7 +1111,7 @@ func TestFlushChannels(t *testing.T) {
 	}
 
 	web.GenerateSubs = newgen.generateSubs
-	web.connected = true
+	web.setConnectedStatus(true)
 	err = web.FlushChannels()
 	if err != nil {
 		t.Fatal(err)

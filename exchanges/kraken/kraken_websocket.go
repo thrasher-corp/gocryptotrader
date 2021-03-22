@@ -114,6 +114,14 @@ func (k *Kraken) WsConnect() error {
 					err)
 			} else {
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
+
+				err = k.wsAuthPingHandler()
+				if err != nil {
+					log.Errorf(log.ExchangeSys,
+						"%v - failed setup ping handler for auth connection. Websocket may disconnect unexpectedly. %v\n",
+						k.Name,
+						err)
+				}
 			}
 		}
 	}
@@ -360,6 +368,20 @@ func (k *Kraken) wsPingHandler() error {
 		return err
 	}
 	k.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+		Message:     message,
+		Delay:       krakenWsPingDelay,
+		MessageType: websocket.TextMessage,
+	})
+	return nil
+}
+
+// wsAuthPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
+func (k *Kraken) wsAuthPingHandler() error {
+	message, err := json.Marshal(pingRequest)
+	if err != nil {
+		return err
+	}
+	k.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		Message:     message,
 		Delay:       krakenWsPingDelay,
 		MessageType: websocket.TextMessage,

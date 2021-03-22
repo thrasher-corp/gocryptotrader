@@ -510,7 +510,8 @@ func (w *Websocket) trafficMonitor() {
 				w.Wg.Done()
 				return
 			case t := <-w.TrafficAlert:
-				if w.AuthConn != nil && w.AuthConn.GetURL() == t {
+				switch {
+				case w.AuthConn != nil && w.AuthConn.GetURL() == t:
 					if !trafficAuthTimer.Stop() {
 						select {
 						case <-trafficAuthTimer.C:
@@ -519,7 +520,7 @@ func (w *Websocket) trafficMonitor() {
 					}
 					w.setConnectedStatus(true)
 					trafficAuthTimer.Reset(w.trafficTimeout)
-				} else if w.Conn != nil && w.Conn.GetURL() == t {
+				case w.Conn != nil && w.Conn.GetURL() == t:
 					if !trafficTimer.Stop() {
 						select {
 						case <-trafficTimer.C:
@@ -528,6 +529,7 @@ func (w *Websocket) trafficMonitor() {
 					}
 					w.setConnectedStatus(true)
 					trafficTimer.Reset(w.trafficTimeout)
+				default:
 				}
 			case <-trafficTimer.C: // Falls through when timer runs out
 				if w.verbose {
