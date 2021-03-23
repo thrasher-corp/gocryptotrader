@@ -14,28 +14,28 @@ var (
 	// ErrExchangeLimitNotLoaded defines if an exchange does not have minmax
 	// values
 	ErrExchangeLimitNotLoaded = errors.New("exchange limits not loaded")
-	// ErrPriceExceedsMin is when the price is lower than the minimum price
+	// ErrPriceBelowMin is when the price is lower than the minimum price
 	// limit accepted by the exchange
-	ErrPriceExceedsMin = errors.New("price exceeds minimum limit")
+	ErrPriceBelowMin = errors.New("price below minimum limit")
 	// ErrPriceExceedsMax is when the price is higher than the maximum price
 	// limit accepted by the exchange
 	ErrPriceExceedsMax = errors.New("price exceeds maximum limit")
 	// ErrPriceExceedsStep is when the price is not divisible by its step
 	ErrPriceExceedsStep = errors.New("price exceeds step limit")
-	// ErrAmountExceedsMin is when the amount is lower than the minimum amount
+	// ErrAmountBelowMin is when the amount is lower than the minimum amount
 	// limit accepted by the exchange
-	ErrAmountExceedsMin = errors.New("amount exceeds minimum limit")
+	ErrAmountBelowMin = errors.New("amount below minimum limit")
 	// ErrAmountExceedsMax is when the amount is higher than the maximum amount
 	// limit accepted by the exchange
-	ErrAmountExceedsMax = errors.New("amount exceeds maximum limit")
+	ErrAmountExceedsMax = errors.New("amount below maximum limit")
 	// ErrAmountExceedsStep is when the amount is not divisible by its step
 	ErrAmountExceedsStep = errors.New("amount exceeds step limit")
 	// ErrNotionalValue is when the notional value does not exceed currency pair
 	// requirements
 	ErrNotionalValue = errors.New("total notional value is under minimum limit")
-	// ErrMarketAmountExceedsMin is when the amount is lower than the minimum
+	// ErrMarketAmountBelowMin is when the amount is lower than the minimum
 	// amount limit accepted by the exchange for a market order
-	ErrMarketAmountExceedsMin = errors.New("market order amount exceeds minimum limit")
+	ErrMarketAmountBelowMin = errors.New("market order amount below minimum limit")
 	// ErrMarketAmountExceedsMax is when the amount is higher than the maximum
 	// amount limit accepted by the exchange for a market order
 	ErrMarketAmountExceedsMax = errors.New("market order amount exceeds maximum limit")
@@ -249,13 +249,13 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	l.m.RLock()
 	defer l.m.RUnlock()
 	if l.minAmount != 0 && amount < l.minAmount {
-		return fmt.Errorf("%w min: %f supplied %f",
-			ErrAmountExceedsMin,
+		return fmt.Errorf("%w min: %.8f supplied %.8f",
+			ErrAmountBelowMin,
 			l.minAmount,
 			amount)
 	}
 	if l.maxAmount != 0 && amount > l.maxAmount {
-		return fmt.Errorf("%w min: %f supplied %f",
+		return fmt.Errorf("%w min: %.8f supplied %.8f",
 			ErrAmountExceedsMax,
 			l.maxAmount,
 			amount)
@@ -264,7 +264,7 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 		dAmount := decimal.NewFromFloat(amount)
 		dStep := decimal.NewFromFloat(l.stepIncrementSizeAmount)
 		if !dAmount.Mod(dStep).IsZero() {
-			return fmt.Errorf("%w stepSize: %f supplied %f",
+			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrAmountExceedsStep,
 				l.stepIncrementSizeAmount,
 				amount)
@@ -290,19 +290,19 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	// If order type is Market we do not need to do price checks
 	if orderType != Market {
 		if l.minPrice != 0 && price < l.minPrice {
-			return fmt.Errorf("%w min: %f supplied %f",
-				ErrPriceExceedsMin,
+			return fmt.Errorf("%w min: %.8f supplied %.8f",
+				ErrPriceBelowMin,
 				l.minPrice,
 				price)
 		}
 		if l.maxPrice != 0 && price > l.maxPrice {
-			return fmt.Errorf("%w max: %f supplied %f",
+			return fmt.Errorf("%w max: %.8f supplied %.8f",
 				ErrPriceExceedsMax,
 				l.maxPrice,
 				price)
 		}
 		if l.minNotional != 0 && (amount*price) < l.minNotional {
-			return fmt.Errorf("%w minimum notional: %f value of order %f",
+			return fmt.Errorf("%w minimum notional: %.8f value of order %.8f",
 				ErrNotionalValue,
 				l.minNotional,
 				amount*price)
@@ -311,7 +311,7 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 			dPrice := decimal.NewFromFloat(price)
 			dStep := decimal.NewFromFloat(l.stepIncrementSizePrice)
 			if !dPrice.Mod(dStep).IsZero() {
-				return fmt.Errorf("%w stepSize: %f supplied %f",
+				return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 					ErrPriceExceedsStep,
 					l.stepIncrementSizePrice,
 					price)
@@ -323,15 +323,15 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	if l.marketMinQty != 0 &&
 		l.minAmount < l.marketMinQty &&
 		amount < l.marketMinQty {
-		return fmt.Errorf("%w min: %f supplied %f",
-			ErrMarketAmountExceedsMin,
+		return fmt.Errorf("%w min: %.8f supplied %.8f",
+			ErrMarketAmountBelowMin,
 			l.marketMinQty,
 			amount)
 	}
 	if l.marketMaxQty != 0 &&
 		l.maxAmount > l.marketMaxQty &&
 		amount > l.marketMaxQty {
-		return fmt.Errorf("%w max: %f supplied %f",
+		return fmt.Errorf("%w max: %.8f supplied %.8f",
 			ErrMarketAmountExceedsMax,
 			l.marketMaxQty,
 			amount)
@@ -340,7 +340,7 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 		dAmount := decimal.NewFromFloat(amount)
 		dStep := decimal.NewFromFloat(l.marketStepIncrementSize)
 		if !dAmount.Mod(dStep).IsZero() {
-			return fmt.Errorf("%w stepSize: %f supplied %f",
+			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrMarketAmountExceedsStep,
 				l.marketStepIncrementSize,
 				amount)

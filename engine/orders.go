@@ -327,7 +327,7 @@ func (o *orderManager) validate(newOrder *order.Submit) error {
 	}
 
 	if err := newOrder.Validate(); err != nil {
-		return err
+		return fmt.Errorf("order manager: %w", err)
 	}
 
 	if o.cfg.EnforceLimitConfig {
@@ -386,7 +386,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
-func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse) (*orderSubmitResponse, error) {
+func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*orderSubmitResponse, error) {
 	err := o.validate(newOrder)
 	if err != nil {
 		return nil, err
@@ -395,17 +395,20 @@ func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
-	// Checks for exchange min max limits for order amounts before order
-	// execution can occur
-	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
-		newOrder.Pair,
-		newOrder.Price,
-		newOrder.Amount,
-		newOrder.Type)
-	if err != nil {
-		return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
-			newOrder.Exchange,
-			err)
+
+	if checkExchangeLimits {
+		// Checks for exchange min max limits for order amounts before order
+		// execution can occur
+		err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
+			newOrder.Pair,
+			newOrder.Price,
+			newOrder.Amount,
+			newOrder.Type)
+		if err != nil {
+			return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+				newOrder.Exchange,
+				err)
+		}
 	}
 	return o.processSubmittedOrder(newOrder, resultingOrder)
 }

@@ -90,18 +90,30 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within portfolio limits", amount, reducedAmount))
 	}
 
-	// Conforms the amount to the exchange order defined step amount reducing it
-	// when needed
-	finalAmount := cs.Limits.ConformToAmount(reducedAmount)
-	if finalAmount != reducedAmount {
-		f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within exchange step amount limits", reducedAmount, finalAmount))
+	var limitReducedAmount float64
+	if cs.CanUseExchangeLimits {
+		// Conforms the amount to the exchange order defined step amount
+		// reducing it when needed
+		limitReducedAmount = cs.Limits.ConformToAmount(reducedAmount)
+		if limitReducedAmount != reducedAmount {
+			f.AppendReason(fmt.Sprintf("Order size shrunk from %v to %v to remain within exchange step amount limits",
+				reducedAmount,
+				limitReducedAmount))
+		}
+	} else {
+		limitReducedAmount = reducedAmount
 	}
 
-	var orderID string
-	orderID, err = e.placeOrder(adjustedPrice, finalAmount, cs.UseRealOrders, f, bot)
+	orderID, err := e.placeOrder(adjustedPrice, limitReducedAmount, cs.UseRealOrders, cs.CanUseExchangeLimits, f, bot)
 	if err != nil {
+		if f.GetDirection() == gctorder.Buy {
+			f.SetDirection(common.CouldNotBuy)
+		} else if f.GetDirection() == gctorder.Sell {
+			f.SetDirection(common.CouldNotSell)
+		}
 		return f, err
 	}
+
 	ords, _ := bot.OrderManager.GetOrdersSnapshot("")
 	for i := range ords {
 		if ords[i].ID != orderID {
@@ -112,7 +124,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, bot *engine.En
 		ords[i].CloseTime = o.GetTime()
 		f.Order = &ords[i]
 		f.PurchasePrice = ords[i].Price
-		f.Total = (f.PurchasePrice * finalAmount) + f.ExchangeFee
+		f.Total = (f.PurchasePrice * limitReducedAmount) + f.ExchangeFee
 	}
 
 	if f.Order == nil {
@@ -131,7 +143,7 @@ func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal 
 	return amount
 }
 
-func (e *Exchange) placeOrder(price, amount float64, useRealOrders bool, f *fill.Fill, bot *engine.Engine) (string, error) {
+func (e *Exchange) placeOrder(price, amount float64, useRealOrders, useExchangeLimits bool, f *fill.Fill, bot *engine.Engine) (string, error) {
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
@@ -171,7 +183,7 @@ func (e *Exchange) placeOrder(price, amount float64, useRealOrders bool, f *fill
 			Cost:          price,
 			FullyMatched:  true,
 		}
-		resp, err := bot.OrderManager.SubmitFakeOrder(o, submitResponse)
+		resp, err := bot.OrderManager.SubmitFakeOrder(o, submitResponse, useExchangeLimits)
 		if resp != nil {
 			orderID = resp.OrderID
 		}

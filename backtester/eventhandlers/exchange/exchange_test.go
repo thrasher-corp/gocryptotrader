@@ -148,30 +148,30 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	e := Exchange{}
-	_, err = e.placeOrder(1, 1, false, nil, nil)
+	_, err = e.placeOrder(1, 1, false, true, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 	f := &fill.Fill{}
-	_, err = e.placeOrder(1, 1, false, f, bot)
+	_, err = e.placeOrder(1, 1, false, true, f, bot)
 	if err != nil && err.Error() != "order exchange name must be specified" {
 		t.Error(err)
 	}
 
 	f.Exchange = testExchange
-	_, err = e.placeOrder(1, 1, false, f, bot)
+	_, err = e.placeOrder(1, 1, false, true, f, bot)
 	if err != nil && err.Error() != "order pair is empty" {
 		t.Error(err)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(1, 1, false, f, bot)
+	_, err = e.placeOrder(1, 1, false, true, f, bot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = e.placeOrder(1, 1, true, f, bot)
+	_, err = e.placeOrder(1, 1, true, true, f, bot)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -238,7 +238,7 @@ func TestExecuteOrder(t *testing.T) {
 	o := &order.Order{
 		Base:      ev,
 		Direction: gctorder.Buy,
-		Amount:    1,
+		Amount:    10,
 		Funds:     1337,
 	}
 
@@ -269,6 +269,7 @@ func TestExecuteOrder(t *testing.T) {
 	}
 
 	cs.UseRealOrders = true
+	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot)

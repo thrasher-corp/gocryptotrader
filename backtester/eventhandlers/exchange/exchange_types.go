@@ -52,5 +52,6 @@ type Settings struct {
 	MinimumSlippageRate float64
 	MaximumSlippageRate float64
 
-	Limits *gctorder.Limits
+	Limits               *gctorder.Limits
+	CanUseExchangeLimits bool
 }

@@ -161,8 +161,8 @@ func TestCheckLimit(t *testing.T) {
 	}
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 9, Limit)
-	if !errors.Is(err, ErrPriceExceedsMin) {
-		t.Fatalf("expected error %v but received %v", ErrPriceExceedsMin, err)
+	if !errors.Is(err, ErrPriceBelowMin) {
+		t.Fatalf("expected error %v but received %v", ErrPriceBelowMin, err)
 	}
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1000001, 9, Limit)
@@ -171,8 +171,8 @@ func TestCheckLimit(t *testing.T) {
 	}
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, .5, Limit)
-	if !errors.Is(err, ErrAmountExceedsMin) {
-		t.Fatalf("expected error %v but received %v", ErrAmountExceedsMin, err)
+	if !errors.Is(err, ErrAmountBelowMin) {
+		t.Fatalf("expected error %v but received %v", ErrAmountBelowMin, err)
 	}
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 11, Limit)
@@ -239,8 +239,8 @@ func TestConforms(t *testing.T) {
 	tt.marketMaxQty = 9.9
 
 	err = tt.Conforms(200000, 1, Market)
-	if !errors.Is(err, ErrMarketAmountExceedsMin) {
-		t.Fatalf("expected error %v but received: %v", ErrMarketAmountExceedsMin, err)
+	if !errors.Is(err, ErrMarketAmountBelowMin) {
+		t.Fatalf("expected error %v but received: %v", ErrMarketAmountBelowMin, err)
 	}
 
 	err = tt.Conforms(200000, 10, Market)

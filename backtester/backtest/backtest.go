@@ -303,7 +303,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				MaximumLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
 				MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
 			},
-			Limits: limits,
+			Limits:               limits,
+			CanUseExchangeLimits: cfg.CurrencySettings[i].CanUseExchangeLimits,
 		})
 	}
 

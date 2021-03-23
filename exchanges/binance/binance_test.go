@@ -2,6 +2,7 @@ package binance
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -2519,8 +2520,13 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		t.Fatal("exchange limit should be loaded")
 	}
 
-	err = limit.Conforms(0.000001, 0.000001, order.Limit)
-	if err == nil {
-		t.Fatal("limit not loaded for btcusd perp")
+	err = limit.Conforms(0.000001, 0.1, order.Limit)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, but receieved %v", order.ErrAmountBelowMin, err)
+	}
+
+	err = limit.Conforms(0.01, 1, order.Limit)
+	if !errors.Is(err, order.ErrPriceBelowMin) {
+		t.Fatalf("expected %v, but receieved %v", order.ErrPriceBelowMin, err)
 	}
 }
