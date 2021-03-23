@@ -530,6 +530,7 @@ func (w *Websocket) trafficMonitor() {
 					w.setConnectedStatus(true)
 					trafficTimer.Reset(w.trafficTimeout)
 				default:
+					log.Warnf(log.WebsocketMgr, "Unhandled traffic alert for url: %s", t)
 				}
 			case <-trafficTimer.C: // Falls through when timer runs out
 				if w.verbose {
