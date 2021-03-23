@@ -45,16 +45,11 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrPriceMustBeSetIfLimitOrder
 	}
 
-	var errs common.Errors
 	for _, o := range opt {
 		err := o.Check()
 		if err != nil {
-			errs = append(errs, err)
+			return err
 		}
-	}
-
-	if errs != nil {
-		return errs
 	}
 
 	return nil

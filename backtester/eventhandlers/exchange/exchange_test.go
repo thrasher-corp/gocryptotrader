@@ -160,8 +160,8 @@ func TestPlaceOrder(t *testing.T) {
 
 	f.Exchange = testExchange
 	_, err = e.placeOrder(1, 1, false, true, f, bot)
-	if err != nil && err.Error() != "order pair is empty" {
-		t.Error(err)
+	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
+		t.Errorf("expected: %v, received %v", gctorder.ErrPairIsEmpty, err)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
