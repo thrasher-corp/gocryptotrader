@@ -116,7 +116,7 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 			m2[levels[x].Pair.Quote] = limit
 		}
 
-		if levels[x].MinPrice >= levels[x].MaxPrice {
+		if levels[x].MinPrice > levels[x].MaxPrice {
 			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
 				errInvalidPriceLevels,
 				levels[x].Asset,
@@ -125,7 +125,7 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 				levels[x].MaxPrice)
 		}
 
-		if levels[x].MinAmount >= levels[x].MaxAmount {
+		if levels[x].MinAmount > levels[x].MaxAmount {
 			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
 				errInvalidAmountLevels,
 				levels[x].Asset,

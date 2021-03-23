@@ -67,6 +67,19 @@ func TestLoadLimits(t *testing.T) {
 	if !errors.Is(err, errInvalidAmountLevels) {
 		t.Fatalf("expected error %v but received %v", errInvalidPriceLevels, err)
 	}
+
+	goodLimit := []MinMaxLevel{
+		{
+			Pair:  btcusd,
+			Asset: asset.Spot,
+		},
+	}
+
+	err = e.LoadLimits(goodLimit)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error %v but received %v", nil, err)
+	}
+
 }
 
 func TestGetOrderExecutionLimits(t *testing.T) {
