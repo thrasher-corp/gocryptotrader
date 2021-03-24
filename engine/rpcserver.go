@@ -335,6 +335,12 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 		return nil, err
 	}
 
+	s.checkParams(r.Exchange, a, currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	})
+
 	t, err := s.GetSpecificTicker(currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
@@ -502,6 +508,11 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
+	}
+
+	err = s.checkParams(r.Exchange, assetType, currency.Pair{})
+	if err != nil {
+
 	}
 
 	resp, err := exch.FetchAccountInfo(assetType)
@@ -3079,12 +3090,11 @@ func (s *RPCServer) checkParams(exch string, a asset.Item, p currency.Pair) erro
 	if !e.IsEnabled() {
 		return fmt.Errorf("exchange %s is not enabled", exch)
 	}
-	if !a.IsValid() {
-		return fmt.Errorf("assetType %s is invalid", exch)
-	}
-	err := e.GetBase().CurrencyPairs.IsAssetEnabled(a)
-	if err != nil {
-		return err
+	if a.IsValid() {
+		err := e.GetBase().CurrencyPairs.IsAssetEnabled(a)
+		if err != nil {
+			return err
+		}
 	}
 	if !p.IsEmpty() {
 		enabledPairs, err := e.GetEnabledPairs(a)
