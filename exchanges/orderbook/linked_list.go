@@ -3,6 +3,7 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 var errIDCannotBeMatched = errors.New("cannot match ID on linked list")
@@ -62,7 +63,7 @@ func (ll *linkedList) load(items Items, stack *stack) {
 	// Push unused pointers back on stack
 	for push != nil {
 		pending := push.next
-		stack.Push(push)
+		stack.Push(push, time.Now())
 		ll.length--
 		push = pending
 	}
@@ -95,7 +96,7 @@ updates:
 			if updts[x].ID != (*tip).value.ID {
 				continue
 			}
-			stack.Push(deleteAtTip(ll, tip))
+			stack.Push(deleteAtTip(ll, tip), time.Now())
 			continue updates
 		}
 		if !bypassErr {
@@ -114,28 +115,26 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	// Reduces the max length of total linked list chain, occurs after updates
 	// have been implemented as updates can push length out of bounds, if
 	// cleaved after that update, new update might not applied correctly.
-	if maxChainLength == 0 || ll.length <= maxChainLength {
-		return
-	}
-
 	n := ll.head
 	for i := 0; i < maxChainLength; i++ {
-		n = n.next
 		if n.next == nil {
-			break
+			return
 		}
+		n = n.next
 	}
 
 	// cleave reference to current node
 	if n.prev != nil {
 		n.prev.next = nil
+	} else {
+		ll.head = nil
 	}
 
 	var pruned int
 	for n != nil {
 		pruned++
 		pending := n.next
-		stack.Push(n)
+		stack.Push(n, time.Now())
 		n = pending
 	}
 	ll.length -= pruned
@@ -187,10 +186,14 @@ type bids struct {
 // updates in bid linked list
 func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength int) {
 	for x := range updts {
-		for tip := &ll.head; *tip != nil; tip = &(*tip).next {
+		for tip := &ll.head; ; tip = &(*tip).next {
+			if *tip == nil {
+				insertHeadSpecific(&ll.linkedList, updts[x], stack)
+				break
+			}
 			if (*tip).value.Price == updts[x].Price { // Match check
 				if updts[x].Amount <= 0 { // Capture delete update
-					stack.Push(deleteAtTip(&ll.linkedList, tip))
+					stack.Push(deleteAtTip(&ll.linkedList, tip), time.Now())
 				} else { // Amend current amount value
 					(*tip).value.Amount = updts[x].Amount
 				}
@@ -199,7 +202,7 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 
 			if (*tip).value.Price < updts[x].Price { // Insert
 				if updts[x].Amount > 0 { // Filter delete, should already be
-					insert(&ll.linkedList, tip, updts[x], stack)
+					insertAtTip(&ll.linkedList, tip, updts[x], stack)
 				}
 				break // Continue updates
 			}
@@ -208,11 +211,14 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 				if updts[x].Amount > 0 {
 					insertAtTail(&ll.linkedList, tip, updts[x], stack)
 				}
+				break
 			}
 		}
 	}
 	// Reduces length of total linked list chain to a maxChainLength value
-	ll.cleanup(maxChainLength, stack)
+	if maxChainLength != 0 && ll.length > maxChainLength {
+		ll.cleanup(maxChainLength, stack)
+	}
 }
 
 // updateInsertByID updates or inserts if not found
@@ -276,10 +282,7 @@ updates:
 		}
 		n := stack.Pop()
 		n.value = updts[x]
-		if insertNodeAtBookmark(bookmark, n) {
-			ll.head = n
-		}
-		ll.length++
+		insertNodeAtBookmark(&ll.linkedList, bookmark, n) // Won't inline with stack
 	}
 	return nil
 }
@@ -338,10 +341,14 @@ type asks struct {
 // updates in an ask linked list
 func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength int) {
 	for x := range updts {
-		for tip := &ll.head; *tip != nil; tip = &(*tip).next {
+		for tip := &ll.head; ; tip = &(*tip).next {
+			if *tip == nil {
+				insertHeadSpecific(&ll.linkedList, updts[x], stack)
+				break
+			}
 			if (*tip).value.Price == updts[x].Price { // Match check
 				if updts[x].Amount <= 0 { // Capture delete update
-					stack.Push(deleteAtTip(&ll.linkedList, tip))
+					stack.Push(deleteAtTip(&ll.linkedList, tip), time.Now())
 				} else { // Amend current amount value
 					(*tip).value.Amount = updts[x].Amount
 				}
@@ -351,7 +358,7 @@ func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 			if (*tip).value.Price > updts[x].Price { // Insert
 				if updts[x].Amount > 0 { // Filter delete, should already be
 					// removed
-					insert(&ll.linkedList, tip, updts[x], stack)
+					insertAtTip(&ll.linkedList, tip, updts[x], stack)
 				}
 				break // Continue updates
 			}
@@ -360,11 +367,14 @@ func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 				if updts[x].Amount > 0 {
 					insertAtTail(&ll.linkedList, tip, updts[x], stack)
 				}
+				break
 			}
 		}
 	}
 	// Reduces length of total linked list chain to a maxChainLength value
-	ll.cleanup(maxChainLength, stack)
+	if maxChainLength != 0 && ll.length > maxChainLength {
+		ll.cleanup(maxChainLength, stack)
+	}
 }
 
 // updateInsertByID updates or inserts if not found
@@ -428,10 +438,7 @@ updates:
 		}
 		n := stack.Pop()
 		n.value = updts[x]
-		if insertNodeAtBookmark(bookmark, n) {
-			ll.head = n
-		}
-		ll.length++
+		insertNodeAtBookmark(&ll.linkedList, bookmark, n) // Won't inline with stack
 	}
 	return nil
 }
@@ -442,8 +449,7 @@ func (ll *asks) insertUpdates(updts Items, stack *stack) error {
 		var prev *node
 		for tip := &ll.head; ; tip = &(*tip).next {
 			if *tip == nil { // Head is empty
-				insertHeadSpecific(tip, updts[x], stack)
-				ll.length++
+				insertHeadSpecific(&ll.linkedList, updts[x], stack)
 				break // Continue updates
 			}
 
@@ -535,7 +541,7 @@ func deleteAtTip(ll *linkedList, tip **node) *node {
 }
 
 // insert inserts at a tip target (can inline)
-func insert(ll *linkedList, tip **node, updt Item, stack *stack) {
+func insertAtTip(ll *linkedList, tip **node, updt Item, stack *stack) {
 	n := stack.Pop()
 	n.value = updt
 	n.next = *tip
@@ -567,34 +573,34 @@ func insertAtTail(ll *linkedList, tip **node, updt Item, stack *stack) {
 // insertHeadSpecific inserts at head specifically there might be an instance
 // where the liquidity on an exchange does fall to zero through a streaming
 // endpoint then it comes back online. (can inline)
-func insertHeadSpecific(tip **node, updt Item, stack *stack) {
+func insertHeadSpecific(ll *linkedList, updt Item, stack *stack) {
 	n := stack.Pop()
 	n.value = updt
-	*tip = n
+	ll.head = n
+	ll.length++
 }
 
 // insertNodeAtBookmark inserts a new node at a bookmarked node position
 // returns if a node needs to replace head (can inline)
-func insertNodeAtBookmark(bookmark, node *node) bool {
+func insertNodeAtBookmark(ll *linkedList, bookmark, n *node) {
 	switch {
 	case bookmark == nil: // Zero liquidity and we are rebuilding from scratch
-		return true
+		ll.head = n
 	case bookmark.prev == nil:
-		node.prev = bookmark.prev
-		bookmark.prev = node
-		node.next = bookmark
-		return true
+		n.prev = bookmark.prev
+		bookmark.prev = n
+		n.next = bookmark
+		ll.head = n
 	case bookmark.next == nil:
-		node.prev = bookmark
-		bookmark.next = node
-		return false
+		n.prev = bookmark
+		bookmark.next = n
 	default:
-		bookmark.prev.next = node
-		node.prev = bookmark.prev
-		bookmark.prev = node
-		node.next = bookmark
-		return false
+		bookmark.prev.next = n
+		n.prev = bookmark.prev
+		bookmark.prev = n
+		n.next = bookmark
 	}
+	ll.length++
 }
 
 // shiftBookmark moves a bookmarked node to the tip position or if nil sets

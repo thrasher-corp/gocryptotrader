@@ -195,6 +195,25 @@ func TestUpdateInsertByPrice(t *testing.T) {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 4, atomic.LoadInt32(&stack.count))
 	}
 
+	// purge if liquidity plunges to zero
+	a.load(nil, stack)
+
+	// rebuild everything again
+	a.updateInsertByPrice(Items{
+		{Price: 1, Amount: 1},
+		{Price: 3, Amount: 1},
+		{Price: 5, Amount: 1},
+		{Price: 7, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 11, Amount: 1},
+	}, stack, 0)
+
+	Check(a, 6, 36, 6, t)
+
+	if atomic.LoadInt32(&stack.count) != 5 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 4, atomic.LoadInt32(&stack.count))
+	}
+
 	b := bids{}
 	bidsSnapshot := Items{
 		{Price: 11, Amount: 1},
@@ -284,6 +303,25 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	if atomic.LoadInt32(&stack.count) != 4 {
 		t.Fatalf("incorrect stack count expected: %v received: %v", 4, atomic.LoadInt32(&stack.count))
 	}
+
+	// purge if liquidity plunges to zero
+	b.load(nil, stack)
+
+	// rebuild everything again
+	b.updateInsertByPrice(Items{
+		{Price: 1, Amount: 1},
+		{Price: 3, Amount: 1},
+		{Price: 5, Amount: 1},
+		{Price: 7, Amount: 1},
+		{Price: 9, Amount: 1},
+		{Price: 11, Amount: 1},
+	}, stack, 0)
+
+	Check(b, 6, 36, 6, t)
+
+	if atomic.LoadInt32(&stack.count) != 5 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 4, atomic.LoadInt32(&stack.count))
+	}
 }
 
 func TestCleanup(t *testing.T) {
@@ -307,8 +345,8 @@ func TestCleanup(t *testing.T) {
 	Check(a, 1, 1, 1, t)
 	a.cleanup(10, stack)
 	Check(a, 1, 1, 1, t)
-	a.cleanup(0, stack) // Should not change underlying
-	Check(a, 1, 1, 1, t)
+	a.cleanup(0, stack) // will purge, underlying checks are done elseware to prevent this
+	Check(a, 0, 0, 0, t)
 }
 
 // 46154023	        24.0 ns/op	       0 B/op	       0 allocs/op (old)

@@ -19,7 +19,7 @@ func TestPushPop(t *testing.T) {
 	}
 
 	for i := 0; i < 100; i++ {
-		s.Push(nSlice[i])
+		s.Push(nSlice[i], time.Now())
 	}
 
 	if atomic.LoadInt32(&s.count) != 100 {
@@ -35,12 +35,12 @@ func TestCleaner(t *testing.T) {
 	}
 
 	for i := 0; i < 50; i++ {
-		s.Push(nSlice[i])
+		s.Push(nSlice[i], time.Now())
 	}
 	// Makes all the 50 pushed nodes invalid
 	time.Sleep(time.Millisecond * 550)
 	for i := 50; i < 100; i++ {
-		s.Push(nSlice[i])
+		s.Push(nSlice[i], time.Now())
 	}
 	time.Sleep(time.Millisecond * 550)
 	if atomic.LoadInt32(&s.count) != 50 {
@@ -83,7 +83,7 @@ func BenchmarkWithStack(b *testing.B) {
 		for j := 0; j < 100000; j++ {
 			n = stack.Pop()
 			n.value.Price = 1337
-			stack.Push(n)
+			stack.Push(n, time.Now())
 		}
 	}
 }
