@@ -29,7 +29,7 @@ type Depth struct {
 	id  uuid.UUID
 
 	options
-	sync.Mutex
+	m sync.Mutex
 }
 
 // NewDepth returns a new depth item
@@ -51,23 +51,23 @@ func (d *Depth) Publish() {
 
 // GetAskLength returns length of asks
 func (d *Depth) GetAskLength() int {
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	return d.asks.length
 }
 
 // GetBidLength returns length of bids
 func (d *Depth) GetBidLength() int {
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	return d.bids.length
 }
 
 // Retrieve returns the orderbook base a copy of the underlying linked list
 // spread
 func (d *Depth) Retrieve() *Base {
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	return &Base{
 		Bids:          d.bids.retrieve(),
 		Asks:          d.asks.retrieve(),
@@ -84,40 +84,34 @@ func (d *Depth) Retrieve() *Base {
 // TotalBidAmounts returns the total amount of bids and the total orderbook
 // bids value
 func (d *Depth) TotalBidAmounts() (liquidity, value float64) {
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	return d.bids.amount()
 }
 
 // TotalAskAmounts returns the total amount of asks and the total orderbook
 // asks value
 func (d *Depth) TotalAskAmounts() (liquidity, value float64) {
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	return d.asks.amount()
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
 func (d *Depth) LoadSnapshot(bids, asks []Item) {
-	d.Lock()
+	d.m.Lock()
 	d.bids.load(bids, d.stack)
 	d.asks.load(asks, d.stack)
 	d.alert()
-	d.Unlock()
+	d.m.Unlock()
 }
 
 // Flush flushes the bid and ask depths
 func (d *Depth) Flush() {
-	d.Lock()
-	d.flush()
-	d.Unlock()
-}
-
-// flush will pop entire bid and ask node chain onto stack when invalidated or
-// required for full flush when resubscribing
-func (d *Depth) flush() {
+	d.m.Lock()
 	d.bids.load(nil, d.stack)
 	d.asks.load(nil, d.stack)
+	d.m.Unlock()
 }
 
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
@@ -126,7 +120,7 @@ func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return
 	}
-	d.Lock()
+	d.m.Lock()
 	if len(bidUpdts) != 0 {
 		d.bids.updateInsertByPrice(bidUpdts, d.stack, maxDepth)
 	}
@@ -134,7 +128,7 @@ func (d *Depth) UpdateBidAskByPrice(bidUpdts, askUpdts Items, maxDepth int) {
 		d.asks.updateInsertByPrice(askUpdts, d.stack, maxDepth)
 	}
 	d.alert()
-	d.Unlock()
+	d.m.Unlock()
 }
 
 // UpdateBidAskByID amends details by ID
@@ -142,8 +136,8 @@ func (d *Depth) UpdateBidAskByID(bidUpdts, askUpdts Items) error {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	if len(bidUpdts) != 0 {
 		err := d.bids.updateByID(bidUpdts)
 		if err != nil {
@@ -165,8 +159,8 @@ func (d *Depth) DeleteBidAskByID(bidUpdts, askUpdts Items, bypassErr bool) error
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	if len(bidUpdts) != 0 {
 		err := d.bids.deleteByID(bidUpdts, d.stack, bypassErr)
 		if err != nil {
@@ -188,8 +182,8 @@ func (d *Depth) InsertBidAskByID(bidUpdts, askUpdts Items) error {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	if len(bidUpdts) != 0 {
 		err := d.bids.insertUpdates(bidUpdts, d.stack)
 		if err != nil {
@@ -210,8 +204,8 @@ func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) error {
 	if len(bidUpdts) == 0 && len(askUpdts) == 0 {
 		return nil
 	}
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	if len(bidUpdts) != 0 {
 		err := d.bids.updateInsertByID(bidUpdts, d.stack)
 		if err != nil {
@@ -234,8 +228,8 @@ func (d *Depth) alert() {
 		// return if no waiting routines
 		return
 	}
-	d.wMtx.Lock()
 	go func() {
+		d.wMtx.Lock()
 		close(d.wait)
 		d.wg.Wait()
 		d.wait = make(chan struct{})
@@ -276,7 +270,7 @@ func (d *Depth) Wait(kick <-chan struct{}) bool {
 
 // AssignOptions assigns the initial options for the depth instance
 func (d *Depth) AssignOptions(b *Base) {
-	d.Lock()
+	d.m.Lock()
 	d.options = options{
 		exchange:              b.Exchange,
 		pair:                  b.Pair,
@@ -290,42 +284,42 @@ func (d *Depth) AssignOptions(b *Base) {
 		restSnapshot:          b.RestSnapshot,
 		idAligned:             b.IDAlignment,
 	}
-	d.Unlock()
+	d.m.Unlock()
 }
 
 // SetLastUpdate sets details of last update information
 func (d *Depth) SetLastUpdate(lastUpdate time.Time, lastUpdateID int64, updateByREST bool) {
-	d.Lock()
+	d.m.Lock()
 	d.lastUpdated = lastUpdate
 	d.lastUpdateID = lastUpdateID
 	d.restSnapshot = updateByREST
-	d.Unlock()
+	d.m.Unlock()
 }
 
 // GetName returns name of exchange
 func (d *Depth) GetName() string {
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	return d.exchange
 }
 
 // IsRestSnapshot returns if the depth item was updated via REST
 func (d *Depth) IsRestSnapshot() bool {
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	return d.restSnapshot
 }
 
 // LastUpdateID returns the last Update ID
 func (d *Depth) LastUpdateID() int64 {
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	return d.lastUpdateID
 }
 
 // IsFundingRate returns if the depth is a funding rate
 func (d *Depth) IsFundingRate() bool {
-	d.Lock()
-	defer d.Unlock()
+	d.m.Lock()
+	defer d.m.Unlock()
 	return d.isFundingRate
 }

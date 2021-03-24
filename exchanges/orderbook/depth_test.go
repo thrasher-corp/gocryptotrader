@@ -131,7 +131,7 @@ func TestLoadSnapshot(t *testing.T) {
 func TestFlush(t *testing.T) {
 	d := newDepth(id)
 	d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}})
-	d.flush()
+	d.Flush()
 	if len(d.Retrieve().Asks) != 0 || len(d.Retrieve().Bids) != 0 {
 		t.Fatal("not flushed")
 	}
