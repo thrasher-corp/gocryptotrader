@@ -476,7 +476,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
 			})
 
-			err = e.UpdateOrderExecutionLimits(asset.Spot)
+			err = e.UpdateOrderExecutionLimits(assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -484,7 +484,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			}
 
 			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-				SentParams: jsonifyInterface([]interface{}{asset.Spot}),
+				SentParams: jsonifyInterface([]interface{}{assetTypes[i]}),
 				Function:   "UpdateOrderExecutionLimits",
 				Error:      msg,
 				Response:   jsonifyInterface([]interface{}{""}),
