@@ -209,7 +209,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 	b.Settings.EnableTradeSyncing = s.EnableTradeSyncing
 	b.Settings.SyncWorkers = s.SyncWorkers
 	b.Settings.SyncTimeoutREST = s.SyncTimeoutREST
-	b.Settings.SyncTimeoutStream = s.SyncTimeoutStream
+	b.Settings.SyncTimeoutWebsocket = s.SyncTimeoutWebsocket
 	b.Settings.SyncContinuously = s.SyncContinuously
 	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
 	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
@@ -307,7 +307,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable orderbook syncing: %v\n", s.EnableOrderbookSyncing)
 	gctlog.Debugf(gctlog.Global, "\t Enable trade syncing: %v\n", s.EnableTradeSyncing)
 	gctlog.Debugf(gctlog.Global, "\t Exchange REST sync timeout: %v\n", s.SyncTimeoutREST)
-	gctlog.Debugf(gctlog.Global, "\t Exchange Streaming sync timeout: %v\n", s.SyncTimeoutStream)
+	gctlog.Debugf(gctlog.Global, "\t Exchange Websocket sync timeout: %v\n", s.SyncTimeoutWebsocket)
 	gctlog.Debugf(gctlog.Global, "- FOREX SETTINGS:")
 	gctlog.Debugf(gctlog.Global, "\t Enable currency conveter: %v", s.EnableCurrencyConverter)
 	gctlog.Debugf(gctlog.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
@@ -467,14 +467,14 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableExchangeSyncManager {
 		exchangeSyncCfg := CurrencyPairSyncerConfig{
-			SyncTicker:        bot.Settings.EnableTickerSyncing,
-			SyncOrderbook:     bot.Settings.EnableOrderbookSyncing,
-			SyncTrades:        bot.Settings.EnableTradeSyncing,
-			SyncContinuously:  bot.Settings.SyncContinuously,
-			NumWorkers:        bot.Settings.SyncWorkers,
-			Verbose:           bot.Settings.Verbose,
-			SyncTimeoutREST:   bot.Settings.SyncTimeoutREST,
-			SyncTimeoutStream: bot.Settings.SyncTimeoutStream,
+			SyncTicker:           bot.Settings.EnableTickerSyncing,
+			SyncOrderbook:        bot.Settings.EnableOrderbookSyncing,
+			SyncTrades:           bot.Settings.EnableTradeSyncing,
+			SyncContinuously:     bot.Settings.SyncContinuously,
+			NumWorkers:           bot.Settings.SyncWorkers,
+			Verbose:              bot.Settings.Verbose,
+			SyncTimeoutREST:      bot.Settings.SyncTimeoutREST,
+			SyncTimeoutWebsocket: bot.Settings.SyncTimeoutWebsocket,
 		}
 
 		bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)

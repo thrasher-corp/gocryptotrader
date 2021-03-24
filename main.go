@@ -65,8 +65,8 @@ func main() {
 	flag.BoolVar(&settings.SyncContinuously, "synccontinuously", true, "whether to sync exchange data continuously (ticker, orderbook and trade history info")
 	flag.DurationVar(&settings.SyncTimeoutREST, "synctimeoutrest", engine.DefaultSyncerTimeoutREST,
 		"the amount of time before the syncer will switch from rest protocol to the streaming protocol (e.g. from REST to websocket)")
-	flag.DurationVar(&settings.SyncTimeoutStream, "synctimeoutstream", engine.DefaultSyncerTimeoutStream,
-		"the amount of time before the syncer will switch from the streaming protocol to REST protocol (e.g. from websocket to REST)")
+	flag.DurationVar(&settings.SyncTimeoutWebsocket, "synctimeoutwebsocket", engine.DefaultSyncerTimeoutWebsocket,
+		"the amount of time before the syncer will switch from the websocket protocol to REST protocol (e.g. from websocket to REST)")
 
 	// Forex provider settings
 	flag.BoolVar(&settings.EnableCurrencyConverter, "currencyconverter", false, "overrides config and sets up foreign exchange Currency Converter")

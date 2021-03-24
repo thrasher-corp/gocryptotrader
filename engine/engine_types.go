@@ -45,7 +45,7 @@ type Settings struct {
 	SyncWorkers            int
 	SyncContinuously       bool
 	SyncTimeoutREST        time.Duration
-	SyncTimeoutStream      time.Duration
+	SyncTimeoutWebsocket   time.Duration
 
 	// Forex settings
 	EnableCurrencyConverter bool

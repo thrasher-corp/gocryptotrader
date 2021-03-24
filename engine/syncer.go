@@ -18,9 +18,9 @@ const (
 	SyncItemOrderbook
 	SyncItemTrade
 
-	DefaultSyncerWorkers       = 15
-	DefaultSyncerTimeoutREST   = time.Second * 15
-	DefaultSyncerTimeoutStream = time.Minute
+	DefaultSyncerWorkers          = 15
+	DefaultSyncerTimeoutREST      = time.Second * 15
+	DefaultSyncerTimeoutWebsocket = time.Minute
 )
 
 var (
@@ -42,8 +42,8 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig) (*ExchangeCurrencyPairSyn
 		c.SyncTimeoutREST = DefaultSyncerTimeoutREST
 	}
 
-	if c.SyncTimeoutStream <= time.Duration(0) {
-		c.SyncTimeoutStream = DefaultSyncerTimeoutStream
+	if c.SyncTimeoutWebsocket <= time.Duration(0) {
+		c.SyncTimeoutWebsocket = DefaultSyncerTimeoutWebsocket
 	}
 
 	s := ExchangeCurrencyPairSyncer{Cfg: c}
@@ -53,10 +53,10 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig) (*ExchangeCurrencyPairSyn
 	log.Debugf(log.SyncMgr,
 		"Exchange currency pair syncer config: continuous: %v ticker: %v"+
 			" orderbook: %v trades: %v workers: %v verbose: %v timeout REST: %v"+
-			" timeout Stream: %v\n",
+			" timeout Websocket: %v\n",
 		s.Cfg.SyncContinuously, s.Cfg.SyncTicker, s.Cfg.SyncOrderbook,
 		s.Cfg.SyncTrades, s.Cfg.NumWorkers, s.Cfg.Verbose, s.Cfg.SyncTimeoutREST,
-		s.Cfg.SyncTimeoutStream)
+		s.Cfg.SyncTimeoutWebsocket)
 	return &s, nil
 }
 
@@ -134,20 +134,6 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 
 	c.Created = time.Now()
 	e.CurrencyPairs = append(e.CurrencyPairs, *c)
-}
-
-func (e *ExchangeCurrencyPairSyncer) remove(c *CurrencyPairSyncAgent) {
-	e.mux.Lock()
-	defer e.mux.Unlock()
-
-	for x := range e.CurrencyPairs {
-		if e.CurrencyPairs[x].Exchange == c.Exchange &&
-			e.CurrencyPairs[x].Pair.Equal(c.Pair) &&
-			e.CurrencyPairs[x].AssetType == c.AssetType {
-			e.CurrencyPairs = append(e.CurrencyPairs[:x], e.CurrencyPairs[x+1:]...)
-			return
-		}
-	}
 }
 
 func (e *ExchangeCurrencyPairSyncer) isProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int) bool {
@@ -382,9 +368,9 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 						if !e.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) {
 							if c.Ticker.LastUpdated.IsZero() ||
 								(time.Since(c.Ticker.LastUpdated) > e.Cfg.SyncTimeoutREST && c.Ticker.IsUsingREST) ||
-								(time.Since(c.Ticker.LastUpdated) > e.Cfg.SyncTimeoutStream && c.Ticker.IsUsingWebsocket) {
+								(time.Since(c.Ticker.LastUpdated) > e.Cfg.SyncTimeoutWebsocket && c.Ticker.IsUsingWebsocket) {
 								if c.Ticker.IsUsingWebsocket {
-									if time.Since(c.Created) < e.Cfg.SyncTimeoutStream {
+									if time.Since(c.Created) < e.Cfg.SyncTimeoutWebsocket {
 										continue
 									}
 
@@ -397,7 +383,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 											c.Exchange,
 											Bot.FormatCurrency(enabledPairs[i]).String(),
 											strings.ToUpper(c.AssetType.String()),
-											e.Cfg.SyncTimeoutStream,
+											e.Cfg.SyncTimeoutWebsocket,
 										)
 										switchedToRest = true
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, false)
@@ -452,9 +438,9 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 						if !e.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemOrderbook) {
 							if c.Orderbook.LastUpdated.IsZero() ||
 								(time.Since(c.Orderbook.LastUpdated) > e.Cfg.SyncTimeoutREST && c.Orderbook.IsUsingREST) ||
-								(time.Since(c.Orderbook.LastUpdated) > e.Cfg.SyncTimeoutStream && c.Orderbook.IsUsingWebsocket) {
+								(time.Since(c.Orderbook.LastUpdated) > e.Cfg.SyncTimeoutWebsocket && c.Orderbook.IsUsingWebsocket) {
 								if c.Orderbook.IsUsingWebsocket {
-									if time.Since(c.Created) < e.Cfg.SyncTimeoutStream {
+									if time.Since(c.Created) < e.Cfg.SyncTimeoutWebsocket {
 										continue
 									}
 									if supportsREST {
@@ -466,7 +452,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 											c.Exchange,
 											Bot.FormatCurrency(c.Pair).String(),
 											strings.ToUpper(c.AssetType.String()),
-											e.Cfg.SyncTimeoutStream,
+											e.Cfg.SyncTimeoutWebsocket,
 										)
 										switchedToRest = true
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, false)
