@@ -1622,7 +1622,6 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 
 // GetOrderbookStream streams the requested updated orderbook
 func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetOrderbookStreamServer) error {
-	fmt.Printf("HELOOOOOOOOO\n\n\n\n")
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return err
@@ -3087,19 +3086,21 @@ func (s *RPCServer) checkParams(exch string, a asset.Item, p currency.Pair) erro
 	if err != nil {
 		return err
 	}
-	enabledPairs, err := e.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-	if !enabledPairs.Contains(p, false) {
-		availablePairs, err := e.GetAvailablePairs(a)
+	if !p.IsEmpty() {
+		enabledPairs, err := e.GetEnabledPairs(a)
 		if err != nil {
 			return err
 		}
-		if availablePairs.Contains(p, false) {
-			return fmt.Errorf("currency pair %v is not enabled", p)
+		if !enabledPairs.Contains(p, false) {
+			availablePairs, err := e.GetAvailablePairs(a)
+			if err != nil {
+				return err
+			}
+			if availablePairs.Contains(p, false) {
+				return fmt.Errorf("currency pair %v is not enabled", p)
+			}
+			return fmt.Errorf("invalid currency pair provided: %v", p)
 		}
-		return fmt.Errorf("invalid currency pair provided: %v", p)
 	}
 	return nil
 }
