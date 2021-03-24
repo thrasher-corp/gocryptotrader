@@ -1622,16 +1622,10 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 
 // GetOrderbookStream streams the requested updated orderbook
 func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTrader_GetOrderbookStreamServer) error {
-	if r.Exchange == "" {
-		return errExchangeNameUnset
-	}
-
-	if r.Pair.String() == "" {
-		return errCurrencyPairUnset
-	}
-
-	if r.AssetType == "" {
-		return errAssetTypeUnset
+	fmt.Printf("HELOOOOOOOOO\n\n\n\n")
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return err
 	}
 
 	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -1639,7 +1633,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		return err
 	}
 
-	a, err := asset.New(r.AssetType)
+	err = s.checkParams(r.Exchange, a, p)
 	if err != nil {
 		return err
 	}
@@ -3076,4 +3070,36 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 	}
 
 	return resp, nil
+}
+
+func (s *RPCServer) checkParams(exch string, a asset.Item, p currency.Pair) error {
+	e := s.GetExchangeByName(exch)
+	if e == nil {
+		return fmt.Errorf("exchange %s is not supported", exch)
+	}
+	if !e.IsEnabled() {
+		return fmt.Errorf("exchange %s is not enabled", exch)
+	}
+	if !a.IsValid() {
+		return fmt.Errorf("assetType %s is invalid", exch)
+	}
+	err := e.GetBase().CurrencyPairs.IsAssetEnabled(a)
+	if err != nil {
+		return err
+	}
+	enabledPairs, err := e.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+	if !enabledPairs.Contains(p, false) {
+		availablePairs, err := e.GetAvailablePairs(a)
+		if err != nil {
+			return err
+		}
+		if availablePairs.Contains(p, false) {
+			return fmt.Errorf("currency pair %v is not enabled", p)
+		}
+		return fmt.Errorf("invalid currency pair provided: %v", p)
+	}
+	return nil
 }
