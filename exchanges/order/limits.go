@@ -27,7 +27,7 @@ var (
 	ErrAmountBelowMin = errors.New("amount below minimum limit")
 	// ErrAmountExceedsMax is when the amount is higher than the maximum amount
 	// limit accepted by the exchange
-	ErrAmountExceedsMax = errors.New("amount below maximum limit")
+	ErrAmountExceedsMax = errors.New("amount exceeds maximum limit")
 	// ErrAmountExceedsStep is when the amount is not divisible by its step
 	ErrAmountExceedsStep = errors.New("amount exceeds step limit")
 	// ErrNotionalValue is when the notional value does not exceed currency pair
@@ -262,8 +262,9 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	}
 	if l.stepIncrementSizeAmount != 0 {
 		dAmount := decimal.NewFromFloat(amount)
+		dMinAmount := decimal.NewFromFloat(l.minAmount)
 		dStep := decimal.NewFromFloat(l.stepIncrementSizeAmount)
-		if !dAmount.Mod(dStep).IsZero() {
+		if !dAmount.Sub(dMinAmount).Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrAmountExceedsStep,
 				l.stepIncrementSizeAmount,
@@ -309,8 +310,9 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 		}
 		if l.stepIncrementSizePrice != 0 {
 			dPrice := decimal.NewFromFloat(price)
+			dMinPrice := decimal.NewFromFloat(l.minPrice)
 			dStep := decimal.NewFromFloat(l.stepIncrementSizePrice)
-			if !dPrice.Mod(dStep).IsZero() {
+			if !dPrice.Sub(dMinPrice).Mod(dStep).IsZero() {
 				return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 					ErrPriceExceedsStep,
 					l.stepIncrementSizePrice,
@@ -338,8 +340,9 @@ func (l *Limits) Conforms(price, amount float64, orderType Type) error {
 	}
 	if l.marketStepIncrementSize != 0 && l.stepIncrementSizeAmount != l.marketStepIncrementSize {
 		dAmount := decimal.NewFromFloat(amount)
+		dMinMAmount := decimal.NewFromFloat(l.marketMinQty)
 		dStep := decimal.NewFromFloat(l.marketStepIncrementSize)
-		if !dAmount.Mod(dStep).IsZero() {
+		if !dAmount.Sub(dMinMAmount).Mod(dStep).IsZero() {
 			return fmt.Errorf("%w stepSize: %.8f supplied %.8f",
 				ErrMarketAmountExceedsStep,
 				l.marketStepIncrementSize,

@@ -266,11 +266,21 @@ func TestConforms(t *testing.T) {
 	if !errors.Is(err, ErrMarketAmountExceedsStep) {
 		t.Fatalf("expected error %v but received: %v", ErrMarketAmountExceedsStep, err)
 	}
+	tt.marketStepIncrementSize = 1
+	err = tt.Conforms(200000, 9.1, Market)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error %v but received: %v", nil, err)
+	}
 }
 
 func TestConformToAmount(t *testing.T) {
 	t.Parallel()
-	tt := &Limits{}
+	var tt *Limits
+	if tt.ConformToAmount(1.001) != 1.001 {
+		t.Fatal("value should not be changed")
+	}
+
+	tt = &Limits{}
 	val := tt.ConformToAmount(1)
 	if val != 1 { // If there is no step amount set this should not change
 		// the inputted amount
