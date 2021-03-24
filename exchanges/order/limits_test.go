@@ -79,7 +79,6 @@ func TestLoadLimits(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
-
 }
 
 func TestGetOrderExecutionLimits(t *testing.T) {
