@@ -926,6 +926,9 @@ func (b *Binance) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
+	if err := req.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch req.AssetType {
