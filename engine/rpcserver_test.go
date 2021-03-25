@@ -963,8 +963,8 @@ func TestGetOrder(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot.String(),
 	})
-	if !errors.Is(err, errOrderCannotBeEmpty) {
-		t.Errorf("expected %v, received %v", errOrderCannotBeEmpty, err)
+	if !errors.Is(err, errOrderIDCannotBeEmpty) {
+		t.Errorf("expected %v, received %v", errOrderIDCannotBeEmpty, err)
 	}
 	err = engerino.OrderManager.Start(engerino)
 	if err != nil {
