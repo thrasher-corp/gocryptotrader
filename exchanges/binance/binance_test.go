@@ -2,6 +2,7 @@ package binance
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -2480,5 +2481,52 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 	_, err = b.UFuturesHistoricalTrades(cp, "", 0)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSetExchangeOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateOrderExecutionLimits(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateOrderExecutionLimits(asset.CoinMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateOrderExecutionLimits(asset.USDTMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateOrderExecutionLimits(asset.Binary)
+	if err == nil {
+		t.Fatal("expected unhandled case")
+	}
+
+	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	limit, err := b.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if limit == nil {
+		t.Fatal("exchange limit should be loaded")
+	}
+
+	err = limit.Conforms(0.000001, 0.1, order.Limit)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, but receieved %v", order.ErrAmountBelowMin, err)
+	}
+
+	err = limit.Conforms(0.01, 1, order.Limit)
+	if !errors.Is(err, order.ErrPriceBelowMin) {
+		t.Fatalf("expected %v, but receieved %v", order.ErrPriceBelowMin, err)
 	}
 }

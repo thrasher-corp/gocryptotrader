@@ -254,6 +254,33 @@
 					</tbody>
 				</table>
 			</div>
+			<div class="view view-cascade bg-warning">
+				<h2  class="px-4 card-header-title white-text">Warnings</h2>
+			</div>
+			<div class="card-body card-body-cascade ">
+				<table class="table table-hover table-bordered table-striped">
+					<thead>
+					<th>Exchange Name</th>
+					<th>Asset</th>
+					<th>Currency Base</th>
+					<th>Currency Quote</th>
+					<th>Warning</th>
+					</thead>
+					<tbody>
+                    {{ range .Config.CurrencySettings}}
+						{{if  .ShowExchangeOrderLimitWarning}}
+							<tr>
+								<td>{{.ExchangeName}}</td>
+								<td>{{.Asset}}</td>
+								<td>{{.Base}}</td>
+								<td>{{.Quote}}</td>
+								<td>order execution limits supported but disabled, results may not work when in production</td>
+							</tr>
+						{{end}}
+                    {{end}}
+					</tbody>
+				</table>
+			</div>
 		</div>
 	</div>
 	<div >

@@ -995,7 +995,7 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
-	exch, err := s.checkParams(r.Exchange, a, p)
+	_, err = s.checkParams(r.Exchange, a, p)
 	if err != nil {
 		return nil, err
 	}
@@ -1011,7 +1011,7 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		AssetType: a,
 	}
 
-	resp, err := exch.SubmitOrder(submission)
+	resp, err := s.OrderManager.Submit(submission)
 	if err != nil {
 		return &gctrpc.SubmitOrderResponse{}, err
 	}
