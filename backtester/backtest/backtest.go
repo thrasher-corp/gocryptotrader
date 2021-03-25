@@ -291,6 +291,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 					cfg.CurrencySettings[i].ExchangeName,
 					pair,
 					a)
+				cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
 			}
 		}
 
