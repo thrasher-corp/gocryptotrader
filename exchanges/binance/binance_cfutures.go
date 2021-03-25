@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -1445,4 +1447,46 @@ func (b *Binance) FuturesPositionsADLEstimate(symbol currency.Pair) ([]ADLEstima
 		params.Set("symbol", symbolValue)
 	}
 	return resp, b.SendAuthHTTPRequest(exchange.RestCoinMargined, http.MethodGet, cfuturesADLQuantile, params, cFuturesAccountInformationRate, &resp)
+}
+
+// FetchCoinMarginExchangeLimits fetches coin margined order execution limits
+func (b *Binance) FetchCoinMarginExchangeLimits() ([]order.MinMaxLevel, error) {
+	var limits []order.MinMaxLevel
+	coinFutures, err := b.FuturesExchangeInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range coinFutures.Symbols {
+		symbol := strings.Split(coinFutures.Symbols[x].Symbol, currency.UnderscoreDelimiter)
+		var cp currency.Pair
+		cp, err = currency.NewPairFromStrings(symbol[0], symbol[1])
+		if err != nil {
+			return nil, err
+		}
+
+		if len(coinFutures.Symbols[x].Filters) < 6 {
+			continue
+		}
+
+		limits = append(limits, order.MinMaxLevel{
+			Pair:              cp,
+			Asset:             asset.CoinMarginedFutures,
+			MinPrice:          coinFutures.Symbols[x].Filters[0].MinPrice,
+			MaxPrice:          coinFutures.Symbols[x].Filters[0].MaxPrice,
+			StepPrice:         coinFutures.Symbols[x].Filters[0].TickSize,
+			MaxAmount:         coinFutures.Symbols[x].Filters[1].MaxQty,
+			MinAmount:         coinFutures.Symbols[x].Filters[1].MinQty,
+			StepAmount:        coinFutures.Symbols[x].Filters[1].StepSize,
+			MarketMinQty:      coinFutures.Symbols[x].Filters[2].MinQty,
+			MarketMaxQty:      coinFutures.Symbols[x].Filters[2].MaxQty,
+			MarketStepSize:    coinFutures.Symbols[x].Filters[2].StepSize,
+			MaxTotalOrders:    coinFutures.Symbols[x].Filters[3].Limit,
+			MaxAlgoOrders:     coinFutures.Symbols[x].Filters[4].Limit,
+			MultiplierUp:      coinFutures.Symbols[x].Filters[5].MultiplierUp,
+			MultiplierDown:    coinFutures.Symbols[x].Filters[5].MultiplierDown,
+			MultiplierDecimal: coinFutures.Symbols[x].Filters[5].MultiplierDecimal,
+		})
+	}
+	return limits, nil
 }
