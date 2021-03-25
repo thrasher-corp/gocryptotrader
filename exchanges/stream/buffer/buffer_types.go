@@ -24,6 +24,7 @@ type Orderbook struct {
 	updateEntriesByID     bool // Use the update IDs to match ob entries
 	exchangeName          string
 	dataHandler           chan interface{}
+	verbose               bool
 	m                     sync.Mutex
 }
 

@@ -28,7 +28,10 @@ func (w *Orderbook) Setup(obBufferLimit int,
 	bufferEnabled,
 	sortBuffer,
 	sortBufferByUpdateIDs,
-	updateEntriesByID bool, exchangeName string, dataHandler chan interface{}) error {
+	updateEntriesByID,
+	verbose bool,
+	exchangeName string,
+	dataHandler chan interface{}) error {
 	if exchangeName == "" {
 		return fmt.Errorf(packageError, errUnsetExchangeName)
 	}
@@ -46,6 +49,7 @@ func (w *Orderbook) Setup(obBufferLimit int,
 	w.exchangeName = exchangeName
 	w.dataHandler = dataHandler
 	w.ob = make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
+	w.verbose = verbose
 	return nil
 }
 
@@ -118,7 +122,11 @@ func (w *Orderbook) Update(u *Update) error {
 		}()
 	default:
 		// We do not need to send an update to the sync manager within this time
-		// window
+		// window unless verbose is turned on
+		if w.verbose {
+			w.dataHandler <- book.ob.Retrieve()
+			book.ob.Publish()
+		}
 	}
 	return nil
 }

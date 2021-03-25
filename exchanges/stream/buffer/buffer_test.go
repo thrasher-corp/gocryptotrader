@@ -706,22 +706,22 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	w := Orderbook{}
-	err := w.Setup(0, false, false, false, false, "", nil)
+	err := w.Setup(0, false, false, false, false, true, "", nil)
 	if err == nil || !errors.Is(err, errUnsetExchangeName) {
 		t.Fatalf("expected error %v but received %v", errUnsetExchangeName, err)
 	}
 
-	err = w.Setup(0, false, false, false, false, "test", nil)
+	err = w.Setup(0, false, false, false, false, false, "test", nil)
 	if err == nil || !errors.Is(err, errUnsetDataHandler) {
 		t.Fatalf("expected error %v but received %v", errUnsetDataHandler, err)
 	}
 
-	err = w.Setup(0, true, false, false, false, "test", make(chan interface{}))
+	err = w.Setup(0, true, false, false, false, true, "test", make(chan interface{}))
 	if err == nil || !errors.Is(err, errIssueBufferEnabledButNoLimit) {
 		t.Fatalf("expected error %v but received %v", errIssueBufferEnabledButNoLimit, err)
 	}
 
-	err = w.Setup(1337, true, true, true, true, "test", make(chan interface{}))
+	err = w.Setup(1337, true, true, true, true, false, "test", make(chan interface{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -991,7 +991,7 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 func TestFlushOrderbook(t *testing.T) {
 	w := &Orderbook{}
-	err := w.Setup(5, false, false, false, false, "test", make(chan interface{}, 2))
+	err := w.Setup(5, false, false, false, false, false, "test", make(chan interface{}, 2))
 	if err != nil {
 		t.Fatal(err)
 	}
