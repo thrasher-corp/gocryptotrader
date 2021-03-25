@@ -230,6 +230,7 @@
 					<th>Max Slippage Percent</th>
 					<th>Taker Fee</th>
 					<th>Maximum Holdings Ratio</th>
+					<th>Exchange Limits</th>
 					</thead>
 					<tbody>
                     {{ range .Config.CurrencySettings}}
@@ -249,6 +250,7 @@
 							<td>{{.MaximumSlippagePercent}}%</td>
 							<td>{{.TakerFee}}</td>
 							<td>{{.MaximumHoldingsRatio}}</td>
+							<td>{{.CanUseExchangeLimits}}</td>
 						</tr>
                     {{end}}
 					</tbody>
