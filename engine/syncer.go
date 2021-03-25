@@ -418,11 +418,11 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										e.mux.Unlock()
 
 										if batchLastDone.IsZero() || time.Since(batchLastDone) > e.Cfg.SyncTimeout {
-											e.mux.Lock()
 											if e.Cfg.Verbose {
 												log.Debugf(log.SyncMgr, "%s Init'ing REST ticker batching\n", exchangeName)
 											}
 											result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
+											e.mux.Lock()
 											e.tickerBatchLastRequested[exchangeName] = time.Now()
 											e.mux.Unlock()
 										} else {
