@@ -287,7 +287,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 
 		if limits != nil {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
-				log.Warnf(log.BackTester, "exchange %s order execution limits supported but disabled for %s %s, results will not work when in production",
+				log.Warnf(log.BackTester, "exchange %s order execution limits supported but disabled for %s %s, results may not work when in production",
 					cfg.CurrencySettings[i].ExchangeName,
 					pair,
 					a)
