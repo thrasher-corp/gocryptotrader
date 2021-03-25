@@ -302,6 +302,19 @@ func (b *Binance) Run() {
 		}
 	}
 
+	a := b.GetAssetTypes()
+	for x := range a {
+		if err = b.CurrencyPairs.IsAssetEnabled(a[x]); err == nil {
+			err = b.UpdateOrderExecutionLimits(a[x])
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"Could not set %s exchange exchange limits: %v",
+					b.Name,
+					err)
+			}
+		}
+	}
+
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
@@ -913,6 +926,9 @@ func (b *Binance) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Binance) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
+	if err := req.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch req.AssetType {
@@ -1555,4 +1571,30 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 		resp.OrderType = order.UnknownType
 	}
 	return resp
+}
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (b *Binance) UpdateOrderExecutionLimits(a asset.Item) error {
+	var limits []order.MinMaxLevel
+	var err error
+	switch a {
+	case asset.Spot:
+		limits, err = b.FetchSpotExchangeLimits()
+	case asset.USDTMarginedFutures:
+		limits, err = b.FetchUSDTMarginExchangeLimits()
+	case asset.CoinMarginedFutures:
+		limits, err = b.FetchCoinMarginExchangeLimits()
+	case asset.Margin:
+		if err = b.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
+			limits, err = b.FetchSpotExchangeLimits()
+		} else {
+			return nil
+		}
+	default:
+		err = fmt.Errorf("unhandled asset type %s", a)
+	}
+	if err != nil {
+		return fmt.Errorf("cannot update exchange execution limits: %v", err)
+	}
+	return b.LoadLimits(limits)
 }

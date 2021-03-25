@@ -986,11 +986,6 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 // SubmitOrder submits an order specified by exchange, currency pair and asset
 // type
 func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest) (*gctrpc.SubmitOrderResponse, error) {
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
-	}
-
 	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
 		return nil, err
@@ -1012,7 +1007,7 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 		AssetType: a,
 	}
 
-	resp, err := exch.SubmitOrder(submission)
+	resp, err := s.OrderManager.Submit(submission)
 	if err != nil {
 		return &gctrpc.SubmitOrderResponse{}, err
 	}

@@ -2,9 +2,11 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
@@ -15,9 +17,9 @@ var (
 )
 
 type portfolioManager struct {
-	started  int32
-	stopped  int32
-	shutdown chan struct{}
+	started    int32
+	processing int32
+	shutdown   chan struct{}
 }
 
 func (p *portfolioManager) Started() bool {
@@ -39,9 +41,12 @@ func (p *portfolioManager) Start() error {
 	return nil
 }
 func (p *portfolioManager) Stop() error {
-	if atomic.AddInt32(&p.stopped, 1) != 1 {
-		return errors.New("portfolio manager is already stopped")
+	if atomic.LoadInt32(&p.started) == 0 {
+		return fmt.Errorf("portfolio manager %w", subsystem.ErrSubSystemNotStarted)
 	}
+	defer func() {
+		atomic.CompareAndSwapInt32(&p.started, 1, 0)
+	}()
 
 	log.Debugln(log.PortfolioMgr, "Portfolio manager shutting down...")
 	close(p.shutdown)
@@ -53,25 +58,26 @@ func (p *portfolioManager) run() {
 	Bot.ServicesWG.Add(1)
 	tick := time.NewTicker(Bot.Settings.PortfolioManagerDelay)
 	defer func() {
-		atomic.CompareAndSwapInt32(&p.stopped, 1, 0)
-		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 		tick.Stop()
 		Bot.ServicesWG.Done()
 		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 	}()
 
-	p.processPortfolio()
+	go p.processPortfolio()
 	for {
 		select {
 		case <-p.shutdown:
 			return
 		case <-tick.C:
-			p.processPortfolio()
+			go p.processPortfolio()
 		}
 	}
 }
 
 func (p *portfolioManager) processPortfolio() {
+	if !atomic.CompareAndSwapInt32(&p.processing, 0, 1) {
+		return
+	}
 	pf := portfolio.GetPortfolio()
 	data := pf.GetPortfolioGroupedCoin()
 	for key, value := range data {
@@ -90,4 +96,5 @@ func (p *portfolioManager) processPortfolio() {
 			value)
 	}
 	SeedExchangeAccountInfo(Bot.GetAllEnabledExchangeAccountInfo().Data)
+	atomic.CompareAndSwapInt32(&p.processing, 1, 0)
 }

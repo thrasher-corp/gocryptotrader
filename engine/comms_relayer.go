@@ -2,17 +2,18 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // commsManager starts the NTP manager
 type commsManager struct {
 	started  int32
-	stopped  int32
 	shutdown chan struct{}
 	relayMsg chan base.Event
 	comms    *communications.Communications
@@ -23,8 +24,8 @@ func (c *commsManager) Started() bool {
 }
 
 func (c *commsManager) Start() (err error) {
-	if atomic.AddInt32(&c.started, 1) != 1 {
-		return errors.New("communications manager already started")
+	if !atomic.CompareAndSwapInt32(&c.started, 0, 1) {
+		return fmt.Errorf("communications manager %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 
 	defer func() {
@@ -56,13 +57,11 @@ func (c *commsManager) GetStatus() (map[string]base.CommsStatus, error) {
 
 func (c *commsManager) Stop() error {
 	if atomic.LoadInt32(&c.started) == 0 {
-		return errors.New("communications manager not started")
+		return fmt.Errorf("communications manager %w", subsystem.ErrSubSystemNotStarted)
 	}
-
-	if atomic.AddInt32(&c.stopped, 1) != 1 {
-		return errors.New("communications manager is already stopped")
-	}
-
+	defer func() {
+		atomic.CompareAndSwapInt32(&c.started, 1, 0)
+	}()
 	close(c.shutdown)
 	log.Debugln(log.CommunicationMgr, "Communications manager shutting down...")
 	return nil
@@ -82,8 +81,6 @@ func (c *commsManager) PushEvent(evt base.Event) {
 func (c *commsManager) run() {
 	defer func() {
 		// TO-DO shutdown comms connections for connected services (Slack etc)
-		atomic.CompareAndSwapInt32(&c.stopped, 1, 0)
-		atomic.CompareAndSwapInt32(&c.started, 1, 0)
 		log.Debugln(log.CommunicationMgr, "Communications manager shutdown.")
 	}()
 

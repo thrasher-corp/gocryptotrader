@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -137,7 +138,7 @@ func (o *orderManager) Start(bot *Engine) error {
 		return errors.New("cannot start with nil bot")
 	}
 	if !atomic.CompareAndSwapInt32(&o.started, 0, 1) {
-		return errors.New("could not start order manager")
+		return fmt.Errorf("order manager %w", subsystem.ErrSubSystemAlreadyStarted)
 	}
 	log.Debugln(log.OrderBook, "Order manager starting...")
 
@@ -152,14 +153,10 @@ func (o *orderManager) Start(bot *Engine) error {
 // Stop will attempt to shutdown the orderManager
 func (o *orderManager) Stop() error {
 	if atomic.LoadInt32(&o.started) == 0 {
-		return errors.New("order manager not started")
+		return fmt.Errorf("order manager %w", subsystem.ErrSubSystemNotStarted)
 	}
 
-	if !atomic.CompareAndSwapInt32(&o.stopped, 0, 1) {
-		return errors.New("order manager is already stopped")
-	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&o.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&o.started, 1, 0)
 	}()
 
@@ -191,7 +188,7 @@ func (o *orderManager) run() {
 			o.gracefulShutdown()
 			return
 		case <-tick.C:
-			o.processOrders()
+			go o.processOrders()
 		}
 	}
 }
@@ -327,7 +324,7 @@ func (o *orderManager) validate(newOrder *order.Submit) error {
 	}
 
 	if err := newOrder.Validate(); err != nil {
-		return err
+		return fmt.Errorf("order manager: %w", err)
 	}
 
 	if o.cfg.EnforceLimitConfig {
@@ -362,8 +359,21 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
-	var result order.SubmitResponse
-	result, err = exch.SubmitOrder(newOrder)
+
+	// Checks for exchange min max limits for order amounts before order
+	// execution can occur
+	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
+		newOrder.Pair,
+		newOrder.Price,
+		newOrder.Amount,
+		newOrder.Type)
+	if err != nil {
+		return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+			newOrder.Exchange,
+			err)
+	}
+
+	result, err := exch.SubmitOrder(newOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +383,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
-func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse) (*orderSubmitResponse, error) {
+func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*orderSubmitResponse, error) {
 	err := o.validate(newOrder)
 	if err != nil {
 		return nil, err
@@ -383,6 +393,20 @@ func (o *orderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder or
 		return nil, ErrExchangeNotFound
 	}
 
+	if checkExchangeLimits {
+		// Checks for exchange min max limits for order amounts before order
+		// execution can occur
+		err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
+			newOrder.Pair,
+			newOrder.Price,
+			newOrder.Amount,
+			newOrder.Type)
+		if err != nil {
+			return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+				newOrder.Exchange,
+				err)
+		}
+	}
 	return o.processSubmittedOrder(newOrder, resultingOrder)
 }
 

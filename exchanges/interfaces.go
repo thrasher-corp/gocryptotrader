@@ -75,7 +75,6 @@ type IBotExchange interface {
 	GetHistoricCandlesExtended(p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
-
 	// Websocket specific wrapper functionality
 	// GetWebsocket returns a pointer to the websocket
 	GetWebsocket() (*stream.Websocket, error)
@@ -87,4 +86,8 @@ type IBotExchange interface {
 	// pair,asset, url/proxy or subscription change
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket() error
+	// Exchange order related execution limits
+	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (*order.Limits, error)
+	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
+	UpdateOrderExecutionLimits(a asset.Item) error
 }

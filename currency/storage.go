@@ -257,16 +257,20 @@ func (s *Storage) ForeignExchangeUpdater() {
 			return
 
 		case <-SeedForeignExchangeTick.C:
-			err := s.SeedForeignExchangeRates()
-			if err != nil {
-				log.Errorln(log.Global, err)
-			}
+			go func() {
+				err := s.SeedForeignExchangeRates()
+				if err != nil {
+					log.Errorln(log.Global, err)
+				}
+			}()
 
 		case <-SeedCurrencyAnalysisTick.C:
-			err := s.SeedCurrencyAnalysisData()
-			if err != nil {
-				log.Errorln(log.Global, err)
-			}
+			go func() {
+				err := s.SeedCurrencyAnalysisData()
+				if err != nil {
+					log.Errorln(log.Global, err)
+				}
+			}()
 		}
 	}
 }

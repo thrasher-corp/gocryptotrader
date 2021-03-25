@@ -792,6 +792,9 @@ func (k *Kraken) CancelBatchOrders(orders []order.Cancel) (order.CancelBatchResp
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (k *Kraken) CancelAllOrders(req *order.Cancel) (order.CancelAllResponse, error) {
+	if err := req.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}

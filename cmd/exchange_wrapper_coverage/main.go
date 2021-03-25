@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"sync"
@@ -83,133 +84,137 @@ func testWrappers(e exchange.IBotExchange) []string {
 	var funcs []string
 
 	_, err := e.FetchTicker(p, assetType)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "FetchTicker")
 	}
 
 	_, err = e.UpdateTicker(p, assetType)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "UpdateTicker")
 	}
 
 	_, err = e.FetchOrderbook(p, assetType)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "FetchOrderbook")
 	}
 
 	_, err = e.UpdateOrderbook(p, assetType)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "UpdateOrderbook")
 	}
 
 	_, err = e.FetchTradablePairs(asset.Spot)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "FetchTradablePairs")
 	}
 
 	err = e.UpdateTradablePairs(false)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "UpdateTradablePairs")
 	}
 
 	_, err = e.FetchAccountInfo(assetType)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetAccountInfo")
 	}
 
 	_, err = e.GetRecentTrades(p, assetType)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetRecentTrades")
 	}
 
 	_, err = e.GetHistoricTrades(p, assetType, time.Time{}, time.Time{})
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetHistoricTrades")
 	}
 
 	_, err = e.GetFundingHistory()
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetFundingHistory")
 	}
 
 	_, err = e.SubmitOrder(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "SubmitOrder")
 	}
 
 	_, err = e.ModifyOrder(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "ModifyOrder")
 	}
 
 	err = e.CancelOrder(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "CancelOrder")
 	}
 
 	_, err = e.CancelBatchOrders(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "CancelBatchOrders")
 	}
 
 	_, err = e.CancelAllOrders(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "CancelAllOrders")
 	}
 
 	_, err = e.GetOrderInfo("1", p, assetType)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetOrderInfo")
 	}
 
 	_, err = e.GetOrderHistory(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetOrderHistory")
 	}
 
 	_, err = e.GetActiveOrders(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetActiveOrders")
 	}
 
 	_, err = e.GetDepositAddress(currency.BTC, "")
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetDepositAddress")
 	}
 
 	_, err = e.WithdrawCryptocurrencyFunds(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "WithdrawCryptocurrencyFunds")
 	}
 
 	_, err = e.WithdrawFiatFunds(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "WithdrawFiatFunds")
 	}
 	_, err = e.WithdrawFiatFundsToInternationalBank(nil)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "WithdrawFiatFundsToInternationalBank")
 	}
 
 	_, err = e.GetHistoricCandles(currency.Pair{}, asset.Spot, time.Unix(0, 0), time.Unix(0, 0), kline.OneDay)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetHistoricCandles")
 	}
 
 	_, err = e.GetHistoricCandlesExtended(currency.Pair{}, asset.Spot, time.Unix(0, 0), time.Unix(0, 0), kline.OneDay)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetHistoricCandlesExtended")
 	}
 
 	_, err = e.UpdateAccountInfo(assetType)
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "UpdateAccountInfo")
 	}
 
 	_, err = e.GetFeeByType(&exchange.FeeBuilder{})
-	if err == common.ErrNotYetImplemented {
+	if errors.Is(err, common.ErrNotYetImplemented) {
 		funcs = append(funcs, "GetFeeByType")
 	}
 
+	err = e.UpdateOrderExecutionLimits(asset.DownsideProfitContract)
+	if errors.Is(err, common.ErrNotYetImplemented) {
+		funcs = append(funcs, "UpdateOrderExecutionLimits")
+	}
 	return funcs
 }

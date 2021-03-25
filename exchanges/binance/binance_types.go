@@ -51,7 +51,7 @@ type ExchangeInfo struct {
 			TickSize            float64 `json:"tickSize,string"`
 			MultiplierUp        float64 `json:"multiplierUp,string"`
 			MultiplierDown      float64 `json:"multiplierDown,string"`
-			AvgPriceMins        int64   `json:"avgPriceMins"`
+			AvgPriceMinutes     int64   `json:"avgPriceMins"`
 			MinQty              float64 `json:"minQty,string"`
 			MaxQty              float64 `json:"maxQty,string"`
 			StepSize            float64 `json:"stepSize,string"`
@@ -60,7 +60,9 @@ type ExchangeInfo struct {
 			Limit               int64   `json:"limit"`
 			MaxNumAlgoOrders    int64   `json:"maxNumAlgoOrders"`
 			MaxNumIcebergOrders int64   `json:"maxNumIcebergOrders"`
+			MaxNumOrders        int64   `json:"maxNumOrders"`
 		} `json:"filters"`
+		Permissions []string `json:"permissions"`
 	} `json:"symbols"`
 }
 
@@ -146,27 +148,30 @@ type TradeStream struct {
 
 // KlineStream holds the kline stream data
 type KlineStream struct {
-	EventType string    `json:"e"`
-	EventTime time.Time `json:"E"`
-	Symbol    string    `json:"s"`
-	Kline     struct {
-		StartTime                time.Time `json:"t"`
-		CloseTime                time.Time `json:"T"`
-		Symbol                   string    `json:"s"`
-		Interval                 string    `json:"i"`
-		FirstTradeID             int64     `json:"f"`
-		LastTradeID              int64     `json:"L"`
-		OpenPrice                float64   `json:"o,string"`
-		ClosePrice               float64   `json:"c,string"`
-		HighPrice                float64   `json:"h,string"`
-		LowPrice                 float64   `json:"l,string"`
-		Volume                   float64   `json:"v,string"`
-		NumberOfTrades           int64     `json:"n"`
-		KlineClosed              bool      `json:"x"`
-		Quote                    float64   `json:"q,string"`
-		TakerBuyBaseAssetVolume  float64   `json:"V,string"`
-		TakerBuyQuoteAssetVolume float64   `json:"Q,string"`
-	} `json:"k"`
+	EventType string          `json:"e"`
+	EventTime time.Time       `json:"E"`
+	Symbol    string          `json:"s"`
+	Kline     KlineStreamData `json:"k"`
+}
+
+// KlineStreamData defines kline streaming data
+type KlineStreamData struct {
+	StartTime                time.Time `json:"t"`
+	CloseTime                time.Time `json:"T"`
+	Symbol                   string    `json:"s"`
+	Interval                 string    `json:"i"`
+	FirstTradeID             int64     `json:"f"`
+	LastTradeID              int64     `json:"L"`
+	OpenPrice                float64   `json:"o,string"`
+	ClosePrice               float64   `json:"c,string"`
+	HighPrice                float64   `json:"h,string"`
+	LowPrice                 float64   `json:"l,string"`
+	Volume                   float64   `json:"v,string"`
+	NumberOfTrades           int64     `json:"n"`
+	KlineClosed              bool      `json:"x"`
+	Quote                    float64   `json:"q,string"`
+	TakerBuyBaseAssetVolume  float64   `json:"V,string"`
+	TakerBuyQuoteAssetVolume float64   `json:"Q,string"`
 }
 
 // TickerStream holds the ticker stream data
@@ -647,106 +652,121 @@ type UserAccountStream struct {
 }
 
 type wsAccountInfo struct {
-	Stream string `json:"stream"`
-	Data   struct {
-		CanDeposit       bool      `json:"D"`
-		CanTrade         bool      `json:"T"`
-		CanWithdraw      bool      `json:"W"`
-		EventTime        time.Time `json:"E"`
-		LastUpdated      time.Time `json:"u"`
-		BuyerCommission  float64   `json:"b"`
-		MakerCommission  float64   `json:"m"`
-		SellerCommission float64   `json:"s"`
-		TakerCommission  float64   `json:"t"`
-		EventType        string    `json:"e"`
-		Currencies       []struct {
-			Asset     string  `json:"a"`
-			Available float64 `json:"f,string"`
-			Locked    float64 `json:"l,string"`
-		} `json:"B"`
-	} `json:"data"`
+	Stream string            `json:"stream"`
+	Data   WsAccountInfoData `json:"data"`
+}
+
+// WsAccountInfoData defines websocket account info data
+type WsAccountInfoData struct {
+	CanDeposit       bool      `json:"D"`
+	CanTrade         bool      `json:"T"`
+	CanWithdraw      bool      `json:"W"`
+	EventTime        time.Time `json:"E"`
+	LastUpdated      time.Time `json:"u"`
+	BuyerCommission  float64   `json:"b"`
+	MakerCommission  float64   `json:"m"`
+	SellerCommission float64   `json:"s"`
+	TakerCommission  float64   `json:"t"`
+	EventType        string    `json:"e"`
+	Currencies       []struct {
+		Asset     string  `json:"a"`
+		Available float64 `json:"f,string"`
+		Locked    float64 `json:"l,string"`
+	} `json:"B"`
 }
 
 type wsAccountPosition struct {
-	Stream string `json:"stream"`
-	Data   struct {
-		Currencies []struct {
-			Asset     string  `json:"a"`
-			Available float64 `json:"f,string"`
-			Locked    float64 `json:"l,string"`
-		} `json:"B"`
-		EventTime   time.Time `json:"E"`
-		LastUpdated time.Time `json:"u"`
-		EventType   string    `json:"e"`
-	} `json:"data"`
+	Stream string                `json:"stream"`
+	Data   WsAccountPositionData `json:"data"`
+}
+
+// WsAccountPositionData defines websocket account position data
+type WsAccountPositionData struct {
+	Currencies []struct {
+		Asset     string  `json:"a"`
+		Available float64 `json:"f,string"`
+		Locked    float64 `json:"l,string"`
+	} `json:"B"`
+	EventTime   time.Time `json:"E"`
+	LastUpdated time.Time `json:"u"`
+	EventType   string    `json:"e"`
 }
 
 type wsBalanceUpdate struct {
-	Stream string `json:"stream"`
-	Data   struct {
-		EventTime    time.Time `json:"E"`
-		ClearTime    time.Time `json:"T"`
-		BalanceDelta float64   `json:"d,string"`
-		Asset        string    `json:"a"`
-		EventType    string    `json:"e"`
-	} `json:"data"`
+	Stream string              `json:"stream"`
+	Data   WsBalanceUpdateData `json:"data"`
+}
+
+// WsBalanceUpdateData defines websocket account balance data
+type WsBalanceUpdateData struct {
+	EventTime    time.Time `json:"E"`
+	ClearTime    time.Time `json:"T"`
+	BalanceDelta float64   `json:"d,string"`
+	Asset        string    `json:"a"`
+	EventType    string    `json:"e"`
 }
 
 type wsOrderUpdate struct {
-	Stream string `json:"stream"`
-	Data   struct {
-		ClientOrderID                     string    `json:"C"`
-		EventTime                         time.Time `json:"E"`
-		IcebergQuantity                   float64   `json:"F,string"`
-		LastExecutedPrice                 float64   `json:"L,string"`
-		CommissionAsset                   float64   `json:"N"`
-		OrderCreationTime                 time.Time `json:"O"`
-		StopPrice                         float64   `json:"P,string"`
-		QuoteOrderQuantity                float64   `json:"Q,string"`
-		Side                              string    `json:"S"`
-		TransactionTime                   time.Time `json:"T"`
-		OrderStatus                       string    `json:"X"`
-		LastQuoteAssetTransactedQuantity  float64   `json:"Y,string"`
-		CumulativeQuoteTransactedQuantity float64   `json:"Z,string"`
-		CancelledClientOrderID            string    `json:"c"`
-		EventType                         string    `json:"e"`
-		TimeInForce                       string    `json:"f"`
-		OrderListID                       int64     `json:"g"`
-		OrderID                           int64     `json:"i"`
-		LastExecutedQuantity              float64   `json:"l,string"`
-		IsMaker                           bool      `json:"m"`
-		Commission                        float64   `json:"n,string"`
-		OrderType                         string    `json:"o"`
-		Price                             float64   `json:"p,string"`
-		Quantity                          float64   `json:"q,string"`
-		RejectionReason                   string    `json:"r"`
-		Symbol                            string    `json:"s"`
-		TradeID                           int64     `json:"t"`
-		IsOnOrderBook                     bool      `json:"w"`
-		CurrentExecutionType              string    `json:"x"`
-		CumulativeFilledQuantity          float64   `json:"z,string"`
-	} `json:"data"`
+	Stream string            `json:"stream"`
+	Data   WsOrderUpdateData `json:"data"`
+}
+
+// WsOrderUpdateData defines websocket account order update data
+type WsOrderUpdateData struct {
+	ClientOrderID                     string    `json:"C"`
+	EventTime                         time.Time `json:"E"`
+	IcebergQuantity                   float64   `json:"F,string"`
+	LastExecutedPrice                 float64   `json:"L,string"`
+	CommissionAsset                   string    `json:"N"`
+	OrderCreationTime                 time.Time `json:"O"`
+	StopPrice                         float64   `json:"P,string"`
+	QuoteOrderQuantity                float64   `json:"Q,string"`
+	Side                              string    `json:"S"`
+	TransactionTime                   time.Time `json:"T"`
+	OrderStatus                       string    `json:"X"`
+	LastQuoteAssetTransactedQuantity  float64   `json:"Y,string"`
+	CumulativeQuoteTransactedQuantity float64   `json:"Z,string"`
+	CancelledClientOrderID            string    `json:"c"`
+	EventType                         string    `json:"e"`
+	TimeInForce                       string    `json:"f"`
+	OrderListID                       int64     `json:"g"`
+	OrderID                           int64     `json:"i"`
+	LastExecutedQuantity              float64   `json:"l,string"`
+	IsMaker                           bool      `json:"m"`
+	Commission                        float64   `json:"n,string"`
+	OrderType                         string    `json:"o"`
+	Price                             float64   `json:"p,string"`
+	Quantity                          float64   `json:"q,string"`
+	RejectionReason                   string    `json:"r"`
+	Symbol                            string    `json:"s"`
+	TradeID                           int64     `json:"t"`
+	IsOnOrderBook                     bool      `json:"w"`
+	CurrentExecutionType              string    `json:"x"`
+	CumulativeFilledQuantity          float64   `json:"z,string"`
 }
 
 type wsListStatus struct {
-	Stream string `json:"stream"`
-	Data   struct {
-		ListClientOrderID string    `json:"C"`
-		EventTime         time.Time `json:"E"`
-		ListOrderStatus   string    `json:"L"`
-		Orders            []struct {
-			ClientOrderID string `json:"c"`
-			OrderID       int64  `json:"i"`
-			Symbol        string `json:"s"`
-		} `json:"O"`
-		TransactionTime time.Time `json:"T"`
-		ContingencyType string    `json:"c"`
-		EventType       string    `json:"e"`
-		OrderListID     int64     `json:"g"`
-		ListStatusType  string    `json:"l"`
-		RejectionReason string    `json:"r"`
-		Symbol          string    `json:"s"`
-	} `json:"data"`
+	Stream string           `json:"stream"`
+	Data   WsListStatusData `json:"data"`
+}
+
+// WsListStatusData defines websocket account listing status data
+type WsListStatusData struct {
+	ListClientOrderID string    `json:"C"`
+	EventTime         time.Time `json:"E"`
+	ListOrderStatus   string    `json:"L"`
+	Orders            []struct {
+		ClientOrderID string `json:"c"`
+		OrderID       int64  `json:"i"`
+		Symbol        string `json:"s"`
+	} `json:"O"`
+	TransactionTime time.Time `json:"T"`
+	ContingencyType string    `json:"c"`
+	EventType       string    `json:"e"`
+	OrderListID     int64     `json:"g"`
+	ListStatusType  string    `json:"l"`
+	RejectionReason string    `json:"r"`
+	Symbol          string    `json:"s"`
 }
 
 // WsPayload defines the payload through the websocket connection

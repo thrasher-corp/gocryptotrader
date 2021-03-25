@@ -19,8 +19,6 @@ const (
 	DefaultHandshakeTimeout = 200 * time.Nanosecond
 
 	errNotInitialised   = "dispatcher not initialised"
-	errAlreadyStarted   = "dispatcher already started"
-	errCannotShutdown   = "dispatcher cannot shutdown, already stopped"
 	errShutdownRoutines = "dispatcher did not shutdown properly, routines failed to close"
 )
 
