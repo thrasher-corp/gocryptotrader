@@ -65,6 +65,7 @@ func (c *Config) PrintSetting() {
 		log.Infof(log.BackTester, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
 		log.Infof(log.BackTester, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
 		log.Infof(log.BackTester, "Leverage rules: %+v", c.CurrencySettings[i].Leverage)
+		log.Infof(log.BackTester, "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
 	}
 	log.Info(log.BackTester, "-------------------------------------------------------------")
 	log.Info(log.BackTester, "------------------Portfolio Settings-------------------------")

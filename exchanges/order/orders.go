@@ -38,23 +38,18 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 	}
 
 	if s.Amount <= 0 {
-		return ErrAmountIsInvalid
+		return fmt.Errorf("submit validation error %w, suppled: %.8f", ErrAmountIsInvalid, s.Amount)
 	}
 
 	if s.Type == Limit && s.Price <= 0 {
 		return ErrPriceMustBeSetIfLimitOrder
 	}
 
-	var errs common.Errors
 	for _, o := range opt {
 		err := o.Check()
 		if err != nil {
-			errs = append(errs, err)
+			return err
 		}
-	}
-
-	if errs != nil {
-		return errs
 	}
 
 	return nil

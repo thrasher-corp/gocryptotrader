@@ -2,6 +2,7 @@ package binance
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -2421,7 +2422,54 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 	}
 }
 
+func TestSetExchangeOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateOrderExecutionLimits(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.UpdateOrderExecutionLimits(asset.CoinMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateOrderExecutionLimits(asset.USDTMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.UpdateOrderExecutionLimits(asset.Binary)
+	if err == nil {
+		t.Fatal("expected unhandled case")
+	}
+
+	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	limit, err := b.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if limit == nil {
+		t.Fatal("exchange limit should be loaded")
+	}
+
+	err = limit.Conforms(0.000001, 0.1, order.Limit)
+	if !errors.Is(err, order.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, but receieved %v", order.ErrAmountBelowMin, err)
+	}
+
+	err = limit.Conforms(0.01, 1, order.Limit)
+	if !errors.Is(err, order.ErrPriceBelowMin) {
+		t.Fatalf("expected %v, but receieved %v", order.ErrPriceBelowMin, err)
+	}
+}
+
 func TestWsOrderExecutionReport(t *testing.T) {
+	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616627567900,"s":"BTCUSDT","c":"c4wyKsIhoAaittTYlIVLqk","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028400","p":"52789.10000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"NEW","X":"NEW","r":"NONE","i":5340845958,"l":"0.00000000","z":"0.00000000","L":"0.00000000","n":"0","N":null,"T":1616627567900,"t":-1,"I":11388173160,"w":true,"m":false,"M":false,"O":1616627567900,"Z":"0.00000000","Y":"0.00000000","Q":"0.00000000"}}`)
 	err := b.wsHandleData(payload)
 	if err != nil {
@@ -2436,6 +2484,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 }
 
 func TestWsOutboundAccountPosition(t *testing.T) {
+	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
 	err := b.wsHandleData(payload)
 	if err != nil {

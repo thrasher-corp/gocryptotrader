@@ -104,6 +104,9 @@ type CurrencySettings struct {
 	TakerFee float64 `json:"taker-fee-override"`
 
 	MaximumHoldingsRatio float64 `json:"maximum-holdings-ratio"`
+
+	CanUseExchangeLimits          bool `json:"use-exchange-order-limits"`
+	ShowExchangeOrderLimitWarning bool `json:"-"`
 }
 
 // APIData defines all fields to configure API based data

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (
@@ -1113,4 +1114,47 @@ func (b *Binance) GetFundingRates(symbol currency.Pair, limit string, startTime,
 		params.Set("endTime", strconv.FormatInt(endTime.UnixNano(), 10))
 	}
 	return resp, b.SendHTTPRequest(exchange.RestUSDTMargined, fundingRate+params.Encode(), uFuturesDefaultRate, &resp)
+}
+
+// FetchUSDTMarginExchangeLimits fetches USDT margined order execution limits
+func (b *Binance) FetchUSDTMarginExchangeLimits() ([]order.MinMaxLevel, error) {
+	var limits []order.MinMaxLevel
+	usdtFutures, err := b.UExchangeInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range usdtFutures.Symbols {
+		var cp currency.Pair
+		cp, err = currency.NewPairFromStrings(usdtFutures.Symbols[x].BaseAsset,
+			usdtFutures.Symbols[x].QuoteAsset)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(usdtFutures.Symbols[x].Filters) < 7 {
+			continue
+		}
+
+		limits = append(limits, order.MinMaxLevel{
+			Pair:              cp,
+			Asset:             asset.USDTMarginedFutures,
+			MinPrice:          usdtFutures.Symbols[x].Filters[0].MinPrice,
+			MaxPrice:          usdtFutures.Symbols[x].Filters[0].MaxPrice,
+			StepPrice:         usdtFutures.Symbols[x].Filters[0].TickSize,
+			MaxAmount:         usdtFutures.Symbols[x].Filters[1].MaxQty,
+			MinAmount:         usdtFutures.Symbols[x].Filters[1].MinQty,
+			StepAmount:        usdtFutures.Symbols[x].Filters[1].StepSize,
+			MarketMinQty:      usdtFutures.Symbols[x].Filters[2].MinQty,
+			MarketMaxQty:      usdtFutures.Symbols[x].Filters[2].MaxQty,
+			MarketStepSize:    usdtFutures.Symbols[x].Filters[2].StepSize,
+			MaxTotalOrders:    usdtFutures.Symbols[x].Filters[3].Limit,
+			MaxAlgoOrders:     usdtFutures.Symbols[x].Filters[4].Limit,
+			MinNotional:       usdtFutures.Symbols[x].Filters[5].Notional,
+			MultiplierUp:      usdtFutures.Symbols[x].Filters[6].MultiplierUp,
+			MultiplierDown:    usdtFutures.Symbols[x].Filters[6].MultiplierDown,
+			MultiplierDecimal: usdtFutures.Symbols[x].Filters[6].MultiplierDecimal,
+		})
+	}
+	return limits, nil
 }

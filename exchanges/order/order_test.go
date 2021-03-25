@@ -100,12 +100,8 @@ func TestValidate(t *testing.T) {
 	}
 
 	for x := range tester {
-		if err := tester[x].Submit.Validate(tester[x].ValidOpts); err != tester[x].ExpectedErr {
-			if err != nil && tester[x].ExpectedErr != nil {
-				if err.Error() == tester[x].ExpectedErr.Error() {
-					continue
-				}
-			}
+		err := tester[x].Submit.Validate(tester[x].ValidOpts)
+		if !errors.Is(err, tester[x].ExpectedErr) {
 			t.Errorf("Unexpected result. Got: %v, want: %v", err, tester[x].ExpectedErr)
 		}
 	}
