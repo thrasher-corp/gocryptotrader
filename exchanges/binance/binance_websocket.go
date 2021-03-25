@@ -149,6 +149,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+
+	if r, ok := multiStreamData["result"]; ok {
+		if r == nil {
+			return nil
+		}
+	}
+
 	if method, ok := multiStreamData["method"].(string); ok {
 		// TODO handle subscription handling
 		if strings.EqualFold(method, "subscribe") {
@@ -170,6 +177,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						err)
 				}
 				b.Websocket.DataHandler <- data
+				return nil
 			case "outboundAccountPosition":
 				var data wsAccountPosition
 				err := json.Unmarshal(respRaw, &data)
@@ -179,6 +187,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						err)
 				}
 				b.Websocket.DataHandler <- data
+				return nil
 			case "balanceUpdate":
 				var data wsBalanceUpdate
 				err := json.Unmarshal(respRaw, &data)
@@ -188,6 +197,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						err)
 				}
 				b.Websocket.DataHandler <- data
+				return nil
 			case "executionReport":
 				var data wsOrderUpdate
 				err := json.Unmarshal(respRaw, &data)
@@ -243,6 +253,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Date:            data.Data.OrderCreationTime,
 					Pair:            p,
 				}
+				return nil
 			case "listStatus":
 				var data wsListStatus
 				err := json.Unmarshal(respRaw, &data)
@@ -252,6 +263,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						err)
 				}
 				b.Websocket.DataHandler <- data
+				return nil
 			}
 		}
 	}
@@ -344,6 +356,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						AssetType:    asset.Spot,
 						Pair:         pair,
 					}
+					return nil
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 					var kline KlineStream
@@ -373,6 +386,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						LowPrice:   kline.Kline.LowPrice,
 						Volume:     kline.Kline.Volume,
 					}
+					return nil
 				case "depth":
 					var depth WebsocketDepthStream
 					err := json.Unmarshal(rawData, &depth)
@@ -391,6 +405,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 							b.Name,
 							err)
 					}
+					return nil
 				default:
 					b.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 						Message: b.Name + stream.UnhandledMessage + string(respRaw),
@@ -399,7 +414,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			}
 		}
 	}
-	return nil
+	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {

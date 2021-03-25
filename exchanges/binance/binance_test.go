@@ -2174,13 +2174,13 @@ func TestWsDepthUpdate(t *testing.T) {
 
 func TestWsBalanceUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
+	pressXToJSON := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{
   "e": "balanceUpdate",         
   "E": 1573200697110,           
   "a": "BTC",                   
   "d": "100.00000000",          
   "T": 1573200697068            
-}`)
+}}`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -2189,7 +2189,7 @@ func TestWsBalanceUpdate(t *testing.T) {
 
 func TestWsOCO(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
+	pressXToJSON := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{
   "e": "listStatus",                
   "E": 1564035303637,               
   "s": "ETHBTC",                    
@@ -2212,7 +2212,7 @@ func TestWsOCO(t *testing.T) {
       "c": "bfYPSQdLoqAJeNrOr9adzq"
     }
   ]
-}`)
+}}`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
