@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -55,7 +56,7 @@ var (
 	errInvalidArguments     = errors.New("invalid arguments received")
 	errExchangeNameUnset    = errors.New("exchange name unset")
 	errCurrencyPairUnset    = errors.New("currency pair unset")
-	errStartEndTimesUnset   = errors.New("invalid start and end times")
+	errInvalidTimes         = errors.New("invalid start and end times")
 	errAssetTypeUnset       = errors.New("asset type unset")
 	errDispatchSystem       = errors.New("dispatch system offline")
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
@@ -500,19 +501,14 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, r *gctrpc.GetOrderbooksRequ
 
 // GetAccountInfo returns an account balance for a specific exchange
 func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
-	}
-
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.checkParams(r.Exchange, assetType, currency.Pair{})
+	exch, err := s.checkParams(r.Exchange, assetType, currency.Pair{})
 	if err != nil {
-
+		return nil, err
 	}
 
 	resp, err := exch.FetchAccountInfo(assetType)
@@ -525,12 +521,12 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 
 // UpdateAccountInfo forces an update of the account info
 func (s *RPCServer) UpdateAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	assetType, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
 	}
 
-	assetType, err := asset.New(r.AssetType)
+	exch, err := s.checkParams(r.Exchange, assetType, currency.Pair{})
 	if err != nil {
 		return nil, err
 	}
@@ -563,16 +559,12 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 
 // GetAccountInfoStream streams an account balance for a specific exchange
 func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream gctrpc.GoCryptoTrader_GetAccountInfoStreamServer) error {
-	if r.Exchange == "" {
-		return errExchangeNameUnset
-	}
-
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return errExchangeNotLoaded
-	}
-
 	assetType, err := asset.New(r.AssetType)
+	if err != nil {
+		return err
+	}
+
+	exch, err := s.checkParams(r.Exchange, assetType, currency.Pair{})
 	if err != nil {
 		return err
 	}
@@ -814,17 +806,22 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 	if r == nil {
 		return nil, errInvalidArguments
 	}
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
-	}
-	if r.Pair == nil {
-		return nil, errCurrencyPairUnset
-	}
+
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
+
+	cp := currency.NewPairWithDelimiter(
+		r.Pair.Base,
+		r.Pair.Quote,
+		r.Pair.Delimiter)
+
+	exch, err := s.checkParams(r.Exchange, a, cp)
+	if err != nil {
+		return nil, err
+	}
+
 	var start, end time.Time
 	if r.StartDate != "" {
 		start, err = time.Parse(common.SimpleTimeFormat, r.StartDate)
@@ -839,23 +836,7 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 		}
 	}
 	if !start.IsZero() && !end.IsZero() && start.After(end) {
-		return nil, errStartEndTimesUnset
-	}
-
-	cp := currency.NewPairWithDelimiter(
-		r.Pair.Base,
-		r.Pair.Quote,
-		r.Pair.Delimiter)
-	var pairs currency.Pairs
-	pairs, err = exch.GetEnabledPairs(a)
-	if err != nil {
-		return nil, err
-	}
-	if !pairs.Contains(cp, false) {
-		return nil, fmt.Errorf("%s %w %v, please check your config",
-			exch.GetName(),
-			errCurrencyNotEnabled,
-			cp.String())
+		return nil, errInvalidTimes
 	}
 
 	request := &order.GetOrdersRequest{
@@ -928,10 +909,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	if r == nil {
 		return nil, errInvalidArguments
 	}
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
-	}
+
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
@@ -943,6 +921,11 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 	}
 
 	a, err := asset.New(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.checkParams(r.Exchange, a, pair)
 	if err != nil {
 		return nil, err
 	}
@@ -997,17 +980,22 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 // SubmitOrder submits an order specified by exchange, currency pair and asset
 // type
 func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest) (*gctrpc.SubmitOrderResponse, error) {
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
-	}
-
-	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	a, err := asset.New(r.AssetType)
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
+	}
+
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+
+	exch, err := s.checkParams(r.Exchange, a, p)
 	if err != nil {
 		return nil, err
 	}
@@ -1048,12 +1036,17 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 // SimulateOrder simulates an order specified by exchange, currency pair and asset
 // type
 func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
 	}
 
-	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+
+	exch, err := s.checkParams(r.Exchange, asset.Spot, p)
 	if err != nil {
 		return nil, err
 	}
@@ -1089,12 +1082,17 @@ func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequ
 // WhaleBomb finds the amount required to reach a specific price target for a given exchange, pair
 // and asset type
 func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
 	}
 
-	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+
+	exch, err := s.checkParams(r.Exchange, asset.Item(""), p)
 	if err != nil {
 		return nil, err
 	}
@@ -1130,17 +1128,22 @@ func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*g
 // CancelOrder cancels an order specified by exchange, currency pair and asset
 // type
 func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest) (*gctrpc.GenericResponse, error) {
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
 	}
 
-	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	a, err := asset.New(r.AssetType)
+	exch, err := s.checkParams(r.Exchange, a, p)
 	if err != nil {
 		return nil, err
 	}
@@ -1162,17 +1165,18 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 
 // CancelBatchOrders cancels an orders specified by exchange, currency pair and asset type
 func (s *RPCServer) CancelBatchOrders(_ context.Context, r *gctrpc.CancelBatchOrdersRequest) (*gctrpc.CancelBatchOrdersResponse, error) {
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	pair := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
-	pair, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	assetType, err := asset.New(r.AssetType)
+	exch, err := s.checkParams(r.Exchange, assetType, pair)
 	if err != nil {
 		return nil, err
 	}
@@ -1240,6 +1244,11 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 		r.Pair.Quote, r.Pair.Delimiter)
 
 	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.checkParams(r.Exchange, a, p)
 	if err != nil {
 		return nil, err
 	}
@@ -1551,22 +1560,14 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		return nil, err
 	}
 
-	if r.AssetType == "" {
-		return nil, errors.New("asset type must be specified")
-	}
-
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	if !exchCfg.CurrencyPairs.GetAssetTypes().Contains(a) {
-		return nil, fmt.Errorf("specified asset %s is not supported by exchange", a)
-	}
-
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	exch, err := s.checkParams(r.Exchange, a, currency.Pair{})
+	if err != nil {
+		return nil, err
 	}
 
 	base := exch.GetBase()
@@ -1638,12 +1639,13 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		return err
 	}
 
-	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-	if err != nil {
-		return err
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
-	err = s.checkParams(r.Exchange, a, p)
+	_, err = s.checkParams(r.Exchange, a, p)
 	if err != nil {
 		return err
 	}
@@ -1744,6 +1746,11 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 		return errExchangeNameUnset
 	}
 
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return err
+	}
+
 	if r.Pair.String() == "" {
 		return errCurrencyPairUnset
 	}
@@ -1753,11 +1760,6 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	}
 
 	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-	if err != nil {
-		return err
-	}
-
-	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return err
 	}
@@ -1883,14 +1885,27 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	if r.Exchange == "" {
-		return nil, errExchangeNameUnset
+	if r.Start >= r.End {
+		return nil, errInvalidTimes
 	}
-	if r.Pair.String() == "" {
+
+	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
-	if r.Start == r.End {
-		return nil, errStartEndTimesUnset
+	pair := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	exch, err := s.checkParams(r.Exchange, a, pair)
+	if err != nil {
+		return nil, err
 	}
 
 	var klineItem kline.Item
@@ -1912,16 +1927,6 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 		End:      r.End,
 	}
 
-	a, err := asset.New(r.AssetType)
-	if err != nil {
-		return nil, err
-	}
-
-	pair := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
 	if r.UseDb {
 		klineItem, err = kline.LoadFromDatabase(r.Exchange,
 			pair,
@@ -1933,18 +1938,14 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 			return nil, err
 		}
 	} else {
-		exchangeEngine := s.GetExchangeByName(r.Exchange)
-		if exchangeEngine == nil {
-			return nil, errors.New("Exchange " + r.Exchange + " not found")
-		}
 		if r.ExRequest {
-			klineItem, err = exchangeEngine.GetHistoricCandlesExtended(pair,
+			klineItem, err = exch.GetHistoricCandlesExtended(pair,
 				a,
 				UTCStartTime,
 				UTCEndTime,
 				interval)
 		} else {
-			klineItem, err = exchangeEngine.GetHistoricCandles(pair,
+			klineItem, err = exch.GetHistoricCandles(pair,
 				a,
 				UTCStartTime,
 				UTCEndTime,
@@ -2605,26 +2606,21 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
-	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
-	a := asset.Item(r.AssetType)
-	if !a.IsValid() {
-		return nil, errors.New("invalid asset")
-	}
-	var pairs currency.Pairs
-	pairs, err = exch.GetEnabledPairs(a)
+
+	_, err = s.checkParams(r.Exchange, a, p)
 	if err != nil {
 		return nil, err
-	}
-	if !pairs.Contains(cp, false) {
-		return nil, errors.New("currency not enabled")
 	}
 
 	var UTCStartTime, UTCEndTime time.Time
@@ -2667,7 +2663,6 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if r.End == "" || r.Start == "" || r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.TimeInterval == 0 {
 		return nil, errInvalidArguments
 	}
-	exch := s.GetExchangeByName(r.Exchange)
 	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
 		return nil, err
@@ -2677,25 +2672,20 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if err != nil {
 		return nil, err
 	}
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
 	}
-	var cp currency.Pair
-	cp, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
-	a := asset.Item(r.AssetType)
-	if !a.IsValid() {
-		return nil, errors.New("invalid asset")
-	}
-	var pairs currency.Pairs
-	pairs, err = exch.GetEnabledPairs(a)
+
+	_, err = s.checkParams(r.Exchange, a, p)
 	if err != nil {
 		return nil, err
-	}
-	if !pairs.Contains(cp, false) {
-		return nil, errors.New("currency not enabled")
 	}
 
 	var trades []trade.Data
@@ -2749,26 +2739,20 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	if r.End == "" || r.Start == "" || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.Interval <= 0 {
 		return nil, errInvalidArguments
 	}
-	exch := s.GetExchangeByName(r.ExchangeName)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
-	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
-	a := asset.Item(r.AssetType)
-	if !a.IsValid() {
-		return nil, errors.New("invalid asset")
-	}
-	var pairs currency.Pairs
-	pairs, err = exch.GetEnabledPairs(a)
+
+	_, err = s.checkParams(r.ExchangeName, a, p)
 	if err != nil {
 		return nil, err
-	}
-	if !pairs.Contains(cp, false) {
-		return nil, errors.New("currency not enabled")
 	}
 
 	var UTCStartTime, UTCEndTime time.Time
@@ -2782,12 +2766,8 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	}
 	klineItem, err := kline.LoadFromDatabase(
 		r.ExchangeName,
-		currency.Pair{
-			Delimiter: r.Pair.Delimiter,
-			Base:      currency.NewCode(r.Pair.Base),
-			Quote:     currency.NewCode(r.Pair.Quote),
-		},
-		asset.Item(strings.ToLower(r.AssetType)),
+		p,
+		a,
 		kline.Interval(r.Interval),
 		UTCStartTime,
 		UTCEndTime,
@@ -2843,11 +2823,21 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if r.End == "" || r.Start == "" || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
-	exch := s.GetExchangeByName(r.ExchangeName)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
 	}
-	var err error
+
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.checkParams(r.ExchangeName, a, p)
+	if err != nil {
+		return nil, err
+	}
 	var UTCStartTime, UTCEndTime time.Time
 	UTCStartTime, err = time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
@@ -2866,23 +2856,6 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	for iterationTime.Before(UTCEndTime) {
 		intervalMap[iterationTime] = false
 		iterationTime = iterationTime.Add(time.Hour)
-	}
-	var cp currency.Pair
-	cp, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-	if err != nil {
-		return nil, err
-	}
-	a := asset.Item(r.AssetType)
-	if !a.IsValid() {
-		return nil, errors.New("invalid asset")
-	}
-	var pairs currency.Pairs
-	pairs, err = exch.GetEnabledPairs(a)
-	if err != nil {
-		return nil, err
-	}
-	if !pairs.Contains(cp, false) {
-		return nil, errors.New("currency not enabled")
 	}
 
 	var trades []trade.Data
@@ -2959,25 +2932,20 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return errInvalidArguments
 	}
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return errExchangeNotLoaded
+	cp := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
 	}
-	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return err
 	}
-	a := asset.Item(r.AssetType)
-	if !a.IsValid() {
-		return errors.New("invalid asset")
-	}
-	var pairs currency.Pairs
-	pairs, err = exch.GetEnabledPairs(a)
+
+	exch, err := s.checkParams(r.Exchange, a, cp)
 	if err != nil {
 		return err
-	}
-	if !pairs.Contains(cp, false) {
-		return errors.New("currency not enabled")
 	}
 	var trades []trade.Data
 	var UTCStartTime, UTCEndTime time.Time
@@ -2998,7 +2966,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 
 	for iterateStartTime := UTCStartTime; iterateStartTime.Before(UTCEndTime); iterateStartTime = iterateStartTime.Add(time.Hour) {
 		iterateEndTime := iterateStartTime.Add(time.Hour)
-		trades, err = exch.GetHistoricTrades(cp, asset.Item(r.AssetType), iterateStartTime, iterateEndTime)
+		trades, err = exch.GetHistoricTrades(cp, a, iterateStartTime, iterateEndTime)
 		if err != nil {
 			return err
 		}
@@ -3036,25 +3004,20 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
-	exch := s.GetExchangeByName(r.Exchange)
-	if exch == nil {
-		return nil, errExchangeNotLoaded
+	cp := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
 	}
-	cp, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+
+	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
-	a := asset.Item(r.AssetType)
-	if !a.IsValid() {
-		return nil, errors.New("invalid asset")
-	}
-	var pairs currency.Pairs
-	pairs, err = exch.GetEnabledPairs(a)
+
+	exch, err := s.checkParams(r.Exchange, a, cp)
 	if err != nil {
 		return nil, err
-	}
-	if !pairs.Contains(cp, false) {
-		return nil, errors.New("currency not enabled")
 	}
 	var trades []trade.Data
 	trades, err = exch.GetRecentTrades(cp, asset.Item(r.AssetType))
@@ -3082,35 +3045,35 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 	return resp, nil
 }
 
-func (s *RPCServer) checkParams(exch string, a asset.Item, p currency.Pair) error {
+func (s *RPCServer) checkParams(exch string, a asset.Item, p currency.Pair) (exchange.IBotExchange, error) {
 	e := s.GetExchangeByName(exch)
 	if e == nil {
-		return fmt.Errorf("exchange %s is not supported", exch)
+		return nil, fmt.Errorf("exchange %s is not supported", exch)
 	}
 	if !e.IsEnabled() {
-		return fmt.Errorf("exchange %s is not enabled", exch)
+		return nil, fmt.Errorf("exchange %s is not enabled", exch)
 	}
 	if a.IsValid() {
 		err := e.GetBase().CurrencyPairs.IsAssetEnabled(a)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if !p.IsEmpty() {
 		enabledPairs, err := e.GetEnabledPairs(a)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !enabledPairs.Contains(p, false) {
 			availablePairs, err := e.GetAvailablePairs(a)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if availablePairs.Contains(p, false) {
-				return fmt.Errorf("currency pair %v is not enabled", p)
+				return nil, fmt.Errorf("currency pair %v is not enabled", p)
 			}
-			return fmt.Errorf("invalid currency pair provided: %v", p)
+			return nil, fmt.Errorf("invalid currency pair provided: %v", p)
 		}
 	}
-	return nil
+	return e, nil
 }

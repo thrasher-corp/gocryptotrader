@@ -349,8 +349,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Quote: currency.USD.String(),
 		},
 	})
-	if !errors.Is(err, errStartEndTimesUnset) {
-		t.Errorf("expected %v, received %v", errStartEndTimesUnset, err)
+	if !errors.Is(err, errInvalidTimes) {
+		t.Errorf("expected %v, received %v", errInvalidTimes, err)
 	}
 	var results *gctrpc.GetHistoricCandlesResponse
 	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)
@@ -868,8 +868,8 @@ func TestGetOrders(t *testing.T) {
 		StartDate: time.Now().Format(common.SimpleTimeFormat),
 		EndDate:   time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
 	})
-	if !errors.Is(err, errStartEndTimesUnset) {
-		t.Errorf("expected %v, received %v", errStartEndTimesUnset, err)
+	if !errors.Is(err, errInvalidTimes) {
+		t.Errorf("expected %v, received %v", errInvalidTimes, err)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
