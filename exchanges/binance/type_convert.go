@@ -400,7 +400,6 @@ func (a *wsOrderUpdate) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-
 	a.Data = *aux.Data.WsOrderUpdateData
 	a.Data.EventTime = aux.Data.EventTime.Time()
 	a.Data.OrderCreationTime = aux.Data.OrderCreationTime.Time()

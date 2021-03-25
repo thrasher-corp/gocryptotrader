@@ -152,6 +152,7 @@ type KlineStream struct {
 	Kline     KlineStreamData `json:"k"`
 }
 
+// KlineStreamData defines kline streaming data
 type KlineStreamData struct {
 	StartTime                time.Time `json:"t"`
 	CloseTime                time.Time `json:"T"`
