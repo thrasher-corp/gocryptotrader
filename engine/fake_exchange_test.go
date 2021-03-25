@@ -45,6 +45,7 @@ func addPassingFakeExchange(baseExchangeName string, bot *Engine) error {
 	bot.exchangeManager.add(&FakePassingExchange{
 		Base: exchange.Base{
 			Name:                          fakePassExchange,
+			CurrencyPairs:                 currency.PairsManager{},
 			Enabled:                       true,
 			LoadedByConfig:                true,
 			SkipAuthCheck:                 true,

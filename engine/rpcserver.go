@@ -3070,8 +3070,15 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 	if e == nil {
 		return fmt.Errorf("exchange %s is not enabled or supported", exchName)
 	}
+	if !e.IsEnabled() {
+		return fmt.Errorf("exchange %s is not enabled", exchName)
+	}
 	if a.IsValid() {
-		err := e.GetBase().CurrencyPairs.IsAssetEnabled(a)
+		b := e.GetBase()
+		if b == nil {
+			return errors.New("exchange base has not been set properly")
+		}
+		err := b.CurrencyPairs.IsAssetEnabled(a)
 		if err != nil {
 			return err
 		}

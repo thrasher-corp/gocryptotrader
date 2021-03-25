@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -795,7 +796,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
-
+	fmt.Printf("%+v\n", r)
 	if r.Accounts[0].Currencies[0].TotalValue != 10 {
 		t.Fatal("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
 	}
