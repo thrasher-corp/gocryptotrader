@@ -3064,7 +3064,10 @@ func (s *RPCServer) checkParams(exch string, a asset.Item, p currency.Pair) (exc
 		if err != nil {
 			return nil, err
 		}
-		if !enabledPairs.Contains(p, false) {
+		if !enabledPairs.Contains(p, true) {
+			if enabledPairs.Contains(p, false) {
+				return nil, fmt.Errorf("currency pair %v does not comply with the case sensitivity requirements", p)
+			}
 			availablePairs, err := e.GetAvailablePairs(a)
 			if err != nil {
 				return nil, err
