@@ -2,9 +2,7 @@ package orderbook
 
 import (
 	"errors"
-	"log"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -227,35 +225,6 @@ func TestUpdateInsertByID(t *testing.T) {
 	}
 }
 
-func TestAlert(t *testing.T) {
-	d := newDepth(id)
-	d.alert()
-
-	var wg sync.WaitGroup
-	wg.Add(5)
-	var kick = timeInForce(0)
-	for i := 0; i < 5; i++ {
-		go func() {
-			if d.Wait(kick) {
-				log.Fatal("expected routine to be kicked by channel")
-			}
-		}()
-	}
-	var wait sync.WaitGroup
-	wait.Add(5)
-	for i := 0; i < 5; i++ {
-		go func() {
-			wait.Done()
-			if d.Wait(nil) {
-				wg.Done()
-			}
-		}()
-	}
-	wait.Wait()
-	d.alert()
-	wg.Wait()
-}
-
 func TestAssignOptions(t *testing.T) {
 	d := Depth{}
 	cp := currency.NewPair(currency.LINK, currency.BTC)
@@ -330,4 +299,9 @@ func TestIsFundingRate(t *testing.T) {
 	if !d.IsFundingRate() {
 		t.Fatal("failed to get correct value")
 	}
+}
+
+func TestPublish(t *testing.T) {
+	d := Depth{}
+	d.Publish()
 }

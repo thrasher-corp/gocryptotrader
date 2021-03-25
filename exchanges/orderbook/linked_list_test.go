@@ -534,9 +534,12 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	a.load(asksSnapshot, s)
 
 	// Update one instance with matching ID
-	a.updateInsertByID(Items{
+	err := a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 7, 37, 6, t)
 
@@ -544,7 +547,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	a.load(asksSnapshot, s)
 
 	// Update all instances with matching ID in order
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 5, Amount: 2, ID: 5},
@@ -552,11 +555,14 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 12, 72, 6, t)
 
 	// Update all instances with matching ID in backwards
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 7, Amount: 2, ID: 7},
@@ -564,11 +570,14 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 1, Amount: 2, ID: 1},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 12, 72, 6, t)
 
 	// Update all instances with matching ID all over the ship
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 7, Amount: 2, ID: 7},
@@ -576,11 +585,14 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 5, Amount: 2, ID: 5},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 12, 72, 6, t)
 
 	// Update all instances move one before ID in middle
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 2, Amount: 2, ID: 5},
@@ -588,11 +600,14 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 12, 66, 6, t)
 
 	// Update all instances move one before ID at head
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: .5, Amount: 2, ID: 5},
@@ -600,6 +615,9 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 12, 63, 6, t)
 
@@ -607,7 +625,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	a.load(asksSnapshot, s)
 
 	// Update all instances move one after ID
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 8, Amount: 2, ID: 5},
@@ -615,6 +633,9 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 12, 78, 6, t)
 
@@ -622,7 +643,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	a.load(asksSnapshot, s)
 
 	// Update all instances move one after ID to tail
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
@@ -630,11 +651,14 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 12, 86, 6, t)
 
 	// Update all instances then pop new instance
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
@@ -643,6 +667,9 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 10, Amount: 2, ID: 10},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 14, 106, 7, t)
 
@@ -650,7 +677,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	a.load(asksSnapshot, s)
 
 	// Update all instances pop at head
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 0.5, Amount: 2, ID: 0},
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
@@ -659,41 +686,59 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 14, 87, 7, t)
 
 	// bookmark head and move to mid
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 7.5, Amount: 2, ID: 0},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 14, 101, 7, t)
 
 	// bookmark head and move to tail
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 12.5, Amount: 2, ID: 1},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 14, 124, 7, t)
 
 	// move tail location to head
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 2.5, Amount: 2, ID: 1},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 14, 104, 7, t)
 
 	// move tail location to mid
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 8, Amount: 2, ID: 5},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 14, 96, 7, t)
 
 	// insert at tail dont match
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 30, Amount: 2, ID: 1234},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 16, 156, 8, t)
 
@@ -701,7 +746,7 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	a.load(nil, s)
 
 	// insert with no liquidity and jumbled
-	a.updateInsertByID(Items{
+	err = a.updateInsertByID(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 7, Amount: 2, ID: 7},
@@ -710,6 +755,9 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(a, 14, 87, 7, t)
 }
@@ -728,9 +776,12 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	b.load(bidsSnapshot, s)
 
 	// Update one instance with matching ID
-	b.updateInsertByID(Items{
+	err := b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 7, 37, 6, t)
 
@@ -738,7 +789,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	b.load(bidsSnapshot, s)
 
 	// Update all instances with matching ID in order
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 5, Amount: 2, ID: 5},
@@ -746,11 +797,14 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 12, 72, 6, t)
 
 	// Update all instances with matching ID in backwards
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 7, Amount: 2, ID: 7},
@@ -758,11 +812,14 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 1, Amount: 2, ID: 1},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 12, 72, 6, t)
 
 	// Update all instances with matching ID all over the ship
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 7, Amount: 2, ID: 7},
@@ -770,11 +827,14 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 5, Amount: 2, ID: 5},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 12, 72, 6, t)
 
 	// Update all instances move one before ID in middle
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 2, Amount: 2, ID: 5},
@@ -782,11 +842,14 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 12, 66, 6, t)
 
 	// Update all instances move one before ID at head
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: .5, Amount: 2, ID: 5},
@@ -794,6 +857,9 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 12, 63, 6, t)
 
@@ -801,7 +867,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	b.load(bidsSnapshot, s)
 
 	// Update all instances move one after ID
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 8, Amount: 2, ID: 5},
@@ -809,6 +875,9 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 12, 78, 6, t)
 
@@ -816,7 +885,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	b.load(bidsSnapshot, s)
 
 	// Update all instances move one after ID to tail
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
@@ -824,11 +893,14 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 12, 86, 6, t)
 
 	// Update all instances then pop new instance
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
 		{Price: 12, Amount: 2, ID: 5},
@@ -837,6 +909,9 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 11, Amount: 2, ID: 11},
 		{Price: 10, Amount: 2, ID: 10},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 14, 106, 7, t)
 
@@ -844,7 +919,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	b.load(bidsSnapshot, s)
 
 	// Update all instances pop at tail
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 0.5, Amount: 2, ID: 0},
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
@@ -853,41 +928,59 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 14, 87, 7, t)
 
 	// bookmark head and move to mid
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 9.5, Amount: 2, ID: 5},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 14, 82, 7, t)
 
 	// bookmark head and move to tail
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 0.25, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 14, 60.5, 7, t)
 
 	// move tail location to head
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 10, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 14, 80, 7, t)
 
 	// move tail location to mid
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 7.5, Amount: 2, ID: 0},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 14, 94, 7, t)
 
 	// insert at head dont match
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 30, Amount: 2, ID: 1234},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 16, 154, 8, t)
 
@@ -895,7 +988,7 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	b.load(nil, s)
 
 	// insert with no liquidity and jumbled
-	b.updateInsertByID(Items{
+	err = b.updateInsertByID(Items{
 		{Price: 0.5, Amount: 2, ID: 0},
 		{Price: 1, Amount: 2, ID: 1},
 		{Price: 3, Amount: 2, ID: 3},
@@ -904,6 +997,9 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 		{Price: 9, Amount: 2, ID: 9},
 		{Price: 11, Amount: 2, ID: 11},
 	}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	Check(b, 14, 87, 7, t)
 }
@@ -1066,14 +1162,15 @@ func Check(depth interface{}, liquidity, value float64, nodeCount int, t *testin
 		t.Fatal("value passed in is not of type bids or asks")
 	}
 
-	if ll.liquidity() != liquidity {
+	liquidityTotal, valueTotal := ll.amount()
+
+	if liquidityTotal != liquidity {
 		ll.display()
 		t.Fatalf("mismatched liquidity expecting %v but received %v",
 			liquidity,
-			ll.liquidity())
+			liquidityTotal)
 	}
 
-	valueTotal := ll.value()
 	if valueTotal != value {
 		ll.display()
 		t.Fatalf("mismatched total value expecting %v but received %v",

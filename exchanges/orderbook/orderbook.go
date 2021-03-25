@@ -51,14 +51,14 @@ func (s *Service) Update(b *Base) error {
 	s.Lock()
 	m1, ok := s.books[name]
 	if !ok {
-		uuid, err := s.Mux.GetID()
+		id, err := s.Mux.GetID()
 		if err != nil {
 			s.Unlock()
 			return err
 		}
 		m1 = Exchange{
 			m:  make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
-			ID: uuid,
+			ID: id,
 		}
 		s.books[name] = m1
 	}

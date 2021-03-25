@@ -237,20 +237,6 @@ func (d *Depth) alert() {
 	}()
 }
 
-// POC: kicker defines a channel that allows a system to kick routine away from
-// waiting for a change on the linked list
-type kicker chan struct{}
-
-// POC: timeInForce allows a kick
-func timeInForce(t time.Duration) kicker {
-	ch := make(chan struct{})
-	go func(ch chan<- struct{}) {
-		time.Sleep(t)
-		close(ch)
-	}(ch)
-	return ch
-}
-
 // Wait pauses routine until depth change has been established (POC)
 func (d *Depth) Wait(kick <-chan struct{}) bool {
 	d.wMtx.Lock()

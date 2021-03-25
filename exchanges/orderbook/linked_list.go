@@ -140,22 +140,6 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	ll.length -= pruned
 }
 
-// Liquidity returns total depth liquidity
-func (ll *linkedList) liquidity() (liquidity float64) {
-	for tip := ll.head; tip != nil; tip = tip.next {
-		liquidity += tip.value.Amount
-	}
-	return
-}
-
-// Value returns total value on price.amount on full depth
-func (ll *linkedList) value() (value float64) {
-	for tip := ll.head; tip != nil; tip = tip.next {
-		value += tip.value.Amount * tip.value.Price
-	}
-	return
-}
-
 // Amount returns total depth liquidity and value
 func (ll *linkedList) amount() (liquidity, value float64) {
 	for tip := ll.head; tip != nil; tip = tip.next {
@@ -540,7 +524,7 @@ func deleteAtTip(ll *linkedList, tip **node) *node {
 	return old
 }
 
-// insert inserts at a tip target (can inline)
+// insertAtTip inserts at a tip target (can inline)
 func insertAtTip(ll *linkedList, tip **node, updt Item, stack *stack) {
 	n := stack.Pop()
 	n.value = updt
