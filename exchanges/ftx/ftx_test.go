@@ -1454,6 +1454,9 @@ func TestParsingWSOBData2(t *testing.T) {
 
 func TestGetSubaccounts(t *testing.T) {
 	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
 	_, err := f.GetSubaccounts()
 	if err != nil {
 		t.Error(err)
