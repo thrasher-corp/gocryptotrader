@@ -20,10 +20,8 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
 	"github.com/thrasher-corp/gocryptotrader/common/timeperiods"
@@ -72,32 +70,32 @@ type RPCServer struct {
 	gctrpc.UnimplementedGoCryptoTraderServer
 }
 
-func (bot *engine.engine) authenticateClient(ctx context.Context) (context.Context, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return ctx, fmt.Errorf("unable to extract metadata")
-	}
+func authenticateClient(ctx context.Context) (context.Context, error) {
+	//md, ok := metadata.FromIncomingContext(ctx)
+	//if !ok {
+	//	return ctx, fmt.Errorf("unable to extract metadata")
+	//}
+	//
+	//authStr, ok := md["authorization"]
+	//if !ok {
+	//	return ctx, fmt.Errorf("authorization header missing")
+	//}
+	//
+	//if !strings.Contains(authStr[0], "Basic") {
+	//	return ctx, fmt.Errorf("basic not found in authorization header")
+	//}
+	//
+	//decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
+	//if err != nil {
+	//	return ctx, fmt.Errorf("unable to base64 decode authorization header")
+	//}
+	//
+	//username := strings.Split(string(decoded), ":")[0]
+	//password := strings.Split(string(decoded), ":")[1]
 
-	authStr, ok := md["authorization"]
-	if !ok {
-		return ctx, fmt.Errorf("authorization header missing")
-	}
-
-	if !strings.Contains(authStr[0], "Basic") {
-		return ctx, fmt.Errorf("basic not found in authorization header")
-	}
-
-	decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
-	if err != nil {
-		return ctx, fmt.Errorf("unable to base64 decode authorization header")
-	}
-
-	username := strings.Split(string(decoded), ":")[0]
-	password := strings.Split(string(decoded), ":")[1]
-
-	if username != bot.Config.RemoteControl.Username || password != bot.Config.RemoteControl.Password {
-		return ctx, fmt.Errorf("username/password mismatch")
-	}
+	//if username != bot.Config.RemoteControl.Username || password != bot.Config.RemoteControl.Password {
+	//	return ctx, fmt.Errorf("username/password mismatch")
+	//}
 
 	return ctx, nil
 }
@@ -105,12 +103,6 @@ func (bot *engine.engine) authenticateClient(ctx context.Context) (context.Conte
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer(engine *engine.Engine) {
 	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
-	err := engine.checkCerts(targetDir)
-	if err != nil {
-		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
-		return
-	}
-
 	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
 	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress)
 	if err != nil {
@@ -126,7 +118,7 @@ func StartRPCServer(engine *engine.Engine) {
 
 	opts := []grpc.ServerOption{
 		grpc.Creds(creds),
-		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(engine.authenticateClient)),
+		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(authenticateClient)),
 	}
 	server := grpc.NewServer(opts...)
 	s := RPCServer{Engine: engine}
@@ -1300,7 +1292,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.Wit
 		},
 	}
 
-	resp, err := s.Engine.SubmitWithdrawal(request)
+	resp, err := s.Engine.WithdrawalManager.SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}
@@ -1342,7 +1334,7 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 		},
 	}
 
-	resp, err := s.Engine.SubmitWithdrawal(request)
+	resp, err := s.Engine.WithdrawalManager.SubmitWithdrawal(request)
 	if err != nil {
 		return nil, err
 	}
@@ -1430,7 +1422,7 @@ func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.With
 				return nil, err
 			}
 
-			return engine.parseWithdrawalsHistory(ret, exch.GetName(), int(r.Limit)), nil
+			return withdrawalmanager.ParseWithdrawalsHistory(ret, exch.GetName(), int(r.Limit)), nil
 		}
 		return nil, database.ErrDatabaseSupportDisabled
 	}
@@ -1439,7 +1431,7 @@ func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.With
 		if err != nil {
 			return nil, err
 		}
-		return engine.parseMultipleEvents(ret), nil
+		return withdrawalmanager.ParseMultipleEvents(ret), nil
 	}
 
 	ret, err := withdrawalmanager.WithdrawalEventByExchangeID(r.Exchange, r.Id)
@@ -1447,7 +1439,7 @@ func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.With
 		return nil, err
 	}
 
-	return engine.parseSingleEvents(ret), nil
+	return withdrawalmanager.ParseSingleEvents(ret), nil
 }
 
 // WithdrawalEventsByDate returns previous withdrawal request details by exchange
@@ -1466,7 +1458,7 @@ func (s *RPCServer) WithdrawalEventsByDate(_ context.Context, r *gctrpc.Withdraw
 	if err != nil {
 		return nil, err
 	}
-	return engine.parseMultipleEvents(ret), nil
+	return withdrawalmanager.ParseMultipleEvents(ret), nil
 }
 
 // GetLoggerDetails returns a loggers details

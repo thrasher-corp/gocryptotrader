@@ -35,6 +35,7 @@ const (
 	migrationsFolder      = "migrations"
 	databaseFolder        = "database"
 	databaseName          = "rpctestdb"
+	testExchange          = "Bitstamp"
 )
 
 // Sets up everything required to run any function inside rpcserver
@@ -55,8 +56,8 @@ func RPCTestSetup(t *testing.T) *engine.Engine {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
 	}
 
-	if engerino.GetExchangeByName(engine.testExchange) == nil {
-		err = engerino.LoadExchange(engine.testExchange, false, nil)
+	if engerino.GetExchangeByName(testExchange) == nil {
+		err = engerino.LoadExchange(testExchange, false, nil)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
@@ -72,7 +73,7 @@ func RPCTestSetup(t *testing.T) *engine.Engine {
 		t.Fatalf("failed to run migrations %v", err)
 	}
 	uuider, _ := uuid.NewV4()
-	err = dbexchange.Insert(dbexchange.Details{Name: engine.testExchange, UUID: uuider})
+	err = dbexchange.Insert(dbexchange.Details{Name: testExchange, UUID: uuider})
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
 	}
@@ -125,7 +126,7 @@ func TestGetSavedTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -144,7 +145,7 @@ func TestGetSavedTrades(t *testing.T) {
 	}
 	err = sqltrade.Insert(sqltrade.Data{
 		Timestamp: time.Date(2020, 0, 0, 0, 0, 1, 0, time.UTC),
-		Exchange:  engine.testExchange,
+		Exchange:  testExchange,
 		Base:      currency.BTC.String(),
 		Quote:     currency.USD.String(),
 		AssetType: asset.Spot.String(),
@@ -157,7 +158,7 @@ func TestGetSavedTrades(t *testing.T) {
 		return
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -209,7 +210,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 
 	// no trades test
 	_, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -231,7 +232,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 	// add a trade
 	err = sqltrade.Insert(sqltrade.Data{
 		Timestamp: time.Date(2020, 1, 1, 1, 1, 2, 1, time.UTC),
-		Exchange:  engine.testExchange,
+		Exchange:  testExchange,
 		Base:      currency.BTC.String(),
 		Quote:     currency.USD.String(),
 		AssetType: asset.Spot.String(),
@@ -247,7 +248,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 	// get candle from one trade
 	var candles *gctrpc.GetHistoricCandlesResponse
 	candles, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -267,7 +268,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 
 	// save generated candle to database
 	_, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -285,7 +286,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 
 	// forcefully remove previous candle and insert a new one
 	_, err = s.ConvertTradesToCandles(context.Background(), &gctrpc.ConvertTradesToCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -304,7 +305,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 
 	// load the saved candle to verify that it was overwritten
 	candles, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -338,14 +339,14 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair:     &gctrpc.CurrencyPair{},
 	})
 	if !errors.Is(err, errCurrencyPairUnset) {
 		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
 	}
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  currency.BTC.String(),
 			Quote: currency.USD.String(),
@@ -360,7 +361,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	// default run
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
@@ -379,7 +380,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	// sync run
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
@@ -400,7 +401,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	// db run
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
@@ -419,7 +420,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	err = trade.SaveTradesToDatabase(trade.Data{
 		TID:          "test123",
-		Exchange:     engine.testExchange,
+		Exchange:     testExchange,
 		CurrencyPair: cp,
 		AssetType:    asset.Spot,
 		Price:        1337,
@@ -433,7 +434,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	// db run including trades
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
 			Quote: cp.Quote.String(),
@@ -473,7 +474,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	defaultEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UTC()
 	var resp *gctrpc.FindMissingIntervalsResponse
 	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
-		ExchangeName: engine.testExchange,
+		ExchangeName: testExchange,
 		AssetType:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
@@ -491,7 +492,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	// one trade response
 	err = trade.SaveTradesToDatabase(trade.Data{
 		TID:          "test1234",
-		Exchange:     engine.testExchange,
+		Exchange:     testExchange,
 		CurrencyPair: cp,
 		AssetType:    asset.Spot,
 		Price:        1337,
@@ -505,7 +506,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	}
 
 	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
-		ExchangeName: engine.testExchange,
+		ExchangeName: testExchange,
 		AssetType:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
@@ -524,7 +525,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	// two trades response
 	err = trade.SaveTradesToDatabase(trade.Data{
 		TID:          "test123",
-		Exchange:     engine.testExchange,
+		Exchange:     testExchange,
 		CurrencyPair: cp,
 		AssetType:    asset.Spot,
 		Price:        1337,
@@ -538,7 +539,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	}
 
 	resp, err = s.FindMissingSavedTradeIntervals(context.Background(), &gctrpc.FindMissingTradePeriodsRequest{
-		ExchangeName: engine.testExchange,
+		ExchangeName: testExchange,
 		AssetType:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
@@ -575,7 +576,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC)
 	var resp *gctrpc.FindMissingIntervalsResponse
 	_, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
-		ExchangeName: engine.testExchange,
+		ExchangeName: testExchange,
 		AssetType:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
@@ -592,7 +593,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 
 	// one candle missing periods response
 	_, err = kline.StoreInDatabase(&kline.Item{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair:     cp,
 		Asset:    asset.Spot,
 		Interval: kline.OneHour,
@@ -613,7 +614,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	}
 
 	_, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
-		ExchangeName: engine.testExchange,
+		ExchangeName: testExchange,
 		AssetType:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
@@ -629,7 +630,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 
 	// two candle missing periods response
 	_, err = kline.StoreInDatabase(&kline.Item{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair:     cp,
 		Asset:    asset.Spot,
 		Interval: kline.OneHour,
@@ -650,7 +651,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 	}
 
 	resp, err = s.FindMissingSavedCandleIntervals(context.Background(), &gctrpc.FindMissingCandlePeriodsRequest{
-		ExchangeName: engine.testExchange,
+		ExchangeName: testExchange,
 		AssetType:    asset.Spot.String(),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  cp.Base.String(),
@@ -672,23 +673,23 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 	engerino := RPCTestSetup(t)
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
-	_, err := s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: engine.testExchange, Status: true})
+	_, err := s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	exch := s.GetExchangeByName(engine.testExchange)
+	exch := s.GetExchangeByName(testExchange)
 	base := exch.GetBase()
 	if !base.IsSaveTradeDataEnabled() {
 		t.Error("expected true")
 	}
 
-	_, err = s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: engine.testExchange, Status: false})
+	_, err = s.SetExchangeTradeProcessing(context.Background(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: false})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	exch = s.GetExchangeByName(engine.testExchange)
+	exch = s.GetExchangeByName(testExchange)
 	base = exch.GetBase()
 	if base.IsSaveTradeDataEnabled() {
 		t.Error("expected false")
@@ -726,7 +727,7 @@ func TestGetRecentTrades(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),
@@ -770,7 +771,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(err)
 	}
 	err = s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{
-		Exchange: engine.testExchange,
+		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: currency.DashDelimiter,
 			Base:      currency.BTC.String(),

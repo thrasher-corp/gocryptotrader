@@ -1,6 +1,7 @@
 package withdrawalmanager
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 
 const (
 	bankAccountID = "test-bank-01"
+	exchangeName  = "Binance"
 )
 
 var (
@@ -40,7 +42,11 @@ func cleanup() {
 
 func TestSubmitWithdrawal(t *testing.T) {
 	w := WithdrawalManager{exchangeManager: &exchangemanager.ExchangeManager{}}
-	w.exchangeManager.Add()
+	exch, err := w.exchangeManager.NewExchangeByName(exchangeName)
+	if err != nil {
+		t.Error(err)
+	}
+	w.exchangeManager.Add(exch)
 	banking.Accounts = append(banking.Accounts,
 		banking.Account{
 			Enabled:             true,
@@ -56,7 +62,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 			SWIFTCode:           "91272837",
 			IBAN:                "98218738671897",
 			SupportedCurrencies: "AUD,USD",
-			SupportedExchanges:  events.testExchange,
+			SupportedExchanges:  "Binance",
 		},
 	)
 
@@ -65,9 +71,9 @@ func TestSubmitWithdrawal(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := &withdraw.Request{
-		Exchange:    events.testExchange,
+		Exchange:    exchangeName,
 		Currency:    currency.AUD,
-		Description: events.testExchange,
+		Description: exchangeName,
 		Amount:      1.0,
 		Type:        1,
 		Fiat: withdraw.FiatRequest{
@@ -75,14 +81,14 @@ func TestSubmitWithdrawal(t *testing.T) {
 		},
 	}
 
-	_, err = SubmitWithdrawal(req)
+	_, err = w.SubmitWithdrawal(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = SubmitWithdrawal(nil)
+	_, err = w.SubmitWithdrawal(nil)
 	if err != nil {
-		if err.Error() != withdraw.ErrRequestCannotBeNil.Error() {
+		if errors.Is(withdraw.ErrRequestCannotBeNil, err) {
 			t.Fatal(err)
 		}
 	}
@@ -112,21 +118,21 @@ func TestWithdrawEventByID(t *testing.T) {
 }
 
 func TestWithdrawalEventByExchange(t *testing.T) {
-	_, err := WithdrawalEventByExchange(events.testExchange, 1)
+	_, err := WithdrawalEventByExchange(exchangeName, 1)
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 
 func TestWithdrawEventByDate(t *testing.T) {
-	_, err := WithdrawEventByDate(events.testExchange, time.Now(), time.Now(), 1)
+	_, err := WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 
 func TestWithdrawalEventByExchangeID(t *testing.T) {
-	_, err := WithdrawalEventByExchangeID(events.testExchange, events.testExchange)
+	_, err := WithdrawalEventByExchangeID(exchangeName, exchangeName)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -161,7 +167,7 @@ func TestParseEvents(t *testing.T) {
 					AccountNumber:       fmt.Sprintf("test-%v", x),
 					BSBNumber:           "123456",
 					SupportedCurrencies: "BTC-AUD",
-					SupportedExchanges:  events.testExchange,
+					SupportedExchanges:  exchangeName,
 				},
 			}
 		} else {
@@ -176,6 +182,9 @@ func TestParseEvents(t *testing.T) {
 	v := ParseMultipleEvents(testData)
 	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
 		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
+	}
+	if testData == nil || len(testData) < 2 {
+		t.Fatal("expected at least 2")
 	}
 
 	v = ParseSingleEvents(testData[0])

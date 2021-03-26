@@ -1,6 +1,7 @@
 package withdrawalmanager
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -27,6 +28,16 @@ type WithdrawalManager struct {
 	exchangeManager *exchangemanager.ExchangeManager
 	isDryRun        bool
 	//bot *engine.Engine
+}
+
+func Setup(manager *exchangemanager.ExchangeManager, isDryRun bool) (*WithdrawalManager, error) {
+	if manager == nil {
+		return nil, errors.New("nil manager")
+	}
+	return &WithdrawalManager{
+		exchangeManager: manager,
+		isDryRun:        isDryRun,
+	}, nil
 }
 
 // SubmitWithdrawal performs validation and submits a new withdraw request to

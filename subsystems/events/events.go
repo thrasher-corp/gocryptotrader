@@ -278,27 +278,43 @@ func IsValidEvent(exchange, item string, condition EventConditionParams, action 
 	return nil
 }
 
+type EventManager struct {
+	comms   *communicationmanager.CommsManager
+	events  []Event
+	verbose bool
+}
+
+func Setup(comManager *communicationmanager.CommsManager, verbose bool) *EventManager {
+	if comManager == nil {
+		return nil
+	}
+	return &EventManager{
+		comms:   comManager,
+		events:  nil,
+		verbose: verbose,
+	}
+}
+
 // EventManger is the overarching routine that will iterate through the Events
 // chain
-func EventManger(verbose bool, comManager *communicationmanager.CommsManager) {
+func (e *EventManager) Start() {
 	log.Debugf(log.EventMgr, "EventManager started. SleepDelay: %v\n", EventSleepDelay.String())
-
 	for {
 		total, executed := GetEventCounter()
 		if total > 0 && executed != total {
 			for _, event := range Events {
 				if !event.Executed {
-					if verbose {
+					if e.verbose {
 						log.Debugf(log.EventMgr, "Events: Processing event %s.\n", event.String())
 					}
-					success := event.CheckEventCondition(verbose)
+					success := event.CheckEventCondition(e.verbose)
 					if success {
 						msg := fmt.Sprintf(
 							"Events: ID: %d triggered on %s successfully [%v]\n", event.ID,
 							event.Exchange, event.String(),
 						)
 						log.Infoln(log.EventMgr, msg)
-						comManager.PushEvent(base.Event{Type: "event", Message: msg})
+						e.comms.PushEvent(base.Event{Type: "event", Message: msg})
 						event.Executed = true
 					}
 				}

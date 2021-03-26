@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
@@ -96,7 +95,6 @@ func (d *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (
 }
 
 // Sync synchronises all deposit addresses
-func (d *DepositAddressManager) Sync() {
-	result := engine.Bot.GetExchangeCryptocurrencyDepositAddresses()
-	d.Store.Seed(result)
+func (d *DepositAddressManager) Sync(addresses map[string]map[string]string) {
+	d.Store.Seed(addresses)
 }

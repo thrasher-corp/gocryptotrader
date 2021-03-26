@@ -17,40 +17,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitmex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bittrex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbene"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/lakebtc"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/localbitcoins"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -67,6 +39,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/rpcserver"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/syncer"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
@@ -84,7 +57,9 @@ type Engine struct {
 	PortfolioManager            portfoliomanager.PortfolioManager
 	CommsManager                communicationmanager.CommsManager
 	exchangeManager             exchangemanager.ExchangeManager
+	eventManager                *events.EventManager
 	DepositAddressManager       *depositaddress.DepositAddressManager
+	WithdrawalManager           *withdrawalmanager.WithdrawalManager
 	Settings                    Settings
 	Uptime                      time.Time
 	ServicesWG                  sync.WaitGroup
@@ -447,6 +422,11 @@ func (bot *Engine) Start() error {
 		return err
 	}
 
+	bot.WithdrawalManager, err = withdrawalmanager.Setup(&bot.exchangeManager, bot.Settings.EnableDryRun)
+	if err != nil {
+		return err
+	}
+
 	if bot.Settings.EnableCommsRelayer {
 		if err = bot.CommsManager.Start(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
@@ -479,6 +459,10 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGRPC {
+		err = checkCerts(utils.GetTLSDir(bot.Settings.DataDir))
+		if err != nil {
+			return err
+		}
 		go rpcserver.StartRPCServer(bot)
 	}
 
@@ -499,7 +483,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableDepositAddressManager {
 		bot.DepositAddressManager = new(depositaddress.DepositAddressManager)
-		go bot.DepositAddressManager.Sync()
+		go bot.DepositAddressManager.Sync(bot.GetExchangeCryptocurrencyDepositAddresses())
 	}
 
 	if bot.Settings.EnableOrderManager {
@@ -528,7 +512,8 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		go events.EventManger(bot.Settings.Verbose, &bot.CommsManager)
+		bot.eventManager = events.Setup(&bot.CommsManager, bot.Settings.EnableDryRun)
+		go bot.eventManager.Start()
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
@@ -657,74 +642,10 @@ func (bot *Engine) GetExchanges() []exchange.IBotExchange {
 
 // LoadExchange loads an exchange by name
 func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
-	nameLower := strings.ToLower(name)
-	var exch exchange.IBotExchange
-
-	if bot.exchangeManager.GetExchangeByName(nameLower) != nil {
-		return exchangemanager.ErrExchangeAlreadyLoaded
+	exch, err := bot.exchangeManager.NewExchangeByName(name)
+	if err != nil {
+		return err
 	}
-
-	switch nameLower {
-	case "binance":
-		exch = new(binance.Binance)
-	case "bitfinex":
-		exch = new(bitfinex.Bitfinex)
-	case "bitflyer":
-		exch = new(bitflyer.Bitflyer)
-	case "bithumb":
-		exch = new(bithumb.Bithumb)
-	case "bitmex":
-		exch = new(bitmex.Bitmex)
-	case "bitstamp":
-		exch = new(bitstamp.Bitstamp)
-	case "bittrex":
-		exch = new(bittrex.Bittrex)
-	case "btc markets":
-		exch = new(btcmarkets.BTCMarkets)
-	case "btse":
-		exch = new(btse.BTSE)
-	case "coinbene":
-		exch = new(coinbene.Coinbene)
-	case "coinut":
-		exch = new(coinut.COINUT)
-	case "exmo":
-		exch = new(exmo.EXMO)
-	case "coinbasepro":
-		exch = new(coinbasepro.CoinbasePro)
-	case "ftx":
-		exch = new(ftx.FTX)
-	case "gateio":
-		exch = new(gateio.Gateio)
-	case "gemini":
-		exch = new(gemini.Gemini)
-	case "hitbtc":
-		exch = new(hitbtc.HitBTC)
-	case "huobi":
-		exch = new(huobi.HUOBI)
-	case "itbit":
-		exch = new(itbit.ItBit)
-	case "kraken":
-		exch = new(kraken.Kraken)
-	case "lakebtc":
-		exch = new(lakebtc.LakeBTC)
-	case "lbank":
-		exch = new(lbank.Lbank)
-	case "localbitcoins":
-		exch = new(localbitcoins.LocalBitcoins)
-	case "okcoin international":
-		exch = new(okcoin.OKCoin)
-	case "okex":
-		exch = new(okex.OKEX)
-	case "poloniex":
-		exch = new(poloniex.Poloniex)
-	case "yobit":
-		exch = new(yobit.Yobit)
-	case "zb":
-		exch = new(zb.ZB)
-	default:
-		return exchangemanager.ErrExchangeNotFound
-	}
-
 	if exch.GetBase() == nil {
 		return exchangemanager.ErrExchangeFailedToLoad
 	}
@@ -980,6 +901,9 @@ func (bot *Engine) WebsocketRoutine() {
 		}(i)
 	}
 }
+
+var shutdowner = make(chan struct{}, 1)
+var wg sync.WaitGroup
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
