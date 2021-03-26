@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	// ErrNotSupported is an error for an unsupported asset type
 	ErrNotSupported = errors.New("received unsupported asset type")
 )
 

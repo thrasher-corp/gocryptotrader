@@ -244,6 +244,7 @@ type WalletBalance struct {
 	SpotBorrow             float64 `json:"spotBorrow"`
 }
 
+// AllWalletBalances stores all the user's account balances
 type AllWalletBalances map[string][]WalletBalance
 
 // DepositData stores deposit address data
