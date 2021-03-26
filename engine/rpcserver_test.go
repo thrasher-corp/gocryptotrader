@@ -20,7 +20,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -994,5 +996,26 @@ func TestGetOrder(t *testing.T) {
 	})
 	if err == nil {
 		t.Error("expected error")
+	}
+}
+
+func TestCheckVars(t *testing.T) {
+	var e exchange.IBotExchange
+	e = &binance.Binance{}
+	_, ok := e.(*binance.Binance)
+	if !ok {
+		t.Fatal("invalid ibotexchange interface")
+	}
+
+	err := checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	if errors.Is(err, errExchangeNotEnabled) {
+		t.Errorf("expected %v, got %v", errExchangeNotEnabled, err)
+	}
+
+	e.SetEnabled(true)
+
+	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	if errors.Is(err, errAssetTypeDisabled) {
+		t.Errorf("expected %v, got %v", errAssetTypeDisabled, err)
 	}
 }
