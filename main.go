@@ -20,6 +20,7 @@ import (
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/syncer"
 )
 
 func main() {
@@ -61,9 +62,9 @@ func main() {
 	flag.BoolVar(&settings.EnableTickerSyncing, "tickersync", true, "enables ticker syncing for all enabled exchanges")
 	flag.BoolVar(&settings.EnableOrderbookSyncing, "orderbooksync", true, "enables orderbook syncing for all enabled exchanges")
 	flag.BoolVar(&settings.EnableTradeSyncing, "tradesync", false, "enables trade syncing for all enabled exchanges")
-	flag.IntVar(&settings.SyncWorkers, "syncworkers", engine.DefaultSyncerWorkers, "the amount of workers (goroutines) to use for syncing exchange data")
+	flag.IntVar(&settings.SyncWorkers, "syncworkers", syncer.DefaultSyncerWorkers, "the amount of workers (goroutines) to use for syncing exchange data")
 	flag.BoolVar(&settings.SyncContinuously, "synccontinuously", true, "whether to sync exchange data continuously (ticker, orderbook and trade history info")
-	flag.DurationVar(&settings.SyncTimeout, "synctimeout", engine.DefaultSyncerTimeout,
+	flag.DurationVar(&settings.SyncTimeout, "synctimeout", syncer.DefaultSyncerTimeout,
 		"the amount of time before the syncer will switch from one protocol to the other (e.g. from REST to websocket)")
 
 	// Forex provider settings

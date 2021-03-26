@@ -10,11 +10,13 @@ import (
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/depositaddress"
 )
 
 func TestMain(m *testing.M) {
@@ -31,7 +33,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	engine.Bot.LoadExchange(exch.Value, false, nil)
-	engine.Bot.DepositAddressManager = new(engine.DepositAddressManager)
+	engine.Bot.DepositAddressManager = new(depositaddress.DepositAddressManager)
 	go engine.Bot.DepositAddressManager.Sync()
 	err = engine.Bot.OrderManager.Start(engine.Bot)
 	if err != nil {

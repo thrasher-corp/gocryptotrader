@@ -28,6 +28,7 @@ import (
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 const testExchange = "binance"
@@ -92,8 +93,8 @@ func TestNewFromConfig(t *testing.T) {
 
 	cfg.CurrencySettings[0].Asset = asset.Spot.String()
 	_, err = NewFromConfig(cfg, "", "", bot)
-	if !errors.Is(err, engine.ErrExchangeNotFound) {
-		t.Errorf("expected: %v, received %v", engine.ErrExchangeNotFound, err)
+	if !errors.Is(err, exchangemanager.ErrExchangeNotFound) {
+		t.Errorf("expected: %v, received %v", exchangemanager.ErrExchangeNotFound, err)
 	}
 
 	cfg.CurrencySettings[0].ExchangeName = testExchange

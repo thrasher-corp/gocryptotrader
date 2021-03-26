@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/engine/subsystem"
+
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
 func init() {
@@ -80,7 +81,7 @@ func SpawnWorker() error {
 // configuration, then spawns workers
 func (d *Dispatcher) start(workers, channelCapacity int) error {
 	if atomic.LoadUint32(&d.running) == 1 {
-		return fmt.Errorf("dispatcher %w", subsystem.ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("dispatcher %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
 
 	if workers < 1 {
@@ -115,7 +116,7 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 // stop stops the service and shuts down all worker routines
 func (d *Dispatcher) stop() error {
 	if !atomic.CompareAndSwapUint32(&d.running, 1, 0) {
-		return fmt.Errorf("dispatcher %w", subsystem.ErrSubSystemNotStarted)
+		return fmt.Errorf("dispatcher %w", subsystems.ErrSubSystemNotStarted)
 	}
 	close(d.shutdown)
 	ch := make(chan struct{})

@@ -41,6 +41,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 // New returns a new BackTest instance
@@ -308,7 +309,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 	var err error
 	e := bt.Bot.GetExchangeByName(exch)
 	if e == nil {
-		return nil, currency.Pair{}, "", engine.ErrExchangeNotFound
+		return nil, currency.Pair{}, "", exchangemanager.ErrExchangeNotFound
 	}
 
 	var cp, fPair currency.Pair
@@ -347,7 +348,7 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 
 	for i := range cfg.CurrencySettings {
 		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
-		if err != nil && !errors.Is(err, engine.ErrExchangeAlreadyLoaded) {
+		if err != nil && !errors.Is(err, exchangemanager.ErrExchangeAlreadyLoaded) {
 			return err
 		}
 	}
@@ -391,7 +392,7 @@ func getFees(exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, take
 func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*kline.DataFromKline, error) {
 	log.Infof(log.BackTester, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
 	if exch == nil {
-		return nil, engine.ErrExchangeNotFound
+		return nil, exchangemanager.ErrExchangeNotFound
 	}
 	b := exch.GetBase()
 	if cfg.DataSettings.DatabaseData == nil &&
@@ -751,7 +752,7 @@ func (bt *BackTest) processDataEvent(e common.DataEventHandler) error {
 // updateStatsForDataEvent makes various systems aware of price movements from
 // data events
 func (bt *BackTest) updateStatsForDataEvent(e common.DataEventHandler) {
-	// update portfolio with latest price
+	// update portfoliomanager with latest price
 	err := bt.Portfolio.Update(e)
 	if err != nil {
 		log.Error(log.BackTester, err)

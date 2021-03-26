@@ -36,14 +36,14 @@ func CreateTestBot(t *testing.T) *Engine {
 		t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 	}
 
-	if bot.GetExchangeByName(testExchange) == nil {
-		err := bot.LoadExchange(testExchange, false, nil)
+	if bot.GetExchangeByName(events.testExchange) == nil {
+		err := bot.LoadExchange(events.testExchange, false, nil)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
 	if bot.GetExchangeByName(fakePassExchange) == nil {
-		err := addPassingFakeExchange(testExchange, bot)
+		err := addPassingFakeExchange(events.testExchange, bot)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
@@ -747,10 +747,10 @@ func TestGetExchangeNames(t *testing.T) {
 	if e := bot.GetExchangeNames(true); len(e) == 0 {
 		t.Error("exchange names should be populated")
 	}
-	if err := bot.UnloadExchange(testExchange); err != nil {
+	if err := bot.UnloadExchange(events.testExchange); err != nil {
 		t.Fatal(err)
 	}
-	if e := bot.GetExchangeNames(true); common.StringDataCompare(e, testExchange) {
+	if e := bot.GetExchangeNames(true); common.StringDataCompare(e, events.testExchange) {
 		t.Error("Bitstamp should be missing")
 	}
 	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.Exchanges) {

@@ -90,7 +90,7 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("exchange.go - setting proxy address error %s",
+		return fmt.Errorf("setting proxy address error %s",
 			err)
 	}
 

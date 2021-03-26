@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 const (
@@ -33,7 +34,7 @@ type FakePassingExchange struct {
 func addPassingFakeExchange(baseExchangeName string, bot *Engine) error {
 	testExch := bot.GetExchangeByName(baseExchangeName)
 	if testExch == nil {
-		return ErrExchangeNotFound
+		return exchangemanager.ErrExchangeNotFound
 	}
 	base := testExch.GetBase()
 	bot.Config.Exchanges = append(bot.Config.Exchanges, config.ExchangeConfig{
@@ -42,7 +43,7 @@ func addPassingFakeExchange(baseExchangeName string, bot *Engine) error {
 		Verbose: false,
 	})
 
-	bot.exchangeManager.add(&FakePassingExchange{
+	bot.exchangeManager.Add(&FakePassingExchange{
 		Base: exchange.Base{
 			Name:                          fakePassExchange,
 			Enabled:                       true,

@@ -15,30 +15,76 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitmex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bittrex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbene"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/lakebtc"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/localbitcoins"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/database"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/depositaddress"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/events"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/events/communicationmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/nptmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/rpcserver"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/syncer"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
-// Engine contains configuration, portfolio, exchange & ticker data and is the
+// Engine contains configuration, portfoliomanager, exchange & ticker data and is the
 // overarching type across this code base.
 type Engine struct {
 	Config                      *config.Config
 	Portfolio                   *portfolio.Base
-	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
-	NTPManager                  ntpManager
-	ConnectionManager           connectionManager
-	DatabaseManager             databaseManager
+	ExchangeCurrencyPairManager *syncer.ExchangeCurrencyPairSyncer
+	NTPManager                  nptmanager.NtpManager
+	ConnectionManager           connectionmanager.ConnectionManager
+	DatabaseManager             database.DatabaseManager
 	GctScriptManager            *gctscript.GctScriptManager
-	OrderManager                orderManager
-	PortfolioManager            portfolioManager
-	CommsManager                commsManager
-	exchangeManager             exchangeManager
-	DepositAddressManager       *DepositAddressManager
+	OrderManager                ordermanager.OrderManager
+	PortfolioManager            portfoliomanager.PortfolioManager
+	CommsManager                communicationmanager.CommsManager
+	exchangeManager             exchangemanager.ExchangeManager
+	DepositAddressManager       *depositaddress.DepositAddressManager
 	Settings                    Settings
 	Uptime                      time.Time
 	ServicesWG                  sync.WaitGroup
@@ -152,7 +198,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		if b.Settings.PortfolioManagerDelay == time.Duration(0) && s.PortfolioManagerDelay > 0 {
 			b.Settings.PortfolioManagerDelay = s.PortfolioManagerDelay
 		} else {
-			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
+			b.Settings.PortfolioManagerDelay = portfoliomanager.PortfolioSleepDelay
 		}
 	}
 
@@ -196,7 +242,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		if b.Settings.EventManagerDelay != time.Duration(0) && s.EventManagerDelay > 0 {
 			b.Settings.EventManagerDelay = s.EventManagerDelay
 		} else {
-			b.Settings.EventManagerDelay = EventSleepDelay
+			b.Settings.EventManagerDelay = events.EventSleepDelay
 		}
 	}
 
@@ -433,16 +479,16 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGRPC {
-		go StartRPCServer(bot)
+		go rpcserver.StartRPCServer(bot)
 	}
 
 	if bot.Settings.EnableDeprecatedRPC {
-		go StartRESTServer(bot)
+		go apiserver.StartRESTServer(bot)
 	}
 
 	if bot.Settings.EnableWebsocketRPC {
-		go StartWebsocketServer(bot)
-		StartWebsocketHandler()
+		go apiserver.StartWebsocketServer(bot)
+		apiserver.StartWebsocketHandler()
 	}
 
 	if bot.Settings.EnablePortfolioManager {
@@ -452,7 +498,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDepositAddressManager {
-		bot.DepositAddressManager = new(DepositAddressManager)
+		bot.DepositAddressManager = new(depositaddress.DepositAddressManager)
 		go bot.DepositAddressManager.Sync()
 	}
 
@@ -463,7 +509,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
-		exchangeSyncCfg := CurrencyPairSyncerConfig{
+		exchangeSyncCfg := syncer.CurrencyPairSyncerConfig{
 			SyncTicker:       bot.Settings.EnableTickerSyncing,
 			SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
 			SyncTrades:       bot.Settings.EnableTradeSyncing,
@@ -473,7 +519,7 @@ func (bot *Engine) Start() error {
 			SyncTimeout:      bot.Settings.SyncTimeout,
 		}
 
-		bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)
+		bot.ExchangeCurrencyPairManager, err = syncer.NewCurrencyPairSyncer(exchangeSyncCfg)
 		if err != nil {
 			gctlog.Warnf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
@@ -482,7 +528,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		go EventManger(bot.Settings.Verbose, &bot.CommsManager)
+		go events.EventManger(bot.Settings.Verbose, &bot.CommsManager)
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
@@ -581,4 +627,459 @@ func (bot *Engine) Stop() {
 	if err != nil {
 		log.Printf("Failed to close logger. Error: %v\n", err)
 	}
+}
+
+// GetExchangeByName returns an exchange given an exchange name
+func (bot *Engine) GetExchangeByName(exchName string) exchange.IBotExchange {
+	return bot.exchangeManager.GetExchangeByName(exchName)
+}
+
+// UnloadExchange unloads an exchange by name
+func (bot *Engine) UnloadExchange(exchName string) error {
+	exchCfg, err := bot.Config.GetExchangeConfig(exchName)
+	if err != nil {
+		return err
+	}
+
+	err = bot.exchangeManager.RemoveExchange(exchName)
+	if err != nil {
+		return err
+	}
+
+	exchCfg.Enabled = false
+	return nil
+}
+
+// GetExchanges retrieves the loaded exchanges
+func (bot *Engine) GetExchanges() []exchange.IBotExchange {
+	return bot.exchangeManager.GetExchanges()
+}
+
+// LoadExchange loads an exchange by name
+func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
+	nameLower := strings.ToLower(name)
+	var exch exchange.IBotExchange
+
+	if bot.exchangeManager.GetExchangeByName(nameLower) != nil {
+		return exchangemanager.ErrExchangeAlreadyLoaded
+	}
+
+	switch nameLower {
+	case "binance":
+		exch = new(binance.Binance)
+	case "bitfinex":
+		exch = new(bitfinex.Bitfinex)
+	case "bitflyer":
+		exch = new(bitflyer.Bitflyer)
+	case "bithumb":
+		exch = new(bithumb.Bithumb)
+	case "bitmex":
+		exch = new(bitmex.Bitmex)
+	case "bitstamp":
+		exch = new(bitstamp.Bitstamp)
+	case "bittrex":
+		exch = new(bittrex.Bittrex)
+	case "btc markets":
+		exch = new(btcmarkets.BTCMarkets)
+	case "btse":
+		exch = new(btse.BTSE)
+	case "coinbene":
+		exch = new(coinbene.Coinbene)
+	case "coinut":
+		exch = new(coinut.COINUT)
+	case "exmo":
+		exch = new(exmo.EXMO)
+	case "coinbasepro":
+		exch = new(coinbasepro.CoinbasePro)
+	case "ftx":
+		exch = new(ftx.FTX)
+	case "gateio":
+		exch = new(gateio.Gateio)
+	case "gemini":
+		exch = new(gemini.Gemini)
+	case "hitbtc":
+		exch = new(hitbtc.HitBTC)
+	case "huobi":
+		exch = new(huobi.HUOBI)
+	case "itbit":
+		exch = new(itbit.ItBit)
+	case "kraken":
+		exch = new(kraken.Kraken)
+	case "lakebtc":
+		exch = new(lakebtc.LakeBTC)
+	case "lbank":
+		exch = new(lbank.Lbank)
+	case "localbitcoins":
+		exch = new(localbitcoins.LocalBitcoins)
+	case "okcoin international":
+		exch = new(okcoin.OKCoin)
+	case "okex":
+		exch = new(okex.OKEX)
+	case "poloniex":
+		exch = new(poloniex.Poloniex)
+	case "yobit":
+		exch = new(yobit.Yobit)
+	case "zb":
+		exch = new(zb.ZB)
+	default:
+		return exchangemanager.ErrExchangeNotFound
+	}
+
+	if exch.GetBase() == nil {
+		return exchangemanager.ErrExchangeFailedToLoad
+	}
+
+	var localWG sync.WaitGroup
+	localWG.Add(1)
+	go func() {
+		exch.SetDefaults()
+		localWG.Done()
+	}()
+	exchCfg, err := bot.Config.GetExchangeConfig(name)
+	if err != nil {
+		return err
+	}
+
+	if bot.Settings.EnableAllPairs &&
+		exchCfg.CurrencyPairs != nil {
+		assets := exchCfg.CurrencyPairs.GetAssetTypes()
+		for x := range assets {
+			var pairs currency.Pairs
+			pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
+			if err != nil {
+				return err
+			}
+			exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
+		}
+	}
+
+	if bot.Settings.EnableExchangeVerbose {
+		exchCfg.Verbose = true
+	}
+	if exchCfg.Features != nil {
+		if bot.Settings.EnableExchangeWebsocketSupport &&
+			exchCfg.Features.Supports.Websocket {
+			exchCfg.Features.Enabled.Websocket = true
+		}
+		if bot.Settings.EnableExchangeAutoPairUpdates &&
+			exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
+			exchCfg.Features.Enabled.AutoPairUpdates = true
+		}
+		if bot.Settings.DisableExchangeAutoPairUpdates {
+			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
+				exchCfg.Features.Enabled.AutoPairUpdates = false
+			}
+		}
+	}
+	if bot.Settings.HTTPUserAgent != "" {
+		exchCfg.HTTPUserAgent = bot.Settings.HTTPUserAgent
+	}
+	if bot.Settings.HTTPProxy != "" {
+		exchCfg.ProxyAddress = bot.Settings.HTTPProxy
+	}
+	if bot.Settings.HTTPTimeout != exchange.DefaultHTTPTimeout {
+		exchCfg.HTTPTimeout = bot.Settings.HTTPTimeout
+	}
+	if bot.Settings.EnableExchangeHTTPDebugging {
+		exchCfg.HTTPDebugging = bot.Settings.EnableExchangeHTTPDebugging
+	}
+
+	localWG.Wait()
+	if !bot.Settings.EnableExchangeHTTPRateLimiter {
+		gctlog.Warnf(gctlog.ExchangeSys,
+			"Loaded exchange %s rate limiting has been turned off.\n",
+			exch.GetName(),
+		)
+		err = exch.DisableRateLimiter()
+		if err != nil {
+			gctlog.Errorf(gctlog.ExchangeSys,
+				"Loaded exchange %s rate limiting cannot be turned off: %s.\n",
+				exch.GetName(),
+				err,
+			)
+		}
+	}
+
+	exchCfg.Enabled = true
+	err = exch.Setup(exchCfg)
+	if err != nil {
+		exchCfg.Enabled = false
+		return err
+	}
+
+	bot.exchangeManager.Add(exch)
+	base := exch.GetBase()
+	if base.API.AuthenticatedSupport ||
+		base.API.AuthenticatedWebsocketSupport {
+		assetTypes := base.GetAssetTypes()
+		var useAsset asset.Item
+		for a := range assetTypes {
+			err = base.CurrencyPairs.IsAssetEnabled(assetTypes[a])
+			if err != nil {
+				continue
+			}
+			useAsset = assetTypes[a]
+			break
+		}
+		err = exch.ValidateCredentials(useAsset)
+		if err != nil {
+			gctlog.Warnf(gctlog.ExchangeSys,
+				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
+				base.Name,
+				err)
+			base.API.AuthenticatedSupport = false
+			base.API.AuthenticatedWebsocketSupport = false
+			exchCfg.API.AuthenticatedSupport = false
+			exchCfg.API.AuthenticatedWebsocketSupport = false
+		}
+	}
+
+	if useWG {
+		exch.Start(wg)
+	} else {
+		tempWG := sync.WaitGroup{}
+		exch.Start(&tempWG)
+		tempWG.Wait()
+	}
+
+	return nil
+}
+
+func (bot *Engine) dryRunParamInteraction(param string) {
+	if !bot.Settings.CheckParamInteraction {
+		return
+	}
+
+	if !bot.Settings.EnableDryRun {
+		gctlog.Warnf(gctlog.Global,
+			"Command line argument '-%s' induces dry run mode."+
+				" Set -dryrun=false if you wish to override this.",
+			param)
+		bot.Settings.EnableDryRun = true
+	}
+}
+
+// SetupExchanges sets up the exchanges used by the Bot
+func (bot *Engine) SetupExchanges() error {
+	var wg sync.WaitGroup
+	configs := bot.Config.GetAllExchangeConfigs()
+	if bot.Settings.EnableAllPairs {
+		bot.dryRunParamInteraction("enableallpairs")
+	}
+	if bot.Settings.EnableAllExchanges {
+		bot.dryRunParamInteraction("enableallexchanges")
+	}
+	if bot.Settings.EnableExchangeVerbose {
+		bot.dryRunParamInteraction("exchangeverbose")
+	}
+	if bot.Settings.EnableExchangeWebsocketSupport {
+		bot.dryRunParamInteraction("exchangewebsocketsupport")
+	}
+	if bot.Settings.EnableExchangeAutoPairUpdates {
+		bot.dryRunParamInteraction("exchangeautopairupdates")
+	}
+	if bot.Settings.DisableExchangeAutoPairUpdates {
+		bot.dryRunParamInteraction("exchangedisableautopairupdates")
+	}
+	if bot.Settings.HTTPUserAgent != "" {
+		bot.dryRunParamInteraction("httpuseragent")
+	}
+	if bot.Settings.HTTPProxy != "" {
+		bot.dryRunParamInteraction("httpproxy")
+	}
+	if bot.Settings.HTTPTimeout != exchange.DefaultHTTPTimeout {
+		bot.dryRunParamInteraction("httptimeout")
+	}
+	if bot.Settings.EnableExchangeHTTPDebugging {
+		bot.dryRunParamInteraction("exchangehttpdebugging")
+	}
+
+	for x := range configs {
+		if !configs[x].Enabled && !bot.Settings.EnableAllExchanges {
+			gctlog.Debugf(gctlog.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
+			continue
+		}
+		wg.Add(1)
+		cfg := configs[x]
+		go func(currCfg config.ExchangeConfig) {
+			defer wg.Done()
+			err := bot.LoadExchange(currCfg.Name, true, &wg)
+			if err != nil {
+				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", currCfg.Name, err)
+				return
+			}
+			gctlog.Debugf(gctlog.ExchangeSys,
+				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
+				currCfg.Name,
+				common.IsEnabled(currCfg.API.AuthenticatedSupport),
+				common.IsEnabled(currCfg.Verbose),
+			)
+		}(cfg)
+	}
+	wg.Wait()
+	if len(bot.exchangeManager.GetExchanges()) == 0 {
+		return exchangemanager.ErrNoExchangesLoaded
+	}
+	return nil
+}
+
+// WebsocketRoutine Initial routine management system for websocket
+func (bot *Engine) WebsocketRoutine() {
+	if bot.Settings.Verbose {
+		gctlog.Debugln(gctlog.WebsocketMgr, "Connecting exchange websocket services...")
+	}
+
+	exchanges := bot.GetExchanges()
+	for i := range exchanges {
+		go func(i int) {
+			if exchanges[i].SupportsWebsocket() {
+				if bot.Settings.Verbose {
+					gctlog.Debugf(gctlog.WebsocketMgr,
+						"Exchange %s websocket support: Yes Enabled: %v\n",
+						exchanges[i].GetName(),
+						common.IsEnabled(exchanges[i].IsWebsocketEnabled()),
+					)
+				}
+
+				ws, err := exchanges[i].GetWebsocket()
+				if err != nil {
+					gctlog.Errorf(
+						gctlog.WebsocketMgr,
+						"Exchange %s GetWebsocket error: %s\n",
+						exchanges[i].GetName(),
+						err,
+					)
+					return
+				}
+
+				// Exchange sync manager might have already started ws
+				// service or is in the process of connecting, so check
+				if ws.IsConnected() || ws.IsConnecting() {
+					return
+				}
+
+				// Data handler routine
+				go bot.WebsocketDataReceiver(ws)
+
+				if ws.IsEnabled() {
+					err = ws.Connect()
+					if err != nil {
+						gctlog.Errorf(gctlog.WebsocketMgr, "%v\n", err)
+					}
+					err = ws.FlushChannels()
+					if err != nil {
+						gctlog.Errorf(gctlog.WebsocketMgr, "Failed to subscribe: %v\n", err)
+					}
+				}
+			} else if bot.Settings.Verbose {
+				gctlog.Debugf(gctlog.WebsocketMgr,
+					"Exchange %s websocket support: No\n",
+					exchanges[i].GetName(),
+				)
+			}
+		}(i)
+	}
+}
+
+// WebsocketDataReceiver handles websocket data coming from a websocket feed
+// associated with an exchange
+func (bot *Engine) WebsocketDataReceiver(ws *stream.Websocket) {
+	wg.Add(1)
+	defer wg.Done()
+
+	for {
+		select {
+		case <-shutdowner:
+			return
+		case data := <-ws.ToRoutine:
+			err := bot.WebsocketDataHandler(ws.GetName(), data)
+			if err != nil {
+				gctlog.Error(gctlog.WebsocketMgr, err)
+			}
+		}
+	}
+}
+
+// WebsocketDataHandler is a central point for exchange websocket implementations to send
+// processed data. WebsocketDataHandler will then pass that to an appropriate handler
+func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error {
+	if data == nil {
+		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket",
+			exchName)
+	}
+
+	switch d := data.(type) {
+	case string:
+		gctlog.Info(gctlog.WebsocketMgr, d)
+	case error:
+		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
+	case stream.FundingData:
+		if bot.Settings.Verbose {
+			gctlog.Infof(gctlog.WebsocketMgr, "%s websocket %s %s funding updated %+v",
+				exchName,
+				bot.FormatCurrency(d.CurrencyPair),
+				d.AssetType,
+				d)
+		}
+	case *ticker.Price:
+		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
+			bot.ExchangeCurrencyPairManager.update(exchName,
+				d.Pair,
+				d.AssetType,
+				SyncItemTicker,
+				nil)
+		}
+		err := ticker.ProcessTicker(d)
+		printTickerSummary(d, "websocket", err)
+	case stream.KlineData:
+		if bot.Settings.Verbose {
+			gctlog.Infof(gctlog.WebsocketMgr, "%s websocket %s %s kline updated %+v",
+				exchName,
+				bot.FormatCurrency(d.Pair),
+				d.AssetType,
+				d)
+		}
+	case *orderbook.Base:
+		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
+			bot.ExchangeCurrencyPairManager.update(exchName,
+				d.Pair,
+				d.AssetType,
+				SyncItemOrderbook,
+				nil)
+		}
+		printOrderbookSummary(d, "websocket", bot, nil)
+	case *order.Detail:
+		if !bot.OrderManager.orderStore.exists(d) {
+			err := bot.OrderManager.orderStore.Add(d)
+			if err != nil {
+				return err
+			}
+		} else {
+			od, err := bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
+			if err != nil {
+				return err
+			}
+			od.UpdateOrderFromDetail(d)
+		}
+	case *order.Cancel:
+		return bot.OrderManager.Cancel(d)
+	case *order.Modify:
+		od, err := bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
+		if err != nil {
+			return err
+		}
+		od.UpdateOrderFromModify(d)
+	case order.ClassificationError:
+		return errors.New(d.Error())
+	case stream.UnhandledMessageWarning:
+		gctlog.Warn(gctlog.WebsocketMgr, d.Message)
+	default:
+		if bot.Settings.Verbose {
+			gctlog.Warnf(gctlog.WebsocketMgr,
+				"%s websocket Unknown type: %+v",
+				exchName,
+				d)
+		}
+	}
+	return nil
 }

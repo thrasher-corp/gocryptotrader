@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/pquerna/otp/totp"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -30,6 +31,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 var (
@@ -427,7 +430,7 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
 	exch := bot.GetExchangeByName(exchangeName)
 	if exch == nil {
-		return nil, ErrExchangeNotFound
+		return nil, exchangemanager.ErrExchangeNotFound
 	}
 	return exch.FetchOrderbook(p, assetType)
 }
@@ -437,7 +440,7 @@ func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, as
 func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
 	exch := bot.GetExchangeByName(exchangeName)
 	if exch == nil {
-		return nil, ErrExchangeNotFound
+		return nil, exchangemanager.ErrExchangeNotFound
 	}
 	return exch.FetchTicker(p, assetType)
 }
@@ -627,7 +630,7 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 	result := bot.GetExchangeCryptocurrencyDepositAddresses()
 	r, ok := result[exchName]
 	if !ok {
-		return nil, ErrExchangeNotFound
+		return nil, exchangemanager.ErrExchangeNotFound
 	}
 	return r, nil
 }
@@ -641,7 +644,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(exchName, accountID s
 
 	exch := bot.GetExchangeByName(exchName)
 	if exch == nil {
-		return "", ErrExchangeNotFound
+		return "", exchangemanager.ErrExchangeNotFound
 	}
 	return exch.GetDepositAddress(item, accountID)
 }
@@ -698,13 +701,13 @@ func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
-func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
-	var tickerData []EnabledExchangeCurrencies
+func (bot *Engine) GetAllActiveTickers() []apiserver.EnabledExchangeCurrencies {
+	var tickerData []apiserver.EnabledExchangeCurrencies
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes()
 		exchName := exchanges[x].GetName()
-		var exchangeTicker EnabledExchangeCurrencies
+		var exchangeTicker apiserver.EnabledExchangeCurrencies
 		exchangeTicker.ExchangeName = exchName
 
 		for y := range assets {
@@ -733,8 +736,8 @@ func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 }
 
 // GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
-func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
-	var response AllEnabledExchangeAccounts
+func (bot *Engine) GetAllEnabledExchangeAccountInfo() apiserver.AllEnabledExchangeAccounts {
+	var response apiserver.AllEnabledExchangeAccounts
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		if exchanges[x] == nil || !exchanges[x].IsEnabled() {
