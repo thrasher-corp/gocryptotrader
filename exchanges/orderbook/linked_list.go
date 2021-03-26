@@ -185,13 +185,19 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 			}
 
 			if (*tip).value.Price < updts[x].Price { // Insert
-				if updts[x].Amount > 0 { // Filter delete, should already be
+				// This check below filters zero values and provides an
+				// optimisation for when select exchanges send a delete update
+				// to a non-existant price level (OTC/Hidden order) so we can
+				// break instantly and reduce the traversal of the entire chain.
+				if updts[x].Amount > 0 {
 					insertAtTip(&ll.linkedList, tip, updts[x], stack)
 				}
 				break // Continue updates
 			}
 
 			if (*tip).next == nil { // Tip is at tail
+				// This check below is just a catch all in the event the above
+				// zero value check fails
 				if updts[x].Amount > 0 {
 					insertAtTail(&ll.linkedList, tip, updts[x], stack)
 				}
@@ -340,14 +346,19 @@ func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 			}
 
 			if (*tip).value.Price > updts[x].Price { // Insert
-				if updts[x].Amount > 0 { // Filter delete, should already be
-					// removed
+				// This check below filters zero values and provides an
+				// optimisation for when select exchanges send a delete update
+				// to a non-existant price level (OTC/Hidden order) so we can
+				// break instantly and reduce the traversal of the entire chain.
+				if updts[x].Amount > 0 {
 					insertAtTip(&ll.linkedList, tip, updts[x], stack)
 				}
 				break // Continue updates
 			}
 
 			if (*tip).next == nil { // Tip is at tail
+				// This check below is just a catch all in the event the above
+				// zero value check fails
 				if updts[x].Amount > 0 {
 					insertAtTail(&ll.linkedList, tip, updts[x], stack)
 				}
