@@ -37,13 +37,13 @@ func CreateTestBot(t *testing.T) *Engine {
 	}
 
 	if bot.GetExchangeByName(testExchange) == nil {
-		err := bot.LoadExchange(testExchange, false, nil)
+		err = bot.LoadExchange(testExchange, false, nil)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
 	if bot.GetExchangeByName(fakePassExchange) == nil {
-		err := addPassingFakeExchange(testExchange, bot)
+		err = addPassingFakeExchange(testExchange, bot)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}

@@ -2,7 +2,6 @@ package report
 
 import (
 	"errors"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -22,7 +21,7 @@ var (
 
 // Handler contains all functions required to generate statistical reporting for backtesting results
 type Handler interface {
-	GenerateReport(time.Time) error
+	GenerateReport() error
 	AddKlineItem(*kline.Item)
 }
 

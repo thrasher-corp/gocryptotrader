@@ -35,17 +35,25 @@ func addPassingFakeExchange(baseExchangeName string, bot *Engine) error {
 	if testExch == nil {
 		return ErrExchangeNotFound
 	}
+
 	base := testExch.GetBase()
 	bot.Config.Exchanges = append(bot.Config.Exchanges, config.ExchangeConfig{
 		Name:    fakePassExchange,
 		Enabled: true,
 		Verbose: false,
 	})
+	b := true
+	var pairStoreData = currency.PairStore{
+		AssetEnabled: &b,
+	}
+	var currencyMap = make(map[asset.Item]*currency.PairStore)
+	currencyMap[asset.Spot] = &pairStoreData
 
 	bot.exchangeManager.add(&FakePassingExchange{
 		Base: exchange.Base{
-			Name:                          fakePassExchange,
-			CurrencyPairs:                 currency.PairsManager{},
+			Name: fakePassExchange,
+			CurrencyPairs: currency.PairsManager{
+				Pairs: currencyMap},
 			Enabled:                       true,
 			LoadedByConfig:                true,
 			SkipAuthCheck:                 true,
@@ -222,7 +230,6 @@ func (h *FakePassingExchange) GetSubscriptions() ([]stream.ChannelSubscription, 
 	return nil, nil
 }
 func (h *FakePassingExchange) GetDefaultConfig() (*config.ExchangeConfig, error) { return nil, nil }
-func (h *FakePassingExchange) GetBase() *exchange.Base                           { return nil }
 func (h *FakePassingExchange) SupportsAsset(_ asset.Item) bool                   { return true }
 func (h *FakePassingExchange) GetHistoricCandles(_ currency.Pair, _ asset.Item, _, _ time.Time, _ kline.Interval) (kline.Item, error) {
 	return kline.Item{}, nil

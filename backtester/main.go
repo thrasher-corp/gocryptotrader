@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/backtest"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -126,7 +125,7 @@ func main() {
 	}
 
 	if generateReport {
-		err = bt.Reports.GenerateReport(time.Now())
+		err = bt.Reports.GenerateReport()
 		if err != nil {
 			gctlog.Error(gctlog.BackTester, err)
 		}

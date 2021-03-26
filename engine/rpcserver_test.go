@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -120,7 +119,7 @@ func TestGetSavedTrades(t *testing.T) {
 		t.Error(unexpectedLackOfError)
 		return
 	}
-	if err != errExchangeNotLoaded {
+	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
 	_, err = s.GetSavedTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
@@ -202,7 +201,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 		t.Error(unexpectedLackOfError)
 		return
 	}
-	if err != errExchangeNotLoaded {
+	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
 
@@ -329,16 +328,29 @@ func TestGetHistoricCandles(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 	// error checks
+	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)
+	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC)
+	cp := currency.NewPair(currency.BTC, currency.USD)
 	_, err := s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "",
+		Pair: &gctrpc.CurrencyPair{
+			Base:  cp.Base.String(),
+			Quote: cp.Quote.String(),
+		},
+		Start:     defaultStart.Format(common.SimpleTimeFormat),
+		End:       defaultEnd.Format(common.SimpleTimeFormat),
+		AssetType: asset.Spot.String(),
 	})
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Errorf("expected %v, received %v", errExchangeNameUnset, err)
+	if !errors.Is(err, errExchangeNotLoaded) {
+		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
-		Exchange: testExchange,
-		Pair:     &gctrpc.CurrencyPair{},
+		Exchange:  testExchange,
+		Start:     defaultStart.Format(common.SimpleTimeFormat),
+		End:       defaultEnd.Format(common.SimpleTimeFormat),
+		Pair:      nil,
+		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, errCurrencyPairUnset) {
 		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
@@ -354,9 +366,6 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Errorf("expected %v, received %v", errInvalidTimes, err)
 	}
 	var results *gctrpc.GetHistoricCandlesResponse
-	defaultStart := time.Date(2020, 1, 1, 1, 1, 1, 1, time.UTC)
-	defaultEnd := time.Date(2020, 1, 2, 2, 2, 2, 2, time.UTC)
-	cp := currency.NewPair(currency.BTC, currency.USD)
 	// default run
 	results, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: testExchange,
@@ -721,7 +730,7 @@ func TestGetRecentTrades(t *testing.T) {
 		t.Error(unexpectedLackOfError)
 		return
 	}
-	if err != errExchangeNotLoaded {
+	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
 	_, err = s.GetRecentTrades(context.Background(), &gctrpc.GetSavedTradesRequest{
@@ -765,7 +774,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		t.Error(unexpectedLackOfError)
 		return
 	}
-	if err != errExchangeNotLoaded {
+	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Error(err)
 	}
 	err = s.GetHistoricTrades(&gctrpc.GetSavedTradesRequest{
@@ -796,7 +805,6 @@ func TestGetAccountInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
-	fmt.Printf("%+v\n", r)
 	if r.Accounts[0].Currencies[0].TotalValue != 10 {
 		t.Fatal("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
 	}
@@ -812,12 +820,13 @@ func TestUpdateAccountInfo(t *testing.T) {
 	}
 
 	updateResponse, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Futures.String()})
-	if err != nil {
-		t.Fatalf("TestGetAccountInfo: Failed to update account info: %s", err)
+	if !errors.Is(err, errAssetTypeDisabled) {
+		t.Errorf("expected %v, received %v", errAssetTypeUnset, err)
 	}
-
-	if getResponse.Accounts[0].Currencies[0].TotalValue == updateResponse.Accounts[0].Currencies[0].TotalValue {
-		t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+	if err == nil {
+		if getResponse.Accounts[0].Currencies[0].TotalValue == updateResponse.Accounts[0].Currencies[0].TotalValue {
+			t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
+		}
 	}
 }
 
@@ -827,12 +836,21 @@ func TestGetOrders(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 
+	p := &gctrpc.CurrencyPair{
+		Delimiter: "-",
+		Base:      currency.BTC.String(),
+		Quote:     currency.USDT.String(),
+	}
+
 	_, err := s.GetOrders(context.Background(), nil)
 	if !errors.Is(err, errInvalidArguments) {
 		t.Errorf("expected %v, received %v", errInvalidArguments, err)
 	}
 
-	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{})
+	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
+		AssetType: asset.Spot.String(),
+		Pair:      p,
+	})
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
 	}
@@ -843,17 +861,13 @@ func TestGetOrders(t *testing.T) {
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
-		Exchange: exchName,
+		Exchange:  exchName,
+		AssetType: asset.Spot.String(),
 	})
 	if !errors.Is(err, errCurrencyPairUnset) {
 		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
 	}
 
-	p := &gctrpc.CurrencyPair{
-		Delimiter: "-",
-		Base:      currency.BTC.String(),
-		Quote:     currency.USDT.String(),
-	}
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange: exchName,
 		Pair:     p,
@@ -912,6 +926,12 @@ func TestGetOrder(t *testing.T) {
 	defer CleanRPCTest(t, engerino)
 	s := RPCServer{Engine: engerino}
 
+	p := &gctrpc.CurrencyPair{
+		Delimiter: "-",
+		Base:      "BTC",
+		Quote:     "USDT",
+	}
+
 	_, err := s.GetOrder(context.Background(), nil)
 	if !errors.Is(err, errInvalidArguments) {
 		t.Errorf("expected %v, received %v", errInvalidArguments, err)
@@ -920,9 +940,10 @@ func TestGetOrder(t *testing.T) {
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{
 		Exchange: exchName,
 		OrderId:  "",
-		Pair:     nil,
-		Asset:    "",
+		Pair:     p,
+		Asset:    "spot",
 	})
+
 	if !errors.Is(err, errExchangeNotLoaded) {
 		t.Errorf("expected %v, received %v", errExchangeNotLoaded, err)
 	}
@@ -940,12 +961,6 @@ func TestGetOrder(t *testing.T) {
 	})
 	if !errors.Is(err, errCurrencyPairUnset) {
 		t.Errorf("expected %v, received %v", errCurrencyPairUnset, err)
-	}
-
-	p := &gctrpc.CurrencyPair{
-		Delimiter: "-",
-		Base:      "BTC",
-		Quote:     "USDT",
 	}
 
 	_, err = s.GetOrder(context.Background(), &gctrpc.GetOrderRequest{

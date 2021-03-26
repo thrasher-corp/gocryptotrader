@@ -2,7 +2,6 @@ package report
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -292,21 +291,16 @@ func TestGenerateReport(t *testing.T) {
 			},
 		},
 	}
-	timeNow := time.Now()
-	err := d.GenerateReport(timeNow)
+	d.OutputPath = filepath.Join(d.OutputPath, "testdata")
+	err := os.Mkdir(d.OutputPath, 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = d.GenerateReport()
 	if err != nil {
 		t.Error(err)
 	}
-	var nickName string
-	if d.Config.Nickname != "" {
-		nickName = d.Config.Nickname + "-"
-	}
-	fileName := fmt.Sprintf(
-		"%v%v-%v.html",
-		nickName,
-		d.Statistics.StrategyName,
-		timeNow.Format("2006-01-02-15-04-05"))
-	err = os.Remove(filepath.Join(d.OutputPath, fileName))
+	err = os.RemoveAll(d.OutputPath)
 	if err != nil {
 		t.Error(err)
 	}

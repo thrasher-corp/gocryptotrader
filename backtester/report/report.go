@@ -16,7 +16,7 @@ import (
 
 // GenerateReport sends final data from statistics to a template
 // to create a lovely final report for someone to view
-func (d *Data) GenerateReport(t time.Time) error {
+func (d *Data) GenerateReport() error {
 	log.Info(log.BackTester, "generating report")
 	err := d.enhanceCandles()
 	if err != nil {
@@ -43,7 +43,7 @@ func (d *Data) GenerateReport(t time.Time) error {
 		"%v%v-%v.html",
 		nickName,
 		d.Statistics.StrategyName,
-		t.Format("2006-01-02-15-04-05"))
+		time.Now().Format("2006-01-02-15-04-05"))
 	var f *os.File
 	f, err = os.Create(
 		filepath.Join(d.OutputPath,

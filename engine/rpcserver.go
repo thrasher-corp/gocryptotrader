@@ -51,15 +51,18 @@ import (
 )
 
 var (
+	errExchangeNotEnabled   = errors.New("exchange is not enabled")
 	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
 	errExchangeBaseNotFound = errors.New("cannot get exchange base")
 	errInvalidArguments     = errors.New("invalid arguments received")
 	errExchangeNameUnset    = errors.New("exchange name unset")
 	errCurrencyPairUnset    = errors.New("currency pair unset")
 	errInvalidTimes         = errors.New("invalid start and end times")
+	errAssetTypeDisabled    = errors.New("asset type is disabled")
 	errAssetTypeUnset       = errors.New("asset type unset")
 	errDispatchSystem       = errors.New("dispatch system offline")
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
+	errCurrencyPairInvalid  = errors.New("errCurrencyPairInvalid")
 )
 
 // RPCServer struct
@@ -508,6 +511,7 @@ func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRe
 	}
 
 	exch := s.GetExchangeByName(r.Exchange)
+
 	err = checkParams(r.Exchange, exch, assetType, currency.Pair{})
 	if err != nil {
 		return nil, err
@@ -816,11 +820,13 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 		return nil, err
 	}
 
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
+	}
 	cp := currency.NewPairWithDelimiter(
 		r.Pair.Base,
 		r.Pair.Quote,
 		r.Pair.Delimiter)
-
 	exch := s.GetExchangeByName(r.Exchange)
 	err = checkParams(r.Exchange, exch, a, cp)
 	if err != nil {
@@ -1906,6 +1912,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
+
 	pair := currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
@@ -3068,19 +3075,19 @@ func (s *RPCServer) GetRecentTrades(_ context.Context, r *gctrpc.GetSavedTradesR
 
 func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p currency.Pair) error {
 	if e == nil {
-		return fmt.Errorf("exchange %s is not enabled or supported", exchName)
+		return fmt.Errorf("%s %w", exchName, errExchangeNotLoaded)
 	}
 	if !e.IsEnabled() {
-		return fmt.Errorf("exchange %s is not enabled", exchName)
+		return fmt.Errorf("%s %w", exchName, errExchangeDisabled)
 	}
 	if a.IsValid() {
 		b := e.GetBase()
 		if b == nil {
-			return errors.New("exchange base has not been set properly")
+			return errExchangeBaseNotFound
 		}
 		err := b.CurrencyPairs.IsAssetEnabled(a)
 		if err != nil {
-			return err
+			return fmt.Errorf("%v %w", a, errAssetTypeDisabled)
 		}
 	}
 	if !p.IsEmpty() {
@@ -3094,9 +3101,9 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 				return err
 			}
 			if availablePairs.Contains(p, true) {
-				return fmt.Errorf("currency pair %v is not enabled", p)
+				return fmt.Errorf("%v %w", p, errCurrencyNotEnabled)
 			}
-			return fmt.Errorf("invalid currency pair provided: %v", p)
+			return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
 		}
 	}
 	return nil
