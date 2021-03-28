@@ -1477,7 +1477,7 @@ func TestCreateSubaccount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = f.DeleteSubaccountName("subzero"); err != nil {
+	if err = f.DeleteSubaccount("subzero"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1500,14 +1500,14 @@ func TestUpdateSubaccountName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := f.DeleteSubaccountName("bizzlebot"); err != nil {
+	if err := f.DeleteSubaccount("bizzlebot"); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestDeleteSubaccountName(t *testing.T) {
 	t.Parallel()
-	if err := f.DeleteSubaccountName(""); !errors.Is(err, errSubaccountNameMustBeSpecified) {
+	if err := f.DeleteSubaccount(""); !errors.Is(err, errSubaccountNameMustBeSpecified) {
 		t.Errorf("expected %v, but received: %s", errSubaccountNameMustBeSpecified, err)
 	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
@@ -1517,7 +1517,7 @@ func TestDeleteSubaccountName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := f.DeleteSubaccountName("subzero"); err != nil {
+	if err := f.DeleteSubaccount("subzero"); err != nil {
 		t.Error(err)
 	}
 }
@@ -1534,6 +1534,17 @@ func TestSubaccountBalances(t *testing.T) {
 	_, err = f.SubaccountBalances("non-existent")
 	if err == nil {
 		t.Error("expecting non-existent subaccount to return an error")
+	}
+	_, err = f.CreateSubaccount("subzero")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.SubaccountBalances("subzero")
+	if err != nil {
+		t.Error(err)
+	}
+	if err := f.DeleteSubaccount("subzero"); err != nil {
+		t.Error(err)
 	}
 }
 

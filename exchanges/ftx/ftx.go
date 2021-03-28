@@ -1160,7 +1160,7 @@ func (f *FTX) UpdateSubaccountName(oldName, newName string) (*Subaccount, error)
 }
 
 // DeleteSubaccountName deletes the specified subaccount name
-func (f *FTX) DeleteSubaccountName(name string) error {
+func (f *FTX) DeleteSubaccount(name string) error {
 	if name == "" {
 		return errSubaccountNameMustBeSpecified
 	}
@@ -1169,10 +1169,7 @@ func (f *FTX) DeleteSubaccountName(name string) error {
 	resp := struct {
 		Data Subaccount `json:"result"`
 	}{}
-	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, subaccounts, d, &resp); err != nil {
-		return err
-	}
-	return nil
+	return f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, subaccounts, d, &resp)
 }
 
 // SubaccountBalances returns the user's subaccount balances
