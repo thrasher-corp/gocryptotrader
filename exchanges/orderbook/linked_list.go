@@ -187,7 +187,7 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 			if (*tip).value.Price < updts[x].Price { // Insert
 				// This check below filters zero values and provides an
 				// optimisation for when select exchanges send a delete update
-				// to a non-existant price level (OTC/Hidden order) so we can
+				// to a non-existent price level (OTC/Hidden order) so we can
 				// break instantly and reduce the traversal of the entire chain.
 				if updts[x].Amount > 0 {
 					insertAtTip(&ll.linkedList, tip, updts[x], stack)
@@ -348,7 +348,7 @@ func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 			if (*tip).value.Price > updts[x].Price { // Insert
 				// This check below filters zero values and provides an
 				// optimisation for when select exchanges send a delete update
-				// to a non-existant price level (OTC/Hidden order) so we can
+				// to a non-existent price level (OTC/Hidden order) so we can
 				// break instantly and reduce the traversal of the entire chain.
 				if updts[x].Amount > 0 {
 					insertAtTip(&ll.linkedList, tip, updts[x], stack)
