@@ -1008,14 +1008,82 @@ func TestCheckVars(t *testing.T) {
 	}
 
 	err := checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if errors.Is(err, errExchangeNotEnabled) {
+	if !errors.Is(err, errExchangeDisabled) {
 		t.Errorf("expected %v, got %v", errExchangeNotEnabled, err)
 	}
 
 	e.SetEnabled(true)
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if errors.Is(err, errAssetTypeDisabled) {
+	if !errors.Is(err, errAssetTypeDisabled) {
 		t.Errorf("expected %v, got %v", errAssetTypeDisabled, err)
 	}
+
+	fmt1 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: currency.DashDelimiter,
+			Uppercase: true,
+		},
+	}
+	coinFutures := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.UnderscoreDelimiter,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.UnderscoreDelimiter,
+		},
+	}
+	usdtFutures := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	}
+	err = e.GetBase().StoreAssetPairFormat(asset.Spot, fmt1)
+	if err != nil {
+		t.Error(err)
+	}
+	err = e.GetBase().StoreAssetPairFormat(asset.Margin, fmt1)
+	if err != nil {
+		t.Error(err)
+	}
+	err = e.GetBase().StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	err = e.GetBase().StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	if !errors.Is(err, errCurrencyPairInvalid) {
+		t.Errorf("expected %v, got %v", errCurrencyPairInvalid, err)
+	}
+
+	// err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	// if !errors.Is(err, errCurrencyPairInvalid) {
+	// 	t.Errorf("expected %v, got %v", errCurrencyPairInvalid, err)
+	// }
+
+	var data = []currency.Pair{
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
+	}
+
+	err = e.GetBase().SetPairs(data, asset.Spot, false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// err = e.GetBase().SetPairs()
+	// err = e.GetBase().CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+
 }
