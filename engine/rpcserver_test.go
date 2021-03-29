@@ -832,8 +832,9 @@ func TestUpdateAccountInfo(t *testing.T) {
 		Exchange:  fakePassExchange,
 		AssetType: asset.Spot.String(),
 	})
-
-	if err == nil {
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	} else {
 		if getResponse.Accounts[0].Currencies[0].TotalValue == updateResp.Accounts[0].Currencies[0].TotalValue {
 			t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
 		}
