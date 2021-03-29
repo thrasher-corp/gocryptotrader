@@ -22,7 +22,6 @@ import (
 const testExchange = "binance"
 
 func TestGenerateReport(t *testing.T) {
-	var d Data
 	e := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
@@ -31,7 +30,7 @@ func TestGenerateReport(t *testing.T) {
 		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
 	}
 	defer os.RemoveAll(tempDir)
-	d = Data{
+	d := Data{
 		Config:       &config.Config{},
 		OutputPath:   filepath.Join("..", "results"),
 		TemplatePath: filepath.Join("tpl.gohtml"),
