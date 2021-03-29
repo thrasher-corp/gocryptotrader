@@ -223,7 +223,7 @@ func (m *Manager) validate(newOrder *order.Submit) error {
 	}
 
 	if err := newOrder.Validate(); err != nil {
-		return err
+		return fmt.Errorf("order manager: %w", err)
 	}
 
 	if m.cfg.EnforceLimitConfig {
@@ -258,8 +258,21 @@ func (m *Manager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
 	if exch == nil {
 		return nil, exchangemanager.ErrExchangeNotFound
 	}
-	var result order.SubmitResponse
-	result, err = exch.SubmitOrder(newOrder)
+
+	// Checks for exchange min max limits for order amounts before order
+	// execution can occur
+	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
+		newOrder.Pair,
+		newOrder.Price,
+		newOrder.Amount,
+		newOrder.Type)
+	if err != nil {
+		return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+			newOrder.Exchange,
+			err)
+	}
+
+	result, err := exch.SubmitOrder(newOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +282,7 @@ func (m *Manager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
 
 // SubmitFakeOrder runs through the same process as order submission
 // but does not touch live endpoints
-func (m *Manager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse) (*orderSubmitResponse, error) {
+func (m *Manager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.SubmitResponse, checkExchangeLimits bool) (*orderSubmitResponse, error) {
 	err := m.validate(newOrder)
 	if err != nil {
 		return nil, err
@@ -279,6 +292,20 @@ func (m *Manager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder order.S
 		return nil, exchangemanager.ErrExchangeNotFound
 	}
 
+	if checkExchangeLimits {
+		// Checks for exchange min max limits for order amounts before order
+		// execution can occur
+		err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
+			newOrder.Pair,
+			newOrder.Price,
+			newOrder.Amount,
+			newOrder.Type)
+		if err != nil {
+			return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+				newOrder.Exchange,
+				err)
+		}
+	}
 	return m.processSubmittedOrder(newOrder, resultingOrder)
 }
 

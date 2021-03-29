@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -939,4 +940,63 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	})
+}
+
+// FetchSpotExchangeLimits fetches spot order execution limits
+func (b *Binance) FetchSpotExchangeLimits() ([]order.MinMaxLevel, error) {
+	var limits []order.MinMaxLevel
+	spot, err := b.GetExchangeInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range spot.Symbols {
+		var cp currency.Pair
+		cp, err = currency.NewPairFromStrings(spot.Symbols[x].BaseAsset,
+			spot.Symbols[x].QuoteAsset)
+		if err != nil {
+			return nil, err
+		}
+		var assets []asset.Item
+		for y := range spot.Symbols[x].Permissions {
+			switch spot.Symbols[x].Permissions[y] {
+			case "SPOT":
+				assets = append(assets, asset.Spot)
+			case "MARGIN":
+				assets = append(assets, asset.Margin)
+			case "LEVERAGED": // leveraged tokens not available for spot trading
+			default:
+				return nil, fmt.Errorf("unhandled asset type for exchange limits loading %s",
+					spot.Symbols[x].Permissions[y])
+			}
+		}
+
+		for z := range assets {
+			if len(spot.Symbols[x].Filters) < 8 {
+				continue
+			}
+
+			limits = append(limits, order.MinMaxLevel{
+				Pair:                cp,
+				Asset:               assets[z],
+				MinPrice:            spot.Symbols[x].Filters[0].MinPrice,
+				MaxPrice:            spot.Symbols[x].Filters[0].MaxPrice,
+				StepPrice:           spot.Symbols[x].Filters[0].TickSize,
+				MultiplierUp:        spot.Symbols[x].Filters[1].MultiplierUp,
+				MultiplierDown:      spot.Symbols[x].Filters[1].MultiplierDown,
+				AveragePriceMinutes: spot.Symbols[x].Filters[1].AvgPriceMinutes,
+				MaxAmount:           spot.Symbols[x].Filters[2].MaxQty,
+				MinAmount:           spot.Symbols[x].Filters[2].MinQty,
+				StepAmount:          spot.Symbols[x].Filters[2].StepSize,
+				MinNotional:         spot.Symbols[x].Filters[3].MinNotional,
+				MaxIcebergParts:     spot.Symbols[x].Filters[4].Limit,
+				MarketMinQty:        spot.Symbols[x].Filters[5].MinQty,
+				MarketMaxQty:        spot.Symbols[x].Filters[5].MaxQty,
+				MarketStepSize:      spot.Symbols[x].Filters[5].StepSize,
+				MaxTotalOrders:      spot.Symbols[x].Filters[6].MaxNumOrders,
+				MaxAlgoOrders:       spot.Symbols[x].Filters[7].MaxNumAlgoOrders,
+			})
+		}
+	}
+	return limits, nil
 }

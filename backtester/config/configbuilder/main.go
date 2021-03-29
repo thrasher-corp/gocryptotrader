@@ -588,6 +588,11 @@ func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) 
 			return nil, err
 		}
 	}
+	fmt.Println("Will the in-sample data amounts conform to current exchange defined order execution limits? i.e. If amount is 1337.001345 and the step size is 0.01 order amount will be re-adjusted to 1337. y/n")
+	yn = quickParse(reader)
+	if yn == y || yn == yes {
+		setting.CanUseExchangeLimits = true
+	}
 	fmt.Println("Do you wish to include slippage? y/n")
 	yn = quickParse(reader)
 	if yn == y || yn == yes {

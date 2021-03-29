@@ -1261,3 +1261,8 @@ func (u URL) String() string {
 		return ""
 	}
 }
+
+// UpdateOrderExecutionLimits updates order execution limits this is overridable
+func (e *Base) UpdateOrderExecutionLimits(a asset.Item) error {
+	return common.ErrNotYetImplemented
+}

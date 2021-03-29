@@ -70,9 +70,8 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 	if bot == nil {
 		return nil, errNilBot
 	}
-	bt := New()
 
-	var e exchange.Exchange
+	bt := New()
 	bt.Datas = &data.HandlerPerCurrency{}
 	bt.EventQueue = &eventholder.Holder{}
 	reports := &report.Data{
@@ -87,7 +86,7 @@ func NewFromConfig(cfg *config.Config, templatePath, output string, bot *engine.
 		return nil, err
 	}
 
-	e, err = bt.setupExchangeSettings(cfg)
+	e, err := bt.setupExchangeSettings(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -281,6 +280,22 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 			MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
 		}
 		sellRule.Validate()
+
+		limits, err := exch.GetOrderExecutionLimits(a, pair)
+		if err != nil {
+			return resp, err
+		}
+
+		if limits != nil {
+			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
+				log.Warnf(log.BackTester, "exchange %s order execution limits supported but disabled for %s %s, results may not work when in production",
+					cfg.CurrencySettings[i].ExchangeName,
+					pair,
+					a)
+				cfg.CurrencySettings[i].ShowExchangeOrderLimitWarning = true
+			}
+		}
+
 		resp.CurrencySettings = append(resp.CurrencySettings, exchange.Settings{
 			ExchangeName:        cfg.CurrencySettings[i].ExchangeName,
 			InitialFunds:        cfg.CurrencySettings[i].InitialFunds,
@@ -299,6 +314,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 				MaximumLeverageRate:            cfg.CurrencySettings[i].Leverage.MaximumLeverageRate,
 				MaximumOrdersWithLeverageRatio: cfg.CurrencySettings[i].Leverage.MaximumOrdersWithLeverageRatio,
 			},
+			Limits:               limits,
+			CanUseExchangeLimits: cfg.CurrencySettings[i].CanUseExchangeLimits,
 		})
 	}
 

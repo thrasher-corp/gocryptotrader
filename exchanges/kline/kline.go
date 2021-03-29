@@ -444,7 +444,7 @@ func (h *IntervalRangeHolder) VerifyResultsHaveData(c []Candle) error {
 	return nil
 }
 
-// Set is a simple helper function to set the time twice
+// CreateIntervalTime is a simple helper function to set the time twice
 func CreateIntervalTime(tt time.Time) IntervalTime {
 	return IntervalTime{
 		Time:  tt,

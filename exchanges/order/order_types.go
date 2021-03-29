@@ -18,7 +18,7 @@ var (
 	ErrAssetNotSet                = errors.New("order asset type is not set")
 	ErrSideIsInvalid              = errors.New("order side is invalid")
 	ErrTypeIsInvalid              = errors.New("order type is invalid")
-	ErrAmountIsInvalid            = errors.New("order amount is invalid")
+	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
 )

@@ -4,7 +4,8 @@
   "orderType": "LIMIT",
   "amount": 1333333337,
   "price": 1333333337,
-  "orderID": ""
+  "orderID": "",
+  "assetType": ""
  },
  "withdrawWalletAddress": "",
  "bankAccount": {

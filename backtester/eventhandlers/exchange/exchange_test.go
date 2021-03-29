@@ -148,30 +148,30 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	e := Exchange{}
-	_, err = e.placeOrder(1, 1, false, nil, nil)
+	_, err = e.placeOrder(1, 1, false, true, nil, nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("expected: %v, received %v", common.ErrNilEvent, err)
 	}
 	f := &fill.Fill{}
-	_, err = e.placeOrder(1, 1, false, f, bot)
+	_, err = e.placeOrder(1, 1, false, true, f, bot)
 	if err != nil && err.Error() != "order exchange name must be specified" {
 		t.Error(err)
 	}
 
 	f.Exchange = testExchange
-	_, err = e.placeOrder(1, 1, false, f, bot)
-	if err != nil && err.Error() != "order pair is empty" {
-		t.Error(err)
+	_, err = e.placeOrder(1, 1, false, true, f, bot)
+	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
+		t.Errorf("expected: %v, received %v", gctorder.ErrPairIsEmpty, err)
 	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(1, 1, false, f, bot)
+	_, err = e.placeOrder(1, 1, false, true, f, bot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = e.placeOrder(1, 1, true, f, bot)
+	_, err = e.placeOrder(1, 1, true, true, f, bot)
 	if err != nil && !strings.Contains(err.Error(), "unset/default API keys") {
 		t.Error(err)
 	}
@@ -179,8 +179,36 @@ func TestPlaceOrder(t *testing.T) {
 
 func TestExecuteOrder(t *testing.T) {
 	t.Parallel()
+	bot, err := engine.NewFromSettings(&engine.Settings{
+		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
+		EnableDryRun: true,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = bot.OrderManager.Start(bot)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bot.LoadExchange(testExchange, false, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	b := bot.GetExchangeByName(testExchange)
+
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
+	_, err = b.FetchOrderbook(p, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	limits, err := b.GetOrderExecutionLimits(a, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	cs := Settings{
 		ExchangeName:        testExchange,
 		UseRealOrders:       false,
@@ -195,6 +223,7 @@ func TestExecuteOrder(t *testing.T) {
 		Leverage:            config.Leverage{},
 		MinimumSlippageRate: 0,
 		MaximumSlippageRate: 1,
+		Limits:              limits,
 	}
 	e := Exchange{
 		CurrencySettings: []Settings{cs},
@@ -209,30 +238,10 @@ func TestExecuteOrder(t *testing.T) {
 	o := &order.Order{
 		Base:      ev,
 		Direction: gctorder.Buy,
-		Amount:    1,
+		Amount:    10,
 		Funds:     1337,
 	}
 
-	bot, err := engine.NewFromSettings(&engine.Settings{
-		ConfigFile:   filepath.Join("..", "..", "..", "testdata", "configtest.json"),
-		EnableDryRun: true,
-	}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = bot.OrderManager.Start(bot)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bot.LoadExchange(testExchange, false, nil)
-	if err != nil {
-		t.Error(err)
-	}
-	b := bot.GetExchangeByName(testExchange)
-	_, err = b.FetchOrderbook(p, a)
-	if err != nil {
-		t.Fatal(err)
-	}
 	d := &kline.DataFromKline{
 		Item: gctkline.Item{
 			Exchange: "",
@@ -260,6 +269,7 @@ func TestExecuteOrder(t *testing.T) {
 	}
 
 	cs.UseRealOrders = true
+	cs.CanUseExchangeLimits = true
 	o.Direction = gctorder.Sell
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot)
