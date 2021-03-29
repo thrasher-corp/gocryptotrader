@@ -146,7 +146,9 @@ func (b *Bittrex) applyBufferUpdate(pair currency.Pair) error {
 
 	recent := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	if recent == nil || (recent.Asks == nil && recent.Bids == nil) {
-		log.Warnf(log.WebsocketMgr, "Orderbook: Fetching via REST\n")
+		if b.Verbose {
+			log.Debugf(log.WebsocketMgr, "Orderbook: Fetching via REST\n")
+		}
 		return b.obm.fetchBookViaREST(pair)
 	}
 
