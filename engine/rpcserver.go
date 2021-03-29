@@ -1905,7 +1905,16 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	if r.Start == r.End {
+	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
+	if err != nil {
+		return nil, err
+	}
+	var UTCEndTime time.Time
+	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
+	if err != nil {
+		return nil, err
+	}
+	if UTCStartTime.After(UTCEndTime) || UTCStartTime.Equal(UTCEndTime) {
 		return nil, errInvalidTimes
 	}
 
@@ -1931,15 +1940,6 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 	}
 
 	var klineItem kline.Item
-	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
-	if err != nil {
-		return nil, err
-	}
-	var UTCEndTime time.Time
-	UTCEndTime, err = time.Parse(common.SimpleTimeFormat, r.End)
-	if err != nil {
-		return nil, err
-	}
 	interval := kline.Interval(r.TimeInterval)
 
 	resp := gctrpc.GetHistoricCandlesResponse{
