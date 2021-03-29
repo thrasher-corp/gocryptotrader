@@ -339,11 +339,14 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 	}
 
 	e := s.GetExchangeByName(r.Exchange)
-	checkParams(r.Exchange, e, a, currency.Pair{
+	err = checkParams(r.Exchange, e, a, currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
 		Quote:     currency.NewCode(r.Pair.Quote),
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	t, err := s.GetSpecificTicker(currency.Pair{
 		Delimiter: r.Pair.Delimiter,
@@ -1938,7 +1941,6 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 		return nil, err
 	}
 
-	var klineItem kline.Item
 	interval := kline.Interval(r.TimeInterval)
 
 	resp := gctrpc.GetHistoricCandlesResponse{
@@ -1948,6 +1950,7 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricC
 		End:      r.End,
 	}
 
+	var klineItem kline.Item
 	if r.UseDb {
 		klineItem, err = kline.LoadFromDatabase(r.Exchange,
 			pair,
