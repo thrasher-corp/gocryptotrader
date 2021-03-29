@@ -363,6 +363,8 @@ func TestGetHistoricCandles(t *testing.T) {
 			Base:  currency.BTC.String(),
 			Quote: currency.USD.String(),
 		},
+		Start: "2020-01-02 15:04:05",
+		End:   "2020-01-02 15:04:05",
 	})
 	if !errors.Is(err, errInvalidTimes) {
 		t.Errorf("expected %v, received %v", errInvalidTimes, err)
