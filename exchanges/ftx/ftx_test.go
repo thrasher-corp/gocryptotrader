@@ -1563,7 +1563,7 @@ func TestSubaccountTransfer(t *testing.T) {
 	for x := range tt {
 		_, err := f.SubaccountTransfer(tt[x].Coin, tt[x].Source, tt[x].Destination, tt[x].Size)
 		if !errors.Is(err, tt[x].ErrExpected) {
-			t.Errorf("expected %s, but receieved: %s", tt[x].ErrExpected, err)
+			t.Errorf("expected %s, but received: %s", tt[x].ErrExpected, err)
 		}
 	}
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {

@@ -124,7 +124,7 @@ var (
 	errSubaccountUpdateNameInvalid                       = errors.New("invalid subaccount old/new name")
 	errCoinMustBeSpecified                               = errors.New("a coin must be specified")
 	errSubaccountTransferSizeGreaterThanZero             = errors.New("transfer size must be greater than 0")
-	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination musn't be the same value")
+	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
 )
 
 // GetMarkets gets market data
