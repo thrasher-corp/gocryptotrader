@@ -3099,15 +3099,15 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 	if err != nil {
 		return err
 	}
-	if !enabledPairs.Contains(p, true) {
-		availablePairs, err := e.GetAvailablePairs(a)
-		if err != nil {
-			return err
-		}
-		if availablePairs.Contains(p, true) {
-			return fmt.Errorf("%v %w", p, errCurrencyNotEnabled)
-		}
-		return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
+	if enabledPairs.Contains(p, true) {
+		return nil
 	}
-	return nil
+	availablePairs, err := e.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
+	if availablePairs.Contains(p, true) {
+		return fmt.Errorf("%v %w", p, errCurrencyNotEnabled)
+	}
+	return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
 }

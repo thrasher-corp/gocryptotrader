@@ -823,12 +823,18 @@ func TestUpdateAccountInfo(t *testing.T) {
 		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
 
-	updateResponse, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Futures.String()})
+	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Futures.String()})
 	if !errors.Is(err, errAssetTypeDisabled) {
 		t.Errorf("expected %v, received %v", errAssetTypeUnset, err)
 	}
+
+	updateResp, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
+		Exchange:  fakePassExchange,
+		AssetType: asset.Spot.String(),
+	})
+
 	if err == nil {
-		if getResponse.Accounts[0].Currencies[0].TotalValue == updateResponse.Accounts[0].Currencies[0].TotalValue {
+		if getResponse.Accounts[0].Currencies[0].TotalValue == updateResp.Accounts[0].Currencies[0].TotalValue {
 			t.Fatalf("TestGetAccountInfo: Unexpected value of the 'TotalValue'")
 		}
 	}
