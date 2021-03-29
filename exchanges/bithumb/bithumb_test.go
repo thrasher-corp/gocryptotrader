@@ -237,12 +237,6 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	cp = currency.NewPair(currency.DASH, currency.KRW)
-	_, err = b.UpdateTicker(cp, asset.Spot)
-	if err == nil {
-		t.Error("expecting DASH to return an error")
-	}
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {

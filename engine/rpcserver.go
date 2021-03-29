@@ -51,7 +51,6 @@ import (
 )
 
 var (
-	errExchangeNotEnabled   = errors.New("exchange is not enabled")
 	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
 	errExchangeBaseNotFound = errors.New("cannot get exchange base")
 	errInvalidArguments     = errors.New("invalid arguments received")
@@ -62,7 +61,7 @@ var (
 	errAssetTypeUnset       = errors.New("asset type unset")
 	errDispatchSystem       = errors.New("dispatch system offline")
 	errCurrencyNotEnabled   = errors.New("currency not enabled")
-	errCurrencyPairInvalid  = errors.New("errCurrencyPairInvalid")
+	errCurrencyPairInvalid  = errors.New("currency provided is not found in the available pairs list")
 )
 
 // RPCServer struct
