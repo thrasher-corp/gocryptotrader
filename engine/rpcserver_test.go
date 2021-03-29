@@ -1001,15 +1001,21 @@ func TestGetOrder(t *testing.T) {
 
 func TestCheckVars(t *testing.T) {
 	var e exchange.IBotExchange
+
+	err := checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	if !errors.Is(err, errExchangeNotLoaded) {
+		t.Errorf("expected %v, got %v", errExchangeNotLoaded, err)
+	}
+
 	e = &binance.Binance{}
 	_, ok := e.(*binance.Binance)
 	if !ok {
 		t.Fatal("invalid ibotexchange interface")
 	}
 
-	err := checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if !errors.Is(err, errExchangeDisabled) {
-		t.Errorf("expected %v, got %v", errExchangeNotEnabled, err)
+		t.Errorf("expected %v, got %v", errExchangeDisabled, err)
 	}
 
 	e.SetEnabled(true)
@@ -1066,24 +1072,24 @@ func TestCheckVars(t *testing.T) {
 		t.Errorf("expected %v, got %v", errCurrencyPairInvalid, err)
 	}
 
-	// err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	// if !errors.Is(err, errCurrencyPairInvalid) {
-	// 	t.Errorf("expected %v, got %v", errCurrencyPairInvalid, err)
-	// }
-
 	var data = []currency.Pair{
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
 	}
 
-	err = e.GetBase().SetPairs(data, asset.Spot, false)
+	e.GetBase().CurrencyPairs.StorePairs(asset.Spot, data, false)
+
+	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	if !errors.Is(err, errCurrencyNotEnabled) {
+		t.Errorf("expected %v, got %v", errCurrencyNotEnabled, err)
+	}
+
+	e.GetBase().CurrencyPairs.EnablePair(
+		asset.Spot,
+		currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
+	)
+
+	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
-
-	// err = e.GetBase().SetPairs()
-	// err = e.GetBase().CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-
 }
