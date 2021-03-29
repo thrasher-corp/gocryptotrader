@@ -39,7 +39,8 @@ var (
 	// ErrNilArguments is a common error response to highlight that nils were passed in
 	// when they should not have been
 	ErrNilArguments = errors.New("received nil argument(s)")
-	ErrNilEvent     = errors.New("nil event received")
+	// ErrNilEvent is a common error for whenever a nil event occurs when it shouldn't have
+	ErrNilEvent = errors.New("nil event received")
 )
 
 // EventHandler interface implements required GetTime() & Pair() return

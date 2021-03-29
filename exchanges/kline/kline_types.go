@@ -39,6 +39,7 @@ const (
 )
 
 var (
+	// ErrMissingCandleData is an error for missing candle data
 	ErrMissingCandleData = errors.New("missing candle data")
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{

@@ -436,7 +436,7 @@ func (z *ZB) Withdraw(currency, address, safepassword string, amount, fees float
 	vals.Set("fees", strconv.FormatFloat(fees, 'f', -1, 64))
 	vals.Set("itransfer", strconv.FormatBool(itransfer))
 	vals.Set("method", "withdraw")
-	vals.Set("recieveAddr", address)
+	vals.Set("receiveAddr", address)
 	vals.Set("safePwd", safepassword)
 
 	var resp response

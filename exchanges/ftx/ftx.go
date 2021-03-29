@@ -15,6 +15,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -90,6 +91,10 @@ const (
 	requestOTCQuote          = "/otc/quotes"
 	getOTCQuoteStatus        = "/otc/quotes/"
 	acceptOTCQuote           = "/otc/quotes/%s/accept"
+	subaccounts              = "/subaccounts"
+	subaccountsUpdateName    = "/subaccounts/update_name"
+	subaccountsBalance       = "/subaccounts/%s/balances"
+	subaccountsTransfer      = "/subaccounts/transfer"
 
 	// Margin Endpoints
 	marginBorrowRates    = "/spot_margin/borrow_rates"
@@ -114,7 +119,12 @@ const (
 )
 
 var (
-	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
+	errStartTimeCannotBeAfterEndTime                     = errors.New("start timestamp cannot be after end timestamp")
+	errSubaccountNameMustBeSpecified                     = errors.New("a subaccount name must be specified")
+	errSubaccountUpdateNameInvalid                       = errors.New("invalid subaccount old/new name")
+	errCoinMustBeSpecified                               = errors.New("a coin must be specified")
+	errSubaccountTransferSizeGreaterThanZero             = errors.New("transfer size must be greater than 0")
+	errSubaccountTransferSourceDestinationMustNotBeEqual = errors.New("subaccount transfer source and destination must not be the same value")
 )
 
 // GetMarkets gets market data
@@ -403,17 +413,17 @@ func (f *FTX) GetCoins() ([]WalletCoinsData, error) {
 }
 
 // GetBalances gets balances of the account
-func (f *FTX) GetBalances() ([]BalancesData, error) {
+func (f *FTX) GetBalances() ([]WalletBalance, error) {
 	resp := struct {
-		Data []BalancesData `json:"result"`
+		Data []WalletBalance `json:"result"`
 	}{}
 	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getBalances, nil, &resp)
 }
 
 // GetAllWalletBalances gets all wallets' balances
-func (f *FTX) GetAllWalletBalances() (AllWalletAccountData, error) {
+func (f *FTX) GetAllWalletBalances() (AllWalletBalances, error) {
 	resp := struct {
-		Data AllWalletAccountData `json:"result"`
+		Data AllWalletBalances `json:"result"`
 	}{}
 	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, getAllWalletBalances, nil, &resp)
 }
@@ -1104,4 +1114,105 @@ func (f *FTX) GetOTCQuoteStatus(marketName, quoteID string) ([]QuoteStatusData, 
 // AcceptOTCQuote requests for otc quotes
 func (f *FTX) AcceptOTCQuote(quoteID string) error {
 	return f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, fmt.Sprintf(acceptOTCQuote, quoteID), nil, nil)
+}
+
+// GetSubaccounts returns the users subaccounts
+func (f *FTX) GetSubaccounts() ([]Subaccount, error) {
+	resp := struct {
+		Data []Subaccount `json:"result"`
+	}{}
+	return resp.Data, f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, subaccounts, nil, &resp)
+}
+
+// CreateSubaccount creates a new subaccount
+func (f *FTX) CreateSubaccount(name string) (*Subaccount, error) {
+	if name == "" {
+		return nil, errSubaccountNameMustBeSpecified
+	}
+	d := make(map[string]string)
+	d["nickname"] = name
+
+	resp := struct {
+		Data Subaccount `json:"result"`
+	}{}
+	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, subaccounts, d, &resp); err != nil {
+		return nil, err
+	}
+	return &resp.Data, nil
+}
+
+// UpdateSubaccountName updates an existing subaccount name
+func (f *FTX) UpdateSubaccountName(oldName, newName string) (*Subaccount, error) {
+	if oldName == "" || newName == "" || oldName == newName {
+		return nil, errSubaccountUpdateNameInvalid
+	}
+	d := make(map[string]string)
+	d["nickname"] = oldName
+	d["newNickname"] = newName
+
+	resp := struct {
+		Data Subaccount `json:"result"`
+	}{}
+	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, subaccountsUpdateName, d, &resp); err != nil {
+		return nil, err
+	}
+	return &resp.Data, nil
+}
+
+// DeleteSubaccountName deletes the specified subaccount name
+func (f *FTX) DeleteSubaccount(name string) error {
+	if name == "" {
+		return errSubaccountNameMustBeSpecified
+	}
+	d := make(map[string]string)
+	d["nickname"] = name
+	resp := struct {
+		Data Subaccount `json:"result"`
+	}{}
+	return f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodDelete, subaccounts, d, &resp)
+}
+
+// SubaccountBalances returns the user's subaccount balances
+func (f *FTX) SubaccountBalances(name string) ([]SubaccountBalance, error) {
+	if name == "" {
+		return nil, errSubaccountNameMustBeSpecified
+	}
+	resp := struct {
+		Data []SubaccountBalance `json:"result"`
+	}{}
+	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodGet, fmt.Sprintf(subaccountsBalance, name), nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
+}
+
+// SubaccountTransfer transfers a desired coin to the specified subaccount
+func (f *FTX) SubaccountTransfer(coin currency.Code, source, destination string, size float64) (*SubaccountTransferStatus, error) {
+	if coin.IsEmpty() {
+		return nil, errCoinMustBeSpecified
+	}
+	if size <= 0 {
+		return nil, errSubaccountTransferSizeGreaterThanZero
+	}
+	if source == destination {
+		return nil, errSubaccountTransferSourceDestinationMustNotBeEqual
+	}
+	d := make(map[string]interface{})
+	d["coin"] = coin.Upper().String()
+	d["size"] = size
+	if source == "" {
+		source = "main"
+	}
+	d["source"] = source
+	if destination == "" {
+		destination = "main"
+	}
+	d["destination"] = destination
+	resp := struct {
+		Data SubaccountTransferStatus `json:"result"`
+	}{}
+	if err := f.SendAuthHTTPRequest(exchange.RestSpot, http.MethodPost, subaccountsTransfer, d, &resp); err != nil {
+		return nil, err
+	}
+	return &resp.Data, nil
 }
