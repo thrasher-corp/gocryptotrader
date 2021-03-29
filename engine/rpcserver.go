@@ -1905,7 +1905,7 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(_ context.Context, r *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
-	if r.Start >= r.End {
+	if r.Start == r.End {
 		return nil, errInvalidTimes
 	}
 
@@ -3090,21 +3090,22 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 			return fmt.Errorf("%v %w", a, errAssetTypeDisabled)
 		}
 	}
-	if !p.IsEmpty() {
-		enabledPairs, err := e.GetEnabledPairs(a)
+	if p.IsEmpty() {
+		return nil
+	}
+	enabledPairs, err := e.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+	if !enabledPairs.Contains(p, true) {
+		availablePairs, err := e.GetAvailablePairs(a)
 		if err != nil {
 			return err
 		}
-		if !enabledPairs.Contains(p, true) {
-			availablePairs, err := e.GetAvailablePairs(a)
-			if err != nil {
-				return err
-			}
-			if availablePairs.Contains(p, true) {
-				return fmt.Errorf("%v %w", p, errCurrencyNotEnabled)
-			}
-			return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
+		if availablePairs.Contains(p, true) {
+			return fmt.Errorf("%v %w", p, errCurrencyNotEnabled)
 		}
+		return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
 	}
 	return nil
 }
