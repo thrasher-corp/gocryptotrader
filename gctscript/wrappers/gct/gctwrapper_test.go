@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	engine.Bot.LoadExchange(exch.Value, false, nil)
-	engine.Bot.DepositAddressManager = new(depositaddress.DepositAddressManager)
+	engine.Bot.DepositAddressManager = new(depositaddress.Manager)
 	go engine.Bot.DepositAddressManager.Sync(engine.Bot.GetExchangeCryptocurrencyDepositAddresses())
 	err = engine.Bot.OrderManager.Start(engine.Bot)
 	if err != nil {

@@ -9,15 +9,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
-// DepositAddressStore stores a list of exchange deposit addresses
-type DepositAddressStore struct {
+// Store stores a list of exchange deposit addresses
+type Store struct {
 	m     sync.Mutex
 	Store map[string]map[string]string
 }
 
-// DepositAddressManager manages the exchange deposit address store
-type DepositAddressManager struct {
-	Store DepositAddressStore
+// Manager manages the exchange deposit address store
+type Manager struct {
+	Store Store
 }
 
 // vars related to the deposit address helpers
@@ -27,11 +27,11 @@ var (
 )
 
 // Seed seeds the deposit address store
-func (d *DepositAddressStore) Seed(coinData map[string]map[string]string) {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if d.Store == nil {
-		d.Store = make(map[string]map[string]string)
+func (s *Store) Seed(coinData map[string]map[string]string) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.Store == nil {
+		s.Store = make(map[string]map[string]string)
 	}
 
 	for k, v := range coinData {
@@ -39,20 +39,20 @@ func (d *DepositAddressStore) Seed(coinData map[string]map[string]string) {
 		for w, x := range v {
 			r[strings.ToUpper(w)] = x
 		}
-		d.Store[strings.ToUpper(k)] = r
+		s.Store[strings.ToUpper(k)] = r
 	}
 }
 
 // GetDepositAddress returns a deposit address based on the specified item
-func (d *DepositAddressStore) GetDepositAddress(exchName string, item currency.Code) (string, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+func (s *Store) GetDepositAddress(exchName string, item currency.Code) (string, error) {
+	s.m.Lock()
+	defer s.m.Unlock()
 
-	if len(d.Store) == 0 {
+	if len(s.Store) == 0 {
 		return "", ErrDepositAddressStoreIsNil
 	}
 
-	r, ok := d.Store[strings.ToUpper(exchName)]
+	r, ok := s.Store[strings.ToUpper(exchName)]
 	if !ok {
 		return "", exchangemanager.ErrExchangeNotFound
 	}
@@ -66,15 +66,15 @@ func (d *DepositAddressStore) GetDepositAddress(exchName string, item currency.C
 }
 
 // GetDepositAddresses returns a list of stored deposit addresses
-func (d *DepositAddressStore) GetDepositAddresses(exchName string) (map[string]string, error) {
-	d.m.Lock()
-	defer d.m.Unlock()
+func (s *Store) GetDepositAddresses(exchName string) (map[string]string, error) {
+	s.m.Lock()
+	defer s.m.Unlock()
 
-	if len(d.Store) == 0 {
+	if len(s.Store) == 0 {
 		return nil, ErrDepositAddressStoreIsNil
 	}
 
-	r, ok := d.Store[strings.ToUpper(exchName)]
+	r, ok := s.Store[strings.ToUpper(exchName)]
 	if !ok {
 		return nil, ErrDepositAddressNotFound
 	}
@@ -84,17 +84,17 @@ func (d *DepositAddressStore) GetDepositAddresses(exchName string) (map[string]s
 
 // GetDepositAddressByExchange returns a deposit address for the specified exchange and cryptocurrency
 // if it exists
-func (d *DepositAddressManager) GetDepositAddressByExchange(exchName string, currencyItem currency.Code) (string, error) {
-	return d.Store.GetDepositAddress(exchName, currencyItem)
+func (m *Manager) GetDepositAddressByExchange(exchName string, currencyItem currency.Code) (string, error) {
+	return m.Store.GetDepositAddress(exchName, currencyItem)
 }
 
 // GetDepositAddressesByExchange returns a list of cryptocurrency addresses for the specified
 // exchange if they exist
-func (d *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (map[string]string, error) {
-	return d.Store.GetDepositAddresses(exchName)
+func (m *Manager) GetDepositAddressesByExchange(exchName string) (map[string]string, error) {
+	return m.Store.GetDepositAddresses(exchName)
 }
 
 // Sync synchronises all deposit addresses
-func (d *DepositAddressManager) Sync(addresses map[string]map[string]string) {
-	d.Store.Seed(addresses)
+func (m *Manager) Sync(addresses map[string]map[string]string) {
+	m.Store.Seed(addresses)
 }

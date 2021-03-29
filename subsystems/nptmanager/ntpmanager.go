@@ -20,42 +20,42 @@ var (
 	errNTPDisabled   = errors.New("ntp client disabled")
 )
 
-// NtpManager starts the NTP manager
-type NtpManager struct {
+// Manager starts the NTP manager
+type Manager struct {
 	started      int32
 	initialCheck bool
 	shutdown     chan struct{}
 }
 
-func (n *NtpManager) Started() bool {
-	return atomic.LoadInt32(&n.started) == 1
+func (m *Manager) Started() bool {
+	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (n *NtpManager) Start() error {
-	if !atomic.CompareAndSwapInt32(&n.started, 0, 1) {
+func (m *Manager) Start() error {
+	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("NTP manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
 
 	if engine.Bot.Config.NTPClient.Level == -1 {
-		atomic.CompareAndSwapInt32(&n.started, 1, 0)
+		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 		return errors.New("NTP client disabled")
 	}
 
 	log.Debugln(log.TimeMgr, "NTP manager starting...")
 	if engine.Bot.Config.NTPClient.Level == 0 && *engine.Bot.Config.Logging.Enabled {
 		// Initial NTP check (prompts user on how we should proceed)
-		n.initialCheck = true
+		m.initialCheck = true
 		// Sometimes the NTP client can have transient issues due to UDP, try
 		// the default retry limits before giving up
 	check:
 		for i := 0; i < NTPRetryLimit; i++ {
-			err := n.processTime()
+			err := m.processTime()
 			switch err {
 			case nil:
 				break check
 			case errNTPDisabled:
 				log.Debugln(log.TimeMgr, "NTP manager: User disabled NTP prompts. Exiting.")
-				atomic.CompareAndSwapInt32(&n.started, 1, 0)
+				atomic.CompareAndSwapInt32(&m.started, 1, 0)
 				return nil
 			default:
 				if i == NTPRetryLimit-1 {
@@ -64,25 +64,25 @@ func (n *NtpManager) Start() error {
 			}
 		}
 	}
-	n.shutdown = make(chan struct{})
-	go n.run()
+	m.shutdown = make(chan struct{})
+	go m.run()
 	log.Debugln(log.TimeMgr, "NTP manager started.")
 	return nil
 }
 
-func (n *NtpManager) Stop() error {
-	if atomic.LoadInt32(&n.started) == 0 {
+func (m *Manager) Stop() error {
+	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("NTP manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&n.started, 1, 0)
+		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 	log.Debugln(log.TimeMgr, "NTP manager shutting down...")
-	close(n.shutdown)
+	close(m.shutdown)
 	return nil
 }
 
-func (n *NtpManager) run() {
+func (m *Manager) run() {
 	t := time.NewTicker(NTPCheckInterval)
 	defer func() {
 		t.Stop()
@@ -91,10 +91,10 @@ func (n *NtpManager) run() {
 
 	for {
 		select {
-		case <-n.shutdown:
+		case <-m.shutdown:
 			return
 		case <-t.C:
-			err := n.processTime()
+			err := m.processTime()
 			if err != nil {
 				log.Error(log.TimeMgr, err)
 			}
@@ -102,12 +102,12 @@ func (n *NtpManager) run() {
 	}
 }
 
-func (n *NtpManager) FetchNTPTime() time.Time {
+func (m *Manager) FetchNTPTime() time.Time {
 	return ntpclient.NTPClient(engine.Bot.Config.NTPClient.Pool)
 }
 
-func (n *NtpManager) processTime() error {
-	NTPTime := n.FetchNTPTime()
+func (m *Manager) processTime() error {
+	NTPTime := m.FetchNTPTime()
 	currentTime := time.Now()
 	diff := NTPTime.Sub(currentTime)
 	configNTPTime := *engine.Bot.Config.NTPClient.AllowedDifference
@@ -120,8 +120,8 @@ func (n *NtpManager) processTime() error {
 			diff,
 			configNTPTime,
 			configNTPNegativeTime)
-		if n.initialCheck {
-			n.initialCheck = false
+		if m.initialCheck {
+			m.initialCheck = false
 			disable, err := engine.Bot.Config.DisableNTPCheck(os.Stdin)
 			if err != nil {
 				return fmt.Errorf("unable to disable NTP check: %s", err)

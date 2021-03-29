@@ -41,7 +41,7 @@ func cleanup() {
 }
 
 func TestSubmitWithdrawal(t *testing.T) {
-	w := WithdrawalManager{exchangeManager: &exchangemanager.ExchangeManager{}}
+	w := WithdrawalManager{exchangeManager: &exchangemanager.Manager{}}
 	exch, err := w.exchangeManager.NewExchangeByName(exchangeName)
 	if err != nil {
 		t.Error(err)

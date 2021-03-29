@@ -45,71 +45,71 @@ var (
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
 )
 
-type ExchangeManager struct {
+type Manager struct {
 	m         sync.Mutex
 	exchanges map[string]exchange.IBotExchange
 }
 
-func (e *ExchangeManager) Add(exch exchange.IBotExchange) {
-	e.m.Lock()
-	if e.exchanges == nil {
-		e.exchanges = make(map[string]exchange.IBotExchange)
+func (m *Manager) Add(exch exchange.IBotExchange) {
+	m.m.Lock()
+	if m.exchanges == nil {
+		m.exchanges = make(map[string]exchange.IBotExchange)
 	}
-	e.exchanges[strings.ToLower(exch.GetName())] = exch
-	e.m.Unlock()
+	m.exchanges[strings.ToLower(exch.GetName())] = exch
+	m.m.Unlock()
 }
 
-func (e *ExchangeManager) GetExchanges() []exchange.IBotExchange {
-	if e.Len() == 0 {
+func (m *Manager) GetExchanges() []exchange.IBotExchange {
+	if m.Len() == 0 {
 		return nil
 	}
 
-	e.m.Lock()
-	defer e.m.Unlock()
+	m.m.Lock()
+	defer m.m.Unlock()
 	var exchs []exchange.IBotExchange
-	for x := range e.exchanges {
-		exchs = append(exchs, e.exchanges[x])
+	for x := range m.exchanges {
+		exchs = append(exchs, m.exchanges[x])
 	}
 	return exchs
 }
 
-func (e *ExchangeManager) RemoveExchange(exchName string) error {
-	if e.Len() == 0 {
+func (m *Manager) RemoveExchange(exchName string) error {
+	if m.Len() == 0 {
 		return ErrNoExchangesLoaded
 	}
-	exch := e.GetExchangeByName(exchName)
+	exch := m.GetExchangeByName(exchName)
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
-	e.m.Lock()
-	defer e.m.Unlock()
-	delete(e.exchanges, strings.ToLower(exchName))
+	m.m.Lock()
+	defer m.m.Unlock()
+	delete(m.exchanges, strings.ToLower(exchName))
 	log.Infof(log.ExchangeSys, "%s exchange unloaded successfully.\n", exchName)
 	return nil
 }
 
-func (e *ExchangeManager) GetExchangeByName(exchangeName string) exchange.IBotExchange {
-	if e.Len() == 0 {
+func (m *Manager) GetExchangeByName(exchangeName string) exchange.IBotExchange {
+	if m.Len() == 0 {
 		return nil
 	}
-	e.m.Lock()
-	defer e.m.Unlock()
-	exch, ok := e.exchanges[strings.ToLower(exchangeName)]
+	m.m.Lock()
+	defer m.m.Unlock()
+	exch, ok := m.exchanges[strings.ToLower(exchangeName)]
 	if !ok {
 		return nil
 	}
 	return exch
 }
 
-func (e *ExchangeManager) Len() int {
-	e.m.Lock()
-	defer e.m.Unlock()
-	return len(e.exchanges)
+func (m *Manager) Len() int {
+	m.m.Lock()
+	defer m.m.Unlock()
+	return len(m.exchanges)
 }
 
-func (e *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange, error) {
+func (m *Manager) NewExchangeByName(name string) (exchange.IBotExchange, error) {
 	nameLower := strings.ToLower(name)
-	if e.GetExchangeByName(nameLower) != nil {
+	if m.GetExchangeByName(nameLower) != nil {
 		return nil, ErrExchangeAlreadyLoaded
 	}
 	var exch exchange.IBotExchange

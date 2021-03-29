@@ -17,44 +17,44 @@ var (
 	PortfolioSleepDelay = time.Minute
 )
 
-type PortfolioManager struct {
+type Manager struct {
 	started    int32
 	processing int32
 	shutdown   chan struct{}
 }
 
-func (p *PortfolioManager) Started() bool {
-	return atomic.LoadInt32(&p.started) == 1
+func (m *Manager) Started() bool {
+	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (p *PortfolioManager) Start() error {
-	if atomic.AddInt32(&p.started, 1) != 1 {
+func (m *Manager) Start() error {
+	if atomic.AddInt32(&m.started, 1) != 1 {
 		return errors.New("portfolio manager already started")
 	}
 
 	log.Debugln(log.PortfolioMgr, "Portfolio manager starting...")
 	engine.Bot.Portfolio = &portfolio.Portfolio
 	engine.Bot.Portfolio.Seed(engine.Bot.Config.Portfolio)
-	p.shutdown = make(chan struct{})
+	m.shutdown = make(chan struct{})
 	portfolio.Verbose = engine.Bot.Settings.Verbose
 
-	go p.run()
+	go m.run()
 	return nil
 }
-func (p *PortfolioManager) Stop() error {
-	if atomic.LoadInt32(&p.started) == 0 {
+func (m *Manager) Stop() error {
+	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("portfolio manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&p.started, 1, 0)
+		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 
 	log.Debugln(log.PortfolioMgr, "Portfolio manager shutting down...")
-	close(p.shutdown)
+	close(m.shutdown)
 	return nil
 }
 
-func (p *PortfolioManager) run() {
+func (m *Manager) run() {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
 	engine.Bot.ServicesWG.Add(1)
 	tick := time.NewTicker(engine.Bot.Settings.PortfolioManagerDelay)
@@ -64,19 +64,19 @@ func (p *PortfolioManager) run() {
 		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 	}()
 
-	go p.processPortfolio()
+	go m.processPortfolio()
 	for {
 		select {
-		case <-p.shutdown:
+		case <-m.shutdown:
 			return
 		case <-tick.C:
-			go p.processPortfolio()
+			go m.processPortfolio()
 		}
 	}
 }
 
-func (p *PortfolioManager) processPortfolio() {
-	if !atomic.CompareAndSwapInt32(&p.processing, 0, 1) {
+func (m *Manager) processPortfolio() {
+	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
 		return
 	}
 	pf := portfolio.GetPortfolio()
@@ -97,5 +97,5 @@ func (p *PortfolioManager) processPortfolio() {
 			value)
 	}
 	engine.SeedExchangeAccountInfo(engine.Bot.GetAllEnabledExchangeAccountInfo().Data)
-	atomic.CompareAndSwapInt32(&p.processing, 1, 0)
+	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
 }

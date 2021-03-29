@@ -136,7 +136,10 @@ func (c *WebsocketClient) read() {
 
 			if result.authRequired && !c.Authenticated {
 				log.Warnf(log.WebsocketMgr, "Websocket: request %s failed due to unauthenticated request on an authenticated API\n", evt.Event)
-				c.SendWebsocketMessage(WebsocketEventResponse{Event: evt.Event, Error: "unauthorised request on authenticated API"})
+				err = c.SendWebsocketMessage(WebsocketEventResponse{Event: evt.Event, Error: "unauthorised request on authenticated API"})
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
+				}
 				continue
 			}
 
@@ -151,13 +154,19 @@ func (c *WebsocketClient) read() {
 
 func (c *WebsocketClient) write() {
 	defer func() {
-		c.Conn.Close()
+		err := c.Conn.Close()
+		if err != nil {
+			log.Error(log.WebsocketMgr, err)
+		}
 	}()
 	for { // nolint // ws client write routine loop
 		select {
 		case message, ok := <-c.Send:
 			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
+				}
 				log.Debugln(log.WebsocketMgr, "websocket: hub closed the channel")
 				return
 			}
@@ -167,12 +176,18 @@ func (c *WebsocketClient) write() {
 				log.Errorf(log.WebsocketMgr, "websocket: failed to create new io.writeCloser: %s\n", err)
 				return
 			}
-			w.Write(message)
+			_, err = w.Write(message)
+			if err != nil {
+				log.Error(log.WebsocketMgr, err)
+			}
 
 			// Add queued chat messages to the current websocket message
 			n := len(c.Send)
 			for i := 0; i < n; i++ {
-				w.Write(<-c.Send)
+				_, err = w.Write(<-c.Send)
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
+				}
 			}
 
 			if err := w.Close(); err != nil {

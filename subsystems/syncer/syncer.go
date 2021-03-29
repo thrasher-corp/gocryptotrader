@@ -201,7 +201,8 @@ func (e *ExchangeCurrencyPairSyncer) setProcessing(exchangeName string, p curren
 	}
 }
 
-func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) {
+// Update notifies the ExchangeCurrencyPairSyncer to change the last updated time for a exchange asset pair
+func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) {
 	if atomic.LoadInt32(&e.initSyncStarted) != 1 {
 		return
 	}
@@ -211,12 +212,10 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 		if !e.Cfg.SyncOrderbook {
 			return
 		}
-
 	case SyncItemTicker:
 		if !e.Cfg.SyncTicker {
 			return
 		}
-
 	case SyncItemTrade:
 		if !e.Cfg.SyncTrades {
 			return
@@ -441,13 +440,13 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 									} else {
 										result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 									}
-									printTickerSummary(result, "REST", err)
+									PrintTickerSummary(result, "REST", err)
 									if err == nil {
 										if engine.Bot.Config.RemoteControl.WebsocketRPC.Enabled {
 											relayWebsocketEvent(result, "ticker_update", c.AssetType.String(), exchangeName)
 										}
 									}
-									e.update(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, err)
+									e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, err)
 								}
 							} else {
 								time.Sleep(time.Millisecond * 50)
@@ -480,13 +479,13 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 
 								e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
 								result, err := exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
-								printOrderbookSummary(result, "REST", engine.Bot, err)
+								PrintOrderbookSummary(result, "REST", engine.Bot, err)
 								if err == nil {
 									if engine.Bot.Config.RemoteControl.WebsocketRPC.Enabled {
 										relayWebsocketEvent(result, "orderbook_update", c.AssetType.String(), exchangeName)
 									}
 								}
-								e.update(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, err)
+								e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, err)
 							} else {
 								time.Sleep(time.Millisecond * 50)
 							}
@@ -495,7 +494,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 							if !e.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) {
 								if c.Trade.LastUpdated.IsZero() || time.Since(c.Trade.LastUpdated) > e.Cfg.SyncTimeout {
 									e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
-									e.update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
+									e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
 								}
 							}
 						}
@@ -536,7 +535,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 			}
 
 			if !ws.IsConnected() && !ws.IsConnecting() {
-				go engine.Bot.ApiManager.WebsocketDataReceiver(ws)
+				go engine.Bot.WebsocketDataReceiver(ws)
 
 				err = ws.Connect()
 				if err == nil {
@@ -691,7 +690,8 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64, d
 	)
 }
 
-func printTickerSummary(result *ticker.Price, protocol string, err error) {
+// PrintTickerSummary outputs the ticker results
+func PrintTickerSummary(result *ticker.Price, protocol string, err error) {
 	if err != nil {
 		if err == common.ErrNotYetImplemented {
 			log.Warnf(log.Ticker, "Failed to get %s ticker. Error: %s\n",
@@ -705,7 +705,10 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 		return
 	}
 
-	stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+	err = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+	if err != nil {
+		log.Error(log.SyncMgr, err)
+	}
 	if result.Pair.Quote.IsFiatCurrency() &&
 		engine.Bot != nil &&
 		result.Pair.Quote != engine.Bot.Config.Currency.FiatDisplayCurrency {
@@ -756,7 +759,8 @@ const (
 	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n"
 )
 
-func printOrderbookSummary(result *orderbook.Base, protocol string, bot *engine.Engine, err error) {
+// PrintOrderbookSummary outputs orderbook results
+func PrintOrderbookSummary(result *orderbook.Base, protocol string, bot *engine.Engine, err error) {
 	if err != nil {
 		if result == nil {
 			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",

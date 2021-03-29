@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-type ntppacket struct {
+type ntpPacket struct {
 	Settings       uint8  // leap yr indicator, ver number, and mode
 	Stratum        uint8  // stratum of local clock
 	Poll           int8   // poll exponent
@@ -26,7 +26,7 @@ type ntppacket struct {
 	TxTimeFrac     uint32 // transmit time frac
 }
 
-// NTPClient create's a new NTPClient and returns local based on ntp servers provided timestamp
+// NTPClient creates a new NTPClient and returns local based on ntp servers provided timestamp
 // if no server can be reached will return local time in UTC()
 func NTPClient(pool []string) time.Time {
 	for i := range pool {
@@ -38,26 +38,40 @@ func NTPClient(pool []string) time.Time {
 
 		if err := con.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
 			log.Warnf(log.TimeMgr, "Unable to SetDeadline. Error: %s\n", err)
-			con.Close()
+			err = con.Close()
+			if err != nil {
+				log.Error(log.TimeMgr, err)
+			}
 			continue
 		}
 
-		req := &ntppacket{Settings: 0x1B}
+		req := &ntpPacket{Settings: 0x1B}
 		if err := binary.Write(con, binary.BigEndian, req); err != nil {
-			con.Close()
+			log.Warnf(log.TimeMgr, "Unable to write. Error: %s\n", err)
+			err = con.Close()
+			if err != nil {
+				log.Error(log.TimeMgr, err)
+			}
 			continue
 		}
 
-		rsp := &ntppacket{}
+		rsp := &ntpPacket{}
 		if err := binary.Read(con, binary.BigEndian, rsp); err != nil {
-			con.Close()
+			log.Warnf(log.TimeMgr, "Unable to read. Error: %s\n", err)
+			err = con.Close()
+			if err != nil {
+				log.Error(log.TimeMgr, err)
+			}
 			continue
 		}
 
 		secs := float64(rsp.TxTimeSec) - 2208988800
 		nanos := (int64(rsp.TxTimeFrac) * 1e9) >> 32
 
-		con.Close()
+		err = con.Close()
+		if err != nil {
+			log.Error(log.TimeMgr, err)
+		}
 		return time.Unix(int64(secs), nanos)
 	}
 	log.Warnln(log.TimeMgr, "No valid NTP servers found, using current system time")

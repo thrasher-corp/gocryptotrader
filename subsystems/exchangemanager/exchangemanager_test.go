@@ -9,7 +9,7 @@ import (
 
 func TestExchangeManagerAdd(t *testing.T) {
 	t.Parallel()
-	var e ExchangeManager
+	var e Manager
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
 	e.Add(b)
@@ -20,7 +20,7 @@ func TestExchangeManagerAdd(t *testing.T) {
 
 func TestExchangeManagerGetExchanges(t *testing.T) {
 	t.Parallel()
-	var e ExchangeManager
+	var e Manager
 	if exchanges := e.GetExchanges(); exchanges != nil {
 		t.Error("unexpected value")
 	}
@@ -34,7 +34,7 @@ func TestExchangeManagerGetExchanges(t *testing.T) {
 
 func TestExchangeManagerRemoveExchange(t *testing.T) {
 	t.Parallel()
-	var e ExchangeManager
+	var e Manager
 	if err := e.RemoveExchange("Bitfinex"); err != ErrNoExchangesLoaded {
 		t.Error("no exchanges should be loaded")
 	}

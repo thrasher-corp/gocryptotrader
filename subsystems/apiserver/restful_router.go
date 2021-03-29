@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -33,24 +33,24 @@ func RESTLogger(inner http.Handler, name string) http.Handler {
 }
 
 // StartRESTServer starts a REST server
-func StartRESTServer(bot *engine.Engine) {
-	listenAddr := bot.Config.RemoteControl.DeprecatedRPC.ListenAddress
+func StartRESTServer(remoteConfig config.RemoteControlConfig, pprofConfig config.Profiler) {
+	listenAddr := remoteConfig.DeprecatedRPC.ListenAddress
 	log.Debugf(log.RESTSys,
 		"Deprecated RPC server support enabled. Listen URL: http://%s:%d\n",
 		common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
-	err := http.ListenAndServe(listenAddr, newRouter(bot, true))
+	err := http.ListenAndServe(listenAddr, newRouter(remoteConfig, true, pprofConfig))
 	if err != nil {
 		log.Errorf(log.RESTSys, "Failed to start deprecated RPC server. Err: %s", err)
 	}
 }
 
 // StartWebsocketServer starts a Websocket server
-func StartWebsocketServer(bot *engine.Engine) {
-	listenAddr := bot.Config.RemoteControl.WebsocketRPC.ListenAddress
+func StartWebsocketServer(remoteConfig config.RemoteControlConfig, pprofConfig config.Profiler) {
+	listenAddr := remoteConfig.DeprecatedRPC.ListenAddress
 	log.Debugf(log.RESTSys,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
 		common.ExtractHost(listenAddr), common.ExtractPort(listenAddr))
-	err := http.ListenAndServe(listenAddr, newRouter(bot, false))
+	err := http.ListenAndServe(listenAddr, newRouter(remoteConfig, false, pprofConfig))
 	if err != nil {
 		log.Errorf(log.RESTSys, "Failed to start websocket RPC server. Err: %s", err)
 	}
@@ -58,15 +58,15 @@ func StartWebsocketServer(bot *engine.Engine) {
 
 // newRouter takes in the exchange interfaces and returns a new multiplexor
 // router
-func newRouter(bot *engine.Engine, isREST bool) *mux.Router {
+func newRouter(bot config.RemoteControlConfig, isREST bool, pprofConfig config.Profiler) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	var routes []Route
 	var listenAddr string
 
 	if isREST {
-		listenAddr = bot.Config.RemoteControl.DeprecatedRPC.ListenAddress
+		listenAddr = bot.DeprecatedRPC.ListenAddress
 	} else {
-		listenAddr = bot.Config.RemoteControl.WebsocketRPC.ListenAddress
+		listenAddr = bot.WebsocketRPC.ListenAddress
 	}
 
 	if common.ExtractPort(listenAddr) == 80 {
@@ -87,9 +87,9 @@ func newRouter(bot *engine.Engine, isREST bool) *mux.Router {
 			{"AllActiveExchangesAndOrderbooks", http.MethodGet, "/exchanges/orderbook/latest/all", RESTGetAllActiveOrderbooks},
 		}
 
-		if bot.Config.Profiler.Enabled {
-			if bot.Config.Profiler.MutexProfileFraction > 0 {
-				runtime.SetMutexProfileFraction(bot.Config.Profiler.MutexProfileFraction)
+		if pprofConfig.Enabled {
+			if pprofConfig.MutexProfileFraction > 0 {
+				runtime.SetMutexProfileFraction(pprofConfig.MutexProfileFraction)
 			}
 			log.Debugf(log.RESTSys,
 				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof/\n",
@@ -115,6 +115,9 @@ func newRouter(bot *engine.Engine, isREST bool) *mux.Router {
 }
 
 func getIndex(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprint(w, "<html>GoCryptoTrader RESTful interface. For the web GUI, please visit the <a href=https://github.com/thrasher-corp/gocryptotrader/blob/master/web/README.md>web GUI readme.</a></html>")
+	_, err := fmt.Fprint(w, "<html>GoCryptoTrader RESTful interface. For the web GUI, please visit the <a href=https://github.com/thrasher-corp/gocryptotrader/blob/master/web/README.md>web GUI readme.</a></html>")
+	if err != nil {
+		log.Error(log.CommunicationMgr, err)
+	}
 	w.WriteHeader(http.StatusOK)
 }

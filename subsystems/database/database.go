@@ -20,29 +20,29 @@ var (
 	dbConn *database.Instance
 )
 
-type DatabaseManager struct {
+type Manager struct {
 	started  int32
 	shutdown chan struct{}
 }
 
-func (a *DatabaseManager) Started() bool {
-	return atomic.LoadInt32(&a.started) == 1
+func (m *Manager) Started() bool {
+	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (a *DatabaseManager) Start(bot *engine.Engine) (err error) {
-	if !atomic.CompareAndSwapInt32(&a.started, 0, 1) {
+func (m *Manager) Start(bot *engine.Engine) (err error) {
+	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("database manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
 
 	defer func() {
 		if err != nil {
-			atomic.CompareAndSwapInt32(&a.started, 1, 0)
+			atomic.CompareAndSwapInt32(&m.started, 1, 0)
 		}
 	}()
 
 	log.Debugln(log.DatabaseMgr, "Database manager starting...")
 
-	a.shutdown = make(chan struct{})
+	m.shutdown = make(chan struct{})
 
 	if bot.Config.Database.Enabled {
 		if bot.Config.Database.Driver == database.DBPostgreSQL {
@@ -71,19 +71,19 @@ func (a *DatabaseManager) Start(bot *engine.Engine) (err error) {
 			boil.DebugWriter = DBLogger
 		}
 
-		go a.run(bot)
+		go m.run(bot)
 		return nil
 	}
 
 	return errors.New("database support disabled")
 }
 
-func (a *DatabaseManager) Stop() error {
-	if atomic.LoadInt32(&a.started) == 0 {
+func (m *Manager) Stop() error {
+	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("database manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&a.started, 1, 0)
+		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 
 	err := dbConn.SQL.Close()
@@ -91,11 +91,11 @@ func (a *DatabaseManager) Stop() error {
 		log.Errorf(log.DatabaseMgr, "Failed to close database: %v", err)
 	}
 
-	close(a.shutdown)
+	close(m.shutdown)
 	return nil
 }
 
-func (a *DatabaseManager) run(bot *engine.Engine) {
+func (m *Manager) run(bot *engine.Engine) {
 	log.Debugln(log.DatabaseMgr, "Database manager started.")
 	bot.ServicesWG.Add(1)
 	t := time.NewTicker(time.Second * 2)
@@ -108,15 +108,15 @@ func (a *DatabaseManager) run(bot *engine.Engine) {
 
 	for {
 		select {
-		case <-a.shutdown:
+		case <-m.shutdown:
 			return
 		case <-t.C:
-			go a.checkConnection()
+			go m.checkConnection()
 		}
 	}
 }
 
-func (a *DatabaseManager) checkConnection() {
+func (m *Manager) checkConnection() {
 	dbConn.Mu.Lock()
 	defer dbConn.Mu.Unlock()
 

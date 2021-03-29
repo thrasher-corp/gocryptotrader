@@ -23,16 +23,16 @@ type orderManagerConfig struct {
 	OrderSubmissionRetries int64
 }
 
-type orderStore struct {
+type store struct {
 	m      sync.RWMutex
 	Orders map[string][]*order.Detail
 	bot    *engine.Engine
 }
 
-type OrderManager struct {
+type Manager struct {
 	started    int32
 	shutdown   chan struct{}
-	orderStore orderStore
+	orderStore store
 	cfg        orderManagerConfig
 }
 

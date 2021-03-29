@@ -18,19 +18,16 @@ import (
 const (
 	// ErrWithdrawRequestNotFound message to display when no record is found
 	ErrWithdrawRequestNotFound = "%v not found"
-	// ErrRequestCannotbeNil message to display when request is nil
-	ErrRequestCannotbeNil = "request cannot be nil"
 	// StatusError const for for "error" string
 	StatusError = "error"
 )
 
 type WithdrawalManager struct {
-	exchangeManager *exchangemanager.ExchangeManager
+	exchangeManager *exchangemanager.Manager
 	isDryRun        bool
-	//bot *engine.Engine
 }
 
-func Setup(manager *exchangemanager.ExchangeManager, isDryRun bool) (*WithdrawalManager, error) {
+func Setup(manager *exchangemanager.Manager, isDryRun bool) (*WithdrawalManager, error) {
 	if manager == nil {
 		return nil, errors.New("nil manager")
 	}
@@ -199,12 +196,12 @@ func ParseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 			},
 		}
 
-		updatedAtPtype, err := ptypes.TimestampProto(ret[x].Timestamp)
+		updatedAtPType, err := ptypes.TimestampProto(ret[x].Timestamp)
 		if err != nil {
 			log.Errorf(log.Global, "failed to convert time: %v", err)
 		}
 
-		tempEvent.UpdatedAt = updatedAtPtype
+		tempEvent.UpdatedAt = updatedAtPType
 		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
 			Address: ret[x].CryptoToAddress,
 			Fee:     ret[x].Fee,
@@ -231,17 +228,17 @@ func ParseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 			Type:        int32(ret.RequestDetails.Type),
 		},
 	}
-	createdAtPtype, err := ptypes.TimestampProto(ret.CreatedAt)
+	createdAtPType, err := ptypes.TimestampProto(ret.CreatedAt)
 	if err != nil {
 		log.Errorf(log.Global, "failed to convert time: %v", err)
 	}
-	tempEvent.CreatedAt = createdAtPtype
+	tempEvent.CreatedAt = createdAtPType
 
-	updatedAtPtype, err := ptypes.TimestampProto(ret.UpdatedAt)
+	updatedAtPType, err := ptypes.TimestampProto(ret.UpdatedAt)
 	if err != nil {
 		log.Errorf(log.Global, "failed to convert time: %v", err)
 	}
-	tempEvent.UpdatedAt = updatedAtPtype
+	tempEvent.UpdatedAt = updatedAtPType
 
 	if ret.RequestDetails.Type == withdraw.Crypto {
 		tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)

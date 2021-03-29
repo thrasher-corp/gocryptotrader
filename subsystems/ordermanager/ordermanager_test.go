@@ -33,14 +33,14 @@ func TestOrdersGet(t *testing.T) {
 
 func TestOrdersAdd(t *testing.T) {
 	bot := OrdersSetup(t)
-	err := bot.OrderManager.orderStore.Add(&order.Detail{
+	err := bot.OrderManager.orderStore.add(&order.Detail{
 		Exchange: events.testExchange,
 		ID:       "TestOrdersAdd",
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.add(&order.Detail{
 		Exchange: "testTest",
 		ID:       "TestOrdersAdd",
 	})
@@ -48,12 +48,12 @@ func TestOrdersAdd(t *testing.T) {
 		t.Error("Expected error from non existent exchange")
 	}
 
-	err = bot.OrderManager.orderStore.Add(nil)
+	err = bot.OrderManager.orderStore.add(nil)
 	if err == nil {
 		t.Error("Expected error from nil order")
 	}
 
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.add(&order.Detail{
 		Exchange: events.testExchange,
 		ID:       "TestOrdersAdd",
 	})
@@ -64,7 +64,7 @@ func TestOrdersAdd(t *testing.T) {
 
 func TestGetByInternalOrderID(t *testing.T) {
 	bot := OrdersSetup(t)
-	err := bot.OrderManager.orderStore.Add(&order.Detail{
+	err := bot.OrderManager.orderStore.add(&order.Detail{
 		Exchange:        events.testExchange,
 		ID:              "TestGetByInternalOrderID",
 		InternalOrderID: "internalTest",
@@ -73,7 +73,7 @@ func TestGetByInternalOrderID(t *testing.T) {
 		t.Error(err)
 	}
 
-	o, err := bot.OrderManager.orderStore.GetByInternalOrderID("internalTest")
+	o, err := bot.OrderManager.orderStore.getByInternalOrderID("internalTest")
 	if err != nil {
 		t.Error(err)
 	}
@@ -84,7 +84,7 @@ func TestGetByInternalOrderID(t *testing.T) {
 		t.Error("Expected to retrieve order")
 	}
 
-	_, err = bot.OrderManager.orderStore.GetByInternalOrderID("NoOrder")
+	_, err = bot.OrderManager.orderStore.getByInternalOrderID("NoOrder")
 	if err != ErrOrderNotFound {
 		t.Error(err)
 	}
@@ -92,7 +92,7 @@ func TestGetByInternalOrderID(t *testing.T) {
 
 func TestGetByExchange(t *testing.T) {
 	bot := OrdersSetup(t)
-	err := bot.OrderManager.orderStore.Add(&order.Detail{
+	err := bot.OrderManager.orderStore.add(&order.Detail{
 		Exchange:        events.testExchange,
 		ID:              "TestGetByExchange",
 		InternalOrderID: "internalTestGetByExchange",
@@ -101,7 +101,7 @@ func TestGetByExchange(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.add(&order.Detail{
 		Exchange:        events.testExchange,
 		ID:              "TestGetByExchange2",
 		InternalOrderID: "internalTestGetByExchange2",
@@ -110,7 +110,7 @@ func TestGetByExchange(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.add(&order.Detail{
 		Exchange:        exchangemanager.fakePassExchange,
 		ID:              "TestGetByExchange3",
 		InternalOrderID: "internalTest3",
@@ -119,7 +119,7 @@ func TestGetByExchange(t *testing.T) {
 		t.Error(err)
 	}
 	var o []*order.Detail
-	o, err = bot.OrderManager.orderStore.GetByExchange(events.testExchange)
+	o, err = bot.OrderManager.orderStore.getByExchange(events.testExchange)
 	if err != nil {
 		t.Error(err)
 	}
@@ -139,11 +139,11 @@ func TestGetByExchange(t *testing.T) {
 		t.Error("Expected orders 'TestGetByExchange' and 'TestGetByExchange2' to be returned")
 	}
 
-	_, err = bot.OrderManager.orderStore.GetByInternalOrderID("NoOrder")
+	_, err = bot.OrderManager.orderStore.getByInternalOrderID("NoOrder")
 	if err != ErrOrderNotFound {
 		t.Error(err)
 	}
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.add(&order.Detail{
 		Exchange: "thisWillFail",
 	})
 	if err == nil {
@@ -153,7 +153,7 @@ func TestGetByExchange(t *testing.T) {
 
 func TestGetByExchangeAndID(t *testing.T) {
 	bot := OrdersSetup(t)
-	err := bot.OrderManager.orderStore.Add(&order.Detail{
+	err := bot.OrderManager.orderStore.add(&order.Detail{
 		Exchange: events.testExchange,
 		ID:       "TestGetByExchangeAndID",
 	})
@@ -161,7 +161,7 @@ func TestGetByExchangeAndID(t *testing.T) {
 		t.Error(err)
 	}
 
-	o, err := bot.OrderManager.orderStore.GetByExchangeAndID(events.testExchange, "TestGetByExchangeAndID")
+	o, err := bot.OrderManager.orderStore.getByExchangeAndID(events.testExchange, "TestGetByExchangeAndID")
 	if err != nil {
 		t.Error(err)
 	}
@@ -169,12 +169,12 @@ func TestGetByExchangeAndID(t *testing.T) {
 		t.Error("Expected to retrieve order")
 	}
 
-	_, err = bot.OrderManager.orderStore.GetByExchangeAndID("", "TestGetByExchangeAndID")
+	_, err = bot.OrderManager.orderStore.getByExchangeAndID("", "TestGetByExchangeAndID")
 	if err != exchangemanager.ErrExchangeNotFound {
 		t.Error(err)
 	}
 
-	_, err = bot.OrderManager.orderStore.GetByExchangeAndID(events.testExchange, "")
+	_, err = bot.OrderManager.orderStore.getByExchangeAndID(events.testExchange, "")
 	if err != ErrOrderNotFound {
 		t.Error(err)
 	}
@@ -189,7 +189,7 @@ func TestExists(t *testing.T) {
 		Exchange: events.testExchange,
 		ID:       "TestExists",
 	}
-	err := bot.OrderManager.orderStore.Add(o)
+	err := bot.OrderManager.orderStore.add(o)
 	if err != nil {
 		t.Error(err)
 	}
@@ -239,7 +239,7 @@ func TestCancelOrder(t *testing.T) {
 		ID:       "TestCancelOrder",
 		Status:   order.New,
 	}
-	err = bot.OrderManager.orderStore.Add(o)
+	err = bot.OrderManager.orderStore.add(o)
 	if err != nil {
 		t.Error(err)
 	}
@@ -309,7 +309,7 @@ func TestCancelAllOrders(t *testing.T) {
 		ID:       "TestCancelAllOrders",
 		Status:   order.New,
 	}
-	err := bot.OrderManager.orderStore.Add(o)
+	err := bot.OrderManager.orderStore.add(o)
 	if err != nil {
 		t.Error(err)
 	}
@@ -403,7 +403,7 @@ func TestSubmit(t *testing.T) {
 		t.Error(err)
 	}
 
-	o2, err := bot.OrderManager.orderStore.GetByExchangeAndID(exchangemanager.fakePassExchange, "FakePassingExchangeOrder")
+	o2, err := bot.OrderManager.orderStore.getByExchangeAndID(exchangemanager.fakePassExchange, "FakePassingExchangeOrder")
 	if err != nil {
 		t.Error(err)
 	}

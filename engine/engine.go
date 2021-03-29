@@ -49,16 +49,16 @@ type Engine struct {
 	Config                      *config.Config
 	Portfolio                   *portfolio.Base
 	ExchangeCurrencyPairManager *syncer.ExchangeCurrencyPairSyncer
-	NTPManager                  nptmanager.NtpManager
+	NTPManager                  nptmanager.Manager
 	ConnectionManager           connectionmanager.ConnectionManager
-	DatabaseManager             database.DatabaseManager
+	DatabaseManager             database.Manager
 	GctScriptManager            *gctscript.GctScriptManager
-	OrderManager                ordermanager.OrderManager
-	PortfolioManager            portfoliomanager.PortfolioManager
-	CommsManager                communicationmanager.CommsManager
-	exchangeManager             exchangemanager.ExchangeManager
-	eventManager                *events.EventManager
-	DepositAddressManager       *depositaddress.DepositAddressManager
+	OrderManager                ordermanager.Manager
+	PortfolioManager            portfoliomanager.Manager
+	CommsManager                communicationmanager.Manager
+	exchangeManager             exchangemanager.Manager
+	eventManager                *events.Manager
+	DepositAddressManager       *depositaddress.Manager
 	WithdrawalManager           *withdrawalmanager.WithdrawalManager
 	Settings                    Settings
 	Uptime                      time.Time
@@ -467,11 +467,11 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDeprecatedRPC {
-		go apiserver.StartRESTServer(bot)
+		go apiserver.StartRESTServer(bot.Config.RemoteControl, bot.Config.Profiler)
 	}
 
 	if bot.Settings.EnableWebsocketRPC {
-		go apiserver.StartWebsocketServer(bot)
+		go apiserver.StartWebsocketServer(bot.Config.RemoteControl, bot.Config.Profiler)
 		apiserver.StartWebsocketHandler()
 	}
 
@@ -482,7 +482,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDepositAddressManager {
-		bot.DepositAddressManager = new(depositaddress.DepositAddressManager)
+		bot.DepositAddressManager = new(depositaddress.Manager)
 		go bot.DepositAddressManager.Sync(bot.GetExchangeCryptocurrencyDepositAddresses())
 	}
 
@@ -947,14 +947,14 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		}
 	case *ticker.Price:
 		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
-			bot.ExchangeCurrencyPairManager.update(exchName,
+			bot.ExchangeCurrencyPairManager.Update(exchName,
 				d.Pair,
 				d.AssetType,
-				SyncItemTicker,
+				syncer.SyncItemTicker,
 				nil)
 		}
 		err := ticker.ProcessTicker(d)
-		printTickerSummary(d, "websocket", err)
+		syncer.PrintTickerSummary(d, "websocket", err)
 	case stream.KlineData:
 		if bot.Settings.Verbose {
 			gctlog.Infof(gctlog.WebsocketMgr, "%s websocket %s %s kline updated %+v",
@@ -965,21 +965,21 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 		}
 	case *orderbook.Base:
 		if bot.Settings.EnableExchangeSyncManager && bot.ExchangeCurrencyPairManager != nil {
-			bot.ExchangeCurrencyPairManager.update(exchName,
+			bot.ExchangeCurrencyPairManager.Update(exchName,
 				d.Pair,
 				d.AssetType,
-				SyncItemOrderbook,
+				syncer.SyncItemOrderbook,
 				nil)
 		}
-		printOrderbookSummary(d, "websocket", bot, nil)
+		syncer.PrintOrderbookSummary(d, "websocket", bot, nil)
 	case *order.Detail:
-		if !bot.OrderManager.orderStore.exists(d) {
-			err := bot.OrderManager.orderStore.Add(d)
+		if !bot.OrderManager.Exists(d) {
+			err := bot.OrderManager.Add(d)
 			if err != nil {
 				return err
 			}
 		} else {
-			od, err := bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
+			od, err := bot.OrderManager.GetByExchangeAndID(d.Exchange, d.ID)
 			if err != nil {
 				return err
 			}
@@ -988,7 +988,7 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 	case *order.Cancel:
 		return bot.OrderManager.Cancel(d)
 	case *order.Modify:
-		od, err := bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
+		od, err := bot.OrderManager.GetByExchangeAndID(d.Exchange, d.ID)
 		if err != nil {
 			return err
 		}
