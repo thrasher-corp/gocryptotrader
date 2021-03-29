@@ -2,6 +2,7 @@ package report
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,11 +22,16 @@ import (
 const testExchange = "binance"
 
 func TestGenerateReport(t *testing.T) {
+	var d Data
 	e := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-
-	d := Data{
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
+	}
+	defer os.RemoveAll(tempDir)
+	d = Data{
 		Config:       &config.Config{},
 		OutputPath:   filepath.Join("..", "results"),
 		TemplatePath: filepath.Join("tpl.gohtml"),
@@ -291,16 +297,8 @@ func TestGenerateReport(t *testing.T) {
 			},
 		},
 	}
-	d.OutputPath = filepath.Join(d.OutputPath, "testdata")
-	err := os.Mkdir(d.OutputPath, 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d.OutputPath = tempDir
 	err = d.GenerateReport()
-	if err != nil {
-		t.Error(err)
-	}
-	err = os.RemoveAll(d.OutputPath)
 	if err != nil {
 		t.Error(err)
 	}
