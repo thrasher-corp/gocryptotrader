@@ -1,4 +1,4 @@
-package nptmanager
+package ntp
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/nptmanager/ntpclient"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ntp/ntpclient"
 )
 
 // vars related to the NTP manager

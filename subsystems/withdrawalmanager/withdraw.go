@@ -22,16 +22,16 @@ const (
 	StatusError = "error"
 )
 
-type WithdrawalManager struct {
+type Manager struct {
 	exchangeManager *exchangemanager.Manager
 	isDryRun        bool
 }
 
-func Setup(manager *exchangemanager.Manager, isDryRun bool) (*WithdrawalManager, error) {
+func Setup(manager *exchangemanager.Manager, isDryRun bool) (*Manager, error) {
 	if manager == nil {
 		return nil, errors.New("nil manager")
 	}
-	return &WithdrawalManager{
+	return &Manager{
 		exchangeManager: manager,
 		isDryRun:        isDryRun,
 	}, nil
@@ -39,12 +39,12 @@ func Setup(manager *exchangemanager.Manager, isDryRun bool) (*WithdrawalManager,
 
 // SubmitWithdrawal performs validation and submits a new withdraw request to
 // exchange
-func (w *WithdrawalManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
+func (m *Manager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 	if req == nil {
 		return nil, withdraw.ErrRequestCannotBeNil
 	}
 
-	exch := w.exchangeManager.GetExchangeByName(req.Exchange)
+	exch := m.exchangeManager.GetExchangeByName(req.Exchange)
 	if exch == nil {
 		return nil, exchangemanager.ErrExchangeNotFound
 	}
@@ -57,7 +57,7 @@ func (w *WithdrawalManager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.R
 	}
 
 	var err error
-	if w.isDryRun {
+	if m.isDryRun {
 		log.Warnln(log.Global, "Dry run enabled, no withdrawal request will be submitted or have an event created")
 		resp.ID = withdraw.DryRunID
 		resp.Exchange.Status = "dryrun"

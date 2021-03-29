@@ -18,7 +18,7 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/nptmanager/ntpclient"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ntp/ntpclient"
 )
 
 const (

@@ -34,7 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/events"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/events/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/nptmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ntp"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/rpcserver"
@@ -49,7 +49,7 @@ type Engine struct {
 	Config                      *config.Config
 	Portfolio                   *portfolio.Base
 	ExchangeCurrencyPairManager *syncer.ExchangeCurrencyPairSyncer
-	NTPManager                  nptmanager.Manager
+	NTPManager                  ntp.Manager
 	ConnectionManager           connectionmanager.ConnectionManager
 	DatabaseManager             database.Manager
 	GctScriptManager            *gctscript.GctScriptManager
@@ -59,7 +59,7 @@ type Engine struct {
 	exchangeManager             exchangemanager.Manager
 	eventManager                *events.Manager
 	DepositAddressManager       *depositaddress.Manager
-	WithdrawalManager           *withdrawalmanager.WithdrawalManager
+	WithdrawalManager           *withdrawalmanager.Manager
 	Settings                    Settings
 	Uptime                      time.Time
 	ServicesWG                  sync.WaitGroup
