@@ -58,7 +58,7 @@ var (
 // order size, order pricing, total notional values, total maximum orders etc
 // for execution on an exchange.
 type ExecutionLimits struct {
-	m   map[asset.Item]map[currency.Code]map[currency.Code]*Limits
+	m   map[asset.Item]map[*currency.Item]map[*currency.Item]*Limits
 	mtx sync.RWMutex
 }
 
@@ -94,26 +94,26 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 	if e.m == nil {
-		e.m = make(map[asset.Item]map[currency.Code]map[currency.Code]*Limits)
+		e.m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Limits)
 	}
 
 	for x := range levels {
 		m1, ok := e.m[levels[x].Asset]
 		if !ok {
-			m1 = make(map[currency.Code]map[currency.Code]*Limits)
+			m1 = make(map[*currency.Item]map[*currency.Item]*Limits)
 			e.m[levels[x].Asset] = m1
 		}
 
-		m2, ok := m1[levels[x].Pair.Base]
+		m2, ok := m1[levels[x].Pair.Base.Item]
 		if !ok {
-			m2 = make(map[currency.Code]*Limits)
-			m1[levels[x].Pair.Base] = m2
+			m2 = make(map[*currency.Item]*Limits)
+			m1[levels[x].Pair.Base.Item] = m2
 		}
 
-		limit, ok := m2[levels[x].Pair.Quote]
+		limit, ok := m2[levels[x].Pair.Quote.Item]
 		if !ok {
 			limit = new(Limits)
-			m2[levels[x].Pair.Quote] = limit
+			m2[levels[x].Pair.Quote.Item] = limit
 		}
 
 		if levels[x].MinPrice > levels[x].MaxPrice {
@@ -169,12 +169,12 @@ func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair
 		return nil, errExchangeLimitAsset
 	}
 
-	m2, ok := m1[cp.Base]
+	m2, ok := m1[cp.Base.Item]
 	if !ok {
 		return nil, errExchangeLimitBase
 	}
 
-	limit, ok := m2[cp.Quote]
+	limit, ok := m2[cp.Quote.Item]
 	if !ok {
 		return nil, errExchangeLimitQuote
 	}
@@ -198,12 +198,12 @@ func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pa
 		return errCannotValidateAsset
 	}
 
-	m2, ok := m1[cp.Base]
+	m2, ok := m1[cp.Base.Item]
 	if !ok {
 		return errCannotValidateBaseCurrency
 	}
 
-	limit, ok := m2[cp.Quote]
+	limit, ok := m2[cp.Quote.Item]
 	if !ok {
 		return errCannotValidateQuoteCurrency
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	errOrderCannotBeEmpty = errors.New("order cannot be empty")
+	errOrderIDCannotBeEmpty = errors.New("orderID cannot be empty")
 )
 
 type orderManagerConfig struct {

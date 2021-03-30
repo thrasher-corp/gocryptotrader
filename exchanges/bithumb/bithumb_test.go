@@ -232,7 +232,7 @@ func TestUpdateTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cp = currency.NewPair(currency.DASH, currency.KRW)
+	cp = currency.NewPair(currency.BTC, currency.KRW)
 	_, err = b.UpdateTicker(cp, asset.Spot)
 	if err != nil {
 		t.Fatal(err)

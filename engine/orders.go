@@ -294,7 +294,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 // and stores the result in the order manager
 func (o *orderManager) GetOrderInfo(exchangeName, orderID string, cp currency.Pair, a asset.Item) (order.Detail, error) {
 	if orderID == "" {
-		return order.Detail{}, errOrderCannotBeEmpty
+		return order.Detail{}, errOrderIDCannotBeEmpty
 	}
 
 	exch := o.orderStore.bot.GetExchangeByName(exchangeName)

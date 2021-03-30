@@ -44,7 +44,7 @@
    "api-secret-override": "",
    "api-client-id-override": "",
    "api-2fa-override": "",
-   "fake-orders": false
+   "real-orders": false
   }
  },
  "portfolio-settings": {
