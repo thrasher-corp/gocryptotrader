@@ -1,4 +1,4 @@
-package rpcserver
+package engine
 
 import (
 	"context"
@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
@@ -41,7 +40,7 @@ const (
 )
 
 // Sets up everything required to run any function inside rpcserver
-func RPCTestSetup(t *testing.T) *engine.Engine {
+func RPCTestSetup(t *testing.T) *Engine {
 	database.DB.Mu.Lock()
 	var err error
 	dbConf := database.Config{
@@ -51,7 +50,7 @@ func RPCTestSetup(t *testing.T) *engine.Engine {
 			Database: databaseName,
 		},
 	}
-	engerino := new(engine.Engine)
+	engerino := new(Engine)
 	engerino.Config = &config.Config{}
 	err = engerino.Config.LoadConfig(config.TestFile, true)
 	if err != nil {
@@ -70,7 +69,7 @@ func RPCTestSetup(t *testing.T) *engine.Engine {
 		log.Fatal(err)
 	}
 	path := filepath.Join("..", databaseFolder, migrationsFolder)
-	err = goose.Run("up", engine.dbConn.SQL, repository.GetSQLDialect(), path, "")
+	err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
 	if err != nil {
 		t.Fatalf("failed to run migrations %v", err)
 	}
@@ -84,7 +83,7 @@ func RPCTestSetup(t *testing.T) *engine.Engine {
 	return engerino
 }
 
-func CleanRPCTest(t *testing.T, engerino *engine.Engine) {
+func CleanRPCTest(t *testing.T, engerino *Engine) {
 	database.DB.Mu.Lock()
 	defer database.DB.Mu.Unlock()
 	err := engerino.DatabaseManager.Stop()
@@ -805,10 +804,10 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	bot := engine.CreateTestBot(t)
+	bot := CreateTestBot(t)
 	s := RPCServer{Engine: bot}
 
-	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: engine.fakePassExchange, AssetType: asset.Spot.String()})
+	r, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
 	if err != nil {
 		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
@@ -818,10 +817,10 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
-	bot := engine.CreateTestBot(t)
+	bot := CreateTestBot(t)
 	s := RPCServer{Engine: bot}
 
-	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: engine.fakePassExchange, AssetType: asset.Spot.String()})
+	getResponse, err := s.GetAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Spot.String()})
 	if err != nil {
 		t.Fatalf("TestGetAccountInfo: Failed to get account info: %s", err)
 	}
@@ -991,8 +990,8 @@ func TestGetOrder(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot.String(),
 	})
-	if !errors.Is(err, engine.errOrderCannotBeEmpty) {
-		t.Errorf("expected %v, received %v", engine.errOrderCannotBeEmpty, err)
+	if !errors.Is(err, errOrderCannotBeEmpty) {
+		t.Errorf("expected %v, received %v", errOrderCannotBeEmpty, err)
 	}
 	err = engerino.OrderManager.Start(engerino)
 	if err != nil {

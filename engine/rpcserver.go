@@ -1,4 +1,4 @@
-package rpcserver
+package engine
 
 import (
 	"context"
@@ -31,7 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -48,7 +47,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/events"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
@@ -69,7 +67,7 @@ var (
 
 // RPCServer struct
 type RPCServer struct {
-	*engine.Engine
+	*Engine
 	gctrpc.UnimplementedGoCryptoTraderServer
 }
 
@@ -104,7 +102,7 @@ func authenticateClient(ctx context.Context) (context.Context, error) {
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
-func StartRPCServer(engine *engine.Engine) {
+func StartRPCServer(engine *Engine) {
 	targetDir := utils.GetTLSDir(engine.Settings.DataDir)
 	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
 	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress)
@@ -187,7 +185,7 @@ func (s *RPCServer) GetInfo(_ context.Context, r *gctrpc.GetInfoRequest) (*gctrp
 		DefaultForexProvider: s.Config.GetPrimaryForexProvider(),
 		SubsystemStatus:      s.GetSubsystemsStatus(),
 	}
-	endpoints := engine.GetRPCEndpoints()
+	endpoints := GetRPCEndpoints()
 	resp.RpcEndpoints = make(map[string]*gctrpc.RPCEndpoint)
 	for k, v := range endpoints {
 		resp.RpcEndpoints[k] = &gctrpc.RPCEndpoint{
@@ -209,7 +207,7 @@ func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsyste
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess,
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
 		Data: fmt.Sprintf("subsystem %s enabled", r.Subsystem)}, nil
 }
 
@@ -219,13 +217,13 @@ func (s *RPCServer) DisableSubsystem(_ context.Context, r *gctrpc.GenericSubsyst
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess,
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
 		Data: fmt.Sprintf("subsystem %s disabled", r.Subsystem)}, nil
 }
 
 // GetRPCEndpoints returns a list of API endpoints
 func (s *RPCServer) GetRPCEndpoints(_ context.Context, r *gctrpc.GetRPCEndpointsRequest) (*gctrpc.GetRPCEndpointsResponse, error) {
-	endpoints := engine.GetRPCEndpoints()
+	endpoints := GetRPCEndpoints()
 	var resp gctrpc.GetRPCEndpointsResponse
 	resp.Endpoints = make(map[string]*gctrpc.RPCEndpoint)
 	for k, v := range endpoints {
@@ -268,7 +266,7 @@ func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchange
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // EnableExchange enables an exchange
@@ -277,7 +275,7 @@ func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeN
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // GetExchangeOTPCode retrieves an exchanges OTP code
@@ -737,7 +735,7 @@ func (s *RPCServer) AddPortfolioAddress(_ context.Context, r *gctrpc.AddPortfoli
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // RemovePortfolioAddress removes an address from the portfoliomanager manager
@@ -748,7 +746,7 @@ func (s *RPCServer) RemovePortfolioAddress(_ context.Context, r *gctrpc.RemovePo
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // GetForexProviders returns a list of available forex providers
@@ -1174,7 +1172,7 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess,
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
 		Data: fmt.Sprintf("order %s cancelled", r.OrderId)}, nil
 }
 
@@ -1248,7 +1246,7 @@ func (s *RPCServer) GetEvents(_ context.Context, r *gctrpc.GetEventsRequest) (*g
 
 // AddEvent adds an event
 func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gctrpc.AddEventResponse, error) {
-	evtCondition := events.EventConditionParams{
+	evtCondition := EventConditionParams{
 		CheckBids:        r.ConditionParams.CheckBids,
 		CheckBidsAndAsks: r.ConditionParams.CheckBidsAndAsks,
 		Condition:        r.ConditionParams.Condition,
@@ -1270,7 +1268,7 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 		return nil, err
 	}
 
-	id, err := events.Add(r.Exchange, r.Item, evtCondition, p, a, r.Action)
+	id, err := s.EventManager.Add(r.Exchange, r.Item, evtCondition, p, a, r.Action)
 	if err != nil {
 		return nil, err
 	}
@@ -1280,10 +1278,10 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 
 // RemoveEvent removes an event, specified by an event ID
 func (s *RPCServer) RemoveEvent(_ context.Context, r *gctrpc.RemoveEventRequest) (*gctrpc.GenericResponse, error) {
-	if !events.Remove(r.Id) {
+	if !s.EventManager.Remove(r.Id) {
 		return nil, fmt.Errorf("event %d not removed", r.Id)
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess,
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
 		Data: fmt.Sprintf("event %d removed", r.Id)}, nil
 }
 
@@ -1647,7 +1645,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		return nil, newErrors
 	}
 
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // GetOrderbookStream streams the requested updated orderbook
@@ -2104,12 +2102,12 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
-		return &gctrpc.GCTScriptQueryResponse{Status: engine.MsgStatusError, Data: err.Error()}, nil
+		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
 	if v, f := gctscript.AllVMSync.Load(UUID); f {
 		resp := &gctrpc.GCTScriptQueryResponse{
-			Status: engine.MsgStatusOK,
+			Status: MsgStatusOK,
 			Script: &gctrpc.GCTScript{
 				Name:    v.(*gctscript.VM).ShortName(),
 				UUID:    v.(*gctscript.VM).ID.String(),
@@ -2124,7 +2122,7 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 		resp.Data = string(data)
 		return resp, nil
 	}
-	return &gctrpc.GCTScriptQueryResponse{Status: engine.MsgStatusError, Data: "UUID not found"}, nil
+	return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: "UUID not found"}, nil
 }
 
 // GCTScriptExecute execute a script
@@ -2139,14 +2137,14 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 
 	gctVM := s.GctScriptManager.New()
 	if gctVM == nil {
-		return &gctrpc.GenericResponse{Status: engine.MsgStatusError, Data: "unable to create VM instance"}, nil
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "unable to create VM instance"}, nil
 	}
 
 	script := filepath.Join(r.Script.Path, r.Script.Name)
 	err := gctVM.Load(script)
 	if err != nil {
 		return &gctrpc.GenericResponse{
-			Status: engine.MsgStatusError,
+			Status: MsgStatusError,
 			Data:   err.Error(),
 		}, nil
 	}
@@ -2154,7 +2152,7 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 	go gctVM.CompileAndRun()
 
 	return &gctrpc.GenericResponse{
-		Status: engine.MsgStatusOK,
+		Status: MsgStatusOK,
 		Data:   gctVM.ShortName() + " (" + gctVM.ID.String() + ") executed",
 	}, nil
 }
@@ -2167,7 +2165,7 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
-		return &gctrpc.GenericResponse{Status: engine.MsgStatusError, Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
 	if v, f := gctscript.AllVMSync.Load(UUID); f {
@@ -2176,9 +2174,9 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 		if err != nil {
 			status = " " + err.Error()
 		}
-		return &gctrpc.GenericResponse{Status: engine.MsgStatusOK, Data: v.(*gctscript.VM).ID.String() + status}, nil
+		return &gctrpc.GenericResponse{Status: MsgStatusOK, Data: v.(*gctscript.VM).ID.String() + status}, nil
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusError, Data: "no running script found"}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
 }
 
 // GCTScriptUpload upload a new script to ScriptPath
@@ -2235,7 +2233,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 		files, errExtract := archive.UnZip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
 		if errExtract != nil {
 			log.Errorf(log.Global, "Failed to archive zip file %v", errExtract)
-			return &gctrpc.GenericResponse{Status: engine.MsgStatusError, Data: errExtract.Error()}, nil
+			return &gctrpc.GenericResponse{Status: MsgStatusError, Data: errExtract.Error()}, nil
 		}
 		var failedFiles []string
 		for x := range files {
@@ -2267,7 +2265,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 	}
 
 	return &gctrpc.GenericResponse{
-		Status: engine.MsgStatusOK,
+		Status: MsgStatusOK,
 		Data:   fmt.Sprintf("script %s written", newFile.Name()),
 	}, nil
 }
@@ -2288,7 +2286,7 @@ func (s *RPCServer) GCTScriptReadScript(_ context.Context, r *gctrpc.GCTScriptRe
 	}
 
 	return &gctrpc.GCTScriptQueryResponse{
-		Status: engine.MsgStatusOK,
+		Status: MsgStatusOK,
 		Script: &gctrpc.GCTScript{
 			Name: filepath.Base(filename),
 			Path: filepath.Dir(filename),
@@ -2335,7 +2333,7 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 	}
 
 	return &gctrpc.GenericResponse{
-		Status: engine.MsgStatusOK,
+		Status: MsgStatusOK,
 		Data:   "all running scripts have been stopped",
 	}, nil
 }
@@ -2396,7 +2394,7 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 		return nil, err
 	}
 
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // SetAllExchangePairs enables or disables an exchanges pairs
@@ -2442,7 +2440,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 		}
 	}
 
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // UpdateExchangeSupportedPairs forces an update of the supported pairs which
@@ -2475,7 +2473,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 			return nil, err
 		}
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // GetExchangeAssets returns the supported asset types
@@ -2536,7 +2534,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 		}
 
 		exchCfg.Features.Enabled.Websocket = true
-		return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess, Data: "websocket enabled"}, nil
+		return &gctrpc.GenericResponse{Status: MsgStatusSuccess, Data: "websocket enabled"}, nil
 	}
 
 	err = w.Disable()
@@ -2544,7 +2542,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 		return nil, err
 	}
 	exchCfg.Features.Enabled.Websocket = false
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess, Data: "websocket disabled"}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess, Data: "websocket disabled"}, nil
 }
 
 // WebsocketGetSubscriptions returns websocket subscription analysis
@@ -2594,7 +2592,7 @@ func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetP
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess,
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
 		Data: fmt.Sprintf("new proxy has been set [%s] for %s websocket connection",
 			r.Exchange,
 			r.Proxy)}, nil
@@ -2616,7 +2614,7 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: engine.MsgStatusSuccess,
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
 		Data: fmt.Sprintf("new URL has been set [%s] for %s websocket connection",
 			r.Exchange,
 			r.Url)}, nil

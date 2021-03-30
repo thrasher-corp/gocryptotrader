@@ -32,13 +32,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/database"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/depositaddress"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/events"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/events/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ntp"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliosync"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/rpcserver"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/syncer"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -58,7 +56,7 @@ type Engine struct {
 	PortfolioManager            portfoliosync.Manager
 	CommsManager                communicationmanager.Manager
 	exchangeManager             exchangemanager.Manager
-	eventManager                *events.Manager
+	EventManager                *Manager
 	DepositAddressManager       *depositaddress.Manager
 	WithdrawalManager           *withdrawalmanager.Manager
 	Settings                    Settings
@@ -218,7 +216,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		if b.Settings.EventManagerDelay != time.Duration(0) && s.EventManagerDelay > 0 {
 			b.Settings.EventManagerDelay = s.EventManagerDelay
 		} else {
-			b.Settings.EventManagerDelay = events.EventSleepDelay
+			b.Settings.EventManagerDelay = EventSleepDelay
 		}
 	}
 
@@ -471,7 +469,7 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			return err
 		}
-		go rpcserver.StartRPCServer(bot)
+		go StartRPCServer(bot)
 	}
 
 	if bot.Settings.EnableDeprecatedRPC {
@@ -520,8 +518,8 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		bot.eventManager = events.Setup(&bot.CommsManager, bot.Settings.EnableDryRun)
-		go bot.eventManager.Start()
+		bot.EventManager = Setup(&bot.CommsManager, bot.Settings.EnableDryRun)
+		go bot.EventManager.Start()
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {

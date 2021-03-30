@@ -1,4 +1,4 @@
-package events
+package engine
 
 import (
 	"errors"
