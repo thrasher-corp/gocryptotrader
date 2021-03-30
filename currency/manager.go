@@ -159,7 +159,7 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	}
 
 	if !*c.AssetEnabled {
-		return errors.New("asset not enabled")
+		return fmt.Errorf("asset %s not enabled", a)
 	}
 	return nil
 }
