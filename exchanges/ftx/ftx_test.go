@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"errors"
 	"log"
 	"os"
 	"reflect"
@@ -1446,6 +1447,129 @@ func TestParsingWSOBData2(t *testing.T) {
 	}
 	data = []byte(`{"channel": "orderbook", "market": "BTC-PERP", "type": "update", "data": {"time": 1589855831.5128105, "checksum": 365946911, "bids": [[9596.0, 4.2656], [9512.0, 32.7912]], "asks": [[9613.5, 4.012], [9702.0, 0.021]], "action": "update"}}`)
 	err = f.wsHandleData(data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubaccounts(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	_, err := f.GetSubaccounts()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateSubaccount(t *testing.T) {
+	t.Parallel()
+	_, err := f.CreateSubaccount("")
+	if !errors.Is(err, errSubaccountNameMustBeSpecified) {
+		t.Errorf("expected %v, but received: %s", errSubaccountNameMustBeSpecified, err)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
+	}
+	_, err = f.CreateSubaccount("subzero")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.DeleteSubaccount("subzero"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateSubaccountName(t *testing.T) {
+	t.Parallel()
+	_, err := f.UpdateSubaccountName("", "")
+	if !errors.Is(err, errSubaccountUpdateNameInvalid) {
+		t.Errorf("expected %v, but received: %s", errSubaccountUpdateNameInvalid, err)
+	}
+
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
+	}
+	_, err = f.CreateSubaccount("subzero")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.UpdateSubaccountName("subzero", "bizzlebot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.DeleteSubaccount("bizzlebot"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteSubaccountName(t *testing.T) {
+	t.Parallel()
+	if err := f.DeleteSubaccount(""); !errors.Is(err, errSubaccountNameMustBeSpecified) {
+		t.Errorf("expected %v, but received: %s", errSubaccountNameMustBeSpecified, err)
+	}
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
+	}
+	_, err := f.CreateSubaccount("subzero")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.DeleteSubaccount("subzero"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubaccountBalances(t *testing.T) {
+	t.Parallel()
+	_, err := f.SubaccountBalances("")
+	if !errors.Is(err, errSubaccountNameMustBeSpecified) {
+		t.Errorf("expected %s, but received: %s", errSubaccountNameMustBeSpecified, err)
+	}
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test, api keys not set")
+	}
+	_, err = f.SubaccountBalances("non-existent")
+	if err == nil {
+		t.Error("expecting non-existent subaccount to return an error")
+	}
+	_, err = f.CreateSubaccount("subzero")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.SubaccountBalances("subzero")
+	if err != nil {
+		t.Error(err)
+	}
+	if err := f.DeleteSubaccount("subzero"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubaccountTransfer(t *testing.T) {
+	tt := []struct {
+		Coin        currency.Code
+		Source      string
+		Destination string
+		Size        float64
+		ErrExpected error
+	}{
+		{ErrExpected: errCoinMustBeSpecified},
+		{Coin: currency.BTC, ErrExpected: errSubaccountTransferSizeGreaterThanZero},
+		{Coin: currency.BTC, Size: 420, ErrExpected: errSubaccountTransferSourceDestinationMustNotBeEqual},
+	}
+	for x := range tt {
+		_, err := f.SubaccountTransfer(tt[x].Coin, tt[x].Source, tt[x].Destination, tt[x].Size)
+		if !errors.Is(err, tt[x].ErrExpected) {
+			t.Errorf("expected %s, but received: %s", tt[x].ErrExpected, err)
+		}
+	}
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or canManipulateRealOrders isn't set")
+	}
+	_, err := f.SubaccountTransfer(currency.BTC, "", "test", 0.1)
 	if err != nil {
 		t.Error(err)
 	}

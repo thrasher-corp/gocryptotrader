@@ -1672,7 +1672,7 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 
 	calculatedChecksum := o.CalculatePartialOrderbookChecksum(&dataResponse)
 	if calculatedChecksum != dataResponse.Checksum {
-		t.Errorf("Expected %v, Receieved %v", dataResponse.Checksum, calculatedChecksum)
+		t.Errorf("Expected %v, received %v", dataResponse.Checksum, calculatedChecksum)
 	}
 }
 

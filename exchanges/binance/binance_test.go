@@ -2465,12 +2465,12 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 
 	err = limit.Conforms(0.000001, 0.1, order.Limit)
 	if !errors.Is(err, order.ErrAmountBelowMin) {
-		t.Fatalf("expected %v, but receieved %v", order.ErrAmountBelowMin, err)
+		t.Fatalf("expected %v, but received %v", order.ErrAmountBelowMin, err)
 	}
 
 	err = limit.Conforms(0.01, 1, order.Limit)
 	if !errors.Is(err, order.ErrPriceBelowMin) {
-		t.Fatalf("expected %v, but receieved %v", order.ErrPriceBelowMin, err)
+		t.Fatalf("expected %v, but received %v", order.ErrPriceBelowMin, err)
 	}
 }
 

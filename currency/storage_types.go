@@ -46,7 +46,7 @@ type Storage struct {
 	// FiatExchangeMarkets defines an interface to access FX data for fiat
 	// currency rates
 	fiatExchangeMarkets *forexprovider.ForexProviders
-	// CurrencyAnalysis defines a full market analysis suite to receieve and
+	// CurrencyAnalysis defines a full market analysis suite to receive and
 	// define different fiat currencies, cryptocurrencies and markets
 	currencyAnalysis *coinmarketcap.Coinmarketcap
 	// Path defines the main folder to dump and find currency JSON

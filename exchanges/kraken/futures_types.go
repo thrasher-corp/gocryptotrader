@@ -534,7 +534,7 @@ type BatchOrderData struct {
 		Status           string `json:"status"`
 		OrderTag         string `json:"order_tag"`
 		OrderID          string `json:"order_id"`
-		DateTimeReceived string `json:"dateTimeReceieved"`
+		DateTimeReceived string `json:"dateTimeReceived"`
 		OrderEvents      []struct {
 			OrderPlaced    FuturesOrderData `json:"orderPlaced"`
 			ReduceOnly     bool             `json:"reduceOnly"`

@@ -234,18 +234,18 @@ type WalletCoinsData struct {
 	Name             string `json:"name"`
 }
 
-// BalancesData stores balances data
-type BalancesData struct {
-	Coin  string  `json:"coin"`
-	Free  float64 `json:"free"`
-	Total float64 `json:"total"`
+// WalletBalance stores balances data
+type WalletBalance struct {
+	Coin                   string  `json:"coin"`
+	Free                   float64 `json:"free"`
+	Total                  float64 `json:"total"`
+	AvailableWithoutBorrow float64 `json:"availableWithoutBorrow"`
+	USDValue               float64 `json:"usdValue"`
+	SpotBorrow             float64 `json:"spotBorrow"`
 }
 
-// AllWalletAccountData stores account data on all WalletCoins
-type AllWalletAccountData struct {
-	Main         []BalancesData `json:"main"`
-	BattleRoyale []BalancesData `json:"Battle Royale"`
-}
+// AllWalletBalances stores all the user's account balances
+type AllWalletBalances map[string][]WalletBalance
 
 // DepositData stores deposit address data
 type DepositData struct {
@@ -770,4 +770,32 @@ type QuoteStatusData struct {
 // AcceptQuote stores data of accepted quote
 type AcceptQuote struct {
 	Success bool `json:"success"`
+}
+
+// Subaccount stores subaccount data
+type Subaccount struct {
+	Nickname    string `json:"nickname"`
+	Special     bool   `json:"special"`
+	Deletable   bool   `json:"deletable"`
+	Editable    bool   `json:"editable"`
+	Competition bool   `json:"competition"`
+}
+
+// SubaccountBalance stores the user's subaccount balance
+type SubaccountBalance struct {
+	Coin                   string  `json:"coin"`
+	Free                   float64 `json:"free"`
+	Total                  float64 `json:"total"`
+	SpotBorrow             float64 `json:"spotBorrow"`
+	AvailableWithoutBorrow float64 `json:"availableWithoutBorrow"`
+}
+
+// SubaccountTransferStatus stores the subaccount transfer details
+type SubaccountTransferStatus struct {
+	ID     int64     `json:"id"`
+	Coin   string    `json:"coin"`
+	Size   float64   `json:"size"`
+	Time   time.Time `json:"time"`
+	Notes  string    `json:"notes"`
+	Status string    `json:"status"`
 }

@@ -73,21 +73,21 @@ func TestHoldings(t *testing.T) {
 	}
 
 	if u.Accounts[0].ID != "1337" {
-		t.Errorf("expecting 1337 but receieved %s", u.Accounts[0].ID)
+		t.Errorf("expecting 1337 but received %s", u.Accounts[0].ID)
 	}
 
 	if u.Accounts[0].Currencies[0].CurrencyName != currency.BTC {
-		t.Errorf("expecting BTC but receieved %s",
+		t.Errorf("expecting BTC but received %s",
 			u.Accounts[0].Currencies[0].CurrencyName)
 	}
 
 	if u.Accounts[0].Currencies[0].TotalValue != 100 {
-		t.Errorf("expecting 100 but receieved %f",
+		t.Errorf("expecting 100 but received %f",
 			u.Accounts[0].Currencies[0].TotalValue)
 	}
 
 	if u.Accounts[0].Currencies[0].Hold != 20 {
-		t.Errorf("expecting 20 but receieved %f",
+		t.Errorf("expecting 20 but received %f",
 			u.Accounts[0].Currencies[0].Hold)
 	}
 
