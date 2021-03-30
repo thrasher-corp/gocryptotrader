@@ -363,7 +363,7 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 		Exchange:           b.Name,
 		Pair:               p,
 		Asset:              assetType,
-		NotAggregated:      true,
+		PriceDuplication:   true,
 		VerificationBypass: b.OrderbookVerificationBypass,
 	}
 

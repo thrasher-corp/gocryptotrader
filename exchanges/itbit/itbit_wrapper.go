@@ -194,7 +194,7 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		Exchange:           i.Name,
 		Pair:               p,
 		Asset:              assetType,
-		NotAggregated:      true,
+		PriceDuplication:   true,
 		VerificationBypass: i.OrderbookVerificationBypass,
 	}
 	fpair, err := i.FormatExchangeCurrency(p, assetType)

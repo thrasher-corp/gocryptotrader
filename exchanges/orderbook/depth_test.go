@@ -47,7 +47,7 @@ func TestRetrieve(t *testing.T) {
 		asset:                 "Silly asset",
 		lastUpdated:           time.Now(),
 		lastUpdateID:          007,
-		notAggregated:         true,
+		priceDuplication:      true,
 		isFundingRate:         true,
 		verificationBypass:    true,
 		hasChecksumValidation: true,
@@ -235,7 +235,7 @@ func TestAssignOptions(t *testing.T) {
 		Asset:                 asset.Spot,
 		LastUpdated:           tn,
 		LastUpdateID:          1337,
-		NotAggregated:         true,
+		PriceDuplication:      true,
 		IsFundingRate:         true,
 		VerificationBypass:    true,
 		HasChecksumValidation: true,
@@ -248,7 +248,7 @@ func TestAssignOptions(t *testing.T) {
 		d.asset != asset.Spot ||
 		d.lastUpdated != tn ||
 		d.lastUpdateID != 1337 ||
-		!d.notAggregated ||
+		!d.priceDuplication ||
 		!d.isFundingRate ||
 		!d.verificationBypass ||
 		!d.hasChecksumValidation ||

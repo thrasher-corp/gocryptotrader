@@ -18,12 +18,15 @@ func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	return service.Retrieve(exchange, p, a)
 }
 
-// GetDepth returns depth
+// GetDepth returns a Depth pointer allowing the caller to stream orderbook
+// changes
 func GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	return service.GetDepth(exchange, p, a)
 }
 
-// DeployDepth constructs and returns depth for subsystem usage
+// DeployDepth sets a depth struct and returns a depth pointer. This allows for
+// the loading of a new orderbook snapshot and incremental updates via the
+// streaming package.
 func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	return service.DeployDepth(exchange, p, a)
 }
@@ -236,11 +239,11 @@ func (b *Base) Verify() error {
 			len(b.Bids),
 			len(b.Asks))
 	}
-	err := checkAlignment(b.Bids, b.IsFundingRate, b.NotAggregated, b.IDAlignment, dsc)
+	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, dsc)
 	if err != nil {
 		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
-	err = checkAlignment(b.Asks, b.IsFundingRate, b.NotAggregated, b.IDAlignment, asc)
+	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, asc)
 	if err != nil {
 		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
@@ -268,7 +271,7 @@ var dsc = func(current Item, previous Item) error {
 }
 
 // checkAlignment validates full orderbook
-func checkAlignment(depth Items, fundingRate, notAggregated, isIDAligned bool, c checker) error {
+func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned bool, c checker) error {
 	for i := range depth {
 		if depth[i].Price == 0 {
 			return errPriceNotSet
@@ -287,7 +290,7 @@ func checkAlignment(depth Items, fundingRate, notAggregated, isIDAligned bool, c
 			if isIDAligned && depth[i].ID < depth[prev].ID {
 				return errIDOutOfOrder
 			}
-			if !notAggregated && depth[i].Price == depth[prev].Price {
+			if !priceDuplication && depth[i].Price == depth[prev].Price {
 				return errDuplication
 			}
 			if depth[i].ID != 0 && depth[i].ID == depth[prev].ID {

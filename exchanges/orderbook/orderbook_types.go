@@ -80,10 +80,10 @@ type Base struct {
 
 	LastUpdated  time.Time
 	LastUpdateID int64
-	// NotAggregated defines whether an orderbook can contain duplicate prices
-	// in a payload
-	NotAggregated bool
-	IsFundingRate bool
+	// PriceDuplication defines whether an orderbook can contain duplicate
+	// prices in a payload
+	PriceDuplication bool
+	IsFundingRate    bool
 	// VerificationBypass is a complete orderbook verification bypass set by
 	// user configuration
 	VerificationBypass bool `json:"-"`
@@ -94,7 +94,7 @@ type Base struct {
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
 	RestSnapshot bool
-	// Checks if the orderbook needs ID alignment as well as price alignmentment
+	// Checks if the orderbook needs ID alignment as well as price alignment
 	IDAlignment bool
 }
 
@@ -110,7 +110,7 @@ type options struct {
 	asset                 asset.Item
 	lastUpdated           time.Time
 	lastUpdateID          int64
-	notAggregated         bool
+	priceDuplication      bool
 	isFundingRate         bool
 	verificationBypass    bool
 	hasChecksumValidation bool

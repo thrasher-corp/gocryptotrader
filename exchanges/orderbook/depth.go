@@ -18,18 +18,29 @@ type Depth struct {
 	// unexported stack of nodes
 	stack *stack
 
-	// Change of state to re-check depth list
-	wait    chan struct{}
-	waiting uint32
-	wg      sync.WaitGroup
-	wMtx    sync.Mutex
-	// -----
+	wait Wait
 
 	mux *dispatch.Mux
 	id  uuid.UUID
 
 	options
 	m sync.Mutex
+}
+
+// Wait defines fields required to alert sub-systems of a change of state to
+// re-check depth list
+type Wait struct {
+	// Channel to wait for an alert on.
+	forAlert chan struct{}
+	// Lets the updater functions know if there are any routines waiting for an
+	// alert.
+	sema uint32
+	// After closing the forAlert channel this will notify when all the routines
+	// that have waited, have either checked the orderbook depth or finished.
+	wg sync.WaitGroup
+	// Segregated lock only for waiting routines, so as this does not interfere
+	// with the main depth lock, acts as a rolling gate.
+	sync.Mutex
 }
 
 // NewDepth returns a new depth item
@@ -69,15 +80,15 @@ func (d *Depth) Retrieve() *Base {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return &Base{
-		Bids:          d.bids.retrieve(),
-		Asks:          d.asks.retrieve(),
-		Exchange:      d.exchange,
-		Asset:         d.asset,
-		Pair:          d.pair,
-		LastUpdated:   d.lastUpdated,
-		LastUpdateID:  d.lastUpdateID,
-		NotAggregated: d.notAggregated,
-		IsFundingRate: d.isFundingRate,
+		Bids:             d.bids.retrieve(),
+		Asks:             d.asks.retrieve(),
+		Exchange:         d.exchange,
+		Asset:            d.asset,
+		Pair:             d.pair,
+		LastUpdated:      d.lastUpdated,
+		LastUpdateID:     d.lastUpdateID,
+		PriceDuplication: d.priceDuplication,
+		IsFundingRate:    d.isFundingRate,
 	}
 }
 
@@ -224,30 +235,30 @@ func (d *Depth) UpdateInsertByID(bidUpdts, askUpdts Items) error {
 
 // POC: alert establishes state change for depth to all waiting routines
 func (d *Depth) alert() {
-	if !atomic.CompareAndSwapUint32(&d.waiting, 1, 0) {
+	if !atomic.CompareAndSwapUint32(&d.wait.sema, 1, 0) {
 		// return if no waiting routines
 		return
 	}
 	go func() {
-		d.wMtx.Lock()
-		close(d.wait)
-		d.wg.Wait()
-		d.wait = make(chan struct{})
-		d.wMtx.Unlock()
+		d.wait.Lock()
+		close(d.wait.forAlert)
+		d.wait.wg.Wait()
+		d.wait.forAlert = make(chan struct{})
+		d.wait.Unlock()
 	}()
 }
 
 // Wait pauses routine until depth change has been established (POC)
 func (d *Depth) Wait(kick <-chan struct{}) bool {
-	d.wMtx.Lock()
-	if atomic.CompareAndSwapUint32(&d.waiting, 0, 1) {
-		d.wait = make(chan struct{})
+	d.wait.Lock()
+	if atomic.CompareAndSwapUint32(&d.wait.sema, 0, 1) {
+		d.wait.forAlert = make(chan struct{})
 	}
-	d.wg.Add(1)
-	defer d.wg.Done()
-	d.wMtx.Unlock()
+	d.wait.wg.Add(1)
+	defer d.wait.wg.Done()
+	d.wait.Unlock()
 	select {
-	case <-d.wait:
+	case <-d.wait.forAlert:
 		return true
 	case <-kick:
 		return false
@@ -263,7 +274,7 @@ func (d *Depth) AssignOptions(b *Base) {
 		asset:                 b.Asset,
 		lastUpdated:           b.LastUpdated,
 		lastUpdateID:          b.LastUpdateID,
-		notAggregated:         b.NotAggregated,
+		priceDuplication:      b.PriceDuplication,
 		isFundingRate:         b.IsFundingRate,
 		verificationBypass:    b.VerificationBypass,
 		hasChecksumValidation: b.HasChecksumValidation,

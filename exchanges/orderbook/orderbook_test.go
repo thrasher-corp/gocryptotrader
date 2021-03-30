@@ -28,8 +28,8 @@ func TestMain(m *testing.M) {
 
 func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 	_, err := SubscribeToExchangeOrderbooks("")
-	if err == nil {
-		t.Error("error cannot be nil")
+	if !errors.Is(err, errCannotFindOrderbook) {
+		t.Fatalf("expected: %v but received: %v", errCannotFindOrderbook, err)
 	}
 
 	p := currency.NewPair(currency.BTC, currency.USD)

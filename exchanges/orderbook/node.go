@@ -25,7 +25,7 @@ type node struct {
 	shelved time.Time
 }
 
-// stack defines a FIFO list of reusable nodes
+// stack defines a FILO list of reusable nodes
 type stack struct {
 	nodes []*node
 	sema  uint32

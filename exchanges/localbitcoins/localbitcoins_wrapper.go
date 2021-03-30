@@ -243,7 +243,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 		})
 	}
 
-	book.NotAggregated = true
+	book.PriceDuplication = true
 	err = book.Process()
 	if err != nil {
 		return book, err

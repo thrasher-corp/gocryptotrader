@@ -398,7 +398,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		Exchange:           b.Name,
 		Pair:               p,
 		Asset:              assetType,
-		NotAggregated:      true,
+		PriceDuplication:   true,
 		VerificationBypass: b.OrderbookVerificationBypass,
 	}
 

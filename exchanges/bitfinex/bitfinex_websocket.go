@@ -965,7 +965,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.Asset = assetType
 	book.Pair = p
 	book.Exchange = b.Name
-	book.NotAggregated = true
+	book.PriceDuplication = true
 	book.HasChecksumValidation = true
 	book.IsFundingRate = fundingRate
 	book.VerificationBypass = b.OrderbookVerificationBypass

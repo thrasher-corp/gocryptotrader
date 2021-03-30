@@ -31,12 +31,12 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 	bids = orderbook.Items{{Price: 4000, Amount: 1, ID: 6}}
 
 	book := &orderbook.Base{
-		Exchange:      exchangeName,
-		Asks:          asks,
-		Bids:          bids,
-		Asset:         asset.Spot,
-		Pair:          cp,
-		NotAggregated: true,
+		Exchange:         exchangeName,
+		Asks:             asks,
+		Bids:             bids,
+		Asset:            asset.Spot,
+		Pair:             cp,
+		PriceDuplication: true,
 	}
 
 	newBook := make(map[currency.Code]map[currency.Code]map[asset.Item]*orderbookHolder)
@@ -698,7 +698,7 @@ func TestGetOrderbook(t *testing.T) {
 		b.Asset != ob.Asset ||
 		b.Exchange != ob.Exchange ||
 		b.LastUpdateID != ob.LastUpdateID ||
-		b.NotAggregated != ob.NotAggregated ||
+		b.PriceDuplication != ob.PriceDuplication ||
 		b.Pair != ob.Pair {
 		t.Fatal("data on both books should be the same")
 	}
@@ -707,17 +707,17 @@ func TestGetOrderbook(t *testing.T) {
 func TestSetup(t *testing.T) {
 	w := Orderbook{}
 	err := w.Setup(0, false, false, false, false, true, "", nil)
-	if err == nil || !errors.Is(err, errUnsetExchangeName) {
+	if !errors.Is(err, errUnsetExchangeName) {
 		t.Fatalf("expected error %v but received %v", errUnsetExchangeName, err)
 	}
 
 	err = w.Setup(0, false, false, false, false, false, "test", nil)
-	if err == nil || !errors.Is(err, errUnsetDataHandler) {
+	if !errors.Is(err, errUnsetDataHandler) {
 		t.Fatalf("expected error %v but received %v", errUnsetDataHandler, err)
 	}
 
 	err = w.Setup(0, true, false, false, false, true, "test", make(chan interface{}))
-	if err == nil || !errors.Is(err, errIssueBufferEnabledButNoLimit) {
+	if !errors.Is(err, errIssueBufferEnabledButNoLimit) {
 		t.Fatalf("expected error %v but received %v", errIssueBufferEnabledButNoLimit, err)
 	}
 
@@ -738,12 +738,12 @@ func TestSetup(t *testing.T) {
 func TestValidate(t *testing.T) {
 	w := Orderbook{}
 	err := w.validate(nil)
-	if err == nil || !errors.Is(err, errUpdateIsNil) {
+	if !errors.Is(err, errUpdateIsNil) {
 		t.Fatalf("expected error %v but received %v", errUpdateIsNil, err)
 	}
 
 	err = w.validate(&Update{})
-	if err == nil || !errors.Is(err, errUpdateNoTargets) {
+	if !errors.Is(err, errUpdateNoTargets) {
 		t.Fatalf("expected error %v but received %v", errUpdateNoTargets, err)
 	}
 }
@@ -1015,8 +1015,8 @@ func TestFlushOrderbook(t *testing.T) {
 	}
 
 	_, err = w.GetOrderbook(cp, asset.Spot)
-	if err == nil {
-		t.Fatal("book not loaded, this should not happen")
+	if !errors.Is(err, errDepthNotFound) {
+		t.Fatalf("expected: %v but received: %v", errDepthNotFound, err)
 	}
 
 	err = w.LoadSnapshot(&snapShot1)
