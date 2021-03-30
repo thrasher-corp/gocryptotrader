@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
-// Manager starts the NTP manager
+// Manager starts the commuications manager
 type Manager struct {
 	started  int32
 	shutdown chan struct{}

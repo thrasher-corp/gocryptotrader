@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -36,7 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ntp"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliosync"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/rpcserver"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/syncer"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
@@ -54,7 +55,7 @@ type Engine struct {
 	DatabaseManager             database.Manager
 	GctScriptManager            *gctscript.GctScriptManager
 	OrderManager                ordermanager.Manager
-	PortfolioManager            portfoliomanager.Manager
+	PortfolioManager            portfoliosync.Manager
 	CommsManager                communicationmanager.Manager
 	exchangeManager             exchangemanager.Manager
 	eventManager                *events.Manager
@@ -173,7 +174,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		if b.Settings.PortfolioManagerDelay == time.Duration(0) && s.PortfolioManagerDelay > 0 {
 			b.Settings.PortfolioManagerDelay = s.PortfolioManagerDelay
 		} else {
-			b.Settings.PortfolioManagerDelay = portfoliomanager.PortfolioSleepDelay
+			b.Settings.PortfolioManagerDelay = portfoliosync.PortfolioSleepDelay
 		}
 	}
 
@@ -367,7 +368,7 @@ func (bot *Engine) Start() error {
 	defer newEngineMutex.Unlock()
 
 	if bot.Settings.EnableDatabaseManager {
-		if err := bot.DatabaseManager.Start(bot); err != nil {
+		if err := bot.DatabaseManager.Start(&bot.Config.Database, &bot.ServicesWG); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
 		}
 	}
@@ -386,8 +387,15 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableNTPClient {
-		if err := bot.NTPManager.Start(); err != nil {
-			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %v", err)
+		if bot.Config.NTPClient.Level == 0 {
+			responseMessage, err := bot.Config.SetNTPCheck(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("unable to disable NTP check: %w", err)
+			}
+			gctlog.Info(gctlog.TimeMgr, responseMessage)
+		}
+		if err := bot.NTPManager.Start(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
+			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %w", err)
 		}
 	}
 
@@ -428,7 +436,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		if err = bot.CommsManager.Start(); err != nil {
+		if err = bot.CommsManager.nStart(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}

@@ -1369,8 +1369,8 @@ func (c *Config) CheckNTPConfig() {
 	}
 }
 
-// DisableNTPCheck allows the user to change how they are prompted for timesync alerts
-func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
+// SetNTPCheck allows the user to change how they are prompted for timesync alerts
+func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 	m.Lock()
 	defer m.Unlock()
 

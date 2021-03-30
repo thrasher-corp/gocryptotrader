@@ -1,4 +1,4 @@
-package portfoliomanager
+package portfoliosync
 
 import (
 	"errors"
@@ -6,7 +6,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
@@ -27,7 +29,7 @@ func (m *Manager) Started() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (m *Manager) Start() error {
+func (m *Manager) Start(cfg *config.PortfolioSettings, verbose bool) error {
 	if atomic.AddInt32(&m.started, 1) != 1 {
 		return errors.New("portfolio manager already started")
 	}
@@ -36,7 +38,7 @@ func (m *Manager) Start() error {
 	engine.Bot.Portfolio = &portfolio.Portfolio
 	engine.Bot.Portfolio.Seed(engine.Bot.Config.Portfolio)
 	m.shutdown = make(chan struct{})
-	portfolio.Verbose = engine.Bot.Settings.Verbose
+	portfolio.Verbose = verbose
 
 	go m.run()
 	return nil

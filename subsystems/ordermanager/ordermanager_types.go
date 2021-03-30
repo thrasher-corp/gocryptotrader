@@ -4,8 +4,10 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/thrasher-corp/gocryptotrader/subsystems/events/communicationmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -24,9 +26,11 @@ type orderManagerConfig struct {
 }
 
 type store struct {
-	m      sync.RWMutex
-	Orders map[string][]*order.Detail
-	bot    *engine.Engine
+	m               sync.RWMutex
+	Orders          map[string][]*order.Detail
+	commsManager    *communicationmanager.Manager
+	exchangeManager *exchangemanager.Manager
+	wg              *sync.WaitGroup
 }
 
 type Manager struct {
@@ -34,6 +38,7 @@ type Manager struct {
 	shutdown   chan struct{}
 	orderStore store
 	cfg        orderManagerConfig
+	verbose    bool
 }
 
 type orderSubmitResponse struct {

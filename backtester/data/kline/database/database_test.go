@@ -86,7 +86,7 @@ func TestLoadDataCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.DatabaseManager.Start(bot)
+	err = bot.DatabaseManager.Start(&bot.Config.Database, &bot.ServicesWG)
 	if err != nil {
 		t.Error(err)
 	}
@@ -161,7 +161,7 @@ func TestLoadDataTrades(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.DatabaseManager.Start(bot)
+	err = bot.DatabaseManager.Start(&bot.Config.Database, &bot.ServicesWG)
 	if err != nil {
 		t.Error(err)
 	}

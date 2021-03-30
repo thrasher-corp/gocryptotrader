@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -68,42 +67,34 @@ type Event struct {
 	Executed  bool
 }
 
-// Events variable is a pointer array to the event structures that will be
-// appended
-var Events []*Event
-
 // Add adds an event to the Events chain and returns an index/eventID
 // and an error
-func Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
+func (m *Manager) Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
 	err := IsValidEvent(exchange, item, condition, action)
 	if err != nil {
 		return 0, err
 	}
-
-	evt := &Event{}
-
-	if len(Events) == 0 {
-		evt.ID = 0
-	} else {
-		evt.ID = int64(len(Events) + 1)
+	evt := Event{
+		Exchange:  exchange,
+		Item:      item,
+		Condition: condition,
+		Pair:      p,
+		Asset:     a,
+		Action:    action,
+		Executed:  false,
 	}
-
-	evt.Exchange = exchange
-	evt.Item = item
-	evt.Condition = condition
-	evt.Pair = p
-	evt.Asset = a
-	evt.Action = action
-	evt.Executed = false
-	Events = append(Events, evt)
+	if len(m.events) > 0 {
+		evt.ID = int64(len(m.events) + 1)
+	}
+	m.events = append(m.events, evt)
 	return evt.ID, nil
 }
 
 // Remove deletes and event by its ID
-func Remove(eventID int64) bool {
-	for i := range Events {
-		if Events[i].ID == eventID {
-			Events = append(Events[:i], Events[i+1:]...)
+func (m *Manager) Remove(eventID int64) bool {
+	for i := range m.events {
+		if m.events[i].ID == eventID {
+			m.events = append(m.events[:i], m.events[i+1:]...)
 			return true
 		}
 	}
@@ -112,10 +103,10 @@ func Remove(eventID int64) bool {
 
 // GetEventCounter displays the emount of total events on the chain and the
 // events that have been executed.
-func GetEventCounter() (total, executed int) {
-	total = len(Events)
-	for i := range Events {
-		if Events[i].Executed {
+func (m *Manager) GetEventCounter() (total, executed int) {
+	total = len(m.events)
+	for i := range m.events {
+		if m.events[i].Executed {
 			executed++
 		}
 	}
@@ -123,12 +114,12 @@ func GetEventCounter() (total, executed int) {
 }
 
 // ExecuteAction will execute the action pending on the chain
-func (e *Event) ExecuteAction() bool {
+func (m *Manager) ExecuteAction(e *Event) bool {
 	if strings.Contains(e.Action, ",") {
 		action := strings.Split(e.Action, ",")
 		if action[0] == ActionSMSNotify {
 			if action[1] == "ALL" {
-				engine.Bot.CommsManager.PushEvent(base.Event{
+				m.comms.PushEvent(base.Event{
 					Type:    "event",
 					Message: "Event triggered: " + e.String(),
 				})
@@ -163,30 +154,30 @@ func (e *Event) processTicker(verbose bool) bool {
 		}
 		return false
 	}
-	return e.processCondition(t.Last, e.Condition.Price)
+	return e.shouldProcessEvent(t.Last, e.Condition.Price)
 }
 
-func (e *Event) processCondition(actual, threshold float64) bool {
+func (e *Event) shouldProcessEvent(actual, threshold float64) bool {
 	switch e.Condition.Condition {
 	case ConditionGreaterThan:
 		if actual > threshold {
-			return e.ExecuteAction()
+			return true
 		}
 	case ConditionGreaterThanOrEqual:
 		if actual >= threshold {
-			return e.ExecuteAction()
+			return true
 		}
 	case ConditionLessThan:
 		if actual < threshold {
-			return e.ExecuteAction()
+			return true
 		}
 	case ConditionLessThanOrEqual:
 		if actual <= threshold {
-			return e.ExecuteAction()
+			return true
 		}
 	case ConditionIsEqual:
 		if actual == threshold {
-			return e.ExecuteAction()
+			return true
 		}
 	}
 	return false
@@ -205,7 +196,7 @@ func (e *Event) processOrderbook(verbose bool) bool {
 	if e.Condition.CheckBids || e.Condition.CheckBidsAndAsks {
 		for x := range ob.Bids {
 			subtotal := ob.Bids[x].Amount * ob.Bids[x].Price
-			result := e.processCondition(subtotal, e.Condition.OrderbookAmount)
+			result := e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
 			if result {
 				success = true
 				log.Debugf(log.EventMgr, "Events: Bid Amount: %f Price: %v Subtotal: %v\n", ob.Bids[x].Amount, ob.Bids[x].Price, subtotal)
@@ -216,7 +207,7 @@ func (e *Event) processOrderbook(verbose bool) bool {
 	if !e.Condition.CheckBids || e.Condition.CheckBidsAndAsks {
 		for x := range ob.Asks {
 			subtotal := ob.Asks[x].Amount * ob.Asks[x].Price
-			result := e.processCondition(subtotal, e.Condition.OrderbookAmount)
+			result := e.shouldProcessEvent(subtotal, e.Condition.OrderbookAmount)
 			if result {
 				success = true
 				log.Debugf(log.EventMgr, "Events: Ask Amount: %f Price: %v Subtotal: %v\n", ob.Asks[x].Amount, ob.Asks[x].Price, subtotal)
@@ -228,11 +219,11 @@ func (e *Event) processOrderbook(verbose bool) bool {
 
 // CheckEventCondition will check the event structure to see if there is a condition
 // met
-func (e *Event) CheckEventCondition(verbose bool) bool {
+func (m *Manager) CheckEventCondition(e *Event) bool {
 	if e.Item == ItemPrice {
-		return e.processTicker(verbose)
+		return e.processTicker(m.verbose)
 	}
-	return e.processOrderbook(verbose)
+	return e.processOrderbook(m.verbose)
 }
 
 // IsValidEvent checks the actions to be taken and returns an error if incorrect
@@ -302,22 +293,22 @@ func Setup(comManager *communicationmanager.Manager, verbose bool) *Manager {
 func (m *Manager) Start() {
 	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", EventSleepDelay.String())
 	for {
-		total, executed := GetEventCounter()
+		total, executed := m.GetEventCounter()
 		if total > 0 && executed != total {
-			for _, event := range Events {
-				if !event.Executed {
+			for i := range m.events {
+				if !m.events[i].Executed {
 					if m.verbose {
-						log.Debugf(log.EventMgr, "Events: Processing event %s.\n", event.String())
+						log.Debugf(log.EventMgr, "Events: Processing event %s.\n", m.events[i].String())
 					}
-					success := event.CheckEventCondition(m.verbose)
+					success := m.CheckEventCondition(&m.events[i])
 					if success {
 						msg := fmt.Sprintf(
-							"Events: ID: %d triggered on %s successfully [%v]\n", event.ID,
-							event.Exchange, event.String(),
+							"Events: ID: %d triggered on %s successfully [%v]\n", m.events[i].ID,
+							m.events[i].Exchange, m.events[i].String(),
 						)
 						log.Infoln(log.EventMgr, msg)
 						m.comms.PushEvent(base.Event{Type: "event", Message: msg})
-						event.Executed = true
+						m.events[i].Executed = true
 					}
 				}
 			}

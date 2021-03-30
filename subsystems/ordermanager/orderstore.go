@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/gofrs/uuid"
-
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
@@ -87,7 +86,7 @@ func (s *store) add(det *order.Detail) error {
 	if det == nil {
 		return errors.New("order store: Order is nil")
 	}
-	exch := s.bot.GetExchangeByName(det.Exchange)
+	exch := s.exchangeManager.GetExchangeByName(det.Exchange)
 	if exch == nil {
 		return exchangemanager.ErrExchangeNotFound
 	}

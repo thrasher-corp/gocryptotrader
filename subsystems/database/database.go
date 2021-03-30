@@ -3,17 +3,16 @@ package database
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/thrasher-corp/sqlboiler/boil"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
+	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 var (
@@ -29,7 +28,7 @@ func (m *Manager) Started() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (m *Manager) Start(bot *engine.Engine) (err error) {
+func (m *Manager) Start(cfg *database.Config, wg *sync.WaitGroup) (err error) {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("database manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
@@ -44,20 +43,20 @@ func (m *Manager) Start(bot *engine.Engine) (err error) {
 
 	m.shutdown = make(chan struct{})
 
-	if bot.Config.Database.Enabled {
-		if bot.Config.Database.Driver == database.DBPostgreSQL {
+	if cfg.Enabled {
+		if cfg.Driver == database.DBPostgreSQL {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
-				bot.Config.Database.Host,
-				bot.Config.Database.Database,
-				bot.Config.Database.Driver)
+				cfg.Host,
+				cfg.Database,
+				cfg.Driver)
 			dbConn, err = dbpsql.Connect()
-		} else if bot.Config.Database.Driver == database.DBSQLite ||
-			bot.Config.Database.Driver == database.DBSQLite3 {
+		} else if cfg.Driver == database.DBSQLite ||
+			cfg.Driver == database.DBSQLite3 {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to %s utilising %s driver\n",
-				bot.Config.Database.Database,
-				bot.Config.Database.Driver)
+				cfg.Database,
+				cfg.Driver)
 			dbConn, err = dbsqlite3.Connect()
 		}
 		if err != nil {
@@ -66,12 +65,12 @@ func (m *Manager) Start(bot *engine.Engine) (err error) {
 		dbConn.Connected = true
 
 		DBLogger := database.Logger{}
-		if bot.Config.Database.Verbose {
+		if cfg.Verbose {
 			boil.DebugMode = true
 			boil.DebugWriter = DBLogger
 		}
-
-		go m.run(bot)
+		wg.Add(1)
+		go m.run(wg)
 		return nil
 	}
 
@@ -95,14 +94,13 @@ func (m *Manager) Stop() error {
 	return nil
 }
 
-func (m *Manager) run(bot *engine.Engine) {
+func (m *Manager) run(wg *sync.WaitGroup) {
 	log.Debugln(log.DatabaseMgr, "Database manager started.")
-	bot.ServicesWG.Add(1)
 	t := time.NewTicker(time.Second * 2)
 
 	defer func() {
 		t.Stop()
-		bot.ServicesWG.Done()
+		wg.Done()
 		log.Debugln(log.DatabaseMgr, "Database manager shutdown.")
 	}()
 

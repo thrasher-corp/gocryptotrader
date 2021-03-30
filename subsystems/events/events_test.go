@@ -191,7 +191,7 @@ func TestProcessCondition(t *testing.T) {
 	}
 	for x := range tester {
 		e.Condition.Condition = tester[x].Condition
-		if r := e.processCondition(tester[x].Actual, tester[x].Threshold); r != tester[x].ExpectedResult {
+		if r := e.shouldProcessEvent(tester[x].Actual, tester[x].Threshold); r != tester[x].ExpectedResult {
 			t.Error("unexpected result")
 		}
 	}

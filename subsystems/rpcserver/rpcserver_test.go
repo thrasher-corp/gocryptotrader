@@ -63,7 +63,7 @@ func RPCTestSetup(t *testing.T) *engine.Engine {
 		}
 	}
 	engerino.Config.Database = dbConf
-	err = engerino.DatabaseManager.Start(engerino)
+	err = engerino.DatabaseManager.Start(&engerino.Config.Database, &engerino.ServicesWG)
 	if err != nil {
 		log.Fatal(err)
 	}
