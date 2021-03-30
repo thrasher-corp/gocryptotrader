@@ -3085,7 +3085,7 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 	if a.IsValid() {
 		b := e.GetBase()
 		if b == nil {
-			return errExchangeBaseNotFound
+			return fmt.Errorf("%s %w", exchName, errExchangeBaseNotFound)
 		}
 		err := b.CurrencyPairs.IsAssetEnabled(a)
 		if err != nil {

@@ -825,7 +825,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 	_, err = s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{Exchange: fakePassExchange, AssetType: asset.Futures.String()})
 	if !errors.Is(err, errAssetTypeDisabled) {
-		t.Errorf("expected %v, received %v", errAssetTypeUnset, err)
+		t.Errorf("expected %v, received %v", errAssetTypeDisabled, err)
 	}
 
 	updateResp, err := s.UpdateAccountInfo(context.Background(), &gctrpc.GetAccountInfoRequest{
