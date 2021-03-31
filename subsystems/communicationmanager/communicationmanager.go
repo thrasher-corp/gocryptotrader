@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
+
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
@@ -24,11 +25,10 @@ func (m *Manager) Started() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (m *Manager) Start() (err error) {
+func (m *Manager) Start(cfg *config.CommunicationsConfig) (err error) {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("communications manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
-
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&m.started, 1, 0)
@@ -36,8 +36,7 @@ func (m *Manager) Start() (err error) {
 	}()
 
 	log.Debugln(log.CommunicationMgr, "Communications manager starting...")
-	commsCfg := engine.Bot.Config.GetCommunicationsConfig()
-	m.comms, err = communications.NewComm(&commsCfg)
+	m.comms, err = communications.NewComm(cfg)
 	if err != nil {
 		return err
 	}

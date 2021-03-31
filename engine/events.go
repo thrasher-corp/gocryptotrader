@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/events/communicationmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 )
 
 // TO-DO MAKE THIS A SERVICE SUBSYSTEM

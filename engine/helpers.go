@@ -30,7 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
@@ -93,7 +92,8 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 	switch strings.ToLower(subsys) {
 	case "communications":
 		if enable {
-			return bot.CommsManager.Start()
+			communicationsConfig := bot.Config.GetCommunicationsConfig()
+			return bot.CommsManager.Start(&communicationsConfig)
 		}
 		return bot.CommsManager.Stop()
 	case "internet_monitor":
@@ -103,17 +103,28 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.CommsManager.Stop()
 	case "orders":
 		if enable {
-			return bot.OrderManager.Start(bot)
+			return bot.OrderManager.Start(
+				&bot.exchangeManager,
+				&bot.CommsManager,
+				&bot.ServicesWG,
+				bot.Settings.Verbose)
 		}
 		return bot.OrderManager.Stop()
 	case "portfolio":
 		if enable {
-			return bot.PortfolioManager.Start()
+			return bot.PortfolioManager.Start(
+				&bot.Config.Portfolio,
+				&bot.exchangeManager,
+				bot.Settings.PortfolioManagerDelay,
+				&bot.ServicesWG,
+				bot.Settings.Verbose)
 		}
 		return bot.OrderManager.Stop()
 	case "ntp_timekeeper":
 		if enable {
-			return bot.NTPManager.Start()
+			return bot.NTPManager.Start(
+				&bot.Config.NTPClient,
+				*bot.Config.Logging.Enabled)
 		}
 		return bot.NTPManager.Stop()
 	case "database":
@@ -165,9 +176,9 @@ func (bot *Engine) GetExchangeOTPs() (map[string]string, error) {
 	return otpCodes, nil
 }
 
-// GetExchangeoOTPByName returns a OTP code for the desired exchange
+// GetExchangeOTPByName returns a OTP code for the desired exchange
 // if it exists
-func (bot *Engine) GetExchangeoOTPByName(exchName string) (string, error) {
+func (bot *Engine) GetExchangeOTPByName(exchName string) (string, error) {
 	for x := range bot.Config.Exchanges {
 		if !strings.EqualFold(bot.Config.Exchanges[x].Name, exchName) {
 			continue
@@ -197,17 +208,6 @@ func (bot *Engine) GetAuthAPISupportedExchanges() []string {
 // IsOnline returns whether or not the engine has Internet connectivity
 func (bot *Engine) IsOnline() bool {
 	return bot.ConnectionManager.IsOnline()
-}
-
-// GetAvailableExchanges returns a list of enabled exchanges
-func (bot *Engine) GetAvailableExchanges() []string {
-	var enExchanges []string
-	for x := range bot.Config.Exchanges {
-		if bot.Config.Exchanges[x].Enabled {
-			enExchanges = append(enExchanges, bot.Config.Exchanges[x].Name)
-		}
-	}
-	return enExchanges
 }
 
 // GetAllAvailablePairs returns a list of all available pairs on either enabled
@@ -497,90 +497,6 @@ func GetExchangeLowestPriceByCurrencyPair(p currency.Pair, assetType asset.Item)
 	return result[0].Exchange, nil
 }
 
-// SeedExchangeAccountInfo seeds account info
-func SeedExchangeAccountInfo(accounts []account.Holdings) {
-	if len(accounts) == 0 {
-		return
-	}
-
-	port := portfolio.GetPortfolio()
-
-	for x := range accounts {
-		exchangeName := accounts[x].Exchange
-		var currencies []account.Balance
-		for y := range accounts[x].Accounts {
-			for z := range accounts[x].Accounts[y].Currencies {
-				var update bool
-				for i := range currencies {
-					if accounts[x].Accounts[y].Currencies[z].CurrencyName == currencies[i].CurrencyName {
-						currencies[i].Hold += accounts[x].Accounts[y].Currencies[z].Hold
-						currencies[i].TotalValue += accounts[x].Accounts[y].Currencies[z].TotalValue
-						update = true
-					}
-				}
-
-				if update {
-					continue
-				}
-
-				currencies = append(currencies, account.Balance{
-					CurrencyName: accounts[x].Accounts[y].Currencies[z].CurrencyName,
-					TotalValue:   accounts[x].Accounts[y].Currencies[z].TotalValue,
-					Hold:         accounts[x].Accounts[y].Currencies[z].Hold,
-				})
-			}
-		}
-
-		for x := range currencies {
-			currencyName := currencies[x].CurrencyName
-			total := currencies[x].TotalValue
-
-			if !port.ExchangeAddressExists(exchangeName, currencyName) {
-				if total <= 0 {
-					continue
-				}
-
-				log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
-					exchangeName,
-					currencyName,
-					total,
-					portfolio.PortfolioAddressExchange)
-
-				port.Addresses = append(
-					port.Addresses,
-					portfolio.Address{Address: exchangeName,
-						CoinType:    currencyName,
-						Balance:     total,
-						Description: portfolio.PortfolioAddressExchange})
-			} else {
-				if total <= 0 {
-					log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
-						exchangeName,
-						currencyName)
-					port.RemoveExchangeAddress(exchangeName, currencyName)
-				} else {
-					balance, ok := port.GetAddressBalance(exchangeName,
-						portfolio.PortfolioAddressExchange,
-						currencyName)
-					if !ok {
-						continue
-					}
-
-					if balance != total {
-						log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
-							exchangeName,
-							currencyName,
-							total)
-						port.UpdateExchangeAddressBalance(exchangeName,
-							currencyName,
-							total)
-					}
-				}
-			}
-		}
-	}
-}
-
 // GetCryptocurrenciesByExchange returns a list of cryptocurrencies the exchange supports
 func (bot *Engine) GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, enabledPairs bool, assetType asset.Item) ([]string, error) {
 	var cryptocurrencies []string
@@ -692,12 +608,14 @@ func (bot *Engine) FormatCurrency(p currency.Pair) currency.Pair {
 
 // GetExchangeNames returns a list of enabled or disabled exchanges
 func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
-	exchangeNames := bot.GetAvailableExchanges()
-	if enabledOnly {
-		return exchangeNames
+	exchanges := bot.exchangeManager.GetExchanges()
+	var response []string
+	for i := range exchanges {
+		if !enabledOnly || (enabledOnly && exchanges[i].IsEnabled()) {
+			response = append(response, exchanges[i].GetName())
+		}
 	}
-	exchangeNames = append(exchangeNames, bot.Config.GetDisabledExchanges()...)
-	return exchangeNames
+	return response
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers

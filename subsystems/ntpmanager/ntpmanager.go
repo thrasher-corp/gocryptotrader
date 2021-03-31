@@ -1,15 +1,16 @@
-package ntp
+package ntpmanager
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ntp/ntpclient"
 )
 
 const (
@@ -29,7 +30,7 @@ type Manager struct {
 	level                     int64
 	allowedDifference         time.Duration
 	allowedNegativeDifference time.Duration
-	pool                      []string
+	pools                     []string
 	checkInterval             time.Duration
 	retryLimit                int
 }
@@ -49,7 +50,7 @@ func (m *Manager) Start(cfg *config.NTPClientConfig, loggingEnabled bool) error 
 	m.level = int64(cfg.Level)
 	m.allowedDifference = *cfg.AllowedDifference
 	m.allowedNegativeDifference = *cfg.AllowedNegativeDifference
-	m.pool = cfg.Pool
+	m.pools = cfg.Pool
 	m.retryLimit = defaultRetryLimit
 	m.checkInterval = defaultNTPCheckInterval
 
@@ -113,7 +114,7 @@ func (m *Manager) run() {
 }
 
 func (m *Manager) FetchNTPTime() time.Time {
-	return ntpclient.NTPClient(m.pool)
+	return checkTimeInPools(m.pools)
 }
 
 func (m *Manager) processTime() error {
@@ -132,4 +133,74 @@ func (m *Manager) processTime() error {
 			configNTPNegativeTime)
 	}
 	return nil
+}
+
+type ntpPacket struct {
+	Settings       uint8  // leap yr indicator, ver number, and mode
+	Stratum        uint8  // stratum of local clock
+	Poll           int8   // poll exponent
+	Precision      int8   // precision exponent
+	RootDelay      uint32 // root delay
+	RootDispersion uint32 // root dispersion
+	ReferenceID    uint32 // reference id
+	RefTimeSec     uint32 // reference timestamp sec
+	RefTimeFrac    uint32 // reference timestamp fractional
+	OrigTimeSec    uint32 // origin time secs
+	OrigTimeFrac   uint32 // origin time fractional
+	RxTimeSec      uint32 // receive time secs
+	RxTimeFrac     uint32 // receive time frac
+	TxTimeSec      uint32 // transmit time secs
+	TxTimeFrac     uint32 // transmit time frac
+}
+
+// checkTimeInPools returns local based on ntp servers provided timestamp
+// if no server can be reached will return local time in UTC()
+func checkTimeInPools(pool []string) time.Time {
+	for i := range pool {
+		con, err := net.DialTimeout("udp", pool[i], 5*time.Second)
+		if err != nil {
+			log.Warnf(log.TimeMgr, "Unable to connect to hosts %v attempting next", pool[i])
+			continue
+		}
+
+		if err := con.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			log.Warnf(log.TimeMgr, "Unable to SetDeadline. Error: %s\n", err)
+			err = con.Close()
+			if err != nil {
+				log.Error(log.TimeMgr, err)
+			}
+			continue
+		}
+
+		req := &ntpPacket{Settings: 0x1B}
+		if err := binary.Write(con, binary.BigEndian, req); err != nil {
+			log.Warnf(log.TimeMgr, "Unable to write. Error: %s\n", err)
+			err = con.Close()
+			if err != nil {
+				log.Error(log.TimeMgr, err)
+			}
+			continue
+		}
+
+		rsp := &ntpPacket{}
+		if err := binary.Read(con, binary.BigEndian, rsp); err != nil {
+			log.Warnf(log.TimeMgr, "Unable to read. Error: %s\n", err)
+			err = con.Close()
+			if err != nil {
+				log.Error(log.TimeMgr, err)
+			}
+			continue
+		}
+
+		secs := float64(rsp.TxTimeSec) - 2208988800
+		nanos := (int64(rsp.TxTimeFrac) * 1e9) >> 32
+
+		err = con.Close()
+		if err != nil {
+			log.Error(log.TimeMgr, err)
+		}
+		return time.Unix(int64(secs), nanos)
+	}
+	log.Warnln(log.TimeMgr, "No valid NTP servers found, using current system time")
+	return time.Now().UTC()
 }

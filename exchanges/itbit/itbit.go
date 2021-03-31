@@ -366,7 +366,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ep exchange.URL, method, path strin
 	err = json.Unmarshal(intermediary, &errCheck)
 	if err == nil {
 		if errCheck.Code != 0 || errCheck.Description != "" {
-			return fmt.Errorf("itbit.go SendAuthRequest error code: %d description: %s",
+			return fmt.Errorf("SendAuthRequest error code: %d description: %s",
 				errCheck.Code,
 				errCheck.Description)
 		}

@@ -12,7 +12,7 @@ const (
 )
 
 func TestSeed(t *testing.T) {
-	var d Store
+	var d depositAddressStore
 	u := map[string]map[string]string{
 		"BITSTAMP": {
 			"BTC": testBTCAddress,
@@ -31,7 +31,7 @@ func TestSeed(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	var d Store
+	var d depositAddressStore
 	_, err := d.GetDepositAddress("", currency.BTC)
 	if err != ErrDepositAddressStoreIsNil {
 		t.Error("non-error on non-existent exchange")

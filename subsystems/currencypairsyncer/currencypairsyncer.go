@@ -1,4 +1,4 @@
-package syncer
+package currencypairsyncer
 
 import (
 	"errors"
@@ -8,9 +8,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
@@ -24,18 +26,17 @@ const (
 	SyncItemTicker = iota
 	SyncItemOrderbook
 	SyncItemTrade
+)
 
+var (
+	createdCounter       = 0
+	removedCounter       = 0
 	DefaultSyncerWorkers = 15
 	DefaultSyncerTimeout = time.Second * 15
 )
 
-var (
-	createdCounter = 0
-	removedCounter = 0
-)
-
 // NewCurrencyPairSyncer starts a new CurrencyPairSyncer
-func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig) (*ExchangeCurrencyPairSyncer, error) {
+func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig, e *exchangemanager.Manager) (*ExchangeCurrencyPairSyncer, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
 		return nil, errors.New("no sync items enabled")
 	}
@@ -57,6 +58,7 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig) (*ExchangeCurrencyPairSyn
 			SyncTimeout:      c.SyncTimeout,
 			NumWorkers:       c.NumWorkers,
 		},
+		exchangeManager: e,
 	}
 
 	s.tickerBatchLastRequested = make(map[string]time.Time)
@@ -106,7 +108,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 		if e.Cfg.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added ticker sync item %v: using websocket: %v using REST: %v\n",
-				c.Exchange, engine.Bot.FormatCurrency(c.Pair).String(), c.Ticker.IsUsingWebsocket,
+				c.Exchange, e.FormatCurrency(c.Pair).String(), c.Ticker.IsUsingWebsocket,
 				c.Ticker.IsUsingREST)
 		}
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
@@ -119,7 +121,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 		if e.Cfg.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added orderbook sync item %v: using websocket: %v using REST: %v\n",
-				c.Exchange, engine.Bot.FormatCurrency(c.Pair).String(), c.Orderbook.IsUsingWebsocket,
+				c.Exchange, e.FormatCurrency(c.Pair).String(), c.Orderbook.IsUsingWebsocket,
 				c.Orderbook.IsUsingREST)
 		}
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
@@ -132,7 +134,7 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 		if e.Cfg.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added trade sync item %v: using websocket: %v using REST: %v\n",
-				c.Exchange, engine.Bot.FormatCurrency(c.Pair).String(), c.Trade.IsUsingWebsocket,
+				c.Exchange, e.FormatCurrency(c.Pair).String(), c.Trade.IsUsingWebsocket,
 				c.Trade.IsUsingREST)
 		}
 		if atomic.LoadInt32(&e.initSyncCompleted) != 1 {
@@ -245,7 +247,7 @@ func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].\n",
 						exchangeName,
-						engine.Bot.FormatCurrency(p).String(),
+						e.FormatCurrency(p).String(),
 						removedCounter,
 						createdCounter)
 					e.initSyncWG.Done()
@@ -263,7 +265,7 @@ func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].\n",
 						exchangeName,
-						engine.Bot.FormatCurrency(p).String(),
+						e.FormatCurrency(p).String(),
 						removedCounter,
 						createdCounter)
 					e.initSyncWG.Done()
@@ -281,7 +283,7 @@ func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].\n",
 						exchangeName,
-						engine.Bot.FormatCurrency(p).String(),
+						e.FormatCurrency(p).String(),
 						removedCounter,
 						createdCounter)
 					e.initSyncWG.Done()
@@ -299,7 +301,8 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 	defer cleanup()
 
 	for atomic.LoadInt32(&e.shutdown) != 1 {
-		exchanges := engine.Bot.GetExchanges()
+
+		exchanges := e.exchangeManager.GetExchanges()
 		for x := range exchanges {
 			exchangeName := exchanges[x].GetName()
 			assetTypes := exchanges[x].GetAssetTypes()
@@ -383,7 +386,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 					if switchedToRest && usingWebsocket {
 						log.Warnf(log.SyncMgr,
 							"%s %s: Websocket re-enabled, switching from rest to websocket\n",
-							c.Exchange, engine.Bot.FormatCurrency(enabledPairs[i]).String())
+							c.Exchange, e.FormatCurrency(enabledPairs[i]).String())
 						switchedToRest = false
 					}
 					if e.Cfg.SyncTicker {
@@ -401,7 +404,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										log.Warnf(log.SyncMgr,
 											"%s %s %s: No ticker update after %s, switching from websocket to rest\n",
 											c.Exchange,
-											engine.Bot.FormatCurrency(enabledPairs[i]).String(),
+											e.FormatCurrency(enabledPairs[i]).String(),
 											strings.ToUpper(c.AssetType.String()),
 											e.Cfg.SyncTimeout,
 										)
@@ -440,9 +443,9 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 									} else {
 										result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 									}
-									PrintTickerSummary(result, "REST", err)
+									e.PrintTickerSummary(result, "REST", err)
 									if err == nil {
-										if engine.Bot.Config.RemoteControl.WebsocketRPC.Enabled {
+										if e.remoteConfig.WebsocketRPC.Enabled {
 											relayWebsocketEvent(result, "ticker_update", c.AssetType.String(), exchangeName)
 										}
 									}
@@ -468,7 +471,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										log.Warnf(log.SyncMgr,
 											"%s %s %s: No orderbook update after %s, switching from websocket to rest\n",
 											c.Exchange,
-											engine.Bot.FormatCurrency(c.Pair).String(),
+											e.FormatCurrency(c.Pair).String(),
 											strings.ToUpper(c.AssetType.String()),
 											e.Cfg.SyncTimeout,
 										)
@@ -479,9 +482,9 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 
 								e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
 								result, err := exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
-								PrintOrderbookSummary(result, "REST", engine.Bot, err)
+								e.PrintOrderbookSummary(result, "REST", err)
 								if err == nil {
-									if engine.Bot.Config.RemoteControl.WebsocketRPC.Enabled {
+									if e.remoteConfig.WebsocketRPC.Enabled {
 										relayWebsocketEvent(result, "orderbook_update", c.AssetType.String(), exchangeName)
 									}
 								}
@@ -508,7 +511,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 // Start starts an exchange currency pair syncer
 func (e *ExchangeCurrencyPairSyncer) Start() {
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-	exchanges := engine.Bot.GetExchanges()
+	exchanges := e.exchangeManager.GetExchanges()
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()
@@ -691,7 +694,7 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64, d
 }
 
 // PrintTickerSummary outputs the ticker results
-func PrintTickerSummary(result *ticker.Price, protocol string, err error) {
+func (e *ExchangeCurrencyPairSyncer) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
 	if err != nil {
 		if err == common.ErrNotYetImplemented {
 			log.Warnf(log.Ticker, "Failed to get %s ticker. Error: %s\n",
@@ -711,18 +714,18 @@ func PrintTickerSummary(result *ticker.Price, protocol string, err error) {
 	}
 	if result.Pair.Quote.IsFiatCurrency() &&
 		engine.Bot != nil &&
-		result.Pair.Quote != engine.Bot.Config.Currency.FiatDisplayCurrency {
+		result.Pair.Quote != e.fiatDisplayCurrency {
 		origCurrency := result.Pair.Quote.Upper()
 		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 			result.ExchangeName,
 			protocol,
-			engine.Bot.FormatCurrency(result.Pair),
+			e.FormatCurrency(result.Pair),
 			strings.ToUpper(result.AssetType.String()),
-			printConvertCurrencyFormat(origCurrency, result.Last, engine.Bot.Config.Currency.FiatDisplayCurrency),
-			printConvertCurrencyFormat(origCurrency, result.Ask, engine.Bot.Config.Currency.FiatDisplayCurrency),
-			printConvertCurrencyFormat(origCurrency, result.Bid, engine.Bot.Config.Currency.FiatDisplayCurrency),
-			printConvertCurrencyFormat(origCurrency, result.High, engine.Bot.Config.Currency.FiatDisplayCurrency),
-			printConvertCurrencyFormat(origCurrency, result.Low, engine.Bot.Config.Currency.FiatDisplayCurrency),
+			printConvertCurrencyFormat(origCurrency, result.Last, e.fiatDisplayCurrency),
+			printConvertCurrencyFormat(origCurrency, result.Ask, e.fiatDisplayCurrency),
+			printConvertCurrencyFormat(origCurrency, result.Bid, e.fiatDisplayCurrency),
+			printConvertCurrencyFormat(origCurrency, result.High, e.fiatDisplayCurrency),
+			printConvertCurrencyFormat(origCurrency, result.Low, e.fiatDisplayCurrency),
 			result.Volume)
 	} else {
 		if result.Pair.Quote.IsFiatCurrency() &&
@@ -731,19 +734,19 @@ func PrintTickerSummary(result *ticker.Price, protocol string, err error) {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 				result.ExchangeName,
 				protocol,
-				engine.Bot.FormatCurrency(result.Pair),
+				e.FormatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
-				printCurrencyFormat(result.Last, engine.Bot.Config.Currency.FiatDisplayCurrency),
-				printCurrencyFormat(result.Ask, engine.Bot.Config.Currency.FiatDisplayCurrency),
-				printCurrencyFormat(result.Bid, engine.Bot.Config.Currency.FiatDisplayCurrency),
-				printCurrencyFormat(result.High, engine.Bot.Config.Currency.FiatDisplayCurrency),
-				printCurrencyFormat(result.Low, engine.Bot.Config.Currency.FiatDisplayCurrency),
+				printCurrencyFormat(result.Last, e.fiatDisplayCurrency),
+				printCurrencyFormat(result.Ask, e.fiatDisplayCurrency),
+				printCurrencyFormat(result.Bid, e.fiatDisplayCurrency),
+				printCurrencyFormat(result.High, e.fiatDisplayCurrency),
+				printCurrencyFormat(result.Low, e.fiatDisplayCurrency),
 				result.Volume)
 		} else {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f\n",
 				result.ExchangeName,
 				protocol,
-				engine.Bot.FormatCurrency(result.Pair),
+				e.FormatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
 				result.Last,
 				result.Ask,
@@ -755,12 +758,18 @@ func PrintTickerSummary(result *ticker.Price, protocol string, err error) {
 	}
 }
 
+// FormatCurrency is a method that formats and returns a currency pair
+// based on the user currency display preferences
+func (e *ExchangeCurrencyPairSyncer) FormatCurrency(p currency.Pair) currency.Pair {
+	return p.Format(e.delimiter, e.uppercase)
+}
+
 const (
 	book = "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n"
 )
 
 // PrintOrderbookSummary outputs orderbook results
-func PrintOrderbookSummary(result *orderbook.Base, protocol string, bot *engine.Engine, err error) {
+func (e *ExchangeCurrencyPairSyncer) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if err != nil {
 		if result == nil {
 			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",
@@ -791,13 +800,13 @@ func PrintOrderbookSummary(result *orderbook.Base, protocol string, bot *engine.
 
 	var bidValueResult, askValueResult string
 	switch {
-	case result.Pair.Quote.IsFiatCurrency() && bot != nil && result.Pair.Quote != bot.Config.Currency.FiatDisplayCurrency:
+	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != e.fiatDisplayCurrency:
 		origCurrency := result.Pair.Quote.Upper()
-		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue, bot.Config.Currency.FiatDisplayCurrency)
-		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue, bot.Config.Currency.FiatDisplayCurrency)
-	case result.Pair.Quote.IsFiatCurrency() && bot != nil && result.Pair.Quote == bot.Config.Currency.FiatDisplayCurrency:
-		bidValueResult = printCurrencyFormat(bidsValue, bot.Config.Currency.FiatDisplayCurrency)
-		askValueResult = printCurrencyFormat(asksValue, bot.Config.Currency.FiatDisplayCurrency)
+		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue, e.fiatDisplayCurrency)
+		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue, e.fiatDisplayCurrency)
+	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == e.fiatDisplayCurrency:
+		bidValueResult = printCurrencyFormat(bidsValue, e.fiatDisplayCurrency)
+		askValueResult = printCurrencyFormat(asksValue, e.fiatDisplayCurrency)
 	default:
 		bidValueResult = strconv.FormatFloat(bidsValue, 'f', -1, 64)
 		askValueResult = strconv.FormatFloat(asksValue, 'f', -1, 64)
@@ -806,7 +815,7 @@ func PrintOrderbookSummary(result *orderbook.Base, protocol string, bot *engine.
 	log.Infof(log.OrderBook, book,
 		result.ExchangeName,
 		protocol,
-		bot.FormatCurrency(result.Pair),
+		e.FormatCurrency(result.Pair),
 		strings.ToUpper(result.AssetType.String()),
 		len(result.Bids),
 		bidsAmount,

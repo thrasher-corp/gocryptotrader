@@ -18,7 +18,7 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ntp/ntpclient"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ntpmanager/ntpclient"
 )
 
 const (
@@ -1960,7 +1960,7 @@ func TestCheckNTPConfig(t *testing.T) {
 	c.NTPClient.AllowedDifference = nil
 
 	c.CheckNTPConfig()
-	_ = ntpclient.NTPClient(c.NTPClient.Pool)
+	_ = ntpclient.CheckTimeInPools(c.NTPClient.Pool)
 
 	if c.NTPClient.Pool[0] != "pool.ntp.org:123" {
 		t.Error("ntpclient with no valid pool should default to pool.ntp.org")

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems/events/communicationmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"

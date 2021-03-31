@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -27,18 +29,17 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	portfoliosync "github.com/thrasher-corp/gocryptotrader/portfolio/sync"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/database"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/depositaddress"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/events/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ntp"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ntpmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliosync"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/syncer"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
@@ -47,10 +48,10 @@ import (
 type Engine struct {
 	Config                      *config.Config
 	Portfolio                   *portfolio.Base
-	ExchangeCurrencyPairManager *syncer.ExchangeCurrencyPairSyncer
-	NTPManager                  ntp.Manager
-	ConnectionManager           connectionmanager.ConnectionManager
-	DatabaseManager             database.Manager
+	ExchangeCurrencyPairManager *currencypairsyncer.ExchangeCurrencyPairSyncer
+	NTPManager                  ntpmanager.Manager
+	ConnectionManager           connectionmanager.Manager
+	DatabaseManager             databaseconnection.Manager
 	GctScriptManager            *gctscript.GctScriptManager
 	OrderManager                ordermanager.Manager
 	PortfolioManager            portfoliosync.Manager
@@ -434,7 +435,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		if err = bot.CommsManager.nStart(); err != nil {
+		if err = bot.CommsManager.Start(&bot.Config.Communications); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}
@@ -482,7 +483,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnablePortfolioManager {
-		if err = bot.PortfolioManager.Start(); err != nil {
+		if err = bot.PortfolioManager.Start(&bot.Config.Portfolio, bot.Settings.PortfolioManagerDelay, &bot.ServicesWG, bot.Settings.Verbose); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to start: %v", err)
 		}
 	}
@@ -493,13 +494,13 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableOrderManager {
-		if err = bot.OrderManager.Start(bot); err != nil {
+		if err = bot.OrderManager.Start(&bot.exchangeManager, &bot.CommsManager, &bot.ServicesWG, bot.Settings.Verbose); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
 		}
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
-		exchangeSyncCfg := syncer.CurrencyPairSyncerConfig{
+		exchangeSyncCfg := currencypairsyncer.CurrencyPairSyncerConfig{
 			SyncTicker:       bot.Settings.EnableTickerSyncing,
 			SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
 			SyncTrades:       bot.Settings.EnableTradeSyncing,
@@ -509,7 +510,7 @@ func (bot *Engine) Start() error {
 			SyncTimeout:      bot.Settings.SyncTimeout,
 		}
 
-		bot.ExchangeCurrencyPairManager, err = syncer.NewCurrencyPairSyncer(exchangeSyncCfg)
+		bot.ExchangeCurrencyPairManager, err = currencypairsyncer.NewCurrencyPairSyncer(exchangeSyncCfg, &bot.exchangeManager)
 		if err != nil {
 			gctlog.Warnf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
@@ -934,7 +935,7 @@ func (bot *Engine) WebsocketDataReceiver(ws *stream.Websocket) {
 // processed data. WebsocketDataHandler will then pass that to an appropriate handler
 func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error {
 	if data == nil {
-		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket",
+		return fmt.Errorf("exchange %s nil data sent to websocket",
 			exchName)
 	}
 
@@ -942,7 +943,7 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 	case string:
 		gctlog.Info(gctlog.WebsocketMgr, d)
 	case error:
-		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
+		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
 	case stream.FundingData:
 		if bot.Settings.Verbose {
 			gctlog.Infof(gctlog.WebsocketMgr, "%s websocket %s %s funding updated %+v",
@@ -956,11 +957,11 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 			bot.ExchangeCurrencyPairManager.Update(exchName,
 				d.Pair,
 				d.AssetType,
-				syncer.SyncItemTicker,
+				currencypairsyncer.SyncItemTicker,
 				nil)
 		}
 		err := ticker.ProcessTicker(d)
-		syncer.PrintTickerSummary(d, "websocket", err)
+		currencypairsyncer.PrintTickerSummary(d, "websocket", err)
 	case stream.KlineData:
 		if bot.Settings.Verbose {
 			gctlog.Infof(gctlog.WebsocketMgr, "%s websocket %s %s kline updated %+v",
@@ -974,10 +975,10 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 			bot.ExchangeCurrencyPairManager.Update(exchName,
 				d.Pair,
 				d.AssetType,
-				syncer.SyncItemOrderbook,
+				currencypairsyncer.SyncItemOrderbook,
 				nil)
 		}
-		syncer.PrintOrderbookSummary(d, "websocket", bot, nil)
+		currencypairsyncer.PrintOrderbookSummary(d, "websocket", bot, nil)
 	case *order.Detail:
 		if !bot.OrderManager.Exists(d) {
 			err := bot.OrderManager.Add(d)

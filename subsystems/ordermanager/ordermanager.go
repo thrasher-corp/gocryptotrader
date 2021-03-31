@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/events/communicationmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
@@ -474,4 +474,25 @@ func (m *Manager) processOrders() {
 			}
 		}
 	}
+}
+
+// Exists checks whether an order exists in the order store
+func (m *Manager) Exists(o *order.Detail) bool {
+	return m.orderStore.exists(o)
+}
+
+// Add adds an order to the orderstore
+func (m *Manager) Add(o *order.Detail) error {
+	return m.orderStore.add(o)
+}
+
+// GetByExchangeAndID returns a copy of an order from an exchange if it matches the ID
+func (m *Manager) GetByExchangeAndID(exchangeName, id string) (*order.Detail, error) {
+	o, err := m.orderStore.getByExchangeAndID(exchangeName, id)
+	if err != nil {
+		return nil, err
+	}
+	var cpy order.Detail
+	cpy.UpdateOrderFromDetail(o)
+	return &cpy, nil
 }

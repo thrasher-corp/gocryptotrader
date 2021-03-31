@@ -1,11 +1,10 @@
-package events
+package engine
 
 import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -17,19 +16,19 @@ const (
 
 func addValidEvent() (int64, error) {
 	return Add(testExchange,
-		engine.ItemPrice,
-		engine.EventConditionParams{Condition: engine.ConditionGreaterThan, Price: 1},
+		ItemPrice,
+		EventConditionParams{Condition: ConditionGreaterThan, Price: 1},
 		currency.NewPair(currency.BTC, currency.USD),
 		asset.Spot,
 		"SMS,test")
 }
 
 func TestAdd(t *testing.T) {
-	bot := engine.CreateTestBot(t)
+	bot := CreateTestBot(t)
 	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
-	_, err := Add("", "", engine.EventConditionParams{}, currency.Pair{}, "", "")
+	_, err := Add("", "", EventConditionParams{}, currency.Pair{}, "", "")
 	if err == nil {
 		t.Error("should err on invalid params")
 	}
@@ -50,7 +49,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	bot := engine.CreateTestBot(t)
+	bot := CreateTestBot(t)
 	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
@@ -69,7 +68,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
-	bot := engine.CreateTestBot(t)
+	bot := CreateTestBot(t)
 	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
@@ -92,15 +91,15 @@ func TestGetEventCounter(t *testing.T) {
 
 func TestExecuteAction(t *testing.T) {
 	t.Parallel()
-	bot := engine.CreateTestBot(t)
-	if engine.Bot == nil {
-		engine.Bot = bot
+	bot := CreateTestBot(t)
+	if Bot == nil {
+		Bot = bot
 	}
 	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
 
-	var e engine.Event
+	var e Event
 	if r := e.ExecuteAction(); !r {
 		t.Error("unexpected result")
 	}
@@ -118,11 +117,11 @@ func TestExecuteAction(t *testing.T) {
 
 func TestString(t *testing.T) {
 	t.Parallel()
-	e := engine.Event{
+	e := Event{
 		Exchange: testExchange,
-		Item:     engine.ItemPrice,
-		Condition: engine.EventConditionParams{
-			Condition: engine.ConditionGreaterThan,
+		Item:     ItemPrice,
+		Condition: EventConditionParams{
+			Condition: ConditionGreaterThan,
 			Price:     1,
 		},
 		Pair:   currency.NewPair(currency.BTC, currency.USD),
@@ -136,12 +135,12 @@ func TestString(t *testing.T) {
 }
 
 func TestProcessTicker(t *testing.T) {
-	e := engine.Event{
+	e := Event{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
 		Asset:    asset.Spot,
-		Condition: engine.EventConditionParams{
-			Condition: engine.ConditionGreaterThan,
+		Condition: EventConditionParams{
+			Condition: ConditionGreaterThan,
 			Price:     1,
 		},
 	}
@@ -171,23 +170,23 @@ func TestProcessTicker(t *testing.T) {
 
 func TestProcessCondition(t *testing.T) {
 	t.Parallel()
-	var e engine.Event
+	var e Event
 	tester := []struct {
 		Condition      string
 		Actual         float64
 		Threshold      float64
 		ExpectedResult bool
 	}{
-		{engine.ConditionGreaterThan, 1, 2, false},
-		{engine.ConditionGreaterThan, 2, 1, true},
-		{engine.ConditionGreaterThanOrEqual, 1, 2, false},
-		{engine.ConditionGreaterThanOrEqual, 2, 1, true},
-		{engine.ConditionIsEqual, 1, 1, true},
-		{engine.ConditionIsEqual, 1, 2, false},
-		{engine.ConditionLessThan, 1, 2, true},
-		{engine.ConditionLessThan, 2, 1, false},
-		{engine.ConditionLessThanOrEqual, 1, 2, true},
-		{engine.ConditionLessThanOrEqual, 2, 1, false},
+		{ConditionGreaterThan, 1, 2, false},
+		{ConditionGreaterThan, 2, 1, true},
+		{ConditionGreaterThanOrEqual, 1, 2, false},
+		{ConditionGreaterThanOrEqual, 2, 1, true},
+		{ConditionIsEqual, 1, 1, true},
+		{ConditionIsEqual, 1, 2, false},
+		{ConditionLessThan, 1, 2, true},
+		{ConditionLessThan, 2, 1, false},
+		{ConditionLessThanOrEqual, 1, 2, true},
+		{ConditionLessThanOrEqual, 2, 1, false},
 	}
 	for x := range tester {
 		e.Condition.Condition = tester[x].Condition
@@ -198,12 +197,12 @@ func TestProcessCondition(t *testing.T) {
 }
 
 func TestProcessOrderbook(t *testing.T) {
-	e := engine.Event{
+	e := Event{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
 		Asset:    asset.Spot,
-		Condition: engine.EventConditionParams{
-			Condition:        engine.ConditionGreaterThan,
+		Condition: EventConditionParams{
+			Condition:        ConditionGreaterThan,
 			CheckBidsAndAsks: true,
 			OrderbookAmount:  100,
 		},
@@ -228,110 +227,110 @@ func TestProcessOrderbook(t *testing.T) {
 
 func TestCheckEventCondition(t *testing.T) {
 	t.Parallel()
-	if engine.Bot == nil {
-		engine.Bot = new(engine.Engine)
+	if Bot == nil {
+		Bot = new(Engine)
 	}
 
-	e := engine.Event{
-		Item: engine.ItemPrice,
+	e := Event{
+		Item: ItemPrice,
 	}
 	if r := e.CheckEventCondition(false); r {
 		t.Error("unexpected result")
 	}
 
-	e.Item = engine.ItemOrderbook
+	e.Item = ItemOrderbook
 	if r := e.CheckEventCondition(false); r {
 		t.Error("unexpected result")
 	}
 }
 
 func TestIsValidEvent(t *testing.T) {
-	bot := engine.CreateTestBot(t)
+	bot := CreateTestBot(t)
 	if config.Cfg.Name == "" && bot != nil {
 		config.Cfg = *bot.Config
 	}
 	// invalid exchange name
-	if err := engine.IsValidEvent("meow", "", engine.EventConditionParams{}, ""); err != engine.errExchangeDisabled {
+	if err := IsValidEvent("meow", "", EventConditionParams{}, ""); err != errExchangeDisabled {
 		t.Error("unexpected result:", err)
 	}
 
 	// invalid item
-	if err := engine.IsValidEvent(testExchange, "", engine.EventConditionParams{}, ""); err != engine.errInvalidItem {
+	if err := IsValidEvent(testExchange, "", EventConditionParams{}, ""); err != errInvalidItem {
 		t.Error("unexpected result:", err)
 	}
 
 	// invalid condition
-	if err := engine.IsValidEvent(testExchange, engine.ItemPrice, engine.EventConditionParams{}, ""); err != engine.errInvalidCondition {
+	if err := IsValidEvent(testExchange, ItemPrice, EventConditionParams{}, ""); err != errInvalidCondition {
 		t.Error("unexpected result:", err)
 	}
 
 	// valid condition but empty price which will still throw an errInvalidCondition
-	c := engine.EventConditionParams{
-		Condition: engine.ConditionGreaterThan,
+	c := EventConditionParams{
+		Condition: ConditionGreaterThan,
 	}
-	if err := engine.IsValidEvent(testExchange, engine.ItemPrice, c, ""); err != engine.errInvalidCondition {
+	if err := IsValidEvent(testExchange, ItemPrice, c, ""); err != errInvalidCondition {
 		t.Error("unexpected result:", err)
 	}
 
 	// valid condition but empty orderbook amount will still still throw an errInvalidCondition
-	if err := engine.IsValidEvent(testExchange, engine.ItemOrderbook, c, ""); err != engine.errInvalidCondition {
+	if err := IsValidEvent(testExchange, ItemOrderbook, c, ""); err != errInvalidCondition {
 		t.Error("unexpected result:", err)
 	}
 
 	// test action splitting, but invalid
 	c.OrderbookAmount = 1337
-	if err := engine.IsValidEvent(testExchange, engine.ItemOrderbook, c, "a,meow"); err != engine.errInvalidAction {
+	if err := IsValidEvent(testExchange, ItemOrderbook, c, "a,meow"); err != errInvalidAction {
 		t.Error("unexpected result:", err)
 	}
 
 	// check for invalid action without splitting
-	if err := engine.IsValidEvent(testExchange, engine.ItemOrderbook, c, "hi"); err != engine.errInvalidAction {
+	if err := IsValidEvent(testExchange, ItemOrderbook, c, "hi"); err != errInvalidAction {
 		t.Error("unexpected result:", err)
 	}
 
 	// valid event
-	if err := engine.IsValidEvent(testExchange, engine.ItemOrderbook, c, "SMS,test"); err != nil {
+	if err := IsValidEvent(testExchange, ItemOrderbook, c, "SMS,test"); err != nil {
 		t.Error("unexpected result:", err)
 	}
 }
 
 func TestIsValidExchange(t *testing.T) {
 	t.Parallel()
-	if s := engine.IsValidExchange("invalidexchangerino"); s {
+	if s := IsValidExchange("invalidexchangerino"); s {
 		t.Error("unexpected result")
 	}
-	engine.CreateTestBot(t)
-	if s := engine.IsValidExchange(testExchange); !s {
+	CreateTestBot(t)
+	if s := IsValidExchange(testExchange); !s {
 		t.Error("unexpected result")
 	}
 }
 
 func TestIsValidCondition(t *testing.T) {
 	t.Parallel()
-	if s := engine.IsValidCondition("invalidconditionerino"); s {
+	if s := IsValidCondition("invalidconditionerino"); s {
 		t.Error("unexpected result")
 	}
-	if s := engine.IsValidCondition(engine.ConditionGreaterThan); !s {
+	if s := IsValidCondition(ConditionGreaterThan); !s {
 		t.Error("unexpected result")
 	}
 }
 
 func TestIsValidAction(t *testing.T) {
 	t.Parallel()
-	if s := engine.IsValidAction("invalidactionerino"); s {
+	if s := IsValidAction("invalidactionerino"); s {
 		t.Error("unexpected result")
 	}
-	if s := engine.IsValidAction(engine.ActionSMSNotify); !s {
+	if s := IsValidAction(ActionSMSNotify); !s {
 		t.Error("unexpected result")
 	}
 }
 
 func TestIsValidItem(t *testing.T) {
 	t.Parallel()
-	if s := engine.IsValidItem("invaliditemerino"); s {
+	if s := IsValidItem("invaliditemerino"); s {
 		t.Error("unexpected result")
 	}
-	if s := engine.IsValidItem(engine.ItemPrice); !s {
+	if s := IsValidItem(ItemPrice); !s {
 		t.Error("unexpected result")
 	}
 }

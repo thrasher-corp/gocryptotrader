@@ -163,7 +163,7 @@ func (e Exchange) WithdrawalFiatFunds(bankAccountID string, request *withdraw.Re
 		}
 	}
 
-	otp, err := engine.Bot.GetExchangeoOTPByName(request.Exchange)
+	otp, err := engine.Bot.GetExchangeOTPByName(request.Exchange)
 	if err == nil {
 		otpValue, errParse := strconv.ParseInt(otp, 10, 64)
 		if errParse != nil {
@@ -196,7 +196,7 @@ func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (string, erro
 	if err != nil {
 		return "", err
 	}
-	otp, err := engine.Bot.GetExchangeoOTPByName(request.Exchange)
+	otp, err := engine.Bot.GetExchangeOTPByName(request.Exchange)
 	if err == nil {
 		v, errParse := strconv.ParseInt(otp, 10, 64)
 		if errParse != nil {

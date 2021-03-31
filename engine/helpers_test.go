@@ -93,7 +93,7 @@ func TestGetExchangeOTPs(t *testing.T) {
 
 func TestGetExchangeoOTPByName(t *testing.T) {
 	bot := CreateTestBot(t)
-	_, err := bot.GetExchangeoOTPByName("Bitstamp")
+	_, err := bot.GetExchangeOTPByName("Bitstamp")
 	if err == nil {
 		t.Fatal("Expected err with no exchange OTP secrets set")
 	}
@@ -104,7 +104,7 @@ func TestGetExchangeoOTPByName(t *testing.T) {
 	}
 
 	bCfg.API.Credentials.OTPSecret = "JBSWY3DPEHPK3PXP"
-	result, err := bot.GetExchangeoOTPByName("Bitstamp")
+	result, err := bot.GetExchangeOTPByName("Bitstamp")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,13 +147,6 @@ func TestIsOnline(t *testing.T) {
 				return
 			}
 		}
-	}
-}
-
-func TestGetAvailableExchanges(t *testing.T) {
-	e := CreateTestBot(t)
-	if r := len(e.GetAvailableExchanges()); r == 0 {
-		t.Error("Expected len > 0")
 	}
 }
 

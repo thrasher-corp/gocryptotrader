@@ -16,7 +16,7 @@ import (
 func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 	w := httptest.NewRecorder()
 
-	err := RESTfulJSONResponse(w, response)
+	err := writeResponse(w, response)
 	if err != nil {
 		t.Error("Failed to make response.", err)
 	}
