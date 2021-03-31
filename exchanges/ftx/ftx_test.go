@@ -78,6 +78,23 @@ func TestGetMarkets(t *testing.T) {
 	}
 }
 
+func TestGetHistoricalIndex(t *testing.T) {
+	f.Verbose = true
+	t.Parallel()
+	// c, err := currency.NewPairFromString("BTC-PERP")
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+	_, err := f.GetHistoricalIndex("BTC", 3600, 1, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetHistoricalData("BTC-PERP", "3600", "1", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetMarket(t *testing.T) {
 	t.Parallel()
 	_, err := f.GetMarket(spotPair)

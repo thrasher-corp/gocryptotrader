@@ -40,6 +40,7 @@ const (
 	getFundingRates      = "/funding_rates"
 	getIndexWeights      = "/indexes/%s/weights"
 	getAllWalletBalances = "/wallet/all_balances"
+	getIndexCandles      = "/indexes/%s/candles"
 
 	// Authenticated endpoints
 	getAccountInfo           = "/account"
@@ -116,6 +117,28 @@ const (
 var (
 	errStartTimeCannotBeAfterEndTime = errors.New("start timestamp cannot be after end timestamp")
 )
+
+// GetHistoricalIndexData gets historical index data
+func (f *FTX) GetHistoricalIndex(indexName string, resolution, limit int64, startTime, endTime time.Time) ([]OHLCVData, error) {
+	params := url.Values{}
+	params.Set("index_name", indexName)
+	params.Set("resolution", strconv.FormatInt(resolution, 10))
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return nil, errStartTimeCannotBeAfterEndTime
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	resp := struct {
+		Data []OHLCVData `json:"result"`
+	}{}
+	endpoint := common.EncodeURLValues(fmt.Sprintf(getIndexCandles, indexName), params)
+	return resp.Data, f.SendHTTPRequest(exchange.RestSpot, endpoint, &resp)
+}
 
 // GetMarkets gets market data
 func (f *FTX) GetMarkets() ([]MarketData, error) {
