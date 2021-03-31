@@ -474,16 +474,28 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDeprecatedRPC {
-		go apiserver.StartRESTServer(bot.Config.RemoteControl, bot.Config.Profiler)
+		go apiserver.StartRESTServer(
+			&bot.Config.RemoteControl,
+			&bot.Config.Profiler)
 	}
 
 	if bot.Settings.EnableWebsocketRPC {
-		go apiserver.StartWebsocketServer(bot.Config.RemoteControl, bot.Config.Profiler)
+		go apiserver.StartWebsocketServer(
+			&bot.Config.RemoteControl,
+			&bot.Config.Profiler,
+			&bot.exchangeManager,
+			bot,
+			bot.Settings.ConfigFile)
 		apiserver.StartWebsocketHandler()
 	}
 
 	if bot.Settings.EnablePortfolioManager {
-		if err = bot.PortfolioManager.Start(&bot.Config.Portfolio, bot.Settings.PortfolioManagerDelay, &bot.ServicesWG, bot.Settings.Verbose); err != nil {
+		if err = bot.PortfolioManager.Start(
+			&bot.Config.Portfolio,
+			&bot.exchangeManager,
+			bot.Settings.PortfolioManagerDelay,
+			&bot.ServicesWG,
+			bot.Settings.Verbose); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to start: %v", err)
 		}
 	}
@@ -494,7 +506,11 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableOrderManager {
-		if err = bot.OrderManager.Start(&bot.exchangeManager, &bot.CommsManager, &bot.ServicesWG, bot.Settings.Verbose); err != nil {
+		if err = bot.OrderManager.Start(
+			&bot.exchangeManager,
+			&bot.CommsManager,
+			&bot.ServicesWG,
+			bot.Settings.Verbose); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
 		}
 	}
@@ -510,7 +526,7 @@ func (bot *Engine) Start() error {
 			SyncTimeout:      bot.Settings.SyncTimeout,
 		}
 
-		bot.ExchangeCurrencyPairManager, err = currencypairsyncer.NewCurrencyPairSyncer(exchangeSyncCfg, &bot.exchangeManager)
+		bot.ExchangeCurrencyPairManager, err = currencypairsyncer.NewCurrencyPairSyncer(exchangeSyncCfg, &bot.exchangeManager, bot)
 		if err != nil {
 			gctlog.Warnf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {

@@ -305,34 +305,42 @@ func wsGetConfig(client *WebsocketClient, _ interface{}) error {
 }
 
 func wsSaveConfig(client *WebsocketClient, data interface{}) error {
-	//wsResp := WebsocketEventResponse{
-	//	Event: "SaveConfig",
-	//}
-	//var respCfg config.Config
-	//err := json.Unmarshal(data.([]byte), &respCfg)
-	//if err != nil {
-	//	wsResp.Error = err.Error()
-	//	sendErr := client.SendWebsocketMessage(wsResp)
-	//	if sendErr != nil {
-	//		log.Error(log.WebsocketMgr, sendErr)
-	//	}
-	//	return err
-	//}
-	//
-	//err = engine.Bot.Config.UpdateConfig(engine.Bot.Settings.ConfigFile, &respCfg, engine.Bot.Settings.EnableDryRun)
-	//if err != nil {
-	//	wsResp.Error = err.Error()
-	//	sendErr := client.SendWebsocketMessage(wsResp)
-	//	if sendErr != nil {
-	//		log.Error(log.WebsocketMgr, sendErr)
-	//	}
-	//	return err
-	//}
-	//
-	//engine.Bot.SetupExchanges()
-	//wsResp.Data = WebsocketResponseSuccess
-	//return client.SendWebsocketMessage(wsResp)
-	return nil
+	wsResp := WebsocketEventResponse{
+		Event: "SaveConfig",
+	}
+	var respCfg config.Config
+	err := json.Unmarshal(data.([]byte), &respCfg)
+	if err != nil {
+		wsResp.Error = err.Error()
+		sendErr := client.SendWebsocketMessage(wsResp)
+		if sendErr != nil {
+			log.Error(log.WebsocketMgr, sendErr)
+		}
+		return err
+	}
+
+	cfg := config.GetConfig()
+	err = cfg.UpdateConfig(client.handler.configPath, &respCfg, false)
+	if err != nil {
+		wsResp.Error = err.Error()
+		sendErr := client.SendWebsocketMessage(wsResp)
+		if sendErr != nil {
+			log.Error(log.WebsocketMgr, sendErr)
+		}
+		return err
+	}
+
+	err = client.handler.lBot.SetupExchanges()
+	if err != nil {
+		wsResp.Error = err.Error()
+		sendErr := client.SendWebsocketMessage(wsResp)
+		if sendErr != nil {
+			log.Error(log.WebsocketMgr, sendErr)
+		}
+		return err
+	}
+	wsResp.Data = WebsocketResponseSuccess
+	return client.SendWebsocketMessage(wsResp)
 }
 
 func wsGetAccountInfo(client *WebsocketClient, data interface{}) error {

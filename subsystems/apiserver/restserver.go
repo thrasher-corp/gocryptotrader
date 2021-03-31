@@ -34,25 +34,28 @@ func (h *handler) RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
 // RESTSaveAllSettings saves all current settings from request body as a JSON
 // document then reloads state and returns the settings
 func (h *handler) RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
-	//// Get the data from the request
-	//decoder := json.NewDecoder(r.Body)
-	//var responseData config.Post
-	//err := decoder.Decode(&responseData)
-	//if err != nil {
-	//	handleError(r.Method, err)
-	//}
-	//// Save change the settings
-	//err = engine.Bot.Config.UpdateConfig(engine.Bot.Settings.ConfigFile, &responseData.Data, false)
-	//if err != nil {
-	//	handleError(r.Method, err)
-	//}
-	//
-	//err = writeResponse(w, engine.Bot.Config)
-	//if err != nil {
-	//	handleError(r.Method, err)
-	//}
-	//
-	//engine.Bot.SetupExchanges()
+	// Get the data from the request
+	decoder := json.NewDecoder(r.Body)
+	var responseData config.Post
+	err := decoder.Decode(&responseData)
+	if err != nil {
+		handleError(r.Method, err)
+	}
+	// Save change the settings
+	cfg := config.GetConfig()
+	err = cfg.UpdateConfig(h.configPath, &responseData.Data, false)
+	if err != nil {
+		handleError(r.Method, err)
+	}
+
+	err = writeResponse(w, cfg)
+	if err != nil {
+		handleError(r.Method, err)
+	}
+	err = h.lBot.SetupExchanges()
+	if err != nil {
+		handleError(r.Method, err)
+	}
 }
 
 // RESTGetAllActiveOrderbooks returns all enabled exchange orderbooks

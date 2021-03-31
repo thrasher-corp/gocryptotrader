@@ -8,7 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -36,7 +37,7 @@ var (
 )
 
 // NewCurrencyPairSyncer starts a new CurrencyPairSyncer
-func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig, e *exchangemanager.Manager) (*ExchangeCurrencyPairSyncer, error) {
+func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig, e *exchangemanager.Manager, iBot botWebsocketDataReceiver) (*ExchangeCurrencyPairSyncer, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
 		return nil, errors.New("no sync items enabled")
 	}
@@ -58,7 +59,8 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig, e *exchangemanager.Manage
 			SyncTimeout:      c.SyncTimeout,
 			NumWorkers:       c.NumWorkers,
 		},
-		exchangeManager: e,
+		exchangeManager:       e,
+		websocketDataReciever: iBot,
 	}
 
 	s.tickerBatchLastRequested = make(map[string]time.Time)
@@ -508,6 +510,10 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 	}
 }
 
+type botWebsocketDataReceiver interface {
+	WebsocketDataReceiver(ws *stream.Websocket)
+}
+
 // Start starts an exchange currency pair syncer
 func (e *ExchangeCurrencyPairSyncer) Start() {
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
@@ -538,7 +544,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 			}
 
 			if !ws.IsConnected() && !ws.IsConnecting() {
-				go engine.Bot.WebsocketDataReceiver(ws)
+				go e.websocketDataReciever.WebsocketDataReceiver(ws)
 
 				err = ws.Connect()
 				if err == nil {
@@ -713,7 +719,6 @@ func (e *ExchangeCurrencyPairSyncer) PrintTickerSummary(result *ticker.Price, pr
 		log.Error(log.SyncMgr, err)
 	}
 	if result.Pair.Quote.IsFiatCurrency() &&
-		engine.Bot != nil &&
 		result.Pair.Quote != e.fiatDisplayCurrency {
 		origCurrency := result.Pair.Quote.Upper()
 		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
@@ -729,8 +734,7 @@ func (e *ExchangeCurrencyPairSyncer) PrintTickerSummary(result *ticker.Price, pr
 			result.Volume)
 	} else {
 		if result.Pair.Quote.IsFiatCurrency() &&
-			engine.Bot != nil &&
-			result.Pair.Quote == engine.Bot.Config.Currency.FiatDisplayCurrency {
+			result.Pair.Quote == e.fiatDisplayCurrency {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 				result.ExchangeName,
 				protocol,

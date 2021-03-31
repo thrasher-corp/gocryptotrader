@@ -55,15 +55,23 @@ type handler struct {
 	pprofConfig     *config.Profiler
 	exchangeManager *exchangemanager.Manager
 	listenAddress   string
+	lBot            InterfaceYourButt
+	configPath      string
+}
+
+type InterfaceYourButt interface {
+	SetupExchanges() error
 }
 
 // StartWebsocketServer starts a Websocket handler
-func StartWebsocketServer(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager *exchangemanager.Manager) {
+func StartWebsocketServer(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager *exchangemanager.Manager, hi InterfaceYourButt, configPath string) {
 	s := handler{
 		remoteConfig:    remoteConfig,
 		pprofConfig:     pprofConfig,
 		listenAddress:   remoteConfig.WebsocketRPC.ListenAddress,
 		exchangeManager: exchangeManager,
+		lBot:            hi,
+		configPath:      configPath,
 	}
 	log.Debugf(log.RESTSys,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",

@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/config"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -29,6 +29,10 @@ type ExchangeSyncerConfig struct {
 	SyncOrders           bool
 }
 
+type ExchangeManagerGetExchanges interface {
+	GetExchanges() []exchange.IBotExchange
+}
+
 // ExchangeCurrencyPairSyncer stores the exchange currency pair syncer object
 type ExchangeCurrencyPairSyncer struct {
 	Cfg                      CurrencyPairSyncerConfig
@@ -37,15 +41,16 @@ type ExchangeCurrencyPairSyncer struct {
 	mux                      sync.Mutex
 	initSyncWG               sync.WaitGroup
 
-	exchangeManager     *exchangemanager.Manager
-	initSyncCompleted   int32
-	initSyncStarted     int32
-	initSyncStartTime   time.Time
-	shutdown            int32
-	fiatDisplayCurrency currency.Code
-	delimiter           string
-	uppercase           bool
-	remoteConfig        *config.RemoteControlConfig
+	exchangeManager       ExchangeManagerGetExchanges
+	initSyncCompleted     int32
+	initSyncStarted       int32
+	initSyncStartTime     time.Time
+	shutdown              int32
+	fiatDisplayCurrency   currency.Code
+	delimiter             string
+	uppercase             bool
+	remoteConfig          *config.RemoteControlConfig
+	websocketDataReciever botWebsocketDataReceiver
 }
 
 // SyncBase stores information
