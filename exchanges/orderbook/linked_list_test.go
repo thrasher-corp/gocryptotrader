@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 var ask = Items{
@@ -1263,5 +1264,102 @@ func TestAmount(t *testing.T) {
 
 	if value != 36 {
 		t.Fatalf("incorrect value calculation expected 36 but receieved %f", value)
+	}
+}
+
+func TestShiftBookmark(t *testing.T) {
+	bookmarkedNode := &node{
+		value: Item{
+			ID:     1337,
+			Amount: 1,
+			Price:  2,
+		},
+		next:    nil,
+		prev:    nil,
+		shelved: time.Time{},
+	}
+
+	originalBookmarkPrev := &node{
+		value: Item{
+			ID: 1336,
+		},
+		next:    bookmarkedNode,
+		prev:    nil, // At head
+		shelved: time.Time{},
+	}
+	originalBookmarkNext := &node{
+		value: Item{
+			ID: 1338,
+		},
+		next: nil, // This can be left nil in actuality this will be
+		// populated
+		prev:    bookmarkedNode,
+		shelved: time.Time{},
+	}
+
+	// associate previous and next nodes to bookmarked node
+	bookmarkedNode.prev = originalBookmarkPrev
+	bookmarkedNode.next = originalBookmarkNext
+
+	tip := &node{
+		value: Item{
+			ID: 69420,
+		},
+		next:    nil, // In this case tip will be at tail
+		prev:    nil,
+		shelved: time.Time{},
+	}
+
+	tipprev := &node{
+		value: Item{
+			ID: 69420,
+		},
+		next: tip,
+		prev: nil, // This can be left nil in actuality this will be
+		// populated
+		shelved: time.Time{},
+	}
+
+	// associate tips prev field with the correct prev node
+	tip.prev = tipprev
+
+	if !shiftBookmark(tip, &bookmarkedNode, nil, Item{Amount: 1336, ID: 1337, Price: 9999}) {
+		t.Fatal("There should be liqidity so we don't need to set tip to bookmark")
+	}
+
+	if (*bookmarkedNode).value.Price != 9999 ||
+		(*bookmarkedNode).value.Amount != 1336 ||
+		(*bookmarkedNode).value.ID != 1337 {
+		t.Fatal("bookmarked details are not set correctly with shift")
+	}
+
+	if (*bookmarkedNode).prev != tip {
+		t.Fatal("bookmarked prev memory address does not point to tip")
+	}
+
+	if (*bookmarkedNode).next != nil {
+		t.Fatal("bookmarked next is at tail and should be nil")
+	}
+
+	if (*bookmarkedNode).next != nil {
+		t.Fatal("bookmarked next is at tail and should be nil")
+	}
+
+	if originalBookmarkPrev.next != originalBookmarkNext {
+		t.Fatal("original bookmarked prev node should be associated with original bookmarked next node")
+	}
+
+	if originalBookmarkNext.prev != originalBookmarkPrev {
+		t.Fatal("original bookmarked next node should be associated with original bookmarked prev node")
+	}
+
+	var nilBookmark *node
+
+	if shiftBookmark(tip, &nilBookmark, nil, Item{Amount: 1336, ID: 1337, Price: 9999}) {
+		t.Fatal("there should not be a bookmarked node")
+	}
+
+	if tip != nilBookmark {
+		t.Fatal("nilBookmark not reassigned")
 	}
 }

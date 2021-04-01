@@ -3,12 +3,11 @@ package orderbook
 import (
 	"errors"
 	"fmt"
-	"time"
 )
 
 var errIDCannotBeMatched = errors.New("cannot match ID on linked list")
 var errCollisionDetected = errors.New("cannot insert update collision detected")
-var errAmountCannotBeZero = errors.New("amount cannot be zero")
+var errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less or equal to zero")
 
 // linkedList defines a linked list for a depth level, reutilisation of nodes
 // to and from a stack.
@@ -63,7 +62,7 @@ func (ll *linkedList) load(items Items, stack *stack) {
 	// Push unused pointers back on stack
 	for push != nil {
 		pending := push.next
-		stack.Push(push, time.Now())
+		stack.Push(push, getNow())
 		ll.length--
 		push = pending
 	}
@@ -96,7 +95,7 @@ updates:
 			if updts[x].ID != (*tip).value.ID {
 				continue
 			}
-			stack.Push(deleteAtTip(ll, tip), time.Now())
+			stack.Push(deleteAtTip(ll, tip), getNow())
 			continue updates
 		}
 		if !bypassErr {
@@ -134,7 +133,7 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	for n != nil {
 		pruned++
 		pending := n.next
-		stack.Push(n, time.Now())
+		stack.Push(n, getNow())
 		n = pending
 	}
 	ll.length -= pruned
@@ -177,7 +176,7 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 			}
 			if (*tip).value.Price == updts[x].Price { // Match check
 				if updts[x].Amount <= 0 { // Capture delete update
-					stack.Push(deleteAtTip(&ll.linkedList, tip), time.Now())
+					stack.Push(deleteAtTip(&ll.linkedList, tip), getNow())
 				} else { // Amend current amount value
 					(*tip).value.Amount = updts[x].Amount
 				}
@@ -221,8 +220,8 @@ func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 func (ll *bids) updateInsertByID(updts Items, stack *stack) error {
 updates:
 	for x := range updts {
-		if updts[x].Amount == 0 {
-			return errAmountCannotBeZero
+		if updts[x].Amount <= 0 {
+			return errAmountCannotBeLessOrEqualToZero
 		}
 		// bookmark allows for saving of a position of a node in the event that
 		// an update price exceeds the current node price. We can then match an
@@ -338,7 +337,7 @@ func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 			}
 			if (*tip).value.Price == updts[x].Price { // Match check
 				if updts[x].Amount <= 0 { // Capture delete update
-					stack.Push(deleteAtTip(&ll.linkedList, tip), time.Now())
+					stack.Push(deleteAtTip(&ll.linkedList, tip), getNow())
 				} else { // Amend current amount value
 					(*tip).value.Amount = updts[x].Amount
 				}
@@ -382,8 +381,8 @@ func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength in
 func (ll *asks) updateInsertByID(updts Items, stack *stack) error {
 updates:
 	for x := range updts {
-		if updts[x].Amount == 0 {
-			return errAmountCannotBeZero
+		if updts[x].Amount <= 0 {
+			return errAmountCannotBeLessOrEqualToZero
 		}
 		// bookmark allows for saving of a position of a node in the event that
 		// an update price exceeds the current node price. We can then match an
