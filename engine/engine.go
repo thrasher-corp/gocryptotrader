@@ -11,6 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+
+	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
+
 	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -30,7 +34,6 @@ import (
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	portfoliosync "github.com/thrasher-corp/gocryptotrader/portfolio/sync"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
@@ -47,21 +50,21 @@ import (
 // overarching type across this code base.
 type Engine struct {
 	Config                      *config.Config
-	Portfolio                   *portfolio.Base
 	ExchangeCurrencyPairManager *currencypairsyncer.ExchangeCurrencyPairSyncer
-	NTPManager                  ntpmanager.Manager
-	ConnectionManager           connectionmanager.Manager
+	ntpManager                  ntpmanager.Manager
+	connectionManager           connectionmanager.Manager
 	DatabaseManager             databaseconnection.Manager
 	GctScriptManager            *gctscript.GctScriptManager
 	OrderManager                ordermanager.Manager
-	PortfolioManager            portfoliosync.Manager
-	CommsManager                communicationmanager.Manager
+	portfolio                   *portfolio.Base
+	portfolioManager            portfoliosync.Manager
 	exchangeManager             exchangemanager.Manager
-	EventManager                *Manager
+	commsManager                communicationmanager.Manager
+	eventManager                *eventmanager.Manager
 	DepositAddressManager       *depositaddress.Manager
 	WithdrawalManager           *withdrawalmanager.Manager
 	Settings                    Settings
-	Uptime                      time.Time
+	uptime                      time.Time
 	ServicesWG                  sync.WaitGroup
 }
 
@@ -217,7 +220,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		if b.Settings.EventManagerDelay != time.Duration(0) && s.EventManagerDelay > 0 {
 			b.Settings.EventManagerDelay = s.EventManagerDelay
 		} else {
-			b.Settings.EventManagerDelay = EventSleepDelay
+			b.Settings.EventManagerDelay = eventmanager.EventSleepDelay
 		}
 	}
 
@@ -380,7 +383,7 @@ func (bot *Engine) Start() error {
 
 	// Sets up internet connectivity monitor
 	if bot.Settings.EnableConnectivityMonitor {
-		if err := bot.ConnectionManager.Start(&bot.Config.ConnectionMonitor); err != nil {
+		if err := bot.connectionManager.Start(&bot.Config.ConnectionMonitor); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to start: %v", err)
 		}
 	}
@@ -393,12 +396,12 @@ func (bot *Engine) Start() error {
 			}
 			gctlog.Info(gctlog.TimeMgr, responseMessage)
 		}
-		if err := bot.NTPManager.Start(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
+		if err := bot.ntpManager.Start(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %w", err)
 		}
 	}
 
-	bot.Uptime = time.Now()
+	bot.uptime = time.Now()
 	gctlog.Debugf(gctlog.Global, "Bot '%s' started.\n", bot.Config.Name)
 	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", bot.Settings.DataDir)
 	if *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
@@ -435,7 +438,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		if err = bot.CommsManager.Start(&bot.Config.Communications); err != nil {
+		if err = bot.commsManager.Start(&bot.Config.Communications); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}
@@ -490,7 +493,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnablePortfolioManager {
-		if err = bot.PortfolioManager.Start(
+		if err = bot.portfolioManager.Start(
 			&bot.Config.Portfolio,
 			&bot.exchangeManager,
 			bot.Settings.PortfolioManagerDelay,
@@ -508,7 +511,7 @@ func (bot *Engine) Start() error {
 	if bot.Settings.EnableOrderManager {
 		if err = bot.OrderManager.Start(
 			&bot.exchangeManager,
-			&bot.CommsManager,
+			&bot.commsManager,
 			&bot.ServicesWG,
 			bot.Settings.Verbose); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
@@ -526,7 +529,11 @@ func (bot *Engine) Start() error {
 			SyncTimeout:      bot.Settings.SyncTimeout,
 		}
 
-		bot.ExchangeCurrencyPairManager, err = currencypairsyncer.NewCurrencyPairSyncer(exchangeSyncCfg, &bot.exchangeManager, bot)
+		bot.ExchangeCurrencyPairManager, err = currencypairsyncer.NewCurrencyPairSyncer(
+			exchangeSyncCfg,
+			&bot.exchangeManager,
+			bot,
+			&bot.Config.RemoteControl)
 		if err != nil {
 			gctlog.Warnf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
@@ -535,8 +542,8 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		bot.EventManager = Setup(&bot.CommsManager, bot.Settings.EnableDryRun)
-		go bot.EventManager.Start()
+		bot.eventManager = eventmanager.Setup(&bot.commsManager, bot.Settings.EnableDryRun)
+		go bot.eventManager.Start()
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
@@ -574,26 +581,26 @@ func (bot *Engine) Stop() {
 		}
 	}
 
-	if bot.NTPManager.Started() {
-		if err := bot.NTPManager.Stop(); err != nil {
+	if bot.ntpManager.Started() {
+		if err := bot.ntpManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to stop. Error: %v", err)
 		}
 	}
 
-	if bot.CommsManager.Started() {
-		if err := bot.CommsManager.Stop(); err != nil {
+	if bot.commsManager.Started() {
+		if err := bot.commsManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communication manager unable to stop. Error: %v", err)
 		}
 	}
 
-	if bot.PortfolioManager.Started() {
-		if err := bot.PortfolioManager.Stop(); err != nil {
+	if bot.portfolioManager.Started() {
+		if err := bot.portfolioManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to stop. Error: %v", err)
 		}
 	}
 
-	if bot.ConnectionManager.Started() {
-		if err := bot.ConnectionManager.Stop(); err != nil {
+	if bot.connectionManager.Started() {
+		if err := bot.connectionManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to stop. Error: %v", err)
 		}
 	}
@@ -977,6 +984,9 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 				nil)
 		}
 		err := ticker.ProcessTicker(d)
+		if err != nil {
+			return err
+		}
 		bot.ExchangeCurrencyPairManager.PrintTickerSummary(d, "websocket", err)
 	case stream.KlineData:
 		if bot.Settings.Verbose {

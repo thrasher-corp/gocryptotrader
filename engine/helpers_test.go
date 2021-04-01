@@ -129,7 +129,7 @@ func TestIsOnline(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	if err := e.ConnectionManager.Start(&e.Config.ConnectionMonitor); err != nil {
+	if err := e.connectionManager.Start(&e.Config.ConnectionMonitor); err != nil {
 		t.Fatal(err)
 	}
 
@@ -141,7 +141,7 @@ func TestIsOnline(t *testing.T) {
 			t.Fatal("Test timeout")
 		default:
 			if e.IsOnline() {
-				if err := e.ConnectionManager.Stop(); err != nil {
+				if err := e.connectionManager.Stop(); err != nil {
 					t.Fatal("unable to shutdown connection manager")
 				}
 				return

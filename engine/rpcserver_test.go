@@ -1023,8 +1023,8 @@ func TestCheckVars(t *testing.T) {
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errExchangeDisabled) {
-		t.Errorf("expected %v, got %v", errExchangeDisabled, err)
+	if !errors.Is(err, eventmanager.errExchangeDisabled) {
+		t.Errorf("expected %v, got %v", eventmanager.errExchangeDisabled, err)
 	}
 
 	e.SetEnabled(true)

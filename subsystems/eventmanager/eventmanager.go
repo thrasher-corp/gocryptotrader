@@ -1,7 +1,6 @@
-package engine
+package eventmanager
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -13,64 +12,52 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 )
 
-// TO-DO MAKE THIS A SERVICE SUBSYSTEM
-
-// Event const vars
-const (
-	ItemPrice     = "PRICE"
-	ItemOrderbook = "ORDERBOOK"
-
-	ConditionGreaterThan        = ">"
-	ConditionGreaterThanOrEqual = ">="
-	ConditionLessThan           = "<"
-	ConditionLessThanOrEqual    = "<="
-	ConditionIsEqual            = "=="
-
-	ActionSMSNotify    = "SMS"
-	ActionConsolePrint = "CONSOLE_PRINT"
-	ActionTest         = "ACTION_TEST"
-
-	defaultSleepDelay = time.Millisecond * 500
-)
-
-// vars related to events package
-var (
-	errInvalidItem      = errors.New("invalid item")
-	errInvalidCondition = errors.New("invalid conditional option")
-	errInvalidAction    = errors.New("invalid action")
-	errExchangeDisabled = errors.New("desired exchange is disabled")
-	EventSleepDelay     = defaultSleepDelay
-)
-
-// EventConditionParams holds the event condition variables
-type EventConditionParams struct {
-	Condition string
-	Price     float64
-
-	CheckBids        bool
-	CheckBidsAndAsks bool
-	OrderbookAmount  float64
+// Setup loads and validates the communications manager config
+func Setup(comManager iCommsManager, verbose bool) *Manager {
+	if comManager == nil {
+		return nil
+	}
+	return &Manager{
+		comms:   comManager,
+		verbose: verbose,
+	}
 }
 
-// Event struct holds the event variables
-type Event struct {
-	ID        int64
-	Exchange  string
-	Item      string
-	Condition EventConditionParams
-	Pair      currency.Pair
-	Asset     asset.Item
-	Action    string
-	Executed  bool
+// Start is the overarching routine that will iterate through the Events
+// chain
+func (m *Manager) Start() {
+	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", EventSleepDelay.String())
+	for {
+		total, executed := m.GetEventCounter()
+		if total > 0 && executed != total {
+			for i := range m.events {
+				if !m.events[i].Executed {
+					if m.verbose {
+						log.Debugf(log.EventMgr, "Events: Processing event %s.\n", m.events[i].String())
+					}
+					success := m.CheckEventCondition(&m.events[i])
+					if success {
+						msg := fmt.Sprintf(
+							"Events: ID: %d triggered on %s successfully [%v]\n", m.events[i].ID,
+							m.events[i].Exchange, m.events[i].String(),
+						)
+						log.Infoln(log.EventMgr, msg)
+						m.comms.PushEvent(base.Event{Type: "event", Message: msg})
+						m.events[i].Executed = true
+					}
+				}
+			}
+		}
+		time.Sleep(EventSleepDelay)
+	}
 }
 
 // Add adds an event to the Events chain and returns an index/eventID
 // and an error
 func (m *Manager) Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
-	err := IsValidEvent(exchange, item, condition, action)
+	err := isValidEvent(exchange, item, condition, action)
 	if err != nil {
 		return 0, err
 	}
@@ -129,6 +116,15 @@ func (m *Manager) ExecuteAction(e *Event) bool {
 		log.Debugf(log.EventMgr, "Event triggered: %s\n", e.String())
 	}
 	return true
+}
+
+// CheckEventCondition will check the event structure to see if there is a condition
+// met
+func (m *Manager) CheckEventCondition(e *Event) bool {
+	if e.Item == ItemPrice {
+		return e.processTicker(m.verbose)
+	}
+	return e.processOrderbook(m.verbose)
 }
 
 // String turns the structure event into a string
@@ -217,30 +213,21 @@ func (e *Event) processOrderbook(verbose bool) bool {
 	return success
 }
 
-// CheckEventCondition will check the event structure to see if there is a condition
-// met
-func (m *Manager) CheckEventCondition(e *Event) bool {
-	if e.Item == ItemPrice {
-		return e.processTicker(m.verbose)
-	}
-	return e.processOrderbook(m.verbose)
-}
-
-// IsValidEvent checks the actions to be taken and returns an error if incorrect
-func IsValidEvent(exchange, item string, condition EventConditionParams, action string) error {
+// isValidEvent checks the actions to be taken and returns an error if incorrect
+func isValidEvent(exchange, item string, condition EventConditionParams, action string) error {
 	exchange = strings.ToUpper(exchange)
 	item = strings.ToUpper(item)
 	action = strings.ToUpper(action)
 
-	if !IsValidExchange(exchange) {
+	if !isValidExchange(exchange) {
 		return errExchangeDisabled
 	}
 
-	if !IsValidItem(item) {
+	if !isValidItem(item) {
 		return errInvalidItem
 	}
 
-	if !IsValidCondition(condition.Condition) {
+	if !isValidCondition(condition.Condition) {
 		return errInvalidCondition
 	}
 
@@ -269,56 +256,8 @@ func IsValidEvent(exchange, item string, condition EventConditionParams, action 
 	return nil
 }
 
-// Manager holds communication manager data
-type Manager struct {
-	comms   *communicationmanager.Manager
-	events  []Event
-	verbose bool
-}
-
-// Setup loads and validates the communications manager config
-func Setup(comManager *communicationmanager.Manager, verbose bool) *Manager {
-	if comManager == nil {
-		return nil
-	}
-	return &Manager{
-		comms:   comManager,
-		events:  nil,
-		verbose: verbose,
-	}
-}
-
-// Start is the overarching routine that will iterate through the Events
-// chain
-func (m *Manager) Start() {
-	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", EventSleepDelay.String())
-	for {
-		total, executed := m.GetEventCounter()
-		if total > 0 && executed != total {
-			for i := range m.events {
-				if !m.events[i].Executed {
-					if m.verbose {
-						log.Debugf(log.EventMgr, "Events: Processing event %s.\n", m.events[i].String())
-					}
-					success := m.CheckEventCondition(&m.events[i])
-					if success {
-						msg := fmt.Sprintf(
-							"Events: ID: %d triggered on %s successfully [%v]\n", m.events[i].ID,
-							m.events[i].Exchange, m.events[i].String(),
-						)
-						log.Infoln(log.EventMgr, msg)
-						m.comms.PushEvent(base.Event{Type: "event", Message: msg})
-						m.events[i].Executed = true
-					}
-				}
-			}
-		}
-		time.Sleep(EventSleepDelay)
-	}
-}
-
-// IsValidExchange validates the exchange
-func IsValidExchange(exchangeName string) bool {
+// isValidExchange validates the exchange
+func isValidExchange(exchangeName string) bool {
 	cfg := config.GetConfig()
 	for x := range cfg.Exchanges {
 		if strings.EqualFold(cfg.Exchanges[x].Name, exchangeName) && cfg.Exchanges[x].Enabled {
@@ -328,8 +267,8 @@ func IsValidExchange(exchangeName string) bool {
 	return false
 }
 
-// IsValidCondition validates passed in condition
-func IsValidCondition(condition string) bool {
+// isValidCondition validates passed in condition
+func isValidCondition(condition string) bool {
 	switch condition {
 	case ConditionGreaterThan, ConditionGreaterThanOrEqual, ConditionLessThan, ConditionLessThanOrEqual, ConditionIsEqual:
 		return true
@@ -337,8 +276,8 @@ func IsValidCondition(condition string) bool {
 	return false
 }
 
-// IsValidAction validates passed in action
-func IsValidAction(action string) bool {
+// isValidAction validates passed in action
+func isValidAction(action string) bool {
 	action = strings.ToUpper(action)
 	switch action {
 	case ActionSMSNotify, ActionConsolePrint, ActionTest:
@@ -347,8 +286,8 @@ func IsValidAction(action string) bool {
 	return false
 }
 
-// IsValidItem validates passed in Item
-func IsValidItem(item string) bool {
+// isValidItem validates passed in Item
+func isValidItem(item string) bool {
 	item = strings.ToUpper(item)
 	switch item {
 	case ItemPrice, ItemOrderbook:

@@ -14,7 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+
+	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"google.golang.org/grpc/metadata"
@@ -50,7 +52,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
@@ -179,7 +180,7 @@ func (s *RPCServer) StartRPCRESTProxy() {
 
 // GetInfo returns info about the current GoCryptoTrader session
 func (s *RPCServer) GetInfo(_ context.Context, _ *gctrpc.GetInfoRequest) (*gctrpc.GetInfoResponse, error) {
-	d := time.Since(s.Uptime)
+	d := time.Since(s.uptime)
 	resp := gctrpc.GetInfoResponse{
 		Uptime:               d.String(),
 		EnabledExchanges:     int64(s.Config.CountEnabledExchanges()),
@@ -240,7 +241,7 @@ func (s *RPCServer) GetRPCEndpoints(_ context.Context, _ *gctrpc.GetRPCEndpoints
 
 // GetCommunicationRelayers returns the status of the engines communication relayers
 func (s *RPCServer) GetCommunicationRelayers(_ context.Context, _ *gctrpc.GetCommunicationRelayersRequest) (*gctrpc.GetCommunicationRelayersResponse, error) {
-	relayers, err := s.CommsManager.GetStatus()
+	relayers, err := s.commsManager.GetStatus()
 	if err != nil {
 		return nil, err
 	}
@@ -624,7 +625,7 @@ func (s *RPCServer) GetConfig(_ context.Context, _ *gctrpc.GetConfigRequest) (*g
 // GetPortfolio returns the portfoliomanager details
 func (s *RPCServer) GetPortfolio(_ context.Context, _ *gctrpc.GetPortfolioRequest) (*gctrpc.GetPortfolioResponse, error) {
 	var addrs []*gctrpc.PortfolioAddress
-	botAddrs := s.Portfolio.Addresses
+	botAddrs := s.portfolio.Addresses
 
 	for x := range botAddrs {
 		addrs = append(addrs, &gctrpc.PortfolioAddress{
@@ -644,7 +645,7 @@ func (s *RPCServer) GetPortfolio(_ context.Context, _ *gctrpc.GetPortfolioReques
 
 // GetPortfolioSummary returns the portfoliomanager summary
 func (s *RPCServer) GetPortfolioSummary(_ context.Context, _ *gctrpc.GetPortfolioSummaryRequest) (*gctrpc.GetPortfolioSummaryResponse, error) {
-	result := s.Portfolio.GetPortfolioSummary()
+	result := s.portfolio.GetPortfolioSummary()
 	var resp gctrpc.GetPortfolioSummaryResponse
 
 	p := func(coins []portfolio.Coin) []*gctrpc.Coin {
@@ -700,7 +701,7 @@ func (s *RPCServer) GetPortfolioSummary(_ context.Context, _ *gctrpc.GetPortfoli
 
 // AddPortfolioAddress adds an address to the portfoliomanager manager
 func (s *RPCServer) AddPortfolioAddress(_ context.Context, r *gctrpc.AddPortfolioAddressRequest) (*gctrpc.GenericResponse, error) {
-	err := s.Portfolio.AddAddress(r.Address,
+	err := s.portfolio.AddAddress(r.Address,
 		r.Description,
 		currency.NewCode(r.CoinType),
 		r.Balance)
@@ -712,7 +713,7 @@ func (s *RPCServer) AddPortfolioAddress(_ context.Context, r *gctrpc.AddPortfoli
 
 // RemovePortfolioAddress removes an address from the portfoliomanager manager
 func (s *RPCServer) RemovePortfolioAddress(_ context.Context, r *gctrpc.RemovePortfolioAddressRequest) (*gctrpc.GenericResponse, error) {
-	err := s.Portfolio.RemoveAddress(r.Address,
+	err := s.portfolio.RemoveAddress(r.Address,
 		r.Description,
 		currency.NewCode(r.CoinType))
 	if err != nil {
@@ -1221,7 +1222,7 @@ func (s *RPCServer) GetEvents(_ context.Context, _ *gctrpc.GetEventsRequest) (*g
 
 // AddEvent adds an event
 func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gctrpc.AddEventResponse, error) {
-	evtCondition := EventConditionParams{
+	evtCondition := eventmanager.EventConditionParams{
 		CheckBids:        r.ConditionParams.CheckBids,
 		CheckBidsAndAsks: r.ConditionParams.CheckBidsAndAsks,
 		Condition:        r.ConditionParams.Condition,
@@ -1243,7 +1244,7 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 		return nil, err
 	}
 
-	id, err := s.EventManager.Add(r.Exchange, r.Item, evtCondition, p, a, r.Action)
+	id, err := s.eventManager.Add(r.Exchange, r.Item, evtCondition, p, a, r.Action)
 	if err != nil {
 		return nil, err
 	}
@@ -1253,7 +1254,7 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 
 // RemoveEvent removes an event, specified by an event ID
 func (s *RPCServer) RemoveEvent(_ context.Context, r *gctrpc.RemoveEventRequest) (*gctrpc.GenericResponse, error) {
-	if !s.EventManager.Remove(r.Id) {
+	if !s.eventManager.Remove(r.Id) {
 		return nil, fmt.Errorf("event %d not removed", r.Id)
 	}
 	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
@@ -1363,7 +1364,7 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 	if !s.Config.Database.Enabled {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
-	v, err := withdrawalmanager.WithdrawalEventByID(r.Id)
+	v, err := s.WithdrawalManager.WithdrawalEventByID(r.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -1435,24 +1436,24 @@ func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.With
 				return nil, err
 			}
 
-			return withdrawalmanager.ParseWithdrawalsHistory(ret, exch.GetName(), int(r.Limit)), nil
+			return parseWithdrawalsHistory(ret, exch.GetName(), int(r.Limit)), nil
 		}
 		return nil, database.ErrDatabaseSupportDisabled
 	}
 	if r.Id == "" {
-		ret, err := withdrawalmanager.WithdrawalEventByExchange(r.Exchange, int(r.Limit))
+		ret, err := s.WithdrawalManager.WithdrawalEventByExchange(r.Exchange, int(r.Limit))
 		if err != nil {
 			return nil, err
 		}
-		return withdrawalmanager.ParseMultipleEvents(ret), nil
+		return parseMultipleEvents(ret), nil
 	}
 
-	ret, err := withdrawalmanager.WithdrawalEventByExchangeID(r.Exchange, r.Id)
+	ret, err := s.WithdrawalManager.WithdrawalEventByExchangeID(r.Exchange, r.Id)
 	if err != nil {
 		return nil, err
 	}
 
-	return withdrawalmanager.ParseSingleEvents(ret), nil
+	return parseSingleEvents(ret), nil
 }
 
 // WithdrawalEventsByDate returns previous withdrawal request details by exchange
@@ -1467,11 +1468,11 @@ func (s *RPCServer) WithdrawalEventsByDate(_ context.Context, r *gctrpc.Withdraw
 		return nil, err
 	}
 	var ret []*withdraw.Response
-	ret, err = withdrawalmanager.WithdrawEventByDate(r.Exchange, UTCStartTime, UTCEndTime, int(r.Limit))
+	ret, err = s.WithdrawalManager.WithdrawEventByDate(r.Exchange, UTCStartTime, UTCEndTime, int(r.Limit))
 	if err != nil {
 		return nil, err
 	}
-	return withdrawalmanager.ParseMultipleEvents(ret), nil
+	return parseMultipleEvents(ret), nil
 }
 
 // GetLoggerDetails returns a loggers details
@@ -3070,9 +3071,9 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 	if e == nil {
 		return fmt.Errorf("%s %w", exchName, errExchangeNotLoaded)
 	}
-	if !e.IsEnabled() {
-		return fmt.Errorf("%s %w", exchName, errExchangeDisabled)
-	}
+	//if !e.IsEnabled() {
+	//	return fmt.Errorf("%s %w", exchName, eventmanager.errExchangeDisabled)
+	//}
 	if a.IsValid() {
 		b := e.GetBase()
 		if b == nil {
@@ -3101,4 +3102,149 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 		return fmt.Errorf("%v %w", p, errCurrencyNotEnabled)
 	}
 	return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
+}
+
+func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {
+	v := &gctrpc.WithdrawalEventsByExchangeResponse{}
+	for x := range ret {
+		tempEvent := &gctrpc.WithdrawalEventResponse{
+			Id: ret[x].ID.String(),
+			Exchange: &gctrpc.WithdrawlExchangeEvent{
+				Name:   ret[x].Exchange.Name,
+				Id:     ret[x].Exchange.ID,
+				Status: ret[x].Exchange.Status,
+			},
+			Request: &gctrpc.WithdrawalRequestEvent{
+				Currency:    ret[x].RequestDetails.Currency.String(),
+				Description: ret[x].RequestDetails.Description,
+				Amount:      ret[x].RequestDetails.Amount,
+				Type:        int32(ret[x].RequestDetails.Type),
+			},
+		}
+
+		createdAtPtype, err := ptypes.TimestampProto(ret[x].CreatedAt)
+		if err != nil {
+			log.Errorf(log.Global, "failed to convert time: %v", err)
+		}
+		tempEvent.CreatedAt = createdAtPtype
+
+		updatedAtPtype, err := ptypes.TimestampProto(ret[x].UpdatedAt)
+		if err != nil {
+			log.Errorf(log.Global, "failed to convert time: %v", err)
+		}
+		tempEvent.UpdatedAt = updatedAtPtype
+
+		if ret[x].RequestDetails.Type == withdraw.Crypto {
+			tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
+			tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
+				Address:    ret[x].RequestDetails.Crypto.Address,
+				AddressTag: ret[x].RequestDetails.Crypto.AddressTag,
+				Fee:        ret[x].RequestDetails.Crypto.FeeAmount,
+			}
+		} else if ret[x].RequestDetails.Type == withdraw.Fiat {
+			if ret[x].RequestDetails.Fiat != (withdraw.FiatRequest{}) {
+				tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
+				tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
+					BankName:      ret[x].RequestDetails.Fiat.Bank.BankName,
+					AccountName:   ret[x].RequestDetails.Fiat.Bank.AccountName,
+					AccountNumber: ret[x].RequestDetails.Fiat.Bank.AccountNumber,
+					Bsb:           ret[x].RequestDetails.Fiat.Bank.BSBNumber,
+					Swift:         ret[x].RequestDetails.Fiat.Bank.SWIFTCode,
+					Iban:          ret[x].RequestDetails.Fiat.Bank.IBAN,
+				}
+			}
+		}
+		v.Event = append(v.Event, tempEvent)
+	}
+	return v
+}
+
+func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, limit int) *gctrpc.WithdrawalEventsByExchangeResponse {
+	v := &gctrpc.WithdrawalEventsByExchangeResponse{}
+	for x := range ret {
+		if limit > 0 && x >= limit {
+			return v
+		}
+
+		tempEvent := &gctrpc.WithdrawalEventResponse{
+			Id: ret[x].TransferID,
+			Exchange: &gctrpc.WithdrawlExchangeEvent{
+				Name:   exchName,
+				Status: ret[x].Status,
+			},
+			Request: &gctrpc.WithdrawalRequestEvent{
+				Currency:    ret[x].Currency,
+				Description: ret[x].Description,
+				Amount:      ret[x].Amount,
+			},
+		}
+
+		updatedAtPType, err := ptypes.TimestampProto(ret[x].Timestamp)
+		if err != nil {
+			log.Errorf(log.Global, "failed to convert time: %v", err)
+		}
+
+		tempEvent.UpdatedAt = updatedAtPType
+		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
+			Address: ret[x].CryptoToAddress,
+			Fee:     ret[x].Fee,
+			TxId:    ret[x].CryptoTxID,
+		}
+
+		v.Event = append(v.Event, tempEvent)
+	}
+	return v
+}
+
+func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {
+	tempEvent := &gctrpc.WithdrawalEventResponse{
+		Id: ret.ID.String(),
+		Exchange: &gctrpc.WithdrawlExchangeEvent{
+			Name:   ret.Exchange.Name,
+			Id:     ret.Exchange.Name,
+			Status: ret.Exchange.Status,
+		},
+		Request: &gctrpc.WithdrawalRequestEvent{
+			Currency:    ret.RequestDetails.Currency.String(),
+			Description: ret.RequestDetails.Description,
+			Amount:      ret.RequestDetails.Amount,
+			Type:        int32(ret.RequestDetails.Type),
+		},
+	}
+	createdAtPType, err := ptypes.TimestampProto(ret.CreatedAt)
+	if err != nil {
+		log.Errorf(log.Global, "failed to convert time: %v", err)
+	}
+	tempEvent.CreatedAt = createdAtPType
+
+	updatedAtPType, err := ptypes.TimestampProto(ret.UpdatedAt)
+	if err != nil {
+		log.Errorf(log.Global, "failed to convert time: %v", err)
+	}
+	tempEvent.UpdatedAt = updatedAtPType
+
+	if ret.RequestDetails.Type == withdraw.Crypto {
+		tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
+		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
+			Address:    ret.RequestDetails.Crypto.Address,
+			AddressTag: ret.RequestDetails.Crypto.AddressTag,
+			Fee:        ret.RequestDetails.Crypto.FeeAmount,
+		}
+	} else if ret.RequestDetails.Type == withdraw.Fiat {
+		if ret.RequestDetails.Fiat != (withdraw.FiatRequest{}) {
+			tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
+			tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
+				BankName:      ret.RequestDetails.Fiat.Bank.BankName,
+				AccountName:   ret.RequestDetails.Fiat.Bank.AccountName,
+				AccountNumber: ret.RequestDetails.Fiat.Bank.AccountNumber,
+				Bsb:           ret.RequestDetails.Fiat.Bank.BSBNumber,
+				Swift:         ret.RequestDetails.Fiat.Bank.SWIFTCode,
+				Iban:          ret.RequestDetails.Fiat.Bank.IBAN,
+			}
+		}
+	}
+
+	return &gctrpc.WithdrawalEventsByExchangeResponse{
+		Event: []*gctrpc.WithdrawalEventResponse{tempEvent},
+	}
 }

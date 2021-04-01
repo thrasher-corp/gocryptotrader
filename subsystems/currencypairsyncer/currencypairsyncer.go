@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -33,7 +35,7 @@ var (
 )
 
 // NewCurrencyPairSyncer starts a new CurrencyPairSyncer
-func NewCurrencyPairSyncer(c Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver) (*ExchangeCurrencyPairSyncer, error) {
+func NewCurrencyPairSyncer(c Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver, remoteConfig *config.RemoteControlConfig) (*ExchangeCurrencyPairSyncer, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
 		return nil, errors.New("no sync items enabled")
 	}
@@ -55,6 +57,7 @@ func NewCurrencyPairSyncer(c Config, exchangeManager iExchangeManager, websocket
 			SyncTimeout:      c.SyncTimeout,
 			NumWorkers:       c.NumWorkers,
 		},
+		remoteConfig:          remoteConfig,
 		exchangeManager:       exchangeManager,
 		websocketDataReceiver: websocketDataReceiver,
 	}
@@ -711,7 +714,8 @@ func (e *ExchangeCurrencyPairSyncer) PrintTickerSummary(result *ticker.Price, pr
 		log.Error(log.SyncMgr, err)
 	}
 	if result.Pair.Quote.IsFiatCurrency() &&
-		result.Pair.Quote != e.fiatDisplayCurrency {
+		result.Pair.Quote != e.fiatDisplayCurrency &&
+		!e.fiatDisplayCurrency.IsEmpty() {
 		origCurrency := result.Pair.Quote.Upper()
 		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 			result.ExchangeName,
@@ -726,7 +730,8 @@ func (e *ExchangeCurrencyPairSyncer) PrintTickerSummary(result *ticker.Price, pr
 			result.Volume)
 	} else {
 		if result.Pair.Quote.IsFiatCurrency() &&
-			result.Pair.Quote == e.fiatDisplayCurrency {
+			result.Pair.Quote == e.fiatDisplayCurrency &&
+			!e.fiatDisplayCurrency.IsEmpty() {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 				result.ExchangeName,
 				protocol,
@@ -796,11 +801,11 @@ func (e *ExchangeCurrencyPairSyncer) PrintOrderbookSummary(result *orderbook.Bas
 
 	var bidValueResult, askValueResult string
 	switch {
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != e.fiatDisplayCurrency:
+	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote != e.fiatDisplayCurrency && !e.fiatDisplayCurrency.IsEmpty():
 		origCurrency := result.Pair.Quote.Upper()
 		bidValueResult = printConvertCurrencyFormat(origCurrency, bidsValue, e.fiatDisplayCurrency)
 		askValueResult = printConvertCurrencyFormat(origCurrency, asksValue, e.fiatDisplayCurrency)
-	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == e.fiatDisplayCurrency:
+	case result.Pair.Quote.IsFiatCurrency() && result.Pair.Quote == e.fiatDisplayCurrency && !e.fiatDisplayCurrency.IsEmpty():
 		bidValueResult = printCurrencyFormat(bidsValue, e.fiatDisplayCurrency)
 		askValueResult = printCurrencyFormat(asksValue, e.fiatDisplayCurrency)
 	default:

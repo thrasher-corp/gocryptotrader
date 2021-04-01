@@ -43,11 +43,11 @@ var (
 // GetSubsystemsStatus returns the status of various subsystems
 func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems := make(map[string]bool)
-	systems["communications"] = bot.CommsManager.Started()
-	systems["internet_monitor"] = bot.ConnectionManager.Started()
+	systems["communications"] = bot.commsManager.Started()
+	systems["internet_monitor"] = bot.connectionManager.Started()
 	systems["orders"] = bot.OrderManager.Started()
-	systems["portfolio"] = bot.PortfolioManager.Started()
-	systems["ntp_timekeeper"] = bot.NTPManager.Started()
+	systems["portfolio"] = bot.portfolioManager.Started()
+	systems["ntp_timekeeper"] = bot.ntpManager.Started()
 	systems["database"] = bot.DatabaseManager.Started()
 	systems["exchange_syncer"] = bot.Settings.EnableExchangeSyncManager
 	systems["grpc"] = bot.Settings.EnableGRPC
@@ -93,26 +93,26 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 	case "communications":
 		if enable {
 			communicationsConfig := bot.Config.GetCommunicationsConfig()
-			return bot.CommsManager.Start(&communicationsConfig)
+			return bot.commsManager.Start(&communicationsConfig)
 		}
-		return bot.CommsManager.Stop()
+		return bot.commsManager.Stop()
 	case "internet_monitor":
 		if enable {
-			return bot.ConnectionManager.Start(&bot.Config.ConnectionMonitor)
+			return bot.connectionManager.Start(&bot.Config.ConnectionMonitor)
 		}
-		return bot.CommsManager.Stop()
+		return bot.commsManager.Stop()
 	case "orders":
 		if enable {
 			return bot.OrderManager.Start(
 				&bot.exchangeManager,
-				&bot.CommsManager,
+				&bot.commsManager,
 				&bot.ServicesWG,
 				bot.Settings.Verbose)
 		}
 		return bot.OrderManager.Stop()
 	case "portfolio":
 		if enable {
-			return bot.PortfolioManager.Start(
+			return bot.portfolioManager.Start(
 				&bot.Config.Portfolio,
 				&bot.exchangeManager,
 				bot.Settings.PortfolioManagerDelay,
@@ -122,11 +122,11 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.OrderManager.Stop()
 	case "ntp_timekeeper":
 		if enable {
-			return bot.NTPManager.Start(
+			return bot.ntpManager.Start(
 				&bot.Config.NTPClient,
 				*bot.Config.Logging.Enabled)
 		}
-		return bot.NTPManager.Stop()
+		return bot.ntpManager.Stop()
 	case "database":
 		if enable {
 			return bot.DatabaseManager.Start(&bot.Config.Database, &bot.ServicesWG)
@@ -207,7 +207,7 @@ func (bot *Engine) GetAuthAPISupportedExchanges() []string {
 
 // IsOnline returns whether or not the engine has Internet connectivity
 func (bot *Engine) IsOnline() bool {
-	return bot.ConnectionManager.IsOnline()
+	return bot.connectionManager.IsOnline()
 }
 
 // GetAllAvailablePairs returns a list of all available pairs on either enabled
