@@ -1327,21 +1327,21 @@ func TestShiftBookmark(t *testing.T) {
 		t.Fatal("There should be liqidity so we don't need to set tip to bookmark")
 	}
 
-	if (*bookmarkedNode).value.Price != 9999 ||
-		(*bookmarkedNode).value.Amount != 1336 ||
-		(*bookmarkedNode).value.ID != 1337 {
+	if bookmarkedNode.value.Price != 9999 ||
+		bookmarkedNode.value.Amount != 1336 ||
+		bookmarkedNode.value.ID != 1337 {
 		t.Fatal("bookmarked details are not set correctly with shift")
 	}
 
-	if (*bookmarkedNode).prev != tip {
+	if bookmarkedNode.prev != tip {
 		t.Fatal("bookmarked prev memory address does not point to tip")
 	}
 
-	if (*bookmarkedNode).next != nil {
+	if bookmarkedNode.next != nil {
 		t.Fatal("bookmarked next is at tail and should be nil")
 	}
 
-	if (*bookmarkedNode).next != nil {
+	if bookmarkedNode.next != nil {
 		t.Fatal("bookmarked next is at tail and should be nil")
 	}
 
