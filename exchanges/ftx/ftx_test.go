@@ -84,12 +84,16 @@ func TestGetHistoricalIndex(t *testing.T) {
 	// c, err := currency.NewPairFromString("BTC-PERP")
 	// if err != nil {
 	// 	t.Error(err)
+	// // }
+	// _, err := f.GetHistoricalIndex("BTC", 3600, 1, time.Now().Add(-time.Hour*2), time.Now().Add(-time.Hour*1))
+	// if err != nil {
+	// 	t.Error(err)
 	// }
-	_, err := f.GetHistoricalIndex("BTC", 3600, 1, time.Time{}, time.Time{})
+	_, err := f.GetHistoricalIndex("BTC", 3600, 1, time.Now().Add(-time.Hour*2), time.Now().Add(-time.Hour*1))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetHistoricalData("BTC-PERP", "3600", "1", time.Time{}, time.Time{})
+	_, err = f.GetHistoricalData("BTC-PERP", "3600", "1", time.Now().Add(-time.Hour*2), time.Now().Add(-time.Hour*1))
 	if err != nil {
 		t.Error(err)
 	}
