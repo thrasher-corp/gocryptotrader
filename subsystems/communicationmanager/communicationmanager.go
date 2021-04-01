@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
-
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
@@ -35,7 +34,8 @@ func (m *Manager) Start(cfg *config.CommunicationsConfig) (err error) {
 		}
 	}()
 
-	log.Debugln(log.CommunicationMgr, "Communications manager starting...")
+	log.Debugf(log.Global, "Communications manager %s", subsystems.MsgSubSystemStarting)
+
 	m.comms, err = communications.NewComm(cfg)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func (m *Manager) Start(cfg *config.CommunicationsConfig) (err error) {
 	m.shutdown = make(chan struct{})
 	m.relayMsg = make(chan base.Event)
 	go m.run()
-	log.Debugln(log.CommunicationMgr, "Communications manager started.")
+	log.Debugf(log.Global, "Communications manager %s", subsystems.MsgSubSystemStarted)
 	return nil
 }
 
@@ -63,7 +63,7 @@ func (m *Manager) Stop() error {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 	close(m.shutdown)
-	log.Debugln(log.CommunicationMgr, "Communications manager shutting down...")
+	log.Debugf(log.CommunicationMgr, "Communications manager %s", subsystems.MsgSubSystemShuttingDown)
 	return nil
 }
 
@@ -81,7 +81,7 @@ func (m *Manager) PushEvent(evt base.Event) {
 func (m *Manager) run() {
 	defer func() {
 		// TO-DO shutdown comms connections for connected services (Slack etc)
-		log.Debugln(log.CommunicationMgr, "Communications manager shutdown.")
+		log.Debugf(log.CommunicationMgr, "Communications manager %s", subsystems.MsgSubSystemShutdown)
 	}()
 
 	for {

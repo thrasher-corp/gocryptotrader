@@ -2,12 +2,48 @@ package apiserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
+
+// StartRESTServer starts a REST handler
+func StartRESTServer(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler) {
+	s := handler{
+		remoteConfig:  remoteConfig,
+		pprofConfig:   pprofConfig,
+		listenAddress: remoteConfig.DeprecatedRPC.ListenAddress,
+	}
+	log.Debugf(log.RESTSys,
+		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
+		common.ExtractHost(s.listenAddress), common.ExtractPort(s.listenAddress))
+	err := http.ListenAndServe(s.listenAddress, s.newRouter(true))
+	if err != nil {
+		log.Errorf(log.RESTSys, "Failed to start deprecated RPC handler. Err: %s", err)
+	}
+}
+
+// restLogger logs the requests internally
+func restLogger(inner http.Handler, name string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		inner.ServeHTTP(w, r)
+
+		log.Debugf(log.RESTSys,
+			"%s\t%s\t%s\t%s",
+			r.Method,
+			r.RequestURI,
+			name,
+			time.Since(start),
+		)
+	})
+}
 
 // writeResponse outputs a JSON response of the response interface
 func writeResponse(w http.ResponseWriter, response interface{}) error {
@@ -22,18 +58,18 @@ func handleError(method string, err error) {
 		method, err)
 }
 
-// RESTGetAllSettings replies to a request with an encoded JSON response about the
+// restGetAllSettings replies to a request with an encoded JSON response about the
 // trading Bots configuration.
-func (h *handler) RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
+func (h *handler) restGetAllSettings(w http.ResponseWriter, r *http.Request) {
 	err := writeResponse(w, config.GetConfig())
 	if err != nil {
 		handleError(r.Method, err)
 	}
 }
 
-// RESTSaveAllSettings saves all current settings from request body as a JSON
+// restSaveAllSettings saves all current settings from request body as a JSON
 // document then reloads state and returns the settings
-func (h *handler) RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
+func (h *handler) restSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	// Get the data from the request
 	decoder := json.NewDecoder(r.Body)
 	var responseData config.Post
@@ -52,14 +88,14 @@ func (h *handler) RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handleError(r.Method, err)
 	}
-	err = h.lBot.SetupExchanges()
+	err = h.bot.SetupExchanges()
 	if err != nil {
 		handleError(r.Method, err)
 	}
 }
 
-// RESTGetAllActiveOrderbooks returns all enabled exchange orderbooks
-func (h *handler) RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
+// restGetAllActiveOrderbooks returns all enabled exchange orderbooks
+func (h *handler) restGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeOrderbooks
 	response.Data = h.getAllActiveOrderbooks()
 	err := writeResponse(w, response)
@@ -68,8 +104,8 @@ func (h *handler) RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// RESTGetPortfolio returns the Bot portfoliomanager
-func (h *handler) RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
+// restGetPortfolio returns the Bot portfoliomanager
+func (h *handler) restGetPortfolio(w http.ResponseWriter, r *http.Request) {
 	p := portfolio.GetPortfolio()
 	result := p.GetPortfolioSummary()
 	err := writeResponse(w, result)
@@ -78,8 +114,8 @@ func (h *handler) RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// RESTGetAllActiveTickers returns all active tickers
-func (h *handler) RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
+// restGetAllActiveTickers returns all active tickers
+func (h *handler) restGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeCurrencies
 	response.Data = h.getAllActiveTickers()
 	err := writeResponse(w, response)
@@ -88,9 +124,9 @@ func (h *handler) RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// RESTGetAllEnabledAccountInfo via get request returns JSON response of account
+// restGetAllEnabledAccountInfo via get request returns JSON response of account
 // info
-func (h *handler) RESTGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
+func (h *handler) restGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
 	response := h.getAllActiveAccounts()
 	err := writeResponse(w, response)
 	if err != nil {
@@ -195,4 +231,12 @@ func (h *handler) getAllActiveAccounts() []AllEnabledExchangeAccounts {
 		accounts = append(accounts, exchangeAccounts)
 	}
 	return accounts
+}
+
+func (h *handler) getIndex(w http.ResponseWriter, _ *http.Request) {
+	_, err := fmt.Fprint(w, restIndexResponse)
+	if err != nil {
+		log.Error(log.CommunicationMgr, err)
+	}
+	w.WriteHeader(http.StatusOK)
 }

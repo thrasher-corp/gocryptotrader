@@ -516,7 +516,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableExchangeSyncManager {
-		exchangeSyncCfg := currencypairsyncer.CurrencyPairSyncerConfig{
+		exchangeSyncCfg := currencypairsyncer.Config{
 			SyncTicker:       bot.Settings.EnableTickerSyncing,
 			SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
 			SyncTrades:       bot.Settings.EnableTradeSyncing,
@@ -977,7 +977,7 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 				nil)
 		}
 		err := ticker.ProcessTicker(d)
-		currencypairsyncer.PrintTickerSummary(d, "websocket", err)
+		bot.ExchangeCurrencyPairManager.PrintTickerSummary(d, "websocket", err)
 	case stream.KlineData:
 		if bot.Settings.Verbose {
 			gctlog.Infof(gctlog.WebsocketMgr, "%s websocket %s %s kline updated %+v",
@@ -994,7 +994,7 @@ func (bot *Engine) WebsocketDataHandler(exchName string, data interface{}) error
 				currencypairsyncer.SyncItemOrderbook,
 				nil)
 		}
-		currencypairsyncer.PrintOrderbookSummary(d, "websocket", bot, nil)
+		bot.ExchangeCurrencyPairManager.PrintOrderbookSummary(d, "websocket", nil)
 	case *order.Detail:
 		if !bot.OrderManager.Exists(d) {
 			err := bot.OrderManager.Add(d)

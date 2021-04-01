@@ -4,16 +4,46 @@ import (
 	"sync"
 	"time"
 
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-
 	"github.com/thrasher-corp/gocryptotrader/config"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+type iWebsocketDataReceiver interface {
+	WebsocketDataReceiver(ws *stream.Websocket)
+}
+
+type iExchangeManager interface {
+	GetExchanges() []exchange.IBotExchange
+	GetExchangeByName(string) exchange.IBotExchange
+}
+
+// syncBase stores information
+type syncBase struct {
+	IsUsingWebsocket bool
+	IsUsingREST      bool
+	IsProcessing     bool
+	LastUpdated      time.Time
+	HaveData         bool
+	NumErrors        int
+}
+
+// currencyPairSyncAgent stores the sync agent info
+type currencyPairSyncAgent struct {
+	Created   time.Time
+	Exchange  string
+	AssetType asset.Item
+	Pair      currency.Pair
+	Ticker    syncBase
+	Orderbook syncBase
+	Trade     syncBase
+}
+
 // CurrencyPairSyncerConfig stores the currency pair config
-type CurrencyPairSyncerConfig struct {
+type Config struct {
 	SyncTicker       bool
 	SyncOrderbook    bool
 	SyncTrades       bool
@@ -23,53 +53,23 @@ type CurrencyPairSyncerConfig struct {
 	Verbose          bool
 }
 
-// ExchangeSyncerConfig stores the exchange syncer config
-type ExchangeSyncerConfig struct {
-	SyncDepositAddresses bool
-	SyncOrders           bool
-}
-
-type ExchangeManagerGetExchanges interface {
-	GetExchanges() []exchange.IBotExchange
-}
-
 // ExchangeCurrencyPairSyncer stores the exchange currency pair syncer object
 type ExchangeCurrencyPairSyncer struct {
-	Cfg                      CurrencyPairSyncerConfig
-	CurrencyPairs            []CurrencyPairSyncAgent
+	initSyncCompleted   int32
+	initSyncStarted     int32
+	shutdown            int32
+	delimiter           string
+	uppercase           bool
+	initSyncStartTime   time.Time
+	fiatDisplayCurrency currency.Code
+	mux                 sync.Mutex
+	initSyncWG          sync.WaitGroup
+
+	currencyPairs            []currencyPairSyncAgent
 	tickerBatchLastRequested map[string]time.Time
-	mux                      sync.Mutex
-	initSyncWG               sync.WaitGroup
 
-	exchangeManager       ExchangeManagerGetExchanges
-	initSyncCompleted     int32
-	initSyncStarted       int32
-	initSyncStartTime     time.Time
-	shutdown              int32
-	fiatDisplayCurrency   currency.Code
-	delimiter             string
-	uppercase             bool
 	remoteConfig          *config.RemoteControlConfig
-	websocketDataReciever botWebsocketDataReceiver
-}
-
-// SyncBase stores information
-type SyncBase struct {
-	IsUsingWebsocket bool
-	IsUsingREST      bool
-	IsProcessing     bool
-	LastUpdated      time.Time
-	HaveData         bool
-	NumErrors        int
-}
-
-// CurrencyPairSyncAgent stores the sync agent info
-type CurrencyPairSyncAgent struct {
-	Created   time.Time
-	Exchange  string
-	AssetType asset.Item
-	Pair      currency.Pair
-	Ticker    SyncBase
-	Orderbook SyncBase
-	Trade     SyncBase
+	config                Config
+	exchangeManager       iExchangeManager
+	websocketDataReceiver iWebsocketDataReceiver
 }

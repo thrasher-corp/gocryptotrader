@@ -1,86 +1,17 @@
 package apiserver
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/pprof"
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 
 	"github.com/gorilla/mux"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
-
-// RESTLogger logs the requests internally
-func RESTLogger(inner http.Handler, name string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		inner.ServeHTTP(w, r)
-
-		log.Debugf(log.RESTSys,
-			"%s\t%s\t%s\t%s",
-			r.Method,
-			r.RequestURI,
-			name,
-			time.Since(start),
-		)
-	})
-}
-
-// StartRESTServer starts a REST handler
-func StartRESTServer(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler) {
-	s := handler{
-		remoteConfig:  remoteConfig,
-		pprofConfig:   pprofConfig,
-		listenAddress: remoteConfig.DeprecatedRPC.ListenAddress,
-	}
-	log.Debugf(log.RESTSys,
-		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
-		common.ExtractHost(s.listenAddress), common.ExtractPort(s.listenAddress))
-	err := http.ListenAndServe(s.listenAddress, s.newRouter(true))
-	if err != nil {
-		log.Errorf(log.RESTSys, "Failed to start deprecated RPC handler. Err: %s", err)
-	}
-}
-
-type handler struct {
-	remoteConfig    *config.RemoteControlConfig
-	pprofConfig     *config.Profiler
-	exchangeManager *exchangemanager.Manager
-	listenAddress   string
-	lBot            InterfaceYourButt
-	configPath      string
-}
-
-type InterfaceYourButt interface {
-	SetupExchanges() error
-}
-
-// StartWebsocketServer starts a Websocket handler
-func StartWebsocketServer(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager *exchangemanager.Manager, hi InterfaceYourButt, configPath string) {
-	s := handler{
-		remoteConfig:    remoteConfig,
-		pprofConfig:     pprofConfig,
-		listenAddress:   remoteConfig.WebsocketRPC.ListenAddress,
-		exchangeManager: exchangeManager,
-		lBot:            hi,
-		configPath:      configPath,
-	}
-	log.Debugf(log.RESTSys,
-		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
-		common.ExtractHost(s.listenAddress), common.ExtractPort(s.listenAddress))
-	err := http.ListenAndServe(s.listenAddress, s.newRouter(false))
-	if err != nil {
-		log.Errorf(log.RESTSys, "Failed to start websocket RPC handler. Err: %s", err)
-	}
-}
 
 // newRouter takes in the exchange interfaces and returns a new multiplexor
 // router
@@ -97,12 +28,12 @@ func (h *handler) newRouter(isREST bool) *mux.Router {
 	if isREST {
 		routes = []Route{
 			{"", http.MethodGet, "/", h.getIndex},
-			{"GetAllSettings", http.MethodGet, "/config/all", h.RESTGetAllSettings},
-			{"SaveAllSettings", http.MethodPost, "/config/all/save", h.RESTSaveAllSettings},
-			{"AllEnabledAccountInfo", http.MethodGet, "/exchanges/enabled/accounts/all", h.RESTGetAllEnabledAccountInfo},
-			{"AllActiveExchangesAndCurrencies", http.MethodGet, "/exchanges/enabled/latest/all", h.RESTGetAllActiveTickers},
-			{"GetPortfolio", http.MethodGet, "/portfolio/all", h.RESTGetPortfolio},
-			{"AllActiveExchangesAndOrderbooks", http.MethodGet, "/exchanges/orderbook/latest/all", h.RESTGetAllActiveOrderbooks},
+			{"GetAllSettings", http.MethodGet, "/config/all", h.restGetAllSettings},
+			{"SaveAllSettings", http.MethodPost, "/config/all/save", h.restSaveAllSettings},
+			{"AllEnabledAccountInfo", http.MethodGet, "/exchanges/enabled/accounts/all", h.restGetAllEnabledAccountInfo},
+			{"AllActiveExchangesAndCurrencies", http.MethodGet, "/exchanges/enabled/latest/all", h.restGetAllActiveTickers},
+			{"GetPortfolio", http.MethodGet, "/portfolio/all", h.restGetPortfolio},
+			{"AllActiveExchangesAndOrderbooks", http.MethodGet, "/exchanges/orderbook/latest/all", h.restGetAllActiveOrderbooks},
 		}
 
 		if h.pprofConfig.Enabled {
@@ -126,16 +57,8 @@ func (h *handler) newRouter(isREST bool) *mux.Router {
 			Methods(route.Method).
 			Path(route.Pattern).
 			Name(route.Name).
-			Handler(RESTLogger(route.HandlerFunc, route.Name)).
+			Handler(restLogger(route.HandlerFunc, route.Name)).
 			Host(h.listenAddress)
 	}
 	return router
-}
-
-func (h *handler) getIndex(w http.ResponseWriter, _ *http.Request) {
-	_, err := fmt.Fprint(w, "<html>GoCryptoTrader RESTful interface. For the web GUI, please visit the <a href=https://github.com/thrasher-corp/gocryptotrader/blob/master/web/README.md>web GUI readme.</a></html>")
-	if err != nil {
-		log.Error(log.CommunicationMgr, err)
-	}
-	w.WriteHeader(http.StatusOK)
 }

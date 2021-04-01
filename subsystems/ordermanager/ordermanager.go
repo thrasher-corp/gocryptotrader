@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
@@ -33,7 +32,7 @@ func (m *Manager) Started() bool {
 }
 
 // Start will boot up the OrderManager
-func (m *Manager) Start(exchangeManager *exchangemanager.Manager, communicationsManager *communicationmanager.Manager, wg *sync.WaitGroup, verbose bool) error {
+func (m *Manager) Start(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose bool) error {
 	if exchangeManager == nil || communicationsManager == nil || wg == nil {
 		return errors.New("cannot start with nil params")
 	}
@@ -41,7 +40,6 @@ func (m *Manager) Start(exchangeManager *exchangemanager.Manager, communications
 		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
 	log.Debugln(log.OrderBook, "Order manager starting...")
-
 	m.shutdown = make(chan struct{})
 	m.orderStore.Orders = make(map[string][]*order.Detail)
 	m.orderStore.exchangeManager = exchangeManager

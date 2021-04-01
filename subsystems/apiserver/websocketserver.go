@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
+
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -15,6 +17,25 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
+
+// StartWebsocketServer starts a Websocket handler
+func StartWebsocketServer(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, configPath string) {
+	s := handler{
+		remoteConfig:    remoteConfig,
+		pprofConfig:     pprofConfig,
+		listenAddress:   remoteConfig.WebsocketRPC.ListenAddress,
+		exchangeManager: exchangeManager,
+		bot:             bot,
+		configPath:      configPath,
+	}
+	log.Debugf(log.RESTSys,
+		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
+		common.ExtractHost(s.listenAddress), common.ExtractPort(s.listenAddress))
+	err := http.ListenAndServe(s.listenAddress, s.newRouter(false))
+	if err != nil {
+		log.Errorf(log.RESTSys, "Failed to start websocket RPC handler. Err: %s", err)
+	}
+}
 
 // NewWebsocketHub Creates a new websocket hub
 func NewWebsocketHub() *WebsocketHub {
@@ -330,7 +351,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	err = client.handler.lBot.SetupExchanges()
+	err = client.handler.bot.SetupExchanges()
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)

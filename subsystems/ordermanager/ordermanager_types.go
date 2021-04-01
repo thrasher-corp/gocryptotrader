@@ -4,8 +4,9 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
+
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -14,6 +15,17 @@ import (
 var (
 	errOrderIDCannotBeEmpty = errors.New("orderID cannot be empty")
 )
+
+// iExchangeManager limits exposure of accessible functions to order manager
+type iExchangeManager interface {
+	GetExchanges() []exchange.IBotExchange
+	GetExchangeByName(string) exchange.IBotExchange
+}
+
+// iCommsManager limits exposure of accessible functions to communication manager
+type iCommsManager interface {
+	PushEvent(evt base.Event)
+}
 
 type orderManagerConfig struct {
 	EnforceLimitConfig     bool
@@ -28,8 +40,8 @@ type orderManagerConfig struct {
 type store struct {
 	m               sync.RWMutex
 	Orders          map[string][]*order.Detail
-	commsManager    *communicationmanager.Manager
-	exchangeManager *exchangemanager.Manager
+	commsManager    iCommsManager
+	exchangeManager iExchangeManager
 	wg              *sync.WaitGroup
 }
 

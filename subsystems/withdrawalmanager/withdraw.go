@@ -5,23 +5,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-
 	"github.com/golang/protobuf/ptypes"
-
 	withdrawDataStore "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 const (
 	// ErrWithdrawRequestNotFound message to display when no record is found
 	ErrWithdrawRequestNotFound = "%v not found"
-	// StatusError const for for "error" string
-	StatusError = "error"
+	statusError                = "error"
 )
 
 type Manager struct {
@@ -69,7 +65,7 @@ func (m *Manager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, e
 		if req.Type == withdraw.Fiat {
 			ret, err = exch.WithdrawFiatFunds(req)
 			if err != nil {
-				resp.Exchange.ID = StatusError
+				resp.Exchange.ID = statusError
 				resp.Exchange.Status = err.Error()
 			} else {
 				resp.Exchange.Status = ret.Status
@@ -78,7 +74,7 @@ func (m *Manager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, e
 		} else if req.Type == withdraw.Crypto {
 			ret, err = exch.WithdrawCryptocurrencyFunds(req)
 			if err != nil {
-				resp.Exchange.ID = StatusError
+				resp.Exchange.ID = statusError
 				resp.Exchange.Status = err.Error()
 			} else {
 				resp.Exchange.Status = ret.Status

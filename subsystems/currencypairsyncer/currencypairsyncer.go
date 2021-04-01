@@ -8,10 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -37,7 +33,7 @@ var (
 )
 
 // NewCurrencyPairSyncer starts a new CurrencyPairSyncer
-func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig, e *exchangemanager.Manager, iBot botWebsocketDataReceiver) (*ExchangeCurrencyPairSyncer, error) {
+func NewCurrencyPairSyncer(c Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver) (*ExchangeCurrencyPairSyncer, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
 		return nil, errors.New("no sync items enabled")
 	}
@@ -51,7 +47,7 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig, e *exchangemanager.Manage
 	}
 
 	s := ExchangeCurrencyPairSyncer{
-		Cfg: CurrencyPairSyncerConfig{
+		config: Config{
 			SyncTicker:       c.SyncTicker,
 			SyncOrderbook:    c.SyncOrderbook,
 			SyncTrades:       c.SyncTrades,
@@ -59,8 +55,8 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig, e *exchangemanager.Manage
 			SyncTimeout:      c.SyncTimeout,
 			NumWorkers:       c.NumWorkers,
 		},
-		exchangeManager:       e,
-		websocketDataReciever: iBot,
+		exchangeManager:       exchangeManager,
+		websocketDataReceiver: websocketDataReceiver,
 	}
 
 	s.tickerBatchLastRequested = make(map[string]time.Time)
@@ -68,20 +64,20 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig, e *exchangemanager.Manage
 	log.Debugf(log.SyncMgr,
 		"Exchange currency pair syncer config: continuous: %v ticker: %v"+
 			" orderbook: %v trades: %v workers: %v verbose: %v timeout: %v\n",
-		s.Cfg.SyncContinuously, s.Cfg.SyncTicker, s.Cfg.SyncOrderbook,
-		s.Cfg.SyncTrades, s.Cfg.NumWorkers, s.Cfg.Verbose, s.Cfg.SyncTimeout)
+		s.config.SyncContinuously, s.config.SyncTicker, s.config.SyncOrderbook,
+		s.config.SyncTrades, s.config.NumWorkers, s.config.Verbose, s.config.SyncTimeout)
 	return &s, nil
 }
 
-func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p currency.Pair, a asset.Item) (*CurrencyPairSyncAgent, error) {
+func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	for x := range e.CurrencyPairs {
-		if e.CurrencyPairs[x].Exchange == exchangeName &&
-			e.CurrencyPairs[x].Pair.Equal(p) &&
-			e.CurrencyPairs[x].AssetType == a {
-			return &e.CurrencyPairs[x], nil
+	for x := range e.currencyPairs {
+		if e.currencyPairs[x].Exchange == exchangeName &&
+			e.currencyPairs[x].Pair.Equal(p) &&
+			e.currencyPairs[x].AssetType == a {
+			return &e.currencyPairs[x], nil
 		}
 	}
 
@@ -92,22 +88,22 @@ func (e *ExchangeCurrencyPairSyncer) exists(exchangeName string, p currency.Pair
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	for x := range e.CurrencyPairs {
-		if e.CurrencyPairs[x].Exchange == exchangeName &&
-			e.CurrencyPairs[x].Pair.Equal(p) &&
-			e.CurrencyPairs[x].AssetType == a {
+	for x := range e.currencyPairs {
+		if e.currencyPairs[x].Exchange == exchangeName &&
+			e.currencyPairs[x].Pair.Equal(p) &&
+			e.currencyPairs[x].AssetType == a {
 			return true
 		}
 	}
 	return false
 }
 
-func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
+func (e *ExchangeCurrencyPairSyncer) add(c *currencyPairSyncAgent) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	if e.Cfg.SyncTicker {
-		if e.Cfg.Verbose {
+	if e.config.SyncTicker {
+		if e.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added ticker sync item %v: using websocket: %v using REST: %v\n",
 				c.Exchange, e.FormatCurrency(c.Pair).String(), c.Ticker.IsUsingWebsocket,
@@ -119,8 +115,8 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 		}
 	}
 
-	if e.Cfg.SyncOrderbook {
-		if e.Cfg.Verbose {
+	if e.config.SyncOrderbook {
+		if e.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added orderbook sync item %v: using websocket: %v using REST: %v\n",
 				c.Exchange, e.FormatCurrency(c.Pair).String(), c.Orderbook.IsUsingWebsocket,
@@ -132,8 +128,8 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 		}
 	}
 
-	if e.Cfg.SyncTrades {
-		if e.Cfg.Verbose {
+	if e.config.SyncTrades {
+		if e.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added trade sync item %v: using websocket: %v using REST: %v\n",
 				c.Exchange, e.FormatCurrency(c.Pair).String(), c.Trade.IsUsingWebsocket,
@@ -146,18 +142,18 @@ func (e *ExchangeCurrencyPairSyncer) add(c *CurrencyPairSyncAgent) {
 	}
 
 	c.Created = time.Now()
-	e.CurrencyPairs = append(e.CurrencyPairs, *c)
+	e.currencyPairs = append(e.currencyPairs, *c)
 }
 
-func (e *ExchangeCurrencyPairSyncer) remove(c *CurrencyPairSyncAgent) {
+func (e *ExchangeCurrencyPairSyncer) remove(c *currencyPairSyncAgent) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	for x := range e.CurrencyPairs {
-		if e.CurrencyPairs[x].Exchange == c.Exchange &&
-			e.CurrencyPairs[x].Pair.Equal(c.Pair) &&
-			e.CurrencyPairs[x].AssetType == c.AssetType {
-			e.CurrencyPairs = append(e.CurrencyPairs[:x], e.CurrencyPairs[x+1:]...)
+	for x := range e.currencyPairs {
+		if e.currencyPairs[x].Exchange == c.Exchange &&
+			e.currencyPairs[x].Pair.Equal(c.Pair) &&
+			e.currencyPairs[x].AssetType == c.AssetType {
+			e.currencyPairs = append(e.currencyPairs[:x], e.currencyPairs[x+1:]...)
 			return
 		}
 	}
@@ -167,17 +163,17 @@ func (e *ExchangeCurrencyPairSyncer) isProcessing(exchangeName string, p currenc
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	for x := range e.CurrencyPairs {
-		if e.CurrencyPairs[x].Exchange == exchangeName &&
-			e.CurrencyPairs[x].Pair.Equal(p) &&
-			e.CurrencyPairs[x].AssetType == a {
+	for x := range e.currencyPairs {
+		if e.currencyPairs[x].Exchange == exchangeName &&
+			e.currencyPairs[x].Pair.Equal(p) &&
+			e.currencyPairs[x].AssetType == a {
 			switch syncType {
 			case SyncItemTicker:
-				return e.CurrencyPairs[x].Ticker.IsProcessing
+				return e.currencyPairs[x].Ticker.IsProcessing
 			case SyncItemOrderbook:
-				return e.CurrencyPairs[x].Orderbook.IsProcessing
+				return e.currencyPairs[x].Orderbook.IsProcessing
 			case SyncItemTrade:
-				return e.CurrencyPairs[x].Trade.IsProcessing
+				return e.currencyPairs[x].Trade.IsProcessing
 			}
 		}
 	}
@@ -189,17 +185,17 @@ func (e *ExchangeCurrencyPairSyncer) setProcessing(exchangeName string, p curren
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	for x := range e.CurrencyPairs {
-		if e.CurrencyPairs[x].Exchange == exchangeName &&
-			e.CurrencyPairs[x].Pair.Equal(p) &&
-			e.CurrencyPairs[x].AssetType == a {
+	for x := range e.currencyPairs {
+		if e.currencyPairs[x].Exchange == exchangeName &&
+			e.currencyPairs[x].Pair.Equal(p) &&
+			e.currencyPairs[x].AssetType == a {
 			switch syncType {
 			case SyncItemTicker:
-				e.CurrencyPairs[x].Ticker.IsProcessing = processing
+				e.currencyPairs[x].Ticker.IsProcessing = processing
 			case SyncItemOrderbook:
-				e.CurrencyPairs[x].Orderbook.IsProcessing = processing
+				e.currencyPairs[x].Orderbook.IsProcessing = processing
 			case SyncItemTrade:
-				e.CurrencyPairs[x].Trade.IsProcessing = processing
+				e.currencyPairs[x].Trade.IsProcessing = processing
 			}
 		}
 	}
@@ -213,15 +209,15 @@ func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair
 
 	switch syncType {
 	case SyncItemOrderbook:
-		if !e.Cfg.SyncOrderbook {
+		if !e.config.SyncOrderbook {
 			return
 		}
 	case SyncItemTicker:
-		if !e.Cfg.SyncTicker {
+		if !e.config.SyncTicker {
 			return
 		}
 	case SyncItemTrade:
-		if !e.Cfg.SyncTrades {
+		if !e.config.SyncTrades {
 			return
 		}
 	default:
@@ -232,19 +228,19 @@ func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	for x := range e.CurrencyPairs {
-		if e.CurrencyPairs[x].Exchange == exchangeName &&
-			e.CurrencyPairs[x].Pair.Equal(p) &&
-			e.CurrencyPairs[x].AssetType == a {
+	for x := range e.currencyPairs {
+		if e.currencyPairs[x].Exchange == exchangeName &&
+			e.currencyPairs[x].Pair.Equal(p) &&
+			e.currencyPairs[x].AssetType == a {
 			switch syncType {
 			case SyncItemTicker:
-				origHadData := e.CurrencyPairs[x].Ticker.HaveData
-				e.CurrencyPairs[x].Ticker.LastUpdated = time.Now()
+				origHadData := e.currencyPairs[x].Ticker.HaveData
+				e.currencyPairs[x].Ticker.LastUpdated = time.Now()
 				if err != nil {
-					e.CurrencyPairs[x].Ticker.NumErrors++
+					e.currencyPairs[x].Ticker.NumErrors++
 				}
-				e.CurrencyPairs[x].Ticker.HaveData = true
-				e.CurrencyPairs[x].Ticker.IsProcessing = false
+				e.currencyPairs[x].Ticker.HaveData = true
+				e.currencyPairs[x].Ticker.IsProcessing = false
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].\n",
@@ -256,13 +252,13 @@ func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair
 				}
 
 			case SyncItemOrderbook:
-				origHadData := e.CurrencyPairs[x].Orderbook.HaveData
-				e.CurrencyPairs[x].Orderbook.LastUpdated = time.Now()
+				origHadData := e.currencyPairs[x].Orderbook.HaveData
+				e.currencyPairs[x].Orderbook.LastUpdated = time.Now()
 				if err != nil {
-					e.CurrencyPairs[x].Orderbook.NumErrors++
+					e.currencyPairs[x].Orderbook.NumErrors++
 				}
-				e.CurrencyPairs[x].Orderbook.HaveData = true
-				e.CurrencyPairs[x].Orderbook.IsProcessing = false
+				e.currencyPairs[x].Orderbook.HaveData = true
+				e.currencyPairs[x].Orderbook.IsProcessing = false
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].\n",
@@ -274,13 +270,13 @@ func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair
 				}
 
 			case SyncItemTrade:
-				origHadData := e.CurrencyPairs[x].Trade.HaveData
-				e.CurrencyPairs[x].Trade.LastUpdated = time.Now()
+				origHadData := e.currencyPairs[x].Trade.HaveData
+				e.currencyPairs[x].Trade.LastUpdated = time.Now()
 				if err != nil {
-					e.CurrencyPairs[x].Trade.NumErrors++
+					e.currencyPairs[x].Trade.NumErrors++
 				}
-				e.CurrencyPairs[x].Trade.HaveData = true
-				e.CurrencyPairs[x].Trade.IsProcessing = false
+				e.currencyPairs[x].Trade.HaveData = true
+				e.currencyPairs[x].Trade.IsProcessing = false
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].\n",
@@ -350,28 +346,28 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 					}
 
 					if !e.exists(exchangeName, enabledPairs[i], assetTypes[y]) {
-						c := CurrencyPairSyncAgent{
+						c := currencyPairSyncAgent{
 							AssetType: assetTypes[y],
 							Exchange:  exchangeName,
 							Pair:      enabledPairs[i],
 						}
 
-						if e.Cfg.SyncTicker {
-							c.Ticker = SyncBase{
+						if e.config.SyncTicker {
+							c.Ticker = syncBase{
 								IsUsingREST:      usingREST,
 								IsUsingWebsocket: usingWebsocket,
 							}
 						}
 
-						if e.Cfg.SyncOrderbook {
-							c.Orderbook = SyncBase{
+						if e.config.SyncOrderbook {
+							c.Orderbook = syncBase{
 								IsUsingREST:      usingREST,
 								IsUsingWebsocket: usingWebsocket,
 							}
 						}
 
-						if e.Cfg.SyncTrades {
-							c.Trade = SyncBase{
+						if e.config.SyncTrades {
+							c.Trade = syncBase{
 								IsUsingREST:      usingREST,
 								IsUsingWebsocket: usingWebsocket,
 							}
@@ -391,11 +387,11 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 							c.Exchange, e.FormatCurrency(enabledPairs[i]).String())
 						switchedToRest = false
 					}
-					if e.Cfg.SyncTicker {
+					if e.config.SyncTicker {
 						if !e.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTicker) {
-							if c.Ticker.LastUpdated.IsZero() || time.Since(c.Ticker.LastUpdated) > e.Cfg.SyncTimeout {
+							if c.Ticker.LastUpdated.IsZero() || time.Since(c.Ticker.LastUpdated) > e.config.SyncTimeout {
 								if c.Ticker.IsUsingWebsocket {
-									if time.Since(c.Created) < e.Cfg.SyncTimeout {
+									if time.Since(c.Created) < e.config.SyncTimeout {
 										continue
 									}
 
@@ -408,7 +404,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 											c.Exchange,
 											e.FormatCurrency(enabledPairs[i]).String(),
 											strings.ToUpper(c.AssetType.String()),
-											e.Cfg.SyncTimeout,
+											e.config.SyncTimeout,
 										)
 										switchedToRest = true
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, false)
@@ -428,16 +424,16 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										}
 										e.mux.Unlock()
 
-										if batchLastDone.IsZero() || time.Since(batchLastDone) > e.Cfg.SyncTimeout {
+										if batchLastDone.IsZero() || time.Since(batchLastDone) > e.config.SyncTimeout {
 											e.mux.Lock()
-											if e.Cfg.Verbose {
+											if e.config.Verbose {
 												log.Debugf(log.SyncMgr, "%s Init'ing REST ticker batching\n", exchangeName)
 											}
 											result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 											e.tickerBatchLastRequested[exchangeName] = time.Now()
 											e.mux.Unlock()
 										} else {
-											if e.Cfg.Verbose {
+											if e.config.Verbose {
 												log.Debugf(log.SyncMgr, "%s Using recent batching cache\n", exchangeName)
 											}
 											result, err = exchanges[x].FetchTicker(c.Pair, c.AssetType)
@@ -459,11 +455,11 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 						}
 					}
 
-					if e.Cfg.SyncOrderbook {
+					if e.config.SyncOrderbook {
 						if !e.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemOrderbook) {
-							if c.Orderbook.LastUpdated.IsZero() || time.Since(c.Orderbook.LastUpdated) > e.Cfg.SyncTimeout {
+							if c.Orderbook.LastUpdated.IsZero() || time.Since(c.Orderbook.LastUpdated) > e.config.SyncTimeout {
 								if c.Orderbook.IsUsingWebsocket {
-									if time.Since(c.Created) < e.Cfg.SyncTimeout {
+									if time.Since(c.Created) < e.config.SyncTimeout {
 										continue
 									}
 									if supportsREST {
@@ -475,7 +471,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 											c.Exchange,
 											e.FormatCurrency(c.Pair).String(),
 											strings.ToUpper(c.AssetType.String()),
-											e.Cfg.SyncTimeout,
+											e.config.SyncTimeout,
 										)
 										switchedToRest = true
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, false)
@@ -495,9 +491,9 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 								time.Sleep(time.Millisecond * 50)
 							}
 						}
-						if e.Cfg.SyncTrades {
+						if e.config.SyncTrades {
 							if !e.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) {
-								if c.Trade.LastUpdated.IsZero() || time.Since(c.Trade.LastUpdated) > e.Cfg.SyncTimeout {
+								if c.Trade.LastUpdated.IsZero() || time.Since(c.Trade.LastUpdated) > e.config.SyncTimeout {
 									e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
 									e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
 								}
@@ -508,10 +504,6 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			}
 		}
 	}
-}
-
-type botWebsocketDataReceiver interface {
-	WebsocketDataReceiver(ws *stream.Websocket)
 }
 
 // Start starts an exchange currency pair syncer
@@ -544,7 +536,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 			}
 
 			if !ws.IsConnected() && !ws.IsConnecting() {
-				go e.websocketDataReciever.WebsocketDataReceiver(ws)
+				go e.websocketDataReceiver.WebsocketDataReceiver(ws)
 
 				err = ws.Connect()
 				if err == nil {
@@ -588,28 +580,28 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 					continue
 				}
 
-				c := CurrencyPairSyncAgent{
+				c := currencyPairSyncAgent{
 					AssetType: assetTypes[y],
 					Exchange:  exchangeName,
 					Pair:      enabledPairs[i],
 				}
 
-				if e.Cfg.SyncTicker {
-					c.Ticker = SyncBase{
+				if e.config.SyncTicker {
+					c.Ticker = syncBase{
 						IsUsingREST:      usingREST,
 						IsUsingWebsocket: usingWebsocket,
 					}
 				}
 
-				if e.Cfg.SyncOrderbook {
-					c.Orderbook = SyncBase{
+				if e.config.SyncOrderbook {
+					c.Orderbook = syncBase{
 						IsUsingREST:      usingREST,
 						IsUsingWebsocket: usingWebsocket,
 					}
 				}
 
-				if e.Cfg.SyncTrades {
-					c.Trade = SyncBase{
+				if e.config.SyncTrades {
+					c.Trade = syncBase{
 						IsUsingREST:      usingREST,
 						IsUsingWebsocket: usingWebsocket,
 					}
@@ -635,7 +627,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].\n",
 				completedTime.Sub(e.initSyncStartTime), createdCounter)
 
-			if !e.Cfg.SyncContinuously {
+			if !e.config.SyncContinuously {
 				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
 				e.Stop()
 				return
@@ -643,11 +635,11 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 		}
 	}()
 
-	if atomic.LoadInt32(&e.initSyncCompleted) == 1 && !e.Cfg.SyncContinuously {
+	if atomic.LoadInt32(&e.initSyncCompleted) == 1 && !e.config.SyncContinuously {
 		return
 	}
 
-	for i := 0; i < e.Cfg.NumWorkers; i++ {
+	for i := 0; i < e.config.NumWorkers; i++ {
 		go e.worker()
 	}
 }
