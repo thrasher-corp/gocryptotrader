@@ -1669,7 +1669,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		if err != nil {
 			return err
 		}
-		depth.Wait(nil)
+		<-depth.Wait(nil)
 	}
 }
 

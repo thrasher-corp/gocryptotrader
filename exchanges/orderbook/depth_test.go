@@ -3,6 +3,7 @@ package orderbook
 import (
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -304,4 +305,50 @@ func TestIsFundingRate(t *testing.T) {
 func TestPublish(t *testing.T) {
 	d := Depth{}
 	d.Publish()
+}
+
+func TestWait(t *testing.T) {
+	wait := Alert{}
+	var wg sync.WaitGroup
+
+	// standard alert
+	wg.Add(100)
+	for x := 0; x < 100; x++ {
+		go func() {
+			<-wait.Wait(nil)
+			wg.Done()
+		}()
+	}
+	time.Sleep(time.Millisecond)
+	go wait.alert()
+	wg.Wait()
+
+	// use kick
+	ch := make(chan struct{})
+	wg.Add(100)
+	for x := 0; x < 100; x++ {
+		go func() {
+			<-wait.Wait(ch)
+			wg.Done()
+		}()
+	}
+	time.Sleep(time.Millisecond)
+	go close(ch)
+	wg.Wait()
+
+	// late receivers
+	ch = make(chan struct{})
+	wg.Add(100)
+	for x := 0; x < 100; x++ {
+		go func() {
+			bb := wait.Wait(ch)
+			time.Sleep(time.Millisecond * 5)
+			<-bb
+			wg.Done()
+		}()
+	}
+	time.Sleep(time.Millisecond)
+	go wait.alert()
+	go close(ch)
+	wg.Wait()
 }
