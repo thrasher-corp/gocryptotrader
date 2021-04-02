@@ -53,7 +53,7 @@ func getNow() now {
 // pushed to a stack.
 func (s *stack) Push(n *node, tn now) {
 	if atomic.LoadUint32(&s.sema) == cleanerActive {
-		// Cleaner is activated, for now we can derefence pointer
+		// Cleaner is activated, for now we can dereference pointer
 		n = nil
 		return
 	}
