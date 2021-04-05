@@ -331,7 +331,7 @@ func (a *Alert) Wait(kick <-chan struct{}) <-chan bool {
 }
 
 // hold waits on both channels in the event that the routine has finished or an
-// alert from a depth update has occured.
+// alert from a depth update has occurred.
 func (a *Alert) hold(ch chan<- bool, kick <-chan struct{}) {
 	defer a.wg.Done()
 	select {
