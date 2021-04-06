@@ -148,7 +148,7 @@ func (ll *linkedList) amount() (liquidity, value float64) {
 	return
 }
 
-// Retrieve returns a full slice of contents from the linked list
+// retrieve returns a full slice of contents from the linked list
 func (ll *linkedList) retrieve() Items {
 	depth := make(Items, ll.length)
 	iterator := 0
@@ -597,8 +597,8 @@ func insertNodeAtBookmark(ll *linkedList, bookmark, n *node) {
 	ll.length++
 }
 
-// shiftBookmark moves a bookmarked node to the tip position or if nil sets
-// tip as bookmark (can inline)
+// shiftBookmark moves a bookmarked node to the tip's next position or if nil,
+// sets tip as bookmark (can inline)
 func shiftBookmark(tip *node, bookmark, head **node, updt Item) bool {
 	if *bookmark == nil { // End of the chain and no bookmark set
 		*bookmark = tip // Set tip to bookmark so we can set a new node there

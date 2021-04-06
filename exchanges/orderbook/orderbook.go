@@ -105,13 +105,13 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	s.Lock()
 	m1, ok := s.books[strings.ToLower(exchange)]
 	if !ok {
-		uuid, err := s.Mux.GetID()
+		id, err := s.Mux.GetID()
 		if err != nil {
 			return nil, err
 		}
 		m1 = Exchange{
 			m:  make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
-			ID: uuid,
+			ID: id,
 		}
 		s.books[strings.ToLower(exchange)] = m1
 	}

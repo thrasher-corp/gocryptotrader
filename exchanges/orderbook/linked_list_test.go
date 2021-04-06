@@ -1312,7 +1312,7 @@ func TestShiftBookmark(t *testing.T) {
 
 	tipprev := &node{
 		value: Item{
-			ID: 69420,
+			ID: 69419,
 		},
 		next: tip,
 		prev: nil, // This can be left nil in actuality this will be
@@ -1324,7 +1324,7 @@ func TestShiftBookmark(t *testing.T) {
 	tip.prev = tipprev
 
 	if !shiftBookmark(tip, &bookmarkedNode, nil, Item{Amount: 1336, ID: 1337, Price: 9999}) {
-		t.Fatal("There should be liqidity so we don't need to set tip to bookmark")
+		t.Fatal("There should be liquidity so we don't need to set tip to bookmark")
 	}
 
 	if bookmarkedNode.value.Price != 9999 ||
@@ -1361,5 +1361,18 @@ func TestShiftBookmark(t *testing.T) {
 
 	if tip != nilBookmark {
 		t.Fatal("nilBookmark not reassigned")
+	}
+
+	head := bookmarkedNode
+	bookmarkedNode.prev = nil
+	bookmarkedNode.next = originalBookmarkNext
+	tip.next = nil
+
+	if !shiftBookmark(tip, &bookmarkedNode, &head, Item{Amount: 1336, ID: 1337, Price: 9999}) {
+		t.Fatal("There should be liquidity so we don't need to set tip to bookmark")
+	}
+
+	if head != originalBookmarkNext {
+		t.Fatal("unexpected pointer variable")
 	}
 }

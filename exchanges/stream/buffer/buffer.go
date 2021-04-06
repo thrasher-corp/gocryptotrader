@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const packageError = "websocket orderbook buffer error: %w"
@@ -84,8 +85,16 @@ func (w *Orderbook) Update(u *Update) error {
 	// Checks for when the rest protocol overwrites a streaming dominated book
 	// will stop updating book via incremental updates. This occurs because our
 	// sync manager (engine/sync.go) timer has elapsed for streaming. Usually
-	// because the book is highly illiquid.
+	// because the book is highly illiquid. TODO: Book resubscribe on websocket.
 	if book.ob.IsRestSnapshot() {
+		if w.verbose {
+			log.Warnf(log.WebsocketMgr,
+				"%w for Exchange %s CurrencyPair: %s AssetType: %s consider extending synctimeoutwebsocket",
+				errRESTOverwrite,
+				w.exchangeName,
+				u.Pair,
+				u.Asset)
+		}
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
 			errRESTOverwrite,
 			w.exchangeName,
@@ -252,7 +261,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	return nil
 }
 
-// GetOrderbook returns an orderbook copy as orderbook.Base stored
+// GetOrderbook returns an orderbook copy as orderbook.Base
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	w.m.Lock()
 	defer w.m.Unlock()
