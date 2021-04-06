@@ -50,7 +50,7 @@ func addPassingFakeExchange(baseExchangeName string, bot *Engine) error {
 	var currencyMap = make(map[asset.Item]*currency.PairStore)
 	currencyMap[asset.Spot] = &pairStoreData
 
-	bot.exchangeManager.Add(&FakePassingExchange{
+	bot.ExchangeManager.Add(&FakePassingExchange{
 		Base: exchange.Base{
 			Name: fakePassExchange,
 			CurrencyPairs: currency.PairsManager{

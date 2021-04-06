@@ -139,7 +139,7 @@ func TestPlaceOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bot.OrderManager.Start(bot)
+	err = bot.OrderManager.Setup(bot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -187,7 +187,7 @@ func TestExecuteOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = bot.OrderManager.Start(bot)
+	err = bot.OrderManager.Setup(bot)
 	if err != nil {
 		t.Error(err)
 	}

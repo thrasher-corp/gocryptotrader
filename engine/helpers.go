@@ -43,7 +43,7 @@ var (
 // GetSubsystemsStatus returns the status of various subsystems
 func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems := make(map[string]bool)
-	systems["communications"] = bot.commsManager.Started()
+	systems["communications"] = bot.CommunicationsManager.Started()
 	systems["internet_monitor"] = bot.connectionManager.Started()
 	systems["orders"] = bot.OrderManager.Started()
 	systems["portfolio"] = bot.portfolioManager.Started()
@@ -93,19 +93,19 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 	case "communications":
 		if enable {
 			communicationsConfig := bot.Config.GetCommunicationsConfig()
-			return bot.commsManager.Setup(&communicationsConfig)
+			return bot.CommunicationsManager.Setup(&communicationsConfig)
 		}
-		return bot.commsManager.Stop()
+		return bot.CommunicationsManager.Stop()
 	case "internet_monitor":
 		if enable {
 			return bot.connectionManager.Start(&bot.Config.ConnectionMonitor)
 		}
-		return bot.commsManager.Stop()
+		return bot.CommunicationsManager.Stop()
 	case "orders":
 		if enable {
-			return bot.OrderManager.Start(
-				&bot.exchangeManager,
-				&bot.commsManager,
+			return bot.OrderManager.Setup(
+				&bot.ExchangeManager,
+				&bot.CommunicationsManager,
 				&bot.ServicesWG,
 				bot.Settings.Verbose)
 		}
@@ -114,7 +114,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		if enable {
 			return bot.portfolioManager.Start(
 				&bot.Config.Portfolio,
-				&bot.exchangeManager,
+				&bot.ExchangeManager,
 				bot.Settings.PortfolioManagerDelay,
 				&bot.ServicesWG,
 				bot.Settings.Verbose)
@@ -122,7 +122,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.OrderManager.Stop()
 	case "ntp_timekeeper":
 		if enable {
-			return bot.ntpManager.Start(
+			return bot.ntpManager.Setup(
 				&bot.Config.NTPClient,
 				*bot.Config.Logging.Enabled)
 		}
@@ -608,7 +608,7 @@ func (bot *Engine) FormatCurrency(p currency.Pair) currency.Pair {
 
 // GetExchangeNames returns a list of enabled or disabled exchanges
 func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
-	exchanges := bot.exchangeManager.GetExchanges()
+	exchanges := bot.ExchangeManager.GetExchanges()
 	var response []string
 	for i := range exchanges {
 		if !enabledOnly || (enabledOnly && exchanges[i].IsEnabled()) {

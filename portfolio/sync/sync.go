@@ -34,21 +34,22 @@ func (m *Manager) Started() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (m *Manager) Start(b *portfolio.Base, e *exchangemanager.Manager, portfolioManagerDelay time.Duration, wg *sync.WaitGroup, verbose bool) error {
+func (m *Manager) Start(b *portfolio.Base, e *exchangemanager.Manager, portfolioManagerDelay time.Duration, wg *sync.WaitGroup, verbose bool) (*Manager, error) {
 	if atomic.AddInt32(&m.started, 1) != 1 {
-		return errors.New("portfolio manager already started")
+		return nil, errors.New("portfolio manager already started")
 	}
 
 	log.Debugln(log.PortfolioMgr, "Portfolio manager starting...")
-	b.Seed(*b)
-	m.shutdown = make(chan struct{})
-	m.portfolioManagerDelay = portfolioManagerDelay
-	m.exchangeManager = e
-	m.verbose = verbose
+	man := &Manager{
+		portfolioManagerDelay: portfolioManagerDelay,
+		exchangeManager:       e,
+		shutdown:              make(chan struct{}),
+		verbose:               verbose,
+	}
 	portfolio.Verbose = verbose
-
+	b.Seed(*b)
 	go m.run(wg)
-	return nil
+	return man, nil
 }
 func (m *Manager) Stop() error {
 	if atomic.LoadInt32(&m.started) == 0 {

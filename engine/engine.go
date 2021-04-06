@@ -51,15 +51,15 @@ import (
 type Engine struct {
 	Config                      *config.Config
 	ExchangeCurrencyPairManager *currencypairsyncer.ExchangeCurrencyPairSyncer
-	ntpManager                  ntpmanager.Manager
+	ntpManager                  *ntpmanager.Manager
 	connectionManager           connectionmanager.Manager
 	DatabaseManager             databaseconnection.Manager
 	GctScriptManager            *gctscript.GctScriptManager
-	OrderManager                ordermanager.Manager
+	OrderManager                *ordermanager.Manager
 	portfolio                   *portfolio.Base
-	portfolioManager            portfoliosync.Manager
-	exchangeManager             exchangemanager.Manager
-	commsManager                *communicationmanager.Manager
+	portfolioManager            *portfoliosync.Manager
+	ExchangeManager             *exchangemanager.Manager
+	CommunicationsManager       *communicationmanager.Manager
 	eventManager                *eventmanager.Manager
 	DepositAddressManager       *depositaddress.Manager
 	WithdrawalManager           *withdrawalmanager.Manager
@@ -84,10 +84,6 @@ func New() (*Engine, error) {
 	err := b.Config.LoadConfig("", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
-	}
-	b.GctScriptManager, err = gctscript.NewManager(&b.Config.GCTScript)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create script manager. Err: %s", err)
 	}
 
 	return &b, nil
@@ -366,7 +362,7 @@ func (bot *Engine) Start() error {
 	if bot == nil {
 		return errors.New("engine instance is nil")
 	}
-
+	var err error
 	newEngineMutex.Lock()
 	defer newEngineMutex.Unlock()
 
@@ -397,7 +393,8 @@ func (bot *Engine) Start() error {
 			}
 			gctlog.Info(gctlog.TimeMgr, responseMessage)
 		}
-		if err := bot.ntpManager.Start(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
+		bot.ntpManager, err = ntpmanager.Setup(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
+		if err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %w", err)
 		}
 	}
@@ -428,18 +425,19 @@ func (bot *Engine) Start() error {
 	}
 
 	gctlog.Debugln(gctlog.Global, "Setting up exchanges..")
-	err := bot.SetupExchanges()
+	err = bot.SetupExchanges()
 	if err != nil {
 		return err
 	}
 
-	bot.WithdrawalManager, err = withdrawalmanager.Setup(&bot.exchangeManager, bot.Settings.EnableDryRun)
+	bot.ExchangeManager = bot.ExchangeManager.Setup()
+	bot.WithdrawalManager, err = withdrawalmanager.Setup(bot.ExchangeManager, bot.Settings.EnableDryRun)
 	if err != nil {
 		return err
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		if bot.commsManager, err = bot.commsManager.Setup(&bot.Config.Communications); err != nil {
+		if bot.CommunicationsManager, err = bot.CommunicationsManager.Setup(&bot.Config.Communications); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}
@@ -481,7 +479,7 @@ func (bot *Engine) Start() error {
 		bot.Settings.EnableWebsocketRPC {
 		bot.apiServer, err = bot.apiServer.Setup(&bot.Config.RemoteControl,
 			&bot.Config.Profiler,
-			&bot.exchangeManager,
+			bot.ExchangeManager,
 			bot,
 			bot.Settings.ConfigFile)
 		if err != nil {
@@ -497,12 +495,13 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnablePortfolioManager {
-		if err = bot.portfolioManager.Start(
+		bot.portfolioManager, err = bot.portfolioManager.Start(
 			&bot.Config.Portfolio,
-			&bot.exchangeManager,
+			bot.ExchangeManager,
 			bot.Settings.PortfolioManagerDelay,
 			&bot.ServicesWG,
-			bot.Settings.Verbose); err != nil {
+			bot.Settings.Verbose)
+		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to start: %v", err)
 		}
 	}
@@ -513,11 +512,12 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableOrderManager {
-		if err = bot.OrderManager.Start(
-			&bot.exchangeManager,
-			bot.commsManager,
+		bot.OrderManager, err = bot.OrderManager.Setup(
+			bot.ExchangeManager,
+			bot.CommunicationsManager,
 			&bot.ServicesWG,
-			bot.Settings.Verbose); err != nil {
+			bot.Settings.Verbose)
+		if err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
 		}
 	}
@@ -535,7 +535,7 @@ func (bot *Engine) Start() error {
 
 		bot.ExchangeCurrencyPairManager, err = currencypairsyncer.NewCurrencyPairSyncer(
 			exchangeSyncCfg,
-			&bot.exchangeManager,
+			bot.ExchangeManager,
 			bot,
 			&bot.Config.RemoteControl)
 		if err != nil {
@@ -546,7 +546,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		bot.eventManager = eventmanager.Setup(bot.commsManager, bot.Settings.EnableDryRun)
+		bot.eventManager = eventmanager.Setup(bot.CommunicationsManager, bot.Settings.EnableDryRun)
 		go bot.eventManager.Start()
 	}
 
@@ -555,6 +555,10 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGCTScriptManager {
+		bot.GctScriptManager, err = gctscript.NewManager(&bot.Config.GCTScript)
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "failed to create script manager. Err: %w", err)
+		}
 		if err := bot.GctScriptManager.Start(&bot.ServicesWG); err != nil {
 			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %v", err)
 		}
@@ -591,8 +595,8 @@ func (bot *Engine) Stop() {
 		}
 	}
 
-	if bot.commsManager.Started() {
-		if err := bot.commsManager.Stop(); err != nil {
+	if bot.CommunicationsManager.Started() {
+		if err := bot.CommunicationsManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communication manager unable to stop. Error: %v", err)
 		}
 	}
@@ -656,7 +660,7 @@ func (bot *Engine) Stop() {
 
 // GetExchangeByName returns an exchange given an exchange name
 func (bot *Engine) GetExchangeByName(exchName string) exchange.IBotExchange {
-	return bot.exchangeManager.GetExchangeByName(exchName)
+	return bot.ExchangeManager.GetExchangeByName(exchName)
 }
 
 // UnloadExchange unloads an exchange by name
@@ -666,7 +670,7 @@ func (bot *Engine) UnloadExchange(exchName string) error {
 		return err
 	}
 
-	err = bot.exchangeManager.RemoveExchange(exchName)
+	err = bot.ExchangeManager.RemoveExchange(exchName)
 	if err != nil {
 		return err
 	}
@@ -677,12 +681,12 @@ func (bot *Engine) UnloadExchange(exchName string) error {
 
 // GetExchanges retrieves the loaded exchanges
 func (bot *Engine) GetExchanges() []exchange.IBotExchange {
-	return bot.exchangeManager.GetExchanges()
+	return bot.ExchangeManager.GetExchanges()
 }
 
 // LoadExchange loads an exchange by name
 func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
-	exch, err := bot.exchangeManager.NewExchangeByName(name)
+	exch, err := bot.ExchangeManager.NewExchangeByName(name)
 	if err != nil {
 		return err
 	}
@@ -768,7 +772,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 		return err
 	}
 
-	bot.exchangeManager.Add(exch)
+	bot.ExchangeManager.Add(exch)
 	base := exch.GetBase()
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {
@@ -878,7 +882,7 @@ func (bot *Engine) SetupExchanges() error {
 		}(cfg)
 	}
 	wg.Wait()
-	if len(bot.exchangeManager.GetExchanges()) == 0 {
+	if len(bot.ExchangeManager.GetExchanges()) == 0 {
 		return exchangemanager.ErrNoExchangesLoaded
 	}
 	return nil

@@ -17,20 +17,22 @@ func (m *Manager) Started() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (m *Manager) Start(cfg *config.NTPClientConfig, loggingEnabled bool) error {
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return fmt.Errorf("NTP manager %w", subsystems.ErrSubSystemAlreadyStarted)
+func Setup(cfg *config.NTPClientConfig, loggingEnabled bool) (*Manager, error) {
+	m := &Manager{
+		started:                   1,
+		shutdown:                  make(chan struct{}),
+		level:                     int64(cfg.Level),
+		allowedDifference:         *cfg.AllowedDifference,
+		allowedNegativeDifference: *cfg.AllowedNegativeDifference,
+		pools:                     cfg.Pool,
+		checkInterval:             defaultNTPCheckInterval,
+		retryLimit:                defaultRetryLimit,
 	}
+
 	if cfg.Level != 1 {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
-		return errors.New("NTP client disabled")
+		return nil, errors.New("NTP client disabled")
 	}
-	m.level = int64(cfg.Level)
-	m.allowedDifference = *cfg.AllowedDifference
-	m.allowedNegativeDifference = *cfg.AllowedNegativeDifference
-	m.pools = cfg.Pool
-	m.retryLimit = defaultRetryLimit
-	m.checkInterval = defaultNTPCheckInterval
 
 	log.Debugln(log.TimeMgr, "NTP manager starting...")
 	if m.level == 0 && loggingEnabled {
@@ -45,18 +47,17 @@ func (m *Manager) Start(cfg *config.NTPClientConfig, loggingEnabled bool) error 
 			case errNTPDisabled:
 				log.Debugln(log.TimeMgr, "NTP manager: User disabled NTP prompts. Exiting.")
 				atomic.CompareAndSwapInt32(&m.started, 1, 0)
-				return nil
+				return m, nil
 			default:
 				if i == m.retryLimit-1 {
-					return err
+					return m, err
 				}
 			}
 		}
 	}
-	m.shutdown = make(chan struct{})
 	go m.run()
 	log.Debugln(log.TimeMgr, "NTP manager started.")
-	return nil
+	return m, nil
 }
 
 func (m *Manager) Stop() error {

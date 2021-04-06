@@ -356,6 +356,7 @@ func (bt *BackTest) loadExchangePairAssetBase(exch, base, quote, ass string) (gc
 // setupBot sets up a basic bot to retrieve exchange data
 // as well as process orders
 func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
+
 	var err error
 	bt.Bot = bot
 	err = cfg.ValidateCurrencySettings()
@@ -370,7 +371,14 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 		}
 	}
 	if !bt.Bot.OrderManager.Started() {
-		return bt.Bot.OrderManager.Start(bt.Bot)
+		bt.Bot.OrderManager, err = bt.Bot.OrderManager.Setup(
+			&bt.Bot.ExchangeManager,
+			bt.Bot.CommunicationsManager,
+			&bt.Bot.ServicesWG,
+			bot.Settings.Verbose)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

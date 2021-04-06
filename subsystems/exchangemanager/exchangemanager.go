@@ -50,11 +50,14 @@ type Manager struct {
 	exchanges map[string]exchange.IBotExchange
 }
 
+func (m *Manager) Setup() *Manager {
+	return &Manager{
+		exchanges: make(map[string]exchange.IBotExchange),
+	}
+}
+
 func (m *Manager) Add(exch exchange.IBotExchange) {
 	m.m.Lock()
-	if m.exchanges == nil {
-		m.exchanges = make(map[string]exchange.IBotExchange)
-	}
 	m.exchanges[strings.ToLower(exch.GetName())] = exch
 	m.m.Unlock()
 }

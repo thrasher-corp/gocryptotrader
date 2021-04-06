@@ -21,9 +21,12 @@ import (
 
 // vars for the fund manager package
 var (
-	orderManagerDelay      = time.Second * 10
-	ErrOrdersAlreadyExists = errors.New("order already exists")
-	ErrOrderNotFound       = errors.New("order does not exist")
+	orderManagerDelay           = time.Second * 10
+	ErrOrdersAlreadyExists      = errors.New("order already exists")
+	ErrOrderNotFound            = errors.New("order does not exist")
+	errNilExchangeManager       = errors.New("cannot start with nil exchange manager")
+	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
+	errNilWaitGroup             = errors.New("cannot start with nil waitgroup")
 )
 
 // Started returns the status of the OrderManager
@@ -32,23 +35,34 @@ func (m *Manager) Started() bool {
 }
 
 // Start will boot up the OrderManager
-func (m *Manager) Start(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose bool) error {
-	if exchangeManager == nil || communicationsManager == nil || wg == nil {
-		return errors.New("cannot start with nil params")
+func (m *Manager) Setup(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose bool) (*Manager, error) {
+	if exchangeManager == nil {
+		return nil, errNilExchangeManager
+	}
+	if communicationsManager == nil {
+		return nil, errNilCommunicationsManager
+	}
+	if wg == nil {
+		return nil, errNilWaitGroup
 	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemAlreadyStarted)
+		return nil, fmt.Errorf("order manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
 	log.Debugln(log.OrderBook, "Order manager starting...")
-	m.shutdown = make(chan struct{})
-	m.orderStore.Orders = make(map[string][]*order.Detail)
-	m.orderStore.exchangeManager = exchangeManager
-	m.orderStore.commsManager = communicationsManager
-	m.orderStore.wg = wg
-	m.verbose = verbose
+	m = &Manager{
+		started:  0,
+		shutdown: make(chan struct{}),
+		orderStore: store{
+			Orders:          make(map[string][]*order.Detail),
+			exchangeManager: exchangeManager,
+			commsManager:    communicationsManager,
+			wg:              wg,
+		},
+		verbose: verbose,
+	}
 
 	go m.run()
-	return nil
+	return m, nil
 }
 
 // Stop will attempt to shutdown the OrderManager

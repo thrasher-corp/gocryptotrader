@@ -241,7 +241,7 @@ func (s *RPCServer) GetRPCEndpoints(_ context.Context, _ *gctrpc.GetRPCEndpoints
 
 // GetCommunicationRelayers returns the status of the engines communication relayers
 func (s *RPCServer) GetCommunicationRelayers(_ context.Context, _ *gctrpc.GetCommunicationRelayersRequest) (*gctrpc.GetCommunicationRelayersResponse, error) {
-	relayers, err := s.commsManager.GetStatus()
+	relayers, err := s.CommunicationsManager.GetStatus()
 	if err != nil {
 		return nil, err
 	}
