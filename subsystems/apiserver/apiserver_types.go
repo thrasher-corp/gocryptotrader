@@ -1,9 +1,9 @@
 package apiserver
 
 import (
+	"errors"
 	"net/http"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 
 	"github.com/gorilla/websocket"
@@ -19,18 +19,14 @@ const (
 )
 
 var (
-	wsHub        *WebsocketHub
-	wsHubStarted bool
+	wsHub                 *WebsocketHub
+	wsHubStarted          bool
+	errNilRemoteConfig    = errors.New("received nil remote config")
+	errNilPProfConfig     = errors.New("received nil pprof config")
+	errNilExchangeManager = errors.New("received nil exchange manager")
+	errNilBot             = errors.New("received nil engine bot")
+	errEmptyConfigPath    = errors.New("received empty config path")
 )
-
-type handler struct {
-	listenAddress   string
-	configPath      string
-	remoteConfig    *config.RemoteControlConfig
-	pprofConfig     *config.Profiler
-	exchangeManager iExchangeManager
-	bot             iBot
-}
 
 // iExchangeManager limits exposure of accessible functions to order manager
 type iExchangeManager interface {
@@ -53,7 +49,9 @@ type WebsocketClient struct {
 	username        string
 	password        string
 	maxAuthFailures int
-	handler         *handler
+	exchangeManager iExchangeManager
+	bot             iBot
+	configPath      string
 }
 
 // WebsocketHub stores the data for managing websocket clients

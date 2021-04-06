@@ -59,12 +59,13 @@ type Engine struct {
 	portfolio                   *portfolio.Base
 	portfolioManager            portfoliosync.Manager
 	exchangeManager             exchangemanager.Manager
-	commsManager                communicationmanager.Manager
+	commsManager                *communicationmanager.Manager
 	eventManager                *eventmanager.Manager
 	DepositAddressManager       *depositaddress.Manager
 	WithdrawalManager           *withdrawalmanager.Manager
 	Settings                    Settings
 	uptime                      time.Time
+	apiServer                   *apiserver.Manager
 	ServicesWG                  sync.WaitGroup
 }
 
@@ -438,7 +439,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		if err = bot.commsManager.Start(&bot.Config.Communications); err != nil {
+		if bot.commsManager, err = bot.commsManager.Setup(&bot.Config.Communications); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}
@@ -476,20 +477,23 @@ func (bot *Engine) Start() error {
 		go StartRPCServer(bot)
 	}
 
-	if bot.Settings.EnableDeprecatedRPC {
-		go apiserver.StartRESTServer(
-			&bot.Config.RemoteControl,
-			&bot.Config.Profiler)
-	}
-
-	if bot.Settings.EnableWebsocketRPC {
-		go apiserver.StartWebsocketServer(
-			&bot.Config.RemoteControl,
+	if bot.Settings.EnableDeprecatedRPC ||
+		bot.Settings.EnableWebsocketRPC {
+		bot.apiServer, err = bot.apiServer.Setup(&bot.Config.RemoteControl,
 			&bot.Config.Profiler,
 			&bot.exchangeManager,
 			bot,
 			bot.Settings.ConfigFile)
-		apiserver.StartWebsocketHandler()
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "API Server unable to start: %w", err)
+		} else {
+			if bot.Settings.EnableDeprecatedRPC {
+				go bot.apiServer.StartRESTServer()
+			}
+			if bot.Settings.EnableWebsocketRPC {
+				go bot.apiServer.StartWebsocketServer()
+			}
+		}
 	}
 
 	if bot.Settings.EnablePortfolioManager {
@@ -511,7 +515,7 @@ func (bot *Engine) Start() error {
 	if bot.Settings.EnableOrderManager {
 		if err = bot.OrderManager.Start(
 			&bot.exchangeManager,
-			&bot.commsManager,
+			bot.commsManager,
 			&bot.ServicesWG,
 			bot.Settings.Verbose); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
@@ -542,7 +546,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableEventManager {
-		bot.eventManager = eventmanager.Setup(&bot.commsManager, bot.Settings.EnableDryRun)
+		bot.eventManager = eventmanager.Setup(bot.commsManager, bot.Settings.EnableDryRun)
 		go bot.eventManager.Start()
 	}
 
@@ -602,6 +606,12 @@ func (bot *Engine) Stop() {
 	if bot.connectionManager.Started() {
 		if err := bot.connectionManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to stop. Error: %v", err)
+		}
+	}
+
+	if bot.apiServer.IsRunning() {
+		if err := bot.apiServer.Stop(); err != nil {
+			gctlog.Errorf(gctlog.Global, "API Server unable to stop. Error: %w", err)
 		}
 	}
 

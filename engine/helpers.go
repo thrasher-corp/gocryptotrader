@@ -93,7 +93,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 	case "communications":
 		if enable {
 			communicationsConfig := bot.Config.GetCommunicationsConfig()
-			return bot.commsManager.Start(&communicationsConfig)
+			return bot.commsManager.Setup(&communicationsConfig)
 		}
 		return bot.commsManager.Stop()
 	case "internet_monitor":

@@ -1,7 +1,6 @@
 package communicationmanager
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -24,33 +23,29 @@ func (m *Manager) Started() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (m *Manager) Start(cfg *config.CommunicationsConfig) (err error) {
+func (m *Manager) Setup(cfg *config.CommunicationsConfig) (*Manager, error) {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return fmt.Errorf("communications manager %w", subsystems.ErrSubSystemAlreadyStarted)
+		return nil, fmt.Errorf("communications manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
-	defer func() {
-		if err != nil {
-			atomic.CompareAndSwapInt32(&m.started, 1, 0)
-		}
-	}()
 
+	manager := &Manager{
+		shutdown: make(chan struct{}),
+		relayMsg: make(chan base.Event),
+	}
+	var err error
 	log.Debugf(log.Global, "Communications manager %s", subsystems.MsgSubSystemStarting)
-
-	m.comms, err = communications.NewComm(cfg)
+	manager.comms, err = communications.NewComm(cfg)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	m.shutdown = make(chan struct{})
-	m.relayMsg = make(chan base.Event)
-	go m.run()
+	go manager.run()
 	log.Debugf(log.Global, "Communications manager %s", subsystems.MsgSubSystemStarted)
-	return nil
+	return manager, nil
 }
 
 func (m *Manager) GetStatus() (map[string]base.CommsStatus, error) {
 	if !m.Started() {
-		return nil, errors.New("communications manager not started")
+		return nil, fmt.Errorf("communications manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	return m.comms.GetStatus(), nil
 }

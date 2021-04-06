@@ -710,7 +710,8 @@ func (e *ExchangeCurrencyPairSyncer) PrintTickerSummary(result *ticker.Price, pr
 	}
 
 	err = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
-	if err != nil {
+	if err != nil && protocol != "websocket" {
+		// websocket does not always contain all fields
 		log.Error(log.SyncMgr, err)
 	}
 	if result.Pair.Quote.IsFiatCurrency() &&

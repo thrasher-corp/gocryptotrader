@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 
@@ -19,19 +20,16 @@ import (
 )
 
 // StartWebsocketServer starts a Websocket handler
-func StartWebsocketServer(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, configPath string) {
-	s := handler{
-		remoteConfig:    remoteConfig,
-		pprofConfig:     pprofConfig,
-		listenAddress:   remoteConfig.WebsocketRPC.ListenAddress,
-		exchangeManager: exchangeManager,
-		bot:             bot,
-		configPath:      configPath,
+func (m *Manager) StartWebsocketServer() {
+	if !atomic.CompareAndSwapInt32(&m.websocketStarted, 0, 1) {
+		log.Error(log.CommunicationMgr, "websocket server already running")
 	}
+	atomic.StoreInt32(&m.started, 1)
 	log.Debugf(log.RESTSys,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
-		common.ExtractHost(s.listenAddress), common.ExtractPort(s.listenAddress))
-	err := http.ListenAndServe(s.listenAddress, s.newRouter(false))
+		common.ExtractHost(m.listenAddress), common.ExtractPort(m.listenAddress))
+	m.websocketRouter = m.newRouter(false)
+	err := http.ListenAndServe(m.listenAddress, m.websocketRouter)
 	if err != nil {
 		log.Errorf(log.RESTSys, "Failed to start websocket RPC handler. Err: %s", err)
 	}
@@ -221,12 +219,12 @@ func BroadcastWebsocketMessage(evt WebsocketEvent) error {
 
 // WebsocketClientHandler upgrades the HTTP connection to a websocket
 // compatible one
-func (h *handler) WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 	if !wsHubStarted {
 		StartWebsocketHandler()
 	}
 
-	connectionLimit := h.remoteConfig.WebsocketRPC.ConnectionLimit
+	connectionLimit := m.remoteConfig.WebsocketRPC.ConnectionLimit
 	numClients := len(wsHub.Clients)
 
 	if numClients >= connectionLimit {
@@ -244,7 +242,7 @@ func (h *handler) WebsocketClientHandler(w http.ResponseWriter, r *http.Request)
 
 	// Allow insecure origin if the Origin request header is present and not
 	// equal to the Host request header. Default to false
-	if h.remoteConfig.WebsocketRPC.AllowInsecureOrigin {
+	if m.remoteConfig.WebsocketRPC.AllowInsecureOrigin {
 		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	}
 
@@ -258,11 +256,14 @@ func (h *handler) WebsocketClientHandler(w http.ResponseWriter, r *http.Request)
 		Hub:             wsHub,
 		Conn:            conn,
 		Send:            make(chan []byte, 1024),
-		maxAuthFailures: h.remoteConfig.WebsocketRPC.MaxAuthFailures,
-		username:        h.remoteConfig.Username,
-		password:        h.remoteConfig.Password,
-		handler:         h,
+		maxAuthFailures: m.remoteConfig.WebsocketRPC.MaxAuthFailures,
+		username:        m.remoteConfig.Username,
+		password:        m.remoteConfig.Password,
+		bot:             m.bot,
+		configPath:      m.gctConfigPath,
+		exchangeManager: m.exchangeManager,
 	}
+
 	client.Hub.Register <- client
 	log.Debugf(log.WebsocketMgr,
 		"websocket: client connected. Connected clients: %d. Limit %d.\n",
@@ -341,7 +342,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 	}
 
 	cfg := config.GetConfig()
-	err = cfg.UpdateConfig(client.handler.configPath, &respCfg, false)
+	err = cfg.UpdateConfig(client.configPath, &respCfg, false)
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
@@ -351,7 +352,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	err = client.handler.bot.SetupExchanges()
+	err = client.bot.SetupExchanges()
 	if err != nil {
 		wsResp.Error = err.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
@@ -365,7 +366,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 }
 
 func wsGetAccountInfo(client *WebsocketClient, data interface{}) error {
-	accountInfo := client.handler.getAllActiveAccounts()
+	accountInfo := getAllActiveAccounts(client.exchangeManager)
 	wsResp := WebsocketEventResponse{
 		Event: "GetAccountInfo",
 		Data:  accountInfo,
@@ -377,7 +378,7 @@ func wsGetTickers(client *WebsocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetTickers",
 	}
-	wsResp.Data = client.handler.getAllActiveTickers()
+	wsResp.Data = getAllActiveTickers(client.exchangeManager)
 	return client.SendWebsocketMessage(wsResp)
 }
 
@@ -406,7 +407,7 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	exch := client.handler.exchangeManager.GetExchangeByName(tickerReq.Exchange)
+	exch := client.exchangeManager.GetExchangeByName(tickerReq.Exchange)
 	if exch == nil {
 		wsResp.Error = exchange.ErrNoExchangeFound.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)
@@ -432,7 +433,7 @@ func wsGetOrderbooks(client *WebsocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetOrderbooks",
 	}
-	wsResp.Data = client.handler.getAllActiveOrderbooks()
+	wsResp.Data = getAllActiveOrderbooks(client.exchangeManager)
 	return client.SendWebsocketMessage(wsResp)
 }
 
@@ -461,7 +462,7 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	exch := client.handler.exchangeManager.GetExchangeByName(orderbookReq.Exchange)
+	exch := client.exchangeManager.GetExchangeByName(orderbookReq.Exchange)
 	if exch == nil {
 		wsResp.Error = exchange.ErrNoExchangeFound.Error()
 		sendErr := client.SendWebsocketMessage(wsResp)

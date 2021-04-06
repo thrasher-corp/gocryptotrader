@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -14,16 +15,17 @@ import (
 )
 
 // StartRESTServer starts a REST handler
-func StartRESTServer(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler) {
-	s := handler{
-		remoteConfig:  remoteConfig,
-		pprofConfig:   pprofConfig,
-		listenAddress: remoteConfig.DeprecatedRPC.ListenAddress,
+func (m *Manager) StartRESTServer() {
+	if !atomic.CompareAndSwapInt32(&m.restStarted, 0, 1) {
+		log.Error(log.CommunicationMgr, "rest server already running")
 	}
+	atomic.StoreInt32(&m.started, 1)
+
 	log.Debugf(log.RESTSys,
 		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
-		common.ExtractHost(s.listenAddress), common.ExtractPort(s.listenAddress))
-	err := http.ListenAndServe(s.listenAddress, s.newRouter(true))
+		common.ExtractHost(m.listenAddress), common.ExtractPort(m.listenAddress))
+	m.restRouter = m.newRouter(true)
+	err := http.ListenAndServe(m.listenAddress, m.restRouter)
 	if err != nil {
 		log.Errorf(log.RESTSys, "Failed to start deprecated RPC handler. Err: %s", err)
 	}
@@ -60,7 +62,7 @@ func handleError(method string, err error) {
 
 // restGetAllSettings replies to a request with an encoded JSON response about the
 // trading Bots configuration.
-func (h *handler) restGetAllSettings(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) restGetAllSettings(w http.ResponseWriter, r *http.Request) {
 	err := writeResponse(w, config.GetConfig())
 	if err != nil {
 		handleError(r.Method, err)
@@ -69,7 +71,7 @@ func (h *handler) restGetAllSettings(w http.ResponseWriter, r *http.Request) {
 
 // restSaveAllSettings saves all current settings from request body as a JSON
 // document then reloads state and returns the settings
-func (h *handler) restSaveAllSettings(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) restSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	// Get the data from the request
 	decoder := json.NewDecoder(r.Body)
 	var responseData config.Post
@@ -79,7 +81,7 @@ func (h *handler) restSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	// Save change the settings
 	cfg := config.GetConfig()
-	err = cfg.UpdateConfig(h.configPath, &responseData.Data, false)
+	err = cfg.UpdateConfig(m.gctConfigPath, &responseData.Data, false)
 	if err != nil {
 		handleError(r.Method, err)
 	}
@@ -88,24 +90,25 @@ func (h *handler) restSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handleError(r.Method, err)
 	}
-	err = h.bot.SetupExchanges()
+	err = m.bot.SetupExchanges()
 	if err != nil {
 		handleError(r.Method, err)
 	}
 }
 
 // restGetAllActiveOrderbooks returns all enabled exchange orderbooks
-func (h *handler) restGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) restGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeOrderbooks
-	response.Data = h.getAllActiveOrderbooks()
+	response.Data = getAllActiveOrderbooks(m.exchangeManager)
+	response.Data = getAllActiveOrderbooks(m.exchangeManager)
 	err := writeResponse(w, response)
 	if err != nil {
 		handleError(r.Method, err)
 	}
 }
 
-// restGetPortfolio returns the Bot portfoliomanager
-func (h *handler) restGetPortfolio(w http.ResponseWriter, r *http.Request) {
+// restGetPortfolio returns the Bot portfolio manager
+func (m *Manager) restGetPortfolio(w http.ResponseWriter, r *http.Request) {
 	p := portfolio.GetPortfolio()
 	result := p.GetPortfolioSummary()
 	err := writeResponse(w, result)
@@ -115,9 +118,9 @@ func (h *handler) restGetPortfolio(w http.ResponseWriter, r *http.Request) {
 }
 
 // restGetAllActiveTickers returns all active tickers
-func (h *handler) restGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) restGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeCurrencies
-	response.Data = h.getAllActiveTickers()
+	response.Data = getAllActiveTickers(m.exchangeManager)
 	err := writeResponse(w, response)
 	if err != nil {
 		handleError(r.Method, err)
@@ -126,8 +129,8 @@ func (h *handler) restGetAllActiveTickers(w http.ResponseWriter, r *http.Request
 
 // restGetAllEnabledAccountInfo via get request returns JSON response of account
 // info
-func (h *handler) restGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
-	response := h.getAllActiveAccounts()
+func (m *Manager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
+	response := getAllActiveAccounts(m.exchangeManager)
 	err := writeResponse(w, response)
 	if err != nil {
 		handleError(r.Method, err)
@@ -135,9 +138,9 @@ func (h *handler) restGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Re
 }
 
 // getAllActiveOrderbooks returns all enabled exchanges orderbooks
-func (h *handler) getAllActiveOrderbooks() []EnabledExchangeOrderbooks {
+func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
-	exchanges := h.exchangeManager.GetExchanges()
+	exchanges := m.GetExchanges()
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes()
 		exchName := exchanges[x].GetName()
@@ -172,9 +175,9 @@ func (h *handler) getAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 }
 
 // getAllActiveTickers returns all enabled exchanges tickers
-func (h *handler) getAllActiveTickers() []EnabledExchangeCurrencies {
+func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 	var tickers []EnabledExchangeCurrencies
-	exchanges := h.exchangeManager.GetExchanges()
+	exchanges := m.GetExchanges()
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes()
 		exchName := exchanges[x].GetName()
@@ -209,9 +212,9 @@ func (h *handler) getAllActiveTickers() []EnabledExchangeCurrencies {
 }
 
 // getAllActiveAccounts returns all enabled exchanges accounts
-func (h *handler) getAllActiveAccounts() []AllEnabledExchangeAccounts {
+func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 	var accounts []AllEnabledExchangeAccounts
-	exchanges := h.exchangeManager.GetExchanges()
+	exchanges := m.GetExchanges()
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes()
 		exchName := exchanges[x].GetName()
@@ -233,7 +236,7 @@ func (h *handler) getAllActiveAccounts() []AllEnabledExchangeAccounts {
 	return accounts
 }
 
-func (h *handler) getIndex(w http.ResponseWriter, _ *http.Request) {
+func (m *Manager) getIndex(w http.ResponseWriter, _ *http.Request) {
 	_, err := fmt.Fprint(w, restIndexResponse)
 	if err != nil {
 		log.Error(log.CommunicationMgr, err)
