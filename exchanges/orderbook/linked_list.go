@@ -18,7 +18,7 @@ type linkedList struct {
 	head   *node
 }
 
-// Load iterates across new items and refreshes linked list. It creates a linked
+// load iterates across new items and refreshes linked list. It creates a linked
 // list exactly the same as the item slice that is supplied, if items is of nil
 // value it will flush entire list.
 func (ll *linkedList) load(items Items, stack *stack) {
@@ -139,7 +139,7 @@ func (ll *linkedList) cleanup(maxChainLength int, stack *stack) {
 	ll.length -= pruned
 }
 
-// Amount returns total depth liquidity and value
+// amount returns total depth liquidity and value
 func (ll *linkedList) amount() (liquidity, value float64) {
 	for tip := ll.head; tip != nil; tip = tip.next {
 		liquidity += tip.value.Amount
