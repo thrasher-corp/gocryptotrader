@@ -89,7 +89,7 @@ func (w *Orderbook) Update(u *Update) error {
 	if book.ob.IsRestSnapshot() {
 		if w.verbose {
 			log.Warnf(log.WebsocketMgr,
-				"%w for Exchange %s CurrencyPair: %s AssetType: %s consider extending synctimeoutwebsocket",
+				"%s for Exchange %s CurrencyPair: %s AssetType: %s consider extending synctimeoutwebsocket",
 				errRESTOverwrite,
 				w.exchangeName,
 				u.Pair,
