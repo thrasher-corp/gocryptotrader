@@ -50,7 +50,7 @@ type Manager struct {
 	exchanges map[string]exchange.IBotExchange
 }
 
-func (m *Manager) Setup() *Manager {
+func Setup() *Manager {
 	return &Manager{
 		exchanges: make(map[string]exchange.IBotExchange),
 	}

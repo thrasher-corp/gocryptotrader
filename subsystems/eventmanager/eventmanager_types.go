@@ -68,6 +68,7 @@ type iCommsManager interface {
 
 // Manager holds communication manager data
 type Manager struct {
+	started int32
 	comms   iCommsManager
 	events  []Event
 	verbose bool

@@ -25,6 +25,7 @@ type Manager struct {
 	pools                     []string
 	checkInterval             time.Duration
 	retryLimit                int
+	loggingEnabled            bool
 }
 
 type ntpPacket struct {

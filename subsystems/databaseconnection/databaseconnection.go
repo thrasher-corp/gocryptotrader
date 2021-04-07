@@ -15,24 +15,56 @@ import (
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
+var errNilConfig = errors.New("received nil database config")
+
 // Manager holds the database connection and its status
 type Manager struct {
 	started  int32
 	shutdown chan struct{}
+	enabled  bool
+	verbose  bool
+	host     string
+	username string
+	password string
+	database string
+	driver   string
 	dbConn   *database.Instance
 }
 
-// Started returns whether the database connection manager is running
-func (m *Manager) Started() bool {
+// IsRunning returns whether the database connection manager is running
+func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+func Setup(cfg *database.Config) (*Manager, error) {
+	if cfg == nil {
+		return nil, errNilConfig
+	}
+	m := &Manager{
+		shutdown: make(chan struct{}),
+		enabled:  cfg.Enabled,
+		verbose:  cfg.Verbose,
+		host:     cfg.Host,
+		username: cfg.Username,
+		password: cfg.Password,
+		database: cfg.Database,
+		driver:   cfg.Driver,
+	}
+
+	if m.verbose {
+		boil.DebugMode = true
+		boil.DebugWriter = database.Logger{}
+	} else {
+		boil.DebugMode = false
+	}
+	return m, nil
+}
+
 // Start sets up the database connection manager to maintain a SQL connection
-func (m *Manager) Start(cfg *database.Config, wg *sync.WaitGroup) (err error) {
+func (m *Manager) Start(wg *sync.WaitGroup) (err error) {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("database manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
-
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&m.started, 1, 0)
@@ -43,32 +75,26 @@ func (m *Manager) Start(cfg *database.Config, wg *sync.WaitGroup) (err error) {
 
 	m.shutdown = make(chan struct{})
 
-	if cfg.Enabled {
-		if cfg.Driver == database.DBPostgreSQL {
+	if m.enabled {
+		if m.driver == database.DBPostgreSQL {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
-				cfg.Host,
-				cfg.Database,
-				cfg.Driver)
+				m.host,
+				m.database,
+				m.driver)
 			m.dbConn, err = dbpsql.Connect()
-		} else if cfg.Driver == database.DBSQLite ||
-			cfg.Driver == database.DBSQLite3 {
+		} else if m.driver == database.DBSQLite ||
+			m.driver == database.DBSQLite3 {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to %s utilising %s driver\n",
-				cfg.Database,
-				cfg.Driver)
+				m.database,
+				m.driver)
 			m.dbConn, err = dbsqlite3.Connect()
 		}
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
 		m.dbConn.Connected = true
-
-		DBLogger := database.Logger{}
-		if cfg.Verbose {
-			boil.DebugMode = true
-			boil.DebugWriter = DBLogger
-		}
 		wg.Add(1)
 		go m.run(wg)
 		return nil
@@ -79,7 +105,7 @@ func (m *Manager) Start(cfg *database.Config, wg *sync.WaitGroup) (err error) {
 
 // Stop stops the database manager and closes the connection
 func (m *Manager) Stop() error {
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("database manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {

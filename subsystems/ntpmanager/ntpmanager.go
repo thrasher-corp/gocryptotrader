@@ -13,13 +13,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
-func (m *Manager) Started() bool {
+var errNilConfig = errors.New("nil NTP config received")
+
+func (m *Manager) IsRunning() bool {
+	if m == nil {
+		return false
+	}
 	return atomic.LoadInt32(&m.started) == 1
 }
 
 func Setup(cfg *config.NTPClientConfig, loggingEnabled bool) (*Manager, error) {
-	m := &Manager{
-		started:                   1,
+	if cfg == nil {
+		return nil, errNilConfig
+	}
+	return &Manager{
 		shutdown:                  make(chan struct{}),
 		level:                     int64(cfg.Level),
 		allowedDifference:         *cfg.AllowedDifference,
@@ -27,15 +34,15 @@ func Setup(cfg *config.NTPClientConfig, loggingEnabled bool) (*Manager, error) {
 		pools:                     cfg.Pool,
 		checkInterval:             defaultNTPCheckInterval,
 		retryLimit:                defaultRetryLimit,
-	}
+		loggingEnabled:            loggingEnabled,
+	}, nil
+}
 
-	if cfg.Level != 1 {
-		atomic.CompareAndSwapInt32(&m.started, 1, 0)
-		return nil, errors.New("NTP client disabled")
+func (m *Manager) Start() error {
+	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+		return fmt.Errorf("NTP manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
-
-	log.Debugln(log.TimeMgr, "NTP manager starting...")
-	if m.level == 0 && loggingEnabled {
+	if m.level == 0 && m.loggingEnabled {
 		// Sometimes the NTP client can have transient issues due to UDP, try
 		// the default retry limits before giving up
 	check:
@@ -47,27 +54,33 @@ func Setup(cfg *config.NTPClientConfig, loggingEnabled bool) (*Manager, error) {
 			case errNTPDisabled:
 				log.Debugln(log.TimeMgr, "NTP manager: User disabled NTP prompts. Exiting.")
 				atomic.CompareAndSwapInt32(&m.started, 1, 0)
-				return m, nil
+				return nil
 			default:
 				if i == m.retryLimit-1 {
-					return m, err
+					return err
 				}
 			}
 		}
 	}
+	if m.level != 1 {
+		atomic.CompareAndSwapInt32(&m.started, 1, 0)
+		return errors.New("NTP manager disabled")
+	}
+	m.shutdown = make(chan struct{})
 	go m.run()
-	log.Debugln(log.TimeMgr, "NTP manager started.")
-	return m, nil
+	log.Debugln(log.TimeMgr, "NTP manager %s", subsystems.MsgSubSystemStarted)
+	return nil
 }
 
 func (m *Manager) Stop() error {
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("NTP manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {
+		log.Debugln(log.TimeMgr, "NTP manager %s", subsystems.MsgSubSystemShutdown)
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
-	log.Debugln(log.TimeMgr, "NTP manager shutting down...")
+	log.Debugln(log.TimeMgr, "NTP manager %s", subsystems.MsgSubSystemShuttingDown)
 	close(m.shutdown)
 	return nil
 }
@@ -76,7 +89,6 @@ func (m *Manager) run() {
 	t := time.NewTicker(m.checkInterval)
 	defer func() {
 		t.Stop()
-		log.Debugln(log.TimeMgr, "NTP manager shutdown.")
 	}()
 
 	for {

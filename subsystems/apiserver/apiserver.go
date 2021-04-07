@@ -20,11 +20,12 @@ import (
 // Manager holds all relevant fields to manage both REST and websocket
 // api servers
 type Manager struct {
-	started          int32
-	restStarted      int32
-	websocketStarted int32
-	listenAddress    string
-	gctConfigPath    string
+	started                int32
+	restStarted            int32
+	websocketStarted       int32
+	restListenAddress      string
+	websocketListenAddress string
+	gctConfigPath          string
 
 	restRouter      *mux.Router
 	websocketRouter *mux.Router
@@ -36,7 +37,7 @@ type Manager struct {
 	bot             iBot
 }
 
-func (m *Manager) Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, configPath string) (*Manager, error) {
+func Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, configPath string) (*Manager, error) {
 	if remoteConfig == nil {
 		return nil, errNilRemoteConfig
 	}
@@ -53,12 +54,13 @@ func (m *Manager) Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *c
 		return nil, errEmptyConfigPath
 	}
 	return &Manager{
-		remoteConfig:    remoteConfig,
-		pprofConfig:     pprofConfig,
-		listenAddress:   remoteConfig.WebsocketRPC.ListenAddress,
-		exchangeManager: exchangeManager,
-		bot:             bot,
-		gctConfigPath:   configPath,
+		remoteConfig:           remoteConfig,
+		pprofConfig:            pprofConfig,
+		restListenAddress:      remoteConfig.DeprecatedRPC.ListenAddress,
+		websocketListenAddress: remoteConfig.WebsocketRPC.ListenAddress,
+		exchangeManager:        exchangeManager,
+		bot:                    bot,
+		gctConfigPath:          configPath,
 	}, nil
 }
 
@@ -70,7 +72,7 @@ func (m *Manager) IsRunning() bool {
 }
 
 func (m *Manager) Stop() error {
-	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+	if m == nil || !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("api server %w", subsystems.ErrSubSystemNotStarted)
 	}
 	m.restRouter = nil
@@ -86,11 +88,11 @@ func (m *Manager) Stop() error {
 func (m *Manager) newRouter(isREST bool) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	var routes []Route
-	if common.ExtractPort(m.listenAddress) == 80 {
-		m.listenAddress = common.ExtractHost(m.listenAddress)
+	if common.ExtractPort(m.websocketListenAddress) == 80 {
+		m.websocketListenAddress = common.ExtractHost(m.websocketListenAddress)
 	} else {
-		m.listenAddress = strings.Join([]string{common.ExtractHost(m.listenAddress),
-			strconv.Itoa(common.ExtractPort(m.listenAddress))}, ":")
+		m.websocketListenAddress = strings.Join([]string{common.ExtractHost(m.websocketListenAddress),
+			strconv.Itoa(common.ExtractPort(m.websocketListenAddress))}, ":")
 	}
 
 	if isREST {
@@ -110,8 +112,8 @@ func (m *Manager) newRouter(isREST bool) *mux.Router {
 			}
 			log.Debugf(log.RESTSys,
 				"HTTP Go performance profiler (pprof) endpoint enabled: http://%h:%d/debug/pprof/\n",
-				common.ExtractHost(m.listenAddress),
-				common.ExtractPort(m.listenAddress))
+				common.ExtractHost(m.websocketListenAddress),
+				common.ExtractPort(m.websocketListenAddress))
 			router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 		}
 	} else {
@@ -126,7 +128,7 @@ func (m *Manager) newRouter(isREST bool) *mux.Router {
 			Path(route.Pattern).
 			Name(route.Name).
 			Handler(restLogger(route.HandlerFunc, route.Name)).
-			Host(m.listenAddress)
+			Host(m.websocketListenAddress)
 	}
 	return router
 }

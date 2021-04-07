@@ -1,6 +1,7 @@
 package connectionmanager
 
 import (
+	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -14,24 +15,45 @@ import (
 type Manager struct {
 	started int32
 	conn    *connchecker.Checker
+	cfg     *config.ConnectionMonitorConfig
 }
 
-// Started returns if the connection manager has started
-func (m *Manager) Started() bool {
+var errNilConfig = errors.New("nil config")
+
+// IsRunning returns if the connection manager has started
+func (m *Manager) IsRunning() bool {
 	return atomic.LoadInt32(&m.started) == 1
 }
 
+func Setup(cfg *config.ConnectionMonitorConfig) (*Manager, error) {
+	if cfg == nil {
+		return nil, errNilConfig
+	}
+	if cfg.DNSList == nil {
+		cfg.DNSList = connchecker.DefaultDNSList
+	}
+	if cfg.PublicDomainList == nil {
+		cfg.PublicDomainList = connchecker.DefaultDomainList
+	}
+	if cfg.CheckInterval == 0 {
+		cfg.CheckInterval = connchecker.DefaultCheckInterval
+	}
+	return &Manager{
+		cfg: cfg,
+	}, nil
+}
+
 // Start starts an instance of the connection manager
-func (m *Manager) Start(conf *config.ConnectionMonitorConfig) error {
+func (m *Manager) Start() error {
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("connection manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
 
 	log.Debugln(log.ConnectionMgr, "Connection manager starting...")
 	var err error
-	m.conn, err = connchecker.New(conf.DNSList,
-		conf.PublicDomainList,
-		conf.CheckInterval)
+	m.conn, err = connchecker.New(m.cfg.DNSList,
+		m.cfg.PublicDomainList,
+		m.cfg.CheckInterval)
 	if err != nil {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 		return err

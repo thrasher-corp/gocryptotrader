@@ -19,13 +19,16 @@ func (m *Manager) StartRESTServer() {
 	if !atomic.CompareAndSwapInt32(&m.restStarted, 0, 1) {
 		log.Error(log.CommunicationMgr, "rest server already running")
 	}
-	atomic.StoreInt32(&m.started, 1)
+	if !m.remoteConfig.DeprecatedRPC.Enabled {
+		atomic.StoreInt32(&m.restStarted, 0)
+		return
+	}
 
 	log.Debugf(log.RESTSys,
 		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
-		common.ExtractHost(m.listenAddress), common.ExtractPort(m.listenAddress))
+		common.ExtractHost(m.restListenAddress), common.ExtractPort(m.restListenAddress))
 	m.restRouter = m.newRouter(true)
-	err := http.ListenAndServe(m.listenAddress, m.restRouter)
+	err := http.ListenAndServe(m.restListenAddress, m.restRouter)
 	if err != nil {
 		log.Errorf(log.RESTSys, "Failed to start deprecated RPC handler. Err: %s", err)
 	}

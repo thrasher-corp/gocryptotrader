@@ -26,6 +26,30 @@ type Manager struct {
 	store depositAddressStore
 }
 
+// Setup returns a Manager
+func Setup() *Manager {
+	return &Manager{store: depositAddressStore{
+		Store: make(map[string]map[string]string),
+	}}
+}
+
+// GetDepositAddressByExchange returns a deposit address for the specified exchange and cryptocurrency
+// if it exists
+func (m *Manager) GetDepositAddressByExchange(exchName string, currencyItem currency.Code) (string, error) {
+	return m.store.GetDepositAddress(exchName, currencyItem)
+}
+
+// GetDepositAddressesByExchange returns a list of cryptocurrency addresses for the specified
+// exchange if they exist
+func (m *Manager) GetDepositAddressesByExchange(exchName string) (map[string]string, error) {
+	return m.store.GetDepositAddresses(exchName)
+}
+
+// Sync synchronises all deposit addresses
+func (m *Manager) Sync(addresses map[string]map[string]string) {
+	m.store.Seed(addresses)
+}
+
 // Seed seeds the deposit address store
 func (s *depositAddressStore) Seed(coinData map[string]map[string]string) {
 	s.m.Lock()
@@ -80,21 +104,4 @@ func (s *depositAddressStore) GetDepositAddresses(exchName string) (map[string]s
 	}
 
 	return r, nil
-}
-
-// GetDepositAddressByExchange returns a deposit address for the specified exchange and cryptocurrency
-// if it exists
-func (m *Manager) GetDepositAddressByExchange(exchName string, currencyItem currency.Code) (string, error) {
-	return m.store.GetDepositAddress(exchName, currencyItem)
-}
-
-// GetDepositAddressesByExchange returns a list of cryptocurrency addresses for the specified
-// exchange if they exist
-func (m *Manager) GetDepositAddressesByExchange(exchName string) (map[string]string, error) {
-	return m.store.GetDepositAddresses(exchName)
-}
-
-// Sync synchronises all deposit addresses
-func (m *Manager) Sync(addresses map[string]map[string]string) {
-	m.store.Seed(addresses)
 }

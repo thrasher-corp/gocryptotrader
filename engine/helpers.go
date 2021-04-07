@@ -17,6 +17,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
+
+	portfoliosync "github.com/thrasher-corp/gocryptotrader/portfolio/sync"
+
+	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
+
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
+
+	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
+
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ntpmanager"
+
 	"github.com/pquerna/otp/totp"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -43,12 +56,12 @@ var (
 // GetSubsystemsStatus returns the status of various subsystems
 func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 	systems := make(map[string]bool)
-	systems["communications"] = bot.CommunicationsManager.Started()
-	systems["internet_monitor"] = bot.connectionManager.Started()
-	systems["orders"] = bot.OrderManager.Started()
-	systems["portfolio"] = bot.portfolioManager.Started()
-	systems["ntp_timekeeper"] = bot.ntpManager.Started()
-	systems["database"] = bot.DatabaseManager.Started()
+	systems["communications"] = bot.CommunicationsManager.IsRunning()
+	systems["internet_monitor"] = bot.connectionManager.IsRunning()
+	systems["orders"] = bot.OrderManager.IsRunning()
+	systems["portfolio"] = bot.portfolioManager.IsRunning()
+	systems["ntp_timekeeper"] = bot.ntpManager.IsRunning()
+	systems["database"] = bot.DatabaseManager.IsRunning()
 	systems["exchange_syncer"] = bot.Settings.EnableExchangeSyncManager
 	systems["grpc"] = bot.Settings.EnableGRPC
 	systems["grpc_proxy"] = bot.Settings.EnableGRPCProxy
@@ -88,51 +101,92 @@ func GetRPCEndpoints() map[string]RPCEndpoint {
 }
 
 // SetSubsystem enables or disables an engine subsystem
-func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
-	switch strings.ToLower(subsys) {
+func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
+	var err error
+	switch strings.ToLower(subSystemName) {
 	case "communications":
-		if enable {
+		if bot.CommunicationsManager == nil {
 			communicationsConfig := bot.Config.GetCommunicationsConfig()
-			return bot.CommunicationsManager.Setup(&communicationsConfig)
+			bot.CommunicationsManager, err = communicationmanager.Setup(&communicationsConfig)
+		}
+		if enable {
+			return bot.CommunicationsManager.Start()
 		}
 		return bot.CommunicationsManager.Stop()
 	case "internet_monitor":
+		if bot.connectionManager == nil {
+			bot.connectionManager, err = connectionmanager.Setup(&bot.Config.ConnectionMonitor)
+			if err != nil {
+				return err
+			}
+		}
 		if enable {
-			return bot.connectionManager.Start(&bot.Config.ConnectionMonitor)
+			return bot.connectionManager.Start()
 		}
 		return bot.CommunicationsManager.Stop()
 	case "orders":
-		if enable {
-			return bot.OrderManager.Setup(
-				&bot.ExchangeManager,
-				&bot.CommunicationsManager,
+		if bot.OrderManager == nil {
+			bot.OrderManager, err = ordermanager.Setup(
+				bot.ExchangeManager,
+				bot.CommunicationsManager,
 				&bot.ServicesWG,
 				bot.Settings.Verbose)
+			if err != nil {
+				return err
+			}
+		}
+		if enable {
+			return bot.OrderManager.Start()
 		}
 		return bot.OrderManager.Stop()
 	case "portfolio":
-		if enable {
-			return bot.portfolioManager.Start(
-				&bot.Config.Portfolio,
-				&bot.ExchangeManager,
+		if bot.portfolioManager == nil {
+			bot.portfolioManager, err = portfoliosync.Setup(&bot.Config.Portfolio,
+				bot.ExchangeManager,
 				bot.Settings.PortfolioManagerDelay,
-				&bot.ServicesWG,
 				bot.Settings.Verbose)
+			if err != nil {
+				return err
+			}
+		}
+		if enable {
+			return bot.portfolioManager.Start(&bot.ServicesWG)
 		}
 		return bot.OrderManager.Stop()
 	case "ntp_timekeeper":
-		if enable {
-			return bot.ntpManager.Setup(
+		if bot.ntpManager == nil {
+			bot.ntpManager, err = ntpmanager.Setup(
 				&bot.Config.NTPClient,
 				*bot.Config.Logging.Enabled)
 		}
+		if enable {
+			return bot.ntpManager.Start()
+		}
 		return bot.ntpManager.Stop()
 	case "database":
+		if bot.DatabaseManager == nil {
+			bot.DatabaseManager, err = databaseconnection.Setup(&bot.Config.Database)
+		}
 		if enable {
-			return bot.DatabaseManager.Start(&bot.Config.Database, &bot.ServicesWG)
+			return bot.DatabaseManager.Start(&bot.ServicesWG)
 		}
 		return bot.DatabaseManager.Stop()
 	case "exchange_syncer":
+		if bot.ExchangeCurrencyPairManager == nil {
+			exchangeSyncCfg := currencypairsyncer.Config{
+				SyncTicker:       bot.Settings.EnableTickerSyncing,
+				SyncOrderbook:    bot.Settings.EnableOrderbookSyncing,
+				SyncTrades:       bot.Settings.EnableTradeSyncing,
+				SyncContinuously: bot.Settings.SyncContinuously,
+				NumWorkers:       bot.Settings.SyncWorkers,
+				Verbose:          bot.Settings.Verbose,
+				SyncTimeout:      bot.Settings.SyncTimeout,
+			}
+			bot.ExchangeCurrencyPairManager, err = currencypairsyncer.Setup(exchangeSyncCfg,
+				bot.ExchangeManager,
+				bot,
+				&bot.Config.RemoteControl)
+		}
 		if enable {
 			bot.ExchangeCurrencyPairManager.Start()
 		}

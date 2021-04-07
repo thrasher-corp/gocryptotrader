@@ -35,7 +35,7 @@ func TestNewCurrencyPairSyncer(t *testing.T) {
 		t.Log(err)
 	}
 
-	engine.Bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(Config{
+	engine.Bot.ExchangeCurrencyPairManager, err = Setup(Config{
 		SyncTicker:       true,
 		SyncOrderbook:    false,
 		SyncTrades:       false,

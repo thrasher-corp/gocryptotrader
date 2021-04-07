@@ -3,7 +3,10 @@ package eventmanager
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/subsystems"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -27,7 +30,10 @@ func Setup(comManager iCommsManager, verbose bool) *Manager {
 
 // Start is the overarching routine that will iterate through the Events
 // chain
-func (m *Manager) Start() {
+func (m *Manager) Start() error {
+	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+		return fmt.Errorf("event manager %w", subsystems.ErrSubSystemAlreadyStarted)
+	}
 	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", EventSleepDelay.String())
 	for {
 		total, executed := m.GetEventCounter()

@@ -8,6 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
+
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -363,16 +367,16 @@ func (bt *BackTest) setupBot(cfg *config.Config, bot *engine.Engine) error {
 	if err != nil {
 		return err
 	}
-
+	bt.Bot.ExchangeManager = exchangemanager.Setup()
 	for i := range cfg.CurrencySettings {
 		err = bt.Bot.LoadExchange(cfg.CurrencySettings[i].ExchangeName, false, nil)
 		if err != nil && !errors.Is(err, exchangemanager.ErrExchangeAlreadyLoaded) {
 			return err
 		}
 	}
-	if !bt.Bot.OrderManager.Started() {
-		bt.Bot.OrderManager, err = bt.Bot.OrderManager.Setup(
-			&bt.Bot.ExchangeManager,
+	if !bt.Bot.OrderManager.IsRunning() {
+		bt.Bot.OrderManager, err = ordermanager.Setup(
+			bt.Bot.ExchangeManager,
 			bt.Bot.CommunicationsManager,
 			&bt.Bot.ServicesWG,
 			bot.Settings.Verbose)
@@ -480,17 +484,18 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			bt.Bot.Config.Database = *cfg.DataSettings.DatabaseData.ConfigOverride
 			gctdatabase.DB.DataPath = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
 			gctdatabase.DB.Config = cfg.DataSettings.DatabaseData.ConfigOverride
-			err = bt.Bot.DatabaseManager.Start(&bt.Bot.Config.Database, &bt.Bot.ServicesWG)
-			if err != nil {
-				return nil, err
-			}
-			defer func() {
-				err = bt.Bot.DatabaseManager.Stop()
-				if err != nil {
-					log.Error(log.BackTester, err)
-				}
-			}()
 		}
+		bt.Bot.DatabaseManager, err = databaseconnection.Setup(gctdatabase.DB.Config)
+		err = bt.Bot.DatabaseManager.Start(&bt.Bot.ServicesWG)
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			err = bt.Bot.DatabaseManager.Stop()
+			if err != nil {
+				log.Error(log.BackTester, err)
+			}
+		}()
 		resp, err = loadDatabaseData(cfg, exch.GetName(), fPair, a, dataType)
 		if err != nil {
 			return nil, fmt.Errorf("unable to retrieve data from GoCryptoTrader database. Error: %v. Please ensure the database is setup correctly and has data before use", err)

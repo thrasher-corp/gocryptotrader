@@ -23,15 +23,19 @@ import (
 func (m *Manager) StartWebsocketServer() {
 	if !atomic.CompareAndSwapInt32(&m.websocketStarted, 0, 1) {
 		log.Error(log.CommunicationMgr, "websocket server already running")
+		return
 	}
-	atomic.StoreInt32(&m.started, 1)
-	log.Debugf(log.RESTSys,
+	if !m.remoteConfig.WebsocketRPC.Enabled {
+		atomic.StoreInt32(&m.websocketStarted, 0)
+		return
+	}
+	log.Debugf(log.CommunicationMgr,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
-		common.ExtractHost(m.listenAddress), common.ExtractPort(m.listenAddress))
+		common.ExtractHost(m.websocketListenAddress), common.ExtractPort(m.websocketListenAddress))
 	m.websocketRouter = m.newRouter(false)
-	err := http.ListenAndServe(m.listenAddress, m.websocketRouter)
+	err := http.ListenAndServe(m.websocketListenAddress, m.websocketRouter)
 	if err != nil {
-		log.Errorf(log.RESTSys, "Failed to start websocket RPC handler. Err: %s", err)
+		log.Errorf(log.CommunicationMgr, "Failed to start websocket RPC handler. Err: %s", err)
 	}
 }
 

@@ -1,7 +1,6 @@
 package sync
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -28,38 +27,48 @@ type Manager struct {
 	exchangeManager       *exchangemanager.Manager
 	shutdown              chan struct{}
 	verbose               bool
+	base                  *portfolio.Base
 }
 
-func (m *Manager) Started() bool {
+func (m *Manager) IsRunning() bool {
+	if m == nil {
+		return false
+	}
 	return atomic.LoadInt32(&m.started) == 1
 }
 
-func (m *Manager) Start(b *portfolio.Base, e *exchangemanager.Manager, portfolioManagerDelay time.Duration, wg *sync.WaitGroup, verbose bool) (*Manager, error) {
-	if atomic.AddInt32(&m.started, 1) != 1 {
-		return nil, errors.New("portfolio manager already started")
-	}
-
-	log.Debugln(log.PortfolioMgr, "Portfolio manager starting...")
-	man := &Manager{
+func Setup(b *portfolio.Base, e *exchangemanager.Manager, portfolioManagerDelay time.Duration, verbose bool) (*Manager, error) {
+	m := &Manager{
 		portfolioManagerDelay: portfolioManagerDelay,
 		exchangeManager:       e,
 		shutdown:              make(chan struct{}),
 		verbose:               verbose,
+		base:                  b,
 	}
 	portfolio.Verbose = verbose
-	b.Seed(*b)
-	go m.run(wg)
-	return man, nil
+	return m, nil
 }
+
+func (m *Manager) Start(wg *sync.WaitGroup) error {
+	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+		return fmt.Errorf("portfolio manager %w", subsystems.ErrSubSystemAlreadyStarted)
+	}
+	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", subsystems.MsgSubSystemStarting)
+	m.shutdown = make(chan struct{})
+	m.base.Seed(*m.base)
+	go m.run(wg)
+	return nil
+}
+
 func (m *Manager) Stop() error {
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("portfolio manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
 
-	log.Debugln(log.PortfolioMgr, "Portfolio manager shutting down...")
+	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", subsystems.MsgSubSystemShuttingDown)
 	close(m.shutdown)
 	return nil
 }

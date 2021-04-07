@@ -29,13 +29,16 @@ var (
 	errNilWaitGroup             = errors.New("cannot start with nil waitgroup")
 )
 
-// Started returns the status of the OrderManager
-func (m *Manager) Started() bool {
+// IsRunning returns the status of the OrderManager
+func (m *Manager) IsRunning() bool {
+	if m == nil {
+		return false
+	}
 	return atomic.LoadInt32(&m.started) == 1
 }
 
 // Start will boot up the OrderManager
-func (m *Manager) Setup(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose bool) (*Manager, error) {
+func Setup(exchangeManager iExchangeManager, communicationsManager iCommsManager, wg *sync.WaitGroup, verbose bool) (*Manager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
@@ -45,12 +48,8 @@ func (m *Manager) Setup(exchangeManager iExchangeManager, communicationsManager 
 	if wg == nil {
 		return nil, errNilWaitGroup
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
-		return nil, fmt.Errorf("order manager %w", subsystems.ErrSubSystemAlreadyStarted)
-	}
-	log.Debugln(log.OrderBook, "Order manager starting...")
-	m = &Manager{
-		started:  0,
+
+	return &Manager{
 		shutdown: make(chan struct{}),
 		orderStore: store{
 			Orders:          make(map[string][]*order.Detail),
@@ -59,15 +58,22 @@ func (m *Manager) Setup(exchangeManager iExchangeManager, communicationsManager 
 			wg:              wg,
 		},
 		verbose: verbose,
+	}, nil
+}
+
+func (m *Manager) Start() error {
+	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
+	log.Debugln(log.OrderBook, "Order manager starting...")
 
 	go m.run()
-	return m, nil
+	return nil
 }
 
 // Stop will attempt to shutdown the OrderManager
 func (m *Manager) Stop() error {
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 

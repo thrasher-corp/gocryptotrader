@@ -34,8 +34,8 @@ var (
 	DefaultSyncerTimeout = time.Second * 15
 )
 
-// NewCurrencyPairSyncer starts a new CurrencyPairSyncer
-func NewCurrencyPairSyncer(c Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver, remoteConfig *config.RemoteControlConfig) (*ExchangeCurrencyPairSyncer, error) {
+// Setup starts a new CurrencyPairSyncer
+func Setup(c Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver, remoteConfig *config.RemoteControlConfig) (*ExchangeCurrencyPairSyncer, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
 		return nil, errors.New("no sync items enabled")
 	}
@@ -48,7 +48,7 @@ func NewCurrencyPairSyncer(c Config, exchangeManager iExchangeManager, websocket
 		c.SyncTimeout = DefaultSyncerTimeout
 	}
 
-	s := ExchangeCurrencyPairSyncer{
+	s := &ExchangeCurrencyPairSyncer{
 		config: Config{
 			SyncTicker:       c.SyncTicker,
 			SyncOrderbook:    c.SyncOrderbook,
@@ -69,7 +69,153 @@ func NewCurrencyPairSyncer(c Config, exchangeManager iExchangeManager, websocket
 			" orderbook: %v trades: %v workers: %v verbose: %v timeout: %v\n",
 		s.config.SyncContinuously, s.config.SyncTicker, s.config.SyncOrderbook,
 		s.config.SyncTrades, s.config.NumWorkers, s.config.Verbose, s.config.SyncTimeout)
-	return &s, nil
+	return s, nil
+}
+
+// Start starts an exchange currency pair syncer
+func (e *ExchangeCurrencyPairSyncer) Start() {
+	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
+	exchanges := e.exchangeManager.GetExchanges()
+	for x := range exchanges {
+		exchangeName := exchanges[x].GetName()
+		supportsWebsocket := exchanges[x].SupportsWebsocket()
+		assetTypes := exchanges[x].GetAssetTypes()
+		supportsREST := exchanges[x].SupportsREST()
+
+		if !supportsREST && !supportsWebsocket {
+			log.Warnf(log.SyncMgr,
+				"Loaded exchange %s does not support REST or Websocket.\n",
+				exchangeName)
+			continue
+		}
+
+		var usingWebsocket bool
+		var usingREST bool
+		if supportsWebsocket && exchanges[x].IsWebsocketEnabled() {
+			ws, err := exchanges[x].GetWebsocket()
+			if err != nil {
+				log.Errorf(log.SyncMgr,
+					"%s failed to get websocket. Err: %s\n",
+					exchangeName,
+					err)
+				usingREST = true
+			}
+
+			if !ws.IsConnected() && !ws.IsConnecting() {
+				go e.websocketDataReceiver.WebsocketDataReceiver(ws)
+
+				err = ws.Connect()
+				if err == nil {
+					err = ws.FlushChannels()
+				}
+				if err != nil {
+					log.Errorf(log.SyncMgr,
+						"%s websocket failed to connect. Err: %s\n",
+						exchangeName,
+						err)
+					usingREST = true
+				} else {
+					usingWebsocket = true
+				}
+			} else {
+				usingWebsocket = true
+			}
+		} else if supportsREST {
+			usingREST = true
+		}
+
+		for y := range assetTypes {
+			if exchanges[x].GetBase().CurrencyPairs.IsAssetEnabled(assetTypes[y]) != nil {
+				log.Warnf(log.SyncMgr,
+					"%s asset type %s is disabled, fetching enabled pairs is paused",
+					exchangeName,
+					assetTypes[y])
+				continue
+			}
+
+			enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
+			if err != nil {
+				log.Errorf(log.SyncMgr,
+					"%s failed to get enabled pairs. Err: %s\n",
+					exchangeName,
+					err)
+				continue
+			}
+			for i := range enabledPairs {
+				if e.exists(exchangeName, enabledPairs[i], assetTypes[y]) {
+					continue
+				}
+
+				c := currencyPairSyncAgent{
+					AssetType: assetTypes[y],
+					Exchange:  exchangeName,
+					Pair:      enabledPairs[i],
+				}
+
+				if e.config.SyncTicker {
+					c.Ticker = syncBase{
+						IsUsingREST:      usingREST,
+						IsUsingWebsocket: usingWebsocket,
+					}
+				}
+
+				if e.config.SyncOrderbook {
+					c.Orderbook = syncBase{
+						IsUsingREST:      usingREST,
+						IsUsingWebsocket: usingWebsocket,
+					}
+				}
+
+				if e.config.SyncTrades {
+					c.Trade = syncBase{
+						IsUsingREST:      usingREST,
+						IsUsingWebsocket: usingWebsocket,
+					}
+				}
+
+				e.add(&c)
+			}
+		}
+	}
+
+	if atomic.CompareAndSwapInt32(&e.initSyncStarted, 0, 1) {
+		log.Debugf(log.SyncMgr,
+			"Exchange CurrencyPairSyncer initial sync started. %d items to process.\n",
+			createdCounter)
+		e.initSyncStartTime = time.Now()
+	}
+
+	go func() {
+		e.initSyncWG.Wait()
+		if atomic.CompareAndSwapInt32(&e.initSyncCompleted, 0, 1) {
+			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.\n")
+			completedTime := time.Now()
+			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].\n",
+				completedTime.Sub(e.initSyncStartTime), createdCounter)
+
+			if !e.config.SyncContinuously {
+				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
+				e.Stop()
+				return
+			}
+		}
+	}()
+
+	if atomic.LoadInt32(&e.initSyncCompleted) == 1 && !e.config.SyncContinuously {
+		return
+	}
+
+	for i := 0; i < e.config.NumWorkers; i++ {
+		go e.worker()
+	}
+}
+
+// Stop shuts down the exchange currency pair syncer
+func (e *ExchangeCurrencyPairSyncer) Stop() {
+	if e == nil || !atomic.CompareAndSwapInt32(&e.shutdown, 0, 1) {
+
+	}
+	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 }
 
 func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
@@ -506,152 +652,6 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 				}
 			}
 		}
-	}
-}
-
-// Start starts an exchange currency pair syncer
-func (e *ExchangeCurrencyPairSyncer) Start() {
-	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-	exchanges := e.exchangeManager.GetExchanges()
-	for x := range exchanges {
-		exchangeName := exchanges[x].GetName()
-		supportsWebsocket := exchanges[x].SupportsWebsocket()
-		assetTypes := exchanges[x].GetAssetTypes()
-		supportsREST := exchanges[x].SupportsREST()
-
-		if !supportsREST && !supportsWebsocket {
-			log.Warnf(log.SyncMgr,
-				"Loaded exchange %s does not support REST or Websocket.\n",
-				exchangeName)
-			continue
-		}
-
-		var usingWebsocket bool
-		var usingREST bool
-		if supportsWebsocket && exchanges[x].IsWebsocketEnabled() {
-			ws, err := exchanges[x].GetWebsocket()
-			if err != nil {
-				log.Errorf(log.SyncMgr,
-					"%s failed to get websocket. Err: %s\n",
-					exchangeName,
-					err)
-				usingREST = true
-			}
-
-			if !ws.IsConnected() && !ws.IsConnecting() {
-				go e.websocketDataReceiver.WebsocketDataReceiver(ws)
-
-				err = ws.Connect()
-				if err == nil {
-					err = ws.FlushChannels()
-				}
-				if err != nil {
-					log.Errorf(log.SyncMgr,
-						"%s websocket failed to connect. Err: %s\n",
-						exchangeName,
-						err)
-					usingREST = true
-				} else {
-					usingWebsocket = true
-				}
-			} else {
-				usingWebsocket = true
-			}
-		} else if supportsREST {
-			usingREST = true
-		}
-
-		for y := range assetTypes {
-			if exchanges[x].GetBase().CurrencyPairs.IsAssetEnabled(assetTypes[y]) != nil {
-				log.Warnf(log.SyncMgr,
-					"%s asset type %s is disabled, fetching enabled pairs is paused",
-					exchangeName,
-					assetTypes[y])
-				continue
-			}
-
-			enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
-			if err != nil {
-				log.Errorf(log.SyncMgr,
-					"%s failed to get enabled pairs. Err: %s\n",
-					exchangeName,
-					err)
-				continue
-			}
-			for i := range enabledPairs {
-				if e.exists(exchangeName, enabledPairs[i], assetTypes[y]) {
-					continue
-				}
-
-				c := currencyPairSyncAgent{
-					AssetType: assetTypes[y],
-					Exchange:  exchangeName,
-					Pair:      enabledPairs[i],
-				}
-
-				if e.config.SyncTicker {
-					c.Ticker = syncBase{
-						IsUsingREST:      usingREST,
-						IsUsingWebsocket: usingWebsocket,
-					}
-				}
-
-				if e.config.SyncOrderbook {
-					c.Orderbook = syncBase{
-						IsUsingREST:      usingREST,
-						IsUsingWebsocket: usingWebsocket,
-					}
-				}
-
-				if e.config.SyncTrades {
-					c.Trade = syncBase{
-						IsUsingREST:      usingREST,
-						IsUsingWebsocket: usingWebsocket,
-					}
-				}
-
-				e.add(&c)
-			}
-		}
-	}
-
-	if atomic.CompareAndSwapInt32(&e.initSyncStarted, 0, 1) {
-		log.Debugf(log.SyncMgr,
-			"Exchange CurrencyPairSyncer initial sync started. %d items to process.\n",
-			createdCounter)
-		e.initSyncStartTime = time.Now()
-	}
-
-	go func() {
-		e.initSyncWG.Wait()
-		if atomic.CompareAndSwapInt32(&e.initSyncCompleted, 0, 1) {
-			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.\n")
-			completedTime := time.Now()
-			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].\n",
-				completedTime.Sub(e.initSyncStartTime), createdCounter)
-
-			if !e.config.SyncContinuously {
-				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
-				e.Stop()
-				return
-			}
-		}
-	}()
-
-	if atomic.LoadInt32(&e.initSyncCompleted) == 1 && !e.config.SyncContinuously {
-		return
-	}
-
-	for i := 0; i < e.config.NumWorkers; i++ {
-		go e.worker()
-	}
-}
-
-// Stop shuts down the exchange currency pair syncer
-func (e *ExchangeCurrencyPairSyncer) Stop() {
-	stopped := atomic.CompareAndSwapInt32(&e.shutdown, 0, 1)
-	if stopped {
-		log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	}
 }
 
