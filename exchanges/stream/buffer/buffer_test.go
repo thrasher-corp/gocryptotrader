@@ -466,7 +466,7 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 		Asset:      asset.Spot,
 	})
 	if !errors.Is(err, errUpdateNoTargets) {
-		t.Fatalf("expected %v but received %v", errDepthNotFound, err)
+		t.Fatalf("expected %v but received %v", errUpdateNoTargets, err)
 	}
 }
 

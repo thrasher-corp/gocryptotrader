@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	cleanerActive    = 1
-	cleanerNotActive = 0
+	neutral uint32 = iota
+	active
 )
 
 var (
@@ -52,7 +52,7 @@ func getNow() now {
 // to allow for inlining which sets the time at which the node is theoretically
 // pushed to a stack.
 func (s *stack) Push(n *node, tn now) {
-	if atomic.LoadUint32(&s.sema) == cleanerActive {
+	if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
 		// Cleaner is activated, for now we can dereference pointer
 		n = nil
 		return
@@ -62,20 +62,30 @@ func (s *stack) Push(n *node, tn now) {
 	n.next = nil
 	n.prev = nil
 	n.value = Item{}
+
 	// Allows for resize when overflow TODO: rethink this
-	s.nodes = append(s.nodes[:atomic.LoadInt32(&s.count)], n)
-	atomic.AddInt32(&s.count, 1)
+	s.nodes = append(s.nodes[:s.count], n)
+	s.count++
+	atomic.StoreUint32(&s.sema, neutral)
 }
 
 // Pop returns the last pointer off the stack and reduces the count and if empty
 // will produce a lovely fresh node
 func (s *stack) Pop() *node {
-	if atomic.LoadUint32(&s.sema) == cleanerActive || atomic.LoadInt32(&s.count) == 0 {
-		// Create an empty node when no nodes are in slice or when cleaning
-		// service is running
+	if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
 		return &node{}
 	}
-	return s.nodes[atomic.AddInt32(&s.count, -1)]
+
+	if s.count == 0 {
+		// Create an empty node when no nodes are in slice or when cleaning
+		// service is running
+		atomic.StoreUint32(&s.sema, neutral)
+		return &node{}
+	}
+	s.count--
+	n := s.nodes[s.count]
+	atomic.StoreUint32(&s.sema, neutral)
+	return n
 }
 
 // cleaner (POC) runs to the defaultTimer to clean excess nodes (nodes not being
@@ -83,17 +93,19 @@ func (s *stack) Pop() *node {
 // Add in counter per second function (?) so if there is a lot of activity don't
 // inhibit stack performance.
 func (s *stack) cleaner() {
-	tt := time.NewTicker(defaultInterval)
+	tt := time.NewTimer(defaultInterval)
 sleeperino:
 	for range tt.C {
-		atomic.StoreUint32(&s.sema, cleanerActive)
+		if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
+			tt.Reset(0)
+			continue
+		}
 		// As the old nodes are going to be left justified on this slice we
 		// should just be able to shift the nodes that are still within time
 		// allowance all the way to the left. Not going to resize capacity
 		// because if it can get this big, it might as well stay this big.
 		// TODO: Test and rethink if sizing is an issue
-		nodesLen := atomic.LoadInt32(&s.count)
-		for x := int32(0); x < nodesLen; x++ {
+		for x := int32(0); x < s.count; x++ {
 			if time.Since(s.nodes[x].shelved) > defaultAllowance {
 				// Old node found continue
 				continue
@@ -101,19 +113,21 @@ sleeperino:
 			// First good node found, everything to the left of this on the
 			// slice can be reassigned
 			var counter int32
-			for y := int32(0); y+x < nodesLen; y++ { // Go through good nodes
+			for y := int32(0); y+x < s.count; y++ { // Go through good nodes
 				// Reassign
 				s.nodes[y] = s.nodes[y+x]
 				// Add to the changed counter to remove from main
 				// counter
-				counter--
+				counter++
 			}
-			atomic.AddInt32(&s.count, counter)
-			atomic.StoreUint32(&s.sema, cleanerNotActive)
+			s.count -= counter
+			atomic.StoreUint32(&s.sema, neutral)
+			tt.Reset(defaultInterval)
 			continue sleeperino
 		}
 		// Nodes are old, flush entirety.
-		atomic.StoreInt32(&s.count, 0)
-		atomic.StoreUint32(&s.sema, cleanerNotActive)
+		s.count = 0
+		atomic.StoreUint32(&s.sema, neutral)
+		tt.Reset(defaultInterval)
 	}
 }

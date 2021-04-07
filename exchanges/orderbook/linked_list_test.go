@@ -3,7 +3,6 @@ package orderbook
 import (
 	"errors"
 	"fmt"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -53,8 +52,8 @@ func TestLoad(t *testing.T) {
 		{Price: 11, Amount: 1},
 	}, stack)
 
-	if atomic.LoadInt32(&stack.count) != 0 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
 	}
 
 	Check(list, 6, 36, 6, t)
@@ -65,8 +64,8 @@ func TestLoad(t *testing.T) {
 		{Price: 5, Amount: 1},
 	}, stack)
 
-	if atomic.LoadInt32(&stack.count) != 3 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 3, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 3 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.getCount())
 	}
 
 	Check(list, 3, 9, 3, t)
@@ -78,8 +77,8 @@ func TestLoad(t *testing.T) {
 		{Price: 7, Amount: 1},
 	}, stack)
 
-	if atomic.LoadInt32(&stack.count) != 2 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 2, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 2 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.getCount())
 	}
 
 	Check(list, 4, 16, 4, t)
@@ -87,8 +86,8 @@ func TestLoad(t *testing.T) {
 	// purge entire list
 	list.load(nil, stack)
 
-	if atomic.LoadInt32(&stack.count) != 6 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 6, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 6 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 6, stack.getCount())
 	}
 
 	Check(list, 0, 0, 0, t)
@@ -124,8 +123,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(a, 7, 37, 6, t)
 
-	if atomic.LoadInt32(&stack.count) != 0 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
 	}
 
 	// Insert at head
@@ -135,8 +134,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(a, 9, 38, 7, t)
 
-	if atomic.LoadInt32(&stack.count) != 0 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
 	}
 
 	// Insert at tail
@@ -146,8 +145,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(a, 11, 62, 8, t)
 
-	if atomic.LoadInt32(&stack.count) != 0 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
 	}
 
 	// Insert between price and up to and beyond max allowable depth level
@@ -159,8 +158,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(a, 15, 106, 10, t)
 
-	if atomic.LoadInt32(&stack.count) != 1 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 1, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 1 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 1, stack.getCount())
 	}
 
 	// delete at tail
@@ -170,8 +169,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(a, 13, 82, 9, t)
 
-	if atomic.LoadInt32(&stack.count) != 2 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 2, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 2 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.getCount())
 	}
 
 	// delete at mid
@@ -181,8 +180,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(a, 12, 75, 8, t)
 
-	if atomic.LoadInt32(&stack.count) != 3 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 3, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 3 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.getCount())
 	}
 
 	// delete at head
@@ -192,8 +191,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(a, 10, 74, 7, t)
 
-	if atomic.LoadInt32(&stack.count) != 4 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 4, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 4 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.getCount())
 	}
 
 	// purge if liquidity plunges to zero
@@ -211,8 +210,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(a, 6, 36, 6, t)
 
-	if atomic.LoadInt32(&stack.count) != 5 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 4, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 5 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.getCount())
 	}
 
 	b := bids{}
@@ -233,8 +232,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(b, 7, 47, 6, t)
 
-	if atomic.LoadInt32(&stack.count) != 0 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
 	}
 
 	// Insert at head
@@ -244,8 +243,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(b, 9, 71, 7, t)
 
-	if atomic.LoadInt32(&stack.count) != 0 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
 	}
 
 	// Insert at tail
@@ -255,8 +254,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(b, 11, 72, 8, t)
 
-	if atomic.LoadInt32(&stack.count) != 0 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 0 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
 	}
 
 	// Insert between price and up to and beyond max allowable depth level
@@ -268,8 +267,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(b, 15, 141, 10, t)
 
-	if atomic.LoadInt32(&stack.count) != 1 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 0, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 1 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 0, stack.getCount())
 	}
 
 	// Insert between price and up to and beyond max allowable depth level
@@ -279,8 +278,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(b, 14, 140, 9, t)
 
-	if atomic.LoadInt32(&stack.count) != 2 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 2, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 2 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 2, stack.getCount())
 	}
 
 	// delete at mid
@@ -290,8 +289,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(b, 12, 119, 8, t)
 
-	if atomic.LoadInt32(&stack.count) != 3 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 3, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 3 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 3, stack.getCount())
 	}
 
 	// delete at head
@@ -301,8 +300,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(b, 10, 93, 7, t)
 
-	if atomic.LoadInt32(&stack.count) != 4 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 4, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 4 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.getCount())
 	}
 
 	// purge if liquidity plunges to zero
@@ -320,8 +319,8 @@ func TestUpdateInsertByPrice(t *testing.T) {
 
 	Check(b, 6, 36, 6, t)
 
-	if atomic.LoadInt32(&stack.count) != 5 {
-		t.Fatalf("incorrect stack count expected: %v received: %v", 4, atomic.LoadInt32(&stack.count))
+	if stack.getCount() != 5 {
+		t.Fatalf("incorrect stack count expected: %v received: %v", 4, stack.getCount())
 	}
 }
 
