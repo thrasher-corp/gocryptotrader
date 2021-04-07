@@ -41,7 +41,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
 	e.Add(b)
-	if err := e.RemoveExchange(events.testExchange); err != ErrExchangeNotFound {
+	if err := e.RemoveExchange("Bitstamp"); err != ErrExchangeNotFound {
 		t.Error("Bitstamp exchange should return an error")
 	}
 	if err := e.RemoveExchange("BiTFiNeX"); err != nil {

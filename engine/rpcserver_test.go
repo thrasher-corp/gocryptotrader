@@ -3,17 +3,24 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/goose"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -36,7 +43,6 @@ const (
 	migrationsFolder      = "migrations"
 	databaseFolder        = "database"
 	databaseName          = "rpctestdb"
-	testExchange          = "Bitstamp"
 )
 
 // Sets up everything required to run any function inside rpcserver
@@ -56,7 +62,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
 	}
-
+	engerino.ExchangeManager = exchangemanager.Setup()
 	if engerino.GetExchangeByName(testExchange) == nil {
 		err = engerino.LoadExchange(testExchange, false, nil)
 		if err != nil {
@@ -64,12 +70,16 @@ func RPCTestSetup(t *testing.T) *Engine {
 		}
 	}
 	engerino.Config.Database = dbConf
-	err = engerino.DatabaseManager.Start(&engerino.Config.Database, &engerino.ServicesWG)
+	engerino.DatabaseManager, err = databaseconnection.Setup(&engerino.Config.Database)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = engerino.DatabaseManager.Start(&engerino.ServicesWG)
 	if err != nil {
 		log.Fatal(err)
 	}
 	path := filepath.Join("..", databaseFolder, migrationsFolder)
-	err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
+	err = goose.Run("up", database.DB.SQL, repository.GetSQLDialect(), path, "")
 	if err != nil {
 		t.Fatalf("failed to run migrations %v", err)
 	}
@@ -990,10 +1000,10 @@ func TestGetOrder(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot.String(),
 	})
-	if !errors.Is(err, errOrderCannotBeEmpty) {
-		t.Errorf("expected %v, received %v", errOrderCannotBeEmpty, err)
+	if !errors.Is(err, ordermanager.ErrOrderIDCannotBeEmpty) {
+		t.Errorf("expected %v, received %v", ordermanager.ErrOrderIDCannotBeEmpty, err)
 	}
-	err = engerino.OrderManager.Setup(engerino)
+	s.OrderManager, err = ordermanager.Setup(engerino.ExchangeManager, engerino.CommunicationsManager, &engerino.ServicesWG, engerino.Settings.Verbose)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1023,8 +1033,8 @@ func TestCheckVars(t *testing.T) {
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, eventmanager.errExchangeDisabled) {
-		t.Errorf("expected %v, got %v", eventmanager.errExchangeDisabled, err)
+	if !errors.Is(err, eventmanager.ErrExchangeDisabled) {
+		t.Errorf("expected %v, got %v", eventmanager.ErrExchangeDisabled, err)
 	}
 
 	e.SetEnabled(true)
@@ -1092,13 +1102,77 @@ func TestCheckVars(t *testing.T) {
 		t.Errorf("expected %v, got %v", errCurrencyNotEnabled, err)
 	}
 
-	e.GetBase().CurrencyPairs.EnablePair(
+	err = e.GetBase().CurrencyPairs.EnablePair(
 		asset.Spot,
 		currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestParseEvents(t *testing.T) {
+	var exchangeName = "Binance"
+	var testData []*withdraw.Response
+	for x := 0; x < 5; x++ {
+		test := fmt.Sprintf("test-%v", x)
+		resp := &withdraw.Response{
+			ID: withdraw.DryRunID,
+			Exchange: withdraw.ExchangeResponse{
+				Name:   test,
+				ID:     test,
+				Status: test,
+			},
+			RequestDetails: withdraw.Request{
+				Exchange:    test,
+				Description: test,
+				Amount:      1.0,
+			},
+		}
+		if x%2 == 0 {
+			resp.RequestDetails.Currency = currency.AUD
+			resp.RequestDetails.Type = 1
+			resp.RequestDetails.Fiat = withdraw.FiatRequest{
+				Bank: banking.Account{
+					Enabled:             false,
+					ID:                  fmt.Sprintf("test-%v", x),
+					BankName:            fmt.Sprintf("test-%v-bank", x),
+					AccountName:         "hello",
+					AccountNumber:       fmt.Sprintf("test-%v", x),
+					BSBNumber:           "123456",
+					SupportedCurrencies: "BTC-AUD",
+					SupportedExchanges:  exchangeName,
+				},
+			}
+		} else {
+			resp.RequestDetails.Currency = currency.BTC
+			resp.RequestDetails.Type = 0
+			resp.RequestDetails.Crypto.Address = test
+			resp.RequestDetails.Crypto.FeeAmount = 0
+			resp.RequestDetails.Crypto.AddressTag = test
+		}
+		testData = append(testData, resp)
+	}
+	v := parseMultipleEvents(testData)
+	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
+		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
+	}
+	if testData == nil || len(testData) < 2 {
+		t.Fatal("expected at least 2")
+	}
+
+	v = parseSingleEvents(testData[0])
+	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
+		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
+	}
+
+	v = parseSingleEvents(testData[1])
+	if v.Event[0].Request.Type != 0 {
+		t.Fatal("Expected second entry in slice to return a Request.Type of Crypto")
 	}
 }

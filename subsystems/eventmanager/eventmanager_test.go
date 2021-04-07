@@ -252,41 +252,41 @@ func TestIsValidEvent(t *testing.T) {
 		config.Cfg = *bot.Config
 	}
 	// invalid exchange name
-	if err := isValidEvent("meow", "", EventConditionParams{}, ""); err != errExchangeDisabled {
+	if err := isValidEvent("meow", "", EventConditionParams{}, ""); err != ErrExchangeDisabled {
 		t.Error("unexpected result:", err)
 	}
 
 	// invalid item
-	if err := isValidEvent(testExchange, "", EventConditionParams{}, ""); err != errInvalidItem {
+	if err := isValidEvent(testExchange, "", EventConditionParams{}, ""); err != ErrInvalidItem {
 		t.Error("unexpected result:", err)
 	}
 
 	// invalid condition
-	if err := isValidEvent(testExchange, ItemPrice, EventConditionParams{}, ""); err != errInvalidCondition {
+	if err := isValidEvent(testExchange, ItemPrice, EventConditionParams{}, ""); err != ErrInvalidCondition {
 		t.Error("unexpected result:", err)
 	}
 
-	// valid condition but empty price which will still throw an errInvalidCondition
+	// valid condition but empty price which will still throw an ErrInvalidCondition
 	c := EventConditionParams{
 		Condition: ConditionGreaterThan,
 	}
-	if err := isValidEvent(testExchange, ItemPrice, c, ""); err != errInvalidCondition {
+	if err := isValidEvent(testExchange, ItemPrice, c, ""); err != ErrInvalidCondition {
 		t.Error("unexpected result:", err)
 	}
 
-	// valid condition but empty orderbook amount will still still throw an errInvalidCondition
-	if err := isValidEvent(testExchange, ItemOrderbook, c, ""); err != errInvalidCondition {
+	// valid condition but empty orderbook amount will still still throw an ErrInvalidCondition
+	if err := isValidEvent(testExchange, ItemOrderbook, c, ""); err != ErrInvalidCondition {
 		t.Error("unexpected result:", err)
 	}
 
 	// test action splitting, but invalid
 	c.OrderbookAmount = 1337
-	if err := isValidEvent(testExchange, ItemOrderbook, c, "a,meow"); err != errInvalidAction {
+	if err := isValidEvent(testExchange, ItemOrderbook, c, "a,meow"); err != ErrInvalidAction {
 		t.Error("unexpected result:", err)
 	}
 
 	// check for invalid action without splitting
-	if err := isValidEvent(testExchange, ItemOrderbook, c, "hi"); err != errInvalidAction {
+	if err := isValidEvent(testExchange, ItemOrderbook, c, "hi"); err != ErrInvalidAction {
 		t.Error("unexpected result:", err)
 	}
 

@@ -35,6 +35,9 @@ type Manager struct {
 
 // IsRunning returns whether the database connection manager is running
 func (m *Manager) IsRunning() bool {
+	if m == nil {
+		return false
+	}
 	return atomic.LoadInt32(&m.started) == 1
 }
 

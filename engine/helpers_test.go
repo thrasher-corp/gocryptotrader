@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"net"
 	"os"
@@ -23,7 +24,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
+
+var testExchange = "Bitstamp"
 
 func CreateTestBot(t *testing.T) *Engine {
 	bot, err := NewFromSettings(&Settings{ConfigFile: config.TestFile, EnableDryRun: true}, nil)
@@ -35,15 +40,15 @@ func CreateTestBot(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 	}
-
-	if bot.GetExchangeByName(events.testExchange) == nil {
-		err := bot.LoadExchange(events.testExchange, false, nil)
+	bot.ExchangeManager = exchangemanager.Setup()
+	if bot.GetExchangeByName(testExchange) == nil {
+		err := bot.LoadExchange(testExchange, false, nil)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
 	if bot.GetExchangeByName(fakePassExchange) == nil {
-		err := addPassingFakeExchange(events.testExchange, bot)
+		err := addPassingFakeExchange(testExchange, bot)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
@@ -62,7 +67,7 @@ func TestGetExchangeOTPs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bCfg, err := bot.Config.GetExchangeConfig("Bitstamp")
+	bCfg, err := bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,18 +98,18 @@ func TestGetExchangeOTPs(t *testing.T) {
 
 func TestGetExchangeoOTPByName(t *testing.T) {
 	bot := CreateTestBot(t)
-	_, err := bot.GetExchangeOTPByName("Bitstamp")
+	_, err := bot.GetExchangeOTPByName(testExchange)
 	if err == nil {
 		t.Fatal("Expected err with no exchange OTP secrets set")
 	}
 
-	bCfg, err := bot.Config.GetExchangeConfig("Bitstamp")
+	bCfg, err := bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bCfg.API.Credentials.OTPSecret = "JBSWY3DPEHPK3PXP"
-	result, err := bot.GetExchangeOTPByName("Bitstamp")
+	result, err := bot.GetExchangeOTPByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,11 +130,16 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 
 func TestIsOnline(t *testing.T) {
 	e := CreateTestBot(t)
+	var err error
+	e.connectionManager, err = connectionmanager.Setup(&e.Config.ConnectionMonitor)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if r := e.IsOnline(); r {
 		t.Fatal("Unexpected result")
 	}
 
-	if err := e.connectionManager.Start(&e.Config.ConnectionMonitor); err != nil {
+	if err = e.connectionManager.Start(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -468,7 +478,7 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 	}
 
 	result := e.MapCurrenciesByExchange(pairs, true, asset.Spot)
-	pairs, ok := result["Bitstamp"]
+	pairs, ok := result[testExchange]
 	if !ok {
 		t.Fatal("Unexpected result")
 	}
@@ -500,7 +510,7 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 	result := e.GetExchangeNamesByCurrency(btsusd,
 		true,
 		assetType)
-	if !common.StringDataCompare(result, "Bitstamp") {
+	if !common.StringDataCompare(result, testExchange) {
 		t.Fatal("Unexpected result")
 	}
 
@@ -522,15 +532,13 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 func TestGetSpecificOrderbook(t *testing.T) {
 	e := CreateTestBot(t)
 
-	e.LoadExchange("Bitstamp", false, nil)
-
 	var bids []orderbook.Item
 	bids = append(bids, orderbook.Item{Price: 1000, Amount: 1})
 
 	base := orderbook.Base{
 		Pair:         currency.NewPair(currency.BTC, currency.USD),
 		Bids:         bids,
-		ExchangeName: "Bitstamp",
+		ExchangeName: testExchange,
 		AssetType:    asset.Spot,
 	}
 
@@ -544,7 +552,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ob, err := e.GetSpecificOrderbook(btsusd, "Bitstamp", asset.Spot)
+	ob, err := e.GetSpecificOrderbook(btsusd, testExchange, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -558,18 +566,19 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = e.GetSpecificOrderbook(ethltc, "Bitstamp", asset.Spot)
+	_, err = e.GetSpecificOrderbook(ethltc, testExchange, asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}
 
-	e.UnloadExchange("Bitstamp")
+	err = e.UnloadExchange(testExchange)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetSpecificTicker(t *testing.T) {
 	e := CreateTestBot(t)
-
-	e.LoadExchange("Bitstamp", false, nil)
 	p, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
 		t.Fatal(err)
@@ -579,12 +588,12 @@ func TestGetSpecificTicker(t *testing.T) {
 		Pair:         p,
 		Last:         1000,
 		AssetType:    asset.Spot,
-		ExchangeName: "Bitstamp"})
+		ExchangeName: testExchange})
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
 
-	tick, err := e.GetSpecificTicker(p, "Bitstamp", asset.Spot)
+	tick, err := e.GetSpecificTicker(p, testExchange, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -598,12 +607,15 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = e.GetSpecificTicker(ethltc, "Bitstamp", asset.Spot)
+	_, err = e.GetSpecificTicker(ethltc, testExchange, asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}
 
-	e.UnloadExchange("Bitstamp")
+	err = e.UnloadExchange(testExchange)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
@@ -627,7 +639,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	exchangeInfo = append(exchangeInfo, bitfinexHoldings)
 
 	var bitstampHoldings account.Holdings
-	bitstampHoldings.Exchange = "Bitstamp"
+	bitstampHoldings.Exchange = testExchange
 	bitstampHoldings.Accounts = append(bitstampHoldings.Accounts,
 		account.SubAccount{
 			Currencies: []account.Balance{
@@ -674,14 +686,20 @@ func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stats.Add("Bitfinex", p, asset.Spot, 1000, 10000)
-	stats.Add("Bitstamp", p, asset.Spot, 1337, 10000)
+	err = stats.Add("Bitfinex", p, asset.Spot, 1000, 10000)
+	if err != nil {
+		t.Error(err)
+	}
+	err = stats.Add(testExchange, p, asset.Spot, 1337, 10000)
+	if err != nil {
+		t.Error(err)
+	}
 	exchangeName, err := GetExchangeHighestPriceByCurrencyPair(p, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if exchangeName != "Bitstamp" {
+	if exchangeName != testExchange {
 		t.Error("Unexpected result")
 	}
 
@@ -704,8 +722,14 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stats.Add("Bitfinex", p, asset.Spot, 1000, 10000)
-	stats.Add("Bitstamp", p, asset.Spot, 1337, 10000)
+	err = stats.Add("Bitfinex", p, asset.Spot, 1000, 10000)
+	if err != nil {
+		t.Error(err)
+	}
+	err = stats.Add(testExchange, p, asset.Spot, 1337, 10000)
+	if err != nil {
+		t.Error(err)
+	}
 	exchangeName, err := GetExchangeLowestPriceByCurrencyPair(p, asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -740,14 +764,28 @@ func TestGetExchangeNames(t *testing.T) {
 	if e := bot.GetExchangeNames(true); len(e) == 0 {
 		t.Error("exchange names should be populated")
 	}
-	if err := bot.UnloadExchange(events.testExchange); err != nil {
+	if err := bot.UnloadExchange(testExchange); err != nil {
 		t.Fatal(err)
 	}
-	if e := bot.GetExchangeNames(true); common.StringDataCompare(e, events.testExchange) {
+	if e := bot.GetExchangeNames(true); common.StringDataCompare(e, testExchange) {
 		t.Error("Bitstamp should be missing")
 	}
+	if e := bot.GetExchangeNames(false); len(e) != 1 {
+		t.Errorf("Expected %v Received %v", len(e), 1)
+	}
+
+	for i := range bot.Config.Exchanges {
+		exch, err := bot.ExchangeManager.NewExchangeByName(bot.Config.Exchanges[i].Name)
+		if err != nil && !errors.Is(err, exchangemanager.ErrExchangeAlreadyLoaded) {
+			t.Error(err)
+		}
+		if exch != nil {
+			exch.SetDefaults()
+			bot.ExchangeManager.Add(exch)
+		}
+	}
 	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.Exchanges) {
-		t.Errorf("Expected %v Received %v", len(e), len(bot.Config.Exchanges))
+		t.Errorf("Expected %v Received %v", len(bot.Config.Exchanges), len(e))
 	}
 }
 

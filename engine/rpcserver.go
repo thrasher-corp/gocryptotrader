@@ -3071,9 +3071,9 @@ func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p curre
 	if e == nil {
 		return fmt.Errorf("%s %w", exchName, errExchangeNotLoaded)
 	}
-	//if !e.IsEnabled() {
-	//	return fmt.Errorf("%s %w", exchName, eventmanager.errExchangeDisabled)
-	//}
+	if !e.IsEnabled() {
+		return fmt.Errorf("%s %w", exchName, eventmanager.ErrExchangeDisabled)
+	}
 	if a.IsValid() {
 		b := e.GetBase()
 		if b == nil {

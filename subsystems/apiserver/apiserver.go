@@ -9,12 +9,11 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems"
-
 	"github.com/gorilla/mux"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
 func Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, configPath string) (*Manager, error) {

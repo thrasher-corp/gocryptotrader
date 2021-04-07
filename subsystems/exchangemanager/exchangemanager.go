@@ -2,6 +2,7 @@ package exchangemanager
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -57,6 +58,9 @@ func Setup() *Manager {
 }
 
 func (m *Manager) Add(exch exchange.IBotExchange) {
+	if exch == nil {
+		return
+	}
 	m.m.Lock()
 	m.exchanges[strings.ToLower(exch.GetName())] = exch
 	m.m.Unlock()
@@ -113,7 +117,7 @@ func (m *Manager) Len() int {
 func (m *Manager) NewExchangeByName(name string) (exchange.IBotExchange, error) {
 	nameLower := strings.ToLower(name)
 	if m.GetExchangeByName(nameLower) != nil {
-		return nil, ErrExchangeAlreadyLoaded
+		return nil, fmt.Errorf("%s %w", name, ErrExchangeAlreadyLoaded)
 	}
 	var exch exchange.IBotExchange
 
@@ -175,7 +179,7 @@ func (m *Manager) NewExchangeByName(name string) (exchange.IBotExchange, error) 
 	case "zb":
 		exch = new(zb.ZB)
 	default:
-		return nil, ErrExchangeNotFound
+		return nil, fmt.Errorf("%s, %w", nameLower, ErrExchangeNotFound)
 	}
 
 	return exch, nil

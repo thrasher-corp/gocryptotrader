@@ -1456,9 +1456,9 @@ func GetAndMigrateDefaultPath(configFile string) (string, error) {
 
 // GetFilePath returns the desired config file or the default config file name
 // and whether it was loaded from a default location (rather than explicitly specified)
-func GetFilePath(configfile string) (configPath string, isImplicitDefaultPath bool, err error) {
-	if configfile != "" {
-		return configfile, false, nil
+func GetFilePath(configFile string) (configPath string, isImplicitDefaultPath bool, err error) {
+	if configFile != "" {
+		return configFile, false, nil
 	}
 
 	exePath, err := common.GetExecutablePath()
@@ -1475,16 +1475,16 @@ func GetFilePath(configfile string) (configPath string, isImplicitDefaultPath bo
 
 	for _, p := range defaultPaths {
 		if file.Exists(p) {
-			configfile = p
+			configFile = p
 			break
 		}
 	}
-	if configfile == "" {
+	if configFile == "" {
 		return "", false, fmt.Errorf("config.json file not found in %s, please follow README.md in root dir for config generation",
 			newDir)
 	}
 
-	return configfile, true, nil
+	return configFile, true, nil
 }
 
 // migrateConfig will move the config file to the target

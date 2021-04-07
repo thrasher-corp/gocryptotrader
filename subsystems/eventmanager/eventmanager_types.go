@@ -32,10 +32,10 @@ const (
 
 // vars related to events package
 var (
-	errInvalidItem      = errors.New("invalid item")
-	errInvalidCondition = errors.New("invalid conditional option")
-	errInvalidAction    = errors.New("invalid action")
-	errExchangeDisabled = errors.New("desired exchange is disabled")
+	ErrInvalidItem      = errors.New("invalid item")
+	ErrInvalidCondition = errors.New("invalid conditional option")
+	ErrInvalidAction    = errors.New("invalid action")
+	ErrExchangeDisabled = errors.New("desired exchange is disabled")
 	EventSleepDelay     = defaultSleepDelay
 )
 

@@ -11,10 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -31,19 +27,23 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/depositaddress"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ntpmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
-// Engine contains configuration, portfoliomanager, exchange & ticker data and is the
+// Engine contains configuration, portfolio manager, exchange & ticker data and is the
 // overarching type across this code base.
 type Engine struct {
 	Config                      *config.Config
@@ -404,7 +404,7 @@ func (bot *Engine) Start() error {
 		}
 		bot.ntpManager, err = ntpmanager.Setup(&bot.Config.NTPClient, *bot.Config.Logging.Enabled)
 		if err != nil {
-			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %w", err)
+			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %s", err)
 		}
 	}
 
@@ -448,11 +448,11 @@ func (bot *Engine) Start() error {
 	if bot.Settings.EnableCommsRelayer {
 		bot.CommunicationsManager, err = communicationmanager.Setup(&bot.Config.Communications)
 		if err != nil {
-			gctlog.Errorf(gctlog.Global, "Communications manager unable to setup: %w", err)
+			gctlog.Errorf(gctlog.Global, "Communications manager unable to setup: %s", err)
 		} else {
 			err = bot.CommunicationsManager.Start()
 			if err != nil {
-				gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %w", err)
+				gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %s", err)
 			}
 		}
 	}
@@ -478,7 +478,7 @@ func (bot *Engine) Start() error {
 			},
 			bot.Settings.DataDir)
 		if err != nil {
-			gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %w", err)
+			gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %s", err)
 		}
 	}
 
@@ -503,7 +503,7 @@ func (bot *Engine) Start() error {
 			bot,
 			filePath)
 		if err != nil {
-			gctlog.Errorf(gctlog.Global, "API Server unable to start: %w", err)
+			gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
 		} else {
 			if bot.Settings.EnableDeprecatedRPC {
 				go bot.apiServer.StartRESTServer()
@@ -521,11 +521,11 @@ func (bot *Engine) Start() error {
 				bot.Settings.PortfolioManagerDelay,
 				bot.Settings.Verbose)
 			if err != nil {
-				gctlog.Errorf(gctlog.Global, "Fund manager unable to setup: %w", err)
+				gctlog.Errorf(gctlog.Global, "Fund manager unable to setup: %s", err)
 			} else {
 				err = bot.portfolioManager.Start(&bot.ServicesWG)
 				if err != nil {
-					gctlog.Errorf(gctlog.Global, "Fund manager unable to start: %w", err)
+					gctlog.Errorf(gctlog.Global, "Fund manager unable to start: %s", err)
 				}
 			}
 		}
@@ -543,11 +543,11 @@ func (bot *Engine) Start() error {
 			&bot.ServicesWG,
 			bot.Settings.Verbose)
 		if err != nil {
-			gctlog.Errorf(gctlog.Global, "Order manager unable to setup: %w", err)
+			gctlog.Errorf(gctlog.Global, "Order manager unable to setup: %s", err)
 		} else {
 			err = bot.OrderManager.Start()
 			if err != nil {
-				gctlog.Errorf(gctlog.Global, "Order manager unable to start: %w", err)
+				gctlog.Errorf(gctlog.Global, "Order manager unable to start: %s", err)
 			}
 		}
 	}
@@ -580,7 +580,7 @@ func (bot *Engine) Start() error {
 		go func() {
 			err = bot.eventManager.Start()
 			if err != nil {
-				gctlog.Errorf(gctlog.Global, "failed to start event manager. Err: %w", err)
+				gctlog.Errorf(gctlog.Global, "failed to start event manager. Err: %s", err)
 			}
 		}()
 	}
@@ -592,10 +592,10 @@ func (bot *Engine) Start() error {
 	if bot.Settings.EnableGCTScriptManager {
 		bot.GctScriptManager, err = gctscript.NewManager(&bot.Config.GCTScript)
 		if err != nil {
-			gctlog.Errorf(gctlog.Global, "failed to create script manager. Err: %w", err)
+			gctlog.Errorf(gctlog.Global, "failed to create script manager. Err: %s", err)
 		}
 		if err := bot.GctScriptManager.Start(&bot.ServicesWG); err != nil {
-			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %w", err)
+			gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %s", err)
 		}
 	}
 
@@ -650,7 +650,7 @@ func (bot *Engine) Stop() {
 
 	if bot.apiServer.IsRunning() {
 		if err := bot.apiServer.Stop(); err != nil {
-			gctlog.Errorf(gctlog.Global, "API Server unable to stop. Error: %w", err)
+			gctlog.Errorf(gctlog.Global, "API Server unable to stop. Error: %s", err)
 		}
 	}
 

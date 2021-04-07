@@ -36,6 +36,9 @@ func NewManager(config *Config) (*GctScriptManager, error) {
 
 // Started returns if gctscript manager subsystem is started
 func (g *GctScriptManager) Started() bool {
+	if g == nil {
+		return false
+	}
 	return atomic.LoadInt32(&g.started) == 1
 }
 

@@ -226,26 +226,26 @@ func isValidEvent(exchange, item string, condition EventConditionParams, action 
 	action = strings.ToUpper(action)
 
 	if !isValidExchange(exchange) {
-		return errExchangeDisabled
+		return ErrExchangeDisabled
 	}
 
 	if !isValidItem(item) {
-		return errInvalidItem
+		return ErrInvalidItem
 	}
 
 	if !isValidCondition(condition.Condition) {
-		return errInvalidCondition
+		return ErrInvalidCondition
 	}
 
 	if item == ItemPrice {
 		if condition.Price <= 0 {
-			return errInvalidCondition
+			return ErrInvalidCondition
 		}
 	}
 
 	if item == ItemOrderbook {
 		if condition.OrderbookAmount <= 0 {
-			return errInvalidCondition
+			return ErrInvalidCondition
 		}
 	}
 
@@ -253,10 +253,10 @@ func isValidEvent(exchange, item string, condition EventConditionParams, action 
 		a := strings.Split(action, ",")
 
 		if a[0] != ActionSMSNotify {
-			return errInvalidAction
+			return ErrInvalidAction
 		}
 	} else if action != ActionConsolePrint && action != ActionTest {
-		return errInvalidAction
+		return ErrInvalidAction
 	}
 
 	return nil

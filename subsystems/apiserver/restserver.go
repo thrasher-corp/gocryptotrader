@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"

@@ -24,6 +24,9 @@ var errNilConfig = errors.New("nil config")
 
 // IsRunning returns if the connection manager has started
 func (m *Manager) IsRunning() bool {
+	if m == nil {
+		return false
+	}
 	return atomic.LoadInt32(&m.started) == 1
 }
 

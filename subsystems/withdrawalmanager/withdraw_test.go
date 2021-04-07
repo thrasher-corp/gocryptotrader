@@ -3,9 +3,9 @@ package withdrawalmanager
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
@@ -31,6 +31,8 @@ var (
 		EnableDeprecatedRPC: false,
 		EnableWebsocketRPC:  false,
 	}
+	em exchangemanager.Manager
+	w  Manager
 )
 
 func cleanup() {
@@ -40,13 +42,17 @@ func cleanup() {
 	}
 }
 
-func TestSubmitWithdrawal(t *testing.T) {
-	w := Manager{exchangeManager: &exchangemanager.Manager{}}
-	exch, err := w.exchangeManager.NewExchangeByName(exchangeName)
+func TestMain(m *testing.M) {
+	em = exchangemanager.Manager{}
+	exch, err := em.NewExchangeByName(exchangeName)
 	if err != nil {
-		t.Error(err)
+		log.Fatal(err)
 	}
-	w.exchangeManager.Add(exch)
+	em.Add(exch)
+	w = Manager{exchangeManager: &em}
+}
+
+func TestSubmitWithdrawal(t *testing.T) {
 	banking.Accounts = append(banking.Accounts,
 		banking.Account{
 			Enabled:             true,
@@ -99,14 +105,14 @@ func TestWithdrawEventByID(t *testing.T) {
 	tempResp := &withdraw.Response{
 		ID: withdraw.DryRunID,
 	}
-	_, err := WithdrawalEventByID(withdraw.DryRunID.String())
+	_, err := w.WithdrawalEventByID(withdraw.DryRunID.String())
 	if err != nil {
 		if err.Error() != fmt.Errorf(ErrWithdrawRequestNotFound, withdraw.DryRunID.String()).Error() {
 			t.Fatal(err)
 		}
 	}
 	withdraw.Cache.Add(withdraw.DryRunID.String(), tempResp)
-	v, err := WithdrawalEventByID(withdraw.DryRunID.String())
+	v, err := w.WithdrawalEventByID(withdraw.DryRunID.String())
 	if err != nil {
 		if err != fmt.Errorf(ErrWithdrawRequestNotFound, withdraw.DryRunID.String()) {
 			t.Fatal(err)
@@ -118,82 +124,22 @@ func TestWithdrawEventByID(t *testing.T) {
 }
 
 func TestWithdrawalEventByExchange(t *testing.T) {
-	_, err := WithdrawalEventByExchange(exchangeName, 1)
+	_, err := w.WithdrawalEventByExchange(exchangeName, 1)
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 
 func TestWithdrawEventByDate(t *testing.T) {
-	_, err := WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
+	_, err := w.WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 
 func TestWithdrawalEventByExchangeID(t *testing.T) {
-	_, err := WithdrawalEventByExchangeID(exchangeName, exchangeName)
+	_, err := w.WithdrawalEventByExchangeID(exchangeName, exchangeName)
 	if err == nil {
 		t.Fatal(err)
-	}
-}
-
-func TestParseEvents(t *testing.T) {
-	var testData []*withdraw.Response
-	for x := 0; x < 5; x++ {
-		test := fmt.Sprintf("test-%v", x)
-		resp := &withdraw.Response{
-			ID: withdraw.DryRunID,
-			Exchange: withdraw.ExchangeResponse{
-				Name:   test,
-				ID:     test,
-				Status: test,
-			},
-			RequestDetails: withdraw.Request{
-				Exchange:    test,
-				Description: test,
-				Amount:      1.0,
-			},
-		}
-		if x%2 == 0 {
-			resp.RequestDetails.Currency = currency.AUD
-			resp.RequestDetails.Type = 1
-			resp.RequestDetails.Fiat = withdraw.FiatRequest{
-				Bank: banking.Account{
-					Enabled:             false,
-					ID:                  fmt.Sprintf("test-%v", x),
-					BankName:            fmt.Sprintf("test-%v-bank", x),
-					AccountName:         "hello",
-					AccountNumber:       fmt.Sprintf("test-%v", x),
-					BSBNumber:           "123456",
-					SupportedCurrencies: "BTC-AUD",
-					SupportedExchanges:  exchangeName,
-				},
-			}
-		} else {
-			resp.RequestDetails.Currency = currency.BTC
-			resp.RequestDetails.Type = 0
-			resp.RequestDetails.Crypto.Address = test
-			resp.RequestDetails.Crypto.FeeAmount = 0
-			resp.RequestDetails.Crypto.AddressTag = test
-		}
-		testData = append(testData, resp)
-	}
-	v := ParseMultipleEvents(testData)
-	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
-		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
-	}
-	if testData == nil || len(testData) < 2 {
-		t.Fatal("expected at least 2")
-	}
-
-	v = ParseSingleEvents(testData[0])
-	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
-		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
-	}
-
-	v = ParseSingleEvents(testData[1])
-	if v.Event[0].Request.Type != 0 {
-		t.Fatal("Expected second entry in slice to return a Request.Type of Crypto")
 	}
 }
