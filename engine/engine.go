@@ -11,12 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-
 	"github.com/thrasher-corp/gocryptotrader/subsystems/eventmanager"
-
 	"github.com/thrasher-corp/gocryptotrader/subsystems/withdrawalmanager"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -33,7 +31,6 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
-	portfoliosync "github.com/thrasher-corp/gocryptotrader/portfolio/sync"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
@@ -57,7 +54,7 @@ type Engine struct {
 	GctScriptManager            *gctscript.GctScriptManager
 	OrderManager                *ordermanager.Manager
 	portfolio                   *portfolio.Base
-	portfolioManager            *portfoliosync.Manager
+	portfolioManager            *portfoliomanager.Manager
 	ExchangeManager             *exchangemanager.Manager
 	CommunicationsManager       *communicationmanager.Manager
 	eventManager                *eventmanager.Manager
@@ -173,7 +170,7 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		if b.Settings.PortfolioManagerDelay == time.Duration(0) && s.PortfolioManagerDelay > 0 {
 			b.Settings.PortfolioManagerDelay = s.PortfolioManagerDelay
 		} else {
-			b.Settings.PortfolioManagerDelay = portfoliosync.PortfolioSleepDelay
+			b.Settings.PortfolioManagerDelay = portfoliomanager.PortfolioSleepDelay
 		}
 	}
 
@@ -519,7 +516,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnablePortfolioManager {
 		if bot.portfolioManager == nil {
-			bot.portfolioManager, err = portfoliosync.Setup(&bot.Config.Portfolio,
+			bot.portfolioManager, err = portfoliomanager.Setup(&bot.Config.Portfolio,
 				bot.ExchangeManager,
 				bot.Settings.PortfolioManagerDelay,
 				bot.Settings.Verbose)

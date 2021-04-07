@@ -12,6 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
+const Name = "communications"
+
 // Manager starts the communications manager
 type Manager struct {
 	started  int32

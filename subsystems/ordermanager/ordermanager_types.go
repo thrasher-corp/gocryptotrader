@@ -3,17 +3,25 @@ package ordermanager
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+const Name = "orders"
+
+// vars for the fund manager package
 var (
-	errOrderIDCannotBeEmpty = errors.New("orderID cannot be empty")
+	orderManagerDelay           = time.Second * 10
+	ErrOrdersAlreadyExists      = errors.New("order already exists")
+	ErrOrderNotFound            = errors.New("order does not exist")
+	errNilExchangeManager       = errors.New("cannot start with nil exchange manager")
+	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
+	errNilWaitGroup             = errors.New("cannot start with nil waitgroup")
+	errOrderIDCannotBeEmpty     = errors.New("orderID cannot be empty")
 )
 
 // iExchangeManager limits exposure of accessible functions to order manager

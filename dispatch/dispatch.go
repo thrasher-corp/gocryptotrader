@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
+
+const Name = "dispatch"
 
 func init() {
 	dispatcher = &Dispatcher{

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -25,6 +24,7 @@ const (
 	SyncItemTicker = iota
 	SyncItemOrderbook
 	SyncItemTrade
+	Name = "exchange_syncer"
 )
 
 var (

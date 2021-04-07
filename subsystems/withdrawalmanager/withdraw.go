@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-
 	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"

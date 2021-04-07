@@ -1,4 +1,4 @@
-package sync
+package portfoliomanager
 
 import (
 	"fmt"
@@ -14,6 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
+
+const Name = "portfolio"
 
 // vars for the fund manager package
 var (

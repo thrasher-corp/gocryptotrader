@@ -15,6 +15,8 @@ import (
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
+const Name = "database"
+
 var errNilConfig = errors.New("received nil database config")
 
 // Manager holds the database connection and its status

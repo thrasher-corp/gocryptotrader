@@ -13,8 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
-var errNilConfig = errors.New("nil NTP config received")
-
 func (m *Manager) IsRunning() bool {
 	if m == nil {
 		return false

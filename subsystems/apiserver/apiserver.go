@@ -17,26 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// Manager holds all relevant fields to manage both REST and websocket
-// api servers
-type Manager struct {
-	started                int32
-	restStarted            int32
-	websocketStarted       int32
-	restListenAddress      string
-	websocketListenAddress string
-	gctConfigPath          string
-
-	restRouter      *mux.Router
-	websocketRouter *mux.Router
-	websocketHub    *WebsocketHub
-
-	remoteConfig    *config.RemoteControlConfig
-	pprofConfig     *config.Profiler
-	exchangeManager iExchangeManager
-	bot             iBot
-}
-
 func Setup(remoteConfig *config.RemoteControlConfig, pprofConfig *config.Profiler, exchangeManager iExchangeManager, bot iBot, configPath string) (*Manager, error) {
 	if remoteConfig == nil {
 		return nil, errNilRemoteConfig

@@ -8,11 +8,12 @@ import (
 const (
 	defaultNTPCheckInterval = time.Second * 30
 	defaultRetryLimit       = 3
+	Name                    = "ntp_timekeeper"
 )
 
-// vars related to the NTP manager
 var (
 	errNTPDisabled = errors.New("ntp client disabled")
+	errNilConfig   = errors.New("nil NTP config received")
 )
 
 // Manager starts the NTP manager

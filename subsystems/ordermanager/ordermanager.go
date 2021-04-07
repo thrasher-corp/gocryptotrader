@@ -19,16 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
-// vars for the fund manager package
-var (
-	orderManagerDelay           = time.Second * 10
-	ErrOrdersAlreadyExists      = errors.New("order already exists")
-	ErrOrderNotFound            = errors.New("order does not exist")
-	errNilExchangeManager       = errors.New("cannot start with nil exchange manager")
-	errNilCommunicationsManager = errors.New("cannot start with nil communications manager")
-	errNilWaitGroup             = errors.New("cannot start with nil waitgroup")
-)
-
 // IsRunning returns the status of the OrderManager
 func (m *Manager) IsRunning() bool {
 	if m == nil {

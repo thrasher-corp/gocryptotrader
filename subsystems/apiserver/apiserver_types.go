@@ -4,8 +4,9 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/gorilla/mux"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -16,6 +17,8 @@ import (
 const (
 	WebsocketResponseSuccess = "OK"
 	restIndexResponse        = "<html>GoCryptoTrader RESTful interface. For the web GUI, please visit the <a href=https://github.com/thrasher-corp/gocryptotrader/blob/master/web/README.md>web GUI readme.</a></html>"
+	DeprecatedName           = "deprecated_rpc"
+	WebsocketName            = "websocket_rpc"
 )
 
 var (
@@ -37,6 +40,26 @@ type iExchangeManager interface {
 // iBot limits exposure of accessible functions to engine bot
 type iBot interface {
 	SetupExchanges() error
+}
+
+// Manager holds all relevant fields to manage both REST and websocket
+// api servers
+type Manager struct {
+	started                int32
+	restStarted            int32
+	websocketStarted       int32
+	restListenAddress      string
+	websocketListenAddress string
+	gctConfigPath          string
+
+	restRouter      *mux.Router
+	websocketRouter *mux.Router
+	websocketHub    *WebsocketHub
+
+	remoteConfig    *config.RemoteControlConfig
+	pprofConfig     *config.Profiler
+	exchangeManager iExchangeManager
+	bot             iBot
 }
 
 // WebsocketClient stores information related to the websocket client
