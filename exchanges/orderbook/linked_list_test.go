@@ -1258,11 +1258,11 @@ func TestAmount(t *testing.T) {
 
 	liquidity, value := a.amount()
 	if liquidity != 6 {
-		t.Fatalf("incorrect liquidity calculation expected 6 but receieved %f", liquidity)
+		t.Fatalf("incorrect liquidity calculation expected 6 but received %f", liquidity)
 	}
 
 	if value != 36 {
-		t.Fatalf("incorrect value calculation expected 36 but receieved %f", value)
+		t.Fatalf("incorrect value calculation expected 36 but received %f", value)
 	}
 }
 
