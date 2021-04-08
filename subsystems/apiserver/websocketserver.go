@@ -3,6 +3,7 @@ package apiserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -19,23 +20,30 @@ import (
 )
 
 // StartWebsocketServer starts a Websocket handler
-func (m *Manager) StartWebsocketServer() {
+func (m *Manager) StartWebsocketServer() error {
 	if !atomic.CompareAndSwapInt32(&m.websocketStarted, 0, 1) {
-		log.Error(log.CommunicationMgr, "websocket server already running")
-		return
+		return fmt.Errorf("websocket server %w", errAlreadyRuning)
 	}
 	if !m.remoteConfig.WebsocketRPC.Enabled {
 		atomic.StoreInt32(&m.websocketStarted, 0)
-		return
+		return fmt.Errorf("websocket %w", errServerDisabled)
 	}
+	atomic.StoreInt32(&m.started, 1)
 	log.Debugf(log.CommunicationMgr,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
 		common.ExtractHost(m.websocketListenAddress), common.ExtractPort(m.websocketListenAddress))
 	m.websocketRouter = m.newRouter(false)
-	err := http.ListenAndServe(m.websocketListenAddress, m.websocketRouter)
-	if err != nil {
-		log.Errorf(log.CommunicationMgr, "Failed to start websocket RPC handler. Err: %s", err)
+	m.websocketHttpServer = &http.Server{
+		Addr:    m.websocketListenAddress,
+		Handler: m.websocketRouter,
 	}
+	err := m.websocketHttpServer.ListenAndServe()
+	if err != nil {
+		atomic.StoreInt32(&m.websocketStarted, 0)
+		atomic.StoreInt32(&m.started, 0)
+		return err
+	}
+	return nil
 }
 
 // NewWebsocketHub Creates a new websocket hub

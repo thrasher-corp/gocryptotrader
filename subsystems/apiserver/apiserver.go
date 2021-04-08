@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -57,6 +58,20 @@ func (m *Manager) Stop() error {
 	m.restRouter = nil
 	m.websocketRouter = nil
 	m.websocketHub = nil
+	if m.restHttpServer != nil {
+		err := m.restHttpServer.Shutdown(context.Background())
+		if err != nil {
+			return err
+		}
+		m.restHttpServer = nil
+	}
+	if m.websocketHttpServer != nil {
+		err := m.websocketHttpServer.Shutdown(context.Background())
+		if err != nil {
+			return err
+		}
+		m.websocketHttpServer = nil
+	}
 	atomic.StoreInt32(&m.websocketStarted, 0)
 	atomic.StoreInt32(&m.restStarted, 0)
 	return nil
@@ -90,7 +105,7 @@ func (m *Manager) newRouter(isREST bool) *mux.Router {
 				runtime.SetMutexProfileFraction(m.pprofConfig.MutexProfileFraction)
 			}
 			log.Debugf(log.RESTSys,
-				"HTTP Go performance profiler (pprof) endpoint enabled: http://%h:%d/debug/pprof/\n",
+				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof/\n",
 				common.ExtractHost(m.websocketListenAddress),
 				common.ExtractPort(m.websocketListenAddress))
 			router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)

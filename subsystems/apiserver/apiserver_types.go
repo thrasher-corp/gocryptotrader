@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -29,6 +29,8 @@ var (
 	errNilExchangeManager = errors.New("received nil exchange manager")
 	errNilBot             = errors.New("received nil engine bot")
 	errEmptyConfigPath    = errors.New("received empty config path")
+	errServerDisabled     = errors.New("server disabled")
+	errAlreadyRuning      = errors.New("already running")
 )
 
 // iExchangeManager limits exposure of accessible functions to order manager
@@ -51,6 +53,8 @@ type Manager struct {
 	restListenAddress      string
 	websocketListenAddress string
 	gctConfigPath          string
+	restHttpServer         *http.Server
+	websocketHttpServer    *http.Server
 
 	restRouter      *mux.Router
 	websocketRouter *mux.Router

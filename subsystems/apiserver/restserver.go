@@ -14,23 +14,30 @@ import (
 )
 
 // StartRESTServer starts a REST handler
-func (m *Manager) StartRESTServer() {
+func (m *Manager) StartRESTServer() error {
 	if !atomic.CompareAndSwapInt32(&m.restStarted, 0, 1) {
-		log.Error(log.CommunicationMgr, "rest server already running")
+		return fmt.Errorf("rest server %w", errAlreadyRuning)
 	}
 	if !m.remoteConfig.DeprecatedRPC.Enabled {
 		atomic.StoreInt32(&m.restStarted, 0)
-		return
+		return fmt.Errorf("rest %w", errServerDisabled)
 	}
-
+	atomic.StoreInt32(&m.started, 1)
 	log.Debugf(log.RESTSys,
 		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
 		common.ExtractHost(m.restListenAddress), common.ExtractPort(m.restListenAddress))
 	m.restRouter = m.newRouter(true)
-	err := http.ListenAndServe(m.restListenAddress, m.restRouter)
-	if err != nil {
-		log.Errorf(log.RESTSys, "Failed to start deprecated RPC handler. Err: %s", err)
+	m.restHttpServer = &http.Server{
+		Addr:    m.restListenAddress,
+		Handler: m.restRouter,
 	}
+	err := m.restHttpServer.ListenAndServe()
+	if err != nil {
+		atomic.StoreInt32(&m.restStarted, 0)
+		atomic.StoreInt32(&m.started, 0)
+		return err
+	}
+	return nil
 }
 
 // restLogger logs the requests internally
@@ -102,7 +109,6 @@ func (m *Manager) restSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 func (m *Manager) restGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeOrderbooks
 	response.Data = getAllActiveOrderbooks(m.exchangeManager)
-	response.Data = getAllActiveOrderbooks(m.exchangeManager)
 	err := writeResponse(w, response)
 	if err != nil {
 		handleError(r.Method, err)
@@ -139,6 +145,14 @@ func (m *Manager) restGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Re
 	}
 }
 
+func (m *Manager) getIndex(w http.ResponseWriter, _ *http.Request) {
+	_, err := fmt.Fprint(w, restIndexResponse)
+	if err != nil {
+		log.Error(log.CommunicationMgr, err)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 // getAllActiveOrderbooks returns all enabled exchanges orderbooks
 func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
@@ -153,7 +167,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
 				log.Errorf(log.RESTSys,
-					"Exchange %h could not retrieve enabled currencies. Err: %h\n",
+					"Exchange %s could not retrieve enabled currencies. Err: %h\n",
 					exchName,
 					err)
 				continue
@@ -162,7 +176,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 				ob, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.RESTSys,
-						"Exchange %h failed to retrieve %h orderbook. Err: %h\n", exchName,
+						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
@@ -190,7 +204,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
 				log.Errorf(log.RESTSys,
-					"Exchange %h could not retrieve enabled currencies. Err: %h\n",
+					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
 					exchName,
 					err)
 				continue
@@ -199,7 +213,7 @@ func getAllActiveTickers(m iExchangeManager) []EnabledExchangeCurrencies {
 				t, err := exchanges[x].FetchTicker(currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.RESTSys,
-						"Exchange %h failed to retrieve %h ticker. Err: %h\n", exchName,
+						"Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
 						err)
 					continue
@@ -225,7 +239,7 @@ func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 			a, err := exchanges[x].FetchAccountInfo(assets[y])
 			if err != nil {
 				log.Errorf(log.RESTSys,
-					"Exchange %h failed to retrieve %h ticker. Err: %h\n",
+					"Exchange %s failed to retrieve %s ticker. Err: %s\n",
 					exchName,
 					assets[y],
 					err)
@@ -236,12 +250,4 @@ func getAllActiveAccounts(m iExchangeManager) []AllEnabledExchangeAccounts {
 		accounts = append(accounts, exchangeAccounts)
 	}
 	return accounts
-}
-
-func (m *Manager) getIndex(w http.ResponseWriter, _ *http.Request) {
-	_, err := fmt.Fprint(w, restIndexResponse)
-	if err != nil {
-		log.Error(log.CommunicationMgr, err)
-	}
-	w.WriteHeader(http.StatusOK)
 }

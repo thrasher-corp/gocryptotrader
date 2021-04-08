@@ -269,8 +269,11 @@ func ExtractHost(address string) string {
 
 // ExtractPort returns the port name out of a string
 func ExtractPort(host string) int {
-	portStr := strings.Split(host, ":")[1]
-	port, _ := strconv.Atoi(portStr)
+	portStrs := strings.Split(host, ":")
+	if len(portStrs) == 1 {
+		return -1
+	}
+	port, _ := strconv.Atoi(portStrs[1])
 	return port
 }
 

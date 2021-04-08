@@ -2,16 +2,189 @@ package apiserver
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
-	"runtime"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/subsystems"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 )
+
+func TestSetup(t *testing.T) {
+	_, err := Setup(nil, nil, nil, nil, "")
+	if !errors.Is(err, errNilRemoteConfig) {
+		t.Errorf("error '%v', expected '%v'", err, errNilRemoteConfig)
+	}
+
+	_, err = Setup(&config.RemoteControlConfig{}, nil, nil, nil, "")
+	if !errors.Is(err, errNilPProfConfig) {
+		t.Errorf("error '%v', expected '%v'", err, errNilPProfConfig)
+	}
+
+	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, nil, nil, "")
+	if !errors.Is(err, errNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
+	}
+
+	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, nil, "")
+	if !errors.Is(err, errNilBot) {
+		t.Errorf("error '%v', expected '%v'", err, errNilBot)
+	}
+
+	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, "")
+	if !errors.Is(err, errEmptyConfigPath) {
+		t.Errorf("error '%v', expected '%v'", err, errEmptyConfigPath)
+	}
+
+	wd, _ := os.Getwd()
+	_, err = Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+}
+
+func TestStartRESTServer(t *testing.T) {
+	wd, _ := os.Getwd()
+	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.StartRESTServer()
+	if !errors.Is(err, errServerDisabled) {
+		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
+	}
+	m.remoteConfig.DeprecatedRPC.Enabled = true
+	var wg sync.WaitGroup
+	wg.Add(1)
+	// this is difficult to test as a webserver actually starts, so quit if an immediate error is not received
+	go func() {
+		err = m.StartRESTServer()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+	time.Sleep(time.Second)
+	wg.Done()
+}
+
+func TestStartWebsocketServer(t *testing.T) {
+	wd, _ := os.Getwd()
+	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	err = m.StartWebsocketServer()
+	if !errors.Is(err, errServerDisabled) {
+		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
+	}
+	m.remoteConfig.WebsocketRPC.Enabled = true
+	err = m.StartWebsocketServer()
+	if err != nil && !strings.Contains(err.Error(), "invalid port") {
+		t.Error(err)
+	} else if err == nil {
+		t.Error("expected invalid port error")
+	}
+	m.websocketListenAddress = "localhost:9051"
+	var wg sync.WaitGroup
+	wg.Add(1)
+	// this is difficult to test as a webserver actually starts, so quit if an immediate error is not received
+	go func() {
+		err = m.StartWebsocketServer()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+	time.Sleep(time.Second)
+	wg.Done()
+}
+
+func TestStop(t *testing.T) {
+	wd, _ := os.Getwd()
+	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	err = m.Stop()
+	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
+	}
+	m.started = 1
+	m.websocketHttpServer = &http.Server{}
+	m.restHttpServer = &http.Server{}
+	err = m.Stop()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if m.restHttpServer != nil {
+		t.Error("expected nil")
+	}
+}
+
+func TestIsRunning(t *testing.T) {
+	m := &Manager{}
+	if m.IsRunning() {
+		t.Error("expected false")
+	}
+	m.started = 1
+	if !m.IsRunning() {
+		t.Error("expected true")
+	}
+	m = nil
+	if m.IsRunning() {
+		t.Error("expected false")
+	}
+}
+
+func TestGetAllActiveOrderbooks(t *testing.T) {
+	man := exchangemanager.Setup()
+	bs, err := man.NewExchangeByName("Bitstamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bs.SetDefaults()
+	man.Add(bs)
+	resp := getAllActiveOrderbooks(man)
+	if resp == nil {
+		t.Error("expected not nil")
+	}
+}
+
+func TestGetAllActiveTickers(t *testing.T) {
+	man := exchangemanager.Setup()
+	bs, err := man.NewExchangeByName("Bitstamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bs.SetDefaults()
+	man.Add(bs)
+	resp := getAllActiveTickers(man)
+	if resp == nil {
+		t.Error("expected not nil")
+	}
+}
+
+func TestGetAllActiveAccounts(t *testing.T) {
+	man := exchangemanager.Setup()
+	bs, err := man.NewExchangeByName("Bitstamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bs.SetDefaults()
+	man.Add(bs)
+	resp := getAllActiveAccounts(man)
+	if resp == nil {
+		t.Error("expected not nil")
+	}
+}
 
 func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 	w := httptest.NewRecorder()
@@ -25,8 +198,9 @@ func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 
 // TestConfigAllJsonResponse test if config/all restful json response is valid
 func TestConfigAllJsonResponse(t *testing.T) {
-	bot := engine.CreateTestBot(t)
-	resp := makeHTTPGetRequest(t, bot.Config)
+	var c config.Config
+	err := c.LoadConfig(config.TestFile, true)
+	resp := makeHTTPGetRequest(t, c)
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
@@ -39,79 +213,15 @@ func TestConfigAllJsonResponse(t *testing.T) {
 		t.Error("Response not parseable as json", err)
 	}
 
-	if reflect.DeepEqual(responseConfig, bot.Config) {
+	if reflect.DeepEqual(responseConfig, c) {
 		t.Error("Json not equal to config")
 	}
 }
 
-func TestInvalidHostRequest(t *testing.T) {
-	e := engine.CreateTestBot(t)
-	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Host = "invalidsite.com"
+// fakeBot is a basic implementation of the iBot interface used for testing
+type fakeBot struct{}
 
-	resp := httptest.NewRecorder()
-	newRouter(e, true).ServeHTTP(resp, req)
-
-	if status := resp.Code; status != http.StatusNotFound {
-		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
-	}
-}
-
-func TestValidHostRequest(t *testing.T) {
-	e := engine.CreateTestBot(t)
-	if config.Cfg.Name == "" {
-		config.Cfg = *e.Config
-	}
-	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Host = "localhost:9050"
-
-	resp := httptest.NewRecorder()
-	newRouter(e, true).ServeHTTP(resp, req)
-
-	if status := resp.Code; status != http.StatusOK {
-		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusOK, status)
-	}
-}
-
-func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
-	e := engine.CreateTestBot(t)
-	req, err := http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req.Host = "localhost:9050"
-	resp := httptest.NewRecorder()
-	newRouter(e, true).ServeHTTP(resp, req)
-	if status := resp.Code; status != http.StatusNotFound {
-		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
-	}
-
-	e.Config.Profiler.Enabled = true
-	e.Config.Profiler.MutexProfileFraction = 5
-	req, err = http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mutexValue := runtime.SetMutexProfileFraction(10)
-	if mutexValue != 0 {
-		t.Fatalf("SetMutexProfileFraction() should be 0 on first set received: %v", mutexValue)
-	}
-
-	resp = httptest.NewRecorder()
-	newRouter(e, true).ServeHTTP(resp, req)
-	mutexValue = runtime.SetMutexProfileFraction(10)
-	if mutexValue != 5 {
-		t.Fatalf("SetMutexProfileFraction() should be 5 after setup received: %v", mutexValue)
-	}
-	if status := resp.Code; status != http.StatusOK {
-		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusOK, status)
-	}
+// SetupExchanges is a basic implementation of the iBot interface used for testing
+func (f *fakeBot) SetupExchanges() error {
+	return nil
 }

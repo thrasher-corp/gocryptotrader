@@ -506,10 +506,20 @@ func (bot *Engine) Start() error {
 			gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
 		} else {
 			if bot.Settings.EnableDeprecatedRPC {
-				go bot.apiServer.StartRESTServer()
+				go func() {
+					err = bot.apiServer.StartRESTServer()
+					if err != nil {
+						gctlog.Errorf(gctlog.Global, "could not start REST API server: %w", err)
+					}
+				}()
 			}
 			if bot.Settings.EnableWebsocketRPC {
-				go bot.apiServer.StartWebsocketServer()
+				go func() {
+					err = bot.apiServer.StartWebsocketServer()
+					if err != nil {
+						gctlog.Errorf(gctlog.Global, "could not start websocket API server: %w", err)
+					}
+				}()
 			}
 		}
 	}
