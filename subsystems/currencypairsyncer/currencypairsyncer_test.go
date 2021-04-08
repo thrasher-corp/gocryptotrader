@@ -3,53 +3,81 @@ package currencypairsyncer
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/subsystems"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
 func TestNewCurrencyPairSyncer(t *testing.T) {
-	t.Skip()
-
-	if engine.Bot == nil {
-		engine.Bot = new(engine.Engine)
-	}
-	engine.Bot.Config = &config.Cfg
-	err := engine.Bot.Config.LoadConfig("", true)
-	if err != nil {
-		t.Fatalf("TestNewExchangeSyncer: Failed to load config: %s", err)
+	_, err := Setup(Config{}, nil, nil, nil)
+	if !errors.Is(err, errNoSyncItemsEnabled) {
+		t.Errorf("error '%v', expected '%v'", err, errNoSyncItemsEnabled)
 	}
 
-	engine.Bot.Settings.DisableExchangeAutoPairUpdates = true
-	engine.Bot.Settings.EnableExchangeWebsocketSupport = true
-
-	err = engine.Bot.SetupExchanges()
-	if err != nil {
-		t.Log(err)
+	_, err = Setup(Config{SyncTrades: true}, nil, nil, nil)
+	if !errors.Is(err, errNilExchangeManager) {
+		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	engine.Bot.ExchangeCurrencyPairManager, err = Setup(Config{
-		SyncTicker:       true,
-		SyncOrderbook:    false,
-		SyncTrades:       false,
-		SyncContinuously: false,
-	})
-	if err != nil {
-		t.Errorf("NewCurrencyPairSyncer failed: err %s", err)
+	_, err = Setup(Config{SyncTrades: true}, &exchangemanager.Manager{}, nil, nil)
+	if !errors.Is(err, errNilWebsocketDataReceiver) {
+		t.Errorf("error '%v', expected '%v'", err, errNilWebsocketDataReceiver)
 	}
 
-	engine.Bot.ExchangeCurrencyPairManager.Start()
-	time.Sleep(time.Second * 15)
-	engine.Bot.ExchangeCurrencyPairManager.Stop()
+	_, err = Setup(Config{SyncTrades: true}, &exchangemanager.Manager{}, &fakeBot{}, nil)
+	if !errors.Is(err, errNilConfig) {
+		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
+	}
+
+	m, err := Setup(Config{SyncTrades: true}, &exchangemanager.Manager{}, &fakeBot{}, &config.RemoteControlConfig{})
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	if m == nil {
+		t.Error("expected manager")
+	}
 }
 
+// fakeBot is a basic implementation of the iBot interface used for testing
+type fakeBot struct{}
+
+// SetupExchanges is a basic implementation of the iBot interface used for testing
+func (f *fakeBot) WebsocketDataReceiver(ws *stream.Websocket) {}
+
+func TestStart(t *testing.T) {
+	m, err := Setup(Config{SyncTrades: true}, &exchangemanager.Manager{}, &fakeBot{}, &config.RemoteControlConfig{})
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+	em := exchangemanager.Setup()
+	exch, err := em.NewExchangeByName("Bitstamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	em.Add(exch)
+	m.exchangeManager = em
+	m.config.SyncContinuously = true
+	err = m.Start()
+	if !errors.Is(err, nil) {
+		t.Errorf("error '%v', expected '%v'", err, nil)
+	}
+
+	err = m.Start()
+	if !errors.Is(err, subsystems.ErrSubSystemAlreadyStarted) {
+		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemAlreadyStarted)
+	}
+
+	m = nil
+	err = m.Start()
+	if !errors.Is(err, subsystems.ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrNilSubsystem)
+	}
+}
+
+/*
 func TestWebsocketDataHandlerProcess(t *testing.T) {
 	ws := sharedtestvalues.NewTestWebsocket()
 	b := ordermanager.OrdersSetup(t)
@@ -166,3 +194,4 @@ func TestHandleData(t *testing.T) {
 		t.Error(err)
 	}
 }
+*/

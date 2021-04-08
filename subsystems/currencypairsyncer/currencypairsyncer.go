@@ -8,14 +8,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/subsystems"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
 )
 
@@ -28,16 +29,30 @@ const (
 )
 
 var (
-	createdCounter       = 0
-	removedCounter       = 0
-	DefaultSyncerWorkers = 15
-	DefaultSyncerTimeout = time.Second * 15
+	createdCounter              = 0
+	removedCounter              = 0
+	DefaultSyncerWorkers        = 15
+	DefaultSyncerTimeout        = time.Second * 15
+	errNoSyncItemsEnabled       = errors.New("no sync items enabled")
+	errNilExchangeManager       = errors.New("nil exchange manager received")
+	errNilWebsocketDataReceiver = errors.New("nil websocket data receiver received")
+	errNilConfig                = errors.New("nil config received")
+	errUnknownSyncItem          = errors.New("unknown sync item")
 )
 
 // Setup starts a new CurrencyPairSyncer
 func Setup(c Config, exchangeManager iExchangeManager, websocketDataReceiver iWebsocketDataReceiver, remoteConfig *config.RemoteControlConfig) (*ExchangeCurrencyPairSyncer, error) {
 	if !c.SyncOrderbook && !c.SyncTicker && !c.SyncTrades {
-		return nil, errors.New("no sync items enabled")
+		return nil, errNoSyncItemsEnabled
+	}
+	if exchangeManager == nil {
+		return nil, errNilExchangeManager
+	}
+	if websocketDataReceiver == nil {
+		return nil, errNilWebsocketDataReceiver
+	}
+	if remoteConfig == nil {
+		return nil, errNilConfig
 	}
 
 	if c.NumWorkers <= 0 {
@@ -73,7 +88,13 @@ func Setup(c Config, exchangeManager iExchangeManager, websocketDataReceiver iWe
 }
 
 // Start starts an exchange currency pair syncer
-func (e *ExchangeCurrencyPairSyncer) Start() {
+func (e *ExchangeCurrencyPairSyncer) Start() error {
+	if e == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if !atomic.CompareAndSwapInt32(&e.started, 0, 1) {
+		return subsystems.ErrSubSystemAlreadyStarted
+	}
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
 	exchanges := e.exchangeManager.GetExchanges()
 	for x := range exchanges {
@@ -195,27 +216,35 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 
 			if !e.config.SyncContinuously {
 				log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopping.")
-				e.Stop()
+				err := e.Stop()
+				if err != nil {
+					log.Error(log.SyncMgr, err)
+				}
 				return
 			}
 		}
 	}()
 
 	if atomic.LoadInt32(&e.initSyncCompleted) == 1 && !e.config.SyncContinuously {
-		return
+		return nil
 	}
 
 	for i := 0; i < e.config.NumWorkers; i++ {
 		go e.worker()
 	}
+	return nil
 }
 
 // Stop shuts down the exchange currency pair syncer
-func (e *ExchangeCurrencyPairSyncer) Stop() {
-	if e == nil || !atomic.CompareAndSwapInt32(&e.shutdown, 0, 1) {
-
+func (e *ExchangeCurrencyPairSyncer) Stop() error {
+	if e == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if !atomic.CompareAndSwapInt32(&e.started, 1, 0) {
+		return subsystems.ErrSubSystemNotStarted
 	}
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
+	return nil
 }
 
 func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p currency.Pair, a asset.Item) (*currencyPairSyncAgent, error) {
@@ -351,27 +380,33 @@ func (e *ExchangeCurrencyPairSyncer) setProcessing(exchangeName string, p curren
 }
 
 // Update notifies the ExchangeCurrencyPairSyncer to change the last updated time for a exchange asset pair
-func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) {
+func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) error {
+	if e == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&e.started) != 0 {
+		return subsystems.ErrSubSystemNotStarted
+	}
+
 	if atomic.LoadInt32(&e.initSyncStarted) != 1 {
-		return
+		return nil
 	}
 
 	switch syncType {
 	case SyncItemOrderbook:
 		if !e.config.SyncOrderbook {
-			return
+			return nil
 		}
 	case SyncItemTicker:
 		if !e.config.SyncTicker {
-			return
+			return nil
 		}
 	case SyncItemTrade:
 		if !e.config.SyncTrades {
-			return
+			return nil
 		}
 	default:
-		log.Warnf(log.SyncMgr, "ExchangeCurrencyPairSyncer: unknown sync item %v\n", syncType)
-		return
+		return fmt.Errorf("%v %w", syncType, errUnknownSyncItem)
 	}
 
 	e.mux.Lock()
@@ -438,6 +473,7 @@ func (e *ExchangeCurrencyPairSyncer) Update(exchangeName string, p currency.Pair
 			}
 		}
 	}
+	return nil
 }
 
 func (e *ExchangeCurrencyPairSyncer) worker() {
@@ -447,8 +483,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 	}
 	defer cleanup()
 
-	for atomic.LoadInt32(&e.shutdown) != 1 {
-
+	for atomic.LoadInt32(&e.started) != 0 {
 		exchanges := e.exchangeManager.GetExchanges()
 		for x := range exchanges {
 			exchangeName := exchanges[x].GetName()
@@ -490,7 +525,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 					continue
 				}
 				for i := range enabledPairs {
-					if atomic.LoadInt32(&e.shutdown) == 1 {
+					if atomic.LoadInt32(&e.started) == 0 {
 						return
 					}
 
@@ -596,7 +631,10 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 											relayWebsocketEvent(result, "ticker_update", c.AssetType.String(), exchangeName)
 										}
 									}
-									e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, err)
+									updateErr := e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, err)
+									if updateErr != nil {
+										log.Error(log.SyncMgr, updateErr)
+									}
 								}
 							} else {
 								time.Sleep(time.Millisecond * 50)
@@ -635,7 +673,10 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										relayWebsocketEvent(result, "orderbook_update", c.AssetType.String(), exchangeName)
 									}
 								}
-								e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, err)
+								updateErr := e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, err)
+								if updateErr != nil {
+									log.Error(log.SyncMgr, updateErr)
+								}
 							} else {
 								time.Sleep(time.Millisecond * 50)
 							}
@@ -644,7 +685,10 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 							if !e.isProcessing(exchangeName, c.Pair, c.AssetType, SyncItemTrade) {
 								if c.Trade.LastUpdated.IsZero() || time.Since(c.Trade.LastUpdated) > e.config.SyncTimeout {
 									e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, true)
-									e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
+									err := e.Update(c.Exchange, c.Pair, c.AssetType, SyncItemTrade, nil)
+									if err != nil {
+										log.Error(log.SyncMgr, err)
+									}
 								}
 							}
 						}

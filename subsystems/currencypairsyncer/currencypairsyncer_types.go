@@ -57,7 +57,7 @@ type Config struct {
 type ExchangeCurrencyPairSyncer struct {
 	initSyncCompleted   int32
 	initSyncStarted     int32
-	shutdown            int32
+	started             int32
 	delimiter           string
 	uppercase           bool
 	initSyncStartTime   time.Time
