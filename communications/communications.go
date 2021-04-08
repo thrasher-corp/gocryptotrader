@@ -16,10 +16,13 @@ type Communications struct {
 	base.IComm
 }
 
+// ErrNoCommunicationRelayersEnabled returns when no relayers enabled
+var ErrNoCommunicationRelayersEnabled = errors.New("no communication relayers enabled")
+
 // NewComm sets up and returns a pointer to a Communications object
 func NewComm(cfg *config.CommunicationsConfig) (*Communications, error) {
 	if !cfg.IsAnyEnabled() {
-		return nil, errors.New("no communication relayers enabled")
+		return nil, ErrNoCommunicationRelayersEnabled
 	}
 
 	var comm Communications
