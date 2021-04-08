@@ -53,7 +53,7 @@ func getNow() now {
 // pushed to a stack.
 func (s *stack) Push(n *node, tn now) {
 	if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
-		// Cleaner is activated, for now we can dereference pointer
+		// Stack is in use, for now we can dereference pointer
 		n = nil
 		return
 	}
@@ -73,6 +73,7 @@ func (s *stack) Push(n *node, tn now) {
 // will produce a lovely fresh node
 func (s *stack) Pop() *node {
 	if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
+		// Stack is in use, for now we can allocate a new node pointer
 		return &node{}
 	}
 
@@ -97,6 +98,7 @@ func (s *stack) cleaner() {
 sleeperino:
 	for range tt.C {
 		if !atomic.CompareAndSwapUint32(&s.sema, neutral, active) {
+			// Stack is in use, reset timer to zero to recheck for neutral state.
 			tt.Reset(0)
 			continue
 		}
