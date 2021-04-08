@@ -18,4 +18,6 @@ var (
 	ErrSubSystemAlreadyStarted = errors.New("manager already started")
 	// ErrSubSystemNotStarted message to return when subsystem not started
 	ErrSubSystemNotStarted = errors.New("not started")
+	// ErrNilSubsystem is returned when a subsystem hasn't had its Setup() func run
+	ErrNilSubsystem = errors.New("subsystem not setup")
 )

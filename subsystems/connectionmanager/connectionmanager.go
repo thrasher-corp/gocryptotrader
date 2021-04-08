@@ -50,6 +50,9 @@ func Setup(cfg *config.ConnectionMonitorConfig) (*Manager, error) {
 
 // Start starts an instance of the connection manager
 func (m *Manager) Start() error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("connection manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
@@ -70,13 +73,15 @@ func (m *Manager) Start() error {
 
 // Stop stops the connection manager
 func (m *Manager) Stop() error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("connection manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {
 		atomic.CompareAndSwapInt32(&m.started, 1, 0)
 	}()
-
 	log.Debugln(log.ConnectionMgr, "Connection manager shutting down...")
 	m.conn.Shutdown()
 	log.Debugln(log.ConnectionMgr, "Connection manager stopped.")
@@ -85,6 +90,9 @@ func (m *Manager) Stop() error {
 
 // IsOnline returns if the connection manager is online
 func (m *Manager) IsOnline() bool {
+	if m == nil {
+		return false
+	}
 	if m.conn == nil {
 		log.Warnln(log.ConnectionMgr, "Connection manager: IsOnline called but conn is nil")
 		return false

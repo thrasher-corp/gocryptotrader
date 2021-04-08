@@ -52,6 +52,9 @@ func Setup(exchangeManager iExchangeManager, communicationsManager iCommsManager
 }
 
 func (m *Manager) Start() error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
@@ -63,7 +66,10 @@ func (m *Manager) Start() error {
 
 // Stop will attempt to shutdown the OrderManager
 func (m *Manager) Stop() error {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("order manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 

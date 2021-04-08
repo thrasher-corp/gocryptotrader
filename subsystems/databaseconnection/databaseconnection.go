@@ -67,6 +67,9 @@ func Setup(cfg *database.Config) (*Manager, error) {
 
 // Start sets up the database connection manager to maintain a SQL connection
 func (m *Manager) Start(wg *sync.WaitGroup) (err error) {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("database manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
@@ -110,7 +113,10 @@ func (m *Manager) Start(wg *sync.WaitGroup) (err error) {
 
 // Stop stops the database manager and closes the connection
 func (m *Manager) Stop() error {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("database manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {

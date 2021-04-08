@@ -1,12 +1,9 @@
-package communicationmanager
+package connectionmanager
 
 import (
 	"errors"
 	"testing"
-	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/communications"
-	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
@@ -17,16 +14,7 @@ func TestSetup(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
 	}
 
-	_, err = Setup(&config.CommunicationsConfig{})
-	if !errors.Is(err, communications.ErrNoCommunicationRelayersEnabled) {
-		t.Errorf("error '%v', expected '%v'", err, communications.ErrNoCommunicationRelayersEnabled)
-	}
-
-	m, err := Setup(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
-			Enabled: true,
-		},
-	})
+	m, err := Setup(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -36,11 +24,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestIsRunning(t *testing.T) {
-	m, err := Setup(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
-			Enabled: true,
-		},
-	})
+	m, err := Setup(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -62,11 +46,7 @@ func TestIsRunning(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
-	m, err := Setup(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
-			Enabled: true,
-		},
-	})
+	m, err := Setup(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -74,43 +54,19 @@ func TestStart(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	m.started = 1
 	err = m.Start()
 	if !errors.Is(err, subsystems.ErrSubSystemAlreadyStarted) {
 		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemAlreadyStarted)
 	}
-}
-
-func TestGetStatus(t *testing.T) {
-	m, err := Setup(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
-			Enabled: true,
-		},
-	})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	m = nil
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	_, err = m.GetStatus()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	m.started = 0
-	_, err = m.GetStatus()
-	if !errors.Is(err, subsystems.ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrSubSystemNotStarted)
+	if !errors.Is(err, subsystems.ErrNilSubsystem) {
+		t.Errorf("error '%v', expected '%v'", err, subsystems.ErrNilSubsystem)
 	}
 }
 
 func TestStop(t *testing.T) {
-	m, err := Setup(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
-			Enabled: true,
-		},
-	})
+	m, err := Setup(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -133,12 +89,8 @@ func TestStop(t *testing.T) {
 	}
 }
 
-func TestPushEvent(t *testing.T) {
-	m, err := Setup(&config.CommunicationsConfig{
-		SlackConfig: config.SlackConfig{
-			Enabled: true,
-		},
-	})
+func TestIsOnline(t *testing.T) {
+	m, err := Setup(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -146,9 +98,21 @@ func TestPushEvent(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	m.PushEvent(base.Event{})
-	time.Sleep(time.Second)
-	m.PushEvent(base.Event{})
+	// If someone runs this offline, who are we to fail them?
+	m.IsOnline()
+	err = m.Stop()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.IsOnline() {
+		t.Error("expected false")
+	}
+	m.conn = nil
+	if m.IsOnline() {
+		t.Error("expected false")
+	}
 	m = nil
-	m.PushEvent(base.Event{})
+	if m.IsOnline() {
+		t.Error("expected false")
+	}
 }

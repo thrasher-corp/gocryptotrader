@@ -52,6 +52,9 @@ func Setup(b *portfolio.Base, e *exchangemanager.Manager, portfolioManagerDelay 
 }
 
 func (m *Manager) Start(wg *sync.WaitGroup) error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("portfolio manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
@@ -63,7 +66,10 @@ func (m *Manager) Start(wg *sync.WaitGroup) error {
 }
 
 func (m *Manager) Stop() error {
-	if m == nil || !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("portfolio manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {

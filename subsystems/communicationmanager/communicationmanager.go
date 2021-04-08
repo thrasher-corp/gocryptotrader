@@ -48,6 +48,9 @@ func (m *Manager) IsRunning() bool {
 }
 
 func (m *Manager) Start() error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
 	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
 		return fmt.Errorf("communications manager %w", subsystems.ErrSubSystemAlreadyStarted)
 	}
@@ -65,7 +68,10 @@ func (m *Manager) GetStatus() (map[string]base.CommsStatus, error) {
 }
 
 func (m *Manager) Stop() error {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("communications manager %w", subsystems.ErrSubSystemNotStarted)
 	}
 	defer func() {

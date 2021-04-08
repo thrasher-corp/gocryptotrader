@@ -52,7 +52,10 @@ func (m *Manager) IsRunning() bool {
 }
 
 func (m *Manager) Stop() error {
-	if m == nil || !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
 		return fmt.Errorf("api server %w", subsystems.ErrSubSystemNotStarted)
 	}
 	m.restRouter = nil
