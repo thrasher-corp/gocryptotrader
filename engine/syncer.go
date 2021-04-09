@@ -547,6 +547,12 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 			}
 
 			wsAssetFunctional := exchanges[x].IsAssetWebsocketFunctional(assetTypes[y])
+			if !wsAssetFunctional {
+				log.Warnf(log.SyncMgr,
+					"%s asset type %s websocket functionality has been turned off, REST fetching only.",
+					exchangeName,
+					assetTypes[y])
+			}
 			enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
 			if err != nil {
 				log.Errorf(log.SyncMgr,
