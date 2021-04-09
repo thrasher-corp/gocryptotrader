@@ -24,5 +24,7 @@ type Signal struct {
 	LowPrice   float64
 	ClosePrice float64
 	Volume     float64
+	BuyLimit   float64
+	SellLimit  float64
 	Direction  order.Side
 }
