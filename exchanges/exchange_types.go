@@ -267,6 +267,6 @@ type URL uint16
 // the specific asset type. TODO: Deprecate as this is a temp item to address
 // certain limitations quickly.
 type AssetWebsocketSupport struct {
-	Unsupported map[asset.Item]bool
+	unsupported map[asset.Item]bool
 	m           sync.RWMutex
 }

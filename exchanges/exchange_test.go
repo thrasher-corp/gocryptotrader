@@ -2357,9 +2357,9 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 	}
 
 	// Edge case
-	b.AssetWebsocketSupport.Unsupported = make(map[asset.Item]bool)
-	b.AssetWebsocketSupport.Unsupported[asset.Spot] = true
-	b.AssetWebsocketSupport.Unsupported[asset.Futures] = false
+	b.AssetWebsocketSupport.unsupported = make(map[asset.Item]bool)
+	b.AssetWebsocketSupport.unsupported[asset.Spot] = true
+	b.AssetWebsocketSupport.unsupported[asset.Futures] = false
 
 	if b.IsAssetWebsocketSupported(asset.Spot) {
 		t.Fatal("error asset is turned off, so this should not be functional")

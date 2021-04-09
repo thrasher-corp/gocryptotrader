@@ -1281,10 +1281,10 @@ func (b *Base) DisableAssetWebsocketSupport(aType asset.Item) error {
 			asset.ErrNotSupported)
 	}
 	b.AssetWebsocketSupport.m.Lock()
-	if b.AssetWebsocketSupport.Unsupported == nil {
-		b.AssetWebsocketSupport.Unsupported = make(map[asset.Item]bool)
+	if b.AssetWebsocketSupport.unsupported == nil {
+		b.AssetWebsocketSupport.unsupported = make(map[asset.Item]bool)
 	}
-	b.AssetWebsocketSupport.Unsupported[aType] = true
+	b.AssetWebsocketSupport.unsupported[aType] = true
 	b.AssetWebsocketSupport.m.Unlock()
 	return nil
 }
@@ -1294,5 +1294,5 @@ func (b *Base) DisableAssetWebsocketSupport(aType asset.Item) error {
 func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool {
 	a.m.RLock()
 	defer a.m.RUnlock()
-	return a.Unsupported == nil || !a.Unsupported[aType]
+	return a.unsupported == nil || !a.unsupported[aType]
 }
