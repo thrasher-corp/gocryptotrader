@@ -13,12 +13,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/subsystems"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
-	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	_, err := Setup(nil, nil, nil, nil, "")
 	if !errors.Is(err, errNilRemoteConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilRemoteConfig)
@@ -52,6 +53,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestStartRESTServer(t *testing.T) {
+	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
 	if !errors.Is(err, nil) {
@@ -76,6 +78,7 @@ func TestStartRESTServer(t *testing.T) {
 }
 
 func TestStartWebsocketServer(t *testing.T) {
+	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
 	if !errors.Is(err, nil) {
@@ -107,6 +110,7 @@ func TestStartWebsocketServer(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
+	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := Setup(&config.RemoteControlConfig{}, &config.Profiler{}, &exchangemanager.Manager{}, &fakeBot{}, wd)
 	if !errors.Is(err, nil) {
@@ -130,6 +134,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestIsRunning(t *testing.T) {
+	t.Parallel()
 	m := &Manager{}
 	if m.IsRunning() {
 		t.Error("expected false")
@@ -159,6 +164,7 @@ func TestGetAllActiveOrderbooks(t *testing.T) {
 }
 
 func TestGetAllActiveTickers(t *testing.T) {
+	t.Parallel()
 	man := exchangemanager.Setup()
 	bs, err := man.NewExchangeByName("Bitstamp")
 	if err != nil {
@@ -173,6 +179,7 @@ func TestGetAllActiveTickers(t *testing.T) {
 }
 
 func TestGetAllActiveAccounts(t *testing.T) {
+	t.Parallel()
 	man := exchangemanager.Setup()
 	bs, err := man.NewExchangeByName("Bitstamp")
 	if err != nil {
@@ -198,6 +205,7 @@ func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 
 // TestConfigAllJsonResponse test if config/all restful json response is valid
 func TestConfigAllJsonResponse(t *testing.T) {
+	t.Parallel()
 	var c config.Config
 	err := c.LoadConfig(config.TestFile, true)
 	resp := makeHTTPGetRequest(t, c)

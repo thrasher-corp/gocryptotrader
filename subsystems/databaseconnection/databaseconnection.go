@@ -17,7 +17,10 @@ import (
 
 const Name = "database"
 
-var errNilConfig = errors.New("received nil database config")
+var (
+	errNilConfig        = errors.New("received nil database config")
+	errDatabaseDisabled = errors.New("database support disabled")
+)
 
 // Manager holds the database connection and its status
 type Manager struct {
@@ -55,6 +58,8 @@ func Setup(cfg *database.Config) (*Manager, error) {
 		database: cfg.Database,
 		driver:   cfg.Driver,
 	}
+	// bad code practice means we have to populate a global too to prevent panics
+	database.DB.Config = cfg
 
 	if m.verbose {
 		boil.DebugMode = true
@@ -84,23 +89,26 @@ func (m *Manager) Start(wg *sync.WaitGroup) (err error) {
 	m.shutdown = make(chan struct{})
 
 	if m.enabled {
-		if m.driver == database.DBPostgreSQL {
+		switch m.driver {
+		case database.DBPostgreSQL:
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
 				m.host,
 				m.database,
 				m.driver)
 			m.dbConn, err = dbpsql.Connect()
-		} else if m.driver == database.DBSQLite ||
-			m.driver == database.DBSQLite3 {
+		case database.DBSQLite,
+			database.DBSQLite3:
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to %s utilising %s driver\n",
 				m.database,
 				m.driver)
 			m.dbConn, err = dbsqlite3.Connect()
+		default:
+			return database.ErrNoDatabaseProvided
 		}
 		if err != nil {
-			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
+			return fmt.Errorf("%w: %v Some features that utilise a database will be unavailable", database.ErrFailedToConnect, err)
 		}
 		m.dbConn.Connected = true
 		wg.Add(1)
@@ -108,7 +116,7 @@ func (m *Manager) Start(wg *sync.WaitGroup) (err error) {
 		return nil
 	}
 
-	return errors.New("database support disabled")
+	return errDatabaseDisabled
 }
 
 // Stop stops the database manager and closes the connection
@@ -147,24 +155,41 @@ func (m *Manager) run(wg *sync.WaitGroup) {
 		case <-m.shutdown:
 			return
 		case <-t.C:
-			go m.checkConnection()
+			go func() {
+				err := m.checkConnection()
+				if err != nil {
+					log.Error(log.DatabaseMgr, "Database connection error:", err)
+				}
+			}()
 		}
 	}
 }
 
-func (m *Manager) checkConnection() {
+func (m *Manager) checkConnection() error {
+	if m == nil {
+		return subsystems.ErrNilSubsystem
+	}
+	if atomic.LoadInt32(&m.started) == 0 {
+		return subsystems.ErrSubSystemNotStarted
+	}
+	if !m.enabled {
+		return database.ErrDatabaseSupportDisabled
+	}
+	if m.dbConn == nil {
+		return database.ErrNoDatabaseProvided
+	}
 	m.dbConn.Mu.Lock()
 	defer m.dbConn.Mu.Unlock()
 
 	err := m.dbConn.SQL.Ping()
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Database connection error: %v\n", err)
 		m.dbConn.Connected = false
-		return
+		return err
 	}
 
 	if !m.dbConn.Connected {
 		log.Info(log.DatabaseMgr, "Database connection reestablished")
 		m.dbConn.Connected = true
 	}
+	return nil
 }

@@ -9,6 +9,7 @@ import (
 )
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	_, err := Setup(nil)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
@@ -24,6 +25,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestIsRunning(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -46,6 +48,7 @@ func TestIsRunning(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -66,6 +69,7 @@ func TestStart(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
@@ -90,6 +94,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestIsOnline(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(&config.ConnectionMonitorConfig{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)

@@ -12,6 +12,7 @@ import (
 )
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	_, err := Setup(nil)
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
@@ -36,6 +37,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestIsRunning(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(&config.CommunicationsConfig{
 		SlackConfig: config.SlackConfig{
 			Enabled: true,
@@ -62,6 +64,7 @@ func TestIsRunning(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(&config.CommunicationsConfig{
 		SlackConfig: config.SlackConfig{
 			Enabled: true,
@@ -82,6 +85,7 @@ func TestStart(t *testing.T) {
 }
 
 func TestGetStatus(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(&config.CommunicationsConfig{
 		SlackConfig: config.SlackConfig{
 			Enabled: true,
@@ -106,6 +110,7 @@ func TestGetStatus(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(&config.CommunicationsConfig{
 		SlackConfig: config.SlackConfig{
 			Enabled: true,
@@ -134,6 +139,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestPushEvent(t *testing.T) {
+	t.Parallel()
 	m, err := Setup(&config.CommunicationsConfig{
 		SlackConfig: config.SlackConfig{
 			Enabled: true,
