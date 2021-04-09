@@ -224,6 +224,8 @@ type Base struct {
 	settingsMutex               sync.RWMutex
 	OrderbookVerificationBypass bool
 	order.ExecutionLimits
+
+	AssetWebsocketFunctionality
 }
 
 // url lookup consts

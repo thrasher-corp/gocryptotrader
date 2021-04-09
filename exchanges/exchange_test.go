@@ -2323,3 +2323,49 @@ func TestSetRunning(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestAssetWebsocketFunctionality(t *testing.T) {
+	b := Base{}
+	if !b.IsAssetWebsocketFunctional(asset.Spot) {
+		t.Fatal("error asset is not turned off, so this should be functional")
+	}
+
+	err := b.SetAssetWebsocketFunctionalityOff(asset.Spot)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("expected error: %v but received: %v", asset.ErrNotSupported, err)
+	}
+
+	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = b.SetAssetWebsocketFunctionalityOff(asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("expected error: %v but received: %v", nil, err)
+	}
+
+	if b.IsAssetWebsocketFunctional(asset.Spot) {
+		t.Fatal("error asset is not turned off, so this should be functional")
+	}
+
+	// Edge case
+	b.AssetWebsocketFunctionality.NoFunctionality = make(map[asset.Item]bool)
+	b.AssetWebsocketFunctionality.NoFunctionality[asset.Spot] = true
+	b.AssetWebsocketFunctionality.NoFunctionality[asset.Futures] = false
+
+	if b.IsAssetWebsocketFunctional(asset.Spot) {
+		t.Fatal("error asset is turned off, so this should not be functional")
+	}
+
+	if !b.IsAssetWebsocketFunctional(asset.Futures) {
+		t.Fatal("error asset is not turned off, so this should be functional")
+	}
+}

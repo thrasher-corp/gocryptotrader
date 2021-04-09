@@ -92,11 +92,23 @@ func (b *Binance) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	err = b.SetAssetWebsocketFunctionalityOff(asset.Margin)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	err = b.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	err = b.SetAssetWebsocketFunctionalityOff(asset.CoinMarginedFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	err = b.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = b.SetAssetWebsocketFunctionalityOff(asset.USDTMarginedFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

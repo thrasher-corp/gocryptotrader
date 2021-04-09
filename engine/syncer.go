@@ -309,6 +309,8 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 				if exchanges[x].GetBase().CurrencyPairs.IsAssetEnabled(assetTypes[y]) != nil {
 					continue
 				}
+
+				wsAssetFunctional := exchanges[x].IsAssetWebsocketFunctional(assetTypes[y])
 				enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
 				if err != nil {
 					log.Errorf(log.SyncMgr,
@@ -329,25 +331,21 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 							Pair:      enabledPairs[i],
 						}
 
+						sBase := SyncBase{
+							IsUsingREST:      usingREST || !wsAssetFunctional,
+							IsUsingWebsocket: usingWebsocket && wsAssetFunctional,
+						}
+
 						if e.Cfg.SyncTicker {
-							c.Ticker = SyncBase{
-								IsUsingREST:      usingREST,
-								IsUsingWebsocket: usingWebsocket,
-							}
+							c.Ticker = sBase
 						}
 
 						if e.Cfg.SyncOrderbook {
-							c.Orderbook = SyncBase{
-								IsUsingREST:      usingREST,
-								IsUsingWebsocket: usingWebsocket,
-							}
+							c.Orderbook = sBase
 						}
 
 						if e.Cfg.SyncTrades {
-							c.Trade = SyncBase{
-								IsUsingREST:      usingREST,
-								IsUsingWebsocket: usingWebsocket,
-							}
+							c.Trade = sBase
 						}
 
 						e.add(&c)
@@ -548,6 +546,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 				continue
 			}
 
+			wsAssetFunctional := exchanges[x].IsAssetWebsocketFunctional(assetTypes[y])
 			enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
 			if err != nil {
 				log.Errorf(log.SyncMgr,
@@ -567,25 +566,21 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 					Pair:      enabledPairs[i],
 				}
 
+				sBase := SyncBase{
+					IsUsingREST:      usingREST || !wsAssetFunctional,
+					IsUsingWebsocket: usingWebsocket && wsAssetFunctional,
+				}
+
 				if e.Cfg.SyncTicker {
-					c.Ticker = SyncBase{
-						IsUsingREST:      usingREST,
-						IsUsingWebsocket: usingWebsocket,
-					}
+					c.Ticker = sBase
 				}
 
 				if e.Cfg.SyncOrderbook {
-					c.Orderbook = SyncBase{
-						IsUsingREST:      usingREST,
-						IsUsingWebsocket: usingWebsocket,
-					}
+					c.Orderbook = sBase
 				}
 
 				if e.Cfg.SyncTrades {
-					c.Trade = SyncBase{
-						IsUsingREST:      usingREST,
-						IsUsingWebsocket: usingWebsocket,
-					}
+					c.Trade = sBase
 				}
 
 				e.add(&c)

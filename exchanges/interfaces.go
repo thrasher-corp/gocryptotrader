@@ -82,6 +82,7 @@ type IBotExchange interface {
 	SupportsWebsocket() bool
 	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
+	IsAssetWebsocketFunctional(aType asset.Item) bool
 	// FlushWebsocketChannels checks and flushes subscriptions if there is a
 	// pair,asset, url/proxy or subscription change
 	FlushWebsocketChannels() error
