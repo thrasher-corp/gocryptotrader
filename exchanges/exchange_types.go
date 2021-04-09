@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -225,7 +226,7 @@ type Base struct {
 	OrderbookVerificationBypass bool
 	order.ExecutionLimits
 
-	AssetWebsocketFunctionality
+	AssetWebsocketSupport
 }
 
 // url lookup consts
@@ -261,3 +262,11 @@ var keyURLs = []URL{RestSpot,
 
 // URL stores uint conversions
 type URL uint16
+
+// AssetWebsocketSupport defines the availability of websocket functionality to
+// the specific asset type. TODO: Deprecate as this is a temp item to address
+// certain limitations quickly.
+type AssetWebsocketSupport struct {
+	Unsupported map[asset.Item]bool
+	m           sync.RWMutex
+}

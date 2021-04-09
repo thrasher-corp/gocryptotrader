@@ -92,7 +92,7 @@ func (b *Binance) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = b.SetAssetWebsocketFunctionalityOff(asset.Margin)
+	err = b.DisableAssetWebsocketSupport(asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -100,7 +100,7 @@ func (b *Binance) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = b.SetAssetWebsocketFunctionalityOff(asset.CoinMarginedFutures)
+	err = b.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -108,7 +108,7 @@ func (b *Binance) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = b.SetAssetWebsocketFunctionalityOff(asset.USDTMarginedFutures)
+	err = b.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

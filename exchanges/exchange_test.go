@@ -2326,11 +2326,11 @@ func TestSetRunning(t *testing.T) {
 
 func TestAssetWebsocketFunctionality(t *testing.T) {
 	b := Base{}
-	if !b.IsAssetWebsocketFunctional(asset.Spot) {
+	if !b.IsAssetWebsocketSupported(asset.Spot) {
 		t.Fatal("error asset is not turned off, so this should be functional")
 	}
 
-	err := b.SetAssetWebsocketFunctionalityOff(asset.Spot)
+	err := b.DisableAssetWebsocketSupport(asset.Spot)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("expected error: %v but received: %v", asset.ErrNotSupported, err)
 	}
@@ -2347,25 +2347,25 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = b.SetAssetWebsocketFunctionalityOff(asset.Spot)
+	err = b.DisableAssetWebsocketSupport(asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error: %v but received: %v", nil, err)
 	}
 
-	if b.IsAssetWebsocketFunctional(asset.Spot) {
+	if b.IsAssetWebsocketSupported(asset.Spot) {
 		t.Fatal("error asset is not turned off, so this should be functional")
 	}
 
 	// Edge case
-	b.AssetWebsocketFunctionality.NoFunctionality = make(map[asset.Item]bool)
-	b.AssetWebsocketFunctionality.NoFunctionality[asset.Spot] = true
-	b.AssetWebsocketFunctionality.NoFunctionality[asset.Futures] = false
+	b.AssetWebsocketSupport.Unsupported = make(map[asset.Item]bool)
+	b.AssetWebsocketSupport.Unsupported[asset.Spot] = true
+	b.AssetWebsocketSupport.Unsupported[asset.Futures] = false
 
-	if b.IsAssetWebsocketFunctional(asset.Spot) {
+	if b.IsAssetWebsocketSupported(asset.Spot) {
 		t.Fatal("error asset is turned off, so this should not be functional")
 	}
 
-	if !b.IsAssetWebsocketFunctional(asset.Futures) {
+	if !b.IsAssetWebsocketSupported(asset.Futures) {
 		t.Fatal("error asset is not turned off, so this should be functional")
 	}
 }

@@ -310,7 +310,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 					continue
 				}
 
-				wsAssetFunctional := exchanges[x].IsAssetWebsocketFunctional(assetTypes[y])
+				wsAssetSupported := exchanges[x].IsAssetWebsocketSupported(assetTypes[y])
 				enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
 				if err != nil {
 					log.Errorf(log.SyncMgr,
@@ -332,8 +332,8 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 						}
 
 						sBase := SyncBase{
-							IsUsingREST:      usingREST || !wsAssetFunctional,
-							IsUsingWebsocket: usingWebsocket && wsAssetFunctional,
+							IsUsingREST:      usingREST || !wsAssetSupported,
+							IsUsingWebsocket: usingWebsocket && wsAssetSupported,
 						}
 
 						if e.Cfg.SyncTicker {
@@ -546,10 +546,10 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 				continue
 			}
 
-			wsAssetFunctional := exchanges[x].IsAssetWebsocketFunctional(assetTypes[y])
-			if !wsAssetFunctional {
+			wsAssetSupported := exchanges[x].IsAssetWebsocketSupported(assetTypes[y])
+			if !wsAssetSupported {
 				log.Warnf(log.SyncMgr,
-					"%s asset type %s websocket functionality has been turned off, REST fetching only.",
+					"%s asset type %s websocket functionality is unsupported, REST fetching only.",
 					exchangeName,
 					assetTypes[y])
 			}
@@ -573,8 +573,8 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 				}
 
 				sBase := SyncBase{
-					IsUsingREST:      usingREST || !wsAssetFunctional,
-					IsUsingWebsocket: usingWebsocket && wsAssetFunctional,
+					IsUsingREST:      usingREST || !wsAssetSupported,
+					IsUsingWebsocket: usingWebsocket && wsAssetSupported,
 				}
 
 				if e.Cfg.SyncTicker {

@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1271,37 +1270,29 @@ func (b *Base) UpdateOrderExecutionLimits(a asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
-// AssetWebsocketFunctionality defines the availability of websocket
-// functionality to the specific asset type. TODO: Deprecate as this is a temp
-// item to address certain limitations quickly.
-type AssetWebsocketFunctionality struct {
-	NoFunctionality map[asset.Item]bool
-	m               sync.RWMutex
-}
-
-// SetAssetWebsocketFunctionalityOff forces websocket functionality for the
-// supplied asset item to off. In the case that websocket functionality has not
-// yet been implemented for that specific asset type.This is a base method to
+// DisableAssetWebsocketSupport disables websocket functionality for the
+// supplied asset item. In the case that websocket functionality has not yet
+// been implemented for that specific asset type. This is a base method to
 // check availability of asset type.
-func (b *Base) SetAssetWebsocketFunctionalityOff(aType asset.Item) error {
+func (b *Base) DisableAssetWebsocketSupport(aType asset.Item) error {
 	if !b.SupportsAsset(aType) {
-		return fmt.Errorf("%s %w this should be called after asset type initialisation",
+		return fmt.Errorf("%s %w",
 			aType,
 			asset.ErrNotSupported)
 	}
-	b.AssetWebsocketFunctionality.m.Lock()
-	if b.AssetWebsocketFunctionality.NoFunctionality == nil {
-		b.AssetWebsocketFunctionality.NoFunctionality = make(map[asset.Item]bool)
+	b.AssetWebsocketSupport.m.Lock()
+	if b.AssetWebsocketSupport.Unsupported == nil {
+		b.AssetWebsocketSupport.Unsupported = make(map[asset.Item]bool)
 	}
-	b.AssetWebsocketFunctionality.NoFunctionality[aType] = true
-	b.AssetWebsocketFunctionality.m.Unlock()
+	b.AssetWebsocketSupport.Unsupported[aType] = true
+	b.AssetWebsocketSupport.m.Unlock()
 	return nil
 }
 
-// IsAssetWebsocketFunctional checks to see if the supplied asset type has a
-// form of websocket functionality.
-func (a *AssetWebsocketFunctionality) IsAssetWebsocketFunctional(aType asset.Item) bool {
+// IsAssetWebsocketSupported checks to see if the supplied asset type is
+// supported by websocket.
+func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool {
 	a.m.RLock()
 	defer a.m.RUnlock()
-	return a.NoFunctionality == nil || !a.NoFunctionality[aType]
+	return a.Unsupported == nil || !a.Unsupported[aType]
 }
