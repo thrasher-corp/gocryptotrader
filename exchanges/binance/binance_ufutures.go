@@ -3,7 +3,6 @@ package binance
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -77,12 +76,8 @@ func (b *Binance) UFuturesOrderbook(symbol currency.Pair, limit int64) (OrderBoo
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	strLimit := strconv.FormatInt(limit, 10)
-	if strLimit != "" {
-		if !common.StringDataCompare(uValidOBLimits, strLimit) {
-			return resp, fmt.Errorf("invalid limit: %v", limit)
-		}
-		params.Set("limit", strLimit)
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	err = b.SendHTTPRequest(exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), limitDefault, &data)
 	if err != nil {
