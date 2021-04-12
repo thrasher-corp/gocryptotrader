@@ -2327,7 +2327,7 @@ func TestSetRunning(t *testing.T) {
 func TestAssetWebsocketFunctionality(t *testing.T) {
 	b := Base{}
 	if !b.IsAssetWebsocketSupported(asset.Spot) {
-		t.Fatal("error asset is not turned off, so this should be functional")
+		t.Fatal("error asset is not turned off, unexpected response")
 	}
 
 	err := b.DisableAssetWebsocketSupport(asset.Spot)
@@ -2353,7 +2353,7 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 	}
 
 	if b.IsAssetWebsocketSupported(asset.Spot) {
-		t.Fatal("error asset is not turned off, so this should be functional")
+		t.Fatal("error asset is not turned off, unexpected responsel")
 	}
 
 	// Edge case
@@ -2362,10 +2362,10 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 	b.AssetWebsocketSupport.unsupported[asset.Futures] = false
 
 	if b.IsAssetWebsocketSupported(asset.Spot) {
-		t.Fatal("error asset is turned off, so this should not be functional")
+		t.Fatal("error asset is turned off, unexpected response")
 	}
 
 	if !b.IsAssetWebsocketSupported(asset.Futures) {
-		t.Fatal("error asset is not turned off, so this should be functional")
+		t.Fatal("error asset is not turned off, unexpected response")
 	}
 }

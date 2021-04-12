@@ -76,7 +76,11 @@ updates:
 			if updts[x].ID != tip.value.ID { // Filter IDs that don't match
 				continue
 			}
-			tip.value.Price = updts[x].Price
+			if updts[x].Price > 0 {
+				// Only apply changes when zero values are not present, Bitmex
+				// for example sends 0 price values.
+				tip.value.Price = updts[x].Price
+			}
 			tip.value.Amount = updts[x].Amount
 			continue updates
 		}

@@ -429,6 +429,21 @@ func TestUpdateByID(t *testing.T) {
 	if !errors.Is(err, errIDCannotBeMatched) {
 		t.Fatalf("expecting %s but received %v", errIDCannotBeMatched, err)
 	}
+
+	err = a.updateByID(Items{ // Simulate Bitmex updating
+		{Price: 0, Amount: 1337, ID: 3},
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("expecting %v but received %v", nil, err)
+	}
+
+	if a.retrieve()[1].Price == 0 {
+		t.Fatal("price should not be replaced with zero")
+	}
+
+	if a.retrieve()[1].Amount != 1337 {
+		t.Fatal("unexpected value for update")
+	}
 }
 
 // 46043871	        25.9 ns/op	       0 B/op	       0 allocs/op
