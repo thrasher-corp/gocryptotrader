@@ -17,14 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
-	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/ntpmanager"
 	"github.com/pquerna/otp/totp"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -36,9 +28,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/apiserver"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/communicationmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/connectionmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/currencypairsyncer"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/databaseconnection"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ntpmanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/ordermanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems/portfoliomanager"
 )
 
 var (
@@ -609,7 +609,7 @@ func (bot *Engine) GetCryptocurrencyDepositAddressesByExchange(exchName string) 
 // exchange
 func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(exchName, accountID string, item currency.Code) (string, error) {
 	if bot.DepositAddressManager != nil {
-		return bot.DepositAddressManager.GetDepositAddressByExchange(exchName, item)
+		return bot.DepositAddressManager.GetDepositAddressByExchangeAndCurrency(exchName, item)
 	}
 
 	exch := bot.GetExchangeByName(exchName)

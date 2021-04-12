@@ -543,7 +543,12 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableDepositAddressManager {
 		bot.DepositAddressManager = depositaddress.Setup()
-		go bot.DepositAddressManager.Sync(bot.GetExchangeCryptocurrencyDepositAddresses())
+		go func() {
+			err = bot.DepositAddressManager.Sync(bot.GetExchangeCryptocurrencyDepositAddresses())
+			if err != nil {
+				gctlog.Errorf(gctlog.Global, "Deposit address manager unable to setup: %s", err)
+			}
+		}()
 	}
 
 	if bot.Settings.EnableOrderManager {

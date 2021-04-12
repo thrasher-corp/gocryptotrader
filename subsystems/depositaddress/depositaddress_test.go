@@ -1,65 +1,98 @@
 package depositaddress
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
+	"github.com/thrasher-corp/gocryptotrader/subsystems"
 )
 
 const (
-	testBTCAddress = "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX"
+	address  = "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX"
+	bitStamp = "BITSTAMP"
+	btc      = "BTC"
 )
 
-func TestSeed(t *testing.T) {
-	var d depositAddressStore
-	u := map[string]map[string]string{
-		"BITSTAMP": {
-			"BTC": testBTCAddress,
-		},
-	}
-
-	d.Seed(u)
-	r, err := d.GetDepositAddress("BITSTAMP", currency.BTC)
-	if err != nil {
-		t.Error("unexpected result")
-	}
-
-	if r != testBTCAddress {
-		t.Error("unexpected result")
+func TestSetup(t *testing.T) {
+	m := Setup()
+	if m.store == nil {
+		t.Fatal("expected store")
 	}
 }
 
-func TestGetDepositAddress(t *testing.T) {
-	var d depositAddressStore
-	_, err := d.GetDepositAddress("", currency.BTC)
-	if err != ErrDepositAddressStoreIsNil {
-		t.Error("non-error on non-existent exchange")
+func TestSync(t *testing.T) {
+	m := Setup()
+	err := m.Sync(map[string]map[string]string{
+		bitStamp: {
+			btc: address,
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	r, err := m.GetDepositAddressByExchangeAndCurrency(bitStamp, currency.BTC)
+	if err != nil {
+		t.Error("unexpected result")
+	}
+	if r != address {
+		t.Error("unexpected result")
 	}
 
-	d.Store = map[string]map[string]string{
-		"BITSTAMP": {
-			"BTC": testBTCAddress,
+	m.store = nil
+	err = m.Sync(map[string]map[string]string{
+		bitStamp: {
+			btc: address,
+		},
+	})
+	if !errors.Is(err, ErrDepositAddressStoreIsNil) {
+		t.Errorf("received %v, expected %v", err, ErrDepositAddressStoreIsNil)
+	}
+
+	m = nil
+	err = m.Sync(map[string]map[string]string{
+		bitStamp: {
+			btc: address,
+		},
+	})
+	if !errors.Is(err, subsystems.ErrNilSubsystem) {
+		t.Errorf("received %v, expected %v", err, subsystems.ErrNilSubsystem)
+	}
+
+}
+
+func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
+	m := Setup()
+	_, err := m.GetDepositAddressByExchangeAndCurrency("", currency.BTC)
+	if !errors.Is(err, ErrDepositAddressStoreIsNil) {
+		t.Errorf("received %v, expected %v", err, ErrDepositAddressStoreIsNil)
+	}
+
+	m.store = map[string]map[string]string{
+		bitStamp: {
+			btc: address,
 		},
 	}
+	_, err = m.GetDepositAddressByExchangeAndCurrency(bitStamp, currency.BTC)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
+}
 
-	_, err = d.GetDepositAddress("", currency.BTC)
-	if err != exchangemanager.ErrExchangeNotFound {
-		t.Error("non-error on non-existent exchange")
+func TestGetDepositAddressesByExchange(t *testing.T) {
+	m := Setup()
+	_, err := m.GetDepositAddressesByExchange("")
+	if !errors.Is(err, ErrDepositAddressStoreIsNil) {
+		t.Errorf("received %v, expected %v", err, ErrDepositAddressStoreIsNil)
 	}
 
-	var r string
-	r, err = d.GetDepositAddress("BiTStAmP", currency.NewCode("bTC"))
-	if err != nil {
-		t.Error("unexpected err: ", err)
+	m.store = map[string]map[string]string{
+		bitStamp: {
+			btc: address,
+		},
 	}
-
-	if r != testBTCAddress {
-		t.Error("unexpected BTC address: ", r)
-	}
-
-	_, err = d.GetDepositAddress("BiTStAmP", currency.LTC)
-	if err != ErrDepositAddressNotFound {
-		t.Error("unexpected err: ", err)
+	_, err = m.GetDepositAddressesByExchange(bitStamp)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
 	}
 }
