@@ -2353,7 +2353,7 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 	}
 
 	if b.IsAssetWebsocketSupported(asset.Spot) {
-		t.Fatal("error asset is not turned off, unexpected responsel")
+		t.Fatal("error asset is not turned off, unexpected response")
 	}
 
 	// Edge case
