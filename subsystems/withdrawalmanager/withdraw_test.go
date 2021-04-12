@@ -2,15 +2,12 @@ package withdrawalmanager
 
 import (
 	"errors"
-	"fmt"
-	"log"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
@@ -21,38 +18,22 @@ const (
 	exchangeName  = "Binance"
 )
 
-var (
-	settings = engine.Settings{
-		ConfigFile:          filepath.Join("..", "testdata", "configtest.json"),
-		EnableDryRun:        true,
-		DataDir:             filepath.Join("..", "testdata", "gocryptotrader"),
-		Verbose:             false,
-		EnableGRPC:          false,
-		EnableDeprecatedRPC: false,
-		EnableWebsocketRPC:  false,
-	}
-	em exchangemanager.Manager
-	w  Manager
-)
-
-func cleanup() {
-	err := os.RemoveAll(settings.DataDir)
-	if err != nil {
-		fmt.Printf("Clean up failed to remove file: %v manual removal may be required", err)
-	}
-}
+var em *exchangemanager.Manager
 
 func TestMain(m *testing.M) {
-	em = exchangemanager.Manager{}
-	exch, err := em.NewExchangeByName(exchangeName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	em.Add(exch)
-	w = Manager{exchangeManager: &em}
+	em = exchangemanager.Setup()
+	b := new(binance.Binance)
+	b.SetDefaults()
+	em.Add(b)
+	os.Exit(m.Run())
 }
 
 func TestSubmitWithdrawal(t *testing.T) {
+	m, err := Setup(em, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	banking.Accounts = append(banking.Accounts,
 		banking.Account{
 			Enabled:             true,
@@ -71,10 +52,9 @@ func TestSubmitWithdrawal(t *testing.T) {
 			SupportedExchanges:  "Binance",
 		},
 	)
-
 	bank, err := banking.GetBankAccountByID(bankAccountID)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	req := &withdraw.Request{
 		Exchange:    exchangeName,
@@ -86,60 +66,82 @@ func TestSubmitWithdrawal(t *testing.T) {
 			Bank: *bank,
 		},
 	}
-
-	_, err = w.SubmitWithdrawal(req)
-	if err != nil {
-		t.Fatal(err)
+	_, err = m.SubmitWithdrawal(req)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
 	}
 
-	_, err = w.SubmitWithdrawal(nil)
-	if err != nil {
-		if errors.Is(withdraw.ErrRequestCannotBeNil, err) {
-			t.Fatal(err)
-		}
+	req.Type = withdraw.Crypto
+	req.Currency = currency.BTC
+	_, err = m.SubmitWithdrawal(req)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
 	}
-	cleanup()
+
+	_, err = m.SubmitWithdrawal(nil)
+	if !errors.Is(err, withdraw.ErrRequestCannotBeNil) {
+		t.Errorf("received %v, expected %v", err, withdraw.ErrRequestCannotBeNil)
+	}
+
+	m.isDryRun = true
+	_, err = m.SubmitWithdrawal(req)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v, expected %v", err, nil)
+	}
 }
 
 func TestWithdrawEventByID(t *testing.T) {
+	m, err := Setup(em, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	tempResp := &withdraw.Response{
 		ID: withdraw.DryRunID,
 	}
-	_, err := w.WithdrawalEventByID(withdraw.DryRunID.String())
-	if err != nil {
-		if err.Error() != fmt.Errorf(ErrWithdrawRequestNotFound, withdraw.DryRunID.String()).Error() {
-			t.Fatal(err)
-		}
+	_, err = m.WithdrawalEventByID(withdraw.DryRunID.String())
+	if !errors.Is(err, ErrWithdrawRequestNotFound) {
+		t.Errorf("received %v, expected %v", err, ErrWithdrawRequestNotFound)
 	}
+
 	withdraw.Cache.Add(withdraw.DryRunID.String(), tempResp)
-	v, err := w.WithdrawalEventByID(withdraw.DryRunID.String())
-	if err != nil {
-		if err != fmt.Errorf(ErrWithdrawRequestNotFound, withdraw.DryRunID.String()) {
-			t.Fatal(err)
-		}
+	v, err := m.WithdrawalEventByID(withdraw.DryRunID.String())
+	if !errors.Is(err, nil) {
+		t.Errorf("expected %v, received %v", nil, err)
 	}
 	if v == nil {
-		t.Fatal("expected WithdrawalEventByID() to return data from cache")
+		t.Error("expected WithdrawalEventByID() to return data from cache")
 	}
 }
 
 func TestWithdrawalEventByExchange(t *testing.T) {
-	_, err := w.WithdrawalEventByExchange(exchangeName, 1)
-	if err == nil {
+	m, err := Setup(em, false)
+	if err != nil {
 		t.Fatal(err)
+	}
+	_, err = m.WithdrawalEventByExchange(exchangeName, 1)
+	if err == nil {
+		t.Error(err)
 	}
 }
 
 func TestWithdrawEventByDate(t *testing.T) {
-	_, err := w.WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
-	if err == nil {
+	m, err := Setup(em, false)
+	if err != nil {
 		t.Fatal(err)
+	}
+	_, err = m.WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
+	if err == nil {
+		t.Error(err)
 	}
 }
 
 func TestWithdrawalEventByExchangeID(t *testing.T) {
-	_, err := w.WithdrawalEventByExchangeID(exchangeName, exchangeName)
-	if err == nil {
+	m, err := Setup(em, false)
+	if err != nil {
 		t.Fatal(err)
+	}
+	_, err = m.WithdrawalEventByExchangeID(exchangeName, exchangeName)
+	if err == nil {
+		t.Error(err)
 	}
 }

@@ -12,10 +12,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/subsystems/exchangemanager"
 )
 
-const (
+var (
 	// ErrWithdrawRequestNotFound message to display when no record is found
-	ErrWithdrawRequestNotFound = "%v not found"
-	statusError                = "error"
+	ErrWithdrawRequestNotFound = errors.New("request not found")
 )
 
 type Manager struct {
@@ -67,7 +66,6 @@ func (m *Manager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, e
 		if req.Type == withdraw.Fiat {
 			ret, err = exch.WithdrawFiatFunds(req)
 			if err != nil {
-				resp.Exchange.ID = statusError
 				resp.Exchange.Status = err.Error()
 			} else {
 				resp.Exchange.Status = ret.Status
@@ -76,7 +74,6 @@ func (m *Manager) SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, e
 		} else if req.Type == withdraw.Crypto {
 			ret, err = exch.WithdrawCryptocurrencyFunds(req)
 			if err != nil {
-				resp.Exchange.ID = statusError
 				resp.Exchange.Status = err.Error()
 			} else {
 				resp.Exchange.Status = ret.Status
@@ -100,7 +97,7 @@ func (m *Manager) WithdrawalEventByID(id string) (*withdraw.Response, error) {
 
 	l, err := dbwithdraw.GetEventByUUID(id)
 	if err != nil {
-		return nil, fmt.Errorf(ErrWithdrawRequestNotFound, id)
+		return nil, fmt.Errorf("%w %v", ErrWithdrawRequestNotFound, id)
 	}
 	withdraw.Cache.Add(id, l)
 	return l, nil
