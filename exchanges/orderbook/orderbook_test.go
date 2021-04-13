@@ -55,9 +55,10 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 func TestVerify(t *testing.T) {
 	t.Parallel()
 	b := Base{
-		Exchange: "TestExchange",
-		Asset:    asset.Spot,
-		Pair:     currency.NewPair(currency.BTC, currency.USD),
+		Exchange:        "TestExchange",
+		Asset:           asset.Spot,
+		Pair:            currency.NewPair(currency.BTC, currency.USD),
+		VerifyOrderbook: true,
 	}
 
 	err := b.Verify()
@@ -563,6 +564,7 @@ func deployUnorderedSlice() Items {
 
 func TestSorting(t *testing.T) {
 	var b Base
+	b.VerifyOrderbook = true
 
 	b.Asks = deployUnorderedSlice()
 	err := b.Verify()
@@ -600,6 +602,7 @@ func deploySliceOrdered() Items {
 
 func TestReverse(t *testing.T) {
 	var b Base
+	b.VerifyOrderbook = true
 
 	length := 1000
 	b.Bids = deploySliceOrdered()
